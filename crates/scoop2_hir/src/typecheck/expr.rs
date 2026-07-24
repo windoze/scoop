@@ -1488,6 +1488,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         {
             self.diags.push(diagnostics::object_not_constructible(span));
         }
+        // 次构造器重载决议（若存在次构造器）：适用性 + 特异性（concrete 优于 generic）。
+        if let Some(ctors) = self.env.ctor_signatures(fqn).map(|c| c.to_vec())
+            && !ctors.is_empty()
+        {
+            return self.resolve_ctor_overloads(fqn, &ctors, args, span);
+        }
         // enum variant ctor：查找 enum FQN 对应的 variant 字段数。
         let params: Vec<TypeId> = self.env.ctor_params(fqn).unwrap_or(&[]).to_vec();
         // 如果 ctor_params 为空但参数不为空，可能是 enum variant ctor（未注册在 ctors 中）。
@@ -1715,6 +1721,160 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return Some(0);
         }
         None
+    }
+
+    /// 构造器签名对给定实参是否适用（位置实参 arity ∈ [min_arity, n] + 类型；命名实参映射）。
+    fn ctor_sig_applicable(&self, s: &Signature, args: &[CallArg], arg_types: &[TypeId]) -> bool {
+        let n = s.params.len();
+        let min_arity = s.has_defaults.iter().position(|d| *d).unwrap_or(n);
+        let has_named = args.iter().any(|a| a.name.is_some());
+        if has_named {
+            // 命名实参：每个名字必须在签名中，且类型可赋值；未提供的必需参数须有默认。
+            for (i, &pname) in s.param_names.iter().enumerate() {
+                let has_default = s.has_defaults.get(i).copied().unwrap_or(false);
+                let arg_idx = args
+                    .iter()
+                    .position(|a| a.name.as_ref().is_some_and(|n| n.symbol == pname));
+                if arg_idx.is_none() && !has_default {
+                    return false;
+                }
+                if let Some(idx) = arg_idx
+                    && !self.assignable(arg_types[idx], s.params[i])
+                {
+                    return false;
+                }
+            }
+            true
+        } else {
+            // 位置实参：arity ∈ [min_arity, n]，逐位类型可赋值。
+            if arg_types.len() < min_arity || arg_types.len() > n {
+                return false;
+            }
+            if s.type_param_count > 0 {
+                let bound = s.type_param_bounds.first().and_then(|b| *b);
+                arg_types
+                    .iter()
+                    .all(|a| bound.is_none_or(|bt| self.assignable(*a, bt)))
+            } else {
+                arg_types
+                    .iter()
+                    .zip(&s.params)
+                    .all(|(a, p)| self.assignable(*a, *p))
+            }
+        }
+    }
+
+    /// 次构造器重载决议：适用性 + 特异性（concrete 优于 generic；bound 不可比则歧义）。
+    fn resolve_ctor_overloads(
+        &mut self,
+        fqn: Symbol,
+        ctors: &[Signature],
+        args: &[CallArg],
+        span: Span,
+    ) -> TypeId {
+        let nominal = NominalType {
+            fqn,
+            args: vec![],
+            eff: None,
+        };
+        let result = if self.env.is_reference_nominal(fqn) {
+            self.env.store.ref_nominal(nominal)
+        } else {
+            self.env.store.value_nominal(nominal)
+        };
+        let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
+        let applicable: Vec<&Signature> = ctors
+            .iter()
+            .filter(|s| self.ctor_sig_applicable(s, args, &arg_types))
+            .collect();
+        if applicable.is_empty() {
+            self.diags.push(diagnostics::no_applicable_overload(span));
+            return result;
+        }
+        // 特异性：a 比 b 更具体（a.params ⊆ b.params 严格，或并列时 type_param_count 更少）。
+        let more_specific = |a: &Signature, b: &Signature| -> bool {
+            if a.params.len() != b.params.len() {
+                return false;
+            }
+            let a_sub_b = a
+                .params
+                .iter()
+                .zip(&b.params)
+                .all(|(ap, bp)| self.assignable_strict(*ap, *bp));
+            let b_sub_a = b
+                .params
+                .iter()
+                .zip(&a.params)
+                .all(|(bp, ap)| self.assignable_strict(*bp, *ap));
+            let has_param = |s: &Signature| {
+                s.params
+                    .iter()
+                    .any(|p| matches!(self.env.store.kind(*p), TypeKind::Param(_)))
+            };
+            if a_sub_b && !b_sub_a {
+                true
+            } else if a_sub_b && b_sub_a {
+                // 并列：concrete（参数无类型参数）优于 generic（参数含类型参数）；
+                // 否则按类型参数个数少者优先。
+                if has_param(a) != has_param(b) {
+                    !has_param(a) && has_param(b)
+                } else {
+                    a.type_param_count < b.type_param_count
+                }
+            } else {
+                false
+            }
+        };
+        let mut winner = vec![true; applicable.len()];
+        for i in 0..applicable.len() {
+            for j in 0..applicable.len() {
+                if i != j && more_specific(applicable[j], applicable[i]) {
+                    winner[i] = false;
+                }
+            }
+        }
+        let winners: Vec<usize> = winner
+            .iter()
+            .enumerate()
+            .filter(|(_, w)| **w)
+            .map(|(i, _)| i)
+            .collect();
+        if winners.len() == 1 {
+            return result;
+        }
+        // 歧义（含 incomparable bounds）。
+        let mut msg = "重载决议歧义：构造器不可区分".to_string();
+        if let (Some(i), Some(j)) = (winners.first().copied(), winners.get(1).copied())
+            && applicable[i].type_param_count > 0
+            && applicable[j].type_param_count > 0
+        {
+            let bound_of = |s: &Signature| s.type_param_bounds.first().and_then(|b| *b);
+            if let (Some(bi), Some(bj)) = (bound_of(applicable[i]), bound_of(applicable[j])) {
+                let fqn_text = |t: TypeId| {
+                    nominal_fqn_of(self.env.store.kind(t))
+                        .map(|f| self.env.interner.resolve(f).to_string())
+                        .unwrap_or_else(|| self.describe(t))
+                };
+                msg = format!(
+                    "reason: {} (from `T` declared bound) and {} (from `T` declared bound) are incomparable",
+                    fqn_text(bi),
+                    fqn_text(bj)
+                );
+            }
+        }
+        let mut diag =
+            scoop2_base::diag::Diagnostic::error("scoop::typecheck::ambiguous_overload", msg)
+                .with_primary(span, "这里");
+        let fqn_text = self.env.interner.resolve(fqn).to_string();
+        let name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
+        for &w in &winners {
+            let sig = applicable[w];
+            let params: Vec<String> = sig.params.iter().map(|p| self.describe(*p)).collect();
+            diag = diag.with_related(sig.decl_span, format!("{name}({})", params.join(", ")));
+        }
+        let _ = &mut diag; // quiet
+        self.diags.push(diag);
+        result
     }
 
     /// 查找 enum variant FQN 的 enum owner FQN（`pkg.Enum.Variant` → `pkg.Enum`）。

@@ -322,6 +322,7 @@ fn check_file_bodies(
                             diags,
                             package_prefix,
                             d.name.symbol,
+                            d.type_params.as_ref(),
                             &body.members,
                         );
                         // 有主构造器时，次构造器必须 `: this(...)` 委托（不能省略 / 不能 super）。

@@ -35,6 +35,8 @@ pub struct Signature {
     pub effect: Option<crate::syntax::ast::EffectRowExpr>,
     /// 是否带函数体（区分 interface default 方法 / abstract 方法；M6 用）。
     pub has_body: bool,
+    /// 声明 span（M3 构造器重载 related 标签用；顶层/成员默认 default）。
+    pub decl_span: scoop2_base::Span,
 }
 
 /// 顶层函数的注解属性（release-hook 等 cross-reference 校验用）。
@@ -56,6 +58,8 @@ pub struct TypeEnv<'i> {
     members: HashMap<Symbol, HashMap<Symbol, TypeId>>,
     /// 类型 FQN → 主构造参数类型列表。
     ctors: HashMap<Symbol, Vec<TypeId>>,
+    /// 类型 FQN → 次构造器签名重载集（M3 构造器重载决议用）。
+    ctor_signatures: HashMap<Symbol, Vec<Signature>>,
     /// 类型 FQN → (方法名 → 签名重载集)。成员函数（含扩展）。
     member_signatures: HashMap<Symbol, HashMap<Symbol, Vec<Signature>>>,
     /// 带 `@CLayout` 注解的 struct FQN 集合（native `@Extern` ABI 允许的 nominal 值类型）。
@@ -83,6 +87,7 @@ impl<'i> TypeEnv<'i> {
             signatures: HashMap::new(),
             members: HashMap::new(),
             ctors: HashMap::new(),
+            ctor_signatures: HashMap::new(),
             member_signatures: HashMap::new(),
             clayout_structs: HashSet::new(),
             fun_attrs: HashMap::new(),
@@ -163,6 +168,11 @@ impl<'i> TypeEnv<'i> {
     /// 类型的主构造参数类型列表。
     pub fn ctor_params(&self, fqn: Symbol) -> Option<&[TypeId]> {
         self.ctors.get(&fqn).map(|v| v.as_slice())
+    }
+
+    /// 类型的次构造器签名重载集。
+    pub fn ctor_signatures(&self, fqn: Symbol) -> Option<&[Signature]> {
+        self.ctor_signatures.get(&fqn).map(|v| v.as_slice())
     }
 
     /// 类型的属性 / 字段成员类型（`type_fqn.member_name`）。
@@ -279,6 +289,7 @@ pub fn register_top_level_signatures(
                 modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(&d.modifiers),
                 effect: d.effect.clone(),
                 has_body: d.body.is_some(),
+                decl_span: scoop2_base::Span::default(),
             }
         };
         env.signatures.entry(fqn).or_default().push(sig);
@@ -500,6 +511,7 @@ fn register_body_members(
                         ),
                         effect: d.effect.clone(),
                         has_body: d.body.is_some(),
+                        decl_span: scoop2_base::Span::default(),
                     }
                 };
                 env.member_signatures
@@ -811,6 +823,95 @@ pub fn register_constructors(
                 })
                 .collect();
             env.ctors.insert(owner, params);
+        }
+        // 次构造器签名（M3 构造器重载决议用）。若有次构造器，则连同主构造器一起登记。
+        if let Some(body) = &d.body {
+            use crate::syntax::ast::TypeMemberKind;
+            // 合并类型自身 + 次构造器的类型参数（次构造器可引用类型的类型参数）。
+            let type_tp_count = d
+                .type_params
+                .as_ref()
+                .map(|tp| tp.params.len())
+                .unwrap_or(0);
+            let mut secondary: Vec<Signature> = Vec::new();
+            for m in &body.members {
+                let TypeMemberKind::SecondaryCtor(c) = &m.kind else {
+                    continue;
+                };
+                let mut tp_map = build_tp_map(d.type_params.as_ref());
+                tp_map.extend(build_tp_map(c.type_params.as_ref()));
+                let unit_ty = env.store.unit();
+                let (params, tpb) = {
+                    let mut lower =
+                        TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
+                    let params: Vec<TypeId> = c
+                        .params
+                        .iter()
+                        .map(|p| match &p.ty {
+                            Some(t) => lower.lower(t),
+                            None => unit_ty,
+                        })
+                        .collect();
+                    // 次构造器自身的类型参数 bound（类型自身的类型参数 bound 由类型负责）。
+                    let tpb = lower_type_param_bounds(c.type_params.as_ref(), &mut lower);
+                    (params, tpb)
+                };
+                secondary.push(Signature {
+                    param_names: c.params.iter().map(|p| p.name.symbol).collect(),
+                    has_defaults: c.params.iter().map(|p| p.default.is_some()).collect(),
+                    params,
+                    return_ty: unit_ty,
+                    type_param_count: c
+                        .type_params
+                        .as_ref()
+                        .map(|tp| tp.params.len())
+                        .unwrap_or(0),
+                    type_param_bounds: tpb,
+                    modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(&c.modifiers),
+                    effect: None,
+                    has_body: true,
+                    decl_span: c.span,
+                });
+            }
+            if !secondary.is_empty() {
+                // 主构造器作为首个候选（含默认参数；共享类型的类型参数）。
+                if let Some(primary_params) = env.ctors.get(&owner).cloned() {
+                    let primary_tp_bounds = {
+                        let mut lower = TypeLowering::new(
+                            env,
+                            imports,
+                            build_tp_map(d.type_params.as_ref()),
+                            package_prefix.to_string(),
+                            diags,
+                        );
+                        lower_type_param_bounds(d.type_params.as_ref(), &mut lower)
+                    };
+                    let primary_defaults: Vec<bool> = d
+                        .primary_ctor
+                        .iter()
+                        .flat_map(|pc| pc.params.iter().map(|cp| cp.default.is_some()))
+                        .collect();
+                    let primary_names: Vec<Symbol> = d
+                        .primary_ctor
+                        .iter()
+                        .flat_map(|pc| pc.params.iter().map(|cp| cp.name.symbol))
+                        .collect();
+                    let mut all = vec![Signature {
+                        param_names: primary_names,
+                        has_defaults: primary_defaults,
+                        params: primary_params,
+                        return_ty: env.store.unit(),
+                        type_param_count: type_tp_count,
+                        type_param_bounds: primary_tp_bounds,
+                        modifiers: crate::resolve::symbol::ModifierSet::default(),
+                        effect: None,
+                        has_body: true,
+                        decl_span: d.name.span,
+                    }];
+                    all.extend(secondary);
+                    env.ctor_signatures.insert(owner, all);
+                }
+            }
         }
     }
 }

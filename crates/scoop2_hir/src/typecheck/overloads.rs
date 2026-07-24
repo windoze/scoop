@@ -25,6 +25,7 @@ pub fn check_ctor_overload_conflicts(
     diags: &mut DiagnosticSink,
     package_prefix: &str,
     class_name: scoop2_base::Symbol,
+    class_type_params: Option<&crate::syntax::ast::TypeParamList>,
     members: &[crate::syntax::ast::TypeMember],
 ) {
     use crate::syntax::ast::TypeMemberKind;
@@ -42,7 +43,18 @@ pub fn check_ctor_overload_conflicts(
     let fqn_text = fqn_of(env, package_prefix, class_name);
     let infos: Vec<OverloadInfo> = ctors
         .iter()
-        .map(|(span, c)| build_ctor_info(env, imports, diags, package_prefix, class_name, *span, c))
+        .map(|(span, c)| {
+            build_ctor_info(
+                env,
+                imports,
+                diags,
+                package_prefix,
+                class_name,
+                *span,
+                class_type_params,
+                c,
+            )
+        })
         .collect();
     let mut hit = false;
     for i in 0..infos.len() {
@@ -60,6 +72,7 @@ pub fn check_ctor_overload_conflicts(
 }
 
 /// 从次构造器构建重载视图。
+#[allow(clippy::too_many_arguments)]
 fn build_ctor_info(
     env: &mut TypeEnv,
     imports: &ImportTable,
@@ -67,16 +80,21 @@ fn build_ctor_info(
     package_prefix: &str,
     class_name: scoop2_base::Symbol,
     span: scoop2_base::Span,
+    class_type_params: Option<&crate::syntax::ast::TypeParamList>,
     ctor: &crate::syntax::ast::SecondaryCtorDecl,
 ) -> OverloadInfo {
-    let tp_map = type_param_map_of(ctor.type_params.as_ref());
-    let tp_bounds = type_param_effective_bounds_of(
+    // 合并类型自身 + 次构造器的类型参数（次构造器可引用类型的类型参数）。
+    let mut tp_map = type_param_map_of(class_type_params);
+    tp_map.extend(type_param_map_of(ctor.type_params.as_ref()));
+    let mut tp_bounds =
+        type_param_effective_bounds_of(env, imports, diags, package_prefix, class_type_params);
+    tp_bounds.extend(type_param_effective_bounds_of(
         env,
         imports,
         diags,
         package_prefix,
         ctor.type_params.as_ref(),
-    );
+    ));
     let mut eff: Vec<String> = Vec::new();
     let mut defaults: Vec<bool> = Vec::new();
     for p in &ctor.params {
