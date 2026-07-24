@@ -363,6 +363,18 @@ fn check_file_bodies(
                         }
                     }
                 }
+                // 委托属性（class owner）：delegate 的 getValue/setValue 校验。
+                if d.kind == crate::syntax::ast::TypeKind::Class
+                    && let Some(body) = &d.body
+                {
+                    for m in &body.members {
+                        if let crate::syntax::ast::TypeMemberKind::Property(pd) = &m.kind
+                            && pd.delegate.is_some()
+                        {
+                            check_delegated_property(env, imports, diags, package_prefix, pd);
+                        }
+                    }
+                }
                 // 虚方法（open/abstract/override/interface 方法）不能引入方法级类型参数（spec P3 §4.5）。
                 if let Some(body) = &d.body {
                     for m in &body.members {
@@ -687,6 +699,153 @@ fn annotation_class_error(
         }
     }
     None
+}
+
+/// 校验委托属性（`by`）的 delegate：必须有 `getValue`（`var` 还需 `setValue`），且签名匹配。
+fn check_delegated_property(
+    env: &mut TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+    pd: &crate::syntax::ast::PropertyDecl,
+) {
+    use crate::syntax::ast::{ExprKind, ValKind};
+    // 仅处理 `Type()` 构造调用形式的 delegate。
+    let delegate_expr = match &pd.delegate {
+        Some(e) => e,
+        None => return,
+    };
+    // 诊断指向 delegate 表达式（与 legacy 一致）。
+    let delegate_span = delegate_expr.span;
+    let callee_name = match &delegate_expr.kind {
+        ExprKind::Call { callee, .. } => match &callee.kind {
+            ExprKind::Ident(id) => Some(id.symbol),
+            _ => None,
+        },
+        _ => None,
+    };
+    let Some(callee) = callee_name else {
+        return;
+    };
+    let fqn_text = {
+        let n = env.interner.resolve(callee);
+        if package_prefix.is_empty() {
+            n.to_string()
+        } else {
+            format!("{package_prefix}.{n}")
+        }
+    };
+    let Some(delegate_fqn) = env.interner.get(&fqn_text) else {
+        return;
+    };
+    let get_value = env.interner.get("getValue").unwrap_or(callee);
+    let set_value = env.interner.get("setValue").unwrap_or(callee);
+
+    // getValue 必须存在。
+    let Some(get_sigs) = env.member_signatures(delegate_fqn, get_value) else {
+        diags.push(diagnostics::delegated_property_missing_get_value(
+            delegate_span,
+        ));
+        return;
+    };
+    let Some(get_sig) = get_sigs.first() else {
+        diags.push(diagnostics::delegated_property_missing_get_value(
+            delegate_span,
+        ));
+        return;
+    };
+    // getValue 的 `property` 参数（第 2 个）必须是 `PropertyMeta`。
+    if get_sig.params.len() >= 2 {
+        let prop_ty = get_sig.params[1];
+        if !is_property_meta_type(env, prop_ty) {
+            diags.push(
+                diagnostics::delegated_property_get_value_signature_mismatch(
+                    &fmt_type_short(env, prop_ty),
+                    delegate_span,
+                ),
+            );
+            return;
+        }
+    }
+    // var：setValue 必须存在，且 value 参数类型匹配属性类型。
+    if pd.kind == ValKind::Var {
+        let Some(set_sigs) = env.member_signatures(delegate_fqn, set_value) else {
+            diags.push(diagnostics::delegated_property_missing_set_value(
+                delegate_span,
+            ));
+            return;
+        };
+        let Some(set_sig) = set_sigs.first() else {
+            diags.push(diagnostics::delegated_property_missing_set_value(
+                delegate_span,
+            ));
+            return;
+        };
+        if set_sig.params.len() >= 3
+            && let Some(prop_ty_ref) = &pd.ty
+        {
+            let value_ty = set_sig.params[2];
+            let prop_ty = {
+                let mut lower = crate::typecheck::lower::TypeLowering::new(
+                    env,
+                    imports,
+                    std::collections::HashMap::new(),
+                    package_prefix.to_string(),
+                    diags,
+                );
+                lower.lower(prop_ty_ref)
+            };
+            if value_ty != prop_ty {
+                diags.push(
+                    diagnostics::delegated_property_set_value_signature_mismatch(
+                        &fmt_type_fqn(env, prop_ty),
+                        delegate_span,
+                    ),
+                );
+            }
+        }
+    }
+}
+
+/// 是否为 `PropertyMeta` 类型。
+fn is_property_meta_type(env: &TypeEnv, id: crate::ty::TypeId) -> bool {
+    let fqn = match env.store.kind(id) {
+        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+        | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => Some(n.fqn),
+        _ => None,
+    };
+    fqn.map(|f| env.interner.resolve(f).ends_with(".PropertyMeta"))
+        .unwrap_or(false)
+}
+
+/// 类型短名（诊断用）。
+fn fmt_type_short(env: &TypeEnv, id: crate::ty::TypeId) -> String {
+    match env.store.kind(id) {
+        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any) => "Any".into(),
+        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::String) => "String".into(),
+        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+        | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+            env.interner.resolve(n.fqn).to_string()
+        }
+        other => format!("{other:?}"),
+    }
+}
+
+/// 类型 FQN（诊断用；标量映射到 scoop.core 短名，nominal 用全限定）。
+fn fmt_type_fqn(env: &TypeEnv, id: crate::ty::TypeId) -> String {
+    match env.store.kind(id) {
+        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any) => "scoop.core.Any".into(),
+        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::String) => "scoop.core.String".into(),
+        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+        | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+            env.interner.resolve(n.fqn).to_string()
+        }
+        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Int) => "scoop.core.Int".into(),
+        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UInt) => "scoop.core.UInt".into(),
+        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Bool) => "scoop.core.Bool".into(),
+        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Unit) => "scoop.core.Unit".into(),
+        other => format!("{other:?}"),
+    }
 }
 
 /// 校验 where 子句：约束目标必须在当前声明的类型参数中；同一 (目标, 约束) 不得重复。

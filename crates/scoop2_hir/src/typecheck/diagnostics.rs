@@ -569,6 +569,47 @@ pub fn delegated_property_not_allowed_in_value_type(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::delegated_property_missing_get_value`。
+pub fn delegated_property_missing_get_value(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::delegated_property_missing_get_value",
+        "委托属性缺少 `getValue`：delegate 必须提供 `getValue(thisRef, property)`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::delegated_property_missing_set_value`。
+pub fn delegated_property_missing_set_value(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::delegated_property_missing_set_value",
+        "可变委托属性缺少 `setValue`：delegate 必须提供 `setValue(thisRef, property, value)`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::delegated_property_get_value_signature_mismatch`。
+pub fn delegated_property_get_value_signature_mismatch(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::delegated_property_get_value_signature_mismatch",
+        format!("`getValue` 的 `property` 参数必须是 `PropertyMeta`，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::delegated_property_set_value_signature_mismatch`。
+pub fn delegated_property_set_value_signature_mismatch(
+    property_type_fqn: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::delegated_property_set_value_signature_mismatch",
+        format!(
+            "委托属性的 delegate 未找到匹配的 `setValue` 签名（期望 setValue(thisRef: .., property: PropertyMeta, value: {property_type_fqn}): Unit）"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_arg_positional_after_named`。
 pub fn call_arg_positional_after_named(span: Span) -> Diagnostic {
     Diagnostic::error(
