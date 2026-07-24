@@ -278,6 +278,38 @@ fn check_file_bodies(
                         }
                     }
                 }
+                // value enum 底层类型必须整型（首个超类型若是具体类型而非 interface）。
+                if d.kind == crate::syntax::ast::TypeKind::Enum
+                    && let Some(st) = d.supertypes.first()
+                {
+                    use crate::resolve::symbol::NominalCategory;
+                    let ty = {
+                        let mut lower = crate::typecheck::lower::TypeLowering::new(
+                            env,
+                            imports,
+                            empty_tp.clone(),
+                            package_prefix.to_string(),
+                            diags,
+                        );
+                        lower.lower(&st.ty)
+                    };
+                    let kind = env.store.kind(ty);
+                    let is_integral = matches!(
+                        kind,
+                        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Int)
+                            | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UInt)
+                            | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::IntN(_))
+                            | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UIntN(_))
+                    );
+                    let is_interface = expr::nominal_fqn_of(kind)
+                        .and_then(|fqn| env.index.category(fqn))
+                        .is_some_and(|c| matches!(c, NominalCategory::Interface));
+                    if !is_integral && !is_interface && !env.store.is_nothing(ty) {
+                        diags.push(diagnostics::value_only_enum_underlying_not_integral(
+                            st.span,
+                        ));
+                    }
+                }
                 // 只能继承 `open`/`abstract` 类（class 超类必须 open）。
                 if d.kind == crate::syntax::ast::TypeKind::Class {
                     check_superclass_open(d, d.name.symbol, env, package_prefix, diags);

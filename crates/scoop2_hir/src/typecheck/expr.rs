@@ -2756,7 +2756,7 @@ fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> Option<Symbo
 }
 
 /// 若 `kind` 是 nominal（ref 或 value），返回其 FQN。
-fn nominal_fqn_of(kind: &TypeKind) -> Option<Symbol> {
+pub(super) fn nominal_fqn_of(kind: &TypeKind) -> Option<Symbol> {
     match kind {
         TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
         | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),

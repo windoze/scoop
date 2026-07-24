@@ -977,6 +977,15 @@ pub fn val_tuple_pat_not_tuple(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::value_only_enum_underlying_not_integral`：value enum 底层类型必须整型。
+pub fn value_only_enum_underlying_not_integral(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::value_only_enum_underlying_not_integral",
+        "value enum 的底层类型必须是整型标量",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
