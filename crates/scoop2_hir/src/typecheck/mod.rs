@@ -231,6 +231,10 @@ fn check_file_bodies(
                     // 与 legacy 一致：按固定顺序短路，仅报首个 annotation-class 错误。
                     diags.push(err);
                 }
+                // annotation class 上的 `@Target(...)` 实参校验。
+                if is_annotation {
+                    check_target_annotation_args(&d.annotations, env.interner, diags);
+                }
                 // where 子句校验（目标在当前声明 / 无重复）。
                 check_where_clause(
                     d.where_clause.as_ref(),
@@ -868,6 +872,56 @@ fn fmt_type_fqn(env: &TypeEnv, id: crate::ty::TypeId) -> String {
         crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Unit) => "scoop.core.Unit".into(),
         other => format!("{other:?}"),
     }
+}
+
+/// 校验 `@Target(AnnotationTarget.X, ...)` 的实参：每个 X 必须是合法的 target variant。
+fn check_target_annotation_args(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::{ExprKind, MemberName};
+    for ann in anns {
+        if !ann
+            .path
+            .segments
+            .last()
+            .is_some_and(|s| interner.resolve(s.symbol) == "Target")
+        {
+            continue;
+        }
+        for arg in &ann.args {
+            if let ExprKind::MemberAccess { member, .. } = &arg.value.kind
+                && let MemberName::Named(name) = member
+            {
+                let variant = interner.resolve(name.symbol);
+                if !is_valid_annotation_target(variant) {
+                    diags.push(diagnostics::invalid_annotation_target_name(
+                        variant, name.span,
+                    ));
+                    return;
+                }
+            }
+        }
+    }
+}
+
+/// 合法的 `AnnotationTarget` variant 名。
+fn is_valid_annotation_target(name: &str) -> bool {
+    matches!(
+        name,
+        "Function"
+            | "Property"
+            | "Field"
+            | "Param"
+            | "Type"
+            | "Constructor"
+            | "LocalVariable"
+            | "Expression"
+            | "Module"
+            | "TypeParam"
+            | "EnumVariant"
+    )
 }
 
 /// 校验 where 子句：约束目标必须在当前声明的类型参数中；同一 (目标, 约束) 不得重复。

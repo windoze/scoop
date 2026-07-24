@@ -709,6 +709,15 @@ pub fn missing_type_annotation(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::invalid_annotation_target_name`：@Target 中非法的 target 名。
+pub fn invalid_annotation_target_name(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::invalid_annotation_target_name",
+        format!("非法的 `AnnotationTarget` 名称：`{name}`"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::fun_must_have_body`：普通函数必须提供函数体。
 pub fn fun_must_have_body(span: Span) -> Diagnostic {
     fun_must_have_body_detail("普通函数必须提供函数体", span)
