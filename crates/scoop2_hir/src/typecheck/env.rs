@@ -78,6 +78,9 @@ pub struct TypeEnv<'i> {
     enum_variants: HashMap<Symbol, Vec<Symbol>>,
     /// 声明了 eff 形参的类型 FQN 集合（use-site eff 实参合法性检查用）。
     eff_param_types: HashSet<Symbol>,
+    /// 类型 FQN → 直接超类型列表（(超类型 FQN, 类型实参 TypeIds)）。
+    /// 用于 where 约束中参数化 bound 的类型实参检查。
+    supertype_instances: HashMap<Symbol, Vec<(Symbol, Vec<TypeId>)>>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -98,6 +101,7 @@ impl<'i> TypeEnv<'i> {
             top_level_vals: HashMap::new(),
             enum_variants: HashMap::new(),
             eff_param_types: HashSet::new(),
+            supertype_instances: HashMap::new(),
         }
     }
 
@@ -125,6 +129,20 @@ impl<'i> TypeEnv<'i> {
     /// 类型是否声明了 eff 形参。
     pub fn has_eff_param(&self, fqn: Symbol) -> bool {
         self.eff_param_types.contains(&fqn)
+    }
+
+    /// 类型的直接超类型实例化列表（FQN + 类型实参）。
+    pub fn supertype_instances(&self, fqn: Symbol) -> Option<&[(Symbol, Vec<TypeId>)]> {
+        self.supertype_instances.get(&fqn).map(|v| v.as_slice())
+    }
+
+    /// 注册类型的直接超类型实例化（用于 where 约束参数化 bound 检查）。
+    pub fn register_supertype_instances(
+        &mut self,
+        fqn: Symbol,
+        supertypes: Vec<(Symbol, Vec<TypeId>)>,
+    ) {
+        self.supertype_instances.insert(fqn, supertypes);
     }
 
     /// 类型约束查询（where-satisfaction 用）。
@@ -731,7 +749,13 @@ pub fn register_top_level_vals(
 }
 
 /// 收集类型/函数的 where 约束（FQN → (参数名序列, 约束)），供类型实参满足性检查。
-pub fn register_type_constraints(env: &mut TypeEnv, file: &File, package_prefix: &str) {
+pub fn register_type_constraints(
+    env: &mut TypeEnv,
+    file: &File,
+    imports: &ImportTable,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
     use crate::syntax::ast::{GenericBound, ItemKind, TypeParamList, WhereClause};
     let collect_one = |env: &mut TypeEnv,
                        name: Symbol,
@@ -770,6 +794,28 @@ pub fn register_type_constraints(env: &mut TypeEnv, file: &File, package_prefix:
                     d.type_params.as_ref(),
                     d.where_clause.as_ref(),
                 );
+                // 注册直接超类型实例化（FQN + 类型实参）。
+                let owner = fqn_of(env, package_prefix, d.name.symbol);
+                let tp_map = build_tp_map(d.type_params.as_ref());
+                let mut sup_instances: Vec<(Symbol, Vec<TypeId>)> = Vec::new();
+                for st in &d.supertypes {
+                    let mut lower = TypeLowering::new(
+                        env,
+                        imports,
+                        tp_map.clone(),
+                        package_prefix.to_string(),
+                        diags,
+                    );
+                    let st_ty = lower.lower(&st.ty);
+                    let st_kind = env.store.kind(st_ty);
+                    if let Some(st_fqn) = crate::typecheck::expr::nominal_fqn_of(st_kind) {
+                        let st_args: Vec<TypeId> = crate::typecheck::expr::nominal_args_of(st_kind)
+                            .unwrap_or(&[])
+                            .to_vec();
+                        sup_instances.push((st_fqn, st_args));
+                    }
+                }
+                env.register_supertype_instances(owner, sup_instances);
             }
             ItemKind::Fun(d) if d.receiver.is_none() => {
                 collect_one(

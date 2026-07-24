@@ -3335,7 +3335,7 @@ pub(super) fn nominal_fqn_of(kind: &TypeKind) -> Option<Symbol> {
 }
 
 /// nominal 类型的类型实参切片（ref/value 均覆盖）。
-fn nominal_args_of(kind: &TypeKind) -> Option<&[TypeId]> {
+pub(super) fn nominal_args_of(kind: &TypeKind) -> Option<&[TypeId]> {
     match kind {
         TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
         | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(&n.args),

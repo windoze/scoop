@@ -104,7 +104,7 @@ pub fn run_typecheck(
     for &(i, ref prefix, ref imports) in &file_state {
         let inp = &inputs[i];
         // register_type_constraints 先运行（填充 eff_param_types 等供后续降级使用）。
-        env::register_type_constraints(&mut env, inp.file, prefix);
+        env::register_type_constraints(&mut env, inp.file, imports, prefix, diags);
         env::register_top_level_signatures(&mut env, inp.file, imports, prefix, diags);
         env::register_members(&mut env, inp.file, imports, prefix, diags);
         env::register_constructors(&mut env, inp.file, imports, prefix, diags);
