@@ -29,6 +29,8 @@ pub struct Signature {
     pub modifiers: crate::resolve::symbol::ModifierSet,
     /// 声明的 effect 行（M6 override effect containment 用）。
     pub effect: Option<crate::syntax::ast::EffectRowExpr>,
+    /// 是否带函数体（区分 interface default 方法 / abstract 方法；M6 用）。
+    pub has_body: bool,
 }
 
 /// 顶层函数的注解属性（release-hook 等 cross-reference 校验用）。
@@ -144,6 +146,14 @@ impl<'i> TypeEnv<'i> {
         self.member_signatures
             .get(&type_fqn)
             .and_then(|m| m.get(&method).map(|v| v.as_slice()))
+    }
+
+    /// 类型的所有成员方法名 → 签名集（M6 interface 成员枚举 / impl 完整性用）。
+    pub fn member_method_table(
+        &self,
+        type_fqn: Symbol,
+    ) -> Option<&HashMap<Symbol, Vec<Signature>>> {
+        self.member_signatures.get(&type_fqn)
     }
 
     /// 类型的主构造参数类型列表。
@@ -262,6 +272,7 @@ pub fn register_top_level_signatures(
                 type_param_count: tpc,
                 modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(&d.modifiers),
                 effect: d.effect.clone(),
+                has_body: d.body.is_some(),
             }
         };
         env.signatures.entry(fqn).or_default().push(sig);
@@ -477,6 +488,7 @@ fn register_body_members(
                             &d.modifiers,
                         ),
                         effect: d.effect.clone(),
+                        has_body: d.body.is_some(),
                     }
                 };
                 env.member_signatures

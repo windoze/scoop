@@ -271,6 +271,7 @@ fn check_file_bodies(
                 if d.kind == crate::syntax::ast::TypeKind::Class {
                     check_superclass_open(d, d.name.symbol, env, package_prefix, diags);
                     check_overrides(d, env, imports, diags, package_prefix);
+                    check_interface_impl_complete(d, env, diags, package_prefix);
                 }
                 // where 子句校验（目标在当前声明 / 无重复）。
                 check_where_clause(
@@ -1702,9 +1703,7 @@ fn check_overrides(
                 matches!(env.index.category(base), Some(NominalCategory::Interface));
             if let Some(sigs) = env.member_signatures(base, f.name.symbol) {
                 for bs in sigs {
-                    if bs.params.len() == m_params.len()
-                        && bs.params.iter().zip(m_params.iter()).all(|(a, b)| a == b)
-                    {
+                    if params_match(&env.store, &bs.params, &m_params) {
                         matched = Some((bs.modifiers, bs.effect.clone(), base_is_interface, base));
                         break;
                     }
@@ -1827,6 +1826,81 @@ fn substituted_effect_names(
         }
     }
     set
+}
+
+/// 签名参数匹配：数量相等；若 base 含 owner 类型参数（跨泛型边界），仅按数量匹配。
+fn params_match(
+    store: &crate::ty::TypeStore,
+    base_params: &[crate::ty::TypeId],
+    other_params: &[crate::ty::TypeId],
+) -> bool {
+    if base_params.len() != other_params.len() {
+        return false;
+    }
+    let base_has_tp = base_params
+        .iter()
+        .any(|p| matches!(store.kind(*p), crate::ty::TypeKind::Param(_)));
+    if base_has_tp {
+        return true;
+    }
+    base_params == other_params
+}
+
+/// class 必须实现所有接口超类要求的成员方法（签名匹配）。
+fn check_interface_impl_complete(
+    d: &crate::syntax::ast::TypeDecl,
+    env: &TypeEnv,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+) {
+    use crate::resolve::symbol::NominalCategory;
+    let name_text = env.interner.resolve(d.name.symbol);
+    let fqn_text = if package_prefix.is_empty() {
+        name_text.to_string()
+    } else {
+        format!("{package_prefix}.{name_text}")
+    };
+    let Some(derived_fqn) = env.interner.get(&fqn_text) else {
+        return;
+    };
+    let bases = env.index.supertypes_of(derived_fqn);
+    for (i, st) in d.supertypes.iter().enumerate() {
+        let Some(&base_fqn) = bases.get(i) else {
+            continue;
+        };
+        if !matches!(
+            env.index.category(base_fqn),
+            Some(NominalCategory::Interface)
+        ) {
+            continue;
+        }
+        let Some(iface_methods) = env.member_method_table(base_fqn) else {
+            continue;
+        };
+        // 该接口要求的方法是否在类中实现（含类自身的重载签名匹配）。
+        let mut missing = false;
+        'outer: for (&method_name, iface_sigs) in iface_methods {
+            let impl_sigs = env
+                .member_signatures(derived_fqn, method_name)
+                .unwrap_or(&[]);
+            for isig in iface_sigs {
+                // interface default 方法（带 body）不必由实现类提供。
+                if isig.has_body {
+                    continue;
+                }
+                let implemented = impl_sigs
+                    .iter()
+                    .any(|s| params_match(&env.store, &isig.params, &s.params));
+                if !implemented {
+                    missing = true;
+                    break 'outer;
+                }
+            }
+        }
+        if missing {
+            diags.push(diagnostics::missing_interface_member(st.span));
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
