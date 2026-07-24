@@ -600,6 +600,15 @@ pub fn if_condition_not_bool(found: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::callee_not_callable`：被调用的符号不是可调用函数。
+pub fn callee_not_callable(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::callee_not_callable",
+        format!("`{name}` 不可调用（不是函数 / 未注册的符号）"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

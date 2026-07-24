@@ -476,6 +476,10 @@ impl<'a> BodyResolver<'a> {
         if name_text == "field" {
             return;
         }
+        // `__scoop_` 前缀的运行时辅助函数由 typecheck 检查（callee_not_callable）。
+        if name_text.starts_with("__scoop_") {
+            return;
+        }
         // 1. 局部
         if let Some(local) = self.scopes.resolve(ident.symbol) {
             self.resolution

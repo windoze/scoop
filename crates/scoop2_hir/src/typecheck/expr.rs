@@ -1211,9 +1211,24 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         {
             return self.ctor_call(fqn, args, span);
         }
-        // 其他调用形式（嵌套调用、lambda 调用等）：walk args，返回 Nothing（lenient）。
+        // 其他调用形式（嵌套调用、lambda 调用等）：walk args。
         for a in args {
             self.walk_expr(&a.value);
+        }
+        // callee 是 Ident 且不可调用（未注册函数 / 前缀标识符）→ callee_not_callable。
+        if let ExprKind::Ident(ident) = &callee.kind
+            && !self.lenient_type_errors
+        {
+            let name = self.env.interner.resolve(ident.symbol);
+            if name.starts_with("__scoop_") || !name.is_empty() {
+                // 检查是否是已知顶层函数 / 类型 / 值。
+                let is_fun = self.resolution.value_refs.get(callee.id).is_some();
+                let is_type = self.callee_type_fqn(ident.symbol).is_some();
+                if !is_fun && !is_type {
+                    self.diags
+                        .push(diagnostics::callee_not_callable(name, span));
+                }
+            }
         }
         self.env.store.nothing()
     }
