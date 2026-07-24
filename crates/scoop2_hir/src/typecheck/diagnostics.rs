@@ -204,6 +204,15 @@ pub fn duplicate_enum_variant_field(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::duplicate_enum_variant`：enum variant 重名。
+pub fn duplicate_enum_variant(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::duplicate_enum_variant",
+        "enum variant 重复定义",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::duplicate_struct_field`：struct/class 字段重名。
 pub fn duplicate_struct_field(span: Span) -> Diagnostic {
     Diagnostic::error(

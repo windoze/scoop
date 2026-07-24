@@ -175,7 +175,9 @@ impl<'a> Collector<'a> {
                 TypeMemberKind::EnumVariant(d) => {
                     let fqn = self.fqn_under(owner_fqn, d.name.symbol);
                     let sym = self.make_member_symbol(SymbolKind::Value, d.name, &[], fqn);
-                    self.insert_value(sym, d.name);
+                    // enum variant 重复由 typecheck 阶段报（duplicate_enum_variant），
+                    // resolve 层静默（仍注册到 index 供后续查询）。
+                    let _ = self.index.insert_value(sym);
                 }
                 TypeMemberKind::Object(d) => {
                     if d.companion {

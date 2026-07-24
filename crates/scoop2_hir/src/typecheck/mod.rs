@@ -439,10 +439,14 @@ fn check_file_bodies(
                     }
                 }
                 if let Some(body) = &d.body {
-                    // enum variant 字段重名检查。
+                    // enum variant 字段重名检查 + variant 重名检查。
                     if d.kind == crate::syntax::ast::TypeKind::Enum {
+                        let mut seen_variants: HashSet<scoop2_base::Symbol> = HashSet::new();
                         for m in &body.members {
                             if let crate::syntax::ast::TypeMemberKind::EnumVariant(ev) = &m.kind {
+                                if !seen_variants.insert(ev.name.symbol) {
+                                    diags.push(diagnostics::duplicate_enum_variant(ev.name.span));
+                                }
                                 let mut seen: HashSet<scoop2_base::Symbol> = HashSet::new();
                                 for fld in &ev.fields {
                                     if !seen.insert(fld.name.symbol) {
