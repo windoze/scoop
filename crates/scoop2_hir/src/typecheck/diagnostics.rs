@@ -654,7 +654,16 @@ pub fn annotation_class_effect_param_not_supported(span: Span) -> Diagnostic {
 pub fn annotation_type_is_not_annotation_class(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::annotation_type_is_not_annotation_class",
-        format!("`{name}` 不是 annotation class"),
+        format!("`{name}` 不是注解类"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::unresolved_annotation_type`：注解类型无法解析。
+pub fn unresolved_annotation_type(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unresolved_annotation_type",
+        format!("未解析的注解类型：{name}"),
     )
     .with_primary(span, "这里")
 }

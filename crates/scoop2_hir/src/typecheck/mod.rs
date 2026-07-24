@@ -153,8 +153,10 @@ fn check_file_bodies(
         .collect();
     overloads::check_top_level_overload_conflicts(env, imports, diags, package_prefix, &top_funs);
     for item in &file.items {
-        // @Experimental 注解校验（item 级目标是合法的）。
+        // @Experimental / @Suppress 注解校验（item 级目标是合法的）。
         check_experimental_annotations(item_annotations(item), false, env.interner, diags);
+        // 未知注解类型检查。
+        check_annotation_uses(item_annotations(item), env, package_prefix, diags);
         match &item.kind {
             ItemKind::Fun(d) => {
                 // @Intrinsic 只能在受信任 syslib cone 中声明。
@@ -1194,6 +1196,84 @@ pub(crate) fn check_experimental_annotations(
                 check_suppress_annotation(ann, interner, diags);
             }
             _ => {}
+        }
+    }
+}
+
+/// 已知内建注解名（不需解析为 annotation class）。
+const BUILTIN_ANNOTATIONS: &[&str] = &[
+    "Intrinsic",
+    "Extern",
+    "Unsafe",
+    "Safe",
+    "NoGC",
+    "Global",
+    "ThreadLocal",
+    "CLayout",
+    "TailRec",
+    "CallingConvention",
+    "Deprecated",
+    "Experimental",
+    "Suppress",
+    "Target",
+    "Retention",
+    "ReleaseHook",
+];
+
+/// 扫描所有注解使用：对非内建注解，检查是否解析为 annotation class；
+/// 若不解析为任何已知类型 → unresolved_annotation_type。
+pub(crate) fn check_annotation_uses(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    env: &TypeEnv,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    for ann in anns {
+        let Some(last) = ann.path.segments.last() else {
+            continue;
+        };
+        let name = env.interner.resolve(last.symbol);
+        // 内建注解跳过。
+        if BUILTIN_ANNOTATIONS.contains(&name) {
+            continue;
+        }
+        let last_text = name.to_string();
+        let name_text: String = ann
+            .path
+            .segments
+            .iter()
+            .map(|s| env.interner.resolve(s.symbol))
+            .collect::<Vec<_>>()
+            .join(".");
+        // FQN 候选：全路径 / 短名 + package prefix / 短名 + scoop.core。
+        let mut candidates = vec![name_text.clone()];
+        if !name_text.contains('.') {
+            if !package_prefix.is_empty() {
+                candidates.push(format!("{package_prefix}.{last_text}"));
+            }
+            candidates.push(format!("scoop.core.{last_text}"));
+        }
+        let mut resolved = false;
+        for fqn_text in &candidates {
+            if let Some(fqn) = env.interner.get(fqn_text)
+                && let Some(sym) = env.index.lookup_type(fqn)
+            {
+                if !sym
+                    .modifiers
+                    .contains(crate::syntax::ast::ModifierKind::Annotation)
+                {
+                    diags.push(diagnostics::annotation_type_is_not_annotation_class(
+                        &name_text, last.span,
+                    ));
+                }
+                resolved = true;
+                break;
+            }
+        }
+        if !resolved {
+            diags.push(diagnostics::unresolved_annotation_type(
+                &name_text, last.span,
+            ));
         }
     }
 }

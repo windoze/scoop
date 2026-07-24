@@ -237,8 +237,35 @@ impl<'a> TypeResolver<'a> {
     }
 
     /// 解析注解使用路径（`@Path.To.Ann`）为类型；不命中 → unresolved_type。
+    /// 内建注解名跳过（由 typecheck 阶段检查）。
     fn resolve_annotations(&mut self, anns: &[ast::AnnotationUse]) {
+        const BUILTIN: &[&str] = &[
+            "Intrinsic",
+            "Extern",
+            "Unsafe",
+            "Safe",
+            "NoGC",
+            "Global",
+            "ThreadLocal",
+            "CLayout",
+            "TailRec",
+            "CallingConvention",
+            "Deprecated",
+            "Experimental",
+            "Suppress",
+            "Target",
+            "Retention",
+            "ReleaseHook",
+            "Inline",
+        ];
         for ann in anns {
+            // 内建注解名跳过（typecheck 阶段负责校验）。
+            if let Some(last) = ann.path.segments.last() {
+                let name = self.interner.resolve(last.symbol);
+                if BUILTIN.contains(&name) {
+                    continue;
+                }
+            }
             if !self.annotation_path_resolves(&ann.path) {
                 let text = path_text(&ann.path, self.interner);
                 // 指向注解路径的首段（跳过 `@`），与 fixture 的 EXPECT-ERROR-AT 对齐。
