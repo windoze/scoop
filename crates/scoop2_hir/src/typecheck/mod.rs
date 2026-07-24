@@ -367,11 +367,12 @@ fn check_file_bodies(
                 );
                 // 具体类型的成员函数必须提供函数体（interface / effect / abstract / @Intrinsic / @Extern 除外）。
                 check_member_funs_have_body(d, env.interner, diags);
-                // @CLayout struct 字段必须 GC-free。
+                // @CLayout struct 字段必须 GC-free；packed 实参必须是 2 的幂且 <= 16。
                 if d.kind == crate::syntax::ast::TypeKind::Struct
                     && has_annotation(&d.annotations, "CLayout", env.interner)
                 {
                     check_clayout_struct_gc_free(d, env, imports, package_prefix, diags);
+                    check_clayout_packed(&d.annotations, env.interner, diags);
                 }
                 // 主构造 param-property 重名检查。
                 let is_intrinsic_type_early =
@@ -2091,6 +2092,41 @@ fn params_match(
         return true;
     }
     base_params == other_params
+}
+
+/// `@CLayout(packed: N)`：N 必须是 2 的幂且 <= 16。
+fn check_clayout_packed(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::ExprKind;
+    for ann in anns {
+        let is_clayout = ann
+            .path
+            .segments
+            .last()
+            .is_some_and(|s| interner.resolve(s.symbol) == "CLayout");
+        if !is_clayout {
+            continue;
+        }
+        for arg in &ann.args {
+            let is_packed = arg
+                .name
+                .as_ref()
+                .is_some_and(|n| interner.resolve(n.symbol) == "packed");
+            if !is_packed {
+                continue;
+            }
+            if let ExprKind::IntLit(il) = &arg.value.kind
+                && !(il.value.is_power_of_two() && il.value <= 16)
+            {
+                diags.push(diagnostics::clayout_packed_value_not_supported(
+                    arg.value.span,
+                ));
+            }
+        }
+    }
 }
 
 /// `@CLayout` struct 的所有字段必须是 GC-free 值类型。

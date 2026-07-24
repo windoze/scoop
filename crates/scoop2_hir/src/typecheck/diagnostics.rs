@@ -995,6 +995,15 @@ pub fn clayout_struct_must_be_gc_free(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::clayout_packed_value_not_supported`：@CLayout(packed) 必须是 2 的幂且在范围内。
+pub fn clayout_packed_value_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::clayout_packed_value_not_supported",
+        "`@CLayout(packed)` 的值必须是 2 的幂（1/2/4/8/16）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
