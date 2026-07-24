@@ -596,6 +596,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ValBinding::Pattern(p) => {
                 self.bind_pattern_locals(p);
+                self.check_val_pattern(p, init_ty.unwrap_or(ty));
             }
         }
     }
@@ -2485,6 +2486,64 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// 校验 `val` 解构的 variant pattern 与 initializer 类型匹配。
+    fn check_val_pattern(&mut self, pat: &ast::Pattern, init_ty: TypeId) {
+        use crate::syntax::ast::PatternKind;
+        if self.env.store.is_nothing(init_ty) {
+            return;
+        }
+        let path = match &pat.kind {
+            PatternKind::Variant { path, .. } => path,
+            _ => return,
+        };
+        let seg_name =
+            |s: &crate::syntax::ast::Ident| self.env.interner.resolve(s.symbol).to_string();
+        let kind = self.env.store.kind(init_ty);
+        // Option initializer：Some/None 已知，跳过 prefix/variant 校验。
+        if matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Option(_))) {
+            return;
+        }
+        // initializer 必须是 enum nominal。
+        let Some(enum_fqn) = nominal_fqn_of(kind).filter(|&fqn| {
+            self.env
+                .index
+                .category(fqn)
+                .is_some_and(|c| matches!(c, crate::resolve::symbol::NominalCategory::Enum))
+        }) else {
+            self.diags
+                .push(diagnostics::val_variant_pat_not_enum(pat.span));
+            return;
+        };
+        let enum_name = self.env.interner.resolve(enum_fqn);
+        let enum_short = enum_name.rsplit('.').next().unwrap_or(enum_name);
+        // 多段前缀：除最后一段外必须匹配 enum 名。
+        if path.segments.len() >= 2 {
+            let prefix = path.segments[..path.segments.len() - 1]
+                .iter()
+                .map(seg_name)
+                .collect::<Vec<_>>()
+                .join(".");
+            if prefix != enum_short && prefix != enum_name {
+                self.diags
+                    .push(diagnostics::val_variant_pat_enum_mismatch(pat.span));
+                return;
+            }
+        }
+        // 最后一段必须是该 enum 的 variant。
+        let variant_name = path.segments.last().map(seg_name).unwrap_or_default();
+        let known = self.env.enum_variants(enum_fqn).is_some_and(|vs| {
+            vs.iter().any(|&v| {
+                let vn = self.env.interner.resolve(v);
+                vn == variant_name || vn.ends_with(&format!(".{variant_name}"))
+            })
+        });
+        if !known {
+            let span = path.segments.last().map(|s| s.span).unwrap_or(pat.span);
+            self.diags
+                .push(diagnostics::val_variant_pat_unknown_variant(span));
         }
     }
 

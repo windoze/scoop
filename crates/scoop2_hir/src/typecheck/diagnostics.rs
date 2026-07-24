@@ -941,6 +941,33 @@ pub fn with_update_variant_field_required(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::val_variant_pat_not_enum`：val 解构的 variant pattern initializer 非 enum/Option。
+pub fn val_variant_pat_not_enum(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::val_variant_pat_not_enum",
+        "variant pattern 只能用于 enum / Option 类型的 initializer",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::val_variant_pat_unknown_variant`：val 解构 variant pattern 的 variant 不存在。
+pub fn val_variant_pat_unknown_variant(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::val_variant_pat_unknown_variant",
+        "val 解构 variant pattern 未找到匹配的 variant",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::val_variant_pat_enum_mismatch`：val 解构 variant pattern 的 enum 前缀不匹配。
+pub fn val_variant_pat_enum_mismatch(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::val_variant_pat_enum_mismatch",
+        "val 解构 variant pattern 的 enum 前缀不匹配 initializer 类型",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
