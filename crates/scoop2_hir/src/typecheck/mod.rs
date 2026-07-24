@@ -241,6 +241,18 @@ fn check_file_bodies(
                 if is_annotation {
                     check_target_annotation_args(&d.annotations, env.interner, diags);
                 }
+                // compiler-owned interface 限制：`Continuation` 不能被用户实现/继承。
+                for st in &d.supertypes {
+                    if let crate::syntax::ast::TypeRefKind::Path { path, .. } = &st.ty.kind
+                        && let Some(seg) = path.segments.last()
+                    {
+                        let name = env.interner.resolve(seg.symbol);
+                        let stripped = name.strip_prefix("scoop.core.").unwrap_or(name);
+                        if stripped == "Continuation" {
+                            diags.push(diagnostics::continuation_impl_not_allowed(st.span));
+                        }
+                    }
+                }
                 // where 子句校验（目标在当前声明 / 无重复）。
                 check_where_clause(
                     d.where_clause.as_ref(),

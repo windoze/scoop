@@ -609,6 +609,26 @@ pub fn callee_not_callable(name: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::continuation_not_constructible`：
+/// `Continuation` 是 compiler-owned interface，用户代码不能直接构造。
+pub fn continuation_not_constructible(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::continuation_not_constructible",
+        "`Continuation` 是 compiler-owned interface：只能由编译器/runtime 在 handler 边界物化，用户代码不能直接构造",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::continuation_impl_not_allowed`：
+/// 用户代码不能实现/继承 `Continuation`（compiler-owned interface）。
+pub fn continuation_impl_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::continuation_impl_not_allowed",
+        "`Continuation` 是 compiler-owned interface：用户代码不能实现/继承它",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

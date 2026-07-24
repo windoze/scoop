@@ -1274,6 +1274,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 构造器调用 `Type(args)`：按主构造参数类型检查实参，返回该 nominal 类型。
     fn ctor_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
+        // `Continuation` 是 compiler-owned interface，用户代码不能直接构造。
+        let name = self.env.interner.resolve(fqn);
+        let stripped = name.strip_prefix("scoop.core.").unwrap_or(name);
+        if stripped == "Continuation" {
+            self.diags
+                .push(diagnostics::continuation_not_constructible(span));
+        }
         // enum variant ctor：查找 enum FQN 对应的 variant 字段数。
         let params: Vec<TypeId> = self.env.ctor_params(fqn).unwrap_or(&[]).to_vec();
         // 如果 ctor_params 为空但参数不为空，可能是 enum variant ctor（未注册在 ctors 中）。
@@ -1388,8 +1395,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         };
         self.performed_effects.push(("Raise".to_string(), span));
         if let Some(name) = e_name {
-            self.performed_effects
-                .push((name.strip_prefix("scoop.core.").unwrap_or(&name).to_string(), span));
+            self.performed_effects.push((
+                name.strip_prefix("scoop.core.")
+                    .unwrap_or(&name)
+                    .to_string(),
+                span,
+            ));
         }
     }
 
