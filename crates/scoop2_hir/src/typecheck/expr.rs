@@ -1654,6 +1654,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         false
     }
 
+    /// 记录被调用函数声明的 effect 到 performed_effects（effect 传播）。
+    /// 在 handle/lambda 体内不记录（被捕获）。
+    fn record_callee_effects(&mut self, sig: &Signature, span: Span) {
+        if self.effect_suspend_depth > 0 {
+            return;
+        }
+        let names: Vec<String> = extract_effect_row_names(sig.effect.as_ref(), self.env.interner)
+            .into_iter()
+            .filter(|name| self.is_effect_type_name(name))
+            .collect();
+        for name in names {
+            self.performed_effects.push((name, span));
+        }
+    }
+
     /// 记录 `k.resume(v)` 的步骤 effect 到 performed_effects。
     ///
     /// `Continuation<Resume, Answer, eff E>.resume` 的 effect 行为 `E + Raise<RuntimeError>`
@@ -1947,6 +1962,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let (idx, sig) = applicable.into_iter().next().expect("non-empty");
                 let _ = idx;
                 self.check_generic_call_constraints(fqn, &sig, &arg_types, span);
+                self.record_callee_effects(&sig, span);
                 return sig.return_ty;
             }
             // 多候选：按 bound 特异性比较（bound1 <: bound2 → 更具体）。
@@ -1978,6 +1994,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let sig = &applicable[winners[0]].1;
                 let ret = sig.return_ty;
                 self.check_generic_call_constraints(fqn, sig, &arg_types, span);
+                self.record_callee_effects(sig, span);
                 return ret;
             }
             // 歧义：构造 incomparable 诊断 + related 标签。
@@ -2026,6 +2043,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 .into_iter()
                 .find(|s| s.params.len() == 1 && s.params[0] == unit_ty)
                 .expect("checked above");
+            self.record_callee_effects(&sig, span);
             return sig.return_ty;
         }
         // 单候选：直接检查（保留 arity_mismatch / type_mismatch 精确诊断）。
@@ -2079,6 +2097,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
             }
+            self.record_callee_effects(&sig, span);
             return self.check_call_args(sig.params, sig.return_ty, args, span);
         }
         // 多候选：先走一遍实参类型，再按适用性过滤。
@@ -2145,6 +2164,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             _ => {
                 // 特殊性：若存在唯一最具体的候选，直接选择。
                 if let Some(idx) = self.select_most_specific(&applicable) {
+                    self.record_callee_effects(applicable[idx], span);
                     return applicable[idx].return_ty;
                 }
                 let fqn_text = self.env.interner.resolve(fqn).to_string();
