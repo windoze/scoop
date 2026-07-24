@@ -50,6 +50,8 @@ pub struct TypeEnv<'i> {
     clayout_structs: HashSet<Symbol>,
     /// 顶层函数 FQN → 注解属性（release-hook cross-reference 校验用）。
     fun_attrs: HashMap<Symbol, FunAttrs>,
+    /// typealias FQN → (RHS TypeRef, 类型参数名序列)。
+    type_aliases: HashMap<Symbol, (crate::syntax::ast::TypeRef, Vec<Symbol>)>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -64,7 +66,13 @@ impl<'i> TypeEnv<'i> {
             member_signatures: HashMap::new(),
             clayout_structs: HashSet::new(),
             fun_attrs: HashMap::new(),
+            type_aliases: HashMap::new(),
         }
+    }
+
+    /// typealias 查询（展开用）。
+    pub fn type_alias(&self, fqn: Symbol) -> Option<(&crate::syntax::ast::TypeRef, &[Symbol])> {
+        self.type_aliases.get(&fqn).map(|(t, p)| (t, p.as_slice()))
     }
 
     /// `@CLayout` struct 查询（native `@Extern` ABI 用）。
@@ -480,6 +488,22 @@ fn fqn_under(env: &TypeEnv, owner: Symbol, name: Symbol) -> Symbol {
     env.interner
         .get(&format!("{owner_text}.{name_text}"))
         .unwrap_or(name)
+}
+
+/// 收集文件中的 typealias（FQN → RHS + 类型参数名），供 lower 展开。
+pub fn register_type_aliases(env: &mut TypeEnv, file: &File, package_prefix: &str) {
+    for item in &file.items {
+        let ItemKind::TypeAlias(d) = &item.kind else {
+            continue;
+        };
+        let owner = fqn_of(env, package_prefix, d.name.symbol);
+        let params: Vec<Symbol> = d
+            .type_params
+            .as_ref()
+            .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
+            .unwrap_or_default();
+        env.type_aliases.insert(owner, (d.ty.clone(), params));
+    }
 }
 
 /// 收集文件中带 `@CLayout` 注解的 struct FQN（native `@Extern` ABI 允许的 nominal 值类型）。

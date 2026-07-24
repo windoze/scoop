@@ -28,6 +28,10 @@ pub struct TypeLowering<'a, 'i> {
     type_params: HashMap<Symbol, TypeParamType>,
     package_prefix: String,
     diags: &'a mut DiagnosticSink,
+    /// typealias 展开期间的类型参数替换（别名参数 → 实参 TypeId）。
+    subst: HashMap<Symbol, TypeId>,
+    /// typealias 展开深度（递归环保险）。
+    alias_depth: u32,
 }
 
 impl<'a, 'i> TypeLowering<'a, 'i> {
@@ -44,6 +48,8 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             type_params,
             package_prefix,
             diags,
+            subst: HashMap::new(),
+            alias_depth: 0,
         }
     }
 
@@ -118,11 +124,15 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             return self.env.store.option(inner);
         }
 
-        // 3. 类型参数。
-        if path.segments.len() == 1
-            && let Some(tp) = self.type_params.get(&path.segments[0].symbol)
-        {
-            return self.env.store.param(*tp);
+        // 3. 类型参数（含 typealias 展开期间的实参替换）。
+        if path.segments.len() == 1 {
+            let sym = path.segments[0].symbol;
+            if let Some(sub) = self.subst.get(&sym).copied() {
+                return sub;
+            }
+            if let Some(tp) = self.type_params.get(&sym) {
+                return self.env.store.param(*tp);
+            }
         }
 
         // 4. nominal：解析 FQN，按 category 决定 ref/value。
@@ -131,6 +141,31 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
                 .push(diagnostics::unresolved_type_ref(&name_text, span));
             return self.env.store.nothing();
         };
+        // 5. typealias 展开：FQN 是 typealias 时降级其 RHS（类型实参绑定到别名参数）。
+        if self.alias_depth < 32
+            && let Some((rhs_ref, param_names_ref)) = self.env.type_alias(fqn)
+        {
+            let rhs = rhs_ref.clone();
+            let param_names: Vec<Symbol> = param_names_ref.to_vec();
+            let arg_types: Vec<TypeId> = args
+                .iter()
+                .filter_map(|a| match &a.kind {
+                    TypeArgKind::Type(t) => Some(self.lower(t)),
+                    _ => None,
+                })
+                .collect();
+            let saved_subst = std::mem::take(&mut self.subst);
+            for (i, name) in param_names.iter().enumerate() {
+                if let Some(arg) = arg_types.get(i) {
+                    self.subst.insert(*name, *arg);
+                }
+            }
+            self.alias_depth += 1;
+            let expanded = self.lower(&rhs);
+            self.alias_depth -= 1;
+            self.subst = saved_subst;
+            return expanded;
+        }
         let lowered_args: Vec<TypeId> = args
             .iter()
             .filter_map(|a| match &a.kind {
