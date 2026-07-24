@@ -1423,6 +1423,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 && self.env.interner.resolve(name.symbol) == "resume"
             {
                 self.record_continuation_resume_effects(rt, span);
+                // resume 的 Resume payload 必须作为单一实参传递（tuple 不能扁平化）。
+                if !self.lenient_type_errors && args.len() > 1 {
+                    self.diags
+                        .push(diagnostics::call_arity_mismatch(1, args.len(), span));
+                }
             }
             // GC.handleNew/handleGet/handleDrop 参数契约（按 receiver 名识别 GC object）。
             if let MemberName::Named(name) = member {
