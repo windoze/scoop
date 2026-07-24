@@ -367,10 +367,10 @@ pub fn intrinsic_fun_must_have_no_body(span: Span) -> Diagnostic {
 }
 
 /// `scoop::typecheck::required_effect_not_declared`：函数体执行了未声明的 effect。
-pub fn required_effect_not_declared(span: Span) -> Diagnostic {
+pub fn required_effect_not_declared(effect: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::required_effect_not_declared",
-        "缺少效果声明：函数体执行了 effect，但签名中未声明该 effect row",
+        format!("缺少效果声明：函数体执行了 {effect} effect，但签名中未声明该 effect row"),
     )
     .with_primary(span, "这里")
 }

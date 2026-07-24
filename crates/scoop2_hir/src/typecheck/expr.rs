@@ -107,7 +107,7 @@ pub fn check_function<'a, 'i>(
         for (performed, span) in &c.performed_effects {
             if !declared.contains(performed) {
                 c.diags
-                    .push(diagnostics::required_effect_not_declared(*span));
+                    .push(diagnostics::required_effect_not_declared(performed, *span));
                 break;
             }
         }
@@ -1688,7 +1688,32 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .iter()
             .any(|n| !self.is_effect_type_name(n) && n != "Pure");
         let inferred: Vec<String> = if has_eff_var {
-            self.infer_eff_from_lambda_args(args)
+            let mut effects = self.infer_eff_from_lambda_args(args);
+            // Nominal eff arg 推断：实参类型携带 use-site eff 实参（`Disposable<eff Async>`）。
+            for arg in args {
+                let arg_ty = self.walk_expr(&arg.value);
+                if nominal_fqn_of(self.env.store.kind(arg_ty)).is_some() {
+                    let nominal_eff = match self.env.store.kind(arg_ty) {
+                        TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nm))
+                        | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nm)) => nm.eff.as_ref(),
+                        _ => None,
+                    };
+                    if let Some(eff_row) = nominal_eff {
+                        for term_ty in &eff_row.terms {
+                            if let Some(fqn) = nominal_fqn_of(self.env.store.kind(*term_ty)) {
+                                let name = self.env.interner.resolve(fqn);
+                                let s =
+                                    name.strip_prefix("scoop.core.").unwrap_or(name).to_string();
+                                if self.is_effect_type_name(&s) && !effects.iter().any(|e| e == &s)
+                                {
+                                    effects.push(s);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            effects
         } else {
             Vec::new()
         };

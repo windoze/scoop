@@ -238,10 +238,15 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
                 }
             }
         }
+        // 提取 use-site eff 实参（`Disposable<eff Async>`）→ NominalType.eff。
+        let nominal_eff = args.iter().find_map(|a| match &a.kind {
+            TypeArgKind::Effect(e) => Some(self.lower_effect_row(Some(e))),
+            _ => None,
+        });
         let nominal = NominalType {
             fqn,
             args: lowered_args,
-            eff: None,
+            eff: nominal_eff,
         };
         if self.env.is_reference_nominal(fqn) {
             self.env.store.ref_nominal(nominal)
