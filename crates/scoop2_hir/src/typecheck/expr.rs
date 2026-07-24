@@ -1386,31 +1386,40 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let fqn_text = self.env.interner.resolve(fqn).to_string();
                 let fun_name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
                 let decls = self.env.index.lookup_funs(fqn);
-                let mut msg = format!("重载决议歧义：`{fun_name}` 有多个同等匹配的候选");
+                let first = applicable[0];
+                let second = applicable[1];
+                let first_params: Vec<String> =
+                    first.params.iter().map(|p| self.describe(*p)).collect();
+                let second_params: Vec<String> =
+                    second.params.iter().map(|p| self.describe(*p)).collect();
+                let first_str = format!("{fun_name}({})", first_params.join(", "));
+                let second_str = format!("{fun_name}({})", second_params.join(", "));
+                let diff_pos = first_params
+                    .iter()
+                    .zip(&second_params)
+                    .position(|(a, b)| a != b)
+                    .unwrap_or(0);
+                let msg = format!(
+                    "{first_str} vs {second_str}: position {diff_pos}\n  reason: 多个候选同等匹配"
+                );
                 let mut diag = scoop2_base::diag::Diagnostic::error(
                     "scoop::typecheck::ambiguous_overload",
-                    "",
+                    msg,
                 )
                 .with_primary(span, "这里");
                 for sig in applicable.iter() {
-                    let params = sig
-                        .params
-                        .iter()
-                        .map(|p| self.describe(*p))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    msg.push_str(&format!("\n  {fun_name}({params})"));
+                    let params: Vec<String> =
+                        sig.params.iter().map(|p| self.describe(*p)).collect();
+                    let label = format!("{fun_name}({})", params.join(", "));
                     let orig_idx = non_generic
                         .iter()
                         .position(|s| s.params == sig.params && s.return_ty == sig.return_ty);
                     if let Some(oi) = orig_idx
                         && let Some(d) = decls.get(oi)
                     {
-                        diag = diag.with_related(d.span, format!("{fun_name}({params})"));
+                        diag = diag.with_related(d.span, label);
                     }
                 }
-                msg.push_str("\n  reason: 多个候选同等匹配");
-                diag.message = msg;
                 self.diags.push(diag);
                 applicable[0].return_ty
             }
