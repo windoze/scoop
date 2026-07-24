@@ -51,11 +51,20 @@ pub fn unsupported_in_this_phase(what: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
-/// `scoop::typecheck::break_not_in_loop`：`break`/`continue` 出现在循环体外。
-pub fn break_not_in_loop(what: &str, span: Span) -> Diagnostic {
+/// `scoop::typecheck::break_not_in_loop`：`break` 出现在循环体外。
+pub fn break_not_in_loop(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::break_not_in_loop",
-        format!("`{what}` 只能出现在循环体内"),
+        "`break` 只能出现在循环体内",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::continue_not_in_loop`：`continue` 出现在循环体外。
+pub fn continue_not_in_loop(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::continue_not_in_loop",
+        "`continue` 只能出现在循环体内",
     )
     .with_primary(span, "这里")
 }
@@ -487,7 +496,7 @@ pub fn struct_lit_duplicate_field(field: &str, span: Span) -> Diagnostic {
 pub fn closure_var_capture_not_allowed(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::closure_var_capture_not_allowed",
-        format!("lambda 不能捕获可变局部变量 `{name}`"),
+        format!("lambda 不能捕获可变局部变量 `{name}`；考虑用 RefCell<T> 共享可变状态、`val snapshot = ...` 获取只读快照，或用 fold / higher-order operators"),
     )
     .with_primary(span, "这里")
 }

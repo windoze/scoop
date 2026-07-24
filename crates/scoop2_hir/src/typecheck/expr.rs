@@ -52,6 +52,8 @@ pub fn check_function<'a, 'i>(
         package_prefix: package_prefix.to_string(),
         type_params,
         locals: HashMap::new(),
+        local_vars: HashMap::new(),
+        lambda_depth: 0,
         return_ty: None,
         in_loop: 0u32,
         this_ty,
@@ -113,6 +115,8 @@ pub fn check_top_level_val<'a, 'i>(
         package_prefix: package_prefix.to_string(),
         type_params: HashMap::new(),
         locals: HashMap::new(),
+        local_vars: HashMap::new(),
+        lambda_depth: 0,
         return_ty: None,
         in_loop: 0u32,
         this_ty: None,
@@ -125,6 +129,10 @@ pub fn check_top_level_val<'a, 'i>(
         && !c.env.store.is_unit(d)
         && !c.assignable(i, d)
         && !c.lenient_type_errors
+        && !matches!(
+            c.env.store.kind(i),
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
+        )
     {
         c.diags.push(diagnostics::initializer_type_mismatch(
             &c.describe(d),
@@ -143,6 +151,10 @@ struct ExprChecker<'a, 'i> {
     type_params: HashMap<Symbol, TypeParamType>,
     /// 局部名 → 类型（参数 + 局部 `val`）。M1 用扁平表（遮蔽语义简化）。
     locals: HashMap<Symbol, TypeId>,
+    /// 局部名 → var 声明所在的 lambda 深度（检测 lambda 捕获可变变量）。
+    local_vars: HashMap<Symbol, u32>,
+    /// 当前嵌套 lambda 深度（0 = 命名函数体）。用于检测 var 捕获。
+    lambda_depth: u32,
     return_ty: Option<TypeId>,
     in_loop: u32,
     /// 成员函数体的 `this` 类型（lowered nominal）；非成员函数为 `None`。
@@ -329,6 +341,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let val_ty = self.walk_expr(value);
                 match &target.kind {
                     AssignTargetKind::Ident(ident) => {
+                        // 检测 lambda 捕获可变变量（赋值目标）。
+                        if let Some(&decl_depth) = self.local_vars.get(&ident.symbol)
+                            && decl_depth < self.lambda_depth
+                        {
+                            self.diags
+                                .push(diagnostics::closure_var_capture_not_allowed(
+                                    self.env.interner.resolve(ident.symbol),
+                                    target.span,
+                                ));
+                        }
                         if let Some(&expected) = self.locals.get(&ident.symbol) {
                             self.check_assignable(val_ty, expected, value.span);
                         }
@@ -364,6 +386,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let t = self.walk_expr(e);
                     if let Some(expected) = self.return_ty
                         && !self.assignable(t, expected)
+                        && !matches!(
+                            self.env.store.kind(t),
+                            TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
+                        )
                     {
                         self.diags.push(diagnostics::return_type_mismatch(
                             &self.describe(expected),
@@ -392,14 +418,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             StmtKind::Break => {
                 if self.in_loop == 0 {
-                    self.diags
-                        .push(diagnostics::break_not_in_loop("break", stmt.span));
+                    self.diags.push(diagnostics::break_not_in_loop(stmt.span));
                 }
             }
             StmtKind::Continue => {
                 if self.in_loop == 0 {
                     self.diags
-                        .push(diagnostics::break_not_in_loop("continue", stmt.span));
+                        .push(diagnostics::continue_not_in_loop(stmt.span));
                 }
             }
         }
@@ -410,6 +435,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let init_ty = val.init.as_ref().map(|e| self.walk_expr(e));
         if let (Some(d), Some(i)) = (declared, init_ty)
             && !self.assignable(i, d)
+            && !matches!(
+                self.env.store.kind(i),
+                TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
+            )
         {
             self.diags.push(diagnostics::initializer_type_mismatch(
                 &self.describe(d),
@@ -423,6 +452,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         match &val.binding {
             ValBinding::Name(name) => {
                 self.locals.insert(name.symbol, ty);
+                if val.kind == crate::syntax::ast::ValKind::Var {
+                    self.local_vars.insert(name.symbol, self.lambda_depth);
+                }
             }
             ValBinding::Pattern(p) => {
                 self.bind_pattern_locals(p);
@@ -676,6 +708,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     return self.unsupported("`this` 在非成员上下文", expr.span);
                 }
                 if let Some(&t) = self.locals.get(&ident.symbol) {
+                    // 检测 lambda 捕获可变变量。
+                    if let Some(&decl_depth) = self.local_vars.get(&ident.symbol)
+                        && decl_depth < self.lambda_depth
+                    {
+                        self.diags
+                            .push(diagnostics::closure_var_capture_not_allowed(
+                                name, expr.span,
+                            ));
+                    }
                     return t;
                 }
                 // 顶层 val 引用 → 返回其已降级类型。
@@ -1567,6 +1608,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // lambda 体内 `return` 不是 non-local return（spec §7.2 / T4013）。
         let saved_fn = self.in_function_body;
         self.in_function_body = false;
+        self.lambda_depth += 1;
         let return_ty = match &lambda.body {
             ast::LambdaBody::Block(b) => {
                 self.walk_block(b);
@@ -1574,6 +1616,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ast::LambdaBody::Expr(e) => self.walk_expr(e),
         };
+        self.lambda_depth -= 1;
         self.in_function_body = saved_fn;
         self.env.store.function(FunctionType {
             receiver: None,
