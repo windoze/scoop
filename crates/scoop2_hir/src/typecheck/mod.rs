@@ -245,6 +245,38 @@ fn check_file_bodies(
                     package_prefix,
                     diags,
                 );
+                // 主构造 param-property 重名检查。
+                let is_intrinsic_type_early =
+                    has_annotation(&d.annotations, "Intrinsic", env.interner);
+                if let Some(ctor) = &d.primary_ctor {
+                    let mut seen: HashSet<scoop2_base::Symbol> = HashSet::new();
+                    for cp in &ctor.params {
+                        if cp.property.is_some() && !seen.insert(cp.name.symbol) {
+                            diags.push(diagnostics::duplicate_struct_field(cp.name.span));
+                        }
+                    }
+                    // struct 的主构造 param-property 也必须是 val（@Intrinsic 豁免）。
+                    if d.kind == crate::syntax::ast::TypeKind::Struct && !is_intrinsic_type_early {
+                        for cp in &ctor.params {
+                            if cp.property == Some(crate::syntax::ast::ValKind::Var) {
+                                diags.push(diagnostics::struct_field_must_be_val(cp.name.span));
+                            }
+                        }
+                    }
+                }
+                // struct body 字段必须是 val（@Intrinsic 豁免）。
+                if d.kind == crate::syntax::ast::TypeKind::Struct
+                    && !is_intrinsic_type_early
+                    && let Some(body) = &d.body
+                {
+                    for m in &body.members {
+                        if let crate::syntax::ast::TypeMemberKind::Property(pd) = &m.kind
+                            && pd.kind == crate::syntax::ast::ValKind::Var
+                        {
+                            diags.push(diagnostics::struct_field_must_be_val(pd.name.span));
+                        }
+                    }
+                }
                 // `@Target` / `@Retention` 只能用于 annotation class 声明。
                 if !is_annotation {
                     for ann in &d.annotations {

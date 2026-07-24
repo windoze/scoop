@@ -195,6 +195,24 @@ pub fn duplicate_enum_variant_field(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::duplicate_struct_field`：struct/class 字段重名。
+pub fn duplicate_struct_field(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::duplicate_struct_field",
+        "struct 字段重复定义",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::struct_field_must_be_val`：struct 字段必须是 val。
+pub fn struct_field_must_be_val(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::struct_field_must_be_val",
+        "当前语言 contract 下，struct 字段必须是 `val`，不允许 `var`",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::effectful_function_type_cast_not_supported`。
 pub fn effectful_function_type_cast_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(
