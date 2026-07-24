@@ -421,6 +421,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let val_ty = self.walk_expr(value);
                 match &target.kind {
                     AssignTargetKind::Ident(ident) => {
+                        // 局部 `val` 不可赋值（在 locals 但不在 local_vars）。
+                        if self.locals.contains_key(&ident.symbol)
+                            && !self.local_vars.contains_key(&ident.symbol)
+                        {
+                            self.diags.push(diagnostics::assignment_target_not_mutable(
+                                self.env.interner.resolve(ident.symbol),
+                                target.span,
+                            ));
+                        }
                         // 检测 lambda 捕获可变变量（赋值目标）。
                         if let Some(&decl_depth) = self.local_vars.get(&ident.symbol)
                             && decl_depth < self.lambda_depth
@@ -484,6 +493,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             e.span,
                         ));
                     }
+                } else if let Some(expected) = self.return_ty
+                    && !self.env.store.is_unit(expected)
+                {
+                    self.diags.push(diagnostics::return_value_required(
+                        &self.describe(expected),
+                        stmt.span,
+                    ));
                 }
             }
             StmtKind::While { cond, body } => {

@@ -571,7 +571,7 @@ pub fn closure_var_capture_not_allowed(name: &str, span: Span) -> Diagnostic {
 pub fn return_value_required(expected: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::return_value_required",
-        format!("需要返回值：函数返回类型为 {expected}，但 return 无表达式"),
+        format!("缺少返回值：函数返回类型为 {expected}，但 return 无表达式"),
     )
     .with_primary(span, "这里")
 }
@@ -590,6 +590,15 @@ pub fn assignment_type_mismatch(expected: &str, found: &str, span: Span) -> Diag
     Diagnostic::error(
         "scoop::typecheck::assignment_type_mismatch",
         format!("赋值类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::assignment_target_not_mutable`：赋值目标不可变（`val`）。
+pub fn assignment_target_not_mutable(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::assignment_target_not_mutable",
+        format!("`{name}` 是 `val`，不可赋值"),
     )
     .with_primary(span, "这里")
 }
