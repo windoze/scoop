@@ -688,11 +688,26 @@ fn check_where_clause(
         .unwrap_or_default();
     let mut seen: std::collections::HashMap<(scoop2_base::Symbol, String), scoop2_base::Span> =
         std::collections::HashMap::new();
+    // 类型参数 → (has_ref_span, has_value_span)：检测 ref/value 互斥。
+    let mut ref_bounds: std::collections::HashMap<scoop2_base::Symbol, scoop2_base::Span> =
+        std::collections::HashMap::new();
+    let mut value_bounds: std::collections::HashMap<scoop2_base::Symbol, scoop2_base::Span> =
+        std::collections::HashMap::new();
     for c in &wc.constraints {
         // 目标必须在当前声明的类型参数中。
         if !param_names.contains(&c.name.symbol) {
             diags.push(diagnostics::where_target_not_in_current_decl(c.name.span));
             return;
+        }
+        // ref/value 互斥。
+        match &c.bound {
+            crate::syntax::ast::GenericBound::Ref(s) => {
+                ref_bounds.insert(c.name.symbol, *s);
+            }
+            crate::syntax::ast::GenericBound::Value(s) => {
+                value_bounds.insert(c.name.symbol, *s);
+            }
+            _ => {}
         }
         let key = (c.name.symbol, bound_key(&c.bound, interner));
         if let Some(first_span) = seen.get(&key) {
@@ -701,6 +716,19 @@ fn check_where_clause(
             return;
         }
         seen.insert(key, c.span);
+    }
+    // ref 与 value 互斥（任一类型参数同时带两者）。
+    for (name, ref_span) in &ref_bounds {
+        if let Some(value_span) = value_bounds.get(name) {
+            // 指向较后者（第二个出现的约束）。
+            let span = if ref_span.start > value_span.start {
+                *ref_span
+            } else {
+                *value_span
+            };
+            diags.push(diagnostics::ref_value_bound_mutually_exclusive(span));
+            return;
+        }
     }
 }
 

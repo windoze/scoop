@@ -551,6 +551,15 @@ pub fn duplicate_where_constraint(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::ref_value_bound_mutually_exclusive`：同一类型参数同时带 `ref` 与 `value` 约束。
+pub fn ref_value_bound_mutually_exclusive(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::ref_value_bound_mutually_exclusive",
+        "`ref` 与 `value` 约束互斥，不能同时施加于同一类型参数",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_arg_positional_after_named`。
 pub fn call_arg_positional_after_named(span: Span) -> Diagnostic {
     Diagnostic::error(
