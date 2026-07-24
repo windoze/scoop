@@ -1757,13 +1757,99 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .cloned()
             .collect();
         if non_generic.is_empty() {
-            // 泛型候选：推断类型实参 + where 约束满足性检查。
+            // 泛型候选：按类型参数 bound 的适用性 + 特异性决议。
             let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
-            if let Some(sig) = sigs.first() {
-                self.check_generic_call_constraints(fqn, sig, &arg_types, span);
+            let decls = self.env.index.lookup_funs(fqn);
+            // applicable = (sig 在 sigs 中的下标, Signature)，下标用于关联 decl。
+            let mut applicable: Vec<(usize, Signature)> = Vec::new();
+            for (idx, s) in sigs.iter().enumerate() {
+                if s.type_param_count == 0
+                    || s.params.len() != arg_types.len()
+                    || s.type_param_bounds.is_empty()
+                {
+                    continue;
+                }
+                let bound = s.type_param_bounds.first().and_then(|b| *b);
+                if arg_types
+                    .iter()
+                    .all(|a| bound.is_none_or(|bt| self.assignable(*a, bt)))
+                {
+                    applicable.push((idx, s.clone()));
+                }
+            }
+            if applicable.is_empty() {
+                if let Some(sig) = sigs.first() {
+                    self.check_generic_call_constraints(fqn, sig, &arg_types, span);
+                }
+                return self.env.store.nothing();
+            }
+            if applicable.len() < 2 {
+                let (idx, sig) = applicable.into_iter().next().expect("non-empty");
+                let _ = idx;
+                self.check_generic_call_constraints(fqn, &sig, &arg_types, span);
                 return sig.return_ty;
             }
-            return self.env.store.nothing();
+            // 多候选：按 bound 特异性比较（bound1 <: bound2 → 更具体）。
+            let bound_of = |s: &Signature| s.type_param_bounds.first().and_then(|b| *b);
+            let mut winner = vec![true; applicable.len()];
+            for i in 0..applicable.len() {
+                for j in 0..applicable.len() {
+                    if i == j {
+                        continue;
+                    }
+                    let (Some(bi), Some(bj)) =
+                        (bound_of(&applicable[i].1), bound_of(&applicable[j].1))
+                    else {
+                        continue;
+                    };
+                    // j 的 bound 比 i 的更具体（bj <: bi）且反向不成立 → i 出局。
+                    if self.assignable_strict(bj, bi) && !self.assignable_strict(bi, bj) {
+                        winner[i] = false;
+                    }
+                }
+            }
+            let winners: Vec<usize> = winner
+                .iter()
+                .enumerate()
+                .filter(|(_, w)| **w)
+                .map(|(i, _)| i)
+                .collect();
+            if winners.len() == 1 {
+                let sig = &applicable[winners[0]].1;
+                let ret = sig.return_ty;
+                self.check_generic_call_constraints(fqn, sig, &arg_types, span);
+                return ret;
+            }
+            // 歧义：构造 incomparable 诊断 + related 标签。
+            let mut msg = "重载决议歧义：泛型 bound 不可比较".to_string();
+            if let (Some(i), Some(j)) = (winners.first().copied(), winners.get(1).copied())
+                && let (Some(bi), Some(bj)) =
+                    (bound_of(&applicable[i].1), bound_of(&applicable[j].1))
+            {
+                let fqn_text = |t: TypeId| {
+                    nominal_fqn_of(self.env.store.kind(t))
+                        .map(|f| self.env.interner.resolve(f).to_string())
+                        .unwrap_or_else(|| self.describe(t))
+                };
+                msg = format!(
+                    "reason: {} (from `T` declared bound) and {} (from `T` declared bound) are incomparable",
+                    fqn_text(bi),
+                    fqn_text(bj)
+                );
+            }
+            let mut diag =
+                scoop2_base::diag::Diagnostic::error("scoop::typecheck::ambiguous_overload", msg)
+                    .with_primary(span, "这里");
+            for &w in &winners {
+                let (sig_idx, sig) = &applicable[w];
+                let params: Vec<String> = sig.params.iter().map(|p| self.describe(*p)).collect();
+                let label = format!("({})", params.join(", "));
+                if let Some(d) = decls.get(*sig_idx) {
+                    diag = diag.with_related(d.span, label);
+                }
+            }
+            self.diags.push(diag);
+            return applicable[0].1.return_ty;
         }
         // Unit sugar：0 实参 + 候选有 1 个 Unit 参数 → 补 Unit 实参（spec §5.5）。
         let unit_ty = self.env.store.unit();

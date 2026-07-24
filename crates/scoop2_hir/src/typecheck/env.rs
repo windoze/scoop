@@ -23,6 +23,8 @@ pub struct Signature {
     pub return_ty: TypeId,
     /// 类型参数个数（>0 表示泛型；M3 才支持实例化）。
     pub type_param_count: usize,
+    /// 各类型参数的声明 bound（降级后的类型；无 bound 为 None）。M3 泛型重载特异性用。
+    pub type_param_bounds: Vec<Option<TypeId>>,
     /// 参数名（与 params 等长）。
     pub param_names: Vec<Symbol>,
     /// 各参数是否有默认值（与 params 等长）。
@@ -273,6 +275,7 @@ pub fn register_top_level_signatures(
                 params,
                 return_ty,
                 type_param_count: tpc,
+                type_param_bounds: lower_type_param_bounds(d.type_params.as_ref(), &mut lower),
                 modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(&d.modifiers),
                 effect: d.effect.clone(),
                 has_body: d.body.is_some(),
@@ -488,6 +491,10 @@ fn register_body_members(
                         params,
                         return_ty,
                         type_param_count: 0,
+                        type_param_bounds: lower_type_param_bounds(
+                            d.type_params.as_ref(),
+                            &mut lower,
+                        ),
                         modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(
                             &d.modifiers,
                         ),
@@ -553,6 +560,24 @@ fn fqn_of(env: &TypeEnv, package_prefix: &str, name: Symbol) -> Symbol {
         format!("{package_prefix}.{name_text}")
     };
     env.interner.get(&fqn_text).unwrap_or(name)
+}
+
+/// 降级类型参数列表中各参数的 `Type` bound（无 bound / ref/value bound → None）。
+fn lower_type_param_bounds(
+    tpl: Option<&crate::syntax::ast::TypeParamList>,
+    lower: &mut TypeLowering,
+) -> Vec<Option<TypeId>> {
+    use crate::syntax::ast::GenericBound;
+    let Some(tpl) = tpl else {
+        return Vec::new();
+    };
+    tpl.params
+        .iter()
+        .map(|p| match &p.bound {
+            Some(GenericBound::Type(t)) => Some(lower.lower(t)),
+            _ => None,
+        })
+        .collect()
 }
 
 fn fqn_under(env: &TypeEnv, owner: Symbol, name: Symbol) -> Symbol {
