@@ -107,7 +107,7 @@ pub fn run_typecheck(
         env::register_members(&mut env, inp.file, imports, prefix, diags);
         env::register_constructors(&mut env, inp.file, imports, prefix, diags);
         env::register_clayout_structs(&mut env, inp.file, prefix);
-        env::register_type_aliases(&mut env, inp.file, prefix);
+        env::register_type_aliases(&mut env, inp.file, prefix, diags);
         env::register_type_constraints(&mut env, inp.file, prefix);
         env::register_top_level_vals(&mut env, inp.file, imports, prefix, diags);
         env::register_enum_variants(&mut env, inp.file, prefix);

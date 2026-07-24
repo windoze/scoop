@@ -1449,6 +1449,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.diags
                 .push(diagnostics::continuation_not_constructible(span));
         }
+        // `object` 是单例，不能构造。
+        if self
+            .env
+            .index
+            .category(fqn)
+            .is_some_and(|c| matches!(c, crate::resolve::symbol::NominalCategory::Object))
+        {
+            self.diags.push(diagnostics::object_not_constructible(span));
+        }
         // enum variant ctor：查找 enum FQN 对应的 variant 字段数。
         let params: Vec<TypeId> = self.env.ctor_params(fqn).unwrap_or(&[]).to_vec();
         // 如果 ctor_params 为空但参数不为空，可能是 enum variant ctor（未注册在 ctors 中）。

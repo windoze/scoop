@@ -1004,6 +1004,24 @@ pub fn clayout_packed_value_not_supported(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::object_not_constructible`：object 是单例，不能构造。
+pub fn object_not_constructible(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::object_not_constructible",
+        "`object` 是单例，不能作为构造器调用",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::cyclic_type_alias`：循环的类型别名。
+pub fn cyclic_type_alias(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::cyclic_type_alias",
+        "循环的类型别名：typealias 直接或间接引用自身",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

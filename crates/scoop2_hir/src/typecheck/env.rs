@@ -662,8 +662,15 @@ pub fn register_type_constraints(env: &mut TypeEnv, file: &File, package_prefix:
     }
 }
 
-/// 收集文件中的 typealias（FQN → RHS + 类型参数名），供 lower 展开。
-pub fn register_type_aliases(env: &mut TypeEnv, file: &File, package_prefix: &str) {
+/// 收集文件中的 typealias（FQN → RHS + 类型参数名），供 lower 展开；并检测循环别名。
+pub fn register_type_aliases(
+    env: &mut TypeEnv,
+    file: &File,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::TypeRefKind;
+    let mut declared: Vec<(Symbol, scoop2_base::Span)> = Vec::new();
     for item in &file.items {
         let ItemKind::TypeAlias(d) = &item.kind else {
             continue;
@@ -675,6 +682,42 @@ pub fn register_type_aliases(env: &mut TypeEnv, file: &File, package_prefix: &st
             .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
             .unwrap_or_default();
         env.type_aliases.insert(owner, (d.ty.clone(), params));
+        declared.push((owner, d.name.span));
+    }
+    // 循环别名检测：沿直接别名引用链跟踪，若回到起点或已访问节点则报错。
+    let direct_alias_target = |ty: &crate::syntax::ast::TypeRef| -> Option<Symbol> {
+        if let TypeRefKind::Path { path, .. } = &ty.kind
+            && let Some(last) = path.segments.last()
+        {
+            let name = env.interner.resolve(last.symbol);
+            let candidates = [name.to_string(), format!("{package_prefix}.{name}")];
+            candidates.into_iter().find_map(|c| {
+                let sym = env.interner.get(&c)?;
+                env.type_aliases.contains_key(&sym).then_some(sym)
+            })
+        } else {
+            None
+        }
+    };
+    for (start, span) in &declared {
+        let mut visiting = vec![*start];
+        let Some((mut current, _)) = env.type_aliases.get(start).cloned() else {
+            continue;
+        };
+        for _ in 0..64 {
+            let Some(target) = direct_alias_target(&current) else {
+                break;
+            };
+            if target == *start || visiting.contains(&target) {
+                diags.push(super::diagnostics::cyclic_type_alias(*span));
+                break;
+            }
+            visiting.push(target);
+            match env.type_aliases.get(&target) {
+                Some((t, _)) => current = t.clone(),
+                None => break,
+            }
+        }
     }
 }
 
