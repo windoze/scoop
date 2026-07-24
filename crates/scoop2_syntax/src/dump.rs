@@ -1939,6 +1939,7 @@ mod tests {
                 154,
                 TypeMemberKind::SecondaryCtor(SecondaryCtorDecl {
                     annotations: vec![],
+                    span: Span::new(124, 134),
                     modifiers: vec![],
                     type_params: None,
                     params: vec![],

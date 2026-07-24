@@ -1441,6 +1441,7 @@ impl<'a> Parser<'a> {
             let tok = self.peek();
             return Err(self.err_expected("`constructor`", tok));
         }
+        let kw_span = self.peek().span;
         self.bump(); // `constructor`
 
         let type_params = self.parse_type_param_list_opt()?;
@@ -1471,6 +1472,7 @@ impl<'a> Parser<'a> {
 
         Ok(SecondaryCtorDecl {
             annotations,
+            span: kw_span,
             modifiers,
             type_params,
             params,
@@ -1780,7 +1782,7 @@ fn member_kind_span(kind: &TypeMemberKind) -> Span {
                 .annotations
                 .first()
                 .map(|a| a.span.start)
-                .unwrap_or(d.body.span.start);
+                .unwrap_or(d.span.start);
             Span::new(start, d.body.span.end)
         }
         TypeMemberKind::EnumVariant(d) => {

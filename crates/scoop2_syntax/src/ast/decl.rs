@@ -226,6 +226,8 @@ pub struct InitBlockDecl {
 #[derive(Debug, Clone)]
 pub struct SecondaryCtorDecl {
     pub annotations: Vec<AnnotationUse>,
+    /// `constructor` 关键字 span（成员定位用）。
+    pub span: Span,
     pub modifiers: Vec<Modifier>,
     pub type_params: Option<TypeParamList>,
     pub params: Vec<Param>,

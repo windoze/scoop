@@ -760,7 +760,7 @@ pub fn vararg_overlaps_non_vararg(
     Diagnostic::error(
         "scoop::typecheck::vararg_overlaps_non_vararg",
         format!(
-            "vararg 重载与非 vararg 重载在相同 arity 下不可区分：{fqn}：{candidate_a} <-> {candidate_b}"
+            "vararg 与非 vararg 重载重叠（相同 arity 下不可区分）：{fqn}：{candidate_a} <-> {candidate_b}"
         ),
     )
     .with_primary(primary_span, "vararg 声明在这里")
@@ -780,6 +780,17 @@ pub fn vararg_spread_requires_array_or_tuple(span: Span, suggest_toarray: bool) 
         msg,
     )
     .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::generic_overload_shape_mismatch`：
+/// 两个泛型重载的类型参数 shape 不同（仅 differ-by-bound 受支持）。
+pub fn generic_overload_shape_mismatch(primary_span: Span, related_span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::generic_overload_shape_mismatch",
+        "泛型重载的类型参数 shape 不同：only differ-by-bound generic overloads are supported",
+    )
+    .with_primary(primary_span, "冲突声明在这里")
+    .with_related(related_span, "第一次声明在这里")
 }
 
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。

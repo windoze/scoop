@@ -283,6 +283,16 @@ fn check_file_bodies(
                     check_superclass_open(d, d.name.symbol, env, package_prefix, diags);
                     check_overrides(d, env, imports, diags, package_prefix);
                     check_interface_impl_complete(d, env, diags, package_prefix);
+                    if let Some(body) = &d.body {
+                        overloads::check_ctor_overload_conflicts(
+                            env,
+                            imports,
+                            diags,
+                            package_prefix,
+                            d.name.symbol,
+                            &body.members,
+                        );
+                    }
                 }
                 // where 子句校验（目标在当前声明 / 无重复）。
                 check_where_clause(

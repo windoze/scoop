@@ -18,6 +18,105 @@ use super::TypeEnv;
 use super::diagnostics;
 use super::lower::TypeLowering;
 
+/// 检查一个 class 的次构造器（secondary ctor）重载冲突。
+pub fn check_ctor_overload_conflicts(
+    env: &mut TypeEnv,
+    imports: &ImportTable,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+    class_name: scoop2_base::Symbol,
+    members: &[crate::syntax::ast::TypeMember],
+) {
+    use crate::syntax::ast::TypeMemberKind;
+    // 收集 (member_span, &SecondaryCtorDecl)。
+    let ctors: Vec<(scoop2_base::Span, &crate::syntax::ast::SecondaryCtorDecl)> = members
+        .iter()
+        .filter_map(|m| match &m.kind {
+            TypeMemberKind::SecondaryCtor(c) => Some((m.span, c)),
+            _ => None,
+        })
+        .collect();
+    if ctors.len() <= 1 {
+        return;
+    }
+    let fqn_text = fqn_of(env, package_prefix, class_name);
+    let infos: Vec<OverloadInfo> = ctors
+        .iter()
+        .map(|(span, c)| build_ctor_info(env, imports, diags, package_prefix, class_name, *span, c))
+        .collect();
+    let mut hit = false;
+    for i in 0..infos.len() {
+        if hit {
+            break;
+        }
+        for j in (i + 1)..infos.len() {
+            if let Some(e) = detect_conflict(&infos[i], &infos[j], &fqn_text, true) {
+                diags.push(e);
+                hit = true;
+                break;
+            }
+        }
+    }
+}
+
+/// 从次构造器构建重载视图。
+fn build_ctor_info(
+    env: &mut TypeEnv,
+    imports: &ImportTable,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+    class_name: scoop2_base::Symbol,
+    span: scoop2_base::Span,
+    ctor: &crate::syntax::ast::SecondaryCtorDecl,
+) -> OverloadInfo {
+    let tp_map = type_param_map_of(ctor.type_params.as_ref());
+    let tp_bounds = type_param_effective_bounds_of(
+        env,
+        imports,
+        diags,
+        package_prefix,
+        ctor.type_params.as_ref(),
+    );
+    let mut eff: Vec<String> = Vec::new();
+    let mut defaults: Vec<bool> = Vec::new();
+    for p in &ctor.params {
+        let ty_str = match &p.ty {
+            Some(t) => {
+                let ty = {
+                    let mut lower = TypeLowering::new(
+                        env,
+                        imports,
+                        tp_map.clone(),
+                        package_prefix.to_string(),
+                        diags,
+                    );
+                    lower.lower(t)
+                };
+                effective_type_str(env, ty, &tp_bounds)
+            }
+            None => "Any".to_string(),
+        };
+        eff.push(ty_str);
+        defaults.push(p.default.is_some());
+    }
+    let name = env.interner.resolve(class_name);
+    let candidate = format!("{name}({})", eff.join(", "));
+    OverloadInfo {
+        name_span: span,
+        effective_params: eff,
+        has_defaults: defaults,
+        return_ty: None,
+        effect_row: String::new(),
+        is_vararg: ctor.params.last().is_some_and(|p| p.is_vararg),
+        type_param_count: ctor
+            .type_params
+            .as_ref()
+            .map(|tp| tp.params.len())
+            .unwrap_or(0),
+        candidate,
+    }
+}
+
 /// 检查一组顶层函数的重载冲突（按 FQN 分组，组内 >1 才比较）。
 pub fn check_top_level_overload_conflicts(
     env: &mut TypeEnv,
@@ -81,6 +180,8 @@ struct OverloadInfo {
     effect_row: String,
     /// 最后一个参数是否为 vararg。
     is_vararg: bool,
+    /// 类型参数个数（>0 表示泛型）。
+    type_param_count: usize,
     candidate: String,
 }
 
@@ -135,6 +236,11 @@ fn build_info(
         return_ty,
         effect_row: effect_row_key(d, env.interner),
         is_vararg: d.params.last().is_some_and(|p| p.is_vararg),
+        type_param_count: d
+            .type_params
+            .as_ref()
+            .map(|tp| tp.params.len())
+            .unwrap_or(0),
         candidate,
     }
 }
@@ -170,9 +276,20 @@ fn type_param_effective_bounds(
     package_prefix: &str,
     d: &FunDecl,
 ) -> HashMap<Symbol, String> {
+    type_param_effective_bounds_of(env, imports, diags, package_prefix, d.type_params.as_ref())
+}
+
+/// 同 [`type_param_effective_bounds`]，但直接接受类型参数列表（供构造器复用）。
+fn type_param_effective_bounds_of(
+    env: &mut TypeEnv,
+    imports: &ImportTable,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+    tpl: Option<&crate::syntax::ast::TypeParamList>,
+) -> HashMap<Symbol, String> {
     use crate::syntax::ast::GenericBound;
     let mut map = HashMap::new();
-    let Some(tpl) = &d.type_params else {
+    let Some(tpl) = tpl else {
         return map;
     };
     for p in &tpl.params {
@@ -212,23 +329,44 @@ fn check_pair(
     let ia = build_info(env, imports, diags, package_prefix, a);
     let ib = build_info(env, imports, diags, package_prefix, b);
     let fqn_text = env.interner.resolve(fqn).to_string();
+    detect_conflict(&ia, &ib, &fqn_text, false)
+}
 
+/// 两个已构建的重载视图之间的冲突检测（顶层函数与构造器共用）。
+fn detect_conflict(
+    ia: &OverloadInfo,
+    ib: &OverloadInfo,
+    fqn_text: &str,
+    is_ctor: bool,
+) -> Option<Diagnostic> {
     // 0. vararg 与非 vararg 重载在某 arity 下不可区分（优先于通用等价判断）。
-    if let Some(diag) = vararg_overlap(&ia, &ib, &fqn_text) {
+    if let Some(diag) = vararg_overlap(ia, ib, fqn_text) {
         return Some(diag);
     }
+    // 0b. 两个泛型重载的类型参数 shape 不同（仅 differ-by-bound 受支持）。
+    if ia.type_param_count > 0
+        && ib.type_param_count > 0
+        && ia.type_param_count != ib.type_param_count
+        && is_equivalent(ia, ib)
+    {
+        return Some(diagnostics::generic_overload_shape_mismatch(
+            ib.name_span,
+            ia.name_span,
+        ));
+    }
     // 1. 有效签名等价（参数数量 + 逐位有效类型相等）。
-    if is_equivalent(&ia, &ib) {
+    if is_equivalent(ia, ib) {
         let reason = if ia.effect_row != ib.effect_row {
             "仅 effect row 不同（effect row 不参与重载决议）"
         } else {
             match (ia.return_ty, ib.return_ty) {
                 (Some(ra), Some(rb)) if ra != rb => "仅返回类型不同（返回类型不参与重载决议）",
+                _ if is_ctor => "重复或不可区分的构造器签名",
                 _ => "重复或不可区分的签名",
             }
         };
         return Some(diagnostics::conflicting_overloads_detail(
-            &fqn_text,
+            fqn_text,
             reason,
             &ia.candidate,
             &ib.candidate,
@@ -237,10 +375,10 @@ fn check_pair(
         ));
     }
     // 2. 尾部默认参数导致某位置实参数下不可区分。
-    if let Some(arity) = first_ambiguous_positional_arity(&ia, &ib) {
+    if let Some(arity) = first_ambiguous_positional_arity(ia, ib) {
         let reason = format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
         return Some(diagnostics::conflicting_overloads_detail(
-            &fqn_text,
+            fqn_text,
             &reason,
             &ia.candidate,
             &ib.candidate,
@@ -384,8 +522,15 @@ fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, Str
 }
 
 fn type_param_map(d: &FunDecl) -> HashMap<Symbol, TypeParamType> {
+    type_param_map_of(d.type_params.as_ref())
+}
+
+/// 同 [`type_param_map`]，但直接接受类型参数列表（供构造器复用）。
+fn type_param_map_of(
+    tpl: Option<&crate::syntax::ast::TypeParamList>,
+) -> HashMap<Symbol, TypeParamType> {
     let mut map = HashMap::new();
-    if let Some(tpl) = &d.type_params {
+    if let Some(tpl) = tpl {
         for p in &tpl.params {
             map.insert(
                 p.name.symbol,
