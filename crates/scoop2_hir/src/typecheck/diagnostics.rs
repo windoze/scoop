@@ -986,6 +986,15 @@ pub fn value_only_enum_underlying_not_integral(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::clayout_struct_must_be_gc_free`：@CLayout struct 字段必须 GC-free。
+pub fn clayout_struct_must_be_gc_free(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::clayout_struct_must_be_gc_free",
+        "`@CLayout` struct 的所有字段必须是 GC-free 值类型",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

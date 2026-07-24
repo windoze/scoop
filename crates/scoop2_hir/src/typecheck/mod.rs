@@ -367,6 +367,12 @@ fn check_file_bodies(
                 );
                 // 具体类型的成员函数必须提供函数体（interface / effect / abstract / @Intrinsic / @Extern 除外）。
                 check_member_funs_have_body(d, env.interner, diags);
+                // @CLayout struct 字段必须 GC-free。
+                if d.kind == crate::syntax::ast::TypeKind::Struct
+                    && has_annotation(&d.annotations, "CLayout", env.interner)
+                {
+                    check_clayout_struct_gc_free(d, env, imports, package_prefix, diags);
+                }
                 // 主构造 param-property 重名检查。
                 let is_intrinsic_type_early =
                     has_annotation(&d.annotations, "Intrinsic", env.interner);
@@ -2085,6 +2091,65 @@ fn params_match(
         return true;
     }
     base_params == other_params
+}
+
+/// `@CLayout` struct 的所有字段必须是 GC-free 值类型。
+fn check_clayout_struct_gc_free(
+    d: &crate::syntax::ast::TypeDecl,
+    env: &mut TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::TypeMemberKind;
+    let ann_span = d
+        .annotations
+        .iter()
+        .find(|a| {
+            a.path
+                .segments
+                .last()
+                .is_some_and(|s| env.interner.resolve(s.symbol) == "CLayout")
+        })
+        .map(|a| a.span)
+        .unwrap_or(d.name.span);
+    // 收集所有字段的类型引用，统一降级后检查 GC-free。
+    let mut field_tys: Vec<&crate::syntax::ast::TypeRef> = Vec::new();
+    if let Some(ctor) = &d.primary_ctor {
+        for cp in &ctor.params {
+            if let Some(t) = &cp.ty {
+                field_tys.push(t);
+            }
+        }
+    }
+    if let Some(body) = &d.body {
+        for m in &body.members {
+            if let TypeMemberKind::Property(pd) = &m.kind
+                && let Some(t) = &pd.ty
+            {
+                field_tys.push(t);
+            }
+        }
+    }
+    let mut bad = false;
+    for t in field_tys {
+        let ty = {
+            let mut lower = crate::typecheck::lower::TypeLowering::new(
+                env,
+                imports,
+                std::collections::HashMap::new(),
+                package_prefix.to_string(),
+                diags,
+            );
+            lower.lower(t)
+        };
+        if !release_hook::is_gc_free_value_type(env, ty) {
+            bad = true;
+        }
+    }
+    if bad {
+        diags.push(diagnostics::clayout_struct_must_be_gc_free(ann_span));
+    }
 }
 
 /// class 必须实现所有接口超类要求的成员方法（签名匹配）。
