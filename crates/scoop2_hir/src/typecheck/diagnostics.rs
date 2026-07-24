@@ -582,6 +582,24 @@ pub fn when_guard_not_bool(found: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::while_condition_not_bool`：while 条件不是 Bool。
+pub fn while_condition_not_bool(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::while_condition_not_bool",
+        format!("条件类型必须是 Bool，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::if_condition_not_bool`：if 条件不是 Bool。
+pub fn if_condition_not_bool(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::if_condition_not_bool",
+        format!("条件类型必须是 Bool，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

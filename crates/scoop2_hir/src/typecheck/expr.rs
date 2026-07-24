@@ -408,8 +408,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             StmtKind::While { cond, body } => {
                 let ct = self.walk_expr(cond);
-                let bool_ty = self.env.store.bool();
-                self.check_assignable(ct, bool_ty, cond.span);
+                if !matches!(
+                    self.env.store.kind(ct),
+                    TypeKind::Value(crate::ty::ValueTypeKind::Bool)
+                ) && !self.env.store.is_nothing(ct)
+                {
+                    self.diags.push(diagnostics::while_condition_not_bool(
+                        &self.describe(ct),
+                        cond.span,
+                    ));
+                }
                 self.in_loop += 1;
                 self.walk_block(body);
                 self.in_loop -= 1;
@@ -447,6 +455,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
             )
         {
+            // 同 FQN nominal 但类型实参不同（type arg 推断不精确）→ lenient。
+            let same_owner = match (self.env.store.kind(i), self.env.store.kind(d)) {
+                (
+                    TypeKind::Ref(crate::ty::RefTypeKind::Nominal(ni)),
+                    TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nd)),
+                ) => ni.fqn == nd.fqn,
+                (
+                    TypeKind::Value(crate::ty::ValueTypeKind::Nominal(ni)),
+                    TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nd)),
+                ) => ni.fqn == nd.fqn,
+                _ => false,
+            };
+            if same_owner {
+                return;
+            }
             self.diags.push(diagnostics::initializer_type_mismatch(
                 &self.describe(d),
                 &self.describe(i),
@@ -835,8 +858,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 else_branch,
             } => {
                 let ct = self.walk_expr(cond);
-                let bool_ty = self.env.store.bool();
-                self.check_assignable(ct, bool_ty, cond.span);
+                if !matches!(
+                    self.env.store.kind(ct),
+                    TypeKind::Value(crate::ty::ValueTypeKind::Bool)
+                ) && !self.env.store.is_nothing(ct)
+                {
+                    self.diags.push(diagnostics::if_condition_not_bool(
+                        &self.describe(ct),
+                        cond.span,
+                    ));
+                }
                 let tt = self.walk_expr(then_branch);
                 match else_branch {
                     Some(e) => {
@@ -1115,11 +1146,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             span,
                         ));
                 }
-                for a in args {
-                    self.walk_expr(&a.value);
-                }
                 let name = self.env.interner.resolve(fqn);
-                // 返回 variant 所属的 enum 类型。
+                // Option 特判：Some(x) → Option(x_ty)，None → Option(Nothing)。
+                if name.ends_with(".Some") || name == "Some" {
+                    let inner = if args.is_empty() {
+                        self.env.store.nothing()
+                    } else {
+                        self.walk_expr(&args[0].value)
+                    };
+                    let opt = self.env.store.option(inner);
+                    return opt;
+                }
+                if name.ends_with(".None") || name == "None" {
+                    let nothing = self.env.store.nothing();
+                    return self.env.store.option(nothing);
+                }
+                // 其他 enum variant：返回所属 enum 的 nominal。
                 if let Some(dot) = name.rfind('.')
                     && let Some(enum_fqn) = self.env.interner.get(&name[..dot])
                 {
@@ -1912,11 +1954,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.bind_pattern_locals(&arm.pat);
             if let Some(g) = &arm.guard {
                 let gt = self.walk_expr(g);
+                // guard 必须是 Bool；Nothing（未解析的 pattern binder）也算非 Bool。
                 if !matches!(
                     self.env.store.kind(gt),
                     TypeKind::Value(crate::ty::ValueTypeKind::Bool)
-                ) && !self.env.store.is_nothing(gt)
-                {
+                ) {
                     self.diags
                         .push(diagnostics::when_guard_not_bool(&self.describe(gt), g.span));
                 }
