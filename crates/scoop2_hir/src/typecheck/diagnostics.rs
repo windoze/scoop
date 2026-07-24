@@ -1031,6 +1031,15 @@ pub fn extension_property_initializer_not_allowed(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::call_missing_required_args`：命名实参跳过了无默认值的必需参数。
+pub fn call_missing_required_args(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::call_missing_required_args",
+        "缺少必需参数：命名实参只能跳过带默认值的形参",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

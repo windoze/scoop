@@ -1771,13 +1771,49 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // 命名实参校验：名字必须在该签名参数名中。
             let names: std::collections::HashSet<Symbol> =
                 sig.param_names.iter().copied().collect();
+            let mut any_unknown = false;
             for a in args {
                 if let Some(arg_name) = &a.name
                     && !names.contains(&arg_name.symbol)
                 {
+                    any_unknown = true;
                     let n = self.env.interner.resolve(arg_name.symbol);
                     self.diags
                         .push(diagnostics::unknown_call_arg_name(n, a.span));
+                }
+            }
+            // 命名实参不能跳过无默认值的必需参数。
+            // 仅在命名实参结构合法（无未知名 / 无重名 / 无命名后位置）时报错，避免掩盖结构性诊断。
+            let has_named = args.iter().any(|a| a.name.is_some());
+            let mut seen_names: std::collections::HashSet<Symbol> =
+                std::collections::HashSet::new();
+            let has_dup = args.iter().any(|a| {
+                a.name
+                    .as_ref()
+                    .is_some_and(|n| !seen_names.insert(n.symbol))
+            });
+            let mut seen_named = false;
+            let pos_after_named = args.iter().any(|a| {
+                if a.name.is_some() {
+                    seen_named = true;
+                    false
+                } else {
+                    seen_named
+                }
+            });
+            if has_named && !any_unknown && !has_dup && !pos_after_named {
+                let positional_count = args.iter().filter(|a| a.name.is_none()).count();
+                let provided_names: std::collections::HashSet<Symbol> = args
+                    .iter()
+                    .filter_map(|a| a.name.as_ref().map(|n| n.symbol))
+                    .collect();
+                for (i, &pname) in sig.param_names.iter().enumerate() {
+                    let has_default = sig.has_defaults.get(i).copied().unwrap_or(false);
+                    if !has_default && i >= positional_count && !provided_names.contains(&pname) {
+                        self.diags
+                            .push(diagnostics::call_missing_required_args(span));
+                        break;
+                    }
                 }
             }
             return self.check_call_args(sig.params, sig.return_ty, args, span);

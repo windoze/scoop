@@ -25,6 +25,8 @@ pub struct Signature {
     pub type_param_count: usize,
     /// 参数名（与 params 等长）。
     pub param_names: Vec<Symbol>,
+    /// 各参数是否有默认值（与 params 等长）。
+    pub has_defaults: Vec<bool>,
     /// 声明处修饰符（open/abstract/override/final 等；M6 override 匹配用）。
     pub modifiers: crate::resolve::symbol::ModifierSet,
     /// 声明的 effect 行（M6 override effect containment 用）。
@@ -267,6 +269,7 @@ pub fn register_top_level_signatures(
             };
             Signature {
                 param_names: d.params.iter().map(|p| p.name.symbol).collect(),
+                has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
                 params,
                 return_ty,
                 type_param_count: tpc,
@@ -481,6 +484,7 @@ fn register_body_members(
                     };
                     Signature {
                         param_names: d.params.iter().map(|p| p.name.symbol).collect(),
+                        has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
                         params,
                         return_ty,
                         type_param_count: 0,
