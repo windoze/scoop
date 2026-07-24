@@ -409,7 +409,7 @@ pub fn static_initializer_must_be_pure(what: &str, span: Span) -> Diagnostic {
 pub fn binary_op_operand_type_mismatch(op: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::binary_op_operand_type_mismatch",
-        format!("运算符 `{op}` 的操作数类型不匹配：{found}"),
+        format!("二元运算符 `{op}` 的操作数类型不匹配：{found}"),
     )
     .with_primary(span, "这里")
 }

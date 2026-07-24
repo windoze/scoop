@@ -909,6 +909,19 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                     sym,
                                     Span::new(start, start + sym.len()),
                                 ));
+                            } else if !self.env.store.is_nothing(lt)
+                                && !matches!(self.env.store.kind(lt), TypeKind::Param(_))
+                                && scalar_fqn(self.env.store.kind(lt), self.env.interner).is_some()
+                            {
+                                // 标量原始类型（如 Bool）对该运算符无内建支持 → 操作数类型不匹配。
+                                let sym = binop_symbol(*op);
+                                let start = lhs.span.end + 1;
+                                self.diags
+                                    .push(diagnostics::binary_op_operand_type_mismatch(
+                                        sym,
+                                        &self.describe(lt),
+                                        Span::new(start, start + sym.len()),
+                                    ));
                             }
                         }
                         self.env.store.nothing()
@@ -2692,7 +2705,18 @@ fn builtin_binop(
                 None
             }
         }
-        B::Lt | B::Le | B::Gt | B::Ge | B::Eq | B::Ne => {
+        B::Lt | B::Le | B::Gt | B::Ge => {
+            // 排序比较不支持 Bool（Bool 仅参与相等比较）。
+            if matches!(
+                cat,
+                ScalarCat::Int | ScalarCat::Float | ScalarCat::Char | ScalarCat::String
+            ) {
+                Some(bool_ty)
+            } else {
+                None
+            }
+        }
+        B::Eq | B::Ne => {
             if matches!(
                 cat,
                 ScalarCat::Int
