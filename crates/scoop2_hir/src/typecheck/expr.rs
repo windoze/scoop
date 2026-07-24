@@ -152,6 +152,70 @@ pub fn check_top_level_val<'a, 'i>(
             val.ty.as_ref().map(|t| t.span).unwrap_or_default(),
         ));
     }
+    // 顶层 val 初始化器必须为 Pure!：执行了任何 effect 即报错。
+    let eff_span = c.performed_effects.first().map(|(_, s)| *s);
+    if let Some(span) = eff_span {
+        let name = match &val.binding {
+            ast::ValBinding::Name(id) => c.env.interner.resolve(id.symbol).to_string(),
+            ast::ValBinding::Pattern(_) => "<pattern>".to_string(),
+        };
+        let what = format!("顶层绑定 `{name}`");
+        c.diags
+            .push(diagnostics::static_initializer_must_be_pure(&what, span));
+    }
+}
+
+/// 静态初始化器遍历目标：object `init` 块（Block）或属性初始化表达式（Expr）。
+pub(super) enum PureInitSite<'s> {
+    Block(&'s ast::Block),
+    Expr(&'s ast::Expr),
+}
+
+/// 静态初始化器（object `init` 块 / object 属性初始化器）必须 `Pure!`。
+///
+/// 用 lenient ExprChecker 遍历初始化表达式，收集 performed effects；非空则报错。
+/// `what` 为初始化器描述前缀（如 `object \`pkg.Holder\` init block`）。
+#[allow(clippy::too_many_arguments)]
+pub(super) fn check_pure_static_init<'a, 'i>(
+    env: &mut TypeEnv<'i>,
+    imports: &'a ImportTable,
+    resolution: &'a Resolution,
+    diags: &'a mut DiagnosticSink,
+    package_prefix: &str,
+    this_ty: Option<TypeId>,
+    what: String,
+    site: PureInitSite<'_>,
+) {
+    let mut c = ExprChecker {
+        env,
+        imports,
+        resolution,
+        diags,
+        package_prefix: package_prefix.to_string(),
+        type_params: HashMap::new(),
+        locals: HashMap::new(),
+        local_vars: HashMap::new(),
+        lambda_depth: 0,
+        return_ty: None,
+        in_loop: 0u32,
+        this_ty,
+        in_function_body: false,
+        lenient_type_errors: true,
+        performed_effects: Vec::new(),
+        effect_suspend_depth: 0,
+    };
+    match site {
+        PureInitSite::Block(b) => {
+            c.walk_block(b);
+        }
+        PureInitSite::Expr(e) => {
+            c.walk_expr(e);
+        }
+    }
+    if let Some(span) = c.performed_effects.first().map(|(_, s)| *s) {
+        c.diags
+            .push(diagnostics::static_initializer_must_be_pure(&what, span));
+    }
 }
 
 struct ExprChecker<'a, 'i> {
@@ -2345,6 +2409,26 @@ fn nominal_args_of(kind: &TypeKind) -> Option<&[TypeId]> {
         TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
         | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(&n.args),
         _ => None,
+    }
+}
+
+/// 声明的 effect 行是否为 Pure（无行，或所有项均为 `Pure`，且非闭合行）。
+pub(super) fn effect_row_expr_is_pure(
+    eff: Option<&ast::EffectRowExpr>,
+    interner: &scoop2_base::Interner,
+) -> bool {
+    match eff {
+        None => true,
+        Some(eff) => {
+            eff.closed.is_none()
+                && eff.terms.iter().all(|t| {
+                    t.path
+                        .segments
+                        .last()
+                        .map(|s| interner.resolve(s.symbol) == "Pure")
+                        .unwrap_or(true)
+                })
+        }
     }
 }
 

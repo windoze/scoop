@@ -200,6 +200,13 @@ fn check_file_bodies(
                 if !is_extern && has_annotation(&d.annotations, "CallingConvention", env.interner) {
                     extern_fn::check_calling_convention(env, imports, diags, package_prefix, d);
                 }
+                // `@NoGC` 函数必须声明 Pure effect row（不得声明非 Pure effect）。
+                if has_annotation(&d.annotations, "NoGC", env.interner)
+                    && !expr::effect_row_expr_is_pure(d.effect.as_ref(), env.interner)
+                    && let Some(eff) = &d.effect
+                {
+                    diags.push(diagnostics::nogc_fun_effects_not_allowed(eff.span));
+                }
                 // entry-point `main` 签名校验（spec P4 §13）。
                 let name_text = env.interner.resolve(d.name.symbol);
                 if name_text == "main" && d.receiver.is_none() {
@@ -493,6 +500,12 @@ fn check_file_bodies(
             ItemKind::Object(d) => {
                 if let Some(name) = &d.name {
                     let this_ty = make_nominal(env, package_prefix, name.symbol);
+                    let name_text = env.interner.resolve(name.symbol);
+                    let obj_fqn = if package_prefix.is_empty() {
+                        name_text.to_string()
+                    } else {
+                        format!("{package_prefix}.{name_text}")
+                    };
                     if let Some(body) = &d.body {
                         check_member_funs(
                             &body.members,
@@ -504,6 +517,42 @@ fn check_file_bodies(
                             package_prefix,
                             &empty_tp,
                         );
+                        // object 的 init 块与属性初始化器必须 `Pure!`（静态初始化器）。
+                        for m in &body.members {
+                            use crate::syntax::ast::TypeMemberKind;
+                            match &m.kind {
+                                TypeMemberKind::InitBlock(ib) => {
+                                    let what = format!("object `{obj_fqn}` init block");
+                                    expr::check_pure_static_init(
+                                        env,
+                                        imports,
+                                        resolution,
+                                        diags,
+                                        package_prefix,
+                                        this_ty,
+                                        what,
+                                        expr::PureInitSite::Block(&ib.body),
+                                    );
+                                }
+                                TypeMemberKind::Property(pd) if pd.init.is_some() => {
+                                    let pname = env.interner.resolve(pd.name.symbol);
+                                    let what = format!("object `{obj_fqn}` 属性 `{pname}`");
+                                    if let Some(init) = &pd.init {
+                                        expr::check_pure_static_init(
+                                            env,
+                                            imports,
+                                            resolution,
+                                            diags,
+                                            package_prefix,
+                                            this_ty,
+                                            what,
+                                            expr::PureInitSite::Expr(init),
+                                        );
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
                     }
                 }
             }

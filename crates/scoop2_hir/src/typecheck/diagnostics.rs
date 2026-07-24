@@ -375,11 +375,23 @@ pub fn required_effect_not_declared(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
-/// `scoop::typecheck::static_initializer_must_be_pure`：顶层初始化器必须 Pure。
-pub fn static_initializer_must_be_pure(span: Span) -> Diagnostic {
+/// `scoop::typecheck::nogc_fun_effects_not_allowed`：`@NoGC` 函数不允许声明非 Pure 的 effect row。
+pub fn nogc_fun_effects_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::nogc_fun_effects_not_allowed",
+        "`@NoGC` 函数不允许声明非 Pure 的 effect row",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::static_initializer_must_be_pure`：顶层/object 初始化器必须 `Pure!`。
+///
+/// `what` 为初始化器描述前缀，如 `顶层绑定 \`Broken\``、`object \`pkg.Holder\` init block`、
+/// `object \`pkg.Holder\` 属性 \`broken\``。
+pub fn static_initializer_must_be_pure(what: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::static_initializer_must_be_pure",
-        "顶层 val 初始化器必须是 Pure",
+        format!("{what} 初始化器必须为 `Pure!`"),
     )
     .with_primary(span, "这里")
 }
