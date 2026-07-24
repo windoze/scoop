@@ -1613,6 +1613,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // 单候选：直接检查（保留 arity_mismatch / type_mismatch 精确诊断）。
         if non_generic.len() == 1 {
             let sig = non_generic.into_iter().next().expect("len == 1");
+            // 命名实参校验：名字必须在该签名参数名中。
+            let names: std::collections::HashSet<Symbol> =
+                sig.param_names.iter().copied().collect();
+            for a in args {
+                if let Some(arg_name) = &a.name
+                    && !names.contains(&arg_name.symbol)
+                {
+                    let n = self.env.interner.resolve(arg_name.symbol);
+                    self.diags
+                        .push(diagnostics::unknown_call_arg_name(n, a.span));
+                }
+            }
             return self.check_call_args(sig.params, sig.return_ty, args, span);
         }
         // 多候选：先走一遍实参类型，再按适用性过滤。
