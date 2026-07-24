@@ -560,6 +560,15 @@ pub fn ref_value_bound_mutually_exclusive(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::delegated_property_not_allowed_in_value_type`：值类型不允许委托属性。
+pub fn delegated_property_not_allowed_in_value_type(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::delegated_property_not_allowed_in_value_type",
+        "值类型（struct / enum）不允许委托属性（`by`）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_arg_positional_after_named`。
 pub fn call_arg_positional_after_named(span: Span) -> Diagnostic {
     Diagnostic::error(

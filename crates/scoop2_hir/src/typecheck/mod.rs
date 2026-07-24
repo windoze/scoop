@@ -347,6 +347,22 @@ fn check_file_bodies(
                     }
                 }
                 let this_ty = make_nominal(env, package_prefix, d.name.symbol);
+                // 委托属性（`by`）：值类型（struct/enum）不允许。
+                if matches!(
+                    d.kind,
+                    crate::syntax::ast::TypeKind::Struct | crate::syntax::ast::TypeKind::Enum
+                ) && let Some(body) = &d.body
+                {
+                    for m in &body.members {
+                        if let crate::syntax::ast::TypeMemberKind::Property(pd) = &m.kind
+                            && pd.delegate.is_some()
+                        {
+                            diags.push(diagnostics::delegated_property_not_allowed_in_value_type(
+                                pd.name.span,
+                            ));
+                        }
+                    }
+                }
                 // 虚方法（open/abstract/override/interface 方法）不能引入方法级类型参数（spec P3 §4.5）。
                 if let Some(body) = &d.body {
                     for m in &body.members {
