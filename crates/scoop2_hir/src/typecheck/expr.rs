@@ -1164,8 +1164,25 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     return self.env.store.nothing();
                 }
                 let elem_ty = self.walk_expr(&els[0]);
-                for e in &els[1..] {
-                    self.walk_expr(e);
+                for (idx, e) in els[1..].iter().enumerate() {
+                    let et = self.walk_expr(e);
+                    // Float 字面量有吸收语义（Float64 默认可吸收为 Float32），跨 Float 类型
+                    // 不做元素一致性检查；仅捕获明显的跨类别不匹配（如 Int vs String）。
+                    let both_float = scalar_cat(self.env.store.kind(elem_ty)) == ScalarCat::Float
+                        && scalar_cat(self.env.store.kind(et)) == ScalarCat::Float;
+                    if !both_float
+                        && !self.assignable(et, elem_ty)
+                        && !self.env.store.is_nothing(et)
+                        && !self.env.store.is_nothing(elem_ty)
+                    {
+                        self.diags
+                            .push(diagnostics::array_lit_element_type_mismatch(
+                                idx + 2,
+                                &self.describe(elem_ty),
+                                &self.describe(et),
+                                e.span,
+                            ));
+                    }
                 }
                 let array_fqn = self
                     .env

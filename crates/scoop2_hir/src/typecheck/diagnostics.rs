@@ -864,10 +864,15 @@ pub fn initializer_type_mismatch(expected: &str, found: &str, span: Span) -> Dia
 }
 
 /// `scoop::typecheck::array_lit_element_type_mismatch`：数组字面量元素类型不匹配。
-pub fn array_lit_element_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
+pub fn array_lit_element_type_mismatch(
+    index: usize,
+    expected: &str,
+    found: &str,
+    span: Span,
+) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::array_lit_element_type_mismatch",
-        format!("数组元素类型不匹配：期望 {expected}，但得到 {found}"),
+        format!("第 {index} 个元素期望 {expected}，但得到 {found}"),
     )
     .with_primary(span, "这里")
 }
