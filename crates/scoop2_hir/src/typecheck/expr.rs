@@ -1419,6 +1419,23 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         } else {
             self.env.store.value_nominal(nominal)
         };
+        // struct/class 命名实参校验：命名实参名必须是已声明的字段/属性。
+        let field_names: Option<std::collections::HashSet<Symbol>> = self
+            .env
+            .member_types(fqn)
+            .filter(|m| !m.is_empty())
+            .map(|m| m.keys().copied().collect());
+        if let Some(names) = field_names {
+            for a in args {
+                if let Some(arg_name) = &a.name
+                    && !names.contains(&arg_name.symbol)
+                {
+                    let n = self.env.interner.resolve(arg_name.symbol);
+                    self.diags
+                        .push(diagnostics::unknown_call_arg_name(n, a.span));
+                }
+            }
+        }
         self.check_call_args(params, result, args, span)
     }
 

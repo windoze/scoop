@@ -867,7 +867,7 @@ pub fn array_lit_element_type_mismatch(expected: &str, found: &str, span: Span) 
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::unknown_call_arg_name",
-        format!("未知的命名实参：{name}"),
+        format!("没有名为 `{name}` 的参数"),
     )
     .with_primary(span, "这里")
 }
