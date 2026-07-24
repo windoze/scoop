@@ -538,6 +538,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if let Some(&t) = self.locals.get(&ident.symbol) {
                     return t;
                 }
+                // 泛型函数作为值使用（无类型实参）→ 无法推断类型实参。
+                if let Some(ResolvedValue::TopLevelFun { fqn }) =
+                    self.resolution.value_refs.get(expr.id).copied()
+                    && let Some(sigs) = self.env.signatures(fqn)
+                    && sigs.iter().any(|s| s.type_param_count > 0)
+                {
+                    self.diags
+                        .push(diagnostics::generic_type_arg_not_inferred(expr.span));
+                }
                 // 顶层值 / 函数引用 / 类型名 → 推迟精确类型（返回 Nothing，避免假错误）。
                 self.env.store.nothing()
             }

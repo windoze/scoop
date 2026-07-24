@@ -718,6 +718,15 @@ pub fn invalid_annotation_target_name(name: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::generic_type_arg_not_inferred`：泛型函数值使用无法推断类型实参。
+pub fn generic_type_arg_not_inferred(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::generic_type_arg_not_inferred",
+        "泛型函数作为值使用时无法推断类型实参，需要显式类型标注",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::fun_must_have_body`：普通函数必须提供函数体。
 pub fn fun_must_have_body(span: Span) -> Diagnostic {
     fun_must_have_body_detail("普通函数必须提供函数体", span)
