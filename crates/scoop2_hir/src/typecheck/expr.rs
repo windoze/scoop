@@ -887,7 +887,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::InterpolatedString { parts, .. } => {
                 for p in parts {
                     if let ast::StringPart::Expr(e) = p {
-                        self.walk_expr(e);
+                        let t = self.walk_expr(e);
+                        if !self.type_implements_tostring(t) {
+                            self.diags
+                                .push(diagnostics::interpolation_expr_not_to_string(e.span));
+                        }
                     }
                 }
                 self.env.store.string()
@@ -1536,6 +1540,39 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     span, suggest,
                 ));
         }
+    }
+
+    /// 类型是否实现 `ToString`（标量原始类型 + nominal 超类型链中含 ToString）。
+    fn type_implements_tostring(&self, ty: TypeId) -> bool {
+        let kind = self.env.store.kind(ty);
+        let fqn = nominal_fqn_of(kind).or_else(|| scalar_fqn(kind, self.env.interner));
+        let Some(fqn) = fqn else {
+            // Nothing（不可解析）放行；其余无 FQN 类型放行。
+            return self.env.store.is_nothing(ty);
+        };
+        let target = self
+            .env
+            .interner
+            .get("scoop.core.ToString")
+            .or_else(|| self.env.interner.get("ToString"));
+        let Some(target) = target else {
+            return true;
+        };
+        let mut visited: Vec<scoop2_base::Symbol> = Vec::new();
+        let mut stack = vec![fqn];
+        while let Some(f) = stack.pop() {
+            if f == target {
+                return true;
+            }
+            if visited.contains(&f) {
+                continue;
+            }
+            visited.push(f);
+            for &sup in self.env.index.supertypes_of(f) {
+                stack.push(sup);
+            }
+        }
+        false
     }
 
     /// 名称是否是已知 effect 类型（prelude + 用户声明）。

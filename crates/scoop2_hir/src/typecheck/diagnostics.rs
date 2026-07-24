@@ -1269,6 +1269,15 @@ pub fn unsupported_expr(what: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::interpolation_expr_not_to_string`：f-string 插值表达式必须实现 ToString。
+pub fn interpolation_expr_not_to_string(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::interpolation_expr_not_to_string",
+        "interpolation expr must be ToString（f-string 插值表达式必须实现 ToString）",
+    )
+    .with_primary(span, "这里")
+}
+
 // ===== @Extern 函数 ABI 校验（spec §15.x）=====
 
 /// `scoop::typecheck::extern_annotation_abi_not_supported`：暂不支持的 ABI 名。
