@@ -448,6 +448,18 @@ fn check_file_bodies(
             }
             ItemKind::Val(d) => {
                 let is_extern_var = has_annotation(&d.annotations, "Extern", env.interner);
+                // 降级类型注解（触发 where-satisfaction / unresolved_type_ref；
+                // 不检查 initializer 以避免 ExprChecker 在顶层上下文的局限）。
+                if let Some(ty_ref) = &d.ty {
+                    let mut lower = crate::typecheck::lower::TypeLowering::new(
+                        env,
+                        imports,
+                        empty_tp.clone(),
+                        package_prefix.to_string(),
+                        diags,
+                    );
+                    lower.lower(ty_ref);
+                }
                 // @Extern 顶层变量声明必须省略 initializer（外部符号由链接提供）。
                 if is_extern_var && let Some(init) = &d.init {
                     extern_fn::check_extern_var(diags, init.span);

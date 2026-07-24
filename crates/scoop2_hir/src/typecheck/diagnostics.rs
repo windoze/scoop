@@ -383,7 +383,7 @@ pub fn when_non_exhaustive_missing_variants(span: Span) -> Diagnostic {
 pub fn where_constraint_not_satisfied(constraint: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::where_constraint_not_satisfied",
-        format!("where 约束不满足：{constraint}"),
+        format!("泛型约束不满足：{constraint}"),
     )
     .with_primary(span, "这里")
 }
