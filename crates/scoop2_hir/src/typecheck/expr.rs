@@ -976,7 +976,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             self.env.store.unit()
                         }
                     }
-                    None => tt,
+                    // if-without-else 在值位为 Unit（无 else 分支产生值）。
+                    None => self.env.store.unit(),
                 }
             }
             ExprKind::Block(b)
