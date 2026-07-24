@@ -2987,6 +2987,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
             }
+            self.record_callee_effects(sig, span);
             return sig.return_ty;
         }
         let applicable: Vec<&Signature> = non_generic
@@ -3004,7 +3005,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.diags.push(diagnostics::no_applicable_overload(span));
                 non_generic[0].return_ty
             }
-            _ => self.pick_most_specific(&applicable, span),
+            _ => {
+                // 特异性选择 + effect 传播。
+                if let Some(idx) = self.select_most_specific(&applicable) {
+                    self.record_callee_effects(applicable[idx], span);
+                    applicable[idx].return_ty
+                } else {
+                    self.pick_most_specific(&applicable, span)
+                }
+            }
         }
     }
 
