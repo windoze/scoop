@@ -235,7 +235,8 @@ fn check_file_bodies(
                 check_where_clause(
                     d.where_clause.as_ref(),
                     d.type_params.as_ref(),
-                    env.interner,
+                    env,
+                    package_prefix,
                     diags,
                 );
                 // `@Target` / `@Retention` 只能用于 annotation class 声明。
@@ -865,7 +866,8 @@ fn fmt_type_fqn(env: &TypeEnv, id: crate::ty::TypeId) -> String {
 fn check_where_clause(
     where_clause: Option<&crate::syntax::ast::WhereClause>,
     type_params: Option<&crate::syntax::ast::TypeParamList>,
-    interner: &scoop2_base::Interner,
+    env: &mut TypeEnv,
+    package_prefix: &str,
     diags: &mut DiagnosticSink,
 ) {
     let Some(wc) = where_clause else {
@@ -897,7 +899,7 @@ fn check_where_clause(
             }
             _ => {}
         }
-        let key = (c.name.symbol, bound_key(&c.bound, interner));
+        let key = (c.name.symbol, bound_key(&c.bound, env.interner));
         if let Some(first_span) = seen.get(&key) {
             // 指向首次声明（与 legacy 一致）。
             diags.push(diagnostics::duplicate_where_constraint(*first_span));
@@ -918,6 +920,49 @@ fn check_where_clause(
             return;
         }
     }
+    // 冲突的 class bound：同一类型参数约束到两个以上 class。
+    let mut class_bounds: std::collections::HashMap<scoop2_base::Symbol, Vec<scoop2_base::Span>> =
+        std::collections::HashMap::new();
+    for c in &wc.constraints {
+        if let crate::syntax::ast::GenericBound::Type(t) = &c.bound
+            && is_class_bound(t, env, package_prefix)
+        {
+            class_bounds.entry(c.name.symbol).or_default().push(c.span);
+        }
+    }
+    for spans in class_bounds.values() {
+        if spans.len() >= 2 {
+            diags.push(diagnostics::conflicting_where_constraints(spans[0]));
+            return;
+        }
+    }
+}
+
+/// Type bound 是否解析为 class（用于检测冲突的 class bound）。
+fn is_class_bound(t: &crate::syntax::ast::TypeRef, env: &TypeEnv, package_prefix: &str) -> bool {
+    use crate::syntax::ast::TypeRefKind;
+    let path = match &t.kind {
+        TypeRefKind::Path { path, .. } => path,
+        _ => return false,
+    };
+    let fqn_text = if path.segments.len() == 1 {
+        let n = env.interner.resolve(path.segments[0].symbol);
+        if package_prefix.is_empty() {
+            n.to_string()
+        } else {
+            format!("{package_prefix}.{n}")
+        }
+    } else {
+        path.segments
+            .iter()
+            .map(|s| env.interner.resolve(s.symbol))
+            .collect::<Vec<_>>()
+            .join(".")
+    };
+    env.interner
+        .get(&fqn_text)
+        .and_then(|f| env.index.category(f))
+        .is_some_and(|c| matches!(c, crate::resolve::symbol::NominalCategory::Class))
 }
 
 /// where 约束的判重键（类型约束用 path 文本；ref/value 用固定标记）。
@@ -1119,7 +1164,8 @@ fn check_one_fun(
         check_where_clause(
             d.where_clause.as_ref(),
             d.type_params.as_ref(),
-            env.interner,
+            env,
+            package_prefix,
             diags,
         );
         return;
@@ -1128,7 +1174,8 @@ fn check_one_fun(
     check_where_clause(
         d.where_clause.as_ref(),
         d.type_params.as_ref(),
-        env.interner,
+        env,
+        package_prefix,
         diags,
     );
     // @Intrinsic 成员函数不能有 body。

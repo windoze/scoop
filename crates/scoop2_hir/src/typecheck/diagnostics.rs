@@ -623,6 +623,15 @@ pub fn ref_value_bound_mutually_exclusive(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::conflicting_where_constraints`：冲突的 class bound。
+pub fn conflicting_where_constraints(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::conflicting_where_constraints",
+        "where 约束冲突：同一类型参数不能约束到多个 class",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::delegated_property_not_allowed_in_value_type`：值类型不允许委托属性。
 pub fn delegated_property_not_allowed_in_value_type(span: Span) -> Diagnostic {
     Diagnostic::error(
