@@ -1213,6 +1213,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             let rt = self.walk_expr(receiver);
             let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
+            // Continuation.resume 步骤 effect 传播：`k.resume(v)` 的 effect 行为
+            // `E + Raise<RuntimeError>`（E 为 `Continuation<..., eff E>` 的第三类型实参）。
+            // 由此调用点执行 RuntimeError（恒定）+ E 所含 effect。
+            if self.effect_suspend_depth == 0
+                && let MemberName::Named(name) = member
+                && self.env.interner.resolve(name.symbol) == "resume"
+            {
+                self.record_continuation_resume_effects(rt, span);
+            }
             // GC.handleNew/handleGet/handleDrop 参数契约（按 receiver 名识别 GC object）。
             if let MemberName::Named(name) = member {
                 let is_gc = matches!(&receiver.kind, ExprKind::Ident(id)
@@ -1349,6 +1358,39 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return matches!(cat, crate::resolve::symbol::NominalCategory::Effect);
         }
         false
+    }
+
+    /// 记录 `k.resume(v)` 的步骤 effect 到 performed_effects。
+    ///
+    /// `Continuation<Resume, Answer, eff E>.resume` 的 effect 行为 `E + Raise<RuntimeError>`
+    /// （spec §5.5）：恒定执行 `Raise`（即 `Raise<RuntimeError>`），外加 E 解析出的具体 effect。
+    /// E 为类型参数（多态）或 `Pure` 时不贡献额外 effect。
+    fn record_continuation_resume_effects(&mut self, recv_ty: TypeId, span: Span) {
+        // 先用不可变借用取出所需数据，再以可变借用写入 performed_effects。
+        let e_name: Option<String> = {
+            let kind = self.env.store.kind(recv_ty);
+            let Some(fqn) = nominal_fqn_of(kind) else {
+                return;
+            };
+            let recv = self.env.interner.resolve(fqn);
+            let recv = recv.strip_prefix("scoop.core.").unwrap_or(recv);
+            if recv != "Continuation" {
+                return;
+            }
+            nominal_args_of(kind)
+                .and_then(|args| args.get(2).copied())
+                .and_then(|e_ty| nominal_fqn_of(self.env.store.kind(e_ty)))
+                .map(|e_fqn| self.env.interner.resolve(e_fqn).to_string())
+                .filter(|n| {
+                    let s = n.strip_prefix("scoop.core.").unwrap_or(n);
+                    s != "Pure"
+                })
+        };
+        self.performed_effects.push(("Raise".to_string(), span));
+        if let Some(name) = e_name {
+            self.performed_effects
+                .push((name.strip_prefix("scoop.core.").unwrap_or(&name).to_string(), span));
+        }
     }
 
     /// 从 EffectRowExpr 提取 effect FQN 短名集合（不降级到 TypeId）。
@@ -2282,6 +2324,15 @@ fn nominal_fqn_of(kind: &TypeKind) -> Option<Symbol> {
     match kind {
         TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
         | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
+        _ => None,
+    }
+}
+
+/// nominal 类型的类型实参切片（ref/value 均覆盖）。
+fn nominal_args_of(kind: &TypeKind) -> Option<&[TypeId]> {
+    match kind {
+        TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(&n.args),
         _ => None,
     }
 }
