@@ -354,16 +354,50 @@ fn check_file_bodies(
                         }
                     }
                 }
-                // struct body 字段必须是 val（@Intrinsic 豁免）。
-                if d.kind == crate::syntax::ast::TypeKind::Struct
-                    && !is_intrinsic_type_early
+                // 值类型（struct/enum）属性校验（@Intrinsic 豁免）。
+                if matches!(
+                    d.kind,
+                    crate::syntax::ast::TypeKind::Struct | crate::syntax::ast::TypeKind::Enum
+                ) && !is_intrinsic_type_early
                     && let Some(body) = &d.body
                 {
+                    use crate::syntax::ast::{AccessorKind, TypeMemberKind};
                     for m in &body.members {
-                        if let crate::syntax::ast::TypeMemberKind::Property(pd) = &m.kind
-                            && pd.kind == crate::syntax::ast::ValKind::Var
+                        let TypeMemberKind::Property(pd) = &m.kind else {
+                            continue;
+                        };
+                        let getter_span = pd
+                            .accessors
+                            .iter()
+                            .find(|a| a.kind == AccessorKind::Get)
+                            .map(|a| a.span);
+                        let setter_span = pd
+                            .accessors
+                            .iter()
+                            .find(|a| a.kind == AccessorKind::Set)
+                            .map(|a| a.span);
+                        let has_getter = getter_span.is_some();
+                        // struct `var` 属性用专用码；enum `var` 属性用 value_type 码。
+                        if pd.kind == crate::syntax::ast::ValKind::Var {
+                            if d.kind == crate::syntax::ast::TypeKind::Struct {
+                                diags.push(diagnostics::struct_field_must_be_val(pd.name.span));
+                            } else {
+                                diags.push(diagnostics::value_type_property_must_be_val(
+                                    pd.name.span,
+                                ));
+                            }
+                        }
+                        // `val` 属性不允许 setter（指向 setter）。
+                        if pd.kind == crate::syntax::ast::ValKind::Val
+                            && let Some(sspan) = setter_span
                         {
-                            diags.push(diagnostics::struct_field_must_be_val(pd.name.span));
+                            diags.push(diagnostics::val_property_setter_not_allowed(sspan));
+                        }
+                        // computed 属性（带 getter）不允许 initializer（指向 init）。
+                        if has_getter && let Some(init) = &pd.init {
+                            diags.push(diagnostics::value_type_property_initializer_not_allowed(
+                                init.span,
+                            ));
                         }
                     }
                 }

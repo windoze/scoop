@@ -1278,6 +1278,34 @@ pub fn interpolation_expr_not_to_string(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::value_type_property_must_be_val`：值类型（enum）属性不允许 `var`。
+pub fn value_type_property_must_be_val(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::value_type_property_must_be_val",
+        "值类型（struct/enum）属性不允许 `var`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::val_property_setter_not_allowed`：`val` 属性不允许自定义 setter。
+pub fn val_property_setter_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::val_property_setter_not_allowed",
+        "`val` 属性不允许自定义 setter",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::value_type_property_initializer_not_allowed`：
+/// computed 属性（带 getter）不允许 initializer。
+pub fn value_type_property_initializer_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::value_type_property_initializer_not_allowed",
+        "computed 属性不允许 initializer（带 getter 的计算属性不能同时有初始值）",
+    )
+    .with_primary(span, "这里")
+}
+
 // ===== @Extern 函数 ABI 校验（spec §15.x）=====
 
 /// `scoop::typecheck::extern_annotation_abi_not_supported`：暂不支持的 ABI 名。
