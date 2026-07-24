@@ -2340,6 +2340,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let mut arm_types: Vec<TypeId> = Vec::new();
         for arm in arms {
             self.bind_pattern_locals(&arm.pat);
+            self.check_when_pattern(&arm.pat, subject_ty);
             if let Some(g) = &arm.guard {
                 let gt = self.walk_expr(g);
                 // guard 必须是 Bool；Nothing（未解析的 pattern binder）也算非 Bool。
@@ -2381,6 +2382,57 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         collect_pattern_binders(&pat.kind, &mut names);
         for name in names {
             self.locals.insert(name, self.env.store.nothing());
+        }
+    }
+
+    /// 校验 when 分支模式与 subject 类型匹配（or-pattern 递归检查每个分支）。
+    fn check_when_pattern(&mut self, pat: &ast::Pattern, subject_ty: TypeId) {
+        use crate::syntax::ast::{PatternKind, PatternLiteral};
+        if self.env.store.is_nothing(subject_ty) {
+            return;
+        }
+        let kind = self.env.store.kind(subject_ty);
+        match &pat.kind {
+            PatternKind::Or(alts) => {
+                for alt in alts {
+                    self.check_when_pattern(alt, subject_ty);
+                }
+            }
+            PatternKind::Literal(PatternLiteral::String(_)) => {
+                let nominal_name = match kind {
+                    TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                        Some(self.env.interner.resolve(n.fqn))
+                    }
+                    _ => None,
+                };
+                let is_string = matches!(kind, TypeKind::Ref(crate::ty::RefTypeKind::String))
+                    || nominal_name.is_some_and(|n| n == "String" || n.ends_with(".String"));
+                if !is_string {
+                    self.diags
+                        .push(diagnostics::when_string_pat_not_string(pat.span));
+                }
+            }
+            PatternKind::Variant { .. } => {
+                // enum nominal 或内建 Option<T>（variant 模式可用的 subject）。
+                let is_enum = matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Option(_)))
+                    || nominal_fqn_of(kind)
+                        .and_then(|fqn| self.env.index.category(fqn))
+                        .is_some_and(|c| {
+                            matches!(c, crate::resolve::symbol::NominalCategory::Enum)
+                        });
+                if !is_enum {
+                    self.diags
+                        .push(diagnostics::when_variant_pat_not_enum(pat.span));
+                }
+            }
+            PatternKind::Tuple(_) => {
+                let is_tuple = matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Tuple(_)));
+                if !is_tuple {
+                    self.diags
+                        .push(diagnostics::when_tuple_pat_not_tuple(pat.span));
+                }
+            }
+            _ => {}
         }
     }
 

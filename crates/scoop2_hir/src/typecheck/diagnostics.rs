@@ -877,6 +877,33 @@ pub fn array_lit_element_type_mismatch(
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::when_string_pat_not_string`：String literal pattern 只能用于 String 类型。
+pub fn when_string_pat_not_string(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_string_pat_not_string",
+        "String literal pattern 只能用于 String 类型的 when subject",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_variant_pat_not_enum`：variant pattern 只能用于 enum 类型。
+pub fn when_variant_pat_not_enum(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_variant_pat_not_enum",
+        "variant pattern 只能用于 enum 类型的 when subject",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_tuple_pat_not_tuple`：tuple pattern 只能用于 tuple 类型。
+pub fn when_tuple_pat_not_tuple(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_tuple_pat_not_tuple",
+        "tuple pattern 只能用于 tuple 类型的 when subject",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
