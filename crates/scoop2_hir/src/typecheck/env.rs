@@ -25,6 +25,10 @@ pub struct Signature {
     pub type_param_count: usize,
     /// 参数名（与 params 等长）。
     pub param_names: Vec<Symbol>,
+    /// 声明处修饰符（open/abstract/override/final 等；M6 override 匹配用）。
+    pub modifiers: crate::resolve::symbol::ModifierSet,
+    /// 声明的 effect 行（M6 override effect containment 用）。
+    pub effect: Option<crate::syntax::ast::EffectRowExpr>,
 }
 
 /// 顶层函数的注解属性（release-hook 等 cross-reference 校验用）。
@@ -256,6 +260,8 @@ pub fn register_top_level_signatures(
                 params,
                 return_ty,
                 type_param_count: tpc,
+                modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(&d.modifiers),
+                effect: d.effect.clone(),
             }
         };
         env.signatures.entry(fqn).or_default().push(sig);
@@ -467,6 +473,10 @@ fn register_body_members(
                         params,
                         return_ty,
                         type_param_count: 0,
+                        modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(
+                            &d.modifiers,
+                        ),
+                        effect: d.effect.clone(),
                     }
                 };
                 env.member_signatures
@@ -502,7 +512,7 @@ fn lower_and_store_member(
     env.members.entry(owner).or_default().insert(name, lowered);
 }
 
-fn build_tp_map(tpl: Option<&TypeParamList>) -> HashMap<Symbol, TypeParamType> {
+pub(super) fn build_tp_map(tpl: Option<&TypeParamList>) -> HashMap<Symbol, TypeParamType> {
     let mut map = HashMap::new();
     if let Some(tpl) = tpl {
         for p in &tpl.params {

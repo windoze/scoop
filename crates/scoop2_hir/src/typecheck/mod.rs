@@ -270,6 +270,7 @@ fn check_file_bodies(
                 // 只能继承 `open`/`abstract` 类（class 超类必须 open）。
                 if d.kind == crate::syntax::ast::TypeKind::Class {
                     check_superclass_open(d, d.name.symbol, env, package_prefix, diags);
+                    check_overrides(d, env, imports, diags, package_prefix);
                 }
                 // where 子句校验（目标在当前声明 / 无重复）。
                 check_where_clause(
@@ -1605,6 +1606,227 @@ fn check_superclass_open(
             diags.push(diagnostics::superclass_not_open(st.span));
         }
     }
+}
+
+/// class 成员的 override 校验（M6）：
+/// - `override` 必须命中签名匹配的超类/接口方法（否则 override_target_not_found）；
+/// - 命中的 base 方法必须是 open/abstract/interface（否则 override_non_open_method）；
+/// - 命中 open base 但未声明 override → missing_override；
+/// - 非_override 同签名且 base 非 open → override_non_open_method；
+/// - 覆盖方法 effect row ⊄ base（class 具体行）→ override_effect_row_not_contained。
+fn check_overrides(
+    d: &crate::syntax::ast::TypeDecl,
+    env: &mut TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    diags: &mut DiagnosticSink,
+    package_prefix: &str,
+) {
+    use crate::resolve::symbol::{ModifierSet, NominalCategory};
+    use crate::syntax::ast::{ModifierKind, TypeMemberKind};
+    let name_text = env.interner.resolve(d.name.symbol);
+    let fqn_text = if package_prefix.is_empty() {
+        name_text.to_string()
+    } else {
+        format!("{package_prefix}.{name_text}")
+    };
+    let Some(derived_fqn) = env.interner.get(&fqn_text) else {
+        return;
+    };
+    let bases: Vec<scoop2_base::Symbol> = env.index.supertypes_of(derived_fqn).to_vec();
+    if bases.is_empty() {
+        return;
+    }
+    let Some(body) = &d.body else {
+        return;
+    };
+    let tp_map = env::build_tp_map(d.type_params.as_ref());
+    let unit_ty = env.store.unit();
+    // 接口超类的 use-site effect 行实参（`Disposable<eff Pure>` 的 `Pure`），按 base FQN 索引。
+    // 用于接口实现方法的 effect 行代入（eff 形参 → 实参）。
+    let eff_args: std::collections::HashMap<
+        scoop2_base::Symbol,
+        Option<crate::syntax::ast::EffectRowExpr>,
+    > = d
+        .supertypes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, st)| {
+            let base = *bases.get(i)?;
+            use crate::syntax::ast::{TypeArgKind, TypeRefKind};
+            let arg = match &st.ty.kind {
+                TypeRefKind::Path { args, .. } => args.iter().find_map(|a| match &a.kind {
+                    TypeArgKind::Effect(e) => Some(e.clone()),
+                    _ => None,
+                }),
+                _ => None,
+            };
+            Some((base, arg))
+        })
+        .collect();
+    for m in &body.members {
+        let TypeMemberKind::Fun(f) = &m.kind else {
+            continue;
+        };
+        // 方法级类型参数的虚方法由 virtual_method_cannot_be_generic 单独检查。
+        if f.type_params.is_some() {
+            continue;
+        }
+        // 覆盖方法的参数类型（降级）。
+        let m_params: Vec<crate::ty::TypeId> = {
+            let mut lower = crate::typecheck::lower::TypeLowering::new(
+                env,
+                imports,
+                tp_map.clone(),
+                package_prefix.to_string(),
+                diags,
+            );
+            f.params
+                .iter()
+                .map(|p| match &p.ty {
+                    Some(t) => lower.lower(t),
+                    None => unit_ty,
+                })
+                .collect()
+        };
+        let has_override = f.modifiers.iter().any(|x| x.kind == ModifierKind::Override);
+        // 在超类型链中查找签名匹配的 base 方法。
+        // matched = (modifiers, base 方法 effect 行, base 是否接口, base FQN)。
+        let mut matched: Option<(
+            ModifierSet,
+            Option<crate::syntax::ast::EffectRowExpr>,
+            bool,
+            scoop2_base::Symbol,
+        )> = None;
+        for &base in &bases {
+            let base_is_interface =
+                matches!(env.index.category(base), Some(NominalCategory::Interface));
+            if let Some(sigs) = env.member_signatures(base, f.name.symbol) {
+                for bs in sigs {
+                    if bs.params.len() == m_params.len()
+                        && bs.params.iter().zip(m_params.iter()).all(|(a, b)| a == b)
+                    {
+                        matched = Some((bs.modifiers, bs.effect.clone(), base_is_interface, base));
+                        break;
+                    }
+                }
+            }
+            if matched.is_some() {
+                break;
+            }
+        }
+        match (has_override, matched) {
+            (true, None) => {
+                diags.push(diagnostics::override_target_not_found(f.name.span));
+            }
+            (true, Some((bmods, beff, base_iface, base_fqn))) => {
+                let base_open = bmods.contains(ModifierKind::Open)
+                    || bmods.contains(ModifierKind::Abstract)
+                    || base_iface;
+                if !base_open {
+                    diags.push(diagnostics::override_non_open_method(f.name.span));
+                } else {
+                    check_override_effect_containment(
+                        f,
+                        beff.as_ref(),
+                        base_iface,
+                        base_fqn,
+                        &eff_args,
+                        env,
+                        diags,
+                    );
+                }
+            }
+            (false, Some((bmods, beff, base_iface, base_fqn))) => {
+                if base_iface {
+                    // 实现接口方法不需要 override；仅校验 effect containment（代入 eff 形参）。
+                    check_override_effect_containment(
+                        f,
+                        beff.as_ref(),
+                        base_iface,
+                        base_fqn,
+                        &eff_args,
+                        env,
+                        diags,
+                    );
+                } else {
+                    let base_open = bmods.contains(ModifierKind::Open)
+                        || bmods.contains(ModifierKind::Abstract);
+                    if base_open {
+                        diags.push(diagnostics::missing_override(f.name.span));
+                    } else {
+                        diags.push(diagnostics::override_non_open_method(f.name.span));
+                    }
+                }
+            }
+            (false, None) => {}
+        }
+    }
+}
+
+/// 覆盖/实现方法的 effect containment：R_over ⊆ R_base。
+/// - class 具体 base 行：直接比较；
+/// - interface base：把 base 方法 effect 行中的 eff 形参（非已知 effect 的项）
+///   用超类的 use-site eff 实参代入后再比较。
+fn check_override_effect_containment(
+    f: &crate::syntax::ast::FunDecl,
+    base_eff: Option<&crate::syntax::ast::EffectRowExpr>,
+    base_iface: bool,
+    base_fqn: scoop2_base::Symbol,
+    eff_args: &std::collections::HashMap<
+        scoop2_base::Symbol,
+        Option<crate::syntax::ast::EffectRowExpr>,
+    >,
+    env: &TypeEnv,
+    diags: &mut DiagnosticSink,
+) {
+    let over_effs = expr::extract_effect_row_names(f.effect.as_ref(), env.interner);
+    let base_effs = if base_iface {
+        let eff_arg = eff_args.get(&base_fqn).cloned().flatten();
+        substituted_effect_names(base_eff, eff_arg.as_ref(), env)
+    } else {
+        expr::extract_effect_row_names(base_eff, env.interner)
+    };
+    if !over_effs.is_subset(&base_effs) {
+        let span = f.effect.as_ref().map(|e| e.span).unwrap_or(f.name.span);
+        diags.push(diagnostics::override_effect_row_not_contained(span));
+    }
+}
+
+/// 接口 base 方法 effect 行代入：非已知 effect 的项（eff 形参）用 use-site eff 实参替换。
+fn substituted_effect_names(
+    base_eff: Option<&crate::syntax::ast::EffectRowExpr>,
+    eff_arg: Option<&crate::syntax::ast::EffectRowExpr>,
+    env: &TypeEnv,
+) -> std::collections::HashSet<String> {
+    use crate::resolve::symbol::NominalCategory;
+    let mut set = std::collections::HashSet::new();
+    let Some(base_eff) = base_eff else {
+        return set;
+    };
+    for term in &base_eff.terms {
+        let Some(seg) = term.path.segments.last() else {
+            continue;
+        };
+        let n = env.interner.resolve(seg.symbol);
+        let s = n.strip_prefix("scoop.core.").unwrap_or(n);
+        if s == "Pure" {
+            continue;
+        }
+        // 已知 effect 类型（prelude Raise/RuntimeError 或 Index Effect 类别）→ 保留。
+        let known = matches!(s, "Raise" | "RuntimeError")
+            || env
+                .interner
+                .get(s)
+                .and_then(|sym| env.index.category(sym))
+                .is_some_and(|c| matches!(c, NominalCategory::Effect));
+        if known {
+            set.insert(s.to_string());
+        } else if let Some(arg) = eff_arg {
+            // eff 形参 → 用 use-site eff 实参代入。
+            set.extend(expr::extract_effect_row_names(Some(arg), env.interner));
+        }
+    }
+    set
 }
 
 #[allow(clippy::too_many_arguments)]

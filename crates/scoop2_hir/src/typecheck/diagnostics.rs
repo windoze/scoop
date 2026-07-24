@@ -669,6 +669,43 @@ pub fn superclass_not_open(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::missing_override`：方法匹配超类的 open 方法，必须声明 `override`。
+pub fn missing_override(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::missing_override",
+        "方法覆盖了超类的 `open`/`abstract` 方法，必须声明 `override`",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::override_non_open_method`：不能覆盖非 open 方法 / 重复签名。
+pub fn override_non_open_method(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::override_non_open_method",
+        "不能覆盖非 `open` 方法（或以相同签名重复声明）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::override_target_not_found`：`override` 未找到匹配的超类方法。
+pub fn override_target_not_found(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::override_target_not_found",
+        "`override` 未找到签名匹配的超类方法",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::override_effect_row_not_contained`：
+/// 覆盖方法的 effect row 不是超类方法 effect row 的子集（R_over ⊄ R_base）。
+pub fn override_effect_row_not_contained(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::override_effect_row_not_contained",
+        "覆盖方法的 effect row 不是超类方法 effect row 的子集（effect row 逆变）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

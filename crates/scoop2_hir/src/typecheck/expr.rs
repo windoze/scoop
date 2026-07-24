@@ -2412,6 +2412,26 @@ fn nominal_args_of(kind: &TypeKind) -> Option<&[TypeId]> {
     }
 }
 
+/// 从声明的 effect 行提取 effect 短名集合（`Pure` 排除；FQN 去前缀）。
+pub(super) fn extract_effect_row_names(
+    eff: Option<&ast::EffectRowExpr>,
+    interner: &scoop2_base::Interner,
+) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    if let Some(eff) = eff {
+        for term in &eff.terms {
+            if let Some(seg) = term.path.segments.last() {
+                let n = interner.resolve(seg.symbol);
+                let s = n.strip_prefix("scoop.core.").unwrap_or(n);
+                if s != "Pure" {
+                    names.insert(s.to_string());
+                }
+            }
+        }
+    }
+    names
+}
+
 /// 声明的 effect 行是否为 Pure（无行，或所有项均为 `Pure`，且非闭合行）。
 pub(super) fn effect_row_expr_is_pure(
     eff: Option<&ast::EffectRowExpr>,
