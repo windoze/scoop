@@ -267,6 +267,10 @@ fn check_file_bodies(
                         }
                     }
                 }
+                // 只能继承 `open`/`abstract` 类（class 超类必须 open）。
+                if d.kind == crate::syntax::ast::TypeKind::Class {
+                    check_superclass_open(d, d.name.symbol, env, package_prefix, diags);
+                }
                 // where 子句校验（目标在当前声明 / 无重复）。
                 check_where_clause(
                     d.where_clause.as_ref(),
@@ -1557,6 +1561,48 @@ fn check_closed_effect_row_no_row_var(d: &crate::syntax::ast::FunDecl, diags: &m
         if term.path.segments.last().map(|s| s.symbol) == Some(row_var) {
             diags.push(diagnostics::closed_effect_row_contains_row_var(eff.span));
             return;
+        }
+    }
+}
+
+/// class 的 class 超类必须是 `open` 或 `abstract`（接口超类不受限）。
+fn check_superclass_open(
+    d: &crate::syntax::ast::TypeDecl,
+    name_sym: scoop2_base::Symbol,
+    env: &TypeEnv,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::resolve::symbol::NominalCategory;
+    use crate::syntax::ast::ModifierKind;
+    let name_text = env.interner.resolve(name_sym);
+    let fqn_text = if package_prefix.is_empty() {
+        name_text.to_string()
+    } else {
+        format!("{package_prefix}.{name_text}")
+    };
+    let Some(derived_fqn) = env.interner.get(&fqn_text) else {
+        return;
+    };
+    let bases = env.index.supertypes_of(derived_fqn);
+    for (i, st) in d.supertypes.iter().enumerate() {
+        let Some(&base_fqn) = bases.get(i) else {
+            continue;
+        };
+        let is_class = matches!(env.index.category(base_fqn), Some(NominalCategory::Class));
+        if !is_class {
+            continue;
+        }
+        let is_open = env
+            .index
+            .lookup_type(base_fqn)
+            .map(|b| {
+                b.modifiers.contains(ModifierKind::Open)
+                    || b.modifiers.contains(ModifierKind::Abstract)
+            })
+            .unwrap_or(false);
+        if !is_open {
+            diags.push(diagnostics::superclass_not_open(st.span));
         }
     }
 }

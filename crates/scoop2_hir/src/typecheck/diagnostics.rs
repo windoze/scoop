@@ -660,6 +660,15 @@ pub fn closed_effect_row_contains_row_var(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::superclass_not_open`：只能继承 `open`/`abstract` 类。
+pub fn superclass_not_open(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::superclass_not_open",
+        "只能继承 `open` 或 `abstract` 类：超类未声明 `open`",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
