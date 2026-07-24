@@ -520,6 +520,59 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         true
     }
 
+    /// `when` 是否穷尽：有 else/通配/绑定，或覆盖了 Bool 的 true+false / Option 的 Some+None。
+    fn when_is_exhaustive(&self, subject_ty: TypeId, arms: &[ast::WhenArm]) -> bool {
+        use crate::syntax::ast::{PatternKind, PatternLiteral};
+        if arms.iter().any(|a| {
+            matches!(
+                a.pat.kind,
+                PatternKind::Else | PatternKind::Wildcard | PatternKind::Bind(_)
+            ) || a.guard.is_some()
+        }) {
+            return true;
+        }
+        // Bool：需 true + false。
+        if matches!(
+            self.env.store.kind(subject_ty),
+            TypeKind::Value(crate::ty::ValueTypeKind::Bool)
+        ) {
+            let mut has_true = false;
+            let mut has_false = false;
+            for arm in arms {
+                if let PatternKind::Literal(PatternLiteral::Bool { value, .. }) = &arm.pat.kind {
+                    if *value {
+                        has_true = true;
+                    } else {
+                        has_false = true;
+                    }
+                }
+            }
+            return has_true && has_false;
+        }
+        // Option：需 Some + None。
+        if matches!(
+            self.env.store.kind(subject_ty),
+            TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
+        ) {
+            let mut has_some = false;
+            let mut has_none = false;
+            for arm in arms {
+                if let PatternKind::Variant { path, .. } = &arm.pat.kind
+                    && let Some(seg) = path.segments.last()
+                {
+                    let name = self.env.interner.resolve(seg.symbol);
+                    if name == "Some" {
+                        has_some = true;
+                    } else if name == "None" {
+                        has_none = true;
+                    }
+                }
+            }
+            return has_some && has_none;
+        }
+        true
+    }
+
     // ---- 表达式 ----
 
     fn walk_expr(&mut self, expr: &Expr) -> TypeId {
@@ -1381,7 +1434,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// `when` 表达式：walk subject + 每分支体；返回各分支体的 LUB（同类型 → 该类型；否则 Unit）。
     fn type_when(&mut self, subject: &Expr, arms: &[ast::WhenArm]) -> TypeId {
-        let _ = self.walk_expr(subject);
+        let subject_ty = self.walk_expr(subject);
         let mut arm_types: Vec<TypeId> = Vec::new();
         for arm in arms {
             self.bind_pattern_locals(&arm.pat);
@@ -1391,6 +1444,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.check_assignable(gt, bool_ty, g.span);
             }
             arm_types.push(self.walk_expr(&arm.body));
+        }
+        // 穷尽性检查：Bool 需 true+false；Option 需 Some+None；否则需要 else/通配。
+        if !self.when_is_exhaustive(subject_ty, arms) {
+            self.diags
+                .push(diagnostics::when_non_exhaustive_missing_variants(
+                    subject.span,
+                ));
         }
         if arm_types.is_empty() {
             return self.env.store.unit();
