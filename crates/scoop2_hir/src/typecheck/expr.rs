@@ -2489,10 +2489,19 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
-    /// 校验 `val` 解构的 variant pattern 与 initializer 类型匹配。
+    /// 校验 `val` 解构的 variant/tuple pattern 与 initializer 类型匹配。
     fn check_val_pattern(&mut self, pat: &ast::Pattern, init_ty: TypeId) {
         use crate::syntax::ast::PatternKind;
         if self.env.store.is_nothing(init_ty) {
+            return;
+        }
+        // tuple pattern：initializer 必须是 tuple。
+        if let PatternKind::Tuple(_) = &pat.kind {
+            let kind = self.env.store.kind(init_ty);
+            if !matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Tuple(_))) {
+                self.diags
+                    .push(diagnostics::val_tuple_pat_not_tuple(pat.span));
+            }
             return;
         }
         let path = match &pat.kind {

@@ -968,6 +968,15 @@ pub fn val_variant_pat_enum_mismatch(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::val_tuple_pat_not_tuple`：val 解构 tuple pattern 的 initializer 非 tuple。
+pub fn val_tuple_pat_not_tuple(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::val_tuple_pat_not_tuple",
+        "tuple pattern 只能用于 tuple/Unit 类型的 initializer",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unknown_call_arg_name`：调用中使用了未知的命名实参。
 pub fn unknown_call_arg_name(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
