@@ -280,7 +280,7 @@ pub fn splice_field_name_not_static(span: Span) -> Diagnostic {
 pub fn unsupported_member_access(member: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::unsupported_member_access",
-        format!("不支持的成员访问：{member}"),
+        format!("暂不支持的成员访问：{member}"),
     )
     .with_primary(span, "这里")
 }

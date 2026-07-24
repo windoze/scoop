@@ -2004,7 +2004,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         };
         match self.env.member_type(fqn, name.symbol) {
             Some(t) => t,
-            None => self.env.store.nothing(),
+            None => {
+                // 名为方法的成员在值位访问（未调用）→ 暂不支持。
+                if self.env.member_signatures(fqn, name.symbol).is_some() {
+                    let mname = self.env.interner.resolve(name.symbol);
+                    self.diags
+                        .push(diagnostics::unsupported_member_access(mname, name.span));
+                }
+                self.env.store.nothing()
+            }
         }
     }
 
