@@ -1407,7 +1407,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .position(|(a, b)| a != b)
                     .unwrap_or(0);
                 let msg = format!(
-                    "{first_str} vs {second_str}: position {diff_pos}\n  reason: 多个候选同等匹配"
+                    "重载决议歧义：{first_str} vs {second_str}: position {diff_pos}\n  reason: 多个候选同等匹配"
                 );
                 let mut diag = scoop2_base::diag::Diagnostic::error(
                     "scoop::typecheck::ambiguous_overload",

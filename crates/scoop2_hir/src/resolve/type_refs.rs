@@ -74,6 +74,16 @@ pub fn resolve_file_type_refs(
             }
             ItemKind::Type(d) => {
                 r.resolve_annotations(&d.annotations);
+                // 主构造参数类型引用解析。
+                let tps = type_param_names(d.type_params.as_ref());
+                r.resolve_type_param_bounds(d.type_params.as_ref(), &tps);
+                if let Some(ctor) = &d.primary_ctor {
+                    for cp in &ctor.params {
+                        if let Some(ty) = &cp.ty {
+                            r.resolve_type_ref(ty, &tps);
+                        }
+                    }
+                }
                 if let Some(b) = &d.body {
                     r.resolve_member_annotations(&b.members);
                 }

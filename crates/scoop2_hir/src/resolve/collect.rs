@@ -288,12 +288,13 @@ impl<'a> Collector<'a> {
                     self.index.record_supertypes(owner_fqn, sup_fqns);
                 }
                 // 主构造 param-property（`class C(val x: T)`）：x 是 C 的属性成员。
+                // 重复字段由 typecheck 阶段报（duplicate_struct_field），resolve 静默。
                 if let Some(ctor) = &d.primary_ctor {
                     for cp in &ctor.params {
                         if cp.property.is_some() {
                             let fqn = self.fqn_under(owner_fqn, cp.name.symbol);
                             let sym = self.make_member_symbol(SymbolKind::Value, cp.name, &[], fqn);
-                            self.insert_value(sym, cp.name);
+                            let _ = self.index.insert_value(sym);
                         }
                     }
                 }
