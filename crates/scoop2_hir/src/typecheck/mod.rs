@@ -1523,6 +1523,7 @@ fn check_one_fun(
         &d.params,
         d.return_ty.as_ref(),
         body,
+        d.effect.as_ref(),
         env,
         imports,
         resolution,

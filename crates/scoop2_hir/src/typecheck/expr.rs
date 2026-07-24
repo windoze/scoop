@@ -36,6 +36,7 @@ pub fn check_function<'a, 'i>(
     params: &[Param],
     return_ty: Option<&TypeRef>,
     body: &FunBody,
+    declared_effect: Option<&ast::EffectRowExpr>,
     env: &mut TypeEnv<'i>,
     imports: &'a ImportTable,
     resolution: &'a Resolution,
@@ -59,6 +60,8 @@ pub fn check_function<'a, 'i>(
         this_ty,
         in_function_body: true,
         lenient_type_errors: false,
+        performed_effects: Vec::new(),
+        effect_suspend_depth: 0,
     };
     for p in params {
         let ty = match &p.ty {
@@ -96,9 +99,16 @@ pub fn check_function<'a, 'i>(
             }
         }
     }
+    // effect 检查：函数体执行的 effect 必须在声明的 effect row 中。
+    let declared = ExprChecker::extract_effect_names(declared_effect, c.env.interner);
+    for (performed, span) in &c.performed_effects {
+        if !declared.contains(performed) {
+            c.diags
+                .push(diagnostics::required_effect_not_declared(*span));
+            break;
+        }
+    }
 }
-
-/// 检查顶层 `val`/`var` 的 initializer（推断 + 赋值性检查 + 嵌套检查）。
 pub fn check_top_level_val<'a, 'i>(
     val: &ast::ValDecl,
     env: &mut TypeEnv<'i>,
@@ -122,6 +132,8 @@ pub fn check_top_level_val<'a, 'i>(
         this_ty: None,
         in_function_body: false,
         lenient_type_errors: true,
+        performed_effects: Vec::new(),
+        effect_suspend_depth: 0,
     };
     let declared = val.ty.as_ref().map(|t| c.lower_type(t));
     let init_ty = val.init.as_ref().map(|e| c.walk_expr(e));
@@ -164,6 +176,10 @@ struct ExprChecker<'a, 'i> {
     /// 顶层 val init 检查：lenient 模式，抑制类型级假阳性（arity / type mismatch），
     /// 但保留结构性检查（when 穷尽 / 命名实参形态 / 泛型推断等）。
     lenient_type_errors: bool,
+    /// 当前函数体执行了的 effect（FQN, span）（effect 检查用）。
+    performed_effects: Vec<(String, Span)>,
+    /// effect 采集挂起深度（> 0 时不在 performed_effects 中记录；lambda / handle 体用）。
+    effect_suspend_depth: u32,
 }
 
 impl<'a, 'i> ExprChecker<'a, 'i> {
@@ -967,10 +983,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 arms,
                 finally,
             } => {
+                // handle 体 + arm 体内的 effect 被 handle 捕获，不计入外层。
+                self.effect_suspend_depth += 1;
                 let body_ty = self.walk_block(body);
                 for arm in arms {
                     self.walk_expr(&arm.body);
                 }
+                self.effect_suspend_depth -= 1;
                 if let Some(f) = finally {
                     self.walk_block(f);
                 }
@@ -1181,6 +1200,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         // 3. 方法调用 `receiver.method(args)`。
         if let ExprKind::MemberAccess { receiver, member } = &callee.kind {
+            // effect operation 检测：`Raise.raise(x)` 等 → 记录 effect。
+            if let ExprKind::Ident(recv_ident) = &receiver.kind
+                && let MemberName::Named(_member_name) = member
+            {
+                let recv_name = self.env.interner.resolve(recv_ident.symbol);
+                // 检查 receiver 是否是已知 effect 类型。
+                let is_effect = self.is_effect_type_name(recv_name);
+                if is_effect && self.effect_suspend_depth == 0 {
+                    self.performed_effects.push((recv_name.to_string(), span));
+                }
+            }
             let rt = self.walk_expr(receiver);
             let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
             // GC.handleNew/handleGet/handleDrop 参数契约（按 receiver 名识别 GC object）。
@@ -1303,6 +1333,41 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.env.store.value_nominal(nominal)
         };
         self.check_call_args(params, result, args, span)
+    }
+
+    /// 名称是否是已知 effect 类型（prelude + 用户声明）。
+    fn is_effect_type_name(&self, name: &str) -> bool {
+        // prelude effects.
+        let stripped = name.strip_prefix("scoop.core.").unwrap_or(name);
+        if matches!(stripped, "Raise" | "RuntimeError") {
+            return true;
+        }
+        // 检查 Index 中该名称是否是 Effect category。
+        if let Some(sym) = self.env.interner.get(name)
+            && let Some(cat) = self.env.index.category(sym)
+        {
+            return matches!(cat, crate::resolve::symbol::NominalCategory::Effect);
+        }
+        false
+    }
+
+    /// 从 EffectRowExpr 提取 effect FQN 短名集合（不降级到 TypeId）。
+    fn extract_effect_names(
+        eff: Option<&ast::EffectRowExpr>,
+        interner: &scoop2_base::Interner,
+    ) -> HashSet<String> {
+        let mut names = HashSet::new();
+        if let Some(eff) = eff {
+            for term in &eff.terms {
+                if let Some(seg) = term.path.segments.last() {
+                    let name = interner.resolve(seg.symbol);
+                    if name != "Pure" {
+                        names.insert(name.to_string());
+                    }
+                }
+            }
+        }
+        names
     }
 
     /// 已知 prelude enum variant 的 payload 数量。
@@ -1943,6 +2008,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let saved_fn = self.in_function_body;
         self.in_function_body = false;
         self.lambda_depth += 1;
+        self.effect_suspend_depth += 1;
         let return_ty = match &lambda.body {
             ast::LambdaBody::Block(b) => {
                 self.walk_block(b);
@@ -1951,6 +2017,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ast::LambdaBody::Expr(e) => self.walk_expr(e),
         };
         self.lambda_depth -= 1;
+        self.effect_suspend_depth -= 1;
         self.in_function_body = saved_fn;
         self.env.store.function(FunctionType {
             receiver: None,
@@ -2559,6 +2626,7 @@ mod tests {
                     &d.params,
                     d.return_ty.as_ref(),
                     body,
+                    d.effect.as_ref(),
                     &mut env,
                     &imports,
                     &resolution,
