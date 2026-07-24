@@ -659,6 +659,26 @@ pub fn continuation_impl_not_allowed(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::continuation_legacy_effect_shorthand_removed`：
+/// legacy `Continuation<Resume, eff E>` 简写已移除（必须显式写出 answer type）。
+pub fn continuation_legacy_effect_shorthand_removed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::continuation_legacy_effect_shorthand_removed",
+        "legacy `Continuation<Resume, eff E>` 简写已移除：必须显式写出 answer type（`Continuation<Resume, Answer, eff E>`）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::continuation_legacy_pure_shorthand_removed`：
+/// legacy `Continuation<Resume>` 简写已移除（必须显式写出 answer type）。
+pub fn continuation_legacy_pure_shorthand_removed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::continuation_legacy_pure_shorthand_removed",
+        "legacy `Continuation<Resume>` 简写已移除：必须显式写出 answer type（`Continuation<Resume, Answer>`）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::closed_effect_row_contains_row_var`：
 /// 闭合 effect row（`...!`）不允许引用 effect row 变量（`eff E`）。
 pub fn closed_effect_row_contains_row_var(span: Span) -> Diagnostic {

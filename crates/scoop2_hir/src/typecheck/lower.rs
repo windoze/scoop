@@ -175,6 +175,28 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             .collect();
         // 6. where 约束满足性检查：类型实参必须满足声明处的 where / 直接 bound。
         self.check_type_arg_constraints(fqn, &lowered_args, span);
+        // Continuation legacy shorthand 检查：必须有至少 2 个非 eff 类型实参。
+        let name = self.env.interner.resolve(fqn);
+        let stripped = name.strip_prefix("scoop.core.").unwrap_or(name);
+        if stripped == "Continuation" {
+            let non_eff_count = args
+                .iter()
+                .filter(|a| !matches!(a.kind, TypeArgKind::Effect(_)))
+                .count();
+            let has_eff_arg = args
+                .iter()
+                .any(|a| matches!(a.kind, TypeArgKind::Effect(_)));
+            if non_eff_count < 2 {
+                if has_eff_arg {
+                    self.diags.push(
+                        super::diagnostics::continuation_legacy_effect_shorthand_removed(span),
+                    );
+                } else {
+                    self.diags
+                        .push(super::diagnostics::continuation_legacy_pure_shorthand_removed(span));
+                }
+            }
+        }
         let nominal = NominalType {
             fqn,
             args: lowered_args,
