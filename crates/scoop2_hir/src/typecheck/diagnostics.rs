@@ -249,6 +249,24 @@ pub fn struct_lit_missing_fields(fields: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::splice_field_name_not_static`：`value.[expr]` 的字段名必须静态。
+pub fn splice_field_name_not_static(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::splice_field_name_not_static",
+        "`value.[expr]` 需要编译期已知的字段名（字符串字面量）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::unsupported_member_access`：不支持的成员访问。
+pub fn unsupported_member_access(member: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unsupported_member_access",
+        format!("不支持的成员访问：{member}"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::effectful_function_type_cast_not_supported`。
 pub fn effectful_function_type_cast_not_supported(span: Span) -> Diagnostic {
     Diagnostic::error(

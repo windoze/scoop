@@ -983,10 +983,40 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     None => self.unsupported("Array 字面量（prelude 未加载）", expr.span),
                 }
             }
-            // 反射形式 `value.["field"]`：walk 接收者 + 字段表达式，返回 Nothing（精确类型需反射信息）。
+            // 反射形式 `value.["field"]` / `value.[name]`。
             ExprKind::SpliceField { receiver, field } => {
-                self.walk_expr(receiver);
+                let rt = self.walk_expr(receiver);
+                // field 必须是字符串字面量（静态名）。
+                if let ExprKind::StringLit(s) = &field.kind {
+                    if let Some(fqn) = nominal_fqn_of(self.env.store.kind(rt)) {
+                        let field_sym = self.env.interner.get(&s.value);
+                        if let Some(sym) = field_sym
+                            && self.env.member_type(fqn, sym).is_some()
+                        {
+                            // 已知字段：返回其类型。
+                            return self
+                                .env
+                                .member_type(fqn, sym)
+                                .unwrap_or_else(|| self.env.store.nothing());
+                        }
+                        // 未知字段。
+                        let type_name = self.env.interner.resolve(fqn).to_string();
+                        let member_str = format!("{type_name}.{}", s.value);
+                        self.diags.push(diagnostics::unsupported_member_access(
+                            &member_str,
+                            field.span,
+                        ));
+                    }
+                    // 未知接收者类型 → lenient。
+                    return self.env.store.nothing();
+                }
+                // 非字符串字面量（动态名）→ splice_field_name_not_static（但 StructLit 不报——它不是 splice field）。
+                let is_struct_lit = matches!(field.kind, ExprKind::StructLit { .. });
                 self.walk_expr(field);
+                if !is_struct_lit {
+                    self.diags
+                        .push(diagnostics::splice_field_name_not_static(field.span));
+                }
                 self.env.store.nothing()
             }
         }
