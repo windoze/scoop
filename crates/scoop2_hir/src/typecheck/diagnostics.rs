@@ -564,6 +564,24 @@ pub fn call_arity_mismatch(expected: usize, found: usize, span: Span) -> Diagnos
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::assignment_type_mismatch`：赋值类型不匹配。
+pub fn assignment_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::assignment_type_mismatch",
+        format!("赋值类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_guard_not_bool`：when guard 不是 Bool。
+pub fn when_guard_not_bool(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_guard_not_bool",
+        format!("guard 表达式必须是 Bool 类型，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

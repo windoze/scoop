@@ -351,8 +351,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                     target.span,
                                 ));
                         }
-                        if let Some(&expected) = self.locals.get(&ident.symbol) {
-                            self.check_assignable(val_ty, expected, value.span);
+                        if let Some(&expected) = self.locals.get(&ident.symbol)
+                            && !self.assignable(val_ty, expected)
+                            && !self.lenient_type_errors
+                        {
+                            self.diags.push(diagnostics::assignment_type_mismatch(
+                                &self.describe(expected),
+                                &self.describe(val_ty),
+                                value.span,
+                            ));
                         }
                         // 非局部赋值（顶层 var / this）→ 值已 walk；目标类型检查推迟。
                     }
@@ -1905,8 +1912,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.bind_pattern_locals(&arm.pat);
             if let Some(g) = &arm.guard {
                 let gt = self.walk_expr(g);
-                let bool_ty = self.env.store.bool();
-                self.check_assignable(gt, bool_ty, g.span);
+                if !matches!(
+                    self.env.store.kind(gt),
+                    TypeKind::Value(crate::ty::ValueTypeKind::Bool)
+                ) && !self.env.store.is_nothing(gt)
+                {
+                    self.diags
+                        .push(diagnostics::when_guard_not_bool(&self.describe(gt), g.span));
+                }
             }
             arm_types.push(self.walk_expr(&arm.body));
         }
