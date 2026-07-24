@@ -987,6 +987,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::Call { callee, args } => self.type_call(callee, args, expr.span),
             ExprKind::MemberAccess { receiver, member } => {
                 let rt = self.walk_expr(receiver);
+                // 旧 tuple 字段语法 `t._0` 已移除（应为 `t.0`）。
+                if let crate::syntax::ast::MemberName::Named(n) = member {
+                    let name = self.env.interner.resolve(n.symbol);
+                    if name.len() >= 2
+                        && name.starts_with('_')
+                        && name[1..].chars().all(|c| c.is_ascii_digit())
+                    {
+                        self.diags.push(diagnostics::tuple_member_old_syntax(
+                            name,
+                            &name[1..],
+                            expr.span,
+                        ));
+                    }
+                }
                 self.member_access_type(rt, *member, expr.span)
             }
             ExprKind::StructLit { name, fields } => self.type_struct_lit(*name, fields, expr.span),
@@ -1029,9 +1043,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ExprKind::NotNullAssert { expr: e } => {
                 let t = self.walk_expr(e);
-                match self.env.store.kind(t) {
-                    TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => *inner,
-                    _ => t,
+                if let TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) =
+                    self.env.store.kind(t)
+                {
+                    *inner
+                } else if self.env.store.is_nothing(t) {
+                    // Nothing = 不可解析，放行。
+                    t
+                } else {
+                    self.diags
+                        .push(diagnostics::not_null_assert_operand_not_nullable(expr.span));
+                    t
                 }
             }
             ExprKind::Annotated {
