@@ -1047,7 +1047,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         ));
                 }
                 match op {
-                    CastOp::As => target,
+                    CastOp::As => {
+                        // value ↔ ref 转换在当前阶段拒绝。
+                        if !self.env.store.is_nothing(operand_ty)
+                            && self.env.store.is_value(operand_ty)
+                                != self.env.store.is_value(target)
+                        {
+                            let op_start = e.span.end + 1;
+                            self.diags
+                                .push(diagnostics::invalid_cast(Span::new(op_start, op_start + 2)));
+                        }
+                        target
+                    }
                     CastOp::AsSafe => {
                         let t = target;
                         self.env.store.option(t)

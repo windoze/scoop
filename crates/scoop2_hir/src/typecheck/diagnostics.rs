@@ -1251,6 +1251,15 @@ pub fn not_null_assert_operand_not_nullable(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::invalid_cast`：不允许的显式类型转换（如 value ↔ ref）。
+pub fn invalid_cast(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::invalid_cast",
+        "不允许的显式类型转换（当前阶段不做 value ↔ ref 转换）",
+    )
+    .with_primary(span, "这里")
+}
+
 // ===== @Extern 函数 ABI 校验（spec §15.x）=====
 
 /// `scoop::typecheck::extern_annotation_abi_not_supported`：暂不支持的 ABI 名。
