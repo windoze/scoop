@@ -1683,32 +1683,33 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// `Continuation<Resume, Answer, eff E>.resume` 的 effect 行为 `E + Raise<RuntimeError>`
     /// （spec §5.5）：恒定执行 `Raise`（即 `Raise<RuntimeError>`），外加 E 解析出的具体 effect。
     /// E 为类型参数（多态）或 `Pure` 时不贡献额外 effect。
+    /// 当 receiver 类型未知（Nothing，如 pattern binder）时仍记录恒定 `Raise`（resume 是保留方法名）。
     fn record_continuation_resume_effects(&mut self, recv_ty: TypeId, span: Span) {
-        // 先用不可变借用取出所需数据，再以可变借用写入 performed_effects。
-        let e_name: Option<String> = {
-            let kind = self.env.store.kind(recv_ty);
-            let Some(fqn) = nominal_fqn_of(kind) else {
-                return;
-            };
-            let recv = self.env.interner.resolve(fqn);
-            let recv = recv.strip_prefix("scoop.core.").unwrap_or(recv);
-            if recv != "Continuation" {
-                return;
+        let kind = self.env.store.kind(recv_ty);
+        // Continuation 或未知（Nothing/binder）→ resume 恒定执行 Raise<RuntimeError>。
+        // 已知非 Continuation receiver → 不记录。
+        let is_continuation_or_unknown = match nominal_fqn_of(kind) {
+            Some(fqn) => {
+                let n = self.env.interner.resolve(fqn);
+                n.strip_prefix("scoop.core.").unwrap_or(n) == "Continuation"
             }
-            nominal_args_of(kind)
-                .and_then(|args| args.get(2).copied())
-                .and_then(|e_ty| nominal_fqn_of(self.env.store.kind(e_ty)))
-                .map(|e_fqn| self.env.interner.resolve(e_fqn).to_string())
-                .filter(|n| {
-                    let s = n.strip_prefix("scoop.core.").unwrap_or(n);
-                    s != "Pure"
-                })
+            None => true,
         };
+        if !is_continuation_or_unknown {
+            return;
+        }
         self.performed_effects.push(("Raise".to_string(), span));
-        if let Some(name) = e_name {
+        // E（第三类型实参）所含 effect（仅当 Continuation 类型已知时）。
+        if let Some(e_name) = nominal_args_of(kind)
+            .and_then(|args| args.get(2).copied())
+            .and_then(|e_ty| nominal_fqn_of(self.env.store.kind(e_ty)))
+            .map(|e_fqn| self.env.interner.resolve(e_fqn).to_string())
+            .filter(|n| n.strip_prefix("scoop.core.").unwrap_or(n) != "Pure")
+        {
             self.performed_effects.push((
-                name.strip_prefix("scoop.core.")
-                    .unwrap_or(&name)
+                e_name
+                    .strip_prefix("scoop.core.")
+                    .unwrap_or(&e_name)
                     .to_string(),
                 span,
             ));
