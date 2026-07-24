@@ -495,7 +495,23 @@ fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, Str
             .next()
             .unwrap_or("")
             .to_string(),
-        TypeKind::Ref(crate::ty::RefTypeKind::Function(_)) => "function".to_string(),
+        TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => {
+            let receiver = f
+                .receiver
+                .map(|r| format!("{}.", effective_type_str(env, r, tp_bounds)))
+                .unwrap_or_default();
+            let params: Vec<String> = f
+                .params
+                .iter()
+                .map(|p| effective_type_str(env, *p, tp_bounds))
+                .collect();
+            format!(
+                "{}({}) -> {}",
+                receiver,
+                params.join(", "),
+                effective_type_str(env, f.return_ty, tp_bounds)
+            )
+        }
         TypeKind::Ref(crate::ty::RefTypeKind::Union(_)) => "union".to_string(),
         TypeKind::Nothing => "Nothing".to_string(),
         TypeKind::StarProjection => "*".to_string(),

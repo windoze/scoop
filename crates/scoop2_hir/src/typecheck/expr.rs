@@ -272,33 +272,44 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 赋值性（M1+）：相等、`Nothing` bottom、nominal 子类型（继承/接口）、
     /// 函数逆变/协变、Option/元组协变。
     fn assignable(&self, found: TypeId, expected: TypeId) -> bool {
+        self.assignable_with(found, expected, true)
+    }
+
+    /// 严格子类型（不含整型/浮点字面量吸收），用于重载特殊性比较。
+    fn assignable_strict(&self, found: TypeId, expected: TypeId) -> bool {
+        self.assignable_with(found, expected, false)
+    }
+
+    fn assignable_with(&self, found: TypeId, expected: TypeId, absorb: bool) -> bool {
         if found == expected || self.env.store.is_nothing(found) {
             return true;
         }
-        // 整数字面量吸收：Int 可赋值给任何整数类型（Int8/UInt/.../Byte/...）。
-        if matches!(
-            self.env.store.kind(found),
-            TypeKind::Value(crate::ty::ValueTypeKind::Int)
-        ) && matches!(
-            self.env.store.kind(expected),
-            TypeKind::Value(
-                crate::ty::ValueTypeKind::Int
-                    | crate::ty::ValueTypeKind::UInt
-                    | crate::ty::ValueTypeKind::IntN(_)
-                    | crate::ty::ValueTypeKind::UIntN(_)
-            )
-        ) {
-            return true;
-        }
-        // 浮点字面量吸收：Float64 可赋值给 Float32。
-        if matches!(
-            self.env.store.kind(found),
-            TypeKind::Value(crate::ty::ValueTypeKind::Float64)
-        ) && matches!(
-            self.env.store.kind(expected),
-            TypeKind::Value(crate::ty::ValueTypeKind::Float32)
-        ) {
-            return true;
+        if absorb {
+            // 整数字面量吸收：Int 可赋值给任何整数类型（Int8/UInt/.../Byte/...）。
+            if matches!(
+                self.env.store.kind(found),
+                TypeKind::Value(crate::ty::ValueTypeKind::Int)
+            ) && matches!(
+                self.env.store.kind(expected),
+                TypeKind::Value(
+                    crate::ty::ValueTypeKind::Int
+                        | crate::ty::ValueTypeKind::UInt
+                        | crate::ty::ValueTypeKind::IntN(_)
+                        | crate::ty::ValueTypeKind::UIntN(_)
+                )
+            ) {
+                return true;
+            }
+            // 浮点字面量吸收：Float64 可赋值给 Float32。
+            if matches!(
+                self.env.store.kind(found),
+                TypeKind::Value(crate::ty::ValueTypeKind::Float64)
+            ) && matches!(
+                self.env.store.kind(expected),
+                TypeKind::Value(crate::ty::ValueTypeKind::Float32)
+            ) {
+                return true;
+            }
         }
         let fk = self.env.store.kind(found);
         let ek = self.env.store.kind(expected);
@@ -349,18 +360,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .params
                     .iter()
                     .zip(&ef.params)
-                    .all(|(fp, ep)| self.assignable(*ep, *fp))
-                && self.assignable(ff.return_ty, ef.return_ty)
+                    .all(|(fp, ep)| self.assignable_with(*ep, *fp, absorb))
+                && self.assignable_with(ff.return_ty, ef.return_ty, absorb)
                 && ff.receiver.is_some() == ef.receiver.is_some();
         }
         // Option 协变
         if let Some((fi, ei)) = opt {
-            return self.assignable(fi, ei);
+            return self.assignable_with(fi, ei, absorb);
         }
         // 元组协变
         if let Some((fs, es)) = tup {
             return fs.len() == es.len()
-                && fs.iter().zip(&es).all(|(f, e)| self.assignable(*f, *e));
+                && fs
+                    .iter()
+                    .zip(&es)
+                    .all(|(f, e)| self.assignable_with(*f, *e, absorb));
         }
         false
     }
@@ -1880,6 +1894,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             1 => applicable[0].return_ty,
             _ => {
+                // 特殊性：若存在唯一最具体的候选，直接选择。
+                if let Some(idx) = self.select_most_specific(&applicable) {
+                    return applicable[idx].return_ty;
+                }
                 let fqn_text = self.env.interner.resolve(fqn).to_string();
                 let fun_name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
                 let decls = self.env.index.lookup_funs(fqn);
@@ -2723,6 +2741,45 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 从适用候选中选择最具体的（spec P3 §4.5）。
     /// A 比 B 更具体 ⟺ ∀i: A.params[i] <: B.params[i]。
+    /// 选择唯一最具体的候选（每个参数均更具体）；若无唯一胜者返回 None（歧义）。
+    fn select_most_specific(&self, candidates: &[&Signature]) -> Option<usize> {
+        let n = candidates.len();
+        if n <= 1 {
+            return Some(0);
+        }
+        // a 比 b 更具体：a 的每个参数是 b 对应参数的（严格，无字面量吸收）子类型。
+        let more_specific = |a: &Signature, b: &Signature| -> bool {
+            a.params.len() == b.params.len()
+                && a.params
+                    .iter()
+                    .zip(&b.params)
+                    .all(|(ap, bp)| self.assignable_strict(*ap, *bp))
+        };
+        let mut winner = vec![true; n];
+        for i in 0..n {
+            for j in 0..n {
+                if i != j
+                    && more_specific(candidates[j], candidates[i])
+                    && !more_specific(candidates[i], candidates[j])
+                {
+                    // j 严格比 i 更具体 → i 不可能胜出。
+                    winner[i] = false;
+                }
+            }
+        }
+        let winners: Vec<usize> = winner
+            .iter()
+            .enumerate()
+            .filter(|(_, w)| **w)
+            .map(|(i, _)| i)
+            .collect();
+        if winners.len() == 1 {
+            Some(winners[0])
+        } else {
+            None
+        }
+    }
+
     fn pick_most_specific(&mut self, candidates: &[&Signature], span: Span) -> TypeId {
         let n = candidates.len();
         // best[i] = true 如果候选 i 比所有其他候选更具体（或并列）。
