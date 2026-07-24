@@ -739,6 +739,16 @@ pub fn deprecated_annotation_only_first_arg_positional(span: Span) -> Diagnostic
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::annotation_modifier_invalid_target`：
+/// `annotation` 修饰符只能用于 class（annotation class）。
+pub fn annotation_modifier_invalid_target(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_modifier_invalid_target",
+        "`annotation` 修饰符只能用于 `annotation class`，不能用于函数/属性",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::call_receiver_type_mismatch`：receiver 函数调用的 receiver 类型不匹配。
 pub fn call_receiver_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

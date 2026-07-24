@@ -165,6 +165,13 @@ fn check_file_bodies(
         check_builtin_annotation_targets(item, env.interner, diags);
         match &item.kind {
             ItemKind::Fun(d) => {
+                // `annotation` 修饰符只能用于 annotation class，不能用于函数。
+                if d.modifiers
+                    .iter()
+                    .any(|m| m.kind == ModifierKind::Annotation)
+                {
+                    diags.push(diagnostics::annotation_modifier_invalid_target(d.name.span));
+                }
                 // @Intrinsic 只能在受信任 syslib cone 中声明。
                 if !trusted && has_annotation(&d.annotations, "Intrinsic", env.interner) {
                     let name_text = env.interner.resolve(d.name.symbol).to_string();
