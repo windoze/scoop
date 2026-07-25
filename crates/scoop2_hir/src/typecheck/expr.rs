@@ -902,6 +902,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if let Some(t) = self.env.top_level_val(ident.symbol) {
                     return t;
                 }
+                // 成员函数体内：裸标识符可能是 this 的字段/属性。
+                if let Some(this_ty) = self.this_ty {
+                    let this_fqn = nominal_fqn_of(self.env.store.kind(this_ty))
+                        .or_else(|| scalar_fqn(self.env.store.kind(this_ty), self.env.interner));
+                    if let Some(fqn) = this_fqn
+                        && let Some(t) = self.env.member_type(fqn, ident.symbol)
+                    {
+                        return t;
+                    }
+                }
                 // 泛型函数作为值使用（无类型实参）→ 无法推断类型实参。
                 if let Some(ResolvedValue::TopLevelFun { fqn }) =
                     self.resolution.value_refs.get(expr.id).copied()
@@ -3077,6 +3087,60 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
+    /// 检查类型参数上的方法调用：where 约束链中是否有该方法。
+    /// 无约束时报告不可调用。
+    fn check_typeparam_method(
+        &mut self,
+        tp: &crate::ty::TypeParamType,
+        method_name: Symbol,
+        span: Span,
+    ) -> TypeId {
+        let method_text = self.env.interner.resolve(method_name).to_string();
+        // 搜索所有 type_constraints，找到约束名 == tp.name 的 Type bound。
+        let bound_refs: Vec<crate::syntax::ast::TypeRef> = self.env.find_type_param_bounds(tp.name);
+        for bound_ref in &bound_refs {
+            let bound_ty = self.lower_type(bound_ref);
+            let kind = self.env.store.kind(bound_ty);
+            let fqn = nominal_fqn_of(kind).or_else(|| scalar_fqn(kind, self.env.interner));
+            if let Some(fqn) = fqn {
+                let exists = self.method_exists_in_chain(fqn, method_name);
+                if exists {
+                    let ret = self
+                        .env
+                        .member_signatures(fqn, method_name)
+                        .and_then(|s| s.first())
+                        .map(|s| s.return_ty);
+                    if let Some(ret) = ret {
+                        return ret;
+                    }
+                    return self.env.store.nothing();
+                }
+            }
+        }
+        if !self.lenient_type_errors {
+            self.diags
+                .push(diagnostics::callee_not_callable(&method_text, span));
+        }
+        self.env.store.nothing()
+    }
+
+    /// 在 FQN 及其超类型链中查找方法。
+    fn method_exists_in_chain(
+        &self,
+        fqn: scoop2_base::Symbol,
+        method: scoop2_base::Symbol,
+    ) -> bool {
+        if self.env.member_signatures(fqn, method).is_some() {
+            return true;
+        }
+        for &sup in self.env.index.supertypes_of(fqn) {
+            if self.method_exists_in_chain(sup, method) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// 方法调用（`receiver.method(args)` / `receiver[args]` / `receiver until arg`）：
     /// 查 receiver nominal 类型的成员函数签名，按适用性选择，返回返回类型。
     fn method_call_return_type(
@@ -3087,11 +3151,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         args: &[CallArg],
         span: Span,
     ) -> TypeId {
-        // Nothing / TypeParam 接收者（类型未知 / 泛型）→ lenient（返回 Nothing，不报错误）。
-        if self.env.store.is_nothing(receiver_ty)
-            || matches!(self.env.store.kind(receiver_ty), TypeKind::Param(_))
-        {
+        // Nothing 接收者（类型未知）→ lenient（返回 Nothing，不报错误）。
+        if self.env.store.is_nothing(receiver_ty) {
             return self.env.store.nothing();
+        }
+        // TypeParam 接收者：检查 where 约束是否有该方法。
+        let tp_clone = if let TypeKind::Param(tp) = self.env.store.kind(receiver_ty) {
+            Some(crate::ty::TypeParamType {
+                name: tp.name,
+                file: tp.file,
+                span: tp.span,
+            })
+        } else {
+            None
+        };
+        if let Some(tp) = tp_clone {
+            return self.check_typeparam_method(&tp, method_name, span);
         }
         let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty))
             .or_else(|| scalar_fqn(self.env.store.kind(receiver_ty), self.env.interner))

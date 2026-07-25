@@ -156,6 +156,24 @@ impl<'i> TypeEnv<'i> {
             .map(|(n, c)| (n.as_slice(), c.as_slice()))
     }
 
+    /// 搜索所有注册的 type_constraints，找到名为 `param_name` 的类型参数的所有 Type bound。
+    pub fn find_type_param_bounds(
+        &mut self,
+        param_name: Symbol,
+    ) -> Vec<crate::syntax::ast::TypeRef> {
+        let mut result = Vec::new();
+        for (_, cons) in self.type_constraints.values() {
+            for (cname, bound) in cons {
+                if *cname == param_name
+                    && let crate::syntax::ast::GenericBound::Type(t) = bound
+                {
+                    result.push(t.clone());
+                }
+            }
+        }
+        result
+    }
+
     /// typealias 查询（展开用）。
     pub fn type_alias(&self, fqn: Symbol) -> Option<(&crate::syntax::ast::TypeRef, &[Symbol])> {
         self.type_aliases.get(&fqn).map(|(t, p)| (t, p.as_slice()))
