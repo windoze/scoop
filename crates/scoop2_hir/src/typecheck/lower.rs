@@ -319,11 +319,46 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
         if matches!(ak, TypeKind::Param(_)) || matches!(bk, TypeKind::Param(_)) {
             return true;
         }
-        // nominal 子类型。
+        // Nothing 是唯一可以作为任何类型子类型的值类型（bottom type）。
+        if self.env.store.is_nothing(arg) {
+            return true;
+        }
+        // nominal 子类型（检查 FQN + 类型实参）。
         let arg_fqn = nominal_fqn_of(ak).or_else(|| scalar_fqn(ak, self.env.interner));
-        let bound_fqn = nominal_fqn_of(bk);
+        let bound_fqn = nominal_fqn_of(bk).or_else(|| scalar_fqn(bk, self.env.interner));
         if let (Some(a), Some(b)) = (arg_fqn, bound_fqn) {
-            return self.env.fqn_is_subtype(a, b);
+            // 直接 FQN 匹配：检查类型实参。
+            if a == b {
+                let arg_args = nominal_args_of(ak).unwrap_or(&[]);
+                let bound_args = nominal_args_of(bk).unwrap_or(&[]);
+                if arg_args.len() != bound_args.len() {
+                    return false;
+                }
+                return arg_args
+                    .iter()
+                    .zip(bound_args)
+                    .all(|(aa, ba)| self.arg_satisfies_bound(*aa, *ba));
+            }
+            // 遍历超类型实例化（FQN + 类型实参）找匹配。
+            let bound_args = nominal_args_of(bk).unwrap_or(&[]);
+            if let Some(sup_insts) = self.env.supertype_instances(a) {
+                for (sup_fqn, sup_args) in sup_insts {
+                    if *sup_fqn == b {
+                        if sup_args.len() != bound_args.len() {
+                            return false;
+                        }
+                        return sup_args
+                            .iter()
+                            .zip(bound_args)
+                            .all(|(sa, ba)| self.arg_satisfies_bound(*sa, *ba));
+                    }
+                }
+            }
+            // 回退：Index supertypes_of（无类型实参信息，仅在 bound 无类型实参时使用）。
+            if bound_args.is_empty() {
+                return self.env.fqn_is_subtype(a, b);
+            }
+            return false;
         }
         // 无法判定 → lenient（不报）。
         true
@@ -402,6 +437,14 @@ fn nominal_fqn_of(kind: &TypeKind) -> Option<Symbol> {
     match kind {
         TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
         | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
+        _ => None,
+    }
+}
+
+fn nominal_args_of(kind: &TypeKind) -> Option<&[TypeId]> {
+    match kind {
+        TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(&n.args),
         _ => None,
     }
 }
