@@ -313,10 +313,48 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
         if stripped == "FunPtr"
             && let Some(arg) = nominal.args.first()
             && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = self.env.store.kind(*arg)
-            && !ft.effects.is_pure()
         {
-            self.diags
-                .push(super::diagnostics::funptr_type_arg_must_be_pure(span));
+            if !ft.effects.is_pure() {
+                self.diags
+                    .push(super::diagnostics::funptr_type_arg_must_be_pure(span));
+            } else {
+                // 函数签名参数/返回类型必须是 native ABI 支持的值类型。
+                // 跳过含 TypeParam 的签名（泛型声明，sysroot 中常见）。
+                let has_type_param = ft.params.iter().any(|&p| {
+                    matches!(self.env.store.kind(p), TypeKind::Param(_))
+                }) || matches!(self.env.store.kind(ft.return_ty), TypeKind::Param(_));
+                if !has_type_param {
+                    let mut bad: Option<String> = None;
+                    for &p in &ft.params {
+                        if !super::extern_fn::is_native_abi_value_type(self.env, p) {
+                            bad = Some(crate::ty::render_type(
+                                &self.env.store,
+                                self.env.interner,
+                                p,
+                                false,
+                            ));
+                            break;
+                        }
+                    }
+                    if bad.is_none()
+                        && !super::extern_fn::is_native_abi_value_type(self.env, ft.return_ty)
+                    {
+                        bad = Some(crate::ty::render_type(
+                            &self.env.store,
+                            self.env.interner,
+                            ft.return_ty,
+                            false,
+                        ));
+                    }
+                    if let Some(found) = bad {
+                        self.diags.push(
+                            super::diagnostics::funptr_signature_not_supported_by_native_abi(
+                                &found, span,
+                            ),
+                        );
+                    }
+                }
+            }
         }
         if self.env.is_reference_nominal(fqn) {
             self.env.store.ref_nominal(nominal)
