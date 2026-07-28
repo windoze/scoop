@@ -440,6 +440,15 @@ pub fn intrinsic_fun_must_have_no_body(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::unknown_intrinsic_table_entry`：`@Intrinsic("name")` 的 name 未命中编译器 intrinsic 表。
+pub fn unknown_intrinsic_table_entry(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unknown_intrinsic_table_entry",
+        format!("`@Intrinsic(\"{name}\")` 未命中编译器 intrinsic 表"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::required_effect_not_declared`：函数体执行了未声明的 effect。
 pub fn required_effect_not_declared(effect: &str, span: Span) -> Diagnostic {
     Diagnostic::error(

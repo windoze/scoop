@@ -250,6 +250,10 @@ fn check_file_bodies(
                 if has_annotation(&d.annotations, "Intrinsic", env.interner) && d.body.is_some() {
                     diags.push(diagnostics::intrinsic_fun_must_have_no_body(d.name.span));
                 }
+                // @Intrinsic("name") 的 name 必须命中编译器 intrinsic 表。
+                if let Some(ann) = find_annotation(&d.annotations, "Intrinsic", env.interner) {
+                    check_intrinsic_table_entry(ann, env.interner, diags);
+                }
                 // 普通函数必须提供函数体（@Intrinsic / @Extern 允许省略；abstract/interface 成员由声明上下文判定）。
                 let is_extern = has_annotation(&d.annotations, "Extern", env.interner);
                 let is_intrinsic = has_annotation(&d.annotations, "Intrinsic", env.interner);
@@ -1494,6 +1498,73 @@ fn has_annotation(
             .last()
             .is_some_and(|s| interner.resolve(s.symbol) == name)
     })
+}
+
+/// 查找名为 `name` 的注解（末段匹配）。
+fn find_annotation<'a>(
+    anns: &'a [crate::syntax::ast::AnnotationUse],
+    name: &str,
+    interner: &scoop2_base::Interner,
+) -> Option<&'a crate::syntax::ast::AnnotationUse> {
+    anns.iter().find(|a| {
+        a.path
+            .segments
+            .last()
+            .is_some_and(|s| interner.resolve(s.symbol) == name)
+    })
+}
+
+/// 编译器 intrinsic 表（与 `scoopc_hir::intrinsics` 一致）。
+const KNOWN_INTRINSIC_ENTRIES: &[&str] = &[
+    "array_data_ptr_inline",
+    "array_data_ptr_outofline",
+    "array_get_inline",
+    "array_get_outofline",
+    "array_set_inline",
+    "array_set_outofline",
+    "array_size_inline",
+    "array_size_outofline",
+    "bool_to_string",
+    "char_to_string",
+    "composite_copy",
+    "dummy_ir",
+    "dummy_runtime",
+    "float32_to_string",
+    "float64_to_string",
+    "int_to_string",
+    "unsafe_array_cast",
+    "unsafe_mutable_array_cast",
+    "unsafe_mutable_array_erase",
+    "unsafe_value_slot",
+    "unsafe_value_to_any",
+    "unsafe_value_to_word",
+    "write_barrier",
+];
+
+/// 校验 `@Intrinsic("name")` 的 name 命中编译器 intrinsic 表。
+fn check_intrinsic_table_entry(
+    ann: &crate::syntax::ast::AnnotationUse,
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::ExprKind;
+    // @Intrinsic 无参数 → 无 name 可校验。
+    let Some(first_arg) = ann.args.first() else {
+        return;
+    };
+    // 参数必须是字符串字面量。
+    let name_str = if let ExprKind::StringLit(s) = &first_arg.value.kind {
+        &s.value
+    } else {
+        return;
+    };
+    let _ = interner;
+    if !KNOWN_INTRINSIC_ENTRIES.contains(&name_str.as_str()) {
+        diags.push(diagnostics::unknown_intrinsic_table_entry(
+            name_str,
+            first_arg.value.span,
+        ));
+    }
 }
 
 /// 校验 `@Experimental(feature = "x")` 注解（spec §15.x）。`is_expr_target` 表示用于
