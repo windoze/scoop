@@ -261,7 +261,20 @@ impl<'i> TypeEnv<'i> {
         type_fqn: Symbol,
         method: Symbol,
     ) -> Vec<Signature> {
-        let mut all: Vec<Signature> = Vec::new();
+        self.member_signatures_with_owners(type_fqn, method)
+            .into_iter()
+            .map(|(_, s)| s)
+            .collect()
+    }
+
+    /// 同 [`member_signatures_with_inherited`]，但保留每个签名的声明者 FQN
+    /// （用于扩展方法 receiver 特异性比较）。
+    pub fn member_signatures_with_owners(
+        &self,
+        type_fqn: Symbol,
+        method: Symbol,
+    ) -> Vec<(Symbol, Signature)> {
+        let mut all: Vec<(Symbol, Signature)> = Vec::new();
         let mut visited: std::collections::HashSet<Symbol> = std::collections::HashSet::new();
         let mut current = Some(type_fqn);
         while let Some(fqn) = current {
@@ -269,7 +282,7 @@ impl<'i> TypeEnv<'i> {
                 break;
             }
             if let Some(sigs) = self.member_signatures(fqn, method) {
-                all.extend(sigs.iter().cloned());
+                all.extend(sigs.iter().map(|s| (fqn, s.clone())));
             }
             // 沿超类型链上溯。
             let supertypes = self.index.supertypes_of(fqn);

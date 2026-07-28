@@ -5053,7 +5053,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let Some(fqn) = fqn else {
             return self.unsupported("该接收者的方法调用", span);
         };
-        let sigs = self.env.member_signatures_with_inherited(fqn, method_name);
+        let sigs_with_owners = self.env.member_signatures_with_owners(fqn, method_name);
+        let sigs: Vec<Signature> = sigs_with_owners.iter().map(|(_, s)| s.clone()).collect();
         // 扩展方法：从 Index 的 extensions 表查找同名扩展函数。
         // 扩展函数的签名已由 register_top_level_signatures 注册到 member_signatures
         //（collect 阶段 resolve_extensions 将 receiver.FQN.name 注册为成员）。
@@ -5229,15 +5230,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.record_callee_effects(sig, args, span);
             return sig.return_ty;
         }
-        let applicable: Vec<&Signature> = non_generic
+        let applicable: Vec<(&Signature, Symbol)> = sigs_with_owners
             .iter()
-            .filter(|s| {
+            .filter(|(_, s)| s.type_param_count == 0)
+            .filter(|(_, s)| {
                 s.params.len() == arg_types.len()
                     && arg_types
                         .iter()
                         .zip(&s.params)
                         .all(|(a, p)| self.assignable(*a, *p))
             })
+            .map(|(owner, s)| (s, *owner))
             .collect();
         match applicable.len() {
             0 => {
@@ -5245,12 +5248,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 non_generic[0].return_ty
             }
             _ => {
-                // 特异性选择 + effect 传播。
-                if let Some(idx) = self.select_most_specific(&applicable) {
-                    self.record_callee_effects(applicable[idx], args, span);
-                    applicable[idx].return_ty
+                // 特异性选择（含 receiver FQN）+ effect 传播。
+                let sig_refs: Vec<&Signature> = applicable.iter().map(|(s, _)| *s).collect();
+                if let Some(idx) = self.select_most_specific_with_receiver(&applicable) {
+                    self.record_callee_effects(sig_refs[idx], args, span);
+                    sig_refs[idx].return_ty
                 } else {
-                    self.pick_most_specific(&applicable, span)
+                    self.pick_most_specific(&sig_refs, span)
                 }
             }
         }
@@ -5280,6 +5284,54 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     && !more_specific(candidates[i], candidates[j])
                 {
                     // j 严格比 i 更具体 → i 不可能胜出。
+                    winner[i] = false;
+                }
+            }
+        }
+        let winners: Vec<usize> = winner
+            .iter()
+            .enumerate()
+            .filter(|(_, w)| **w)
+            .map(|(i, _)| i)
+            .collect();
+        if winners.len() == 1 {
+            Some(winners[0])
+        } else {
+            None
+        }
+    }
+
+    /// 同 [`select_most_specific`]，但把 receiver 的声明者 FQN 作为位置 0 参与特异性比较
+    ///（扩展方法 `String.mix(Any)` vs `Any.mix(String)` 的 receiver 差异决定歧义）。
+    fn select_most_specific_with_receiver(
+        &self,
+        candidates: &[(&Signature, scoop2_base::Symbol)],
+    ) -> Option<usize> {
+        let n = candidates.len();
+        if n <= 1 {
+            return Some(0);
+        }
+        // a 比 b 更具体：receiver FQN a 是 b 的子类型，且每个参数 a[i] <: b[i]。
+        let more_specific = |a: &(&Signature, scoop2_base::Symbol),
+                             b: &(&Signature, scoop2_base::Symbol)| {
+            let (sa, oa) = a;
+            let (sb, ob) = b;
+            // receiver 子类型：oa（声明者）是 ob 的子类型。
+            let recv_more = self.fqn_is_subtype(*oa, *ob);
+            let params_more = sa.params.len() == sb.params.len()
+                && sa.params
+                    .iter()
+                    .zip(&sb.params)
+                    .all(|(ap, bp)| self.assignable_strict(*ap, *bp));
+            recv_more && params_more
+        };
+        let mut winner = vec![true; n];
+        for i in 0..n {
+            for j in 0..n {
+                if i != j
+                    && more_specific(&candidates[j], &candidates[i])
+                    && !more_specific(&candidates[i], &candidates[j])
+                {
                     winner[i] = false;
                 }
             }
