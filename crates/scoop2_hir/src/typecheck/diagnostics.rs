@@ -772,6 +772,18 @@ pub fn funptr_type_arg_must_be_pure(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::funptr_signature_not_supported_by_native_abi`：`FunPtr<F>` 的函数签名
+/// 参数/返回类型必须是 native ABI 支持的值类型（标量/Ptr/tuple/@CLayout struct）。
+pub fn funptr_signature_not_supported_by_native_abi(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::funptr_signature_not_supported_by_native_abi",
+        format!(
+            "`FunPtr<F>` 的函数签名只接受 native ABI 支持的值类型（标量、`UIntPtr`、`Ptr<T>`、tuple、`@CLayout` struct）；不接受 {found}"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::continuation_not_constructible`：
 /// `Continuation` 是 compiler-owned interface，用户代码不能直接构造。
 pub fn continuation_not_constructible(span: Span) -> Diagnostic {

@@ -451,7 +451,7 @@ fn check_native_abi_signature(
 /// native C ABI 接受的值类型面（复刻 legacy `is_native_abi_value_type`）：
 /// 标量、`Unit`、tuple(递归)、`Ptr<T>`、`FunPtr<F>`、`@CLayout` struct。
 /// 所有引用类型（含 `String`/`Any`/`Continuation`/`Pinned`/函数值）一律拒绝。
-fn is_native_abi_value_type(env: &TypeEnv, id: TypeId) -> bool {
+pub(crate) fn is_native_abi_value_type(env: &TypeEnv, id: TypeId) -> bool {
     match env.store.kind(id) {
         TypeKind::Ref(_) | TypeKind::Nothing | TypeKind::StarProjection => false,
         TypeKind::Param(_) => false,
