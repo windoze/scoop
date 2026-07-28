@@ -208,7 +208,7 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
     match args.phase {
         cli::Phase::Parse => {
             let result = scoop2_syntax::parser::parse_file(&source);
-            report_diagnostics(&source, result.diagnostics)
+            report_diagnostics(&source, &[], result.diagnostics)
         }
         cli::Phase::Resolve => {
             let mut interner = scoop2_base::Interner::new();
@@ -254,7 +254,7 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                     .collect();
                 scoop2_hir::resolve::run_program(&inputs, &mut interner, &mut diags);
             }
-            report_diagnostics(&source, diags)
+            report_diagnostics(&source, &[], diags)
         }
         cli::Phase::Typecheck | cli::Phase::Infer | cli::Phase::Lower => {
             // infer / lower 在本前端中等价于 typecheck：HIR 是前端终点（spec 明确
@@ -262,6 +262,7 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
             // 三个 phase 都运行完整的 typecheck 管线并汇报相同诊断。
             let BuiltProgram {
                 parsed,
+                sources,
                 user_indices,
                 mut interner,
                 mut diags,
@@ -279,7 +280,14 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                     args.target_platform.as_deref(),
                 );
             }
-            report_diagnostics(&source, diags)
+            // 构建跨文件源映射（FileId → SourceFile）供多文件诊断渲染。
+            let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+                .iter()
+                .enumerate()
+                .skip(1)
+                .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+                .collect();
+            report_diagnostics(&source, &extra_sources, diags)
         }
     }
 }
@@ -310,6 +318,8 @@ fn make_inputs<'a>(
 /// interner、解析诊断）。主文件（index 0）始终是 user。
 struct BuiltProgram {
     parsed: Vec<scoop2_syntax::parser::ParsedFile>,
+    /// 所有文件的 SourceFile（与 parsed 同序），供诊断渲染跨文件 label。
+    sources: Vec<scoop2_base::SourceFile>,
     user_indices: Vec<usize>,
     interner: scoop2_base::Interner,
     diags: scoop2_base::diag::DiagnosticSink,
@@ -319,15 +329,18 @@ fn build_program(source: &scoop2_base::SourceFile) -> BuiltProgram {
     let mut interner = scoop2_base::Interner::new();
     let diags = scoop2_base::diag::DiagnosticSink::new();
     let mut parsed: Vec<scoop2_syntax::parser::ParsedFile> = Vec::with_capacity(1 + 32);
+    let mut sources: Vec<scoop2_base::SourceFile> = Vec::with_capacity(1 + 32);
     let mut user_indices: Vec<usize> = vec![0]; // 主文件始终是 user
     parsed.push(scoop2_syntax::parser::parse_file_with(
         source,
         &mut interner,
     ));
+    sources.push(source.clone());
     if let Some(sysroot) = locate_sysroot() {
         for path in walk_scoop_files(&sysroot.join("lib")) {
             if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
                 parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
+                sources.push(src);
             }
         }
     }
@@ -336,10 +349,12 @@ fn build_program(source: &scoop2_base::SourceFile) -> BuiltProgram {
         if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
             user_indices.push(parsed.len());
             parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
+            sources.push(src);
         }
     }
     BuiltProgram {
         parsed,
+        sources,
         user_indices,
         interner,
         diags,
@@ -353,7 +368,7 @@ fn run_dump_ast(input: &std::path::Path) -> ExitCode {
     };
     let result = scoop2_syntax::parser::parse_file(&source);
     if result.diagnostics.has_errors() {
-        return report_diagnostics(&source, result.diagnostics);
+        return report_diagnostics(&source, &[], result.diagnostics);
     }
     print!(
         "{}",
@@ -365,6 +380,7 @@ fn run_dump_ast(input: &std::path::Path) -> ExitCode {
 /// 渲染诊断；有错误返回退出码 1，否则 0。
 fn report_diagnostics(
     source: &scoop2_base::SourceFile,
+    extra_sources: &[(scoop2_base::FileId, scoop2_base::SourceFile)],
     mut diagnostics: scoop2_base::diag::DiagnosticSink,
 ) -> ExitCode {
     if !diagnostics.has_errors() {
@@ -377,7 +393,10 @@ fn report_diagnostics(
     );
     diagnostics.sort_by_offset();
     for diag in diagnostics.iter() {
-        eprint!("{}", scoop2_base::diag::render_diagnostic(source, diag));
+        eprint!(
+            "{}",
+            scoop2_base::diag::render_diagnostic_multi(source, extra_sources, diag)
+        );
     }
     ExitCode::from(1)
 }
@@ -389,6 +408,7 @@ fn run_dump_hir(input: &std::path::Path) -> ExitCode {
     };
     let BuiltProgram {
         parsed,
+        sources,
         user_indices,
         mut interner,
         mut diags,
@@ -398,12 +418,19 @@ fn run_dump_hir(input: &std::path::Path) -> ExitCode {
         diags.extend(pf.diagnostics.iter().cloned());
     }
     if !user_parse_ok {
-        return report_diagnostics(&source, diags);
+        return report_diagnostics(&source, &[], diags);
     }
     let inputs = make_inputs(&parsed, &user_indices);
     let hir = scoop2_hir::typecheck::run_typecheck(&inputs, &mut interner, &mut diags, None);
     if diags.has_errors() {
-        return report_diagnostics(&source, diags);
+        // 构建跨文件源映射（FileId → SourceFile）供多文件诊断渲染。
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1) // 跳过主文件（source 本身）。
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, diags);
     }
     // dump-hir 是尽力而为的调试视图：未类型化的节点（typecheck 未覆盖的边角）
     // 不追加 `ty=`，而非阻塞输出。完整性闸门（`completeness::verify`）供

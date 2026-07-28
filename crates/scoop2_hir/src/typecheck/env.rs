@@ -39,6 +39,8 @@ pub struct Signature {
     pub has_body: bool,
     /// 声明 span（M3 构造器重载 related 标签用；顶层/成员默认 default）。
     pub decl_span: scoop2_base::Span,
+    /// 声明所在文件的 FileId（跨文件诊断渲染用）。
+    pub decl_file: scoop2_base::FileId,
 }
 
 /// 顶层函数的注解属性（release-hook 等 cross-reference 校验用）。
@@ -446,6 +448,7 @@ impl<'i> TypeEnv<'i> {
 pub fn register_top_level_signatures(
     env: &mut TypeEnv,
     file: &File,
+    file_id: FileId,
     imports: &ImportTable,
     package_prefix: &str,
     diags: &mut DiagnosticSink,
@@ -532,6 +535,7 @@ pub fn register_top_level_signatures(
                         effect: d.effect.clone(),
                         has_body: d.body.is_some(),
                         decl_span: d.name.span,
+                        decl_file: file_id,
                     });
             }
             continue;
@@ -606,6 +610,7 @@ pub fn register_top_level_signatures(
                 effect: d.effect.clone(),
                 has_body: d.body.is_some(),
                 decl_span: scoop2_base::Span::default(),
+                decl_file: file_id,
             }
         };
         env.signatures.entry(fqn).or_default().push(sig);
@@ -665,6 +670,7 @@ fn is_native_c_extern(anns: &[crate::syntax::ast::AnnotationUse], interner: &Int
 pub fn register_members(
     env: &mut TypeEnv,
     file: &File,
+    file_id: FileId,
     imports: &ImportTable,
     package_prefix: &str,
     diags: &mut DiagnosticSink,
@@ -708,6 +714,7 @@ pub fn register_members(
                         imports,
                         package_prefix,
                         diags,
+                        file_id,
                     );
                 }
             }
@@ -724,6 +731,7 @@ pub fn register_members(
                         imports,
                         package_prefix,
                         diags,
+                        file_id,
                     );
                 }
             }
@@ -733,6 +741,7 @@ pub fn register_members(
 }
 
 /// 登记类型体成员：属性 → 成员类型；嵌套类型 / object 递归；companion 成员挂到 owner。
+#[allow(clippy::too_many_arguments)]
 fn register_body_members(
     env: &mut TypeEnv,
     owner: Symbol,
@@ -741,6 +750,7 @@ fn register_body_members(
     imports: &ImportTable,
     package_prefix: &str,
     diags: &mut DiagnosticSink,
+    file_id: FileId,
 ) {
     for m in members {
         match &m.kind {
@@ -777,6 +787,7 @@ fn register_body_members(
                             imports,
                             package_prefix,
                             diags,
+                            file_id,
                         );
                     }
                 } else if let Some(name) = &d.name
@@ -791,6 +802,7 @@ fn register_body_members(
                         imports,
                         package_prefix,
                         diags,
+                        file_id,
                     );
                 }
             }
@@ -805,6 +817,7 @@ fn register_body_members(
                         imports,
                         package_prefix,
                         diags,
+                        file_id,
                     );
                 }
             }
@@ -860,6 +873,7 @@ fn register_body_members(
                         effect: d.effect.clone(),
                         has_body: d.body.is_some(),
                         decl_span: d.name.span,
+                        decl_file: file_id,
                     }
                 };
                 env.member_signatures
@@ -1239,6 +1253,7 @@ fn annotation_last_text<'i>(
 pub fn register_constructors(
     env: &mut TypeEnv,
     file: &File,
+    file_id: FileId,
     imports: &ImportTable,
     package_prefix: &str,
     diags: &mut DiagnosticSink,
@@ -1331,6 +1346,7 @@ pub fn register_constructors(
                         effect: None,
                         has_body: true,
                         decl_span: d.name.span,
+                        decl_file: file_id,
                     }],
                 );
             }
@@ -1383,6 +1399,7 @@ pub fn register_constructors(
                     effect: None,
                     has_body: true,
                     decl_span: c.span,
+                    decl_file: file_id,
                 });
             }
             // 主构造器始终注册为候选（即使无次构造器），使 resolve_ctor_overloads 统一处理
@@ -1468,6 +1485,7 @@ pub fn register_constructors(
                         .as_ref()
                         .map(|pc| pc.span)
                         .unwrap_or(d.name.span),
+                    decl_file: file_id,
                 }];
                 all.extend(secondary);
                 env.ctor_signatures.insert(owner, all);

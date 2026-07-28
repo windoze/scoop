@@ -5617,6 +5617,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             &reason,
                             span,
                             sig.decl_span,
+                            sig.decl_file,
                         ));
                         return sig.return_ty;
                     }
@@ -5685,6 +5686,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     &reason,
                     span,
                     sig.decl_span,
+                    sig.decl_file,
                 ));
                 return sig.return_ty;
             }
@@ -6288,6 +6290,7 @@ mod tests {
         crate::typecheck::env::register_top_level_signatures(
             &mut env,
             &result.file,
+            FileId(0),
             &imports,
             &prefix,
             &mut diags,
@@ -6295,6 +6298,7 @@ mod tests {
         crate::typecheck::env::register_members(
             &mut env,
             &result.file,
+            FileId(0),
             &imports,
             &prefix,
             &mut diags,
@@ -6302,6 +6306,7 @@ mod tests {
         crate::typecheck::env::register_constructors(
             &mut env,
             &result.file,
+            FileId(0),
             &imports,
             &prefix,
             &mut diags,

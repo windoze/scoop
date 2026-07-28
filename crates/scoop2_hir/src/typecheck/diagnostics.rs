@@ -100,18 +100,20 @@ pub fn no_applicable_overload_with_reason(reason: &str, span: Span) -> Diagnosti
 /// `scoop::typecheck::no_applicable_overload`（成员调用，带候选签名与不匹配原因）。
 /// `candidate_desc` 形如 `pick(fixtures.typecheck.Base, Int)`；
 /// `reason` 形如 `argument 2 type String is not a subtype of parameter \`x\` type Int`。
+/// `decl_file` 是候选声明所在文件的 FileId（跨文件诊断渲染用）。
 pub fn no_applicable_overload_member(
     candidate_desc: &str,
     reason: &str,
     span: Span,
     decl_span: Span,
+    decl_file: scoop2_base::FileId,
 ) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::no_applicable_overload",
         format!("没有匹配的重载候选：{candidate_desc} — {reason}"),
     )
     .with_primary(span, "这里")
-    .with_related(decl_span, candidate_desc.to_string())
+    .with_related_file(decl_span, candidate_desc.to_string(), decl_file)
 }
 
 /// `scoop::typecheck::ambiguous_overload`：多个重载候选同等匹配，无法选择。

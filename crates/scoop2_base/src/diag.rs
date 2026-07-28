@@ -34,6 +34,9 @@ impl Severity {
 pub struct Label {
     pub span: Span,
     pub message: String,
+    /// 所属文件的 FileId（None = 默认/未知，使用主源文件）。
+    /// 用于多文件诊断渲染（sysroot 声明的 related label）。
+    pub file: Option<crate::FileId>,
 }
 
 /// 一条诊断。
@@ -79,6 +82,7 @@ impl Diagnostic {
         self.primary = Some(Label {
             span,
             message: message.into(),
+            file: None,
         });
         self
     }
@@ -87,6 +91,22 @@ impl Diagnostic {
         self.related.push(Label {
             span,
             message: message.into(),
+            file: None,
+        });
+        self
+    }
+
+    /// 带 FileId 的 related 标注（用于跨文件诊断渲染）。
+    pub fn with_related_file(
+        mut self,
+        span: Span,
+        message: impl Into<String>,
+        file: crate::FileId,
+    ) -> Self {
+        self.related.push(Label {
+            span,
+            message: message.into(),
+            file: Some(file),
         });
         self
     }
@@ -212,7 +232,19 @@ impl IntoIterator for DiagnosticSink {
 ///    |             ^ 期望表达式
 ///    = help: 检查是否漏写了右操作数
 /// ```
+/// 渲染单条诊断（单文件模式）。
 pub fn render_diagnostic(source: &SourceFile, diag: &Diagnostic) -> String {
+    render_diagnostic_multi(source, &[], diag)
+}
+
+/// 渲染单条诊断（多文件模式）。
+/// `source` 是主（用户）文件；`extra_sources` 是其他文件（sysroot 等），按 FileId 索引。
+/// Label 的 `file` 字段决定用哪个源文件渲染；`None` 用主文件。
+pub fn render_diagnostic_multi(
+    source: &SourceFile,
+    extra_sources: &[(crate::FileId, SourceFile)],
+    diag: &Diagnostic,
+) -> String {
     let mut out = String::new();
     out.push_str(&format!(
         "{}[{}]: {}\n",
@@ -227,26 +259,40 @@ pub fn render_diagnostic(source: &SourceFile, diag: &Diagnostic) -> String {
     }
     labels.extend(diag.related.iter());
 
-    //  gutter 宽度由最大行号决定。
+    // 为每个 label 选择正确的源文件。
+    let label_source = |label: &Label| -> &SourceFile {
+        if let Some(fid) = label.file {
+            extra_sources
+                .iter()
+                .find(|(id, _)| *id == fid)
+                .map(|(_, s)| s)
+                .unwrap_or(source)
+        } else {
+            source
+        }
+    };
+
+    // gutter 宽度由最大行号决定。
     let max_line = labels
         .iter()
-        .map(|l| source.offset_to_line_col(l.span.start).0)
+        .map(|l| label_source(l).offset_to_line_col(l.span.start).0)
         .max()
         .unwrap_or(0);
     let gutter = max_line.max(1).to_string().len();
 
     for label in labels {
-        let (line, col) = source.offset_to_line_col(label.span.start);
+        let src = label_source(label);
+        let (line, col) = src.offset_to_line_col(label.span.start);
         out.push_str(&format!(
             "{:>width$} --> {}:{}:{}\n",
             "",
-            source.path().display(),
+            src.path().display(),
             line,
             col,
             width = gutter
         ));
         out.push_str(&format!("{:>width$} |\n", "", width = gutter));
-        let line_text = source.line_text(line);
+        let line_text = src.line_text(line);
         out.push_str(&format!(
             "{:>width$} | {}\n",
             line,
@@ -254,14 +300,13 @@ pub fn render_diagnostic(source: &SourceFile, diag: &Diagnostic) -> String {
             width = gutter
         ));
         // 标注行：列以字符计，下划线长度至少为 1。
-        let line_start = source.line_start_offset(line).unwrap_or(0);
+        let line_start = src.line_start_offset(line).unwrap_or(0);
         let span_len = if label.span.is_empty() {
             1
         } else {
             let clamped_end = label.span.end.min(line_start + line_text.len());
             let start = label.span.start.max(line_start);
-            source
-                .text()
+            src.text()
                 .get(start..clamped_end)
                 .map(|s| s.chars().count())
                 .unwrap_or(1)
@@ -305,6 +350,19 @@ pub fn render_diagnostics(source: &SourceFile, diags: &[Diagnostic]) -> String {
     diags
         .iter()
         .map(|d| render_diagnostic(source, d))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// 渲染一组诊断（多文件模式）。
+pub fn render_diagnostics_multi(
+    source: &SourceFile,
+    extra_sources: &[(crate::FileId, SourceFile)],
+    diags: &[Diagnostic],
+) -> String {
+    diags
+        .iter()
+        .map(|d| render_diagnostic_multi(source, extra_sources, d))
         .collect::<Vec<_>>()
         .join("\n")
 }
