@@ -164,6 +164,22 @@ fn locate_sysroot() -> Option<PathBuf> {
     if p.is_dir() { Some(p) } else { None }
 }
 
+/// 读取通过环境变量 `SCOOP_SYSROOT_DEPS` 声明的显式依赖（逗号分隔的包名）。
+/// 这些是用户显式声明的 sysroot 依赖（如 `scoop.thread`），允许通过 wildcard 导入。
+/// 未声明的非 auto-dependency 包（如 `scoop.sync`）不能隐式导入。
+fn read_declared_deps() -> std::collections::HashSet<String> {
+    let mut deps = std::collections::HashSet::new();
+    if let Ok(s) = std::env::var("SCOOP_SYSROOT_DEPS") {
+        for d in s.split(',') {
+            let d = d.trim();
+            if !d.is_empty() {
+                deps.insert(d.to_string());
+            }
+        }
+    }
+    deps
+}
+
 /// 收集 fixture 的 `.sysroot` overlay 目录中的 `.scoop` 文件。
 fn collect_overlay_files() -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -273,11 +289,13 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
             }
             if user_parse_ok {
                 let inputs = make_inputs(&parsed, &user_indices);
+                let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
                 scoop2_hir::typecheck::run_typecheck(
                     &inputs,
                     &mut interner,
                     &mut diags,
                     args.target_platform.as_deref(),
+                    &declared_deps,
                 );
             }
             // 构建跨文件源映射（FileId → SourceFile）供多文件诊断渲染。
@@ -421,7 +439,14 @@ fn run_dump_hir(input: &std::path::Path) -> ExitCode {
         return report_diagnostics(&source, &[], diags);
     }
     let inputs = make_inputs(&parsed, &user_indices);
-    let hir = scoop2_hir::typecheck::run_typecheck(&inputs, &mut interner, &mut diags, None);
+    let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
+    let hir = scoop2_hir::typecheck::run_typecheck(
+        &inputs,
+        &mut interner,
+        &mut diags,
+        None,
+        &declared_deps,
+    );
     if diags.has_errors() {
         // 构建跨文件源映射（FileId → SourceFile）供多文件诊断渲染。
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources

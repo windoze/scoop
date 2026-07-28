@@ -36,6 +36,7 @@ pub fn run_typecheck(
     interner: &mut Interner,
     diags: &mut DiagnosticSink,
     target_platform: Option<&str>,
+    declared_deps: &[String],
 ) -> crate::hir::TypedHir {
     use crate::resolve::{
         ConeKind, Index, InputOrigin, Resolution, body, collect, imports, type_refs,
@@ -82,6 +83,7 @@ pub fn run_typecheck(
             interner,
             diags,
             false,
+            declared_deps,
         );
         type_refs::resolve_file_type_refs(inp.file, &index, &imports, interner, diags, &prefix);
         let mut resolution = Resolution::new();
@@ -117,6 +119,7 @@ pub fn run_typecheck(
             interner,
             diags,
             is_sysroot,
+            declared_deps,
         );
         file_state.push((i, prefix, imports));
     }

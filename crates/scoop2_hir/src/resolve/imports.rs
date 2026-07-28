@@ -48,10 +48,11 @@ impl ImportTable {
         interner: &mut Interner,
         diags: &mut DiagnosticSink,
     ) -> ImportTable {
-        Self::collect_with_origin(file, _file_id, index, interner, diags, false)
+        Self::collect_with_origin(file, _file_id, index, interner, diags, false, &[])
     }
 
     /// 同 [`collect`]，但可指定是否为 sysroot 文件（sysroot 可自由导入其他 sysroot 包）。
+    /// `declared_deps` 是用户显式声明的依赖包名（通过 build manifest / `--deps` / 环境变量）。
     pub fn collect_with_origin(
         file: &File,
         _file_id: FileId,
@@ -59,6 +60,7 @@ impl ImportTable {
         interner: &mut Interner,
         diags: &mut DiagnosticSink,
         is_sysroot: bool,
+        declared_deps: &[String],
     ) -> ImportTable {
         let mut t = ImportTable::new();
         t.collecting_sysroot = is_sysroot;
@@ -66,11 +68,12 @@ impl ImportTable {
             t.wildcards.push(interner.intern(p));
         }
         for imp in &file.imports {
-            t.collect_one(imp, index, interner, diags);
+            t.collect_one_with_deps(imp, index, interner, diags, is_sysroot, declared_deps);
         }
         t
     }
 
+    #[allow(dead_code)]
     fn collect_one(
         &mut self,
         imp: &ImportDecl,
@@ -78,8 +81,31 @@ impl ImportTable {
         interner: &mut Interner,
         diags: &mut DiagnosticSink,
     ) {
+        self.collect_one_with_deps(imp, index, interner, diags, self.collecting_sysroot, &[]);
+    }
+
+    fn collect_one_with_deps(
+        &mut self,
+        imp: &ImportDecl,
+        index: &Index,
+        interner: &mut Interner,
+        diags: &mut DiagnosticSink,
+        is_sysroot: bool,
+        declared_deps: &[String],
+    ) {
         let path_text = path_text(imp, interner);
         if imp.wildcard.is_some() {
+            // 非 auto-dependency 的 sysroot 包（如 scoop.thread）不能通过 wildcard
+            // 隐式导入——需要显式声明依赖（build manifest / `--deps` / 环境变量）。
+            // 仅对用户代码（非 sysroot 文件自身）强制。
+            if !is_sysroot
+                && path_text.starts_with("scoop.")
+                && !is_auto_dependency(&path_text)
+                && !declared_deps.iter().any(|d| d == &path_text)
+            {
+                diags.push(errors::unresolved_import(&path_text, imp.span));
+                return;
+            }
             self.wildcards.push(interner.intern(&path_text));
             return;
         }
