@@ -58,6 +58,8 @@ pub struct TypeEnv<'i> {
     signatures: HashMap<Symbol, Vec<Signature>>,
     /// 类型 FQN → (成员名 → 成员类型)。属性 / 字段（含主构造 param-property）。
     members: HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    /// 类型 FQN → 不可变（`val`）属性名集合（赋值目标可变性检查用）。
+    immutable_members: HashMap<Symbol, HashSet<Symbol>>,
     /// 类型 FQN → 主构造参数类型列表。
     ctors: HashMap<Symbol, Vec<TypeId>>,
     /// 类型 FQN → 次构造器签名重载集（M3 构造器重载决议用）。
@@ -96,6 +98,7 @@ impl<'i> TypeEnv<'i> {
             interner,
             signatures: HashMap::new(),
             members: HashMap::new(),
+            immutable_members: HashMap::new(),
             ctors: HashMap::new(),
             ctor_signatures: HashMap::new(),
             member_signatures: HashMap::new(),
@@ -285,6 +288,13 @@ impl<'i> TypeEnv<'i> {
     /// 类型的全部字段成员类型（GC-free 递归校验用）。
     pub fn member_types(&self, type_fqn: Symbol) -> Option<&HashMap<Symbol, TypeId>> {
         self.members.get(&type_fqn)
+    }
+
+    /// 成员是否为不可变（`val`）属性（赋值目标可变性检查）。
+    pub fn is_immutable_member(&self, type_fqn: Symbol, member_name: Symbol) -> bool {
+        self.immutable_members
+            .get(&type_fqn)
+            .is_some_and(|s| s.contains(&member_name))
     }
 
     /// 内建标量 / String / Unit / Nothing 名字 → [`TypeId`]。
@@ -594,7 +604,7 @@ pub fn register_members(
                 // 主构造 param-property（`class C(val x: T)`）。
                 if let Some(ctor) = &d.primary_ctor {
                     for cp in &ctor.params {
-                        if cp.property.is_some()
+                        if let Some(kind) = &cp.property
                             && let Some(ty) = &cp.ty
                         {
                             lower_and_store_member(
@@ -607,6 +617,13 @@ pub fn register_members(
                                 d.type_params.as_ref(),
                                 diags,
                             );
+                            // `val` param-property 登记为不可变。
+                            if *kind == crate::syntax::ast::ValKind::Val {
+                                env.immutable_members
+                                    .entry(owner)
+                                    .or_default()
+                                    .insert(cp.name.symbol);
+                            }
                         }
                     }
                 }
@@ -667,6 +684,13 @@ fn register_body_members(
                         type_params,
                         diags,
                     );
+                }
+                // `val` 属性登记为不可变（赋值目标可变性检查）。
+                if d.kind == crate::syntax::ast::ValKind::Val {
+                    env.immutable_members
+                        .entry(owner)
+                        .or_default()
+                        .insert(d.name.symbol);
                 }
                 // 无类型标注的属性（推断）→ M2 暂不登记（需 init 推断，后续里程碑）。
             }
@@ -759,7 +783,7 @@ fn register_body_members(
                         ),
                         effect: d.effect.clone(),
                         has_body: d.body.is_some(),
-                        decl_span: scoop2_base::Span::default(),
+                        decl_span: d.name.span,
                     }
                 };
                 env.member_signatures

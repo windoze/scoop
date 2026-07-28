@@ -823,6 +823,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             self.diags
                                 .push(diagnostics::assignment_target_not_mutable(&fname, fspan));
                         }
+                        // 引用类型的 `val` 属性不可赋值（不可变成员）。
+                        if let MemberName::Named(name) = member
+                            && let Some(fqn) = nominal_fqn_of(self.env.store.kind(rt))
+                            && self.env.is_immutable_member(fqn, name.symbol)
+                        {
+                            self.diags.push(diagnostics::assignment_target_not_mutable(
+                                self.env.interner.resolve(name.symbol),
+                                name.span,
+                            ));
+                        }
                         if let MemberName::Named(name) = member
                             && let Some(fqn) = nominal_fqn_of(self.env.store.kind(rt))
                             && let Some(expected) = self.env.member_type(fqn, name.symbol)
@@ -5075,22 +5085,69 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             if has_param {
                 return sig.return_ty;
             }
-            if sig.params.len() != arg_types.len() {
-                self.diags.push(diagnostics::call_arity_mismatch(
-                    sig.params.len(),
-                    arg_types.len(),
-                    span,
-                ));
-            } else {
-                for (i, &at) in arg_types.iter().enumerate() {
-                    if !self.assignable(at, sig.params[i]) {
-                        self.diags.push(diagnostics::call_arg_type_mismatch(
-                            &self.describe(sig.params[i]),
-                            &self.describe(at),
-                            span,
-                        ));
+            // 若唯一候选的 arity / 参数类型不匹配，走 no_applicable_overload
+            //（成员调用是重载决议场景，不匹配应报 no_applicable_overload 而非 call_arg_type_mismatch）。
+            let matches = sig.params.len() == arg_types.len()
+                && arg_types
+                    .iter()
+                    .zip(&sig.params)
+                    .all(|(a, p)| self.assignable(*a, *p));
+            if !matches {
+                // 构造候选描述 `method(receiver_fqn, ParamType1, ParamType2, ...)`。
+                let method_text = self.env.interner.resolve(method_name);
+                let recv_desc = self
+                    .resolve_member_owner_fqn(receiver_ty)
+                    .map(|fqn| self.env.interner.resolve(fqn).to_string())
+                    .unwrap_or_else(|| self.describe(receiver_ty));
+                let param_descs: Vec<String> = sig
+                    .params
+                    .iter()
+                    .map(|&p| self.describe(p))
+                    .collect();
+                let candidate_desc = format!(
+                    "{method_text}({recv_desc}{})",
+                    if param_descs.is_empty() {
+                        String::new()
+                    } else {
+                        format!(", {}", param_descs.join(", "))
                     }
-                }
+                );
+                // 找到首个不匹配的参数作为原因。
+                let reason = if sig.params.len() != arg_types.len() {
+                    format!(
+                        "实参数量 {} 与形参数量 {} 不匹配",
+                        arg_types.len(),
+                        sig.params.len()
+                    )
+                } else {
+                    let mut found = None;
+                    for (i, (&at, &pt)) in arg_types.iter().zip(&sig.params).enumerate() {
+                        if !self.assignable(at, pt) {
+                            let pname = sig
+                                .param_names
+                                .get(i)
+                                .map(|s| self.env.interner.resolve(*s).to_string())
+                                .unwrap_or_else(|| format!("param{i}"));
+                            // 成员调用的 receiver 计为 arg 1，首个显式实参计为 arg 2。
+                            found = Some(format!(
+                                "argument {} type {} is not a subtype of parameter `{}` type {}",
+                                i + 2,
+                                self.describe(at),
+                                pname,
+                                self.describe(pt)
+                            ));
+                            break;
+                        }
+                    }
+                    found.unwrap_or_else(|| "参数类型不匹配".to_string())
+                };
+                self.diags.push(diagnostics::no_applicable_overload_member(
+                    &candidate_desc,
+                    &reason,
+                    name_span,
+                    sig.decl_span,
+                ));
+                return sig.return_ty;
             }
             self.record_callee_effects(sig, args, span);
             return sig.return_ty;
