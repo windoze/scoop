@@ -155,6 +155,24 @@ impl<'i> TypeEnv<'i> {
         self.enum_variants.get(&fqn).map(|v| v.as_slice())
     }
 
+    /// 统计所有 enum 中名为 `variant_name_text` 的 variant 数量（消歧判定用）。
+    /// 多个 enum 拥有同名 variant（如 Some/None）时，构造应留给期望类型消歧。
+    pub fn count_variants_named(&self, variant_name_text: &str) -> usize {
+        let mut count = 0usize;
+        for variants in self.enum_variants.values() {
+            for &v in variants {
+                if self.interner.resolve(v) == variant_name_text {
+                    count += 1;
+                }
+            }
+        }
+        // 内建 Option.Some / Option.None 始终存在。
+        if variant_name_text == "Some" || variant_name_text == "None" {
+            count += 1;
+        }
+        count
+    }
+
     /// (enum FQN, variant 名) → payload 字段数（pattern arity 校验用）。
     /// 内建 Option 由 typecheck 侧特判（不登记在此）。
     pub fn enum_variant_arity(&self, enum_fqn: Symbol, variant: Symbol) -> Option<usize> {

@@ -240,15 +240,30 @@ impl Index {
 
     /// 按简单名查找值符号（enum variant / top-level val），用于裸名解析回退。
     /// 返回首个匹配的 FQN。O(n) 搜索——仅在常规解析全部失败时调用。
-    pub fn find_value_by_simple_name(&self, name: Symbol) -> Option<Symbol> {
+    pub fn find_value_by_simple_name(&self, name: Symbol, interner: &Interner) -> Option<Symbol> {
+        // 裸名 variant 解析优先级：
+        // 1. 用户包（非 scoop.* sysroot）—— 用户自定义优先
+        // 2. scoop.core.Option.Some/None —— prelude Option 优先于其他 sysroot enum
+        //    （避免 `LazyThreadSafetyMode.None` 与 `Option.None` 冲突时不确定）
+        // 3. 其他 sysroot
+        let mut user_hit: Option<Symbol> = None;
+        let mut option_hit: Option<Symbol> = None;
+        let mut other_hit: Option<Symbol> = None;
         for (&fqn, ns) in &self.by_fqn {
             if let Some(value) = &ns.value
                 && value.simple_name == name
             {
-                return Some(fqn);
+                let fqn_text = interner.resolve(fqn);
+                if fqn_text == "scoop.core.Option.Some" || fqn_text == "scoop.core.Option.None" {
+                    option_hit.get_or_insert(fqn);
+                } else if fqn_text.starts_with("scoop.") {
+                    other_hit.get_or_insert(fqn);
+                } else {
+                    user_hit.get_or_insert(fqn);
+                }
             }
         }
-        None
+        user_hit.or(option_hit).or(other_hit)
     }
 
     /// 记录一个 nominal 类型的直接超类型 FQN 列表。

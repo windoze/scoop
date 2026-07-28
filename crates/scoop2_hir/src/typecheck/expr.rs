@@ -2287,7 +2287,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
                 let name = self.env.interner.resolve(fqn);
                 // Option 特判：Some(x) → Option(x_ty)，None → Option(Nothing)。
-                if name.ends_with(".Some") || name == "Some" {
+                // 仅对 prelude Option（`scoop.core.Option.Some/None` 或裸 `Some`/`None`）生效，
+                // 不影响用户自定义 enum 或其他 enum（如 LazyThreadSafetyMode.None）中同名 variant。
+                let is_prelude_some = name == "Some" || name.ends_with(".Option.Some");
+                let is_prelude_none = name == "None" || name.ends_with(".Option.None");
+                if is_prelude_some {
                     let inner = if args.is_empty() {
                         self.env.store.nothing()
                     } else {
@@ -2296,7 +2300,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let opt = self.env.store.option(inner);
                     return opt;
                 }
-                if name.ends_with(".None") || name == "None" {
+                if is_prelude_none {
                     let nothing = self.env.store.nothing();
                     return self.env.store.option(nothing);
                 }
@@ -2304,6 +2308,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if let Some(dot) = name.rfind('.')
                     && let Some(enum_fqn) = self.env.interner.get(&name[..dot])
                 {
+                    // 泛型 enum variant 在无期望类型上下文时构造歧义（无法推断类型实参）。
+                    // 多个 enum 拥有同名 variant 时留给期望类型消歧，不在此报歧义。
+                    let variant_name = &name[dot + 1..];
+                    let same_name_variant_count = self.env.count_variants_named(variant_name);
+                    let enum_has_type_params = self
+                        .env
+                        .type_constraints(enum_fqn)
+                        .is_some_and(|(tps, _)| !tps.is_empty());
+                    if enum_has_type_params
+                        && explicit_type_args.is_empty()
+                        && same_name_variant_count <= 1
+                    {
+                        self.diags
+                            .push(diagnostics::ambiguous_enum_variant_ctor(span));
+                    }
                     let nominal = NominalType {
                         fqn: enum_fqn,
                         args: vec![],
@@ -5062,6 +5081,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         .unwrap_or_else(|| self.env.store.nothing());
                     let substituted = self.subst_all_params(sig.return_ty, subst_arg);
                     return substituted;
+                }
+                // 无 receiver 类型实参可推断：若返回类型仍含 Param 且无法从参数推断，报错。
+                // 检查参数类型是否含与返回类型相同的 Param（可从实参推断）。
+                let return_has_param = matches!(
+                    self.env.store.kind(sig.return_ty),
+                    TypeKind::Param(_)
+                );
+                let params_have_matching_param = sig.params.iter().any(|p| {
+                    matches!(self.env.store.kind(*p), TypeKind::Param(_))
+                });
+                if return_has_param
+                    && !params_have_matching_param
+                    && arg_types.iter().all(|a| !self.env.store.is_nothing(*a))
+                {
+                    self.diags
+                        .push(diagnostics::generic_type_arg_not_inferred(name_span));
                 }
             }
             return self.env.store.nothing();
