@@ -239,6 +239,7 @@ pub fn check_function<'a, 'i>(
         in_nogc,
         lenient_type_errors: false,
         performed_effects: Vec::new(),
+        escape_effects: Vec::new(),
         effect_suspend_depth: 0,
         expr_types,
     };
@@ -303,11 +304,26 @@ pub fn check_function<'a, 'i>(
     // private/internal 函数省略 effect row 时跳过（由函数体推断）。
     if !skip_effect_check {
         let declared = ExprChecker::extract_effect_names(declared_effect, c.env.interner);
+        // 若已存在结构性 handle 诊断（如 handle_arm_unreachable），不额外报 required_effect_not_declared
+        // —— 结构性诊断优先（避免掩盖 handle arm 不可达等更精确的诊断）。
+        let has_structural_handle_diag = c
+            .diags
+            .iter()
+            .any(|d| d.code == "scoop::typecheck::handle_arm_unreachable");
         for (performed, span) in &c.performed_effects {
             if !declared.contains(performed) {
                 c.diags
                     .push(diagnostics::required_effect_not_declared(performed, *span));
                 break;
+            }
+        }
+        if !has_structural_handle_diag {
+            for (performed, span) in &c.escape_effects {
+                if !declared.contains(performed) {
+                    c.diags
+                        .push(diagnostics::required_effect_not_declared(performed, *span));
+                    break;
+                }
             }
         }
     }
@@ -340,6 +356,7 @@ pub fn check_top_level_val<'a, 'i>(
         in_nogc: false,
         lenient_type_errors: true,
         performed_effects: Vec::new(),
+        escape_effects: Vec::new(),
         effect_suspend_depth: 0,
         expr_types,
     };
@@ -452,6 +469,7 @@ pub(super) fn check_pure_static_init<'a, 'i>(
         in_nogc: false,
         lenient_type_errors: true,
         performed_effects: Vec::new(),
+        escape_effects: Vec::new(),
         effect_suspend_depth: 0,
         expr_types,
     };
@@ -499,6 +517,9 @@ struct ExprChecker<'a, 'i> {
     lenient_type_errors: bool,
     /// 当前函数体执行了的 effect（FQN, span）（effect 检查用）。
     performed_effects: Vec<(String, Span)>,
+    /// 穿透 effect（resume 的 resumed-step effect）：不受 handle arm 体截断影响，
+    /// 最终合并到 performed_effects 参与函数级 effect 检查。
+    escape_effects: Vec<(String, Span)>,
     /// effect 采集挂起深度（> 0 时不在 performed_effects 中记录；lambda / handle 体用）。
     effect_suspend_depth: u32,
     /// per-NodeId 表达式推断类型写回表（typed-HIR / dump-hir 消费）。
@@ -3244,7 +3265,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn record_resume_step_effects(&mut self, kind: &TypeKind, span: Span) {
         // resumed-step effect 来自 continuation 的 eff row（build_continuation_type_with_effects
         // 从 handle body 提取，已排除被 handle 捕获的 effect）。无论 effect_suspend_depth 如何，
-        // resume 执行时这些未捕获的 effect 都会发生，必须传播到外层函数。
+        // resume 执行时这些未捕获的 effect 都会发生，必须穿透到外层函数。
+        // 记录到 escape_effects（不受 handle arm 体截断影响）。
         // 从 nominal args[2] 提取（旧式 Continuation<Resume, Answer, eff E>）。
         if let Some(args) = nominal_args_of(kind)
             && let Some(&e_ty) = args.get(2)
@@ -3253,24 +3275,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             let n = self.env.interner.resolve(e_fqn).to_string();
             let stripped = n.strip_prefix("scoop.core.").unwrap_or(&n);
             if stripped != "Pure" && stripped != "Raise" {
-                self.performed_effects.push((stripped.to_string(), span));
+                self.escape_effects.push((stripped.to_string(), span));
             }
         }
         // 从 nominal 的 eff 字段提取（新式 Continuation<Resume, Answer, eff {A + B}>）。
-        // 仅在 effect_suspend_depth == 0 时记录（handle arm 体外）；arm 体内由 body_effects
-        // 已捕获（过滤 handled effects 后）。
-        if self.effect_suspend_depth == 0
-            && let Some(n) = match kind {
-                TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n),
-                _ => None,
-            } && let Some(eff_row) = &n.eff
+        if let Some(n) = match kind {
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n),
+            _ => None,
+        } && let Some(eff_row) = &n.eff
         {
             for &term_ty in &eff_row.terms {
                 if let Some(e_fqn) = nominal_fqn_of(self.env.store.kind(term_ty)) {
                     let n = self.env.interner.resolve(e_fqn).to_string();
                     let stripped = n.strip_prefix("scoop.core.").unwrap_or(&n);
                     if stripped != "Pure" && stripped != "Raise" {
-                        self.performed_effects.push((stripped.to_string(), span));
+                        self.escape_effects.push((stripped.to_string(), span));
                     }
                 }
             }
