@@ -2461,7 +2461,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     && let Some(enum_fqn) = self.env.interner.get(&name[..dot])
                 {
                     // 泛型 enum variant 在无期望类型上下文时构造歧义（无法推断类型实参）。
-                    // 多个 enum 拥有同名 variant 时留给期望类型消歧，不在此报歧义。
+                    // 但若多个 enum 拥有同名 variant（如 Some/None），留给期望类型消歧。
                     let variant_name = &name[dot + 1..];
                     let same_name_variant_count = self.env.count_variants_named(variant_name);
                     let enum_has_type_params = self
