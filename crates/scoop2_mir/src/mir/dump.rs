@@ -532,6 +532,12 @@ fn dump_call_kind(
             dispatch.owner_fqn,
             dispatch.member_name
         ),
+        CallKind::Interface { receiver, dispatch } => format!(
+            "Interface {{ recv: {}, {}.{} }}",
+            dump_operand(receiver, labels),
+            dispatch.owner_fqn,
+            dispatch.member_name
+        ),
         CallKind::Closure {
             callee,
             invoke_fqn,

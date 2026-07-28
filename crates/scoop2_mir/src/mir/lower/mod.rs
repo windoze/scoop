@@ -290,7 +290,7 @@ fn remap_call_kind(
                 *t = TypeStore::remap_id(remap, *t);
             }
         }
-        CallKind::Virtual { dispatch, .. } => {
+        CallKind::Virtual { dispatch, .. } | CallKind::Interface { dispatch, .. } => {
             dispatch.receiver_ty = TypeStore::remap_id(remap, dispatch.receiver_ty);
             for t in &mut dispatch.generic_type_args {
                 *t = TypeStore::remap_id(remap, *t);

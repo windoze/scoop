@@ -250,21 +250,68 @@ impl<'hir> FnLowering<'hir> {
     pub fn stable_template_key_for(&self, callee_fqn: &str) -> Option<crate::mir::StableTemplateKey> {
         // 从 HIR type_constraints 查找该 FQN 的真实类型参数名序列。
         let fqn_sym = self.hir.interner.get(callee_fqn);
-        let type_params: Vec<scoop2_base::Symbol> = if let Some(fqn) = fqn_sym {
-            // 先查 type_constraints（携带真实类型参数名）。
+        let type_params: Vec<String> = if let Some(fqn) = fqn_sym {
+            // 先查 type_constraints（携带真实类型参数名），把 Symbol 解析为文本。
             if let Some(tc) = self.hir.type_constraints.get(&fqn) {
-                tc.type_params.clone()
+                tc.type_params
+                    .iter()
+                    .map(|&sym| self.hir.interner.resolve(sym).to_string())
+                    .collect()
             } else {
                 Vec::new()
             }
         } else {
             Vec::new()
         };
+        // overload_sig：从 HIR 签名查找首个重载的参数类型 canonical 文本。
+        let overload_sig = self.overload_sig_for_fqn(callee_fqn);
         Some(crate::mir::stable_id::make_stable_template_key(
             crate::mir::stable_id::StableHashScope::Dump,
             callee_fqn,
             &type_params,
+            &overload_sig,
         ))
+    }
+
+    /// 从 HIR 查找某 callee FQN 首个重载的 overload signature canonical 文本。
+    ///
+    /// 先尝试顶层函数表（FQN 整体匹配），再退化为成员函数表（拆 `owner.method`）。
+    /// 找不到时返回空串（无法区分同名重载，但不阻断 lowering）。
+    fn overload_sig_for_fqn(&self, callee_fqn: &str) -> String {
+        // 顶层函数：FQN 整体匹配。
+        if let Some(fqn_sym) = self.hir.interner.get(callee_fqn) {
+            if let Some(sigs) = self.hir.top_level_funs.get(&fqn_sym) {
+                if let Some(first) = sigs.first() {
+                    return crate::mir::stable_id::build_overload_sig(
+                        &self.types,
+                        &self.hir.interner,
+                        &first.param_types,
+                    );
+                }
+            }
+        }
+        // 成员函数：拆 `owner.method`（最后一个 `.` 之前为 owner）。
+        if let Some(dot) = callee_fqn.rfind('.') {
+            let owner_str = &callee_fqn[..dot];
+            let method_str = &callee_fqn[dot + 1..];
+            if let (Some(owner_sym), Some(method_sym)) = (
+                self.hir.interner.get(owner_str),
+                self.hir.interner.get(method_str),
+            ) {
+                if let Some(methods) = self.hir.member_funs.get(&owner_sym) {
+                    if let Some(sigs) = methods.get(&method_sym) {
+                        if let Some(first) = sigs.first() {
+                            return crate::mir::stable_id::build_overload_sig(
+                                &self.types,
+                                &self.hir.interner,
+                                &first.param_types,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        String::new()
     }
 
     /// 构造 CallKind::Direct，自动计算 stable_template_key。
@@ -281,6 +328,7 @@ impl<'hir> FnLowering<'hir> {
                     crate::mir::stable_id::StableHashScope::Dump,
                     template.clone(),
                     &self.types,
+                    &self.hir.interner,
                     &type_args,
                     &[],
                 )
@@ -296,6 +344,23 @@ impl<'hir> FnLowering<'hir> {
             stable_instance_key: sik,
             generic_type_args: type_args,
             generic_eff_args: vec![],
+        }
+    }
+
+    /// 根据 owner FQN 选择 Interface（itable）或 Virtual（class vtable）分发通道。
+    ///
+    /// owner 在 `hir.interface_fqns` 中 → `CallKind::Interface`；否则 → `CallKind::Virtual`。
+    /// 用于 call_resolution 缺失时的回退路径（运算符 / infix / 索引等运算符糖）。
+    pub fn make_dispatch_call_kind(
+        &self,
+        owner_sym: scoop2_base::Symbol,
+        receiver: crate::mir::Operand,
+        dispatch: crate::mir::DispatchMetadata,
+    ) -> crate::mir::CallKind {
+        if self.hir.interface_fqns.contains(&owner_sym) {
+            crate::mir::CallKind::Interface { receiver, dispatch }
+        } else {
+            crate::mir::CallKind::Virtual { receiver, dispatch }
         }
     }
 
@@ -530,6 +595,7 @@ pub fn lower_fun_decl(
             .unwrap_or_default(),
         body: None,
         file: file_id,
+        stable_template_key: None,
     };
     // 先为参数分配 local（仅当有 body 时才创建 builder；无 body 的声明不消耗 store）。
     let Some(body) = &d.body else {

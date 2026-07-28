@@ -11,6 +11,9 @@
 //! - 可达性扫描递归进实例化后的 body；
 //! - `MaterializedMir` 携带 backend contracts（class/enum/interface layout 发布）。
 
+#[cfg(test)]
+mod tests;
+
 use std::collections::{HashMap, VecDeque};
 
 use scoop2_hir::ty::{Subst, TypeId, TypeKind, TypeParamType, TypeStore};
@@ -18,10 +21,12 @@ use scoop2_hir::ty::{Subst, TypeId, TypeKind, TypeParamType, TypeStore};
 use crate::diagnostics::MonomorphError;
 use crate::mir::{Body, CallKind, FunDecl, Item, Module, Rvalue, StatementKind, TerminatorKind};
 
-/// 单态化实例化键：模板 FQN + 类型实参。
+/// 单态化实例化键：模板 FQN + overload signature + 类型实参。
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct InstanceKey {
     pub template_fqn: String,
+    /// 重载签名 canonical 文本（区分同名重载；空表示非重载/无法解析）。
+    pub overload_sig: String,
     pub type_args: Vec<TypeId>,
 }
 
@@ -50,16 +55,16 @@ pub struct BackendContracts {
 #[derive(Clone, Debug)]
 pub struct ClassVtableContract {
     pub class_fqn: String,
-    /// 虚方法：方法名 + owner FQN。
-    pub virtual_methods: Vec<(String, String)>,
+    /// 虚方法：(方法名, owner FQN, overload signature canonical)。
+    pub virtual_methods: Vec<(String, String, String)>,
 }
 
 /// interface 契约：interface 的方法签名列表。
 #[derive(Clone, Debug)]
 pub struct InterfaceContract {
     pub interface_fqn: String,
-    /// 方法名列表。
-    pub methods: Vec<String>,
+    /// (方法名, overload signature canonical)。
+    pub methods: Vec<(String, String)>,
 }
 
 /// class→interface itable 契约。
@@ -118,8 +123,9 @@ pub fn materialize(
     hir: &scoop2_hir::hir::TypedHir,
 ) -> MaterializeResult<MaterializedMir> {
     let templates = collect_templates(&generic);
+    let generic_types = generic.types.clone();
     let mut work: Materializer = Materializer {
-        store: generic.types.clone(),
+        store: generic_types.clone(),
         templates,
         instances: HashMap::new(),
         order: Vec::new(),
@@ -131,6 +137,7 @@ pub fn materialize(
     if let Some(entry) = entry_fqn {
         let key = InstanceKey {
             template_fqn: entry.to_string(),
+            overload_sig: String::new(),
             type_args: Vec::new(),
         };
         work.enqueue(key);
@@ -141,6 +148,7 @@ pub fn materialize(
             .filter(|fqn| !is_generic_template_by_fqn(fqn, &work.templates))
             .map(|fqn| InstanceKey {
                 template_fqn: fqn.clone(),
+                overload_sig: String::new(),
                 type_args: Vec::new(),
             })
             .collect();
@@ -166,18 +174,22 @@ pub fn materialize(
                 // 按 kind 收集 backend contracts（携带真实数据）。
                 match m.kind {
                     crate::mir::MetadataKind::Class => {
-                        // class vtable 契约：从 HIR member_funs 收集虚方法。
-                        let virtual_methods: Vec<(String, String)> = hir_fqn_for_metadata(hir, &m.fqn)
+                        // class vtable 契约：从 HIR member_funs 收集虚方法（含 overload signature）。
+                        let owner_fqn_text = m.fqn.clone();
+                        let store_ref = &generic_types;
+                        let interner_ref = &hir.interner;
+                        let virtual_methods: Vec<(String, String, String)> = hir_fqn_for_metadata(hir, &m.fqn)
                             .and_then(|fqn_sym| hir.member_funs.get(&fqn_sym))
                             .map(|methods| {
                                 methods.iter()
                                     .flat_map(|(method_name, sigs)| {
-                                        sigs.iter().filter(|s| {
-                                            // open/abstract/override 方法才是虚方法。
-                                            // 当前 MIR 不携带修饰符信息；保守收集全部。
-                                            true
-                                        }).map(move |_| {
-                                            (hir.interner.resolve(*method_name).to_string(), m.fqn.clone())
+                                        let mname = hir.interner.resolve(*method_name).to_string();
+                                        let owner = owner_fqn_text.clone();
+                                        sigs.iter().map(move |sig| {
+                                            let sig_canonical = crate::mir::stable_id::build_overload_sig(
+                                                store_ref, interner_ref, &sig.param_types,
+                                            );
+                                            (mname.clone(), owner.clone(), sig_canonical)
                                         })
                                     })
                                     .collect()
@@ -192,9 +204,23 @@ pub fn materialize(
                         });
                     }
                     crate::mir::MetadataKind::Interface => {
-                        let methods: Vec<String> = hir_fqn_for_metadata(hir, &m.fqn)
+                        let store_ref = &generic_types;
+                        let interner_ref = &hir.interner;
+                        let methods: Vec<(String, String)> = hir_fqn_for_metadata(hir, &m.fqn)
                             .and_then(|fqn_sym| hir.member_funs.get(&fqn_sym))
-                            .map(|mf| mf.keys().map(|k| hir.interner.resolve(*k).to_string()).collect())
+                            .map(|mf| {
+                                mf.iter()
+                                    .flat_map(|(method_name, sigs)| {
+                                        let mname = hir.interner.resolve(*method_name).to_string();
+                                        sigs.iter().map(move |sig| {
+                                            let sig_canonical = crate::mir::stable_id::build_overload_sig(
+                                                store_ref, interner_ref, &sig.param_types,
+                                            );
+                                            (mname.clone(), sig_canonical)
+                                        })
+                                    })
+                                    .collect()
+                            })
                             .unwrap_or_default();
                         work.backend_contracts.interfaces.push(InterfaceContract {
                             interface_fqn: m.fqn.clone(),
@@ -217,7 +243,7 @@ pub fn materialize(
                             .map(|ms| ms.iter()
                                 .map(|(name, ty)| {
                                     let ty_text = crate::mir::stable_id::canonical_type_text(
-                                        &work.store, *ty,
+                                        &generic_types, &hir.interner, *ty,
                                     );
                                     (hir.interner.resolve(*name).to_string(), ty_text)
                                 })
@@ -239,8 +265,22 @@ pub fn materialize(
         items,
         types: work.store,
     };
-    // 去虚化 pass：final 接收者的 Virtual 调用改写为 Direct。
-    crate::mir::devirtualize::devirtualize_module(&mut result_module);
+    // 去虚化 pass：final/单候选接收者的 Virtual/Interface 调用改写为 Direct。
+    let devirt_ctx = crate::mir::devirtualize::DevirtContext {
+        interner: &hir.interner,
+        extensible_class_fqns: &hir.extensible_class_fqns,
+        interface_fqns: &hir.interface_fqns,
+        direct_subtypes: &hir.direct_subtypes,
+    };
+    crate::mir::devirtualize::devirtualize_module(&mut result_module, &devirt_ctx);
+    // 内联 pass：把小型 direct callee（含 HOF 如 apply/map/filter）内联到调用点。
+    // 在 devirtualize 之后运行：devirt 产生的 Direct 调用可成为内联候选。
+    crate::mir::inline::inline_module(
+        &mut result_module,
+        crate::mir::inline::InlineConfig::default(),
+    );
+    // 为所有顶层函数计算 stable template key（供分离编译）。
+    crate::mir::stable_id::compute_public_stable_keys(&mut result_module, &hir.interner);
     Ok(MaterializedMir {
         module: result_module,
         instance_keys: work.order,
@@ -293,7 +333,7 @@ impl Materializer {
             ));
         };
         // 构造 Subst：从首个模板的 type_params 按声明顺序绑定到 key.type_args。
-        let subst = build_subst(&templates, &key.type_args);
+        let subst = build_subst(&templates, &key.type_args)?;
         let family: Vec<FunDecl> = templates
             .into_iter()
             .map(|fd| subst_fun_decl(fd, &subst, &mut self.store))
@@ -345,9 +385,20 @@ fn is_generic_template_by_fqn(fqn: &str, templates: &HashMap<String, Vec<FunDecl
 // ---------------------------------------------------------------------------
 
 /// 从模板的 type_params（类型参数名序列）按声明顺序绑定到 type_args。
-fn build_subst(templates: &[FunDecl], type_args: &[TypeId]) -> Subst {
+fn build_subst(templates: &[FunDecl], type_args: &[TypeId]) -> MaterializeResult<Subst> {
     let mut subst = Subst::new();
     if let Some(first) = templates.first() {
+        let params_count = first.type_params.len();
+        let args_count = type_args.len();
+        if args_count < params_count {
+            return Err(MonomorphError::error(
+                scoop2_base::Span::default(),
+                format!(
+                    "单态化失败：泛型实参数量不足（需要 {} 个，实际 {} 个）",
+                    params_count, args_count
+                ),
+            ));
+        }
         for (i, &tp_sym) in first.type_params.iter().enumerate() {
             if let Some(&arg_ty) = type_args.get(i) {
                 // TypeParamType 需要 name + file + span；file/span 用占位（不影响替换逻辑）。
@@ -360,7 +411,7 @@ fn build_subst(templates: &[FunDecl], type_args: &[TypeId]) -> Subst {
             }
         }
     }
-    subst
+    Ok(subst)
 }
 
 // ---------------------------------------------------------------------------
@@ -370,6 +421,7 @@ fn build_subst(templates: &[FunDecl], type_args: &[TypeId]) -> Subst {
 fn subst_fun_decl(mut fd: FunDecl, subst: &Subst, store: &mut TypeStore) -> FunDecl {
     fd.ty = store.apply_subst(fd.ty, subst);
     fd.return_ty = store.apply_subst(fd.return_ty, subst);
+    fd.effect_row = store.apply_subst_row(fd.effect_row, subst);
     for p in &mut fd.params {
         p.ty = store.apply_subst(p.ty, subst);
     }
@@ -414,9 +466,9 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
     match rv {
         Rvalue::Use(_) | Rvalue::UnresolvedName { .. } | Rvalue::ClassLit { .. } => {}
         Rvalue::TopLevelRef(tl) => {
-            for t in &mut tl.generic_type_args {
-                *t = store.apply_subst(*t, subst);
-            }
+            subst_type_ids(store, &mut tl.generic_type_args, subst);
+            tl.hidden_effects = store.apply_subst_row(tl.hidden_effects.clone(), subst);
+            subst_effect_rows(store, &mut tl.generic_eff_args, subst);
         }
         Rvalue::TypeTest { metadata, .. } => {
             subst_type_test_metadata(metadata, subst, store);
@@ -430,15 +482,18 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
         Rvalue::TupleIndex { element_ty, .. } | Rvalue::IndexAccess { element_ty, .. } => {
             *element_ty = store.apply_subst(*element_ty, subst);
         }
-        Rvalue::EnumVariant { enum_ty, payload, .. } => {
+        Rvalue::EnumVariant { enum_ty, payload, args, .. } => {
             *enum_ty = store.apply_subst(*enum_ty, subst);
             subst_aggregate_transport(payload, subst, store);
-        }
-        Rvalue::ClassCtor { ctor, hidden_effects, args, .. } => {
             for a in args.iter_mut() {
                 a.value_ty = store.apply_subst(a.value_ty, subst);
             }
-            let _ = (ctor, hidden_effects);
+        }
+        Rvalue::ClassCtor { hidden_effects, args, .. } => {
+            for a in args.iter_mut() {
+                a.value_ty = store.apply_subst(a.value_ty, subst);
+            }
+            *hidden_effects = store.apply_subst_row(hidden_effects.clone(), subst);
         }
         Rvalue::Call {
             kind,
@@ -451,12 +506,34 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
                 a.value_ty = store.apply_subst(a.value_ty, subst);
             }
             subst_value_transport(&mut transport.result, subst, store);
+            if let Some(ar) = &mut transport.aggregate_return {
+                subst_value_transport(ar, subst, store);
+            }
+            if let Some(arr) = &mut transport.array {
+                subst_array_element_transport(arr, subst, store);
+            }
+            if let Some(gc) = &mut transport.gc {
+                subst_gc_intrinsic_transport(gc, subst, store);
+            }
         }
-        Rvalue::MakeTuple { transport, .. } | Rvalue::StructLit { transport, .. } => {
+        Rvalue::MakeTuple { transport, .. } => {
             subst_aggregate_transport(transport, subst, store);
         }
-        Rvalue::MakeArray { result_ty, .. } | Rvalue::WithUpdate { result_ty, .. } => {
+        Rvalue::StructLit { transport, fields, .. } => {
+            subst_aggregate_transport(transport, subst, store);
+            for f in fields.iter_mut() {
+                f.value_ty = store.apply_subst(f.value_ty, subst);
+            }
+        }
+        Rvalue::MakeArray { result_ty, elements, .. } => {
             *result_ty = store.apply_subst(*result_ty, subst);
+            let _ = elements; // elements 是 Operand（无 TypeId）
+        }
+        Rvalue::WithUpdate { base: _, updates, result_ty } => {
+            *result_ty = store.apply_subst(*result_ty, subst);
+            for u in updates.iter_mut() {
+                u.value_ty = store.apply_subst(u.value_ty, subst);
+            }
         }
         Rvalue::MakeClosure { env_contract, .. } => {
             env_contract.env_ty = store.apply_subst(env_contract.env_ty, subst);
@@ -464,24 +541,35 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
                 subst_value_transport(&mut cap.transport, subst, store);
             }
         }
-        Rvalue::InterpolatedString { .. } | Rvalue::PerformResult { .. } | Rvalue::PatternMatch { .. } | Rvalue::PatternExtract { .. } => {}
+        Rvalue::InterpolatedString { .. } => {}
+        Rvalue::PerformResult { result_ty, .. } => {
+            *result_ty = store.apply_subst(*result_ty, subst);
+        }
+        Rvalue::PatternMatch { subject: _, pattern } => {
+            subst_pattern(pattern, subst, store);
+        }
+        Rvalue::PatternExtract { subject: _, result_ty, .. } => {
+            *result_ty = store.apply_subst(*result_ty, subst);
+        }
     }
 }
 
 fn subst_call_kind(kind: &mut CallKind, subst: &Subst, store: &mut TypeStore) {
     match kind {
         CallKind::Direct {
-            generic_type_args, ..
+            type_args,
+            generic_type_args,
+            generic_eff_args,
+            ..
         } => {
-            for t in generic_type_args {
-                *t = store.apply_subst(*t, subst);
-            }
+            subst_type_ids(store, type_args, subst);
+            subst_type_ids(store, generic_type_args, subst);
+            subst_effect_rows(store, generic_eff_args, subst);
         }
-        CallKind::Virtual { dispatch, .. } => {
+        CallKind::Virtual { dispatch, .. } | CallKind::Interface { dispatch, .. } => {
             dispatch.receiver_ty = store.apply_subst(dispatch.receiver_ty, subst);
-            for t in &mut dispatch.generic_type_args {
-                *t = store.apply_subst(*t, subst);
-            }
+            subst_type_ids(store, &mut dispatch.generic_type_args, subst);
+            subst_effect_rows(store, &mut dispatch.generic_eff_args, subst);
         }
         CallKind::Closure { .. } | CallKind::FunValue { .. } => {}
     }
@@ -498,6 +586,8 @@ fn subst_terminator(term: &mut crate::mir::Terminator, subst: &Subst, store: &mu
         } => {
             metadata.effect_ty = store.apply_subst(metadata.effect_ty, subst);
             metadata.result_ty = store.apply_subst(metadata.result_ty, subst);
+            subst_type_ids(store, &mut metadata.op_type_args, subst);
+            subst_optional_type_id(store, &mut metadata.payload_tuple_ty, subst);
             for t in &mut metadata.payload_component_tys {
                 *t = store.apply_subst(*t, subst);
             }
@@ -517,6 +607,8 @@ fn subst_terminator(term: &mut crate::mir::Terminator, subst: &Subst, store: &mu
             for arm in arms.iter_mut() {
                 arm.handled_effect_ty = store.apply_subst(arm.handled_effect_ty, subst);
                 arm.body_ty = store.apply_subst(arm.body_ty, subst);
+                subst_type_ids(store, &mut arm.op_type_args, subst);
+                subst_optional_type_id(store, &mut arm.payload_tuple_ty, subst);
                 for t in &mut arm.payload_component_tys {
                     *t = store.apply_subst(*t, subst);
                 }
@@ -529,6 +621,28 @@ fn subst_terminator(term: &mut crate::mir::Terminator, subst: &Subst, store: &mu
 // ---------------------------------------------------------------------------
 // metadata 替换 helper
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 通用替换 helper：Vec<TypeId> / Vec<EffectRow> / Option<TypeId>
+// ---------------------------------------------------------------------------
+
+fn subst_type_ids(store: &mut TypeStore, tys: &mut Vec<scoop2_hir::ty::TypeId>, subst: &Subst) {
+    for t in tys.iter_mut() {
+        *t = store.apply_subst(*t, subst);
+    }
+}
+
+fn subst_effect_rows(store: &mut TypeStore, rows: &mut Vec<scoop2_hir::ty::EffectRow>, subst: &Subst) {
+    for r in rows.iter_mut() {
+        *r = store.apply_subst_row(r.clone(), subst);
+    }
+}
+
+fn subst_optional_type_id(store: &mut TypeStore, ty: &mut Option<scoop2_hir::ty::TypeId>, subst: &Subst) {
+    if let Some(t) = ty {
+        *t = store.apply_subst(*t, subst);
+    }
+}
 
 fn subst_value_transport(vt: &mut crate::mir::ValueTransportMetadata, subst: &Subst, store: &mut TypeStore) {
     vt.source_ty = store.apply_subst(vt.source_ty, subst);
@@ -548,18 +662,115 @@ fn subst_aggregate_transport(at: &mut crate::mir::AggregateTransportMetadata, su
     }
 }
 
+fn subst_array_element_transport(aet: &mut crate::mir::ArrayElementTransportMetadata, subst: &Subst, store: &mut TypeStore) {
+    aet.array_ty = store.apply_subst(aet.array_ty, subst);
+    aet.element_ty = store.apply_subst(aet.element_ty, subst);
+    subst_value_transport(&mut aet.element, subst, store);
+}
+
+fn subst_gc_intrinsic_transport(gc: &mut crate::mir::GcIntrinsicTransportMetadata, subst: &Subst, store: &mut TypeStore) {
+    gc.subject_ty = store.apply_subst(gc.subject_ty, subst);
+    if let Some(t) = gc.token_ty {
+        gc.token_ty = Some(store.apply_subst(t, subst));
+    }
+    subst_value_transport(&mut gc.subject, subst, store);
+}
+
 fn subst_type_test_metadata(m: &mut crate::mir::RuntimeTypeTestMetadata, subst: &Subst, store: &mut TypeStore) {
     m.source_ty = store.apply_subst(m.source_ty, subst);
     m.target_ty = store.apply_subst(m.target_ty, subst);
     m.descriptor.ty = store.apply_subst(m.descriptor.ty, subst);
+    subst_runtime_type_parameterized(&mut m.parameterized, subst, store);
+}
+
+fn subst_runtime_type_parameterized(
+    p: &mut crate::mir::transport::RuntimeTypeParameterizedMatch,
+    subst: &Subst,
+    store: &mut TypeStore,
+) {
+    use crate::mir::transport::RuntimeTypeParameterizedMatch as P;
+    match p {
+        P::None => {}
+        P::Nominal { type_args, effect_arg } => {
+            subst_type_ids(store, type_args, subst);
+            if let Some(ea) = effect_arg {
+                *ea = store.apply_subst_row(ea.clone(), subst);
+            }
+        }
+        P::Function { receiver, params, return_ty, effects, .. } => {
+            if let Some(r) = receiver {
+                *r = store.apply_subst(*r, subst);
+            }
+            subst_type_ids(store, params, subst);
+            *return_ty = store.apply_subst(*return_ty, subst);
+            *effects = store.apply_subst_row(effects.clone(), subst);
+        }
+        P::Option { payload_ty } => {
+            *payload_ty = store.apply_subst(*payload_ty, subst);
+        }
+        P::Tuple { element_tys } => {
+            subst_type_ids(store, element_tys, subst);
+        }
+        P::Union { variants } => {
+            subst_type_ids(store, variants, subst);
+        }
+        P::StarProjection { read_ty } => {
+            *read_ty = store.apply_subst(*read_ty, subst);
+        }
+    }
 }
 
 fn subst_cast_metadata(m: &mut crate::mir::RuntimeCastMetadata, subst: &Subst, store: &mut TypeStore) {
     subst_type_test_metadata(&mut m.test, subst, store);
+    use crate::mir::transport::RuntimeCastResult as R;
+    match &mut m.result {
+        R::Target { ty } => {
+            *ty = store.apply_subst(*ty, subst);
+        }
+        R::Option { option_ty, some_ty } => {
+            *option_ty = store.apply_subst(*option_ty, subst);
+            *some_ty = store.apply_subst(*some_ty, subst);
+        }
+    }
 }
 
 fn subst_member_access_metadata(m: &mut crate::mir::MemberAccessMetadata, subst: &Subst, store: &mut TypeStore) {
     m.receiver_ty = store.apply_subst(m.receiver_ty, subst);
+    m.hidden_effects = store.apply_subst_row(m.hidden_effects.clone(), subst);
+}
+
+/// 替换 Pattern 中的所有 TypeId。
+fn subst_pattern(pat: &mut crate::mir::Pattern, subst: &Subst, store: &mut TypeStore) {
+    use crate::mir::Pattern;
+    match pat {
+        Pattern::Wildcard | Pattern::IntLit(_) | Pattern::CharLit(_) | Pattern::StringLit(_) | Pattern::BoolLit(_) => {}
+        Pattern::Bind { ty, .. } => {
+            *ty = store.apply_subst(*ty, subst);
+        }
+        Pattern::Is { ty, .. } => {
+            *ty = store.apply_subst(*ty, subst);
+        }
+        Pattern::Tuple { elements } => {
+            for e in elements.iter_mut() {
+                subst_pattern(e, subst, store);
+            }
+        }
+        Pattern::Struct { fields, .. } => {
+            for f in fields.iter_mut() {
+                subst_pattern(&mut f.pattern, subst, store);
+            }
+        }
+        Pattern::Variant { args, .. } => {
+            for a in args.iter_mut() {
+                subst_pattern(a, subst, store);
+            }
+        }
+        Pattern::Or { patterns } => {
+            for p in patterns.iter_mut() {
+                subst_pattern(p, subst, store);
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -584,6 +795,14 @@ fn scan_rvalue_calls(rv: &Rvalue, reqs: &mut Vec<InstanceKey>) {
             // 递归进 CallArg（嵌套调用）。
             let _ = args;
         }
+        // 闭包构造：invoke_fqn 指向闭包 invoke 函数，需入队以单态化。
+        Rvalue::MakeClosure { invoke_fqn, .. } => {
+            reqs.push(InstanceKey {
+                template_fqn: invoke_fqn.clone(),
+                overload_sig: String::new(),
+                type_args: Vec::new(),
+            });
+        }
         _ => {}
     }
 }
@@ -593,21 +812,52 @@ fn scan_call_kind(kind: &CallKind, reqs: &mut Vec<InstanceKey>) {
         CallKind::Direct {
             callee_fqn,
             generic_type_args,
+            stable_template_key,
             ..
         } => {
+            // 从 stable_template_key 提取 overload_sig（canonical 文本中的 sig= 部分）。
+            let overload_sig = stable_template_key
+                .as_ref()
+                .map(|stk| extract_overload_sig(&stk.canonical))
+                .unwrap_or_default();
             reqs.push(InstanceKey {
                 template_fqn: callee_fqn.clone(),
+                overload_sig,
                 type_args: generic_type_args.clone(),
             });
         }
-        CallKind::Virtual { dispatch, .. } => {
-            // virtual 调用的目标在运行期决定；但 owner_fqn.member_name 可作为候选。
+        CallKind::Virtual { dispatch, .. } | CallKind::Interface { dispatch, .. } => {
+            let overload_sig = dispatch
+                .stable_template_key
+                .as_ref()
+                .map(|stk| extract_overload_sig(&stk.canonical))
+                .unwrap_or_default();
             reqs.push(InstanceKey {
                 template_fqn: dispatch.member_fqn.clone(),
+                overload_sig,
                 type_args: dispatch.generic_type_args.clone(),
             });
         }
-        _ => {}
+        // 闭包调用：invoke_fqn 指向闭包 invoke 函数，需入队以单态化。
+        CallKind::Closure { invoke_fqn, .. } => {
+            reqs.push(InstanceKey {
+                template_fqn: invoke_fqn.clone(),
+                overload_sig: String::new(),
+                type_args: Vec::new(),
+            });
+        }
+        // FunValue 调用：callee 是函数值 local，无静态 FQN 可扫描。
+        // 若该 local 绑定到一个已知闭包，其 invoke_fqn 已在 MakeClosure 处入队。
+        CallKind::FunValue { .. } => {}
+    }
+}
+
+/// 从 canonical 文本 `template(fqn;[...];sig=...)` 中提取 overload_sig 部分。
+fn extract_overload_sig(canonical: &str) -> String {
+    if let Some(pos) = canonical.find("sig=") {
+        canonical[pos + 4..].to_string()
+    } else {
+        String::new()
     }
 }
 

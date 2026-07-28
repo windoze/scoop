@@ -7,15 +7,16 @@
 //! - 标量值类型：`V(Int)` / `V(Bool)` / ... ;
 //! - Option：`V(Option<{inner}>)`;
 //! - Tuple：`T({elem0,elem1,...})`;
-//! - Nominal：`N(fqn<{args};eff={row}>)`;
+//! - Nominal：`N(fqn<{args};eff={row}>)` — FQN 用 interner 文本（稳定）;
 //! - Function：`F({receiver};[{params}]->{ret}/{effects})`;
-//! - TypeParam：`P({name})`（按名字编码；泛型单态化后 Param 被替换掉）;
+//! - TypeParam：`P({name})` — name 用 interner 文本（稳定）;
 //! - EffectRow：`E({terms sorted + deduped})`;
 //! - StarProjection：`S({read_ty})`;
 //! - Union：`U({variants sorted})`;
 //!
 //! Hash：scope-prefixed FNV-1a，使同文本在不同 scope（dump / abi / rtti）产生不同 hash。
 
+use scoop2_base::Interner;
 use scoop2_hir::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::transport::{StableInstanceKey, StableTemplateKey};
@@ -28,13 +29,16 @@ use super::transport::{StableInstanceKey, StableTemplateKey};
 const MAX_CANONICAL_DEPTH: usize = 64;
 
 /// 把一个 `TypeId` 编码为 canonical 文本。
-pub fn canonical_type_text(types: &TypeStore, ty: TypeId) -> String {
+///
+/// 使用 `interner` 把 `Symbol` 解析为 FQN 文本（跨构建稳定）。
+pub fn canonical_type_text(types: &TypeStore, interner: &Interner, ty: TypeId) -> String {
     let mut cache: std::collections::HashMap<TypeId, String> = std::collections::HashMap::new();
-    encode_type(types, ty, 0, &mut cache)
+    encode_type(types, interner, ty, 0, &mut cache)
 }
 
 fn encode_type(
     types: &TypeStore,
+    interner: &Interner,
     ty: TypeId,
     depth: usize,
     cache: &mut std::collections::HashMap<TypeId, String>,
@@ -43,18 +47,17 @@ fn encode_type(
         return cached.clone();
     }
     if depth > MAX_CANONICAL_DEPTH {
-        // 过深递归：用占位标记（不 panic）。
         return "?depth".to_string();
     }
     let encoded = match types.kind(ty) {
         TypeKind::Ref(RefTypeKind::Any) => "R(Any)".to_string(),
         TypeKind::Ref(RefTypeKind::String) => "R(String)".to_string(),
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
-            let fqn_text = format!("{}", n.fqn.as_u32()); // interned symbol id（稳定）
+            let fqn_text = interner.resolve(n.fqn).to_string();
             let args: Vec<String> = n
                 .args
                 .iter()
-                .map(|&a| encode_type(types, a, depth + 1, cache))
+                .map(|&a| encode_type(types, interner, a, depth + 1, cache))
                 .collect();
             let args_str = if args.is_empty() {
                 String::new()
@@ -62,7 +65,7 @@ fn encode_type(
                 format!("<{}>", args.join(","))
             };
             let eff_str = if let Some(row) = &n.eff {
-                format!(";eff={}", encode_effect_row(row))
+                format!(";eff={}", encode_effect_row(types, interner, row))
             } else {
                 String::new()
             };
@@ -70,23 +73,23 @@ fn encode_type(
         }
         TypeKind::Ref(RefTypeKind::Function(f)) => {
             let receiver = match f.receiver {
-                Some(r) => encode_type(types, r, depth + 1, cache),
+                Some(r) => encode_type(types, interner, r, depth + 1, cache),
                 None => "-".to_string(),
             };
             let params: Vec<String> = f
                 .params
                 .iter()
-                .map(|&p| encode_type(types, p, depth + 1, cache))
+                .map(|&p| encode_type(types, interner, p, depth + 1, cache))
                 .collect();
-            let return_ty = encode_type(types, f.return_ty, depth + 1, cache);
-            let row = encode_effect_row_with_closed(&f.effects, f.closed);
+            let return_ty = encode_type(types, interner, f.return_ty, depth + 1, cache);
+            let row = encode_effect_row_with_closed(types, interner, &f.effects, f.closed);
             format!("F({receiver};[{}]->{return_ty}/{row})", params.join(","))
         }
         TypeKind::Ref(RefTypeKind::Union(u)) => {
             let mut variants: Vec<String> = u
                 .variants
                 .iter()
-                .map(|&v| encode_type(types, v, depth + 1, cache))
+                .map(|&v| encode_type(types, interner, v, depth + 1, cache))
                 .collect();
             variants.sort();
             format!("U({})", variants.join(","))
@@ -101,21 +104,21 @@ fn encode_type(
         TypeKind::Value(ValueTypeKind::IntN(bits)) => format!("V(Int{bits})"),
         TypeKind::Value(ValueTypeKind::UIntN(bits)) => format!("V(UInt{bits})"),
         TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            format!("V(Option<{}>)", encode_type(types, *inner, depth + 1, cache))
+            format!("V(Option<{}>)", encode_type(types, interner, *inner, depth + 1, cache))
         }
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
             let elems: Vec<String> = elements
                 .iter()
-                .map(|&e| encode_type(types, e, depth + 1, cache))
+                .map(|&e| encode_type(types, interner, e, depth + 1, cache))
                 .collect();
             format!("T({})", elems.join(","))
         }
         TypeKind::Value(ValueTypeKind::Nominal(n)) => {
-            let fqn_text = format!("{}", n.fqn.as_u32());
+            let fqn_text = interner.resolve(n.fqn).to_string();
             let args: Vec<String> = n
                 .args
                 .iter()
-                .map(|&a| encode_type(types, a, depth + 1, cache))
+                .map(|&a| encode_type(types, interner, a, depth + 1, cache))
                 .collect();
             let args_str = if args.is_empty() {
                 String::new()
@@ -126,8 +129,7 @@ fn encode_type(
         }
         TypeKind::Nothing => "Nothing".to_string(),
         TypeKind::Param(p) => {
-            // type param 按 name 的 interned symbol id 编码（跨构建稳定）。
-            format!("P({})", p.name.as_u32())
+            format!("P({})", interner.resolve(p.name))
         }
         TypeKind::StarProjection => "Star".to_string(),
     };
@@ -136,16 +138,27 @@ fn encode_type(
 }
 
 /// 把 effect row 编码为 canonical 文本（terms 排序去重）。
-fn encode_effect_row(row: &EffectRow) -> String {
-    encode_effect_row_with_closed(row, false)
+/// 使用 interner 把每个 effect term 的 TypeId 编码为 canonical 类型文本（跨会话稳定）。
+fn encode_effect_row(types: &TypeStore, interner: &Interner, row: &EffectRow) -> String {
+    encode_effect_row_with_closed(types, interner, row, false)
 }
 
 /// 把 effect row 编码为 canonical 文本（带闭合标记）。
-fn encode_effect_row_with_closed(row: &EffectRow, closed: bool) -> String {
+fn encode_effect_row_with_closed(
+    types: &TypeStore,
+    interner: &Interner,
+    row: &EffectRow,
+    closed: bool,
+) -> String {
     if row.terms.is_empty() {
         return if closed { "Pure!" } else { "Pure" }.to_string();
     }
-    let mut terms: Vec<String> = row.terms.iter().map(|t| format!("ty#{}", t.0)).collect();
+    let mut cache: std::collections::HashMap<TypeId, String> = std::collections::HashMap::new();
+    let mut terms: Vec<String> = row
+        .terms
+        .iter()
+        .map(|&t| encode_type(types, interner, t, 0, &mut cache))
+        .collect();
     terms.sort();
     terms.dedup();
     let joined = terms.join(",");
@@ -163,13 +176,9 @@ fn encode_effect_row_with_closed(row: &EffectRow, closed: bool) -> String {
 /// Stable hash scope：使同文本在不同用途产生不同 hash。
 #[derive(Clone, Copy, Debug)]
 pub enum StableHashScope {
-    /// dump 输出确定性。
     Dump,
-    /// ABI mangling（导出符号）。
     Abi,
-    /// RTTI type descriptor。
     Rtti,
-    /// private symbol。
     Private,
 }
 
@@ -184,9 +193,8 @@ impl StableHashScope {
     }
 }
 
-/// scope-prefixed FNV-1a 128-bit hex hash。
+/// scope-prefixed FNV-1a hex hash。
 pub fn stable_hash(scope: StableHashScope, text: &str) -> String {
-    // FNV-1a 64-bit（sufficient for determinism; scope prefix ensures isolation）。
     let prefixed = format!("{}:{}", scope.prefix(), text);
     let mut h: u64 = 0xcbf29ce484222325;
     for b in prefixed.as_bytes() {
@@ -202,45 +210,46 @@ pub fn stable_hash(scope: StableHashScope, text: &str) -> String {
 
 /// 构造 StableTemplateKey。
 ///
-/// `fqn` 是函数的全限定名（interned symbol 的文本）；`type_params` 是其类型参数名序列。
+/// `fqn` 是函数的全限定名文本（稳定）。
+/// `type_params` 是其类型参数名文本序列（稳定）。
+/// `overload_sig` 是参数类型的 canonical 编码（用于区分同名重载）。
 pub fn make_stable_template_key(
     scope: StableHashScope,
     fqn: &str,
-    type_params: &[scoop2_base::Symbol],
+    type_params: &[String],
+    overload_sig: &str,
 ) -> StableTemplateKey {
-    // canonical = template(fqn, [tp0,tp1,...])，tp 按 interned id。
-    let tp_strs: Vec<String> = type_params
-        .iter()
-        .map(|tp| format!("P({})", tp.as_u32()))
-        .collect();
-    let canonical = if tp_strs.is_empty() {
+    let tp_strs: Vec<String> = type_params.iter().map(|tp| format!("P({tp})")).collect();
+    let canonical = if tp_strs.is_empty() && overload_sig.is_empty() {
         format!("template({fqn})")
-    } else {
+    } else if tp_strs.is_empty() {
+        format!("template({fqn};sig={overload_sig})")
+    } else if overload_sig.is_empty() {
         format!("template({fqn};[{}])", tp_strs.join(","))
+    } else {
+        format!("template({fqn};[{}];sig={overload_sig})", tp_strs.join(","))
     };
     let hash = stable_hash(scope, &canonical);
     StableTemplateKey { canonical, hash }
 }
 
 /// 构造 StableInstanceKey。
-///
-/// `template` 是模板 key；`type_args` / `eff_args` 是实例化类型/效果实参。
 pub fn make_stable_instance_key(
     scope: StableHashScope,
     template: StableTemplateKey,
     types: &TypeStore,
+    interner: &Interner,
     type_args: &[TypeId],
     eff_args: &[EffectRow],
 ) -> StableInstanceKey {
     let canonical_type_args: Vec<String> = type_args
         .iter()
-        .map(|&ty| canonical_type_text(types, ty))
+        .map(|&ty| canonical_type_text(types, interner, ty))
         .collect();
     let canonical_effect_args: Vec<String> = eff_args
         .iter()
-        .map(|row| encode_effect_row(row))
+        .map(|row| encode_effect_row(types, interner, row))
         .collect();
-    // instance canonical = template_canonical + args。
     let instance_canonical = format!(
         "{}/T[{}]/E[{}]",
         template.canonical,
@@ -256,6 +265,115 @@ pub fn make_stable_instance_key(
     }
 }
 
+/// 从参数类型列表构建 overload signature canonical 文本。
+pub fn build_overload_sig(
+    types: &TypeStore,
+    interner: &Interner,
+    param_types: &[TypeId],
+) -> String {
+    param_types
+        .iter()
+        .map(|&ty| canonical_type_text(types, interner, ty))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// 为模块中所有顶层函数（含闭包 invoke 函数）计算 stable template key。
+///
+/// 遍历 `Module.items` 中的 `Item::Fun`，对每个有 fqn 的函数：
+/// 1. 从 type_params 构造类型参数名列表；
+/// 2. 从 params 构造 overload signature（canonical param types）；
+/// 3. 调用 `make_stable_template_key` 生成 key；
+/// 4. 填充 `FunDecl.stable_template_key`。
+///
+/// 这确保即使函数未被调用（public API），也有 stable key 供分离编译使用。
+pub fn compute_public_stable_keys(module: &mut crate::mir::Module, interner: &Interner) {
+    let store = &module.types;
+    for item in &mut module.items {
+        if let crate::mir::Item::Fun(fd) = item {
+            if fd.stable_template_key.is_none() {
+                // 构造类型参数名列表（从 type_params Symbol → 文本）。
+                let tp_names: Vec<String> = fd
+                    .type_params
+                    .iter()
+                    .map(|&sym| interner.resolve(sym).to_string())
+                    .collect();
+                // 构造 overload signature（canonical param types）。
+                let param_types: Vec<TypeId> = fd.params.iter().map(|p| p.ty).collect();
+                let overload_sig = build_overload_sig(store, interner, &param_types);
+                let stk = make_stable_template_key(
+                    StableHashScope::Dump,
+                    &fd.fqn,
+                    &tp_names,
+                    &overload_sig,
+                );
+                fd.stable_template_key = Some(stk);
+            }
+            // 为函数体中的 ClassCtor / EnumVariant 计算 stable key。
+            if let Some(body) = &mut fd.body {
+                compute_rvalue_stable_keys(body, store, interner);
+            }
+        }
+        if let crate::mir::Item::Initializer(ir) = item {
+            compute_rvalue_stable_keys(&mut ir.body, store, interner);
+        }
+    }
+}
+
+/// 为 body 中所有 ClassCtor / EnumVariant 的 stable key 字段填充值。
+fn compute_rvalue_stable_keys(
+    body: &mut crate::mir::Body,
+    store: &TypeStore,
+    interner: &Interner,
+) {
+    for block in &mut body.blocks {
+        for stmt in &mut block.stmts {
+            if let crate::mir::StatementKind::Assign { value, .. } = &mut stmt.kind {
+                fill_rvalue_stable_key(value, store, interner);
+            }
+        }
+    }
+}
+
+/// 为单个 Rvalue 的 ClassCtor / EnumVariant stable key 填充（若为 None）。
+fn fill_rvalue_stable_key(
+    rv: &mut crate::mir::Rvalue,
+    store: &TypeStore,
+    interner: &Interner,
+) {
+    match rv {
+        crate::mir::Rvalue::ClassCtor { ctor, args, type_fqn, .. } => {
+            if ctor.stable_template_key.is_none() {
+                let fqn_text = interner.resolve(*type_fqn).to_string();
+                let param_types: Vec<TypeId> = args.iter().map(|a| a.value_ty).collect();
+                let overload_sig = build_overload_sig(store, interner, &param_types);
+                ctor.stable_template_key = Some(make_stable_template_key(
+                    StableHashScope::Dump,
+                    &fqn_text,
+                    &[],
+                    &overload_sig,
+                ));
+            }
+        }
+        crate::mir::Rvalue::EnumVariant { enum_fqn, variant_name, args, stable_key, .. } => {
+            if stable_key.is_none() {
+                let enum_text = interner.resolve(*enum_fqn);
+                let variant_text = interner.resolve(*variant_name);
+                let fqn = format!("{}.{}", enum_text, variant_text);
+                let param_types: Vec<TypeId> = args.iter().map(|a| a.value_ty).collect();
+                let overload_sig = build_overload_sig(store, interner, &param_types);
+                *stable_key = Some(make_stable_template_key(
+                    StableHashScope::Dump,
+                    &fqn,
+                    &[],
+                    &overload_sig,
+                ));
+            }
+        }
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,27 +381,30 @@ mod tests {
     #[test]
     fn canonical_int_is_stable() {
         let mut store = TypeStore::new();
+        let interner = Interner::new();
         let int = store.int();
-        let text = canonical_type_text(&store, int);
+        let text = canonical_type_text(&store, &interner, int);
         assert_eq!(text, "V(Int)");
     }
 
     #[test]
     fn canonical_tuple_preserves_order() {
         let mut store = TypeStore::new();
+        let interner = Interner::new();
         let int = store.int();
         let bool_ty = store.bool();
         let tuple = store.tuple(vec![int, bool_ty]);
-        let text = canonical_type_text(&store, tuple);
+        let text = canonical_type_text(&store, &interner, tuple);
         assert_eq!(text, "T(V(Int),V(Bool))");
     }
 
     #[test]
     fn canonical_option_is_nested() {
         let mut store = TypeStore::new();
+        let interner = Interner::new();
         let int = store.int();
         let opt = store.option(int);
-        let text = canonical_type_text(&store, opt);
+        let text = canonical_type_text(&store, &interner, opt);
         assert_eq!(text, "V(Option<V(Int)>)");
     }
 
@@ -307,20 +428,41 @@ mod tests {
             StableHashScope::Dump,
             "pkg.main",
             &[],
+            "",
         );
         assert!(key.canonical.contains("pkg.main"));
         assert!(!key.hash.is_empty());
     }
 
     #[test]
+    fn template_key_with_overload_sig() {
+        let key_no_sig = make_stable_template_key(
+            StableHashScope::Dump,
+            "pkg.f",
+            &[],
+            "",
+        );
+        let key_with_sig = make_stable_template_key(
+            StableHashScope::Dump,
+            "pkg.f",
+            &[],
+            "V(Int)",
+        );
+        assert_ne!(key_no_sig.canonical, key_with_sig.canonical);
+        assert_ne!(key_no_sig.hash, key_with_sig.hash);
+    }
+
+    #[test]
     fn instance_key_includes_type_args() {
         let mut store = TypeStore::new();
+        let interner = Interner::new();
         let int = store.int();
-        let template = make_stable_template_key(StableHashScope::Dump, "pkg.id", &[]);
+        let template = make_stable_template_key(StableHashScope::Dump, "pkg.id", &[], "");
         let instance = make_stable_instance_key(
             StableHashScope::Dump,
             template,
             &store,
+            &interner,
             &[int],
             &[],
         );
@@ -330,20 +472,10 @@ mod tests {
 
     #[test]
     fn effect_row_pure_encodes_stable() {
+        let store = TypeStore::new();
+        let interner = Interner::new();
         let row = EffectRow::pure();
-        let text = encode_effect_row(&row);
+        let text = encode_effect_row(&store, &interner, &row);
         assert_eq!(text, "Pure");
-    }
-
-    #[test]
-    fn effect_row_sorted_deduped() {
-        let mut store = TypeStore::new();
-        let t1 = store.int();
-        let t2 = store.bool();
-        // EffectRow::from_terms sorts + dedups
-        let row = EffectRow::from_terms(vec![t2, t1, t2]);
-        let text = encode_effect_row(&row);
-        // terms are sorted by TypeId.0 → t1 (lower id) first
-        assert!(text.starts_with("E("));
     }
 }

@@ -566,7 +566,12 @@ impl TypeStore {
         f
     }
 
-    fn apply_subst_row(&mut self, row: EffectRow, subst: &Subst) -> EffectRow {
+    /// 对一个 effect row 应用类型参数替换（pub 版本，供 MIR 单态化调用）。
+    pub fn apply_subst_row(&mut self, row: EffectRow, subst: &Subst) -> EffectRow {
+        self.apply_subst_row_inner(row, subst)
+    }
+
+    fn apply_subst_row_inner(&mut self, row: EffectRow, subst: &Subst) -> EffectRow {
         let terms = row
             .terms
             .iter()

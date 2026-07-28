@@ -231,7 +231,7 @@ fn lower_ident(builder: &mut FnLowering, sym: Symbol, span: Span, ty: scoop2_hir
                 Rvalue::TopLevelRef(TopLevelRef {
                     fqn: fqn_str,
                     hidden_effects: EffectRow::pure(),
-                    stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &builder.hir.interner.resolve(*fqn).to_string(), &[])),
+                    stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &builder.hir.interner.resolve(*fqn).to_string(), &[], "")),
                     stable_instance_key: None,
                     generic_type_args: vec![],
                     generic_eff_args: vec![],
@@ -250,7 +250,7 @@ fn lower_ident(builder: &mut FnLowering, sym: Symbol, span: Span, ty: scoop2_hir
             Rvalue::TopLevelRef(TopLevelRef {
                 fqn: fqn_str,
                 hidden_effects: EffectRow::pure(),
-                stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &builder.hir.interner.resolve(sym).to_string(), &[])),
+                stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &builder.hir.interner.resolve(sym).to_string(), &[], "")),
                 stable_instance_key: None,
                 generic_type_args: vec![],
                 generic_eff_args: vec![],
@@ -322,17 +322,32 @@ fn lower_call(
             let (owner_sym, method_sym) = member_call_target(builder, callee);
             let owner_str = builder.hir.interner.resolve(owner_sym).to_string();
             let method_str = builder.hir.interner.resolve(method_sym).to_string();
+            let member_fqn = format!("{}.{}", owner_str, method_str);
+            let overload_sig = member_overload_sig(builder, owner_sym, method_sym);
+            let stk = crate::mir::stable_id::make_stable_template_key(
+                crate::mir::stable_id::StableHashScope::Dump,
+                &member_fqn,
+                &[],
+                &overload_sig,
+            );
             let tmp = builder.alloc_temp(ty, span);
             let dispatch = DispatchMetadata {
                 owner_fqn: owner_str.clone(),
                 member_name: method_str.clone(),
-                member_fqn: format!("{}.{}", owner_str, method_str),
+                member_fqn: member_fqn.clone(),
                 member_decl_span: None,
                 receiver_ty: recv_ty,
-                stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &format!("{}.{}", owner_str, method_str), &[]), &builder.types, &[], &[])],
-                stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &format!("{}.{}", owner_str, method_str), &[])),
+                stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, stk.clone(), &builder.types, &builder.hir.interner, &[], &[])],
+                stable_template_key: Some(stk),
                 generic_type_args: vec![],
                 generic_eff_args: vec![],
+            };
+            // 通过 interface_fqns 区分 itable vs class vtable 分发通道。
+            let is_interface = builder.hir.interface_fqns.contains(&owner_sym);
+            let kind = if is_interface {
+                crate::mir::CallKind::Interface { receiver: recv, dispatch }
+            } else {
+                crate::mir::CallKind::Virtual { receiver: recv, dispatch }
             };
             let site_id = Some(builder.next_site_id());
             let transport = builder.call_transport(ty);
@@ -340,10 +355,7 @@ fn lower_call(
                 tmp,
                 Rvalue::Call {
                     site_id,
-                    kind: crate::mir::CallKind::Virtual {
-                        receiver: recv,
-                        dispatch,
-                    },
+                    kind,
                     args: mir_args,
                     transport,
                 },
@@ -458,6 +470,27 @@ fn member_call_target(
     (Symbol::default(), Symbol::default())
 }
 
+/// 从 HIR member_funs 查找某 (owner, method) 首个重载的 overload signature
+/// canonical 文本。找不到时返回空串（无法区分同名重载，但不阻断 lowering）。
+fn member_overload_sig(
+    builder: &FnLowering,
+    owner_sym: Symbol,
+    method_sym: Symbol,
+) -> String {
+    if let Some(methods) = builder.hir.member_funs.get(&owner_sym) {
+        if let Some(sigs) = methods.get(&method_sym) {
+            if let Some(first) = sigs.first() {
+                return crate::mir::stable_id::build_overload_sig(
+                    &builder.types,
+                    &builder.hir.interner,
+                    &first.param_types,
+                );
+            }
+        }
+    }
+    String::new()
+}
+
 /// 检测 `<EnumType>.<Variant>(args)` 形态的 enum variant 构造调用。
 /// 若 `enum_sym` 是一个 enum 类型 FQN 且 `variant_sym` 是其 variant，返回 EnumVariant 决议。
 fn derive_enum_variant_call(
@@ -531,6 +564,7 @@ fn emit_call_resolution(
             owner_fqn,
             method_name,
             is_virtual,
+            is_interface,
             explicit_type_args,
             ..
         } => {
@@ -541,25 +575,43 @@ fn emit_call_resolution(
             });
             let owner_str = builder.hir.interner.resolve(*owner_fqn).to_string();
             let method_str = builder.hir.interner.resolve(*method_name).to_string();
+            let member_fqn = format!("{}.{}", owner_str, method_str);
+            let overload_sig = member_overload_sig(builder, *owner_fqn, *method_name);
+            let stk = crate::mir::stable_id::make_stable_template_key(
+                crate::mir::stable_id::StableHashScope::Dump,
+                &member_fqn,
+                &[],
+                &overload_sig,
+            );
+            // 三种分发通道：
+            //   - is_virtual && is_interface → Interface（itable 分发）
+            //   - is_virtual && !is_interface → Virtual（class vtable 分发）
+            //   - !is_virtual → Direct（final/static 方法）
             let kind = if *is_virtual {
                 let dispatch = DispatchMetadata {
                     owner_fqn: owner_str.clone(),
                     member_name: method_str.clone(),
-                    member_fqn: format!("{}.{}", owner_str, method_str),
+                    member_fqn: member_fqn.clone(),
                     member_decl_span: None,
                     receiver_ty: *receiver_ty,
-                    stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &format!("{}.{}", owner_str, method_str), &[]), &builder.types, &[], &[])],
-                    stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &format!("{}.{}", owner_str, method_str), &[])),
+                    stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, stk.clone(), &builder.types, &builder.hir.interner, &[], &[])],
+                    stable_template_key: Some(stk),
                     generic_type_args: explicit_type_args.clone(),
                     generic_eff_args: vec![],
                 };
-                crate::mir::CallKind::Virtual {
-                    receiver: recv,
-                    dispatch,
+                if *is_interface {
+                    crate::mir::CallKind::Interface {
+                        receiver: recv,
+                        dispatch,
+                    }
+                } else {
+                    crate::mir::CallKind::Virtual {
+                        receiver: recv,
+                        dispatch,
+                    }
                 }
             } else {
-                let callee_fqn = format!("{}.{}", owner_str, method_str);
-                builder.make_direct_call_kind(callee_fqn, explicit_type_args.clone(), false)
+                builder.make_direct_call_kind(member_fqn, explicit_type_args.clone(), false)
             };
             Rvalue::Call {
                 site_id: call_site_id,
@@ -577,6 +629,7 @@ fn emit_call_resolution(
                     target_init_class_fqn: type_fqn_str,
                     selected_ctor_span: None,
                     ordered_param_count: args.len(),
+                    stable_template_key: None,
                 },
                 args,
                 hidden_effects: EffectRow::pure(),
@@ -595,6 +648,7 @@ fn emit_call_resolution(
                 variant_name: *variant_name,
                 args,
                 payload,
+                stable_key: None,
             }
         }
         ResolvedCall::LocalValue { local_name, .. } => {
@@ -733,27 +787,33 @@ fn lower_unary(
         let tmp = builder.alloc_temp(bool_ty, span);
         let owner_str = builder.hir.interner.resolve(Symbol::default()).to_string();
         let method_str = builder.hir.interner.resolve(equals_sym).to_string();
+        let member_fqn = format!("{}.{}", owner_str, method_str);
+        let overload_sig = member_overload_sig(builder, Symbol::default(), equals_sym);
+        let stk = crate::mir::stable_id::make_stable_template_key(
+            crate::mir::stable_id::StableHashScope::Dump,
+            &member_fqn,
+            &[],
+            &overload_sig,
+        );
         let dispatch = DispatchMetadata {
             owner_fqn: owner_str.clone(),
             member_name: method_str.clone(),
-            member_fqn: format!("{}.{}", owner_str, method_str),
+            member_fqn: member_fqn.clone(),
             member_decl_span: None,
             receiver_ty: inner_ty,
-            stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &format!("{}.{}", owner_str, method_str), &[]), &builder.types, &[], &[])],
-            stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &format!("{}.{}", owner_str, method_str), &[])),
+            stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, stk.clone(), &builder.types, &builder.hir.interner, &[], &[])],
+            stable_template_key: Some(stk),
             generic_type_args: vec![],
             generic_eff_args: vec![],
         };
         let site_id = Some(builder.next_site_id());
         let transport = builder.call_transport(bool_ty);
+        let kind = builder.make_dispatch_call_kind(super::stmt::resolve_owner_fqn_from_operand(builder, &v), v, dispatch);
         builder.assign(
             tmp,
             Rvalue::Call {
                 site_id,
-                kind: crate::mir::CallKind::Virtual {
-                    receiver: v,
-                    dispatch,
-                },
+                kind,
                 args: vec![CallArg {
                     name: None,
                     is_spread: false,
@@ -1055,27 +1115,33 @@ fn lower_infix_call(
     let tmp = builder.alloc_temp(ty, span);
     let owner_str = builder.hir.interner.resolve(Symbol::default()).to_string();
     let method_str = builder.hir.interner.resolve(name).to_string();
+    let member_fqn = format!("{}.{}", owner_str, method_str);
+    let overload_sig = member_overload_sig(builder, Symbol::default(), name);
+    let stk = crate::mir::stable_id::make_stable_template_key(
+        crate::mir::stable_id::StableHashScope::Dump,
+        &member_fqn,
+        &[],
+        &overload_sig,
+    );
     let dispatch = DispatchMetadata {
         owner_fqn: owner_str.clone(),
         member_name: method_str.clone(),
-        member_fqn: format!("{}.{}", owner_str, method_str),
+        member_fqn: member_fqn.clone(),
         member_decl_span: None,
         receiver_ty: recv_ty,
-        stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &format!("{}.{}", owner_str, method_str), &[]), &builder.types, &[], &[])],
-        stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &format!("{}.{}", owner_str, method_str), &[])),
+        stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, stk.clone(), &builder.types, &builder.hir.interner, &[], &[])],
+        stable_template_key: Some(stk),
         generic_type_args: vec![],
         generic_eff_args: vec![],
     };
     let site_id = Some(builder.next_site_id());
     let transport = builder.call_transport(ty);
+    let kind = builder.make_dispatch_call_kind(super::stmt::resolve_owner_fqn_from_operand(builder, &recv), recv, dispatch);
     builder.assign(
         tmp,
         Rvalue::Call {
             site_id,
-            kind: crate::mir::CallKind::Virtual {
-                receiver: recv,
-                dispatch,
-            },
+            kind,
             args,
             transport,
         },
@@ -1669,7 +1735,7 @@ fn lower_lambda(
         builder.file_id,
         invoke_fqn.clone(),
         return_ty,
-        fn_effect_row,
+        fn_effect_row.clone(),
         &mut errors,
     );
     // env 参数（local 0）：解包捕获到 nested_builder.symbol_locals。
@@ -1774,10 +1840,11 @@ fn lower_lambda(
         ty: nested_fn_ty,
         params,
         return_ty,
-        effect_row: scoop2_hir::ty::EffectRow::pure(),
+        effect_row: fn_effect_row,
         type_params: Vec::new(),
         body: Some(body),
         file: builder.file_id,
+        stable_template_key: None,
     };
     builder.nested_funs.push(nested);
     builder.nested_funs.extend(nested_more);

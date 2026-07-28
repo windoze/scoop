@@ -19,7 +19,7 @@
 pub mod facts;
 pub mod render;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use scoop2_base::{FileId, Interner, NodeId, Symbol};
 
@@ -98,6 +98,17 @@ pub struct TypedHir {
     pub enum_variants: HashMap<Symbol, Vec<Symbol>>,
     /// 类型 FQN → 类型参数约束快照（导出 type_constraints 供 MIR 单态化用）。
     pub type_constraints: HashMap<Symbol, TypeConstraintsSnapshot>,
+    /// 所有 interface 类型的 FQN 集合（MIR 用以区分 itable vs class vtable 分发）。
+    pub interface_fqns: HashSet<Symbol>,
+    /// 所有可被继承的 class FQN 集合（`open` 或 `abstract`）。
+    /// 取补集即得"具体 class"（不可继承 → 虚方法可安全退化为直接调用）。
+    /// MIR 去虚化 pass 据此判断 ref 类型接收者是否 final。
+    pub extensible_class_fqns: HashSet<Symbol>,
+    /// 超类型 → 直接子类型 FQN 列表（反转 index.supertypes）。
+    /// 供 MIR 去虚化 pass 做 CHA（class hierarchy analysis）：
+    /// 若某类型在此 map 中有子类型，则 receiver 可能是子类实例，不能简单去虚化。
+    /// 若无子类型（不在 key 中），则 receiver 类型是精确的（exact），可去虚化。
+    pub direct_subtypes: HashMap<Symbol, Vec<Symbol>>,
     /// 每个用户文件的 typed 产物（含 expr_types + 语义事实）。
     pub files: Vec<TypedFile>,
 }
@@ -190,6 +201,9 @@ impl TypedHir {
             top_level_vals: HashMap::new(),
             enum_variants: HashMap::new(),
             type_constraints: HashMap::new(),
+            interface_fqns: HashSet::new(),
+            extensible_class_fqns: HashSet::new(),
+            direct_subtypes: HashMap::new(),
             files: Vec::new(),
         }
     }

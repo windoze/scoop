@@ -240,6 +240,11 @@ impl Index {
         self.categories.get(&fqn).copied()
     }
 
+    /// 返回所有 nominal 类型 FQN → 类别的迭代器（供 typecheck 收集 interface 集合等）。
+    pub fn categories_iter(&self) -> impl Iterator<Item = (Symbol, NominalCategory)> + '_ {
+        self.categories.iter().map(|(fqn, c)| (*fqn, *c))
+    }
+
     /// 按简单名查找值符号（enum variant / top-level val），用于裸名解析回退。
     /// 返回首个匹配的 FQN。O(n) 搜索——仅在常规解析全部失败时调用。
     pub fn find_value_by_simple_name(&self, name: Symbol, interner: &Interner) -> Option<Symbol> {
@@ -279,6 +284,12 @@ impl Index {
             .get(&fqn)
             .map(|v| v.as_slice())
             .unwrap_or(&[])
+    }
+
+    /// 返回所有 (child FQN → 直接超类型 FQN 列表) 的迭代器。
+    /// 供 typecheck 收集子类层次（去虚化 CHA 用）。
+    pub fn supertypes_iter(&self) -> impl Iterator<Item = (Symbol, &[Symbol])> + '_ {
+        self.supertypes.iter().map(|(fqn, supers)| (*fqn, supers.as_slice()))
     }
 
     /// 记录 typealias 目标（`typealias Name = Target`）。

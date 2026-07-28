@@ -13,6 +13,7 @@
 
 pub mod devirtualize;
 pub mod dump;
+pub mod inline;
 pub mod lower;
 pub mod materialize;
 pub mod stable_id;
@@ -103,6 +104,10 @@ pub struct FunDecl {
     pub body: Option<Body>,
     /// 源文件（跨文件诊断用）。
     pub file: FileId,
+    /// 该函数的 stable template key（供分离编译使用）。
+    /// 由 `compute_public_stable_keys` pass 填充；含 FQN + type params + overload sig。
+    /// None = 尚未计算（lowering 产出时为 None）。
+    pub stable_template_key: Option<crate::mir::transport::StableTemplateKey>,
 }
 
 /// 函数参数（同时也是一个 local）。
@@ -444,6 +449,9 @@ pub enum Rvalue {
         variant_name: Symbol,
         args: Vec<CallArg>,
         payload: AggregateTransportMetadata,
+        /// variant 的 stable template key（含 enum FQN + variant 名 + payload 类型）。
+        /// 供分离编译使用。None = 尚未计算。
+        stable_key: Option<crate::mir::transport::StableTemplateKey>,
     },
     /// class/struct 构造器调用 `Type(args...)`。
     ClassCtor {
@@ -573,8 +581,13 @@ pub enum CallKind {
         generic_type_args: Vec<TypeId>,
         generic_eff_args: Vec<EffectRow>,
     },
-    /// 虚方法分发（open/override/interface 方法）。
+    /// class 虚方法分发（open/override 方法，走 vtable）。
     Virtual {
+        receiver: Operand,
+        dispatch: DispatchMetadata,
+    },
+    /// interface 分发（走 itable，与 class vtable 分开）。
+    Interface {
         receiver: Operand,
         dispatch: DispatchMetadata,
     },

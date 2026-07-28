@@ -615,6 +615,25 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
             .collect();
         return report_diagnostics(&source, &extra_sources, lower_diags);
     }
+    // materialized MIR 验证：transport 契约一致性 + 泛型参数残留检查。
+    // 对单态化后的模块运行，确保无 TypeKind::Param 残留存活到后端。
+    let monomorph = monomorph_result.as_ref().expect("materialize 已成功（错误路径已 return）");
+    let mat_errors = scoop2_mir::mir::verify::verify_materialized_with_external(&monomorph.module, &external_symbols);
+    if !mat_errors.is_empty() {
+        for ve in &mat_errors {
+            lower_diags.push(scoop2_base::diag::Diagnostic::error(
+                ve.code,
+                ve.message.clone(),
+            ));
+        }
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, lower_diags);
+    }
     // dump（generic 模板模块）。
     let rendered = scoop2_mir::mir::dump::dump_module(&lower_result.module, &hir.interner);
     print!("{rendered}");

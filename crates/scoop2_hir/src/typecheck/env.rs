@@ -417,6 +417,35 @@ impl<'i> TypeEnv<'i> {
                 .collect()
         };
         let mut store = self.store;
+        // 收集所有 interface FQN，供 MIR 区分 itable vs class vtable 分发通道。
+        let interface_fqns: std::collections::HashSet<scoop2_base::Symbol> = index
+            .categories_iter()
+            .filter(|(_, c)| *c == crate::resolve::symbol::NominalCategory::Interface)
+            .map(|(fqn, _)| fqn)
+            .collect();
+        // 收集所有可继承的 class FQN（`open`/`abstract`），供 MIR 去虚化 pass 判断
+        // ref 类型接收者是否 final。补集 = 具体 class（不可继承 → 方法不可 override）。
+        let extensible_class_fqns: std::collections::HashSet<scoop2_base::Symbol> = index
+            .categories_iter()
+            .filter(|(_, c)| *c == crate::resolve::symbol::NominalCategory::Class)
+            .filter_map(|(fqn, _)| {
+                let decl = index.lookup_type(fqn)?;
+                let ms = decl.modifiers;
+                if ms.is_open() || ms.is_abstract() {
+                    Some(fqn)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        // 收集超类型 → 直接子类型映射（反转 index.supertypes），供 MIR 去虚化 CHA。
+        let mut direct_subtypes: std::collections::HashMap<scoop2_base::Symbol, Vec<scoop2_base::Symbol>> =
+            std::collections::HashMap::new();
+        for (child, supers) in index.supertypes_iter() {
+            for &sup in supers {
+                direct_subtypes.entry(sup).or_default().push(child);
+            }
+        }
         let top_level_funs = self
             .signatures
             .into_iter()
@@ -460,6 +489,9 @@ impl<'i> TypeEnv<'i> {
             top_level_vals: self.top_level_vals,
             enum_variants: self.enum_variants,
             type_constraints,
+            interface_fqns,
+            extensible_class_fqns,
+            direct_subtypes,
             files,
         }
     }

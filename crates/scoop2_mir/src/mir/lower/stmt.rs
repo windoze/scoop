@@ -234,24 +234,27 @@ pub fn lower_assign(
                 let tmp = builder.alloc_temp(result_ty, span);
                 let set_site_id = builder.next_site_id();
                 let set_transport = builder.call_transport(result_ty);
+                let set_dispatch = crate::mir::transport::DispatchMetadata {
+                    owner_fqn: owner_str.to_string(),
+                    member_name: set_name.clone(),
+                    member_fqn: format!("{}.{}", owner_str, set_name),
+                    member_decl_span: None,
+                    receiver_ty: recv_ty,
+                    stable_candidate_keys: Vec::new(),
+                    stable_template_key: None,
+                    generic_type_args: Vec::new(),
+                    generic_eff_args: Vec::new(),
+                };
+                let set_kind = builder.make_dispatch_call_kind(
+                    resolve_owner_fqn_from_operand(builder, &recv),
+                    recv,
+                    set_dispatch,
+                );
                 builder.assign(
                     tmp,
                     crate::mir::Rvalue::Call {
                         site_id: Some(set_site_id),
-                        kind: crate::mir::CallKind::Virtual {
-                            receiver: recv,
-                            dispatch: crate::mir::transport::DispatchMetadata {
-                                owner_fqn: owner_str.to_string(),
-                                member_name: set_name.clone(),
-                                member_fqn: format!("{}.{}", owner_str, set_name),
-                                member_decl_span: None,
-                                receiver_ty: recv_ty,
-                                stable_candidate_keys: Vec::new(),
-                                stable_template_key: None,
-                                generic_type_args: Vec::new(),
-                                generic_eff_args: Vec::new(),
-                            },
-                        },
+                        kind: set_kind,
                         args,
                         transport: set_transport,
                     },
@@ -471,20 +474,18 @@ pub fn lower_for(
     let it_kind = if let Some(m) = it_method {
         let method_str = builder.hir.interner.resolve(m).to_string();
         let owner_str = "";
-        crate::mir::CallKind::Virtual {
-            receiver: iter_val,
-            dispatch: crate::mir::transport::DispatchMetadata {
-                owner_fqn: owner_str.to_string(),
-                member_name: method_str.clone(),
-                member_fqn: format!("{}.{}", owner_str, method_str),
-                member_decl_span: None,
-                receiver_ty: iter_ty,
-                stable_candidate_keys: Vec::new(),
-                stable_template_key: None,
-                generic_type_args: Vec::new(),
-                generic_eff_args: Vec::new(),
-            },
-        }
+        let it_dispatch = crate::mir::transport::DispatchMetadata {
+            owner_fqn: owner_str.to_string(),
+            member_name: method_str.clone(),
+            member_fqn: format!("{}.{}", owner_str, method_str),
+            member_decl_span: None,
+            receiver_ty: iter_ty,
+            stable_candidate_keys: Vec::new(),
+            stable_template_key: None,
+            generic_type_args: Vec::new(),
+            generic_eff_args: Vec::new(),
+        };
+        builder.make_dispatch_call_kind(resolve_owner_fqn_from_operand(builder, &iter_val), iter_val, it_dispatch)
     } else {
         builder.error(crate::diagnostics::PRELUDE_SYMBOL_MISSING, span, "prelude 必需符号未注册：iterator（检查 sysroot / prelude 加载）");
         return;
@@ -524,24 +525,27 @@ pub fn lower_for(
     let iter_obj_ty_for_dispatch = operand_ty(builder, &Operand::Local(iter_obj));
     let has_next_site_id = builder.next_site_id();
     let has_next_transport = builder.call_transport(bool_ty);
+    let has_next_dispatch = crate::mir::transport::DispatchMetadata {
+        owner_fqn: has_next_owner.to_string(),
+        member_name: has_next_str.clone(),
+        member_fqn: format!("{}.{}", has_next_owner, has_next_str),
+        member_decl_span: None,
+        receiver_ty: iter_obj_ty_for_dispatch,
+        stable_candidate_keys: Vec::new(),
+        stable_template_key: None,
+        generic_type_args: Vec::new(),
+        generic_eff_args: Vec::new(),
+    };
+    let has_next_kind = builder.make_dispatch_call_kind(
+        resolve_owner_fqn_from_operand(builder, &Operand::Local(iter_obj)),
+        Operand::Local(iter_obj),
+        has_next_dispatch,
+    );
     builder.assign(
         cond_tmp,
         crate::mir::Rvalue::Call {
             site_id: Some(has_next_site_id),
-            kind: crate::mir::CallKind::Virtual {
-                receiver: Operand::Local(iter_obj),
-                dispatch: crate::mir::transport::DispatchMetadata {
-                    owner_fqn: has_next_owner.to_string(),
-                    member_name: has_next_str.clone(),
-                    member_fqn: format!("{}.{}", has_next_owner, has_next_str),
-                    member_decl_span: None,
-                    receiver_ty: iter_obj_ty_for_dispatch,
-                    stable_candidate_keys: Vec::new(),
-                    stable_template_key: None,
-                    generic_type_args: Vec::new(),
-                    generic_eff_args: Vec::new(),
-                },
-            },
+            kind: has_next_kind,
             args: Vec::new(),
             transport: has_next_transport,
         },
@@ -574,24 +578,27 @@ pub fn lower_for(
     let iter_obj_ty_for_next = operand_ty(builder, &Operand::Local(iter_obj));
     let next_site_id = builder.next_site_id();
     let next_transport = builder.call_transport(elem_ty);
+    let next_dispatch = crate::mir::transport::DispatchMetadata {
+        owner_fqn: next_owner.to_string(),
+        member_name: next_str.clone(),
+        member_fqn: format!("{}.{}", next_owner, next_str),
+        member_decl_span: None,
+        receiver_ty: iter_obj_ty_for_next,
+        stable_candidate_keys: Vec::new(),
+        stable_template_key: None,
+        generic_type_args: Vec::new(),
+        generic_eff_args: Vec::new(),
+    };
+    let next_kind = builder.make_dispatch_call_kind(
+        resolve_owner_fqn_from_operand(builder, &Operand::Local(iter_obj)),
+        Operand::Local(iter_obj),
+        next_dispatch,
+    );
     builder.assign(
         elem,
         crate::mir::Rvalue::Call {
             site_id: Some(next_site_id),
-            kind: crate::mir::CallKind::Virtual {
-                receiver: Operand::Local(iter_obj),
-                dispatch: crate::mir::transport::DispatchMetadata {
-                    owner_fqn: next_owner.to_string(),
-                    member_name: next_str.clone(),
-                    member_fqn: format!("{}.{}", next_owner, next_str),
-                    member_decl_span: None,
-                    receiver_ty: iter_obj_ty_for_next,
-                    stable_candidate_keys: Vec::new(),
-                    stable_template_key: None,
-                    generic_type_args: Vec::new(),
-                    generic_eff_args: Vec::new(),
-                },
-            },
+            kind: next_kind,
             args: Vec::new(),
             transport: next_transport,
         },
@@ -613,6 +620,30 @@ pub fn operand_ty(builder: &mut FnLowering, op: &Operand) -> scoop2_hir::ty::Typ
             .map(|d| d.ty)
             .unwrap_or_else(|| builder.types.nothing()),
         Operand::Const(c) => const_ty(builder, c),
+    }
+}
+
+/// 从 operand 的类型解析 owner FQN Symbol（用于区分 interface vs class 分发）。
+///
+/// 取 operand 的类型 → 若是 `Ref(Nominal)` 或 `Value(Nominal)`，返回 nominal fqn。
+/// 否则返回 `Symbol::default()`（无法解析时退回原行为）。
+pub fn resolve_owner_fqn_from_operand(builder: &FnLowering, op: &Operand) -> scoop2_base::Symbol {
+    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+    let ty = match op {
+        Operand::Local(l) => builder
+            .body
+            .locals
+            .get(l.0 as usize)
+            .map(|d| d.ty),
+        Operand::Const(_) => return scoop2_base::Symbol::default(),
+    };
+    let Some(ty) = ty else {
+        return scoop2_base::Symbol::default();
+    };
+    match builder.types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
+        _ => scoop2_base::Symbol::default(),
     }
 }
 

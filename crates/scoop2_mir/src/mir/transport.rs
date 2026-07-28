@@ -351,6 +351,9 @@ pub struct ClassCtorCallMetadata {
     pub target_init_class_fqn: String,
     pub selected_ctor_span: Option<Span>,
     pub ordered_param_count: usize,
+    /// 构造器的 stable template key（含 class FQN + overload sig）。
+    /// 供分离编译 / 跨模块构造器引用稳定性使用。None = 尚未计算。
+    pub stable_template_key: Option<StableTemplateKey>,
 }
 
 /// 成员访问的语言级 metadata。

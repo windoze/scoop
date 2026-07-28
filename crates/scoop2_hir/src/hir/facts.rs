@@ -52,6 +52,8 @@ pub enum ResolvedCall {
         decl_file: scoop2_base::FileId,
         /// 是否 `open`/`abstract`/`override`（虚分发候选）。
         is_virtual: bool,
+        /// owner 是否为 interface（interface 分发走 itable，class 虚方法走 vtable）。
+        is_interface: bool,
         /// 显式类型实参。
         explicit_type_args: Vec<TypeId>,
         /// 返回类型。

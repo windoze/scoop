@@ -1,0 +1,41 @@
+package fixtures.mir2
+
+import scoop.core.*
+
+// 验证 GAP2/GAP3：
+// - interface 分发（itable）→ CallKind::Interface
+// - open class 虚方法分发（vtable）→ CallKind::Virtual（可被 override，不去虚化）
+// - concrete class（非 open）虚方法 → 去虚化为 CallKind::Direct（不可继承 → 方法不可 override）
+
+interface Greeter {
+    fun greet(): Int
+}
+
+open class Animal {
+    open fun sound(): Int {
+        return 1
+    }
+}
+
+// concrete class：默认 final（不可继承）。sound2 不可被 override。
+class Dog {
+    fun sound2(): Int {
+        return 2
+    }
+}
+
+fun callInterface(g: Greeter): Int {
+    return g.greet()
+}
+
+fun callVirtual(a: Animal): Int {
+    return a.sound()
+}
+
+fun callConcrete(d: Dog): Int {
+    return d.sound2()
+}
+
+fun main() {
+    println(0)
+}

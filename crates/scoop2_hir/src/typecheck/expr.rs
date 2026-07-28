@@ -2067,7 +2067,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 对缺失事实按「无法 lower」报错）。该方法**不调用**任何 typecheck 决议逻辑——
     /// 它只读 `expr_types` / `value_refs` / 类型存储，不改算法状态。
     fn record_expr_facts(&mut self, expr: &Expr, ty: TypeId) {
-        use crate::hir::{ResolvedCall, ResolvedMember};
         match &expr.kind {
             // 成员访问 → ResolvedMember（Field / Method / TupleIndex）。
             ExprKind::MemberAccess { receiver, member }
@@ -2301,6 +2300,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let owner_fqn = self.resolve_member_owner_fqn(receiver_ty)?;
                 let (decl_span, decl_file) = self.first_member_overload_decl(owner_fqn, name.symbol);
                 let is_virtual = self.member_is_virtual(owner_fqn, name.symbol);
+                let is_interface = self.owner_is_interface(owner_fqn);
                 Some(crate::hir::ResolvedCall::Method {
                     receiver_ty,
                     owner_fqn,
@@ -2308,6 +2308,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     decl_span,
                     decl_file,
                     is_virtual,
+                    is_interface,
                     explicit_type_args: Vec::new(),
                     return_ty,
                 })
@@ -2335,6 +2336,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         };
         let (decl_span, decl_file) = self.first_member_overload_decl(owner_fqn, method_sym);
         let is_virtual = self.member_is_virtual(owner_fqn, method_sym);
+        let is_interface = self.owner_is_interface(owner_fqn);
         self.facts.call_resolutions.set(
             expr.id,
             crate::hir::ResolvedCall::Method {
@@ -2344,6 +2346,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 decl_span,
                 decl_file,
                 is_virtual,
+                is_interface,
                 explicit_type_args: Vec::new(),
                 return_ty,
             },
@@ -2366,6 +2369,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         };
         let (decl_span, decl_file) = self.first_member_overload_decl(owner_fqn, method_name);
         let is_virtual = self.member_is_virtual(owner_fqn, method_name);
+        let is_interface = self.owner_is_interface(owner_fqn);
         self.facts.call_resolutions.set(
             expr.id,
             crate::hir::ResolvedCall::Method {
@@ -2375,6 +2379,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 decl_span,
                 decl_file,
                 is_virtual,
+                is_interface,
                 explicit_type_args: Vec::new(),
                 return_ty,
             },
@@ -2394,6 +2399,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         };
         let (decl_span, decl_file) = self.first_member_overload_decl(owner_fqn, get_sym);
         let is_virtual = self.member_is_virtual(owner_fqn, get_sym);
+        let is_interface = self.owner_is_interface(owner_fqn);
         self.facts.call_resolutions.set(
             expr.id,
             crate::hir::ResolvedCall::Method {
@@ -2403,6 +2409,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 decl_span,
                 decl_file,
                 is_virtual,
+                is_interface,
                 explicit_type_args: Vec::new(),
                 return_ty,
             },
@@ -2477,6 +2484,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
         }
         // interface 上的方法总是虚分发。
+        self.owner_is_interface(owner_fqn)
+    }
+
+    /// owner 类型是否为 interface（决定 itable vs class vtable 分发通道）。
+    fn owner_is_interface(&self, owner_fqn: Symbol) -> bool {
         matches!(
             self.env.index.category(owner_fqn),
             Some(crate::resolve::symbol::NominalCategory::Interface)

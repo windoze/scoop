@@ -128,6 +128,7 @@ fn verify_semantic_detects_empty_callee() {
         type_params: Vec::new(),
         body: None,
         file: scoop2_base::FileId(0),
+        stable_template_key: None,
     };
     let mut errors = Vec::new();
     let kf: std::collections::HashSet<String> = std::collections::HashSet::new();
