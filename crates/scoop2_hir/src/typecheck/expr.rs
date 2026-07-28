@@ -5404,7 +5404,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         self.diags.push(diagnostics::no_applicable_overload_member(
                             &candidate_desc,
                             &reason,
-                            name_span,
+                            span,
                             sig.decl_span,
                         ));
                         return sig.return_ty;
@@ -5472,7 +5472,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.diags.push(diagnostics::no_applicable_overload_member(
                     &candidate_desc,
                     &reason,
-                    name_span,
+                    span,
                     sig.decl_span,
                 ));
                 return sig.return_ty;
