@@ -238,6 +238,7 @@ pub fn check_function<'a, 'i>(
         in_function_body: true,
         in_nogc,
         lenient_type_errors: false,
+        in_typed_val_init: false,
         performed_effects: Vec::new(),
         escape_effects: Vec::new(),
         effect_suspend_depth: 0,
@@ -355,13 +356,17 @@ pub fn check_top_level_val<'a, 'i>(
         in_function_body: false,
         in_nogc: false,
         lenient_type_errors: true,
+        in_typed_val_init: false,
         performed_effects: Vec::new(),
         escape_effects: Vec::new(),
         effect_suspend_depth: 0,
         expr_types,
     };
     let declared = val.ty.as_ref().map(|t| c.lower_type(t));
+    let saved_typed = c.in_typed_val_init;
+    c.in_typed_val_init = declared.is_some();
     let init_ty = val.init.as_ref().map(|e| c.walk_expr(e));
+    c.in_typed_val_init = saved_typed;
     // 空数组字面量 `[]` 无显式类型标注时必须报错（无法推断元素类型）。
     if declared.is_none()
         && val
@@ -468,6 +473,7 @@ pub(super) fn check_pure_static_init<'a, 'i>(
         in_function_body: false,
         in_nogc: false,
         lenient_type_errors: true,
+        in_typed_val_init: false,
         performed_effects: Vec::new(),
         escape_effects: Vec::new(),
         effect_suspend_depth: 0,
@@ -492,6 +498,8 @@ struct ExprChecker<'a, 'i> {
     imports: &'a ImportTable,
     resolution: &'a Resolution,
     diags: &'a mut DiagnosticSink,
+    /// 当前正在遍历的 val 初始化器是否有声明类型（用于 enum variant 歧义抑制）。
+    in_typed_val_init: bool,
     package_prefix: String,
     type_params: HashMap<Symbol, TypeParamType>,
     /// 类型参数名 → 是否声明了 `ref` bound（ref/value kind bound 检查用）。
@@ -1047,7 +1055,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return;
         }
         let declared = val.ty.as_ref().map(|t| self.lower_type(t));
+        let saved_typed = self.in_typed_val_init;
+        self.in_typed_val_init = declared.is_some();
         let init_ty = val.init.as_ref().map(|e| self.walk_expr(e));
+        self.in_typed_val_init = saved_typed;
         // 空数组字面量 `[]` 无显式类型标注时必须报错（无法推断元素类型）。
         if declared.is_none()
             && val
@@ -2466,16 +2477,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     && let Some(enum_fqn) = self.env.interner.get(&name[..dot])
                 {
                     // 泛型 enum variant 在无期望类型上下文时构造歧义（无法推断类型实参）。
-                    // 但若多个 enum 拥有同名 variant（如 Some/None），留给期望类型消歧。
-                    let variant_name = &name[dot + 1..];
-                    let same_name_variant_count = self.env.count_variants_named(variant_name);
+                    // 有声明类型的 val（`val opt: Option<Int> = Some(1)`）不报（期望类型消歧）。
                     let enum_has_type_params = self
                         .env
                         .type_constraints(enum_fqn)
                         .is_some_and(|(tps, _)| !tps.is_empty());
                     if enum_has_type_params
                         && explicit_type_args.is_empty()
-                        && same_name_variant_count <= 1
+                        && !self.in_typed_val_init
                     {
                         self.diags
                             .push(diagnostics::ambiguous_enum_variant_ctor(span));
