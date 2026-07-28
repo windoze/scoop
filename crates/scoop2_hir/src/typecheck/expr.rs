@@ -2059,9 +2059,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let body_eff_start = self.performed_effects.len();
                 let body_ty = self.walk_block(body);
                 // handle 体执行的 effect（用于 escape continuation 的 resumed-step effect row）。
+                // 排除被 handle 捕获的 effect（arm 处理的 effect op 所属的 effect 类型）——
+                // 这些 effect 被 handle 消化，不应出现在 resumed-step effect row 中。
+                let handled_effect_names: std::collections::HashSet<String> = arms
+                    .iter()
+                    .filter_map(|arm| {
+                        arm.op
+                            .effect_path
+                            .segments
+                            .last()
+                            .map(|s| self.env.interner.resolve(s.symbol).to_string())
+                    })
+                    .collect();
                 let body_effects: Vec<String> = self.performed_effects[body_eff_start..]
                     .iter()
                     .map(|(e, _)| e.clone())
+                    .filter(|e| !handled_effect_names.contains(e))
                     .collect();
                 // 清除 handle 体记录的 effect（不计入外层）。
                 self.performed_effects.truncate(body_eff_start);
@@ -3229,15 +3242,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 仅记录 Continuation 的 resumed-step effect（非 Pure / 非 Raise）。
     fn record_resume_step_effects(&mut self, kind: &TypeKind, span: Span) {
-        // 仅在 effect_suspend_depth == 0 时记录 resumed-step effect。
-        // 在 handle arm body 内（suspend > 0），resume 的 resumed-step effect 已被
-        // handle 体外层的 body_effects 捕获（build_continuation_type_with_effects
-        // 从 handle body 提取了这些 effect 作为 continuation 的 eff row）。
-        // 若在此处也记录，会导致重复——handle_mixed_arm_kinds_ok 中 Yield.next() 的
-        // effect 会在 handle body 中记录一次（build_continuation），再在 resume 中记录一次。
-        if self.effect_suspend_depth > 0 {
-            return;
-        }
+        // resumed-step effect 来自 continuation 的 eff row（build_continuation_type_with_effects
+        // 从 handle body 提取，已排除被 handle 捕获的 effect）。无论 effect_suspend_depth 如何，
+        // resume 执行时这些未捕获的 effect 都会发生，必须传播到外层函数。
         // 从 nominal args[2] 提取（旧式 Continuation<Resume, Answer, eff E>）。
         if let Some(args) = nominal_args_of(kind)
             && let Some(&e_ty) = args.get(2)
@@ -3250,10 +3257,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
         }
         // 从 nominal 的 eff 字段提取（新式 Continuation<Resume, Answer, eff {A + B}>）。
-        if let Some(n) = match kind {
-            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n),
-            _ => None,
-        } && let Some(eff_row) = &n.eff
+        // 仅在 effect_suspend_depth == 0 时记录（handle arm 体外）；arm 体内由 body_effects
+        // 已捕获（过滤 handled effects 后）。
+        if self.effect_suspend_depth == 0
+            && let Some(n) = match kind {
+                TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n),
+                _ => None,
+            } && let Some(eff_row) = &n.eff
         {
             for &term_ty in &eff_row.terms {
                 if let Some(e_fqn) = nominal_fqn_of(self.env.store.kind(term_ty)) {
