@@ -1,247 +1,38 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 297..319,
-            path: [
-                Ident {
-                    span: 305..313,
-                },
-                Ident {
-                    span: 314..319,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Object(
-            ObjectDecl {
-                span: 321..380,
-                kind: Object,
-                name: Some(
-                    Ident {
-                        span: 328..331,
-                    },
-                ),
-                body: Some(
-                    TypeBody {
-                        span: 332..380,
-                        members: [
-                            Property(
-                                PropertyDecl {
-                                    span: 338..348,
-                                    kind: Val,
-                                    name: Ident {
-                                        span: 342..343,
-                                    },
-                                    ty: Some(
-                                        Path(
-                                            TypePath {
-                                                span: 345..348,
-                                                segments: [
-                                                    Ident {
-                                                        span: 345..348,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    ),
-                                    init: None,
-                                    getter: None,
-                                    setter: None,
-                                },
-                            ),
-                            Fun(
-                                FunDecl {
-                                    span: 353..378,
-                                    receiver: None,
-                                    name: Ident {
-                                        span: 357..358,
-                                    },
-                                    type_params: [],
-                                    params_span: 358..360,
-                                    params: [],
-                                    return_ty: Some(
-                                        Path(
-                                            TypePath {
-                                                span: 362..365,
-                                                segments: [
-                                                    Ident {
-                                                        span: 362..365,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    ),
-                                    body: Block(
-                                        Block {
-                                            span: 366..378,
-                                            stmts: [
-                                                Stmt {
-                                                    span: 368..376,
-                                                    kind: Return {
-                                                        return_span: 368..374,
-                                                        value: Some(
-                                                            Expr {
-                                                                span: 375..376,
-                                                                kind: IntLit,
-                                                            },
-                                                        ),
-                                                    },
-                                                    has_trailing_semi: false,
-                                                },
-                                            ],
-                                        },
-                                    ),
-                                },
-                            ),
-                        ],
-                    },
-                ),
-            },
-        ),
-        Type(
-            TypeDecl {
-                span: 382..542,
-                kind: Class,
-                name: Ident {
-                    span: 388..389,
-                },
-                type_params: [],
-                body: Some(
-                    TypeBody {
-                        span: 390..542,
-                        members: [
-                            Object(
-                                ObjectDecl {
-                                    span: 396..436,
-                                    kind: Object,
-                                    name: Some(
-                                        Ident {
-                                            span: 403..409,
-                                        },
-                                    ),
-                                    body: Some(
-                                        TypeBody {
-                                            span: 410..436,
-                                            members: [
-                                                Property(
-                                                    PropertyDecl {
-                                                        span: 420..430,
-                                                        kind: Val,
-                                                        name: Ident {
-                                                            span: 424..425,
-                                                        },
-                                                        ty: Some(
-                                                            Path(
-                                                                TypePath {
-                                                                    span: 427..430,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 427..430,
-                                                                        },
-                                                                    ],
-                                                                    args: [],
-                                                                },
-                                                            ),
-                                                        ),
-                                                        init: None,
-                                                        getter: None,
-                                                        setter: None,
-                                                    },
-                                                ),
-                                            ],
-                                        },
-                                    ),
-                                },
-                            ),
-                            Object(
-                                ObjectDecl {
-                                    span: 442..485,
-                                    kind: Companion,
-                                    body: Some(
-                                        TypeBody {
-                                            span: 459..485,
-                                            members: [
-                                                Property(
-                                                    PropertyDecl {
-                                                        span: 469..479,
-                                                        kind: Val,
-                                                        name: Ident {
-                                                            span: 473..474,
-                                                        },
-                                                        ty: Some(
-                                                            Path(
-                                                                TypePath {
-                                                                    span: 476..479,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 476..479,
-                                                                        },
-                                                                    ],
-                                                                    args: [],
-                                                                },
-                                                            ),
-                                                        ),
-                                                        init: None,
-                                                        getter: None,
-                                                        setter: None,
-                                                    },
-                                                ),
-                                            ],
-                                        },
-                                    ),
-                                },
-                            ),
-                            Object(
-                                ObjectDecl {
-                                    span: 491..540,
-                                    kind: Companion,
-                                    name: Some(
-                                        Ident {
-                                            span: 508..513,
-                                        },
-                                    ),
-                                    body: Some(
-                                        TypeBody {
-                                            span: 514..540,
-                                            members: [
-                                                Property(
-                                                    PropertyDecl {
-                                                        span: 524..534,
-                                                        kind: Val,
-                                                        name: Ident {
-                                                            span: 528..529,
-                                                        },
-                                                        ty: Some(
-                                                            Path(
-                                                                TypePath {
-                                                                    span: 531..534,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 531..534,
-                                                                        },
-                                                                    ],
-                                                                    args: [],
-                                                                },
-                                                            ),
-                                                        ),
-                                                        init: None,
-                                                        getter: None,
-                                                        setter: None,
-                                                    },
-                                                ),
-                                            ],
-                                        },
-                                    ),
-                                },
-                            ),
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..544
+  package:
+    Package 297..319 path=fixtures.parse
+  items:
+    ObjectDecl 328..380 name=Top
+      body:
+        TypeBody 332..380
+          PropertyDecl 342..348 kind=val name=x
+            ty:
+              PathType 345..348 path=Int
+          FunDecl 357..378 name=f
+            return_ty:
+              PathType 362..365 path=Int
+            body:
+              Block 366..378
+                ReturnStmt 368..376
+                  IntLit 375..376 value=1
+    ClassDecl 388..542 name=C
+      body:
+        TypeBody 390..542
+          ObjectDecl 403..436 name=Nested
+            body:
+              TypeBody 410..436
+                PropertyDecl 424..430 kind=val name=y
+                  ty:
+                    PathType 427..430 path=Int
+          CompanionObject 0..485
+            body:
+              TypeBody 459..485
+                PropertyDecl 473..479 kind=val name=z
+                  ty:
+                    PathType 476..479 path=Int
+          CompanionObject 508..540 name=Named
+            body:
+              TypeBody 514..540
+                PropertyDecl 528..534 kind=val name=w
+                  ty:
+                    PathType 531..534 path=Int

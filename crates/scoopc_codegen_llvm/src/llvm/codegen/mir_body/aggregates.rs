@@ -825,7 +825,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let env_i8 = if capture_field_cgs.is_empty() {
             gc_i8_ptr_ty.const_null()
         } else {
-            let closure_key = self.stable_closure_key_for_lir_source_callable(&fn_root, span)?;
+            let closure_key = self.stable_closure_key_for_lir_callable_id(fn_ptr, span)?;
             let env_ty =
                 self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
             let env_size_bytes = self.target_data.get_store_size(&env_ty);
@@ -913,11 +913,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_i8_ptr_type().const_null()
         } else if let Some(plain_entry) = self
             .module
-            .get_function(&self.lir_source_closure_body_symbol(&fn_root, span)?)
+            .get_function(&self.lir_source_closure_body_symbol_for_id(fn_ptr, span)?)
         {
             plain_entry.as_global_value().as_pointer_value()
         } else {
-            self.ensure_lir_source_closure_callable_defined(span, &fn_root)?
+            self.ensure_lir_source_closure_callable_defined_for_id(span, fn_ptr)?
                 .as_global_value()
                 .as_pointer_value()
         };
@@ -1041,7 +1041,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let env_i8 = if capture_field_cgs.is_empty() {
             gc_i8_ptr_ty.const_null()
         } else {
-            let closure_key = self.stable_closure_key_for_lir_source_callable(fn_ptr, span)?;
+            let closure_key = self.stable_closure_key_for_lir_root_label(fn_ptr, span)?;
             let env_ty =
                 self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
             let env_size_bytes = self.target_data.get_store_size(&env_ty);
@@ -1125,7 +1125,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        let carrier_key = if let Some((callable_id, _, _)) = self.lir_source_callable(fn_ptr) {
+        let source_callable_id = self
+            .lir_source_callable_by_root_label(fn_ptr)
+            .map(|(id, _, _)| id);
+        let carrier_key = if let Some(callable_id) = source_callable_id {
             let program = self.expect_active_lir_program("MIR closure carrier target");
             Some(callable_carrier_target_key_for_ref(
                 program,
@@ -1144,15 +1147,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // Callable carriers publish their own dynamic entry shell; do
             // not define a fallback lambda body just to obtain a fallback pointer.
             self.llvm_i8_ptr_type().const_null()
-        } else if let Some(plain_entry) = self
-            .module
-            .get_function(&self.lir_source_closure_body_symbol(fn_ptr, span)?)
+        } else if let Some(plain_entry) =
+            self.module
+                .get_function(&self.lir_source_closure_body_symbol_for_id(
+                    source_callable_id.unwrap_or_else(|| {
+                        panic!(
+                            "codegen_mir_make_closure_impl: missing LIR source closure callable id"
+                        )
+                    }),
+                    span,
+                )?)
         {
             plain_entry.as_global_value().as_pointer_value()
         } else {
-            self.ensure_lir_source_closure_callable_defined(span, fn_ptr)?
-                .as_global_value()
-                .as_pointer_value()
+            self.ensure_lir_source_closure_callable_defined_for_id(
+                span,
+                source_callable_id.unwrap_or_else(|| {
+                    panic!("codegen_mir_make_closure_impl: missing LIR source closure callable id")
+                }),
+            )?
+            .as_global_value()
+            .as_pointer_value()
         };
         let fn_ptr = match target_fn_ptr {
             Some(ptr) => ptr,
@@ -1256,7 +1271,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         fn_ptr: &str,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        if let Some((_, callable_types, callable)) = self.lir_source_callable(fn_ptr) {
+        if let Some((_, callable_types, callable)) = self.lir_source_callable_by_root_label(fn_ptr)
+        {
             let mut params = Vec::with_capacity(callable.params.len().saturating_sub(1));
             let mut value_params = callable.params.iter().skip(1).peekable();
             let receiver = if value_params
@@ -1282,7 +1298,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let Some(signature) = self.published_codegen_callable_signature(fn_ptr) else {
+        let Some(signature) = self.published_codegen_callable_signature_for_root_label(fn_ptr)
+        else {
             return Err(frontend_error(format!(
                 "closure allocation at {span:?} cannot find callable signature `{fn_ptr}`"
             )));

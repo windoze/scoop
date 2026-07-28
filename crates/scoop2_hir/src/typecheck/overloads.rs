@@ -37,35 +37,88 @@ pub fn check_ctor_overload_conflicts(
             _ => None,
         })
         .collect();
-    if ctors.len() <= 1 {
-        return;
-    }
     let fqn_text = fqn_of(env, package_prefix, class_name);
-    let infos: Vec<OverloadInfo> = ctors
-        .iter()
-        .map(|(span, c)| {
-            build_ctor_info(
-                env,
-                imports,
-                diags,
-                package_prefix,
-                class_name,
-                *span,
-                class_type_params,
-                c,
-            )
-        })
-        .collect();
-    let mut hit = false;
-    for i in 0..infos.len() {
-        if hit {
-            break;
-        }
-        for j in (i + 1)..infos.len() {
-            if let Some(e) = detect_conflict(&infos[i], &infos[j], &fqn_text, true) {
-                diags.push(e);
-                hit = true;
+    // 次构造器之间的冲突（需要 >= 2 个次构造器）。
+    if ctors.len() >= 2 {
+        let infos: Vec<OverloadInfo> = ctors
+            .iter()
+            .map(|(span, c)| {
+                build_ctor_info(
+                    env,
+                    imports,
+                    diags,
+                    package_prefix,
+                    class_name,
+                    *span,
+                    class_type_params,
+                    c,
+                )
+            })
+            .collect();
+        let mut hit = false;
+        for i in 0..infos.len() {
+            if hit {
                 break;
+            }
+            for j in (i + 1)..infos.len() {
+                if let Some(e) = detect_conflict(&infos[i], &infos[j], &fqn_text, true) {
+                    diags.push(e);
+                    hit = true;
+                    break;
+                }
+            }
+        }
+    }
+    // 主构造器 vs 次构造器：默认参数导致 0-arg 调用永远歧义。
+    if !ctors.is_empty()
+        && let Some(class_fqn) = env.interner.get(&fqn_text)
+        && let Some(all_sigs) = env.ctor_signatures(class_fqn)
+        && all_sigs.len() >= 2
+    {
+        let primary = &all_sigs[0];
+        for secondary in &all_sigs[1..] {
+            let primary_has_default = primary.has_defaults.iter().any(|d| *d);
+            let secondary_has_default = secondary.has_defaults.iter().any(|d| *d);
+            let primary_min = primary
+                .has_defaults
+                .iter()
+                .position(|d| *d)
+                .unwrap_or(primary.params.len());
+            let secondary_min = secondary
+                .has_defaults
+                .iter()
+                .position(|d| *d)
+                .unwrap_or(secondary.params.len());
+            // 两个 ctor 的 min_arity 都 <= 对方的 params.len() → 存在共匹配的 arity。
+            let overlap =
+                primary_min <= secondary.params.len() && secondary_min <= primary.params.len();
+            // 但仅 arity 重叠不够：在共匹配的 arity 上，参数类型必须不可区分（任一可赋值给另一）
+            // 才算真正歧义。如 `(Int, Int=0)` vs `(String)`：arity 1 时 Int vs String 不可互换。
+            let type_indistinguishable = overlap && {
+                let start = primary_min.max(secondary_min);
+                let end = primary.params.len().min(secondary.params.len());
+                (start..=end).any(|n| {
+                    (0..n).all(|i| {
+                        let pt = primary.params.get(i).copied();
+                        let st = secondary.params.get(i).copied();
+                        match (pt, st) {
+                            (Some(a), Some(b)) => types_mutually_assignable(&env.store, a, b),
+                            _ => false,
+                        }
+                    })
+                })
+            };
+            if type_indistinguishable && (primary_has_default || secondary_has_default) {
+                diags.push(
+                    scoop2_base::diag::Diagnostic::error(
+                        "scoop::typecheck::conflicting_overloads",
+                        format!(
+                            "默认参数导致构造器重载冲突：{fqn_text} 的构造器在部分调用点永远歧义"
+                        ),
+                    )
+                    .with_primary(secondary.decl_span, "这里"),
+                );
+                return;
             }
         }
     }
@@ -557,6 +610,28 @@ fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, Str
 
 fn type_param_map(d: &FunDecl) -> HashMap<Symbol, TypeParamType> {
     type_param_map_of(d.type_params.as_ref())
+}
+
+/// 两个类型在重载不可区分意义上是否相容（有效类型字符串相等）。
+/// 用于主/次构造器默认参数冲突判定：仅在共匹配 arity 上参数类型不可区分时才报冲突。
+fn types_mutually_assignable(store: &crate::ty::TypeStore, a: TypeId, b: TypeId) -> bool {
+    // 简化：按 TypeId 直接相等（hash-consing 保证同结构类型同 id）。
+    // 对 nominal 比较 FQN（忽略类型实参，与 effective_type_str 一致）。
+    let ka = store.kind(a);
+    let kb = store.kind(b);
+    match (ka, kb) {
+        (TypeKind::Param(_), TypeKind::Param(_)) => true,
+        (TypeKind::Param(_), _) | (_, TypeKind::Param(_)) => true,
+        (
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(na)),
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nb)),
+        )
+        | (
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(na)),
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nb)),
+        ) => na.fqn == nb.fqn,
+        _ => a == b,
+    }
 }
 
 /// 同 [`type_param_map`]，但直接接受类型参数列表（供构造器复用）。

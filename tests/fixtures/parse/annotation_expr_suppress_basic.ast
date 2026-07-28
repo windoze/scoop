@@ -1,92 +1,20 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 67..89,
-            path: [
-                Ident {
-                    span: 75..83,
-                },
-                Ident {
-                    span: 84..89,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 91..154,
-                receiver: None,
-                name: Ident {
-                    span: 95..99,
-                },
-                type_params: [],
-                params_span: 99..101,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 102..154,
-                        stmts: [
-                            Stmt {
-                                span: 108..152,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 108..152,
-                                        kind: Val,
-                                        name: Ident {
-                                            span: 112..117,
-                                        },
-                                        ty: None,
-                                        init: Some(
-                                            Expr {
-                                                span: 120..152,
-                                                kind: Annotated {
-                                                    annotations: [
-                                                        AnnotationUse {
-                                                            span: 120..143,
-                                                            path: [
-                                                                Ident {
-                                                                    span: 121..129,
-                                                                },
-                                                            ],
-                                                            args: [
-                                                                AnnotationArg {
-                                                                    span: 130..142,
-                                                                    value: Expr {
-                                                                        span: 130..142,
-                                                                        kind: StringLit,
-                                                                    },
-                                                                },
-                                                            ],
-                                                        },
-                                                    ],
-                                                    expr: Expr {
-                                                        span: 144..152,
-                                                        kind: Call {
-                                                            callee: Expr {
-                                                                span: 144..150,
-                                                                kind: Ident(
-                                                                    Ident {
-                                                                        span: 144..150,
-                                                                    },
-                                                                ),
-                                                            },
-                                                            args: [],
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..155
+  package:
+    Package 67..89 path=fixtures.parse
+  items:
+    FunDecl 95..154 name=main
+      body:
+        Block 102..154
+          LocalValStmt 112..152
+            ValDecl 112..152 kind=val name=value
+              init:
+                Annotated 120..152
+                  annotations:
+                    Annotation 120..143 path=Suppress
+                      args:
+                        AnnotationArg 130..142
+                          StringLit 130..142 value="deprecated"
+                  expr:
+                    Call 144..152
+                      callee:
+                        Ident 144..150 name=oldAdd

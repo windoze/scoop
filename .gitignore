@@ -4,3 +4,4 @@ crates/scoop/target/
 tests/fixtures/**/build/
 /**/__pycache__
 /memory
+/.claude

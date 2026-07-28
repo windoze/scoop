@@ -1,134 +1,24 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 122..144,
-            path: [
-                Ident {
-                    span: 130..138,
-                },
-                Ident {
-                    span: 139..144,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 146..198,
-                receiver: None,
-                name: Ident {
-                    span: 150..151,
-                },
-                type_params: [],
-                params_span: 151..153,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 154..198,
-                        stmts: [
-                            Stmt {
-                                span: 160..174,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 160..174,
-                                        kind: Var,
-                                        name: Ident {
-                                            span: 164..165,
-                                        },
-                                        ty: Some(
-                                            Path(
-                                                TypePath {
-                                                    span: 167..170,
-                                                    segments: [
-                                                        Ident {
-                                                            span: 167..170,
-                                                        },
-                                                    ],
-                                                    args: [],
-                                                },
-                                            ),
-                                        ),
-                                        init: Some(
-                                            Expr {
-                                                span: 173..174,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 173..174,
-                                                    },
-                                                ),
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 179..184,
-                                kind: Expr(
-                                    Expr {
-                                        span: 179..184,
-                                        kind: Assign {
-                                            lhs: Expr {
-                                                span: 179..180,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 179..180,
-                                                    },
-                                                ),
-                                            },
-                                            eq_span: 181..182,
-                                            rhs: Expr {
-                                                span: 183..184,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 183..184,
-                                                    },
-                                                ),
-                                            },
-                                        },
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 189..196,
-                                kind: Expr(
-                                    Expr {
-                                        span: 189..196,
-                                        kind: Assign {
-                                            lhs: Expr {
-                                                span: 189..192,
-                                                kind: MemberAccess {
-                                                    receiver: Expr {
-                                                        span: 189..190,
-                                                        kind: Ident(
-                                                            Ident {
-                                                                span: 189..190,
-                                                            },
-                                                        ),
-                                                    },
-                                                    member: Ident {
-                                                        span: 191..192,
-                                                    },
-                                                },
-                                            },
-                                            eq_span: 193..194,
-                                            rhs: Expr {
-                                                span: 195..196,
-                                                kind: IntLit,
-                                            },
-                                        },
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..200
+  package:
+    Package 122..144 path=fixtures.parse
+  items:
+    FunDecl 150..198 name=f
+      body:
+        Block 154..198
+          LocalValStmt 164..174
+            ValDecl 164..174 kind=var name=x
+              ty:
+                PathType 167..170 path=Any
+              init:
+                Ident 173..174 name=a
+          AssignStmt 179..184
+            target:
+              IdentTarget 179..180 name=x
+            value:
+              Ident 183..184 name=b
+          AssignStmt 189..196
+            target:
+              MemberTarget 189..192 member=x
+                Ident 189..190 name=p
+            value:
+              IntLit 195..196 value=1

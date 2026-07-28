@@ -72,25 +72,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         dispatch: &LirDispatchContract,
     ) -> Result<CodegenCallableSignature, LlvmEmitError> {
-        self.published_codegen_callable_signature(&dispatch.member_fqn)
-            .or_else(|| self.unique_dispatch_target_signature(dispatch))
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "plain dispatch call site{} 缺少 `{}` 的 LIR signature",
-                    dispatch.site_id.as_u32(),
-                    dispatch.member_fqn,
-                ))
-            })
+        self.dispatch_target_signature(dispatch).ok_or_else(|| {
+            frontend_error(format!(
+                "plain dispatch call site{} 缺少 `{}` 的 LIR signature",
+                dispatch.site_id.as_u32(),
+                dispatch.member_fqn,
+            ))
+        })
     }
 
-    fn unique_dispatch_target_signature(
+    fn dispatch_target_signature(
         &self,
         dispatch: &LirDispatchContract,
     ) -> Option<CodegenCallableSignature> {
-        let [target] = dispatch.candidate_targets.as_slice() else {
-            return None;
-        };
-        self.published_codegen_callable_signature_for_ref(*target)
+        let target = dispatch.candidate_targets.first().copied()?;
+        self.published_codegen_callable_signature_for_ref(target)
     }
 
     pub(in crate::llvm::codegen) fn static_interface_receiver_owner_fqn(
@@ -167,7 +163,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if !allow_effect_typed_signature
             && self
-                .direct_call_abi_identity(&impl_sig.fqn)
+                .direct_call_abi_identity_for_ref(target)
                 .uses_effect_bridge_abi()
         {
             panic!(
@@ -226,9 +222,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|arg| arg.value)
             .collect::<Vec<_>>();
 
-        let function = self.declare_lir_plain_fun_with_symbol(
+        let function = self.declare_lir_plain_fun_with_symbol_for_ref(
             &impl_sig.fqn,
             LlvmFunctionDeclarationSurface::ExportedAbi,
+            target,
             &impl_sig.fqn,
             &impl_sig.param_tys,
             impl_sig.return_ty,
@@ -310,7 +307,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
         if self
-            .direct_call_abi_identity(&impl_sig.fqn)
+            .direct_call_abi_identity_for_ref(target)
             .uses_effect_bridge_abi()
         {
             panic!(
@@ -372,11 +369,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect::<Vec<_>>();
 
         let llvm_name = self
-            .published_symbol_for_source_root_text(&impl_sig.fqn)
-            .unwrap_or_else(|| impl_sig.fqn.clone());
-        let function = self.declare_lir_plain_fun_with_symbol(
+            .exported_abi_symbol_for_lir_callable_ref(target)
+            .unwrap_or_else(|_| impl_sig.fqn.clone());
+        let function = self.declare_lir_plain_fun_with_symbol_for_ref(
             &llvm_name,
             LlvmFunctionDeclarationSurface::ExportedAbi,
+            target,
             &impl_sig.fqn,
             &impl_sig.param_tys,
             impl_sig.return_ty,
@@ -456,7 +454,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if !allow_effect_typed_signature
             && self
-                .direct_call_abi_identity(&signature.fqn)
+                .direct_call_abi_identity_for_ref(signature.target.unwrap_or_else(|| {
+                    panic!("codegen_mir_plain_dispatch_call: LIR dispatch signature missing callable target")
+                }))
                 .uses_effect_bridge_abi()
         {
             panic!(
@@ -627,7 +627,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some((_, result_ty)) = sret_result_slot {
                 cg.add_sret_attribute_to_call(call_site, 0, result_ty);
             }
-            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(&signature.fqn));
+            let target = signature.target.unwrap_or_else(|| {
+                panic!("codegen_mir_plain_dispatch_call: LIR dispatch signature missing callable target")
+            });
+            call_site.set_call_convention(cg.llvm_call_convention_for_lir_callable_ref(target));
             Ok(call_site)
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
@@ -710,7 +713,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
         if self
-            .direct_call_abi_identity(&signature.fqn)
+            .direct_call_abi_identity_for_ref(signature.target.unwrap_or_else(|| {
+                panic!("codegen_lir_plain_dispatch_call: LIR dispatch signature missing callable target")
+            }))
             .uses_effect_bridge_abi()
         {
             panic!(
@@ -889,7 +894,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some((_, result_ty)) = sret_result_slot {
                 cg.add_sret_attribute_to_call(call_site, 0, result_ty);
             }
-            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(&signature.fqn));
+            let target = signature.target.unwrap_or_else(|| {
+                panic!("codegen_lir_plain_dispatch_call: LIR dispatch signature missing callable target")
+            });
+            call_site.set_call_convention(cg.llvm_call_convention_for_lir_callable_ref(target));
             Ok(call_site)
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);
@@ -964,6 +972,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         CodegenCallableSignature {
+            target: signature.target,
             fqn: signature.fqn.clone(),
             param_names: signature.param_names.clone(),
             param_tys: signature

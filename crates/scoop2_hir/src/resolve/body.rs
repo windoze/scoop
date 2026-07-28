@@ -480,6 +480,10 @@ impl<'a> BodyResolver<'a> {
         if name_text.starts_with("__scoop_") {
             return;
         }
+        // 0. 隐式 `it` 参数（无参 lambda 内的裸标识符）：defer 到 typecheck。
+        if name_text == "it" {
+            return;
+        }
         // 1. 局部
         if let Some(local) = self.scopes.resolve(ident.symbol) {
             self.resolution
@@ -519,6 +523,12 @@ impl<'a> BodyResolver<'a> {
     fn resolve_or_report(&mut self, ident: ast::Ident) {
         let name_text = self.interner.resolve(ident.symbol);
         if name_text == "true" || name_text == "false" {
+            return;
+        }
+        if name_text == "it" {
+            return;
+        }
+        if name_text == "field" {
             return;
         }
         if self.scopes.resolve(ident.symbol).is_some() {
@@ -604,6 +614,8 @@ impl<'a> BodyResolver<'a> {
         let Some(owner_fqn) = self.receiver_type_fqn(receiver) else {
             return;
         };
+        // typealias 展开：`List.size()` → 查 `Array.size()`。
+        let owner_fqn = self.index.resolve_typealias(owner_fqn);
         // init 块内 `this.<prop>`：prop 是属性但尚未（按源码顺序）初始化 → 前向引用。
         if self.in_init_block
             && matches!(

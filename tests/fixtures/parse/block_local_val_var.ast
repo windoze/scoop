@@ -1,104 +1,19 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 144..166,
-            path: [
-                Ident {
-                    span: 152..160,
-                },
-                Ident {
-                    span: 161..166,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 168..220,
-                receiver: None,
-                name: Ident {
-                    span: 172..173,
-                },
-                type_params: [],
-                params_span: 173..175,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 176..220,
-                        stmts: [
-                            Stmt {
-                                span: 182..196,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 182..196,
-                                        kind: Val,
-                                        name: Ident {
-                                            span: 186..187,
-                                        },
-                                        ty: Some(
-                                            Path(
-                                                TypePath {
-                                                    span: 189..192,
-                                                    segments: [
-                                                        Ident {
-                                                            span: 189..192,
-                                                        },
-                                                    ],
-                                                    args: [],
-                                                },
-                                            ),
-                                        ),
-                                        init: Some(
-                                            Expr {
-                                                span: 195..196,
-                                                kind: IntLit,
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 201..212,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 201..212,
-                                        kind: Var,
-                                        name: Ident {
-                                            span: 205..206,
-                                        },
-                                        ty: None,
-                                        init: Some(
-                                            Expr {
-                                                span: 209..212,
-                                                kind: StringLit,
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 217..218,
-                                kind: Expr(
-                                    Expr {
-                                        span: 217..218,
-                                        kind: Ident(
-                                            Ident {
-                                                span: 217..218,
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..222
+  package:
+    Package 144..166 path=fixtures.parse
+  items:
+    FunDecl 172..220 name=f
+      body:
+        Block 176..220
+          LocalValStmt 186..196
+            ValDecl 186..196 kind=val name=x
+              ty:
+                PathType 189..192 path=Int
+              init:
+                IntLit 195..196 value=1
+          LocalValStmt 205..212
+            ValDecl 205..212 kind=var name=y
+              init:
+                StringLit 209..212 value="s"
+          ExprStmt 217..218
+            Ident 217..218 name=x

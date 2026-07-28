@@ -140,7 +140,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
             let published_effect_step = self
-                .callable_uses_explicit_effect_hidden_abi(closure_identity.callable_fqn.as_str());
+                .lir_source_callable_by_root_label(closure_identity.callable_fqn.as_str())
+                .is_some_and(|(callable_id, _, _)| {
+                    self.callable_uses_explicit_effect_hidden_abi_for_ref(
+                        scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                    )
+                });
             let uses_explicit_effect_hidden_abi =
                 published_effect_step || !fun_ty.effects.is_pure();
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
@@ -390,7 +395,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
 
         let carrier_key = self
-            .lir_source_callable(closure_identity.callable_fqn.as_str())
+            .lir_source_callable_by_root_label(closure_identity.callable_fqn.as_str())
             .map(|(callable_id, _, _)| {
                 let program = self.expect_active_lir_program("direct HIR closure carrier target");
                 callable_carrier_target_key_for_ref(
@@ -404,9 +409,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let Some(key) = carrier_key
             && (fun_ty.effects.is_pure()
-                || !self.callable_uses_explicit_effect_hidden_abi(
-                    closure_identity.callable_fqn.as_str(),
-                ))
+                || !self
+                    .lir_source_callable_by_root_label(closure_identity.callable_fqn.as_str())
+                    .is_some_and(|(callable_id, _, _)| {
+                        self.callable_uses_explicit_effect_hidden_abi_for_ref(
+                            scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                        )
+                    }))
         {
             self.register_plain_callable_carrier_fallback(
                 key,
@@ -539,7 +548,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .hidden_sret_result_ty(closure.span, declared_return_cg)?
             .is_some();
         let uses_explicit_effect_hidden_abi = self
-            .callable_uses_explicit_effect_hidden_abi(spec.callable_fqn)
+            .lir_source_callable_by_root_label(spec.callable_fqn)
+            .is_some_and(|(callable_id, _, _)| {
+                self.callable_uses_explicit_effect_hidden_abi_for_ref(
+                    scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                )
+            })
             || !fun_ty.effects.is_pure();
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(

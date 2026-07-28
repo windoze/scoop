@@ -1,139 +1,27 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 53..75,
-            path: [
-                Ident {
-                    span: 61..69,
-                },
-                Ident {
-                    span: 70..75,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 77..101,
-                receiver: None,
-                name: Ident {
-                    span: 81..83,
-                },
-                type_params: [
-                    TypeParam {
-                        span: 84..85,
-                        name: Ident {
-                            span: 84..85,
-                        },
-                    },
-                ],
-                params_span: 86..92,
-                params: [
-                    Param {
-                        name: Ident {
-                            span: 87..88,
-                        },
-                        ty: Some(
-                            Path(
-                                TypePath {
-                                    span: 90..91,
-                                    segments: [
-                                        Ident {
-                                            span: 90..91,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        ),
-                    },
-                ],
-                return_ty: Some(
-                    Path(
-                        TypePath {
-                            span: 94..95,
-                            segments: [
-                                Ident {
-                                    span: 94..95,
-                                },
-                            ],
-                            args: [],
-                        },
-                    ),
-                ),
-                body: Block(
-                    Block {
-                        span: 96..101,
-                        stmts: [
-                            Stmt {
-                                span: 98..99,
-                                kind: Expr(
-                                    Expr {
-                                        span: 98..99,
-                                        kind: Ident(
-                                            Ident {
-                                                span: 98..99,
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-        Type(
-            TypeDecl {
-                span: 103..133,
-                kind: Struct,
-                name: Ident {
-                    span: 110..113,
-                },
-                type_params: [
-                    TypeParam {
-                        span: 114..115,
-                        name: Ident {
-                            span: 114..115,
-                        },
-                    },
-                ],
-                body: Some(
-                    TypeBody {
-                        span: 117..133,
-                        members: [
-                            Property(
-                                PropertyDecl {
-                                    span: 123..131,
-                                    kind: Val,
-                                    name: Ident {
-                                        span: 127..128,
-                                    },
-                                    ty: Some(
-                                        Path(
-                                            TypePath {
-                                                span: 130..131,
-                                                segments: [
-                                                    Ident {
-                                                        span: 130..131,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    ),
-                                    init: None,
-                                    getter: None,
-                                    setter: None,
-                                },
-                            ),
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..135
+  package:
+    Package 53..75 path=fixtures.parse
+  items:
+    FunDecl 81..101 name=id
+      type_params:
+        TypeParams 83..86
+          TypeParam 84..85 name=T
+      params:
+        Param 87..91 name=x
+          ty:
+            PathType 90..91 path=T
+      return_ty:
+        PathType 94..95 path=T
+      body:
+        Block 96..101
+          ExprStmt 98..99
+            Ident 98..99 name=x
+    StructDecl 110..133 name=Box
+      type_params:
+        TypeParams 113..116
+          TypeParam 114..115 name=T
+      body:
+        TypeBody 117..133
+          PropertyDecl 127..131 kind=val name=v
+            ty:
+              PathType 130..131 path=T

@@ -32,6 +32,15 @@ pub fn arity_mismatch(expected: usize, found: usize, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::type_arity_mismatch`：类型实参数量与类型形参不符。
+pub fn type_arity_mismatch(expected: usize, found: usize, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::type_arity_mismatch",
+        format!("类型参数数量不匹配：期望 {expected} 个，但传入 {found} 个"),
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::unresolved_type_ref`：类型引用无法降级为类型（resolve 未捕获的残余）。
 pub fn unresolved_type_ref(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
@@ -74,6 +83,16 @@ pub fn no_applicable_overload(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::no_applicable_overload",
         "没有匹配的重载候选（实参类型 / 数量不匹配）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::no_applicable_overload`（带原因）：显式类型实参与 ctor 实参冲突时
+/// 给出 generic type arguments 原因。
+pub fn no_applicable_overload_with_reason(reason: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::no_applicable_overload",
+        format!("没有匹配的重载候选：{reason}"),
     )
     .with_primary(span, "这里")
 }
@@ -222,6 +241,16 @@ pub fn enum_variant_ctor_arity_mismatch(expected: usize, found: usize, span: Spa
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::ambiguous_enum_variant_ctor`：泛型 enum variant 构造在无期望类型
+/// 上下文时无法推断类型实参，构造歧义（如 `Some(1)` 无法确定 `T`）。
+pub fn ambiguous_enum_variant_ctor(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::ambiguous_enum_variant_ctor",
+        "enum variant 构造歧义：泛型 enum variant 在无期望类型上下文时无法推断类型实参（需显式类型标注或类型实参）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::duplicate_struct_field`：struct/class 字段重名。
 pub fn duplicate_struct_field(span: Span) -> Diagnostic {
     Diagnostic::error(
@@ -348,6 +377,34 @@ pub fn gc_handle_drop_requires_handle(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::fn_value_to_any_requires_closed_pure`：函数值擦除到 `Any`
+/// 必须是闭合 `Pure!`（open `/ Pure` 或带 effect 的函数不可擦除）。
+pub fn fn_value_to_any_requires_closed_pure(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::fn_value_to_any_requires_closed_pure",
+        "函数值擦除到 `Any` 必须是闭合 `Pure!`（open `/ Pure` 或带 effect 的函数不可擦除）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::gc_unpin_requires_ref`：`GC.unpin` 的参数必须是 `Pinned` token。
+pub fn gc_unpin_requires_ref(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::gc_unpin_requires_ref",
+        "`GC.unpin` 的参数必须是 `Pinned`（固定令牌）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::gc_pin_requires_ref`：`GC.pin` 的参数必须是 GC 引用。
+pub fn gc_pin_requires_ref(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::gc_pin_requires_ref",
+        "`GC.pin` 的参数必须是 GC 引用（class / String / 数组等）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::intrinsic_decl_requires_trusted_syslib`：@Intrinsic 只能在受信任 syslib 中声明。
 pub fn intrinsic_decl_requires_trusted_syslib(kind: &str, name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
@@ -439,6 +496,16 @@ pub fn operator_overload_not_found(op: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::operator_overload_not_found",
         format!("操作符 `{op}` 未找到可用的重载"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::operator_modifier_required`：运算符位置调用（`a + b`）要求
+/// 对应方法声明了 `operator` modifier（否则只能用命名调用 `a.plus(b)`）。
+pub fn operator_modifier_required(op: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::operator_modifier_required",
+        format!("运算符 `{op}` 的位置调用缺少 `operator` modifier（改用命名调用如 `.plus(...)`，或为方法加 `operator`）"),
     )
     .with_primary(span, "这里")
 }
@@ -659,6 +726,16 @@ pub fn callee_not_callable(name: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::funptr_invoke_named_args_not_supported`：`FunPtr.invoke` 不支持
+/// 命名实参（C ABI 函数指针只能按位置调用）。
+pub fn funptr_invoke_named_args_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::funptr_invoke_named_args_not_supported",
+        "`FunPtr.invoke` 不支持命名实参（C ABI 函数指针只能按位置调用）",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::continuation_not_constructible`：
 /// `Continuation` 是 compiler-owned interface，用户代码不能直接构造。
 pub fn continuation_not_constructible(span: Span) -> Diagnostic {
@@ -695,6 +772,26 @@ pub fn continuation_legacy_pure_shorthand_removed(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::continuation_legacy_pure_shorthand_removed",
         "legacy `Continuation<Resume>` 简写已移除：必须显式写出 answer type（`Continuation<Resume, Answer>`）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::handle_arm_unreachable`：handler arm 不可达
+///（同一 effect operation 被前面的 arm 已覆盖，重复 arm 永不匹配）。
+pub fn handle_arm_unreachable(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::handle_arm_unreachable",
+        "不可达的 handler arm：同一 effect operation 已被前面的 arm 覆盖",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::handle_arm_return_type_mismatch`：handler arm 的返回类型
+/// 与 handle 表达式（或其它 arm）的结果类型不匹配。
+pub fn handle_arm_return_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::handle_arm_return_type_mismatch",
+        format!("handler arm 的返回类型不匹配：期望 {expected}，但得到 {found}"),
     )
     .with_primary(span, "这里")
 }
@@ -774,6 +871,56 @@ pub fn annotation_arg_type_mismatch(
     Diagnostic::error(
         "scoop::typecheck::annotation_arg_type_mismatch",
         format!("注解参数 `{param}` 类型不匹配：期望 {expected}，但得到 {found}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_arg_not_const`：注解实参必须是编译期常量
+///（字面量 / 常量引用 / 嵌套注解），调用等非常量表达式不允许。
+pub fn annotation_arg_not_const(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_arg_not_const",
+        "注解实参必须是编译期常量（字面量 / const 引用 / 嵌套注解），不能是调用等非常量表达式",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_type_runtime_use_not_allowed`：annotation class 不能
+/// 作为普通类型使用，也不能在运行期构造实例（它只是编译期元数据载体）。
+pub fn annotation_type_runtime_use_not_allowed(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_type_runtime_use_not_allowed",
+        format!("`{name}` 是 annotation class：不能作为普通类型使用，也不能在运行期构造实例",),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::invalid_annotation_retention_policy`：`@Retention` 的策略实参
+/// 必须是 `"local"` 或 `"cone"`。
+pub fn invalid_annotation_retention_policy(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::invalid_annotation_retention_policy",
+        format!("Retention policy 必须是 \"local\" 或 \"cone\"，但得到 {found:?}",),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::annotation_invalid_target`：带 `@Target(...)` 的注解被用在
+/// 不允许的目标上。
+pub fn annotation_invalid_target(ann: &str, allowed: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::annotation_invalid_target",
+        format!("`{ann}` 只能用于 {allowed}"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::builtin_annotation_args_not_supported`：某些内建注解
+///（如 `@AllowIntrinsic`）暂不支持任何实参。
+pub fn builtin_annotation_args_not_supported(ann: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::builtin_annotation_args_not_supported",
+        format!("`{ann}` 暂不支持参数"),
     )
     .with_primary(span, "这里")
 }
@@ -889,7 +1036,7 @@ pub fn call_arity_mismatch_detail(
 pub fn call_arg_type_mismatch(expected: &str, found: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::call_arg_type_mismatch",
-        format!("参数类型不匹配：期望 {expected}，但得到 {found}"),
+        format!("调用参数类型不匹配：期望 {expected}，但得到 {found}"),
     )
     .with_primary(span, "这里")
 }
@@ -958,6 +1105,56 @@ pub fn when_variant_pat_too_short(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::when_variant_pat_too_short",
         "variant pattern 参数不足：带 `..` 时前缀超过 variant payload 字段数",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_type_pattern_runtime_test_not_supported`：`when is T` 中 T 为
+/// value 类型（struct/enum/标量），需要未开放的 runtime type test，前端拒绝。
+pub fn when_type_pattern_runtime_test_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_type_pattern_runtime_test_not_supported",
+        "`when is T` 的 T 是 value 类型：需要未开放的 runtime type test（value 类型无运行期 tag）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_function_type_pattern_not_supported`：`when is T` 的 T 为
+/// pure（闭合 effect row）函数类型——函数值的运行期类型 test 不支持。
+pub fn when_function_type_pattern_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_function_type_pattern_not_supported",
+        "`when is T` 的 T 是函数类型：不支持函数类型的 runtime test（effect row 只存在于编译期）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_effectful_function_type_pattern_not_supported`：`when is T` 的 T
+/// 为带非 Pure effect row 的函数类型——更明确地拒绝。
+pub fn when_effectful_function_type_pattern_not_supported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_effectful_function_type_pattern_not_supported",
+        "`when is T` 的 T 是带 effect row 的函数类型：effect row 只存在于编译期，无法做 runtime test",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_variant_pat_arity_mismatch`：variant pattern 的参数数量与
+/// variant payload 字段数不匹配（含 or-pattern 中各分支 arity 不一致）。
+pub fn when_variant_pat_arity_mismatch(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_variant_pat_arity_mismatch",
+        "`when` 的 variant pattern 参数数量不匹配（与 variant payload 字段数不符）",
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::when_or_pattern_binder_not_allowed`：or-pattern 不允许引入 binder
+///（binder 的 identity/scope/dominance 在当前语言 contract 下未定义）。
+pub fn when_or_pattern_binder_not_allowed(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::when_or_pattern_binder_not_allowed",
+        "当前语言 contract 下，when or-pattern 不允许引入 binder（binder 的 scope/dominance 未定义）",
     )
     .with_primary(span, "这里")
 }
@@ -1175,24 +1372,6 @@ pub fn unresolved_annotation_type(name: &str, span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
-/// `scoop::typecheck::annotation_arg_not_const`。
-pub fn annotation_arg_not_const(span: Span) -> Diagnostic {
-    Diagnostic::error(
-        "scoop::typecheck::annotation_arg_not_const",
-        "注解实参必须是编译时常量",
-    )
-    .with_primary(span, "这里")
-}
-
-/// `scoop::typecheck::annotation_invalid_target`。
-pub fn annotation_invalid_target(span: Span) -> Diagnostic {
-    Diagnostic::error(
-        "scoop::typecheck::annotation_invalid_target",
-        "注解目标不合法",
-    )
-    .with_primary(span, "这里")
-}
-
 /// `scoop::typecheck::meta_annotation_invalid_target`：`@Target`/`@Retention` 只能用于 annotation class。
 pub fn meta_annotation_invalid_target(ann: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
@@ -1283,6 +1462,22 @@ pub fn delegated_property_set_value_signature_mismatch(
         "scoop::typecheck::delegated_property_set_value_signature_mismatch",
         format!(
             "委托属性的 delegate 未找到匹配的 `setValue` 签名（期望 setValue(thisRef: .., property: PropertyMeta, value: {property_type_fqn}): Unit）"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::lazy_thread_safety_mode_not_supported_on_platform`：
+/// `lazy(LazyThreadSafetyMode.Synchronized)` 在不支持线程/Mutex 的平台（如 wasm-browser）上不可用。
+pub fn lazy_thread_safety_mode_not_supported_on_platform(
+    platform: &str,
+    mode: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::lazy_thread_safety_mode_not_supported_on_platform",
+        format!(
+            "`lazy({mode})` 在平台 `{platform}` 上不支持（该平台无线程 / Mutex 支持；改用 LazyThreadSafetyMode.None 或 LocalThreadSafetyMode）"
         ),
     )
     .with_primary(span, "这里")
@@ -1861,6 +2056,18 @@ pub fn release_hook_arg_type_mismatch(
         "scoop::typecheck::release_hook_arg_type_mismatch",
         format!(
             "`@ReleaseHook` 字段 `{type_fqn}.{field_name}` 类型与释放函数参数不匹配：字段是 {field_ty}，参数是 {param_ty}"
+        ),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::thread_spawn_entry_must_be_pure`：
+/// `scoop.thread.threadSpawn` 的线程入口必须在静态上等价于 `Pure!`。
+pub fn thread_spawn_entry_must_be_pure(found: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::thread_spawn_entry_must_be_pure",
+        format!(
+            "`scoop.thread.threadSpawn` 的线程入口必须在静态上等价于 `Pure!`；这里得到 {found}"
         ),
     )
     .with_primary(span, "这里")

@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::parse::perform_keyword_removed
-// EXPECT-ERROR: `perform` keyword was removed; call effect operation directly
+// EXPECT-ERROR: 语法错误：`perform` 关键字已移除；请直接调用 effect operation
 // EXPECT-ERROR-AT: 9:5
 
 package fixtures.parse

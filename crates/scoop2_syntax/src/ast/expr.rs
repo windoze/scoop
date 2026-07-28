@@ -24,6 +24,8 @@ pub struct Block {
     pub id: NodeId,
     pub span: Span,
     pub stmts: Vec<Stmt>,
+    /// 最后一条语句是否带 `;`（影响 block 值类型：带 `;` 的尾部 expr → Unit）。
+    pub last_trailing_semi: bool,
 }
 
 /// 语句（§7）。
@@ -327,6 +329,8 @@ pub struct HandleArm {
     pub op: HandleOp,
     /// 逃逸 continuation binder（`, k ->` 形式）；`None` 为 non-resuming arm。
     pub escape_continuation: Option<Ident>,
+    /// `->` 箭头的 span（用于不可达 arm 诊断定位）。
+    pub arrow_span: Span,
     /// body 为块时内层是 [`ExprKind::Block`]。
     pub body: Expr,
 }

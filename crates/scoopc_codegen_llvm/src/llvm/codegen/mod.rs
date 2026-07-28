@@ -226,7 +226,7 @@ struct NativeCallableAbi<'ctx> {
 
 #[derive(Clone, Copy)]
 enum NativeCallableOrigin<'a> {
-    DirectExtern { callable_fqn: &'a str },
+    Direct { calling_convention: Option<&'a str> },
     FunPtr,
 }
 
@@ -678,6 +678,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
 
 #[derive(Debug, Clone)]
 pub(in crate::llvm::codegen) struct CodegenCallableSignature {
+    pub(in crate::llvm::codegen) target: Option<scoopc_lir_facts::LirCallableRef>,
     pub(in crate::llvm::codegen) fqn: String,
     pub(in crate::llvm::codegen) param_names: Vec<String>,
     pub(in crate::llvm::codegen) param_tys: Vec<TypeId>,

@@ -1,61 +1,13 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 144..166,
-            path: [
-                Ident {
-                    span: 152..160,
-                },
-                Ident {
-                    span: 161..166,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 168..193,
-                kind: Val,
-                name: Ident {
-                    span: 172..179,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 182..193,
-                        kind: Call {
-                            callee: Expr {
-                                span: 182..190,
-                                kind: MemberAccess {
-                                    receiver: Expr {
-                                        span: 182..183,
-                                        kind: Ident(
-                                            Ident {
-                                                span: 182..183,
-                                            },
-                                        ),
-                                    },
-                                    member: Ident {
-                                        span: 184..190,
-                                    },
-                                },
-                            },
-                            args: [
-                                Expr {
-                                    span: 191..192,
-                                    kind: Ident(
-                                        Ident {
-                                            span: 191..192,
-                                        },
-                                    ),
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..194
+  package:
+    Package 144..166 path=fixtures.parse
+  items:
+    ValDecl 172..193 kind=val name=resumed
+      init:
+        Call 182..193
+          callee:
+            MemberAccess 182..190 member=resume
+              Ident 182..183 name=k
+          args:
+            CallArg 191..192
+              Ident 191..192 name=x

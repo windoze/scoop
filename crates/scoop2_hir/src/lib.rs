@@ -15,6 +15,8 @@
 pub use scoop2_base as base;
 pub use scoop2_syntax as syntax;
 
+pub mod completeness;
+pub mod hir;
 pub mod resolve;
 pub mod ty;
 pub mod typecheck;

@@ -86,6 +86,7 @@ class Options:
     gc_stress: bool
     gc_move: bool
     threads: int | None
+    accept: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -128,6 +129,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         gc_stress=args.gc_stress,
         gc_move=args.gc_move,
         threads=args.threads,
+        accept=args.accept,
     )
     targets = plan_targets(root)
     total_targets = len(targets)
@@ -227,6 +229,12 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--gc-stress", action="store_true")
     parser.add_argument("--gc-move", action="store_true")
     parser.add_argument("--threads", type=positive_int, metavar="N")
+    parser.add_argument(
+        "--accept",
+        action="store_true",
+        help="accept golden mismatches: overwrite .ast/.hir/.mir/.ir goldens with "
+        "actual dump output and report them as updated (no failure)",
+    )
     return parser.parse_args(argv)
 
 
@@ -597,12 +605,15 @@ def run_parse_fixture(path: Path, exp: Expectation, options: Options) -> None:
     )
     if output.returncode != 0:
         raise command_failure("scoopc dump-ast", path, output)
+    golden_path = path.parent / exp.ast_golden
+    expected = golden_path.read_text() if golden_path.exists() else ""
     compare_text(
-        normalize_newlines((path.parent / exp.ast_golden).read_text()),
+        normalize_newlines(expected),
         normalize_newlines(output.stdout),
-        path.parent / exp.ast_golden,
+        golden_path,
         path,
         "AST snapshot",
+        accept=options.accept,
     )
 
 
@@ -772,12 +783,14 @@ def run_dump_golden(path: Path, command: str, golden_path: Path, options: Option
     )
     if output.returncode != 0:
         raise command_failure(f"scoopc {command}", path, output)
+    expected = golden_path.read_text() if golden_path.exists() else ""
     compare_text(
-        normalize_newlines(golden_path.read_text()),
+        normalize_newlines(expected),
         normalize_newlines(output.stdout),
         golden_path,
         path,
         f"{command} snapshot",
+        accept=options.accept,
     )
 
 
@@ -1435,8 +1448,14 @@ def compare_text(
     label: str,
     *,
     code: str | None = None,
+    accept: bool = False,
 ) -> None:
     if expected == actual:
+        return
+    if accept:
+        # --accept：用实际输出覆盖 golden，记录为已更新（不计为失败）。
+        golden_path.write_text(actual)
+        print(f"accept: updated {golden_path}")
         return
     diff = "".join(
         difflib.unified_diff(

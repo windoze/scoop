@@ -24,7 +24,7 @@ pub(super) fn llvm_layout_binds_pure_direct_entries_without_hir_typestore_fallba
 
             for root in roots {
                 let callable = query
-                    .plain_callable_layout_for_root_text(&root)
+                    .plain_callable_layout_for_root_label(&root)
                     .expect("plain callable layout 应存在");
                 assert_eq!(
                     callable.direct_entry().param_count(),
@@ -38,7 +38,7 @@ pub(super) fn llvm_layout_binds_pure_direct_entries_without_hir_typestore_fallba
                     "plain direct entry 应声明普通 LLVM callable symbol: {root}"
                 );
                 assert!(
-                    query.callable_layout_for_root_text(&root).is_err(),
+                    query.callable_layout_for_root_label(&root).is_err(),
                     "NoOutward plain callable 不应发布 effect-step callable layout: {root}"
                 );
             }
@@ -82,7 +82,7 @@ public fun dependencyValue(): Int {
         |_inputs, result, module| {
             let query = result.expect("cached dep ABI materialization 应成功");
             let layout = query
-                .plain_callable_layout_for_root_text("dep.dependencyValue")
+                .plain_callable_layout_for_root_label("dep.dependencyValue")
                 .expect("cached dep plain callable layout 应可查询");
             assert!(
                 module
@@ -92,7 +92,7 @@ public fun dependencyValue(): Int {
             );
             assert!(
                 query
-                    .plain_callable_layout_for_root_text("app.main")
+                    .plain_callable_layout_for_root_label("app.main")
                     .is_ok(),
                 "primary program callable layout 应保持可查询"
             );

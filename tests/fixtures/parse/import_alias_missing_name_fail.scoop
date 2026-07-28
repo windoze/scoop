@@ -1,6 +1,6 @@
 // EXPECT: fail
-// EXPECT-ERROR: 期望 标识符
-// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR: 语法错误：期望标识符
+// EXPECT-ERROR-CODE: scoop::parse::expected_ident
 // EXPECT-ERROR-AT: 9:1
 
 package fixtures.parse

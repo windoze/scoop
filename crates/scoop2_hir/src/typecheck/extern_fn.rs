@@ -582,38 +582,7 @@ fn type_param_map(d: &FunDecl) -> HashMap<Symbol, TypeParamType> {
     map
 }
 
-/// 类型短名（用于诊断 `found` 字段）。
+/// 类型短名（用于诊断 `found` 字段）。委托给统一的 [`crate::ty::render_type`]。
 fn fmt_type(env: &TypeEnv, id: TypeId) -> String {
-    match env.store.kind(id) {
-        TypeKind::Ref(RefTypeKind::Any) => "Any".into(),
-        TypeKind::Ref(RefTypeKind::String) => "String".into(),
-        TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
-            short_fqn(env.interner.resolve(n.fqn))
-        }
-        TypeKind::Ref(RefTypeKind::Function(_)) => "function".into(),
-        TypeKind::Ref(RefTypeKind::Union(_)) => "union".into(),
-        TypeKind::Nothing => "Nothing".into(),
-        TypeKind::Param(p) => env.interner.resolve(p.name).into(),
-        TypeKind::StarProjection => "*".into(),
-        TypeKind::Value(ValueTypeKind::Unit) => "Unit".into(),
-        TypeKind::Value(ValueTypeKind::Bool) => "Bool".into(),
-        TypeKind::Value(ValueTypeKind::Char) => "Char".into(),
-        TypeKind::Value(ValueTypeKind::Float64) => "Float64".into(),
-        TypeKind::Value(ValueTypeKind::Float32) => "Float32".into(),
-        TypeKind::Value(ValueTypeKind::Int) => "Int".into(),
-        TypeKind::Value(ValueTypeKind::UInt) => "UInt".into(),
-        TypeKind::Value(ValueTypeKind::IntN(n)) => format!("Int{n}"),
-        TypeKind::Value(ValueTypeKind::UIntN(n)) => format!("UInt{n}"),
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            format!("{}?", fmt_type(env, *inner))
-        }
-        TypeKind::Value(ValueTypeKind::Tuple(els)) => {
-            let inner: Vec<String> = els.iter().map(|e| fmt_type(env, *e)).collect();
-            format!("({})", inner.join(", "))
-        }
-    }
-}
-
-fn short_fqn(fqn: &str) -> String {
-    fqn.rsplit('.').next().unwrap_or(fqn).to_string()
+    crate::ty::render_type(&env.store, env.interner, id, false)
 }

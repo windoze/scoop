@@ -1,52 +1,9 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 189..211,
-            path: [
-                Ident {
-                    span: 197..205,
-                },
-                Ident {
-                    span: 206..211,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 213..247,
-                receiver: None,
-                name: Ident {
-                    span: 217..218,
-                },
-                type_params: [],
-                params_span: 218..220,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 221..247,
-                        stmts: [
-                            Stmt {
-                                span: 227..232,
-                                kind: Break {
-                                    break_span: 227..232,
-                                },
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 237..245,
-                                kind: Continue {
-                                    continue_span: 237..245,
-                                },
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..249
+  package:
+    Package 189..211 path=fixtures.parse
+  items:
+    FunDecl 217..247 name=f
+      body:
+        Block 221..247
+          BreakStmt 227..232
+          ContinueStmt 237..245

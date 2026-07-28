@@ -275,7 +275,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         signed: true,
                     }));
                 }
-                let signature = self.published_codegen_callable_signature(callee_fqn)?;
+                let signature =
+                    self.published_codegen_callable_signature_for_root_label(callee_fqn)?;
                 self.try_cg_ty_of_type_id(signature.return_ty)
             }
             mir_source::CallKind::Closure { callee, .. }
@@ -329,7 +330,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             })
                     })
                     .or_else(|| {
-                        self.published_codegen_callable_signature(root_fqn)
+                        self.published_codegen_callable_signature_for_ref(*callee)
                             .and_then(|signature| self.try_cg_ty_of_type_id(signature.return_ty))
                     })
             }

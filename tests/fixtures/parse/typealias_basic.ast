@@ -1,56 +1,10 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 52..74,
-            path: [
-                Ident {
-                    span: 60..68,
-                },
-                Ident {
-                    span: 69..74,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        TypeAlias(
-            TypeAliasDecl {
-                span: 76..98,
-                name: Ident {
-                    span: 86..90,
-                },
-                ty: Path(
-                    TypePath {
-                        span: 93..98,
-                        segments: [
-                            Ident {
-                                span: 93..98,
-                            },
-                        ],
-                        args: [],
-                    },
-                ),
-            },
-        ),
-        TypeAlias(
-            TypeAliasDecl {
-                span: 99..123,
-                name: Ident {
-                    span: 109..116,
-                },
-                ty: Path(
-                    TypePath {
-                        span: 119..123,
-                        segments: [
-                            Ident {
-                                span: 119..123,
-                            },
-                        ],
-                        args: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..125
+  package:
+    Package 52..74 path=fixtures.parse
+  items:
+    TypeAliasDecl 86..98 name=Byte
+      ty:
+        PathType 93..98 path=UInt8
+    TypeAliasDecl 109..123 name=UIntPtr
+      ty:
+        PathType 119..123 path=UInt

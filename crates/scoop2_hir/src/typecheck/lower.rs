@@ -8,7 +8,7 @@
 //! 一致，降级为 `Option(TypeId)`）；用户 nominal（ref/value）；元组 / 函数类型 /
 //! 接收者函数类型 / 可空。effect 行降级暂为 `Pure`（M7 增量补齐）。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use scoop2_base::diag::DiagnosticSink;
 use scoop2_base::{Interner, Span, Symbol};
@@ -32,6 +32,10 @@ pub struct TypeLowering<'a, 'i> {
     subst: HashMap<Symbol, TypeId>,
     /// typealias 展开深度（递归环保险）。
     alias_depth: u32,
+    /// 当前作用域声明了 `ref` bound 的类型参数名集合（用于约束 forward 检查）。
+    param_ref_bounds: HashSet<Symbol>,
+    /// 当前作用域声明了 `value` bound 的类型参数名集合。
+    param_value_bounds: HashSet<Symbol>,
 }
 
 impl<'a, 'i> TypeLowering<'a, 'i> {
@@ -50,6 +54,31 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             diags,
             subst: HashMap::new(),
             alias_depth: 0,
+            param_ref_bounds: HashSet::new(),
+            param_value_bounds: HashSet::new(),
+        }
+    }
+
+    /// 用类型参数的 ref/value bound 集合构造降级器（表达式上下文使用）。
+    pub fn with_bounds(
+        env: &'a mut TypeEnv<'i>,
+        imports: &'a ImportTable,
+        type_params: HashMap<Symbol, TypeParamType>,
+        package_prefix: String,
+        diags: &'a mut DiagnosticSink,
+        param_ref_bounds: HashSet<Symbol>,
+        param_value_bounds: HashSet<Symbol>,
+    ) -> Self {
+        Self {
+            env,
+            imports,
+            type_params,
+            package_prefix,
+            diags,
+            subst: HashMap::new(),
+            alias_depth: 0,
+            param_ref_bounds,
+            param_value_bounds,
         }
     }
 
@@ -281,8 +310,18 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
                 continue;
             };
             let violated = match bound {
-                GenericBound::Ref(_) => !matches!(self.env.store.kind(arg), TypeKind::Ref(_)),
-                GenericBound::Value(_) => !matches!(self.env.store.kind(arg), TypeKind::Value(_)),
+                GenericBound::Ref(_) => match self.env.store.kind(arg) {
+                    TypeKind::Ref(_) => false,
+                    // 类型参数：只有声明了 `ref` bound 才满足 `ref` 约束（forward）。
+                    TypeKind::Param(p) => !self.param_ref_bounds.contains(&p.name),
+                    _ => true,
+                },
+                GenericBound::Value(_) => match self.env.store.kind(arg) {
+                    TypeKind::Value(_) => false,
+                    // 类型参数：只有声明了 `value` bound 才满足 `value` 约束（forward）。
+                    TypeKind::Param(p) => !self.param_value_bounds.contains(&p.name),
+                    _ => true,
+                },
                 GenericBound::Type(t) => {
                     // 实参必须是 bound 类型的子类型。
                     let bound_ty = {
@@ -366,13 +405,20 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
 
     /// 取类型实参里的**第一个类型**（用于 `Option<T>`）；无类型实参返回 `None`。
     fn lower_type_args_one(&mut self, args: &[TypeArg], span: Span) -> Option<TypeId> {
-        for a in args {
-            if let TypeArgKind::Type(t) = &a.kind {
-                return Some(self.lower(t));
-            }
+        let type_args: Vec<&TypeRef> = args
+            .iter()
+            .filter_map(|a| match &a.kind {
+                TypeArgKind::Type(t) => Some(t),
+                _ => None,
+            })
+            .collect();
+        if type_args.len() != 1 {
+            // Option 恰好 1 个类型实参；0 个或多于 1 个均报 arity 不匹配。
+            self.diags
+                .push(diagnostics::type_arity_mismatch(1, type_args.len(), span));
+            return type_args.first().map(|t| self.lower(t));
         }
-        self.diags.push(diagnostics::arity_mismatch(1, 0, span));
-        None
+        Some(self.lower(type_args[0]))
     }
 
     /// 解析类型路径为 nominal FQN（当前包顶层 / import），需命中类型命名空间。

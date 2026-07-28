@@ -343,38 +343,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ))
     }
 
-    pub(in crate::llvm::codegen) fn published_symbol_for_source_root_text(
-        &self,
-        root: &str,
-    ) -> Option<String> {
-        if root == "main" {
-            return Some("main".to_string());
-        }
-        let program = self.active_lir_program()?;
-        program
-            .physical_layout()
-            .callable_symbols
-            .values()
-            .find(|facts| facts.root_fqn == root)
-            .and_then(|facts| {
-                facts.exported_symbol.clone().or_else(|| {
-                    facts
-                        .native
-                        .as_ref()
-                        .map(|native| native.symbol.clone())
-                        .or_else(|| facts.extern_.as_ref().map(|extern_| extern_.symbol.clone()))
-                })
-            })
-            .or_else(|| {
-                program
-                    .physical_layout()
-                    .abi_symbols
-                    .values()
-                    .find(|symbol| symbol.root_fqn.as_deref() == Some(root))
-                    .map(|symbol| symbol.symbol.clone())
-            })
-    }
-
     pub(in crate::llvm::codegen) fn enter_root_callable_identity(
         &mut self,
         callable_id: Option<LirCallableId>,
@@ -463,31 +431,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(StableClosureKey::new(&owner_key, lexical_path))
     }
 
-    pub(in crate::llvm::codegen) fn stable_closure_key_for_lir_source_callable(
+    pub(in crate::llvm::codegen) fn stable_closure_key_for_lir_callable_id(
         &self,
-        callable_fqn: &str,
+        callable_id: LirCallableId,
         _at: crate::span::Span,
     ) -> Result<StableClosureKey, LlvmEmitError> {
-        let (callable_id, _, source_fun) = self.lir_source_callable(callable_fqn).unwrap_or_else(|| {
-            panic!("stable_closure_key_for_lir_source_callable: LIR source contract accepted missing closure callable")
-        });
-        if !source_fun.name.starts_with("$lambda") {
-            panic!("stable_closure_key_for_lir_source_callable: callable is not a closure body")
-        }
         let program =
             self.published_late_lowered_program()
                 .ok_or_else(|| LlvmEmitError::Frontend {
                     message: "LIR closure identity lookup requires a published LIR program"
                         .to_string(),
                 })?;
+        let callable = program.callable_by_id(callable_id).unwrap_or_else(|| {
+            panic!("stable_closure_key_for_lir_callable_id: LIR source contract accepted missing closure callable")
+        });
+        let source_fun = callable.source_callable().unwrap_or_else(|| {
+            panic!("stable_closure_key_for_lir_callable_id: LIR source contract accepted callable without source contract")
+        });
+        if !source_fun.name.starts_with("$lambda") {
+            panic!("stable_closure_key_for_lir_callable_id: callable is not a closure body")
+        }
         let identity = self
-            .expect_active_lir_program("stable_closure_key_for_lir_source_callable")
+            .expect_active_lir_program("stable_closure_key_for_lir_callable_id")
             .physical_layout()
             .closure_identities
             .get(&callable_id)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "LIR closure identity facts 缺少 closure `{callable_fqn}` 的 owner/lexical path"
+                    "LIR closure identity facts 缺少 closure `{}` 的 owner/lexical path",
+                    source_fun.fqn,
                 ),
             })?;
         let owner_key = program

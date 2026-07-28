@@ -1,230 +1,37 @@
-File {
-    file_annotations: [
-        AnnotationUse {
-            span: 154..174,
-            use_site_target: Some(
-                Ident {
-                    span: 155..159,
-                },
-            ),
-            path: [
-                Ident {
-                    span: 160..174,
-                },
-            ],
-        },
-    ],
-    package: Some(
-        PackageDecl {
-            span: 176..198,
-            path: [
-                Ident {
-                    span: 184..192,
-                },
-                Ident {
-                    span: 193..198,
-                },
-            ],
-        },
-    ),
-    imports: [
-        ImportDecl {
-            span: 200..219,
-            path: [
-                Ident {
-                    span: 207..212,
-                },
-                Ident {
-                    span: 213..217,
-                },
-            ],
-            has_star: true,
-            alias: None,
-        },
-    ],
-    items: [
-        Type(
-            TypeDecl {
-                span: 221..266,
-                modifiers: [
-                    Annotation,
-                ],
-                kind: Class,
-                name: Ident {
-                    span: 238..244,
-                },
-                type_params: [],
-                primary_ctor: Some(
-                    PrimaryCtorDecl {
-                        params_span: 244..266,
-                        params: [
-                            Param {
-                                name: Ident {
-                                    span: 249..252,
-                                },
-                                kind: Some(
-                                    Val,
-                                ),
-                                ty: Some(
-                                    Path(
-                                        TypePath {
-                                            span: 254..260,
-                                            segments: [
-                                                Ident {
-                                                    span: 254..260,
-                                                },
-                                            ],
-                                            args: [],
-                                        },
-                                    ),
-                                ),
-                                default_value: Some(
-                                    Expr {
-                                        span: 263..265,
-                                        kind: StringLit,
-                                    },
-                                ),
-                            },
-                        ],
-                    },
-                ),
-                body: None,
-            },
-        ),
-        Type(
-            TypeDecl {
-                span: 267..293,
-                modifiers: [
-                    Annotation,
-                ],
-                kind: Class,
-                name: Ident {
-                    span: 284..293,
-                },
-                type_params: [],
-                body: None,
-            },
-        ),
-        Type(
-            TypeDecl {
-                span: 295..426,
-                kind: Class,
-                name: Ident {
-                    span: 301..307,
-                },
-                type_params: [],
-                primary_ctor: Some(
-                    PrimaryCtorDecl {
-                        params_span: 307..426,
-                        params: [
-                            Param {
-                                annotations: [
-                                    AnnotationUse {
-                                        span: 313..339,
-                                        use_site_target: Some(
-                                            Ident {
-                                                span: 314..322,
-                                            },
-                                        ),
-                                        path: [
-                                            Ident {
-                                                span: 323..329,
-                                            },
-                                        ],
-                                        args: [
-                                            AnnotationArg {
-                                                span: 330..338,
-                                                value: Expr {
-                                                    span: 330..338,
-                                                    kind: StringLit,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                    AnnotationUse {
-                                        span: 340..369,
-                                        use_site_target: Some(
-                                            Ident {
-                                                span: 341..346,
-                                            },
-                                        ),
-                                        path: [
-                                            Ident {
-                                                span: 347..353,
-                                            },
-                                        ],
-                                        args: [
-                                            AnnotationArg {
-                                                span: 354..368,
-                                                value: Expr {
-                                                    span: 354..368,
-                                                    kind: StringLit,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                ],
-                                name: Ident {
-                                    span: 374..379,
-                                },
-                                kind: Some(
-                                    Val,
-                                ),
-                                ty: Some(
-                                    Path(
-                                        TypePath {
-                                            span: 381..387,
-                                            segments: [
-                                                Ident {
-                                                    span: 381..387,
-                                                },
-                                            ],
-                                            args: [],
-                                        },
-                                    ),
-                                ),
-                            },
-                            Param {
-                                annotations: [
-                                    AnnotationUse {
-                                        span: 393..409,
-                                        use_site_target: Some(
-                                            Ident {
-                                                span: 394..399,
-                                            },
-                                        ),
-                                        path: [
-                                            Ident {
-                                                span: 400..409,
-                                            },
-                                        ],
-                                    },
-                                ],
-                                name: Ident {
-                                    span: 414..418,
-                                },
-                                kind: Some(
-                                    Val,
-                                ),
-                                ty: Some(
-                                    Path(
-                                        TypePath {
-                                            span: 420..423,
-                                            segments: [
-                                                Ident {
-                                                    span: 420..423,
-                                                },
-                                            ],
-                                            args: [],
-                                        },
-                                    ),
-                                ),
-                            },
-                        ],
-                    },
-                ),
-                body: None,
-            },
-        ),
-    ],
-}
+File 0..428
+  file_annotations:
+    Annotation 154..174 path=AllowIntrinsic target=file
+  package:
+    Package 176..198 path=fixtures.parse
+  imports:
+    Import 200..219 path=scoop.core wildcard
+  items:
+    ClassDecl 238..266 name=Rename mods=[annotation]
+      primary_ctor:
+        PrimaryCtor 244..266
+          CtorParam 245..265 name=key property=val
+            ty:
+              PathType 254..260 path=String
+            default:
+              StringLit 263..265 value=""
+    ClassDecl 284..293 name=Validated mods=[annotation]
+    ClassDecl 301..426 name=Config
+      primary_ctor:
+        PrimaryCtor 307..426
+          CtorParam 313..387 name=dbUrl property=val
+            annotations:
+              Annotation 313..339 path=Rename target=property
+                args:
+                  AnnotationArg 330..338
+                    StringLit 330..338 value="db_url"
+              Annotation 340..369 path=Rename target=field
+                args:
+                  AnnotationArg 354..368
+                    StringLit 354..368 value="db_url_field"
+            ty:
+              PathType 381..387 path=String
+          CtorParam 393..423 name=port property=val
+            annotations:
+              Annotation 393..409 path=Validated target=param
+            ty:
+              PathType 420..423 path=Int

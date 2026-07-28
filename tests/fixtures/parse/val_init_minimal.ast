@@ -1,53 +1,10 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 153..175,
-            path: [
-                Ident {
-                    span: 161..169,
-                },
-                Ident {
-                    span: 170..175,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 177..186,
-                kind: Val,
-                name: Ident {
-                    span: 181..182,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 185..186,
-                        kind: IntLit,
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 188..201,
-                receiver: None,
-                name: Ident {
-                    span: 192..196,
-                },
-                type_params: [],
-                params_span: 196..198,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 199..201,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..203
+  package:
+    Package 153..175 path=fixtures.parse
+  items:
+    ValDecl 181..186 kind=val name=x
+      init:
+        IntLit 185..186 value=1
+    FunDecl 192..201 name=main
+      body:
+        Block 199..201

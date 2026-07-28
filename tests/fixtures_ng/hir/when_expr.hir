@@ -1,0 +1,41 @@
+File 0..353
+  package:
+    Package 183..206 path=fixtures_ng.hir
+  items:
+    FunDecl 212..352 name=classify
+      params:
+        Param 221..227 name=n
+          ty:
+            PathType 224..227 path=Int
+      return_ty:
+        PathType 230..233 path=Int
+      body:
+        Block 234..352
+          ExprStmt 240..337
+            When 240..337 ty=()
+              subject:
+                Ident 246..247 name=n ty=Int
+              arms:
+                WhenArm 259..276
+                  pat:
+                    IntPat 259..260 value=0
+                  body:
+                    Block 264..276
+                      ReturnStmt 266..274
+                        IntLit 273..274 value=0 ty=Int
+                WhenArm 285..302
+                  pat:
+                    IntPat 285..286 value=1
+                  body:
+                    Block 290..302
+                      ReturnStmt 292..300
+                        IntLit 299..300 value=1 ty=Int
+                WhenArm 311..331
+                  pat:
+                    ElsePat 311..315
+                  body:
+                    Block 319..331
+                      ReturnStmt 321..329
+                        IntLit 328..329 value=2 ty=Int
+          ReturnStmt 342..350
+            IntLit 349..350 value=3 ty=Int

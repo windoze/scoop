@@ -1,112 +1,22 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 211..233,
-            path: [
-                Ident {
-                    span: 219..227,
-                },
-                Ident {
-                    span: 228..233,
-                },
-            ],
-        },
-    ),
-    imports: [
-        ImportDecl {
-            span: 235..254,
-            path: [
-                Ident {
-                    span: 242..247,
-                },
-                Ident {
-                    span: 248..252,
-                },
-            ],
-            has_star: true,
-            alias: None,
-        },
-    ],
-    items: [
-        Type(
-            TypeDecl {
-                span: 256..303,
-                kind: Enum,
-                name: Ident {
-                    span: 261..266,
-                },
-                type_params: [],
-                supertypes: [
-                    SuperType {
-                        span: 268..271,
-                        ty: Path(
-                            TypePath {
-                                span: 268..271,
-                                segments: [
-                                    Ident {
-                                        span: 268..271,
-                                    },
-                                ],
-                                args: [],
-                            },
-                        ),
-                    },
-                ],
-                body: Some(
-                    TypeBody {
-                        span: 272..303,
-                        members: [
-                            EnumVariant(
-                                EnumVariantDecl {
-                                    span: 278..285,
-                                    name: Ident {
-                                        span: 278..281,
-                                    },
-                                    discriminant: Some(
-                                        Expr {
-                                            span: 284..285,
-                                            kind: IntLit,
-                                        },
-                                    ),
-                                },
-                            ),
-                            EnumVariant(
-                                EnumVariantDecl {
-                                    span: 291..300,
-                                    name: Ident {
-                                        span: 291..296,
-                                    },
-                                    discriminant: Some(
-                                        Expr {
-                                            span: 299..300,
-                                            kind: IntLit,
-                                        },
-                                    ),
-                                },
-                            ),
-                        ],
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 305..318,
-                receiver: None,
-                name: Ident {
-                    span: 309..313,
-                },
-                type_params: [],
-                params_span: 313..315,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 316..318,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..320
+  package:
+    Package 211..233 path=fixtures.parse
+  imports:
+    Import 235..254 path=scoop.core wildcard
+  items:
+    EnumDecl 261..303 name=Color
+      supertypes:
+        SuperType 268..271
+          ty:
+            PathType 268..271 path=Int
+      body:
+        TypeBody 272..303
+          EnumVariant 278..285 name=Red
+            discriminant:
+              IntLit 284..285 value=0
+          EnumVariant 291..300 name=Green
+            discriminant:
+              IntLit 299..300 value=1
+    FunDecl 309..318 name=main
+      body:
+        Block 316..318

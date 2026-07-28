@@ -1,139 +1,24 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 142..164,
-            path: [
-                Ident {
-                    span: 150..158,
-                },
-                Ident {
-                    span: 159..164,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 166..234,
-                receiver: None,
-                name: Ident {
-                    span: 170..171,
-                },
-                type_params: [],
-                params_span: 171..173,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 174..234,
-                        stmts: [
-                            Stmt {
-                                span: 180..198,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 180..198,
-                                        kind: Val,
-                                        pattern: Pattern {
-                                            span: 184..191,
-                                            kind: Tuple(
-                                                [
-                                                    Pattern {
-                                                        span: 185..186,
-                                                        kind: Bind(
-                                                            Ident {
-                                                                span: 185..186,
-                                                            },
-                                                        ),
-                                                    },
-                                                    Pattern {
-                                                        span: 188..190,
-                                                        kind: Rest,
-                                                    },
-                                                ],
-                                            ),
-                                        },
-                                        ty: None,
-                                        init: Some(
-                                            Expr {
-                                                span: 194..198,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 194..198,
-                                                    },
-                                                ),
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 203..226,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 203..226,
-                                        kind: Val,
-                                        pattern: Pattern {
-                                            span: 207..222,
-                                            kind: Struct {
-                                                path: TypePath {
-                                                    span: 207..212,
-                                                    segments: [
-                                                        Ident {
-                                                            span: 207..212,
-                                                        },
-                                                    ],
-                                                    args: [],
-                                                },
-                                                fields: [
-                                                    StructPatternField {
-                                                        span: 215..216,
-                                                        name: Ident {
-                                                            span: 215..216,
-                                                        },
-                                                        value: None,
-                                                    },
-                                                ],
-                                                rest: Some(
-                                                    218..220,
-                                                ),
-                                            },
-                                        },
-                                        ty: None,
-                                        init: Some(
-                                            Expr {
-                                                span: 225..226,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 225..226,
-                                                    },
-                                                ),
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 231..232,
-                                kind: Expr(
-                                    Expr {
-                                        span: 231..232,
-                                        kind: Ident(
-                                            Ident {
-                                                span: 231..232,
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..236
+  package:
+    Package 142..164 path=fixtures.parse
+  items:
+    FunDecl 170..234 name=f
+      body:
+        Block 174..234
+          LocalValStmt 184..198
+            ValDecl 184..198 kind=val
+              pattern:
+                TuplePat 184..191
+                  BindPat 185..186 name=a
+                  RestPat 188..190
+              init:
+                Ident 194..198 name=pair
+          LocalValStmt 207..226
+            ValDecl 207..226 kind=val
+              pattern:
+                StructPat 207..222 path=Point rest
+                  StructPatField 215..216 name=x shorthand
+              init:
+                Ident 225..226 name=p
+          ExprStmt 231..232
+            Ident 231..232 name=a

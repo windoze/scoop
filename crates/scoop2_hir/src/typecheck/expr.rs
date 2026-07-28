@@ -30,6 +30,175 @@ use super::diagnostics;
 use super::env::{Signature, TypeEnv};
 use super::lower::TypeLowering;
 
+/// variant pattern 引用（path + 可选 args），用于 enum 穷尽性按 variant 分组。
+struct VariantPatRef<'p> {
+    path: &'p crate::syntax::ast::TypePath,
+    args: &'p Option<Vec<ast::Pattern>>,
+}
+
+/// handler arm 的 op 是否是 `scoop.core.Raise.raise`（即 try/catch 脱糖的 catch arm）。
+fn is_raise_raise_op(op: &ast::HandleOp, interner: &scoop2_base::Interner) -> bool {
+    interner.resolve(op.op.symbol) == "raise"
+        && op.effect_path.segments.len() == 3
+        && op
+            .effect_path
+            .segments
+            .iter()
+            .zip(["scoop", "core", "Raise"])
+            .all(|(seg, expect)| interner.resolve(seg.symbol) == expect)
+}
+
+/// handler arm 的 effect operation 去重键：`<effect-path>.<op-name><binder-type-sig>`。
+/// 用于检测重复 / 不可达 arm（同一 operation 被多个 arm 覆盖）。
+/// 含 binder 类型签名与 op 类型实参，使 `Pair.ping(p: (String,Int))` 与
+/// `Pair.ping(p: (Int,String))` 视为不同重载（不误报）。
+fn handle_arm_op_key(op: &ast::HandleOp, interner: &scoop2_base::Interner) -> Option<String> {
+    let path: String = op
+        .effect_path
+        .segments
+        .iter()
+        .map(|s| interner.resolve(s.symbol))
+        .collect::<Vec<_>>()
+        .join(".");
+    let op_name = interner.resolve(op.op.symbol);
+    if path.is_empty() {
+        return None;
+    }
+    let mut key = format!("{path}.{op_name}");
+    // effect 路径上的类型实参（`Pair<String, Int>.ping`）。
+    if !op.effect_args.is_empty() {
+        key.push_str("<<");
+        key.push_str(
+            &op.effect_args
+                .iter()
+                .map(|a| type_arg_text(a, interner))
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        key.push_str(">>");
+    }
+    // op 类型实参（`Query.ask<Int>`）。
+    if !op.op_type_args.is_empty() {
+        key.push('<');
+        key.push_str(
+            &op.op_type_args
+                .iter()
+                .map(|a| type_arg_text(a, interner))
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        key.push('>');
+    }
+    // binder 类型签名（`p: (String, Int)`）：把每个带类型的 binder 的类型文本拼入键。
+    if !op.binders.is_empty() {
+        key.push('(');
+        let binders: Vec<String> = op
+            .binders
+            .iter()
+            .map(|b| match &b.ty {
+                Some(t) => format!("{}: {}", interner.resolve(b.name.symbol), type_ref_text(t)),
+                None => interner.resolve(b.name.symbol).to_string(),
+            })
+            .collect();
+        key.push_str(&binders.join(", "));
+        key.push(')');
+    }
+    Some(key)
+}
+
+/// 类型引用的稳定文本（用于去重键；不追求精确，只要同构 TypeRef 产出相同串）。
+/// 用 span 偏移作为段名替身（同一文件内唯一），避免借用 interner。
+fn type_ref_text(t: &ast::TypeRef) -> String {
+    use crate::syntax::ast::TypeRefKind;
+    match &t.kind {
+        TypeRefKind::Path { path, args } => {
+            let mut s: String = path
+                .segments
+                .iter()
+                .map(|seg| format!("seg{}", seg.span.start))
+                .collect::<Vec<_>>()
+                .join(".");
+            if !args.is_empty() {
+                s.push('<');
+                s.push_str(
+                    &args
+                        .iter()
+                        .map(type_arg_text_simple)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                );
+                s.push('>');
+            }
+            s
+        }
+        TypeRefKind::Unit => "()".to_string(),
+        TypeRefKind::Tuple(els) => {
+            let inner: Vec<String> = els.iter().map(type_ref_text).collect();
+            format!("({})", inner.join(", "))
+        }
+        TypeRefKind::Function { params, ret, .. } => {
+            let p: Vec<String> = params.iter().map(type_ref_text).collect();
+            format!("({}) -> {}", p.join(", "), type_ref_text(ret))
+        }
+        TypeRefKind::ReceiverFunction {
+            receiver,
+            params,
+            ret,
+            ..
+        } => {
+            let p: Vec<String> = params.iter().map(type_ref_text).collect();
+            format!(
+                "{}.({}) -> {}",
+                type_ref_text(receiver),
+                p.join(", "),
+                type_ref_text(ret)
+            )
+        }
+        TypeRefKind::Nullable(inner) => format!("{}?", type_ref_text(inner)),
+    }
+}
+
+fn type_arg_text(arg: &ast::TypeArg, _interner: &scoop2_base::Interner) -> String {
+    type_arg_text_simple(arg)
+}
+
+fn type_arg_text_simple(arg: &ast::TypeArg) -> String {
+    use crate::syntax::ast::TypeArgKind;
+    match &arg.kind {
+        TypeArgKind::Type(t) => type_ref_text(t),
+        TypeArgKind::Star => "*".to_string(),
+        TypeArgKind::Effect(_) => "eff".to_string(),
+    }
+}
+
+/// 判断初始化表达式是否为「无歧义字面量」（类型确定、无重载/推断歧义）。
+/// 这类初始化器与声明类型不匹配是真实错误，即便在 lenient 模式下也应报。
+/// 覆盖：标量字面量、元组字面量、数组字面量、`()Unit`、`true/false`、嵌套这些。
+fn init_expr_is_unambiguous_literal(kind: &ast::ExprKind) -> bool {
+    match kind {
+        ast::ExprKind::IntLit(_)
+        | ast::ExprKind::FloatLit(_)
+        | ast::ExprKind::CharLit(_)
+        | ast::ExprKind::StringLit(_)
+        | ast::ExprKind::UnitLit => true,
+        // `true` / `false` 是 Ident（标量字面量）。
+        ast::ExprKind::Ident(_) => true,
+        ast::ExprKind::TupleLit(els) => els
+            .iter()
+            .all(|e| init_expr_is_unambiguous_literal(&e.kind)),
+        ast::ExprKind::ArrayLit(els) => els
+            .iter()
+            .all(|e| init_expr_is_unambiguous_literal(&e.kind)),
+        // `do { expr; }` 的类型确定（block 体无歧义），应参与类型检查。
+        ast::ExprKind::DoBlock(_) | ast::ExprKind::UnsafeBlock(_) | ast::ExprKind::SafeBlock(_) => {
+            true
+        }
+        // 结构体字面量 `Point { x: 1 }` 类型确定（结构体名明确），应参与类型检查。
+        ast::ExprKind::StructLit { .. } => true,
+        _ => false,
+    }
+}
+
 /// 检查一个函数体（M1+）。
 #[allow(clippy::too_many_arguments)]
 pub fn check_function<'a, 'i>(
@@ -43,8 +212,13 @@ pub fn check_function<'a, 'i>(
     diags: &'a mut DiagnosticSink,
     package_prefix: &str,
     type_params: HashMap<Symbol, TypeParamType>,
+    param_ref_bounds: HashSet<Symbol>,
+    param_value_bounds: HashSet<Symbol>,
     this_ty: Option<TypeId>,
     skip_effect_check: bool,
+    expr_types: &'a mut crate::resolve::output::NodeIdTable<TypeId>,
+    is_entry_main: bool,
+    in_nogc: bool,
 ) {
     let mut c = ExprChecker {
         env,
@@ -53,6 +227,8 @@ pub fn check_function<'a, 'i>(
         diags,
         package_prefix: package_prefix.to_string(),
         type_params,
+        param_ref_bounds,
+        param_value_bounds,
         locals: HashMap::new(),
         local_vars: HashMap::new(),
         lambda_depth: 0,
@@ -60,9 +236,11 @@ pub fn check_function<'a, 'i>(
         in_loop: 0u32,
         this_ty,
         in_function_body: true,
+        in_nogc,
         lenient_type_errors: false,
         performed_effects: Vec::new(),
         effect_suspend_depth: 0,
+        expr_types,
     };
     for p in params {
         let ty = match &p.ty {
@@ -73,12 +251,15 @@ pub fn check_function<'a, 'i>(
     }
     let ret = return_ty.map(|t| c.lower_type(t));
     c.return_ty = ret;
+    #[allow(unused_assignments)]
+    let mut body_value_ty = None;
     match body {
         FunBody::Block(b) => {
-            c.walk_block(b);
+            body_value_ty = Some(c.walk_block(b));
         }
         FunBody::Expr(e) => {
             let t = c.walk_expr(e);
+            body_value_ty = Some(t);
             // 块表达式体（`fun f(): T = { ... return x }`）：return 类型由 return 语句检查，
             // 不在此检查块值（块值可能为 Unit 因为最后一条是 return 而非 expr）。
             let is_block_body = matches!(
@@ -100,6 +281,24 @@ pub fn check_function<'a, 'i>(
             }
         }
     }
+    // entry-point main：未显式标注返回类型时，按推断的 body 值类型校验（必须 Unit 或 Int）。
+    if is_entry_main
+        && ret.is_none()
+        && let Some(bvt) = body_value_ty
+        && !c.env.store.is_unit(bvt)
+        && !matches!(
+            c.env.store.kind(bvt),
+            TypeKind::Value(crate::ty::ValueTypeKind::Int)
+        )
+        && !c.env.store.is_nothing(bvt)
+    {
+        let desc = c.describe(bvt);
+        c.diags
+            .push(diagnostics::entry_point_main_invalid_signature(
+                &format!("返回类型为 `{desc}`，必须是 Unit 或 Int"),
+                return_ty.as_ref().map(|t| t.span).unwrap_or_default(),
+            ));
+    }
     // effect 检查：函数体执行的 effect 必须在声明的 effect row 中。
     // private/internal 函数省略 effect row 时跳过（由函数体推断）。
     if !skip_effect_check {
@@ -120,6 +319,7 @@ pub fn check_top_level_val<'a, 'i>(
     resolution: &'a Resolution,
     diags: &'a mut DiagnosticSink,
     package_prefix: &str,
+    expr_types: &'a mut crate::resolve::output::NodeIdTable<TypeId>,
 ) {
     let mut c = ExprChecker {
         env,
@@ -128,6 +328,8 @@ pub fn check_top_level_val<'a, 'i>(
         diags,
         package_prefix: package_prefix.to_string(),
         type_params: HashMap::new(),
+        param_ref_bounds: HashSet::new(),
+        param_value_bounds: HashSet::new(),
         locals: HashMap::new(),
         local_vars: HashMap::new(),
         lambda_depth: 0,
@@ -135,25 +337,46 @@ pub fn check_top_level_val<'a, 'i>(
         in_loop: 0u32,
         this_ty: None,
         in_function_body: false,
+        in_nogc: false,
         lenient_type_errors: true,
         performed_effects: Vec::new(),
         effect_suspend_depth: 0,
+        expr_types,
     };
     let declared = val.ty.as_ref().map(|t| c.lower_type(t));
     let init_ty = val.init.as_ref().map(|e| c.walk_expr(e));
+    // 空数组字面量 `[]` 无显式类型标注时必须报错（无法推断元素类型）。
+    if declared.is_none()
+        && val.init.as_ref().is_some_and(|e| matches!(&e.kind, ExprKind::ArrayLit(els) if els.is_empty()))
+    {
+        c.diags.push(diagnostics::array_lit_type_annotation_required(
+            val.init.as_ref().map(|e| e.span).unwrap_or_default(),
+        ));
+    }
+    // lenient 模式抑制类型级假阳性（重载决议未定等），但**字面量初始化器**类型确定、
+    // 无重载歧义，其与声明类型不匹配是真实错误，必须报（即使 lenient）。
+    let init_is_literal = val
+        .init
+        .as_ref()
+        .is_some_and(|e| init_expr_is_unambiguous_literal(&e.kind));
     if let (Some(d), Some(i)) = (declared, init_ty)
         && !c.env.store.is_unit(d)
         && !c.assignable(i, d)
-        && !c.lenient_type_errors
+        && (!c.lenient_type_errors || init_is_literal)
         && !matches!(
             c.env.store.kind(i),
             TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
         )
+        && !c.is_array_lit_to_mutable_array(val.init.as_ref(), d, i)
+        && !c.is_empty_array_lit_to_array(val.init.as_ref(), d, i)
     {
         c.diags.push(diagnostics::initializer_type_mismatch(
             &c.describe(d),
             &c.describe(i),
-            val.ty.as_ref().map(|t| t.span).unwrap_or_default(),
+            val.init
+                .as_ref()
+                .map(|e| e.span)
+                .unwrap_or_else(|| val.ty.as_ref().map(|t| t.span).unwrap_or_default()),
         ));
     }
     // 顶层 val 初始化器必须为 Pure!：执行了任何 effect 即报错。
@@ -189,6 +412,7 @@ pub(super) fn check_pure_static_init<'a, 'i>(
     this_ty: Option<TypeId>,
     what: String,
     site: PureInitSite<'_>,
+    expr_types: &'a mut crate::resolve::output::NodeIdTable<TypeId>,
 ) {
     let mut c = ExprChecker {
         env,
@@ -197,6 +421,8 @@ pub(super) fn check_pure_static_init<'a, 'i>(
         diags,
         package_prefix: package_prefix.to_string(),
         type_params: HashMap::new(),
+        param_ref_bounds: HashSet::new(),
+        param_value_bounds: HashSet::new(),
         locals: HashMap::new(),
         local_vars: HashMap::new(),
         lambda_depth: 0,
@@ -204,9 +430,11 @@ pub(super) fn check_pure_static_init<'a, 'i>(
         in_loop: 0u32,
         this_ty,
         in_function_body: false,
+        in_nogc: false,
         lenient_type_errors: true,
         performed_effects: Vec::new(),
         effect_suspend_depth: 0,
+        expr_types,
     };
     match site {
         PureInitSite::Block(b) => {
@@ -229,6 +457,10 @@ struct ExprChecker<'a, 'i> {
     diags: &'a mut DiagnosticSink,
     package_prefix: String,
     type_params: HashMap<Symbol, TypeParamType>,
+    /// 类型参数名 → 是否声明了 `ref` bound（ref/value kind bound 检查用）。
+    param_ref_bounds: HashSet<Symbol>,
+    /// 类型参数名 → 是否声明了 `value` bound。
+    param_value_bounds: HashSet<Symbol>,
     /// 局部名 → 类型（参数 + 局部 `val`）。M1 用扁平表（遮蔽语义简化）。
     locals: HashMap<Symbol, TypeId>,
     /// 局部名 → var 声明所在的 lambda 深度（检测 lambda 捕获可变变量）。
@@ -241,6 +473,8 @@ struct ExprChecker<'a, 'i> {
     this_ty: Option<TypeId>,
     /// 当前是否在命名函数体内（非 lambda / 非 init 块）。`return` 只允许在此上下文。
     in_function_body: bool,
+    /// 当前函数是否标注 `@NoGC`（体内禁止调用非 `@NoGC` / native `@Extern(c)` 函数）。
+    in_nogc: bool,
     /// 顶层 val init 检查：lenient 模式，抑制类型级假阳性（arity / type mismatch），
     /// 但保留结构性检查（when 穷尽 / 命名实参形态 / 泛型推断等）。
     lenient_type_errors: bool,
@@ -248,29 +482,28 @@ struct ExprChecker<'a, 'i> {
     performed_effects: Vec<(String, Span)>,
     /// effect 采集挂起深度（> 0 时不在 performed_effects 中记录；lambda / handle 体用）。
     effect_suspend_depth: u32,
+    /// per-NodeId 表达式推断类型写回表（typed-HIR / dump-hir 消费）。
+    /// 调用方提供，`walk_expr` 包装层在每次返回前写入 `expr.id → ty`。
+    expr_types: &'a mut crate::resolve::output::NodeIdTable<TypeId>,
 }
 
 impl<'a, 'i> ExprChecker<'a, 'i> {
     fn lower_type(&mut self, ty: &TypeRef) -> TypeId {
-        let mut lower = TypeLowering::new(
+        let mut lower = TypeLowering::with_bounds(
             self.env,
             self.imports,
             self.type_params.clone(),
             self.package_prefix.clone(),
             self.diags,
+            self.param_ref_bounds.clone(),
+            self.param_value_bounds.clone(),
         );
         lower.lower(ty)
     }
 
     fn describe(&self, id: TypeId) -> String {
-        // M1 简易描述（标量类别；nominal 用 ty#N）。
-        match self.env.store.kind(id) {
-            TypeKind::Value(v) => format!("{v:?}"),
-            TypeKind::Ref(r) => format!("{r:?}"),
-            TypeKind::Nothing => "Nothing".to_string(),
-            TypeKind::Param(p) => format!("{p:?}"),
-            TypeKind::StarProjection => "*".to_string(),
-        }
+        // 委托给统一的类型渲染器（短名；nominal 用末段名）。
+        crate::ty::render_type(&self.env.store, self.env.interner, id, false)
     }
 
     /// 赋值性（M1+）：相等、`Nothing` bottom、nominal 子类型（继承/接口）、
@@ -386,7 +619,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// FQN 子类型 DFS：fqn_a == fqn_b 或 fqn_a 的超类型链包含 fqn_b。
     fn fqn_is_subtype(&self, fqn_a: Symbol, fqn_b: Symbol) -> bool {
-        if fqn_a == fqn_b {
+        if fqn_a == fqn_b || self.fqn_same_simple_name(fqn_a, fqn_b) {
             return true;
         }
         self.env
@@ -396,7 +629,55 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .any(|&sup| self.fqn_is_subtype(sup, fqn_b))
     }
 
+    /// 两个 FQN 是否末段名相同（simple name 匹配）。
+    /// 用于超类型 FQN 解析不精确时的回退匹配（collect 阶段超类型按 package 前缀解析，
+    /// 跨 import 的超类型可能 FQN 不精确但 simple name 一致）。
+    fn fqn_same_simple_name(&self, a: Symbol, b: Symbol) -> bool {
+        let ta = self.env.interner.resolve(a);
+        let tb = self.env.interner.resolve(b);
+        let la = ta.rsplit('.').next();
+        let lb = tb.rsplit('.').next();
+        la.is_some_and(|l| l == lb.unwrap_or("") && !l.is_empty())
+    }
+
     fn check_assignable(&mut self, found: TypeId, expected: TypeId, span: Span) {
+        // 函数值擦除到 Any：必须是闭合 Pure!（open / Pure 或带 effect 的函数不可擦除）。
+        if matches!(
+            self.env.store.kind(expected),
+            TypeKind::Ref(crate::ty::RefTypeKind::Any)
+        ) && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = self.env.store.kind(found)
+            && !(ft.closed && ft.effects.is_pure())
+        {
+            self.diags
+                .push(diagnostics::fn_value_to_any_requires_closed_pure(span));
+            return;
+        }
+        // Continuation answer-type 精确比较：assignable 对同 FQN nominal 不比较类型实参，
+        // 但 Continuation 的 answer type（第二类型实参）必须精确匹配（escape continuation binder
+        // 携带 delimiter answer type，传递给不同 answer 的 Continuation 参数是类型错误）。
+        if let (
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nf)),
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(ne)),
+        ) = (self.env.store.kind(found), self.env.store.kind(expected))
+        {
+            let is_cont = |fqn: scoop2_base::Symbol| {
+                self.env.interner.resolve(fqn).ends_with(".Continuation")
+            };
+            if nf.fqn == ne.fqn && is_cont(nf.fqn) && nf.args.len() >= 2 && ne.args.len() >= 2 {
+                let found_answer = nf.args[1];
+                let expected_answer = ne.args[1];
+                if found_answer != expected_answer
+                    && !self.assignable(found_answer, expected_answer)
+                {
+                    self.diags.push(diagnostics::call_arg_type_mismatch(
+                        &self.describe(expected),
+                        &self.describe(found),
+                        span,
+                    ));
+                    return;
+                }
+            }
+        }
         if !self.assignable(found, expected) {
             self.diags.push(diagnostics::type_mismatch(
                 &self.describe(expected),
@@ -416,6 +697,54 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     // ---- 语句 / 块 ----
 
+    /// 从 `if` 条件提取 smart-cast 收窄信息：返回 `(then_narrow, else_narrow)`。
+    /// `x is T` → then 分支 x 窄化为 T；else 不变。
+    /// `x !is T` → else 分支 x 窄化为 T；then 不变。
+    /// 仅对局部变量绑定（参数 / `val`）生效。
+    #[allow(clippy::type_complexity)]
+    fn extract_narrowing(
+        &mut self,
+        cond: &Expr,
+    ) -> (
+        Option<(scoop2_base::Symbol, TypeId)>,
+        Option<(scoop2_base::Symbol, TypeId)>,
+    ) {
+        use crate::syntax::ast::{ExprKind, TypeCheckOp};
+        match &cond.kind {
+            ExprKind::TypeCheck {
+                expr: inner,
+                op,
+                ty,
+            } => {
+                // 仅当 inner 是局部变量 Ident 时收窄。
+                if let ExprKind::Ident(ident) = &inner.kind
+                    && self.locals.contains_key(&ident.symbol)
+                    && !self.local_vars.contains_key(&ident.symbol)
+                {
+                    let target = self.lower_type(ty);
+                    // 仅当收窄类型是 inner 类型的子类型（或 inner 是 Any）时才有意义；
+                    // 这里保守：只要 inner 当前类型可赋值给收窄目标或收窄目标是 inner 的子类型即收窄。
+                    let cur = self.locals.get(&ident.symbol).copied();
+                    if let Some(cur) = cur {
+                        let cur_is_any = matches!(
+                            self.env.store.kind(cur),
+                            TypeKind::Ref(crate::ty::RefTypeKind::Any)
+                        );
+                        let target_subtype = self.assignable(target, cur);
+                        if cur_is_any || target_subtype {
+                            match op {
+                                TypeCheckOp::Is => return (Some((ident.symbol, target)), None),
+                                TypeCheckOp::NotIs => return (None, Some((ident.symbol, target))),
+                            }
+                        }
+                    }
+                }
+                (None, None)
+            }
+            _ => (None, None),
+        }
+    }
+
     fn walk_block(&mut self, block: &Block) -> TypeId {
         let mut result = self.env.store.unit();
         for s in &block.stmts {
@@ -427,7 +756,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
         }
-        result
+        // 最后一条语句带 `;` → block 值为 Unit（expr 被当作语句，不贡献尾部值）。
+        if block.last_trailing_semi {
+            self.env.store.unit()
+        } else {
+            result
+        }
     }
 
     fn walk_stmt(&mut self, stmt: &Stmt) {
@@ -596,33 +930,94 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         let declared = val.ty.as_ref().map(|t| self.lower_type(t));
         let init_ty = val.init.as_ref().map(|e| self.walk_expr(e));
+        // 空数组字面量 `[]` 无显式类型标注时必须报错（无法推断元素类型）。
+        if declared.is_none()
+            && val.init.as_ref().is_some_and(|e| matches!(&e.kind, ExprKind::ArrayLit(els) if els.is_empty()))
+        {
+            self.diags.push(diagnostics::array_lit_type_annotation_required(
+                val.init.as_ref().map(|e| e.span).unwrap_or(stmt.span),
+            ));
+        }
+        // 函数值擦除到 Any：必须是闭合 Pure!（open / Pure 或带 effect 的函数不可擦除）。
         if let (Some(d), Some(i)) = (declared, init_ty)
-            && !self.assignable(i, d)
+            && matches!(
+                self.env.store.kind(d),
+                TypeKind::Ref(crate::ty::RefTypeKind::Any)
+            )
+            && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = self.env.store.kind(i)
+            && !(ft.closed && ft.effects.is_pure())
+        {
+            self.diags
+                .push(diagnostics::fn_value_to_any_requires_closed_pure(
+                    val.init.as_ref().map(|e| e.span).unwrap_or(stmt.span),
+                ));
+        }
+        if let (Some(d), Some(i)) = (declared, init_ty)
             && !matches!(
                 self.env.store.kind(i),
                 TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
             )
         {
-            // 同 FQN nominal 但类型实参不同（type arg 推断不精确）→ lenient。
-            let same_owner = match (self.env.store.kind(i), self.env.store.kind(d)) {
+            // 显式类型实参的构造调用（`Container<String>()`）与声明类型（`Container<Int>`）
+            // 同 FQN 但类型实参不同时，直接判定冲突（assignable 对同 FQN nominal 不比较类型实参）。
+            let init_has_explicit_type_args = val.init.as_ref().is_some_and(|e| {
+                if let ExprKind::Call { callee, .. } = &e.kind {
+                    matches!(&callee.kind, ExprKind::TypeApply { args, .. } if !args.is_empty())
+                } else {
+                    false
+                }
+            });
+            let same_fqn_diff_args = match (self.env.store.kind(i), self.env.store.kind(d)) {
                 (
                     TypeKind::Ref(crate::ty::RefTypeKind::Nominal(ni)),
                     TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nd)),
-                ) => ni.fqn == nd.fqn,
-                (
+                )
+                | (
                     TypeKind::Value(crate::ty::ValueTypeKind::Nominal(ni)),
                     TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nd)),
-                ) => ni.fqn == nd.fqn,
+                ) => ni.fqn == nd.fqn && ni.args != nd.args,
                 _ => false,
             };
-            if same_owner {
-                return;
+            if init_has_explicit_type_args && same_fqn_diff_args {
+                self.diags.push(diagnostics::initializer_type_mismatch(
+                    &self.describe(d),
+                    &self.describe(i),
+                    stmt.span,
+                ));
+            } else if !self.assignable(i, d)
+                && !self.is_array_lit_to_mutable_array(val.init.as_ref(), d, i)
+                && !self.is_empty_array_lit_to_array(val.init.as_ref(), d, i)
+            {
+                // 同 FQN nominal 但类型实参不同（type arg 推断不精确）→ lenient。
+                // 但若 init 是带显式类型实参的构造调用（`Container<String>()`），类型实参明确、
+                // 非推断，冲突是真实错误，不跳过。
+                let init_has_explicit_type_args2 = val.init.as_ref().is_some_and(|e| {
+                    if let ExprKind::Call { callee, .. } = &e.kind {
+                        matches!(&callee.kind, ExprKind::TypeApply { args, .. } if !args.is_empty())
+                    } else {
+                        false
+                    }
+                });
+                let same_owner = match (self.env.store.kind(i), self.env.store.kind(d)) {
+                    (
+                        TypeKind::Ref(crate::ty::RefTypeKind::Nominal(ni)),
+                        TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nd)),
+                    ) => ni.fqn == nd.fqn,
+                    (
+                        TypeKind::Value(crate::ty::ValueTypeKind::Nominal(ni)),
+                        TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nd)),
+                    ) => ni.fqn == nd.fqn,
+                    _ => false,
+                };
+                if same_owner && !init_has_explicit_type_args2 {
+                    return;
+                }
+                self.diags.push(diagnostics::initializer_type_mismatch(
+                    &self.describe(d),
+                    &self.describe(i),
+                    val.init.as_ref().map(|e| e.span).unwrap_or(stmt.span),
+                ));
             }
-            self.diags.push(diagnostics::initializer_type_mismatch(
-                &self.describe(d),
-                &self.describe(i),
-                stmt.span,
-            ));
         }
         let ty = declared
             .or(init_ty)
@@ -639,6 +1034,59 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.check_val_pattern(p, init_ty.unwrap_or(ty));
             }
         }
+    }
+
+    /// 判断 `Array<T>` 字面量初始化器是否可赋值给 `MutableArray<T>` 声明类型（上下文相关转换）。
+    /// 数组字面量 `[1, 2]` 在声明为 `MutableArray`/`MutableList` 时视为 MutableArray 构造。
+    fn is_array_lit_to_mutable_array(
+        &self,
+        init: Option<&Expr>,
+        declared: TypeId,
+        init_ty: TypeId,
+    ) -> bool {
+        // init 必须是 ArrayLit。
+        let is_array_lit = init.is_some_and(|e| matches!(e.kind, ExprKind::ArrayLit(_)));
+        if !is_array_lit {
+            return false;
+        }
+        // declared 和 init_ty 都必须是 Ref(Nominal)。
+        let dk = self.env.store.kind(declared);
+        let ik = self.env.store.kind(init_ty);
+        let (
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(dn)),
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(in_)),
+        ) = (dk, ik)
+        else {
+            return false;
+        };
+        let d_name = self.env.interner.resolve(dn.fqn);
+        let i_name = self.env.interner.resolve(in_.fqn);
+        // declared 是 MutableArray，init 是 Array。
+        if !(d_name.ends_with(".MutableArray") && i_name.ends_with(".Array")) {
+            return false;
+        }
+        // 元素类型必须匹配（args[0]）。
+        dn.args.len() == 1 && in_.args.len() == 1 && self.assignable(in_.args[0], dn.args[0])
+    }
+
+    /// 判断空数组字面量 `[]`（init_ty = Nothing）是否可赋值给 `Array<T>` 声明类型。
+    fn is_empty_array_lit_to_array(
+        &self,
+        init: Option<&Expr>,
+        declared: TypeId,
+        init_ty: TypeId,
+    ) -> bool {
+        let is_empty_array_lit =
+            init.is_some_and(|e| matches!(&e.kind, ExprKind::ArrayLit(els) if els.is_empty()));
+        if !is_empty_array_lit || !self.env.store.is_nothing(init_ty) {
+            return false;
+        }
+        // declared 必须是 Array<T> / MutableArray<T>。
+        let Some(dn) = nominal_fqn_of(self.env.store.kind(declared)) else {
+            return false;
+        };
+        let d_name = self.env.interner.resolve(dn);
+        d_name.ends_with(".Array") || d_name.ends_with(".MutableArray")
     }
 
     /// 校验 for 循环 iterable：iterator() → (next() → Option<T>)。
@@ -689,6 +1137,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let is_gchandle = nominal_fqn_of(self.env.store.kind(arg_ty))
             .map(|f| self.env.interner.resolve(f).ends_with(".GcHandle"))
             .unwrap_or(false);
+        let is_pinned = nominal_fqn_of(self.env.store.kind(arg_ty))
+            .map(|f| self.env.interner.resolve(f).ends_with(".Pinned"))
+            .unwrap_or(false);
         match method {
             "handleNew" if !is_ref => {
                 self.diags
@@ -701,6 +1152,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             "handleDrop" if !is_gchandle => {
                 self.diags
                     .push(diagnostics::gc_handle_drop_requires_handle(span));
+            }
+            // GC.unpin 的参数必须是 Pinned token（固定令牌）。
+            "unpin" if !is_pinned => {
+                self.diags.push(diagnostics::gc_unpin_requires_ref(span));
+            }
+            // GC.pin 的参数必须是 GC 引用。
+            "pin" if !is_ref => {
+                self.diags.push(diagnostics::gc_pin_requires_ref(span));
             }
             _ => {}
         }
@@ -724,17 +1183,33 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 subst.insert(tp.name, arg);
             }
         }
-        let Some((_, constraints)) = self.env.type_constraints(fqn) else {
+        // 也从显式类型实参推断（`RefBox<U>` 中的 U → explicit_type_args）。
+        // 这是构造器调用的路径——显式类型实参绑定到声明的类型参数。
+        let Some((_tp_names, constraints)) = self.env.type_constraints(fqn) else {
             return;
         };
+        // 若调用是构造器且有显式类型实参，从 tp_names 与 explicit_type_args 推断 subst。
+        // 但 check_generic_call_constraints 的签名不含 explicit_type_args；
+        // 对构造器调用，type args 已通过 ctor_call → check_call_args_with 处理。
+        // 这里仅需处理函数调用的约束检查。
         let constraints: Vec<(Symbol, GenericBound)> = constraints.to_vec();
         for (name, bound) in &constraints {
             let Some(&arg) = subst.get(name) else {
                 continue;
             };
             let violated = match bound {
-                GenericBound::Ref(_) => !matches!(self.env.store.kind(arg), TypeKind::Ref(_)),
-                GenericBound::Value(_) => !matches!(self.env.store.kind(arg), TypeKind::Value(_)),
+                GenericBound::Ref(_) => match self.env.store.kind(arg) {
+                    TypeKind::Ref(_) => false,
+                    // 类型参数：只有声明了 `ref` bound 才满足 `ref` 约束（forward）。
+                    TypeKind::Param(p) => !self.param_has_ref_bound(p.name),
+                    _ => true,
+                },
+                GenericBound::Value(_) => match self.env.store.kind(arg) {
+                    TypeKind::Value(_) => false,
+                    // 类型参数：只有声明了 `value` bound 才满足 `value` 约束（forward）。
+                    TypeKind::Param(p) => !self.param_has_value_bound(p.name),
+                    _ => true,
+                },
                 GenericBound::Type(_) => !self.arg_satisfies_type_bound(arg, bound),
             };
             if violated {
@@ -745,6 +1220,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 return;
             }
         }
+    }
+
+    /// 检查当前函数的 type_params 中，名为 `name` 的类型参数是否声明了 `ref` bound。
+    fn param_has_ref_bound(&self, name: scoop2_base::Symbol) -> bool {
+        self.param_ref_bounds.contains(&name)
+    }
+
+    /// 检查当前函数的 type_params 中，名为 `name` 的类型参数是否声明了 `value` bound。
+    fn param_has_value_bound(&self, name: scoop2_base::Symbol) -> bool {
+        self.param_value_bounds.contains(&name)
     }
 
     /// 实参是否满足一个 Type bound（子类型 / TypeParam lenient）。
@@ -777,7 +1262,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// `when` 缺少的分支（None = 穷尽；Some(missing) = 缺少的 case 描述）。
     fn when_missing_case(&self, subject_ty: TypeId, arms: &[ast::WhenArm]) -> Option<String> {
-        use crate::syntax::ast::{PatternKind, PatternLiteral};
+        use crate::syntax::ast::PatternKind;
         // else / 通配 / 绑定 → 穷尽。
         if arms.iter().any(|a| {
             matches!(
@@ -787,93 +1272,357 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }) {
             return None;
         }
-        // 带守卫的 Literal/Variant 模式不保证覆盖（守卫可能失败）。
-        let unguarded_arms: Vec<&ast::WhenArm> =
-            arms.iter().filter(|a| a.guard.is_none()).collect();
-        // Bool：需 true + false（仅无守卫分支计数）。
-        if matches!(
-            self.env.store.kind(subject_ty),
-            TypeKind::Value(crate::ty::ValueTypeKind::Bool)
-        ) {
-            let mut has_true = false;
-            let mut has_false = false;
-            for arm in &unguarded_arms {
-                if let PatternKind::Literal(PatternLiteral::Bool { value, .. }) = &arm.pat.kind {
-                    if *value {
-                        has_true = true;
-                    } else {
-                        has_false = true;
-                    }
-                }
-            }
-            if !has_true {
-                return Some("true".to_string());
-            }
-            if !has_false {
-                return Some("false".to_string());
-            }
+        // 带守卫的分支不保证覆盖（守卫可能失败），排除后做递归穷尽性检查。
+        let unguarded_pats: Vec<&ast::Pattern> = arms
+            .iter()
+            .filter(|a| a.guard.is_none())
+            .map(|a| &a.pat)
+            .collect();
+        self.missing_pattern(subject_ty, &unguarded_pats)
+    }
+
+    /// 递归穷尽性检查：给定类型与一组覆盖它的（无守卫）模式，返回一个未覆盖的示例
+    /// （`None` 表示已穷尽）。
+    ///
+    /// 覆盖的类型域：Bool（true/false）、Option<T>（None + 穷尽 T 的 Some）、
+    /// Tuple（各位置组合穷尽）、enum（所有 variant，带 payload 的 variant 需穷尽 payload）。
+    /// 其余类型（标量 / 无穷值域 nominal）必须有通配/绑定模式，否则需 `else`。
+    fn missing_pattern(&self, ty: TypeId, pats: &[&ast::Pattern]) -> Option<String> {
+        use crate::syntax::ast::{PatternKind, PatternLiteral};
+        // 通配 / 绑定 / else / or-pattern 中含通配 → 覆盖全部。
+        if pats.iter().any(|p| self.pattern_covers_all(p)) {
             return None;
         }
-        // Option：需 Some + None（仅无守卫分支计数）。
-        if matches!(
-            self.env.store.kind(subject_ty),
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
-        ) {
-            let mut has_some = false;
-            let mut has_none = false;
-            for arm in &unguarded_arms {
-                if let PatternKind::Variant { path, .. } = &arm.pat.kind
-                    && let Some(seg) = path.segments.last()
-                {
-                    let name = self.env.interner.resolve(seg.symbol);
-                    if name == "Some" {
-                        has_some = true;
-                    } else if name == "None" {
-                        has_none = true;
+        match self.env.store.kind(ty) {
+            TypeKind::Value(crate::ty::ValueTypeKind::Bool) => {
+                let mut has_true = false;
+                let mut has_false = false;
+                for p in pats {
+                    if let PatternKind::Literal(PatternLiteral::Bool { value, .. }) = &p.kind {
+                        if *value {
+                            has_true = true;
+                        } else {
+                            has_false = true;
+                        }
                     }
                 }
+                if !has_true {
+                    return Some("true".to_string());
+                }
+                if !has_false {
+                    return Some("false".to_string());
+                }
+                None
             }
-            if !has_some {
-                return Some("Some".to_string());
+            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner_ty)) => {
+                let inner = *inner_ty;
+                let mut has_none = false;
+                let mut some_inner_wild = false;
+                let mut some_inner_pats: Vec<&ast::Pattern> = Vec::new();
+                for p in pats {
+                    if let PatternKind::Variant { path, args } = &p.kind
+                        && let Some(seg) = path.segments.last()
+                    {
+                        let name = self.env.interner.resolve(seg.symbol);
+                        if name == "None" {
+                            has_none = true;
+                        } else if name == "Some" {
+                            match args {
+                                // bare Some 或空括号 Some() → 内层通配（覆盖全部）。
+                                None => some_inner_wild = true,
+                                Some(a) if a.is_empty() => some_inner_wild = true,
+                                Some(a) => {
+                                    if let Some(first) = a.first() {
+                                        if self.pattern_covers_all(first) {
+                                            some_inner_wild = true;
+                                        } else {
+                                            some_inner_pats.push(first);
+                                        }
+                                    } else {
+                                        some_inner_wild = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if !has_none {
+                    return Some("None".to_string());
+                }
+                if !some_inner_wild && some_inner_pats.is_empty() {
+                    return Some("Some(_)".to_string());
+                }
+                if some_inner_wild {
+                    return None;
+                }
+                // Some 的内层需穷尽 inner。
+                self.missing_pattern(inner, &some_inner_pats)
+                    .map(|m| format!("Some({m})"))
             }
-            if !has_none {
-                return Some("None".to_string());
+            TypeKind::Value(crate::ty::ValueTypeKind::Tuple(elem_tys)) => {
+                self.missing_tuple(ty, elem_tys, pats)
             }
-            return None;
-        }
-        // enum：需覆盖所有 variant（仅无守卫分支计数）。
-        let enum_fqn = match self.env.store.kind(subject_ty) {
             TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
-            | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
-            _ => None,
-        };
-        if let Some(fqn) = enum_fqn
-            && let Some(variants) = self.env.enum_variants(fqn)
-        {
-            let covered: HashSet<Symbol> = unguarded_arms
+            | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                // enum：需覆盖所有 variant；带 payload 的 variant 需穷尽其 payload 类型。
+                let fqn = n.fqn;
+                let variants = self.env.enum_variants(fqn)?;
+                // 按 variant 名收集各 arm 的 variant pattern（含 bare 形式）。
+                // 同时记录出现在 or-pattern 中的 variant（展平）。
+                let mut by_variant: HashMap<Symbol, Vec<VariantPatRef<'_>>> = HashMap::new();
+                for p in pats {
+                    for vp in self.variant_patterns_in(p) {
+                        if let Some(seg) = vp.path.segments.last()
+                            && variants.contains(&seg.symbol)
+                        {
+                            by_variant.entry(seg.symbol).or_default().push(vp);
+                        }
+                    }
+                }
+                for v in variants {
+                    let arms_v = by_variant.get(v).map(|x| x.as_slice()).unwrap_or(&[]);
+                    if arms_v.is_empty() {
+                        return Some(self.env.interner.resolve(*v).to_string());
+                    }
+                    // 该 variant 的 payload 需穷尽。payload 类型：若 variant 有 payload
+                    // 字段，按字段类型构造一个 tuple 做组合检查；无 payload 则已覆盖。
+                    if let Some(arity) = self.env.enum_variant_arity(fqn, *v) {
+                        if arity == 0 {
+                            continue;
+                        }
+                        // 收集该 variant 各 arm 的 args（展平为内层 pattern 列表）。
+                        let arg_lists: Vec<&[ast::Pattern]> = arms_v
+                            .iter()
+                            .map(|vp| vp.args.as_deref().unwrap_or(&[]))
+                            .collect();
+                        // variant 被该 arm 覆盖的条件（满足其一）：
+                        //  - args 含 `..` rest（忽略剩余字段，覆盖全部）；
+                        //  - args 数 == arity 且全部为通配/binder。
+                        let any_covering = arg_lists.iter().any(|a| {
+                            let has_rest = a.iter().any(|e| matches!(e.kind, PatternKind::Rest));
+                            if has_rest {
+                                return true;
+                            }
+                            a.len() == arity && a.iter().all(|e| self.pattern_covers_all(e))
+                        });
+                        if !any_covering {
+                            return Some(self.env.interner.resolve(*v).to_string());
+                        }
+                    }
+                }
+                None
+            }
+            _ => {
+                // 其余已知类型（标量 / 无穷值域）→ 需 else/通配。
+                if self.env.store.is_nothing(ty) {
+                    None
+                } else {
+                    Some("else".to_string())
+                }
+            }
+        }
+    }
+
+    /// 元组穷尽性：按「首列分组」递归。对每个位置，所有 arm 在该位置的模式必须组合穷尽。
+    fn missing_tuple(
+        &self,
+        _ty: TypeId,
+        elem_tys: &[TypeId],
+        pats: &[&ast::Pattern],
+    ) -> Option<String> {
+        use crate::syntax::ast::PatternKind;
+        if elem_tys.is_empty() {
+            return None;
+        }
+        let first_ty = elem_tys[0];
+        // 收集首元素模式：对每个 tuple arm 取第 0 个元素（或整个 tuple 是通配 → 覆盖全部）。
+        // 同时记录对应 arm 的「剩余位置」模式（第 1.. 元素），用于递归。
+        // 按首元素的「等价类」分组（Bool true/false、Option Some/None、enum variant、通配）。
+        // 简化但足以覆盖常见组合：把首元素是通配/binder 的 arm 视为覆盖所有首列值，
+        // 并把它的剩余位置贡献给每个等价类。
+        //
+        // 我们对首列类型递归：先判断首列是否被穷尽（用所有 arm 的首元素模式）。
+        let first_pats: Vec<&ast::Pattern> = pats
+            .iter()
+            .filter_map(|p| match &p.kind {
+                PatternKind::Tuple(elems) => elems.first(),
+                // tuple 位置的非 tuple 模式（如通配）→ 贡献通配。
+                _ => None,
+            })
+            .collect();
+        // 首列是否含通配（来自 tuple arm 的第 0 个为通配，或非 tuple 通配 arm）。
+        let first_has_wild = pats.iter().any(|p| match &p.kind {
+            PatternKind::Tuple(elems) => elems.first().is_some_and(|e| self.pattern_covers_all(e)),
+            other => self.pattern_covers_all_pattern(other),
+        });
+        // 若首列未穷尽，直接返回首列缺失示例（带括号）。
+        if !first_has_wild && let Some(m) = self.missing_pattern(first_ty, &first_pats) {
+            return Some(format!("({}, ...)", m));
+        }
+        // 首列穷尽后，检查每个「首列等价类」下的剩余位置是否穷尽。
+        // 把 arm 按「首列是否通配」分两组：通配组对剩余位置贡献通配；具体组按值分组。
+        // 简化：对剩余位置（第 1 个元素）递归——用所有「首列通配」arm 的第 1 元素（视为通配）
+        // 加上所有「首列具体值匹配某等价类」arm 的第 1 元素。
+        // 这里采用更直接的充分条件：若存在首列通配 arm，则剩余位置只需被「所有首列具体 arm
+        // 的并集 + 通配」穷尽。为正确处理 (Option,Bool) 这类，我们对每个首列等价类分别递归。
+        let rest_tys = &elem_tys[1..];
+        if rest_tys.is_empty() {
+            return None;
+        }
+        // 首列等价类（Bool→{true,false}、Option→{None,Some}、enum→variants）。
+        let classes = self.equivalence_classes(first_ty);
+        if classes.is_empty() {
+            // 首列为无穷值域（标量等）。此时首列必须被通配覆盖（first_has_wild），
+            // 且剩余位置必须被「所有 arm 的剩余模式」组合穷尽——因为首列通配意味着
+            // 任意首列值都落到同一组 arm，剩余位置覆盖取决于这些 arm 的剩余。
+            if !first_has_wild {
+                return None;
+            }
+            let rest_pats: Vec<&ast::Pattern> = pats
                 .iter()
-                .filter_map(|a| match &a.pat.kind {
-                    PatternKind::Variant { path, .. } => path.segments.last().map(|s| s.symbol),
+                .filter_map(|p| match &p.kind {
+                    PatternKind::Tuple(elems) => elems.get(1),
                     _ => None,
                 })
                 .collect();
-            for v in variants {
-                if !covered.contains(v) {
-                    return Some(self.env.interner.resolve(*v).to_string());
+            return self
+                .missing_pattern(rest_tys[0], &rest_pats)
+                .map(|m| format!("(_, {m})"));
+        }
+        // 对每个首列等价类，收集「首列匹配该类」的 arm 的剩余模式；同时记录是否有
+        // 「首列通配」arm（其剩余位置贡献通配，即该类剩余位置全覆盖）。
+        for class in &classes {
+            let mut rest_pats: Vec<&ast::Pattern> = Vec::new();
+            let mut rest_wild = false;
+            for p in pats {
+                match &p.kind {
+                    PatternKind::Tuple(elems) => {
+                        let first = elems.first();
+                        let rest: Vec<&ast::Pattern> = elems.iter().skip(1).collect();
+                        if let Some(fp) = first {
+                            if self.pattern_covers_all(fp) {
+                                // 首列通配 → 剩余贡献通配。
+                                rest_wild = true;
+                            } else if self.first_pattern_matches_class(fp, class) {
+                                rest_pats.extend(rest.iter().copied());
+                            }
+                        }
+                    }
+                    other => {
+                        if self.pattern_covers_all_pattern(other) {
+                            rest_wild = true;
+                        }
+                    }
                 }
             }
-            return None;
-        }
-        // 其他已知类型（标量 / nominal）→ 无穷值域，需 else。
-        if !self.env.store.is_nothing(subject_ty) {
-            return Some("else".to_string());
+            if rest_wild {
+                continue;
+            }
+            if let Some(m) = self.missing_pattern(rest_tys[0], &rest_pats) {
+                return Some(format!("({}, {})", class, m));
+            }
         }
         None
     }
 
+    /// 该 pattern 是否覆盖其位置的全部值（通配 / 绑定 / else；or-pattern 含通配分支）。
+    fn pattern_covers_all(&self, p: &ast::Pattern) -> bool {
+        self.pattern_covers_all_pattern(&p.kind)
+    }
+
+    /// pattern（按 kind）是否覆盖全部值：通配 / 绑定 / else，或 or-pattern 任一分支覆盖全部。
+    fn pattern_covers_all_pattern(&self, kind: &ast::PatternKind) -> bool {
+        use crate::syntax::ast::PatternKind;
+        match kind {
+            PatternKind::Wildcard | PatternKind::Bind(_) | PatternKind::Else => true,
+            PatternKind::Or(alts) => alts
+                .iter()
+                .any(|a| self.pattern_covers_all_pattern(&a.kind)),
+            _ => false,
+        }
+    }
+
+    /// 从一个 pattern（可能是 or-pattern）中提取所有 variant pattern 引用。
+    fn variant_patterns_in<'p>(&self, p: &'p ast::Pattern) -> Vec<VariantPatRef<'p>> {
+        use crate::syntax::ast::PatternKind;
+        let mut out = Vec::new();
+        match &p.kind {
+            PatternKind::Or(alts) => {
+                for a in alts {
+                    self.collect_variant_refs(a, &mut out);
+                }
+            }
+            _ => self.collect_variant_refs(p, &mut out),
+        }
+        out
+    }
+
+    fn collect_variant_refs<'p>(&self, p: &'p ast::Pattern, out: &mut Vec<VariantPatRef<'p>>) {
+        use crate::syntax::ast::PatternKind;
+        if let PatternKind::Variant { path, args } = &p.kind {
+            out.push(VariantPatRef { path, args });
+        }
+    }
+
+    /// 首列等价类（用于 tuple 组合穷尽）：Bool→["true","false"]、Option→["None","Some(_)"]、
+    /// enum→各 variant 名。无穷值域返回空。
+    fn equivalence_classes(&self, ty: TypeId) -> Vec<String> {
+        use crate::syntax::ast::PatternKind;
+        let _ = PatternKind::Wildcard; // 抑制未用 import 警告
+        match self.env.store.kind(ty) {
+            TypeKind::Value(crate::ty::ValueTypeKind::Bool) => {
+                vec!["true".to_string(), "false".to_string()]
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Option(_)) => {
+                vec!["None".to_string(), "Some(_)".to_string()]
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+            | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => self
+                .env
+                .enum_variants(n.fqn)
+                .map(|vs| {
+                    vs.iter()
+                        .map(|v| self.env.interner.resolve(*v).to_string())
+                        .collect()
+                })
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// 首列 pattern 是否匹配某等价类（字符串描述）。
+    fn first_pattern_matches_class(&self, p: &ast::Pattern, class: &str) -> bool {
+        use crate::syntax::ast::{PatternKind, PatternLiteral};
+        match &p.kind {
+            PatternKind::Literal(PatternLiteral::Bool { value, .. }) => {
+                class == if *value { "true" } else { "false" }
+            }
+            PatternKind::Variant { path, .. } => path
+                .segments
+                .last()
+                .map(|s| {
+                    let name = self.env.interner.resolve(s.symbol);
+                    name == class
+                        || (name == "Some" && class == "Some(_)")
+                        || (name == "None" && class == "None")
+                })
+                .unwrap_or(false),
+            _ => false,
+        }
+    }
+
     // ---- 表达式 ----
 
+    /// 表达式入口：调用 [`walk_expr_inner`] 完成推断，并把结果 `expr.id → ty`
+    /// 写回 [`expr_types`](ExprChecker::expr_types) 侧表，供 typed-HIR / dump-hir 消费。
+    /// 所有表达式类型记录都经此单一漏斗，保证不漏节点。
     fn walk_expr(&mut self, expr: &Expr) -> TypeId {
+        let ty = self.walk_expr_inner(expr);
+        self.expr_types.set(expr.id, ty);
+        ty
+    }
+
+    fn walk_expr_inner(&mut self, expr: &Expr) -> TypeId {
         match &expr.kind {
             ExprKind::Ident(ident) => {
                 let name = self.env.interner.resolve(ident.symbol);
@@ -885,6 +1634,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         return t;
                     }
                     return self.unsupported("`this` 在非成员上下文", expr.span);
+                }
+                // 隐式 `it` 参数（无参 lambda 内的裸标识符）。
+                if name == "it"
+                    && let Some(it_sym) = self.env.interner.get("it")
+                    && let Some(&t) = self.locals.get(&it_sym)
+                {
+                    return t;
                 }
                 if let Some(&t) = self.locals.get(&ident.symbol) {
                     // 检测 lambda 捕获可变变量。
@@ -963,7 +1719,25 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 .or_else(|| scalar_fqn(self.env.store.kind(lt), self.env.interner))
                                 .is_some_and(|f| self.env.member_signatures(f, m).is_some());
                             if has_method {
-                                return self.method_call_return_type(lt, m, &[rt], &[], expr.span);
+                                // 运算符位置调用（`a + b`）要求方法声明了 `operator` modifier。
+                                if let Some(f) =
+                                    nominal_fqn_of(self.env.store.kind(lt)).or_else(|| {
+                                        scalar_fqn(self.env.store.kind(lt), self.env.interner)
+                                    })
+                                    && let Some(sigs) = self.env.member_signatures(f, m)
+                                    && sigs.iter().all(|s| {
+                                        !s.modifiers
+                                            .contains(crate::syntax::ast::ModifierKind::Operator)
+                                    })
+                                {
+                                    let sym = binop_symbol(*op);
+                                    let start = lhs.span.end + 1;
+                                    self.diags.push(diagnostics::operator_modifier_required(
+                                        sym,
+                                        Span::new(start, start + sym.len()),
+                                    ));
+                                }
+                                return self.method_call_return_type(lt, m, &[rt], &[], expr.span, expr.span);
                             }
                             // 接收者是已知 nominal 但缺运算符方法 → 报错。
                             if !self.env.store.is_nothing(lt)
@@ -1009,7 +1783,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 .or_else(|| scalar_fqn(self.env.store.kind(t), self.env.interner))
                                 .is_some_and(|f| self.env.member_signatures(f, m).is_some());
                             if has_method {
-                                return self.method_call_return_type(t, m, &[], &[], expr.span);
+                                return self.method_call_return_type(t, m, &[], &[], expr.span, expr.span);
                             }
                             if !self.env.store.is_nothing(t)
                                 && !matches!(self.env.store.kind(t), TypeKind::Param(_))
@@ -1044,10 +1818,32 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         cond.span,
                     ));
                 }
+                // smart-cast：从条件提取 `x is T` / `x !is T` 的收窄信息。
+                let (then_narrow, else_narrow) = self.extract_narrowing(cond);
+                // then 分支：应用 then_narrow（x → T）。
+                let saved_then = then_narrow.and_then(|(sym, ty)| {
+                    self.locals.get(&sym).copied().map(|prev| {
+                        self.locals.insert(sym, ty);
+                        (sym, prev)
+                    })
+                });
                 let tt = self.walk_expr(then_branch);
+                if let Some((sym, prev)) = saved_then {
+                    self.locals.insert(sym, prev);
+                }
                 match else_branch {
                     Some(e) => {
+                        // else 分支：应用 else_narrow（`x !is T` 时 x → T）。
+                        let saved_else = else_narrow.and_then(|(sym, ty)| {
+                            self.locals.get(&sym).copied().map(|prev| {
+                                self.locals.insert(sym, ty);
+                                (sym, prev)
+                            })
+                        });
                         let et = self.walk_expr(e);
+                        if let Some((sym, prev)) = saved_else {
+                            self.locals.insert(sym, prev);
+                        }
                         if self.assignable(et, tt) {
                             tt
                         } else if self.assignable(tt, et) {
@@ -1178,14 +1974,93 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 finally,
             } => {
                 // handle 体 + arm 体内的 effect 被 handle 捕获，不计入外层。
-                self.effect_suspend_depth += 1;
+                // 但需记录 handle 体执行的 effect（用于 escape continuation 的 effect row），
+                // 故不挂起记录，遍历后截断。
+                let body_eff_start = self.performed_effects.len();
                 let body_ty = self.walk_block(body);
+                // handle 体执行的 effect（用于 escape continuation 的 resumed-step effect row）。
+                let body_effects: Vec<String> = self.performed_effects[body_eff_start..]
+                    .iter()
+                    .map(|(e, _)| e.clone())
+                    .collect();
+                // 清除 handle 体记录的 effect（不计入外层）。
+                self.performed_effects.truncate(body_eff_start);
+                // 为每个 arm 的 escape continuation binder 绑定正确的 Continuation 类型。
+                // Continuation<Resume, Answer, eff Row>：
+                //   Resume = effect operation 的返回类型；Answer = body_ty；
+                //   Row = handle 体执行的 effect（resumed-step effect row）。
                 for arm in arms {
-                    self.walk_expr(&arm.body);
+                    if let Some(k_ident) = &arm.escape_continuation {
+                        let resume_ty = self
+                            .effect_op_resume_type(&arm.op)
+                            .unwrap_or_else(|| self.env.store.nothing());
+                        let cont_ty = self.build_continuation_type_with_effects(
+                            resume_ty,
+                            body_ty,
+                            &body_effects,
+                        );
+                        self.locals.insert(k_ident.symbol, cont_ty);
+                    }
                 }
-                self.effect_suspend_depth -= 1;
+                // arm 体 + finally 的 effect 被 handle 捕获（不计入外层）。
+                self.effect_suspend_depth += 1;
+                let arm_tys: Vec<TypeId> = arms.iter().map(|a| self.walk_expr(&a.body)).collect();
                 if let Some(f) = finally {
                     self.walk_block(f);
+                }
+                self.effect_suspend_depth -= 1;
+                // handler arm 一致性检查：
+                // 1. 重复 arm（同一 effect operation 已被前面 arm 覆盖）→ 不可达。
+                let mut seen_ops: std::collections::HashSet<String> =
+                    std::collections::HashSet::new();
+                for arm in arms {
+                    let key = handle_arm_op_key(&arm.op, self.env.interner);
+                    if let Some(k) = key
+                        && !seen_ops.insert(k)
+                    {
+                        self.diags
+                            .push(diagnostics::handle_arm_unreachable(arm.arrow_span));
+                    }
+                }
+                // 1b. catch arm（Raise.raise 的 non-resuming arm，binder 带类型）子类型覆盖：
+                //     若某 catch 的 binder 类型是前面任一 catch binder 类型的子类型，则该 catch 不可达
+                //     （更宽的类型写在前面会吞掉后续更窄分支）。
+                let mut prior_catch_types: Vec<TypeId> = Vec::new();
+                for arm in arms {
+                    if arm.escape_continuation.is_none()
+                        && is_raise_raise_op(&arm.op, self.env.interner)
+                        && let Some(binder) = arm.op.binders.first()
+                        && let Some(ty_ref) = &binder.ty
+                    {
+                        let bt = self.lower_type(ty_ref);
+                        // 若 bt 是前面任一 catch 类型的子类型 → 不可达。
+                        let dominated = prior_catch_types
+                            .iter()
+                            .any(|&prev| self.assignable(bt, prev));
+                        if dominated {
+                            self.diags
+                                .push(diagnostics::handle_arm_unreachable(arm.span));
+                        }
+                        prior_catch_types.push(bt);
+                    }
+                }
+                // 2. arm 返回类型与 handle 结果类型（body_ty）一致（non-resuming / escape arm）。
+                //    resuming arm（`, k ->` 且体调用 k.resume）的返回类型即 handle 结果类型，
+                //    不单独检查；non-resuming arm 的返回类型必须可赋值给 body_ty。
+                //    body_ty 为 Nothing（未解析）时跳过，避免假阳性。
+                for (arm, &arm_ty) in arms.iter().zip(arm_tys.iter()) {
+                    if arm.escape_continuation.is_none()
+                        && !self.env.store.is_nothing(arm_ty)
+                        && !self.env.store.is_nothing(body_ty)
+                        && !self.assignable(arm_ty, body_ty)
+                    {
+                        self.diags
+                            .push(diagnostics::handle_arm_return_type_mismatch(
+                                &self.describe(body_ty),
+                                &self.describe(arm_ty),
+                                arm.body.span,
+                            ));
+                    }
                 }
                 body_ty
             }
@@ -1196,7 +2071,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let Some(get_sym) = self.env.interner.get("get") else {
                     return self.unsupported("下标访问（operator get 未注册）", expr.span);
                 };
-                self.method_call_return_type(rt, get_sym, &idx_types, &[], expr.span)
+                self.method_call_return_type(rt, get_sym, &idx_types, &[], expr.span, expr.span)
             }
             ExprKind::InfixCall {
                 receiver,
@@ -1205,13 +2080,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             } => {
                 let rt = self.walk_expr(receiver);
                 let at = self.walk_expr(arg);
-                self.method_call_return_type(rt, name.symbol, &[at], &[], expr.span)
+                self.method_call_return_type(rt, name.symbol, &[at], &[], expr.span, name.span)
             }
             ExprKind::ClassLit { .. } => self.env.store.string(),
             ExprKind::ArrayLit(els) => {
                 if els.is_empty() {
-                    self.diags
-                        .push(diagnostics::array_lit_type_annotation_required(expr.span));
+                    // 空数组字面量 `[]`：返回 Nothing（由调用方 check_assignable 判定）。
                     return self.env.store.nothing();
                 }
                 let elem_ty = self.walk_expr(&els[0]);
@@ -1294,11 +2168,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     // ---- 调用（M2 单候选 + M3 多候选重载解析） ----
 
     fn type_call(&mut self, callee: &Expr, args: &[CallArg], span: Span) -> TypeId {
-        // Unwrap explicit type args `f<T>(x)` / `obj.m<T>(x)`。
-        let callee = match &callee.kind {
-            ExprKind::TypeApply { callee: inner, .. } => inner,
-            _ => callee,
-        };
+        // Unwrap explicit type args `f<T>(x)` / `obj.m<T>(x)`，保留类型实参供构造器调用。
+        let (callee, explicit_type_args): (&Expr, &[crate::syntax::ast::TypeArg]) =
+            match &callee.kind {
+                ExprKind::TypeApply {
+                    callee: inner,
+                    args,
+                } => (inner, args),
+                _ => (callee, &[]),
+            };
         // spread 实参 `*expr` 类型校验：必须是 Array / tuple（MutableArray 等需 toArray() 桥接）。
         for a in args {
             if a.is_spread {
@@ -1364,9 +2242,23 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return self.check_call_args(f.params, f.return_ty, args, span);
         }
         // 2. 顶层函数调用（resolve 解析到 TopLevelFun）。
-        if let ExprKind::Ident(_) = &callee.kind {
+        if let ExprKind::Ident(ident) = &callee.kind {
             let resolved = self.resolution.value_refs.get(callee.id).copied();
             if let Some(ResolvedValue::TopLevelFun { fqn }) = resolved {
+                // 若 callee 同名也是类型（构造器），且函数不适用但构造器适用，
+                // 优先用构造器（`MixedTarget(1)` 选 ctor(Int) 而非 ext fun(String)）。
+                if let Some(ctor_fqn) = self.callee_type_fqn(ident.symbol) {
+                    // 快速检查：构造器是否适用（不产生诊断）。
+                    let arg_types: Vec<TypeId> =
+                        args.iter().map(|a| self.walk_expr(&a.value)).collect();
+                    let ctor_applicable = self.env.ctor_signatures(ctor_fqn).is_some_and(|sigs| {
+                        sigs.iter()
+                            .any(|s| self.ctor_sig_applicable(s, args, &arg_types))
+                    });
+                    if ctor_applicable {
+                        return self.ctor_call(ctor_fqn, args, span, explicit_type_args);
+                    }
+                }
                 return self.resolve_top_level_call(fqn, args, span);
             }
             // enum variant ctor（resolve 解析到 TopLevelValue，但实际是 variant 调用）。
@@ -1433,9 +2325,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
             // Continuation.resume 步骤 effect 传播：`k.resume(v)` 的 effect 行为
             // `E + Raise<RuntimeError>`（E 为 `Continuation<..., eff E>` 的第三类型实参）。
-            // 由此调用点执行 RuntimeError（恒定）+ E 所含 effect。
-            if self.effect_suspend_depth == 0
-                && let MemberName::Named(name) = member
+            // resume 在 handle arm 体内执行时也需传播 effect 到外层函数体——
+            // 即使 effect_suspend_depth > 0（arm body 挂起了其他 effect 采集），
+            // resume 的 effect 仍需穿透到外层（resume 的 effect 是 resumed-step 的，
+            // 不是 handle 捕获的）。
+            if let MemberName::Named(name) = member
                 && self.env.interner.resolve(name.symbol) == "resume"
             {
                 self.record_continuation_resume_effects(rt, span);
@@ -1462,7 +2356,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             match member {
                 MemberName::Named(name) => {
-                    return self.method_call_return_type(rt, name.symbol, &arg_types, args, span);
+                    // FunPtr.invoke 不支持命名实参（C ABI 函数指针只能按位置调用）。
+                    let is_funptr = nominal_fqn_of(self.env.store.kind(rt))
+                        .map(|f| self.env.interner.resolve(f).ends_with(".FunPtr"))
+                        .unwrap_or(false);
+                    if is_funptr
+                        && self.env.interner.resolve(name.symbol) == "invoke"
+                        && args.iter().any(|a| a.name.is_some())
+                    {
+                        self.diags
+                            .push(diagnostics::funptr_invoke_named_args_not_supported(span));
+                    }
+                    return self.method_call_return_type(rt, name.symbol, &arg_types, args, span, name.span);
                 }
                 MemberName::TupleIndex { .. } => {}
             }
@@ -1471,7 +2376,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let ExprKind::Ident(ident) = &callee.kind
             && let Some(fqn) = self.callee_type_fqn(ident.symbol)
         {
-            return self.ctor_call(fqn, args, span);
+            return self.ctor_call(fqn, args, span, explicit_type_args);
         }
         // 其他调用形式（嵌套调用、lambda 调用等）：walk args。
         for a in args {
@@ -1496,7 +2401,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     /// 构造器调用 `Type(args)`：按主构造参数类型检查实参，返回该 nominal 类型。
-    fn ctor_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
+    fn ctor_call(
+        &mut self,
+        fqn: Symbol,
+        args: &[CallArg],
+        span: Span,
+        explicit_type_args: &[crate::syntax::ast::TypeArg],
+    ) -> TypeId {
         // `Continuation` 是 compiler-owned interface，用户代码不能直接构造。
         let name = self.env.interner.resolve(fqn);
         let stripped = name.strip_prefix("scoop.core.").unwrap_or(name);
@@ -1513,11 +2424,19 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         {
             self.diags.push(diagnostics::object_not_constructible(span));
         }
+        // 显式类型实参（`Container<String>()`）降级为 TypeId 列表，用于构造返回 nominal。
+        let explicit_arg_types: Vec<TypeId> = explicit_type_args
+            .iter()
+            .filter_map(|a| match &a.kind {
+                crate::syntax::ast::TypeArgKind::Type(t) => Some(self.lower_type(t)),
+                _ => None,
+            })
+            .collect();
         // 次构造器重载决议（若存在次构造器）：适用性 + 特异性（concrete 优于 generic）。
         if let Some(ctors) = self.env.ctor_signatures(fqn).map(|c| c.to_vec())
             && !ctors.is_empty()
         {
-            return self.resolve_ctor_overloads(fqn, &ctors, args, span);
+            return self.resolve_ctor_overloads(fqn, &ctors, args, span, explicit_type_args);
         }
         // enum variant ctor：查找 enum FQN 对应的 variant 字段数。
         let params: Vec<TypeId> = self.env.ctor_params(fqn).unwrap_or(&[]).to_vec();
@@ -1528,6 +2447,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             if let Some(enum_fqn) = self.find_enum_owner(fqn)
                 && let Some(variants) = self.env.enum_variants(enum_fqn)
             {
+                // 泛型 enum variant 在无期望类型上下文时构造歧义（无法推断类型实参）。
+                let enum_has_type_params = self
+                    .env
+                    .type_constraints(enum_fqn)
+                    .is_some_and(|(tps, _)| !tps.is_empty());
+                if enum_has_type_params {
+                    self.diags
+                        .push(diagnostics::ambiguous_enum_variant_ctor(span));
+                }
                 // 找到 variant 名，检查 arity。
                 let var_name = self
                     .env
@@ -1603,6 +2531,75 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
         }
+        // 显式类型实参冲突检测（`Box<Int>("hi")`：T=Int 但实参是 String）。
+        // 若显式实参个数 == 构造器泛型形参个数，且某位置实参类型不可赋值给对应显式类型实参，
+        // 报 no_applicable_overload（generic type arguments 冲突）。
+        if !explicit_arg_types.is_empty()
+            && let Some((_, constraints)) = self.env.type_constraints(fqn)
+        {
+            // 仅当显式实参个数匹配类型形参个数时检测。
+            let tp_count = self
+                .env
+                .type_constraints(fqn)
+                .map(|(tps, _)| tps.len())
+                .unwrap_or(0);
+            if explicit_arg_types.len() == tp_count && tp_count > 0 {
+                let _ = constraints;
+                // 逐位置实参（位置实参）与显式类型实参比对：
+                // 构造器形参若含类型参数 T，对应位置的实参类型必须可赋值给 explicit_arg_types[T 的位置]。
+                let mut conflict = false;
+                for (i, p) in params.iter().enumerate() {
+                    if let TypeKind::Param(tp) = self.env.store.kind(*p)
+                        && let Some(arg_idx) = args.iter().position(|a| {
+                            a.name.is_none() && {
+                                // 第 i 个位置实参的下标（仅位置实参）。
+                                let pos_count =
+                                    args.iter().take_while(|a| a.name.is_none()).count();
+                                i < pos_count
+                            }
+                        })
+                    {
+                        // 找到 T 在类型形参列表中的位置。
+                        if let Some(tp_pos) = self
+                            .env
+                            .type_constraints(fqn)
+                            .and_then(|(tps, _)| tps.iter().position(|&n| n == tp.name))
+                        {
+                            let arg_ty = self.walk_expr(&args[arg_idx].value);
+                            let explicit = explicit_arg_types.get(tp_pos).copied();
+                            if let Some(explicit) = explicit
+                                && !self.assignable(arg_ty, explicit)
+                            {
+                                conflict = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if conflict {
+                    self.diags
+                        .push(diagnostics::no_applicable_overload_with_reason(
+                            "generic type arguments 与 ctor 实参反推的类型实参冲突",
+                            span,
+                        ));
+                }
+            }
+        }
+        // 应用显式类型实参到返回 nominal。
+        let result = if explicit_arg_types.is_empty() {
+            result
+        } else {
+            let nominal = NominalType {
+                fqn,
+                args: explicit_arg_types.clone(),
+                eff: None,
+            };
+            if self.env.is_reference_nominal(fqn) {
+                self.env.store.ref_nominal(nominal)
+            } else {
+                self.env.store.value_nominal(nominal)
+            }
+        };
         self.check_call_args(params, result, args, span)
     }
 
@@ -1615,12 +2612,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 n.strip_prefix("scoop.core.").unwrap_or(n).to_string()
             });
             let is_array = nominal.as_deref() == Some("Array");
+            let is_mutable_array = nominal.as_deref() == Some("MutableArray");
             let is_tuple = matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Tuple(_)));
-            let suggest = matches!(
-                nominal.as_deref(),
-                Some("MutableArray" | "MutableList" | "List")
-            );
-            (is_array || is_tuple, suggest)
+            let suggest = matches!(nominal.as_deref(), Some("MutableList" | "List"));
+            (is_array || is_mutable_array || is_tuple, suggest)
         };
         if !ok {
             self.diags
@@ -1670,17 +2665,225 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if matches!(stripped, "Raise" | "RuntimeError") {
             return true;
         }
-        // 检查 Index 中该名称是否是 Effect category。
-        if let Some(sym) = self.env.interner.get(name)
-            && let Some(cat) = self.env.index.category(sym)
-        {
-            return matches!(cat, crate::resolve::symbol::NominalCategory::Effect);
+        // 用户声明的 effect 按 FQN 注册（如 `fixtures.typecheck.Ask`）；
+        // 裸名需尝试 package prefix + scoop.core 候选。
+        for candidate in [
+            name.to_string(),
+            format!("{}.{}", self.package_prefix, name),
+            format!("scoop.core.{}", name),
+        ] {
+            if let Some(sym) = self.env.interner.get(&candidate)
+                && let Some(cat) = self.env.index.category(sym)
+                && matches!(cat, crate::resolve::symbol::NominalCategory::Effect)
+            {
+                return true;
+            }
         }
         false
     }
 
     /// 记录被调用函数声明的 effect 到 performed_effects（effect 传播）。
     /// 在 handle/lambda 体内不记录（被捕获）。
+    /// `<eff E = Pure>` 泛型函数的嵌套 effect row 参数检查：
+    /// 从第 1 个参数的 effect row 推断 E 包含的 effect 名，然后用 E 的推断值替换
+    /// 后续参数类型中引用 E 的 effect row（`E + IO` → `inferred_effects + IO`），
+    /// 再做逐位类型检查。
+    fn check_eff_param_args(
+        &mut self,
+        sig: &Signature,
+        arg_types: &[TypeId],
+        args: &[CallArg],
+        span: Span,
+    ) {
+        // 收集函数声明的 effect row 变量名（如 `E`）。
+        let eff_var_name = self.eff_var_of_fqn_or_sig(sig);
+        let Some(eff_var) = eff_var_name else {
+            return;
+        };
+        // 从第 1 个参数的函数类型 effect row 推断 E 的 effect 集。
+        // `() -> Unit / (Raise<Int> + IO)` → E 推断为 `{Raise<Int>}`（减去签名中的 `IO` 等）。
+        let inferred_effs = self.infer_eff_var_from_arg(&eff_var, sig, arg_types);
+        if inferred_effs.is_empty() {
+            return;
+        }
+        // 对第 2+ 个参数：将 E 替换为推断值后做类型检查。
+        for (i, (&at, &pt)) in arg_types.iter().zip(&sig.params).enumerate().skip(1) {
+            let substituted_pt = self.subst_eff_var_in_type(pt, &eff_var, &inferred_effs);
+            if substituted_pt != pt
+                && !self.assignable(at, substituted_pt)
+                && !self.lenient_type_errors
+            {
+                self.diags.push(diagnostics::call_arg_type_mismatch(
+                    &self.describe(substituted_pt),
+                    &self.describe(at),
+                    args.get(i).map(|a| a.value.span).unwrap_or(span),
+                ));
+            }
+        }
+    }
+
+    /// 从签名查找 `<eff E = Pure>` 的 E 变量名。
+    fn eff_var_of_fqn_or_sig(&self, _sig: &Signature) -> Option<scoop2_base::Symbol> {
+        // 签名不直接携带 eff 变量名；我们用约定的 `E` 名（spec §5.4: eff 参数名）。
+        // 这是一个简化——若有多 eff 变量或不同名，需从 Index 查。
+        self.env.interner.get("E")
+    }
+
+    /// 从第 1 个参数的函数类型 effect row 推断 E 的 effect 集。
+    /// 签名第 1 参数：`() -> Unit / E`。
+    /// 实参第 1 参数：`() -> Unit / (Raise<Int> + IO)`。
+    /// 推断：E = `Raise<Int>`（实参 effect row 减去签名中不依赖 E 的 effect）。
+    fn infer_eff_var_from_arg(
+        &self,
+        _eff_var: &scoop2_base::Symbol,
+        sig: &Signature,
+        arg_types: &[TypeId],
+    ) -> Vec<TypeId> {
+        let Some(&sig_pt) = sig.params.first() else {
+            return vec![];
+        };
+        let Some(&arg_pt) = arg_types.first() else {
+            return vec![];
+        };
+        // 提取签名第 1 参数的 effect row。
+        let sig_effs = match self.env.store.kind(sig_pt) {
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => f.effects.terms.clone(),
+            _ => return vec![],
+        };
+        // 提取实参第 1 参数的 effect row。
+        let arg_effs = match self.env.store.kind(arg_pt) {
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => f.effects.terms.clone(),
+            _ => return vec![],
+        };
+        // 实参 effect row 中不在签名 effect row 里的项 = E 推断值。
+        arg_effs
+            .into_iter()
+            .filter(|ae| !sig_effs.iter().any(|se| se == ae))
+            .collect()
+    }
+
+    /// 在类型 `ty` 中将 effect row 变量 `eff_var` 替换为 `inferred` effect 集。
+    /// 递归处理函数类型（参数、返回值、effect row 中的 `E + IO`）。
+    /// 在类型 `ty` 中将所有 `TypeKind::Param` 替换为 `subst`。
+    fn subst_all_params(&mut self, ty: TypeId, subst: TypeId) -> TypeId {
+        match self.env.store.kind(ty).clone() {
+            TypeKind::Param(_) => subst,
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) => {
+                let params: Vec<TypeId> = ft
+                    .params
+                    .iter()
+                    .map(|&p| self.subst_all_params(p, subst))
+                    .collect();
+                let return_ty = self.subst_all_params(ft.return_ty, subst);
+                let receiver = ft.receiver.map(|r| self.subst_all_params(r, subst));
+                self.env.store.function(FunctionType {
+                    receiver,
+                    params,
+                    return_ty,
+                    effects: ft.effects,
+                    closed: ft.closed,
+                })
+            }
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                let args: Vec<TypeId> = n
+                    .args
+                    .iter()
+                    .map(|&a| self.subst_all_params(a, subst))
+                    .collect();
+                self.env.store.ref_nominal(crate::ty::NominalType {
+                    fqn: n.fqn,
+                    args,
+                    eff: n.eff,
+                })
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                let args: Vec<TypeId> = n
+                    .args
+                    .iter()
+                    .map(|&a| self.subst_all_params(a, subst))
+                    .collect();
+                self.env.store.value_nominal(crate::ty::NominalType {
+                    fqn: n.fqn,
+                    args,
+                    eff: n.eff,
+                })
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Tuple(els)) => {
+                let new_els: Vec<TypeId> = els
+                    .iter()
+                    .map(|&e| self.subst_all_params(e, subst))
+                    .collect();
+                self.env.store.tuple(new_els)
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
+                let new_inner = self.subst_all_params(inner, subst);
+                self.env.store.option(new_inner)
+            }
+            _ => ty,
+        }
+    }
+
+    fn subst_eff_var_in_type(
+        &mut self,
+        ty: TypeId,
+        eff_var: &scoop2_base::Symbol,
+        inferred: &[TypeId],
+    ) -> TypeId {
+        let kind = self.env.store.kind(ty).clone();
+        match kind {
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) => {
+                let params: Vec<TypeId> = ft
+                    .params
+                    .iter()
+                    .map(|&p| self.subst_eff_var_in_type(p, eff_var, inferred))
+                    .collect();
+                let return_ty = self.subst_eff_var_in_type(ft.return_ty, eff_var, inferred);
+                let new_effects = self.subst_eff_row(&ft.effects, eff_var, inferred);
+                let new_ft = FunctionType {
+                    receiver: ft.receiver,
+                    params,
+                    return_ty,
+                    effects: new_effects,
+                    closed: ft.closed,
+                };
+                self.env.store.function(new_ft)
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Tuple(els)) => {
+                let new_els: Vec<TypeId> = els
+                    .iter()
+                    .map(|&e| self.subst_eff_var_in_type(e, eff_var, inferred))
+                    .collect();
+                self.env.store.tuple(new_els)
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
+                let new_inner = self.subst_eff_var_in_type(inner, eff_var, inferred);
+                self.env.store.option(new_inner)
+            }
+            _ => ty,
+        }
+    }
+
+    /// 在 effect row 中将变量 `eff_var` 替换为 `inferred` effect 集。
+    /// `E + IO` → `inferred + IO`。
+    fn subst_eff_row(
+        &self,
+        row: &crate::ty::EffectRow,
+        eff_var: &scoop2_base::Symbol,
+        inferred: &[TypeId],
+    ) -> crate::ty::EffectRow {
+        let mut new_terms: Vec<TypeId> = Vec::new();
+        for &term in &row.terms {
+            if let TypeKind::Param(p) = self.env.store.kind(term)
+                && &p.name == eff_var
+            {
+                new_terms.extend_from_slice(inferred);
+                continue;
+            }
+            new_terms.push(term);
+        }
+        crate::ty::EffectRow::from_terms(new_terms)
+    }
+
     /// 泛型 `<eff E>` 函数：从 lambda 实参体推断 E 的 effect 集，记录之。
     fn record_callee_effects(&mut self, sig: &Signature, args: &[CallArg], span: Span) {
         if self.effect_suspend_depth > 0 {
@@ -1848,7 +3051,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// `Continuation<Resume, Answer, eff E>.resume` 的 effect 行为 `E + Raise<RuntimeError>`
     /// （spec §5.5）：恒定执行 `Raise`（即 `Raise<RuntimeError>`），外加 E 解析出的具体 effect。
     /// E 为类型参数（多态）或 `Pure` 时不贡献额外 effect。
-    /// 当 receiver 类型未知（Nothing，如 pattern binder）时仍记录恒定 `Raise`（resume 是保留方法名）。
+    /// 当 receiver 类型未知（Nothing，如 pattern binder）时仍记录恒定 `Raise`。
     fn record_continuation_resume_effects(&mut self, recv_ty: TypeId, span: Span) {
         let kind = self.env.store.kind(recv_ty);
         // Continuation 或未知（Nothing/binder）→ resume 恒定执行 Raise<RuntimeError>。
@@ -1863,22 +3066,125 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if !is_continuation_or_unknown {
             return;
         }
-        self.performed_effects.push(("Raise".to_string(), span));
-        // E（第三类型实参）所含 effect（仅当 Continuation 类型已知时）。
-        if let Some(e_name) = nominal_args_of(kind)
-            .and_then(|args| args.get(2).copied())
-            .and_then(|e_ty| nominal_fqn_of(self.env.store.kind(e_ty)))
-            .map(|e_fqn| self.env.interner.resolve(e_fqn).to_string())
-            .filter(|n| n.strip_prefix("scoop.core.").unwrap_or(n) != "Pure")
-        {
-            self.performed_effects.push((
-                e_name
-                    .strip_prefix("scoop.core.")
-                    .unwrap_or(&e_name)
-                    .to_string(),
-                span,
-            ));
+        // 在 effect_suspend_depth > 0（handle arm body 内）时，不记录 Raise（已被 handle 捕获），
+        // 仅记录 resumed-step effect（非 Pure / 非 Raise）。
+        if self.effect_suspend_depth == 0 {
+            self.performed_effects.push(("Raise".to_string(), span));
         }
+        let kind_clone = kind.clone();
+        self.record_resume_step_effects(&kind_clone, span);
+    }
+
+    /// 仅记录 Continuation 的 resumed-step effect（非 Pure / 非 Raise）。
+    fn record_resume_step_effects(&mut self, kind: &TypeKind, span: Span) {
+        // 仅在 effect_suspend_depth == 0 时记录 resumed-step effect。
+        // 在 handle arm body 内（suspend > 0），resume 的 resumed-step effect 已被
+        // handle 体外层的 body_effects 捕获（build_continuation_type_with_effects
+        // 从 handle body 提取了这些 effect 作为 continuation 的 eff row）。
+        // 若在此处也记录，会导致重复——handle_mixed_arm_kinds_ok 中 Boom.next() 的
+        // effect 会在 handle body 中记录一次（build_continuation），再在 resume 中记录一次。
+        if self.effect_suspend_depth > 0 {
+            return;
+        }
+        // 从 nominal args[2] 提取（旧式 Continuation<Resume, Answer, eff E>）。
+        if let Some(args) = nominal_args_of(kind)
+            && let Some(&e_ty) = args.get(2)
+            && let Some(e_fqn) = nominal_fqn_of(self.env.store.kind(e_ty))
+        {
+            let n = self.env.interner.resolve(e_fqn).to_string();
+            let stripped = n.strip_prefix("scoop.core.").unwrap_or(&n);
+            if stripped != "Pure" && stripped != "Raise" {
+                self.performed_effects.push((stripped.to_string(), span));
+            }
+        }
+        // 从 nominal 的 eff 字段提取（新式 Continuation<Resume, Answer, eff {A + B}>）。
+        if let Some(n) = match kind {
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n),
+            _ => None,
+        } && let Some(eff_row) = &n.eff
+        {
+            for &term_ty in &eff_row.terms {
+                if let Some(e_fqn) = nominal_fqn_of(self.env.store.kind(term_ty)) {
+                    let n = self.env.interner.resolve(e_fqn).to_string();
+                    let stripped = n.strip_prefix("scoop.core.").unwrap_or(&n);
+                    if stripped != "Pure" && stripped != "Raise" {
+                        self.performed_effects.push((stripped.to_string(), span));
+                    }
+                }
+            }
+        }
+    }
+
+    /// 解析 effect operation 的 Resume 类型（操作返回类型）。
+    /// `Ask.current()` → 查 `Ask` effect 的 `current` 成员签名返回类型。
+    fn effect_op_resume_type(&self, op: &ast::HandleOp) -> Option<TypeId> {
+        let effect_fqn_text: String = op
+            .effect_path
+            .segments
+            .iter()
+            .map(|s| self.env.interner.resolve(s.symbol))
+            .collect::<Vec<_>>()
+            .join(".");
+        let effect_fqn = self.env.interner.get(&effect_fqn_text)?;
+        let sigs = self.env.member_signatures(effect_fqn, op.op.symbol)?;
+        let sig = sigs.first()?;
+        Some(sig.return_ty)
+    }
+
+    /// 构造 `Continuation<Resume, Answer, eff Pure>` 类型。
+    #[allow(dead_code)]
+    fn build_continuation_type(&mut self, resume_ty: TypeId, answer_ty: TypeId) -> TypeId {
+        self.build_continuation_type_with_effects(resume_ty, answer_ty, &[])
+    }
+
+    /// 构造 `Continuation<Resume, Answer, eff Row>` 类型，Row 由 handle 体执行的 effect 组成。
+    /// `body_effects` 为 effect 短名（如 `Boom`）；空则 Row = Pure。
+    fn build_continuation_type_with_effects(
+        &mut self,
+        resume_ty: TypeId,
+        answer_ty: TypeId,
+        body_effects: &[String],
+    ) -> TypeId {
+        let cont_fqn = self
+            .env
+            .interner
+            .get("scoop.core.Continuation")
+            .or_else(|| self.env.interner.get("Continuation"));
+        let Some(fqn) = cont_fqn else {
+            return self.env.store.nothing();
+        };
+        // 构造 effect row：每个 effect 短名 → nominal 引用。
+        // 候选 FQN：裸名 / package prefix / scoop.core（用户 effect 按 package FQN 注册）。
+        let mut terms: Vec<TypeId> = Vec::new();
+        for eff_name in body_effects {
+            let candidates = [
+                eff_name.clone(),
+                format!("{}.{}", self.package_prefix, eff_name),
+                format!("scoop.core.{eff_name}"),
+            ];
+            for cand in &candidates {
+                if let Some(eff_fqn) = self.env.interner.get(cand) {
+                    let nominal = NominalType {
+                        fqn: eff_fqn,
+                        args: vec![],
+                        eff: None,
+                    };
+                    terms.push(self.env.store.ref_nominal(nominal));
+                    break;
+                }
+            }
+        }
+        let eff_row = if terms.is_empty() {
+            crate::ty::EffectRow::pure()
+        } else {
+            crate::ty::EffectRow::from_terms(terms)
+        };
+        let nominal = NominalType {
+            fqn,
+            args: vec![resume_ty, answer_ty],
+            eff: Some(eff_row),
+        };
+        self.env.store.ref_nominal(nominal)
     }
 
     /// 从 EffectRowExpr 提取 effect FQN 短名集合（不降级到 TypeId）。
@@ -1913,10 +3219,32 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         None
     }
 
+    /// variant payload arity：结合内建 Option 特判与用户 enum 的登记表。
+    /// `enum_fqn` 为 subject 的 enum 全限定名；`variant` 为 variant 名符号。
+    fn variant_payload_arity(&self, enum_fqn: Symbol, variant: Symbol) -> Option<usize> {
+        let variant_name = self.env.interner.resolve(variant);
+        // 内建 Option：Some=1, None=0（subject 是 Option<T>，enum_fqn 末段为 Option）。
+        let enum_name = self.env.interner.resolve(enum_fqn);
+        if enum_name.ends_with(".Option") || enum_name == "Option" {
+            if variant_name == "Some" {
+                return Some(1);
+            }
+            if variant_name == "None" {
+                return Some(0);
+            }
+        }
+        // 用户 enum：(enum FQN, variant 名) → payload 字段数。
+        self.env.enum_variant_arity(enum_fqn, variant)
+    }
+
     /// 构造器签名对给定实参是否适用（位置实参 arity ∈ [min_arity, n] + 类型；命名实参映射）。
     fn ctor_sig_applicable(&self, s: &Signature, args: &[CallArg], arg_types: &[TypeId]) -> bool {
         let n = s.params.len();
-        let min_arity = s.has_defaults.iter().position(|d| *d).unwrap_or(n);
+        // vararg 签名：最后一个参数可选（可传 0 个），min_arity = n-1（若无默认值）。
+        let mut min_arity = s.has_defaults.iter().position(|d| *d).unwrap_or(n);
+        if s.has_vararg && n > 0 {
+            min_arity = min_arity.min(n - 1);
+        }
         let has_named = args.iter().any(|a| a.name.is_some());
         if has_named {
             // 命名实参：每个名字必须在签名中，且类型可赋值；未提供的必需参数须有默认。
@@ -1937,7 +3265,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             true
         } else {
             // 位置实参：arity ∈ [min_arity, n]，逐位类型可赋值。
-            if arg_types.len() < min_arity || arg_types.len() > n {
+            // vararg 签名（最后一个参数为 vararg）：允许任意多余位置实参（arity ≥ min_arity）。
+            if arg_types.len() < min_arity || (!s.has_vararg && arg_types.len() > n) {
                 return false;
             }
             if s.type_param_count > 0 {
@@ -1961,10 +3290,19 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         ctors: &[Signature],
         args: &[CallArg],
         span: Span,
+        explicit_type_args: &[crate::syntax::ast::TypeArg],
     ) -> TypeId {
+        // 显式类型实参降级（`Container<String>()`）。
+        let explicit_arg_types: Vec<TypeId> = explicit_type_args
+            .iter()
+            .filter_map(|a| match &a.kind {
+                crate::syntax::ast::TypeArgKind::Type(t) => Some(self.lower_type(t)),
+                _ => None,
+            })
+            .collect();
         let nominal = NominalType {
             fqn,
-            args: vec![],
+            args: explicit_arg_types.clone(),
             eff: None,
         };
         let result = if self.env.is_reference_nominal(fqn) {
@@ -1978,7 +3316,69 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .filter(|s| self.ctor_sig_applicable(s, args, &arg_types))
             .collect();
         if applicable.is_empty() {
-            self.diags.push(diagnostics::no_applicable_overload(span));
+            // 优先检测未知命名实参（给出更精确诊断）：若某命名实参名不在任何 ctor 的 param_names 中，
+            // 报 unknown_call_arg_name（而非笼统的 no_applicable_overload）。
+            let has_named = args.iter().any(|a| a.name.is_some());
+            if has_named {
+                for a in args {
+                    if let Some(arg_name) = &a.name {
+                        let known = ctors
+                            .iter()
+                            .any(|s| s.param_names.contains(&arg_name.symbol));
+                        if !known {
+                            let n = self.env.interner.resolve(arg_name.symbol);
+                            self.diags
+                                .push(diagnostics::unknown_call_arg_name(n, a.span));
+                            return result;
+                        }
+                    }
+                }
+            }
+            // 构建详细诊断消息：列出候选 + 不匹配原因。
+            let fqn_text = self.env.interner.resolve(fqn).to_string();
+            let fun_name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
+            let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
+            let mut msg = "没有匹配的重载候选".to_string();
+            for sig in ctors.iter() {
+                let params: Vec<String> = sig
+                    .params
+                    .iter()
+                    .map(|p| self.describe(*p))
+                    .collect::<Vec<_>>();
+                msg.push_str(&format!("\n  {fun_name}({})", params.join(", ")));
+                // 逐位类型检查（包括 args < params 的情况——默认值使 args 可以更少）。
+                for (j, (at, pt)) in arg_types.iter().zip(&sig.params).enumerate() {
+                    if !self.assignable(*at, *pt) {
+                        let pname = sig
+                            .param_names
+                            .get(j)
+                            .map(|s| self.env.interner.resolve(*s))
+                            .unwrap_or("");
+                        msg.push_str(&format!(
+                            "\n    argument {} type {} is not a subtype of parameter `{pname}` type {}",
+                            j + 1,
+                            self.describe(*at),
+                            self.describe(*pt),
+                        ));
+                    }
+                }
+            }
+            let mut diag = scoop2_base::diag::Diagnostic::error(
+                "scoop::typecheck::no_applicable_overload",
+                msg,
+            )
+            .with_primary(span, "这里");
+            // 添加候选声明的 related 标签（供诊断策略断言 `EXPECT-ERROR: file:line:col`）。
+            for sig in ctors.iter() {
+                let params: Vec<String> = sig
+                    .params
+                    .iter()
+                    .map(|p| self.describe(*p))
+                    .collect::<Vec<_>>();
+                diag =
+                    diag.with_related(sig.decl_span, format!("{fun_name}({})", params.join(", ")));
+            }
+            self.diags.push(diag);
             return result;
         }
         // 特异性：a 比 b 更具体（a.params ⊆ b.params 严格，或并列时 type_param_count 更少）。
@@ -2058,9 +3458,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let fqn_text = self.env.interner.resolve(fqn).to_string();
         let name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
         for &w in &winners {
-            let sig = applicable[w];
-            let params: Vec<String> = sig.params.iter().map(|p| self.describe(*p)).collect();
-            diag = diag.with_related(sig.decl_span, format!("{name}({})", params.join(", ")));
+            let params: Vec<String> = applicable[w]
+                .params
+                .iter()
+                .map(|p| self.describe(*p))
+                .collect();
+            diag = diag.with_related(
+                applicable[w].decl_span,
+                format!("{name}({})", params.join(", ")),
+            );
         }
         let _ = &mut diag; // quiet
         self.diags.push(diag);
@@ -2070,9 +3476,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 查找 enum variant FQN 的 enum owner FQN（`pkg.Enum.Variant` → `pkg.Enum`）。
     fn find_enum_owner(&self, variant_fqn: Symbol) -> Option<Symbol> {
         let name = self.env.interner.resolve(variant_fqn);
-        let dot = name.rfind('.')?;
-        let owner_text = &name[..dot];
-        self.env.interner.get(owner_text)
+        if let Some(dot) = name.rfind('.') {
+            let owner_text = &name[..dot];
+            if let Some(owner) = self.env.interner.get(owner_text) {
+                return Some(owner);
+            }
+        }
+        // 裸名 variant：遍历所有 enum 的 variant 列表查找 owner。
+        for (enum_fqn, variants) in &self.env.enum_variants {
+            if variants.iter().any(|&v| {
+                let vn = self.env.interner.resolve(v);
+                vn == name || vn.rsplit('.').next() == Some(name)
+            }) {
+                return Some(*enum_fqn);
+            }
+        }
+        None
     }
 
     /// 名字是否解析为类型符号（当前包 / import）；返回其 FQN。用于构造器调用判定。
@@ -2100,6 +3519,40 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 顶层函数重载解析：单候选 → 直接检查（arity / 实参）；多候选 → 适用性过滤。
     fn resolve_top_level_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
+        // scoop.thread.threadSpawn：线程入口必须在静态上等价于 Pure!。
+        let callee_name = self.env.interner.resolve(fqn);
+        let stripped = callee_name.strip_prefix("scoop.core.").unwrap_or(callee_name);
+        if stripped == "threadSpawn" || callee_name.ends_with(".threadSpawn") {
+            if let Some(first) = args.first() {
+                let entry_ty = self.walk_expr(&first.value);
+                let is_pure = matches!(
+                    self.env.store.kind(entry_ty),
+                    TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) if f.effects.is_pure()
+                );
+                if !is_pure {
+                    self.diags.push(diagnostics::thread_spawn_entry_must_be_pure(
+                        &self.describe(entry_ty),
+                        first.value.span,
+                    ));
+                }
+            }
+        }
+        // @NoGC 上下文：被调用函数必须是 @NoGC 或 native @Extern(c)。
+        if self.in_nogc
+            && let Some(attrs) = self.env.fun_attrs(fqn)
+            && !attrs.is_nogc
+            && !attrs.is_native_extern
+        {
+            let callee_name = self
+                .env
+                .interner
+                .resolve(fqn)
+                .rsplit('.')
+                .next()
+                .unwrap_or("");
+            self.diags
+                .push(diagnostics::nogc_call_forbidden(callee_name, span));
+        }
         let sigs: Vec<Signature> = self.env.signatures(fqn).unwrap_or(&[]).to_vec();
         let non_generic: Vec<Signature> = sigs
             .iter()
@@ -2113,17 +3566,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // applicable = (sig 在 sigs 中的下标, Signature)，下标用于关联 decl。
             let mut applicable: Vec<(usize, Signature)> = Vec::new();
             for (idx, s) in sigs.iter().enumerate() {
-                if s.type_param_count == 0
-                    || s.params.len() != arg_types.len()
-                    || s.type_param_bounds.is_empty()
-                {
+                if s.type_param_count == 0 || s.params.len() != arg_types.len() {
                     continue;
                 }
+                // 有 bound：按 bound 适用性过滤。无 bound（如 `<eff E = Pure>`）：直接适用。
                 let bound = s.type_param_bounds.first().and_then(|b| *b);
-                if arg_types
-                    .iter()
-                    .all(|a| bound.is_none_or(|bt| self.assignable(*a, bt)))
-                {
+                let bound_ok =
+                    bound.is_none_or(|bt| arg_types.iter().all(|a| self.assignable(*a, bt)));
+                if bound_ok {
                     applicable.push((idx, s.clone()));
                 }
             }
@@ -2137,6 +3587,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let (idx, sig) = applicable.into_iter().next().expect("non-empty");
                 let _ = idx;
                 self.check_generic_call_constraints(fqn, &sig, &arg_types, span);
+                // <eff E = Pure> 泛型函数：从第 1 个参数推断 E 的 effect 集，
+                // 然后将 E 替换到后续参数的嵌套 effect row 中做类型检查。
+                self.check_eff_param_args(&sig, &arg_types, args, span);
                 self.record_callee_effects(&sig, args, span);
                 return sig.return_ty;
             }
@@ -2169,6 +3622,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let sig = &applicable[winners[0]].1;
                 let ret = sig.return_ty;
                 self.check_generic_call_constraints(fqn, sig, &arg_types, span);
+                // <eff E = Pure> 泛型函数：从第 1 个参数推断 E 后替换到后续参数做类型检查。
+                self.check_eff_param_args(sig, &arg_types, args, span);
                 self.record_callee_effects(sig, args, span);
                 return ret;
             }
@@ -2273,20 +3728,76 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
             self.record_callee_effects(&sig, args, span);
-            return self.check_call_args(sig.params, sig.return_ty, args, span);
-        }
-        // 多候选：先走一遍实参类型，再按适用性过滤。
-        let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
-        let applicable: Vec<&Signature> = non_generic
-            .iter()
-            .filter(|s| {
-                s.params.len() == arg_types.len()
-                    && arg_types
+            // <eff E = Pure> 泛型函数：从第 1 个参数推断 E 的 effect 集，
+            // 然后将 E 替换到所有参数类型中做类型检查。
+            let eff_var = self.eff_var_of_fqn_or_sig(&sig);
+            let mut subst_params = sig.params.clone();
+            if let Some(ev) = eff_var {
+                let arg_types_pre: Vec<TypeId> =
+                    args.iter().map(|a| self.walk_expr(&a.value)).collect();
+                let inferred = self.infer_eff_var_from_arg(&ev, &sig, &arg_types_pre);
+                if !inferred.is_empty() {
+                    subst_params = sig
+                        .params
                         .iter()
-                        .zip(&s.params)
-                        .all(|(a, p)| self.assignable(*a, *p))
-            })
-            .collect();
+                        .map(|&pt| self.subst_eff_var_in_type(pt, &ev, &inferred))
+                        .collect();
+                }
+            }
+            return self.check_call_args_with(
+                subst_params,
+                sig.return_ty,
+                args,
+                span,
+                sig.has_vararg,
+            );
+        }
+        // 多候选：尝试每个候选的 expected param count 来降级 lambda 实参。
+        // 先用默认方式走一遍实参类型（无 expected 感知），收集 arg_types。
+        let arg_types_default: Vec<TypeId> =
+            args.iter().map(|a| self.walk_expr(&a.value)).collect();
+        // 尝试用每个候选的 expected param count 重新降级 lambda 实参。
+        let mut best_applicable: Vec<(usize, Vec<TypeId>)> = Vec::new();
+        for (sig_idx, s) in non_generic.iter().enumerate() {
+            let n = s.params.len();
+            let mut min_arity = s.has_defaults.iter().position(|d| *d).unwrap_or(n);
+            if s.has_vararg && n > 0 {
+                min_arity = min_arity.min(n - 1);
+            }
+            let arity_ok = if s.has_vararg {
+                arg_types_default.len() >= min_arity && arg_types_default.len() <= n
+            } else {
+                arg_types_default.len() == n
+            };
+            if !arity_ok {
+                continue;
+            }
+            // 重新降级 lambda 实参（带 expected param count）。
+            let arg_types: Vec<TypeId> = args
+                .iter()
+                .enumerate()
+                .map(|(i, a)| {
+                    let expected_pt = s
+                        .params
+                        .get(i)
+                        .and_then(|&pt| self.extract_expected_param_type(pt));
+                    if let ast::ExprKind::Lambda(lam) = &a.value.kind
+                        && lam.params.is_empty()
+                    {
+                        return self.type_lambda_with_expected(lam, expected_pt);
+                    }
+                    arg_types_default[i]
+                })
+                .collect();
+            let all_match = arg_types
+                .iter()
+                .zip(&s.params)
+                .all(|(a, p)| self.assignable(*a, *p));
+            if all_match {
+                best_applicable.push((sig_idx, arg_types));
+            }
+        }
+        let applicable: Vec<usize> = best_applicable.iter().map(|(i, _)| *i).collect();
         match applicable.len() {
             0 => {
                 // 构建候选详情 + related labels。
@@ -2307,8 +3818,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         .collect::<Vec<_>>()
                         .join(", ");
                     msg.push_str(&format!("\n  {fun_name}({params})"));
-                    if sig.params.len() == arg_types.len() {
-                        for (j, (at, pt)) in arg_types.iter().zip(&sig.params).enumerate() {
+                    if sig.params.len() == arg_types_default.len() {
+                        for (j, (at, pt)) in arg_types_default.iter().zip(&sig.params).enumerate() {
                             if !self.assignable(*at, *pt) {
                                 let pname = sig
                                     .param_names
@@ -2335,18 +3846,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .map(|s| s.return_ty)
                     .unwrap_or_else(|| self.env.store.nothing())
             }
-            1 => applicable[0].return_ty,
+            1 => non_generic[applicable[0]].return_ty,
             _ => {
                 // 特殊性：若存在唯一最具体的候选，直接选择。
-                if let Some(idx) = self.select_most_specific(&applicable) {
-                    self.record_callee_effects(applicable[idx], args, span);
-                    return applicable[idx].return_ty;
+                let sig_refs: Vec<&Signature> =
+                    applicable.iter().map(|&i| &non_generic[i]).collect();
+                if let Some(idx) = self.select_most_specific(&sig_refs) {
+                    self.record_callee_effects(sig_refs[idx], args, span);
+                    return sig_refs[idx].return_ty;
                 }
                 let fqn_text = self.env.interner.resolve(fqn).to_string();
                 let fun_name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
                 let decls = self.env.index.lookup_funs(fqn);
-                let first = applicable[0];
-                let second = applicable[1];
+                let first = sig_refs[0];
+                let second = sig_refs[1];
                 let first_params: Vec<String> =
                     first.params.iter().map(|p| self.describe(*p)).collect();
                 let second_params: Vec<String> =
@@ -2366,21 +3879,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     msg,
                 )
                 .with_primary(span, "这里");
-                for sig in applicable.iter() {
+                for &sig_idx in applicable.iter() {
+                    let sig = &non_generic[sig_idx];
                     let params: Vec<String> =
                         sig.params.iter().map(|p| self.describe(*p)).collect();
                     let label = format!("{fun_name}({})", params.join(", "));
-                    let orig_idx = non_generic
-                        .iter()
-                        .position(|s| s.params == sig.params && s.return_ty == sig.return_ty);
-                    if let Some(oi) = orig_idx
-                        && let Some(d) = decls.get(oi)
-                    {
+                    if let Some(d) = decls.get(sig_idx) {
                         diag = diag.with_related(d.span, label);
                     }
                 }
                 self.diags.push(diag);
-                applicable[0].return_ty
+                non_generic[applicable[0]].return_ty
             }
         }
     }
@@ -2401,6 +3910,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         args: &[CallArg],
         span: Span,
     ) -> TypeId {
+        self.check_call_args_with(param_types, return_ty, args, span, false)
+    }
+
+    /// `has_vararg`：签名最后一个参数是 vararg（可接收任意多余位置实参）。
+    fn check_call_args_with(
+        &mut self,
+        param_types: Vec<TypeId>,
+        return_ty: TypeId,
+        args: &[CallArg],
+        span: Span,
+        has_vararg: bool,
+    ) -> TypeId {
         // 命名实参形态校验（结构性，不受 lenient 影响）：重复 / 位置在命名之后。
         let mut seen_named = false;
         let mut seen_names: HashSet<Symbol> = HashSet::new();
@@ -2419,7 +3940,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
         }
         if param_types.len() != args.len() && !args.iter().any(|a| a.name.is_some()) {
-            if !self.lenient_type_errors {
+            // 实参过多（args.len() > param_types.len()）对非 vararg 函数始终是真实错误
+            //（重载不会有更多形参），即使 lenient 也报；vararg 函数合法接收多余实参。
+            // 实参过少可能是重载候选未定 / 默认值，lenient 时抑制。
+            let too_many = args.len() > param_types.len();
+            let too_few = args.len() < param_types.len();
+            // 实参过少 + 非 vararg → 始终真实错误（即使 lenient）。
+            // 实参过多 + 非 vararg → 始终真实错误。
+            // vararg 函数：多余实参合法；不足实参也合法（vararg 可为空）。
+            let always_report = (too_few && !has_vararg) || (too_many && !has_vararg);
+            if (!self.lenient_type_errors || always_report) && !has_vararg {
                 self.diags.push(diagnostics::call_arity_mismatch(
                     param_types.len(),
                     args.len(),
@@ -2432,25 +3962,141 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return return_ty;
         }
         for (i, a) in args.iter().enumerate() {
-            let at = self.walk_expr(&a.value);
+            // 若实参是无参 lambda 且期望参数是函数类型，注入 expected param count。
+            let expected_pt = param_types
+                .get(i)
+                .and_then(|&pt| self.extract_expected_param_type(pt));
+            let at = if let ast::ExprKind::Lambda(lam) = &a.value.kind {
+                if lam.params.is_empty() {
+                    self.type_lambda_with_expected(lam, expected_pt)
+                } else {
+                    self.walk_expr(&a.value)
+                }
+            } else {
+                self.walk_expr(&a.value)
+            };
             if a.name.is_some() {
                 continue;
             }
-            if let Some(&pt) = param_types.get(i)
-                && !self.assignable(at, pt)
-                && !self.lenient_type_errors
+            // spread 实参 `*arr` / `*(1, 2, 3)`：若函数有 vararg，spread 实参的元素类型需匹配 vararg 参数类型。
+            if a.is_spread
+                && has_vararg
+                && let Some(&pt) = param_types.get(i)
             {
-                self.diags.push(diagnostics::call_arg_type_mismatch(
-                    &self.describe(pt),
-                    &self.describe(at),
-                    a.value.span,
-                ));
+                // 提取 Array<T> / MutableArray<T> 的元素类型，或 Tuple 的各元素类型。
+                let elem_tys: Vec<TypeId> = match self.env.store.kind(at) {
+                    TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) if n.args.len() == 1 => {
+                        vec![n.args[0]]
+                    }
+                    TypeKind::Value(crate::ty::ValueTypeKind::Tuple(els)) => els.clone(),
+                    _ => vec![],
+                };
+                if !elem_tys.is_empty() {
+                    let all_ok = elem_tys.iter().all(|&et| self.assignable(et, pt));
+                    if !all_ok && !self.lenient_type_errors {
+                        self.diags.push(diagnostics::call_arg_type_mismatch(
+                            &self.describe(pt),
+                            &self.describe(at),
+                            a.value.span,
+                        ));
+                    }
+                    continue;
+                }
+            }
+            if let Some(&pt) = param_types.get(i) {
+                // 数组字面量实参 → MutableArray 参数：上下文相关转换。
+                if matches!(&a.value.kind, ExprKind::ArrayLit(_))
+                    && self.is_array_lit_to_mutable_array(Some(&a.value), pt, at)
+                {
+                    continue;
+                }
+                // Continuation answer-type 精确比较（escape continuation binder 的 answer type
+                // 必须与参数的 answer type 一致；assignable 对同 FQN nominal 不比较类型实参）。
+                // 同时比较 effect row：found 的 effect row 必须是 expected 的子集（子效应关系）。
+                if let (
+                    TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nf)),
+                    TypeKind::Ref(crate::ty::RefTypeKind::Nominal(ne)),
+                ) = (self.env.store.kind(at), self.env.store.kind(pt))
+                {
+                    let is_cont = |fqn: scoop2_base::Symbol| {
+                        self.env.interner.resolve(fqn).ends_with(".Continuation")
+                    };
+                    if nf.fqn == ne.fqn && is_cont(nf.fqn) {
+                        let answer_mismatch = nf.args.len() >= 2
+                            && ne.args.len() >= 2
+                            && nf.args[1] != ne.args[1]
+                            && !self.assignable(nf.args[1], ne.args[1]);
+                        // effect row 子集检查：found.eff 必须是 expected.eff 的子集。
+                        let eff_mismatch = match (&nf.eff, &ne.eff) {
+                            (Some(fe), Some(ee)) => !fe.is_subset_of(ee),
+                            (Some(fe), None) => !fe.is_pure(),
+                            _ => false,
+                        };
+                        if answer_mismatch || eff_mismatch {
+                            self.diags.push(diagnostics::call_arg_type_mismatch(
+                                &self.describe(pt),
+                                &self.describe(at),
+                                a.value.span,
+                            ));
+                            continue;
+                        }
+                    }
+                }
+                if !self.assignable(at, pt)
+                    && (!self.lenient_type_errors
+                        || init_expr_is_unambiguous_literal(&a.value.kind))
+                {
+                    self.diags.push(diagnostics::call_arg_type_mismatch(
+                        &self.describe(pt),
+                        &self.describe(at),
+                        a.value.span,
+                    ));
+                }
             }
         }
         return_ty
     }
 
     // ---- 成员访问（M2 part 2：属性 / 字段读取） ----
+
+    /// 解析成员查找的所有者 FQN：若是 typealias，展开到底层类型 FQN（递归）。
+    fn resolve_member_owner_fqn(&self, receiver_ty: TypeId) -> Option<scoop2_base::Symbol> {
+        let mut fqn = nominal_fqn_of(self.env.store.kind(receiver_ty))?;
+        // typealias 展开（最多 8 层防环）。
+        for _ in 0..8 {
+            if let Some((rhs, _)) = self.env.type_alias(fqn) {
+                // 取 RHS 的路径 FQN（假设底层是 Path 类型）。
+                if let crate::syntax::ast::TypeRefKind::Path { path, .. } = &rhs.kind
+                    && let Some(last) = path.segments.last()
+                {
+                    // 尝试候选 FQN：裸名 / package prefix / scoop.core。
+                    let name = self.env.interner.resolve(last.symbol);
+                    let candidates = [
+                        name.to_string(),
+                        format!("{}.{}", self.package_prefix, name),
+                        format!("scoop.core.{}", name),
+                        format!("scoop.collections.{}", name),
+                    ];
+                    let mut found = None;
+                    for cand in &candidates {
+                        if let Some(f) = self.env.interner.get(cand) {
+                            found = Some(f);
+                            break;
+                        }
+                    }
+                    if let Some(new_fqn) = found {
+                        if new_fqn == fqn {
+                            break;
+                        }
+                        fqn = new_fqn;
+                        continue;
+                    }
+                }
+            }
+            break;
+        }
+        Some(fqn)
+    }
 
     fn member_access_type(
         &mut self,
@@ -2461,7 +4107,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let MemberName::Named(name) = member else {
             return self.env.store.nothing();
         };
-        let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty)) else {
+        let fqn = self.resolve_member_owner_fqn(receiver_ty);
+        let Some(fqn) = fqn else {
             return self.env.store.nothing();
         };
         match self.env.member_type(fqn, name.symbol) {
@@ -2550,8 +4197,19 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             eff: None,
         };
         // 缺少必填字段检查（lenient 模式下跳过——成员注册不完整）。
+        // 反射 meta 类型（FieldMeta/VariantMeta/ParamMeta 等）在 splice field access 等
+        // 上下文中可仅提供部分字段（仅 name 有意义），跳过缺失字段检查。
+        let fqn_name = self.env.interner.resolve(fqn);
+        let is_meta_type = fqn_name.ends_with(".FieldMeta")
+            || fqn_name.ends_with(".VariantMeta")
+            || fqn_name.ends_with(".ParamMeta")
+            || fqn_name.ends_with(".AnnotationMeta")
+            || fqn_name.ends_with(".TypeMeta")
+            || fqn_name.ends_with(".FunctionMeta")
+            || fqn_name.ends_with(".PropertyMeta");
         if !self.lenient_type_errors
             && is_struct
+            && !is_meta_type
             && let Some(members) = self.env.member_types(fqn)
         {
             let missing: Vec<String> = members
@@ -2851,8 +4509,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     /// lambda → 函数类型（参数有标注则降级；无标注 → Nothing，精确推断推迟）。
-    fn type_lambda(&mut self, lambda: &ast::LambdaExpr) -> TypeId {
+    /// `expected_param_type`: 期望函数类型的第 1 参数类型（来自调用实参位置的签名）。
+    /// 无参 lambda 在期望为 1 参数时注入隐式 `it`，类型为 expected_param_type。
+    fn type_lambda_with_expected(
+        &mut self,
+        lambda: &ast::LambdaExpr,
+        expected_param_type: Option<TypeId>,
+    ) -> TypeId {
+        let inject_it = lambda.params.is_empty() && expected_param_type.is_some();
         let mut param_types: Vec<TypeId> = Vec::new();
+        if inject_it && let Some(it_sym) = self.env.interner.get("it") {
+            let it_ty = expected_param_type.unwrap_or_else(|| self.env.store.nothing());
+            self.locals.insert(it_sym, it_ty);
+            param_types.push(it_ty);
+        }
         for p in &lambda.params {
             let ty = match &p.ty {
                 Some(t) => self.lower_type(t),
@@ -2867,15 +4537,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         self.lambda_depth += 1;
         self.effect_suspend_depth += 1;
         let return_ty = match &lambda.body {
-            ast::LambdaBody::Block(b) => {
-                self.walk_block(b);
-                self.env.store.unit()
-            }
+            ast::LambdaBody::Block(b) => self.walk_block(b),
             ast::LambdaBody::Expr(e) => self.walk_expr(e),
         };
         self.lambda_depth -= 1;
         self.effect_suspend_depth -= 1;
         self.in_function_body = saved_fn;
+        // 清理隐式 `it`。
+        if inject_it && let Some(it_sym) = self.env.interner.get("it") {
+            self.locals.remove(&it_sym);
+        }
         self.env.store.function(FunctionType {
             receiver: None,
             params: param_types,
@@ -2885,12 +4556,28 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         })
     }
 
+    /// lambda → 函数类型（无 expected type 感知，默认不注入 `it`）。
+    fn type_lambda(&mut self, lambda: &ast::LambdaExpr) -> TypeId {
+        self.type_lambda_with_expected(lambda, None)
+    }
+
+    /// 从期望的函数类型参数中提取第 1 参数类型（用于隐式 `it` 注入）。
+    fn extract_expected_param_type(&self, expected_fn_ty: TypeId) -> Option<TypeId> {
+        if let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) =
+            self.env.store.kind(expected_fn_ty)
+        {
+            ft.params.first().copied()
+        } else {
+            None
+        }
+    }
+
     /// `when` 表达式：walk subject + 每分支体；返回各分支体的 LUB（同类型 → 该类型；否则 Unit）。
     fn type_when(&mut self, subject: &Expr, arms: &[ast::WhenArm], span: Span) -> TypeId {
         let subject_ty = self.walk_expr(subject);
         let mut arm_types: Vec<TypeId> = Vec::new();
         for arm in arms {
-            self.bind_pattern_locals(&arm.pat);
+            self.bind_pattern_locals_typed(&arm.pat, subject_ty);
             self.check_when_pattern(&arm.pat, subject_ty);
             if let Some(g) = &arm.guard {
                 let gt = self.walk_expr(g);
@@ -2936,6 +4623,57 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
+    /// 把 when 分支模式中的绑定名按 variant payload 字段类型登记。
+    /// `Ready(f)` → f 的类型为 `() -> Int`（variant payload 第 1 字段类型）。
+    fn bind_pattern_locals_typed(&mut self, pat: &ast::Pattern, subject_ty: TypeId) {
+        use crate::syntax::ast::PatternKind;
+        match &pat.kind {
+            PatternKind::Variant { path, args } => {
+                // 从 subject enum 的 variant payload 提取字段类型。
+                if let Some(enum_fqn) = nominal_fqn_of(self.env.store.kind(subject_ty))
+                    && let Some(last_seg) = path.segments.last()
+                {
+                    let variant_name = self.env.interner.resolve(last_seg.symbol);
+                    // 查找 variant 的 payload 字段类型。
+                    // 构造 variant FQN: `<enum_fqn>.<variant_name>`。
+                    let variant_fqn_candidates = [format!(
+                        "{}.{}",
+                        self.env.interner.resolve(enum_fqn),
+                        variant_name
+                    )];
+                    for vfqn_text in &variant_fqn_candidates {
+                        if let Some(vfqn) = self.env.interner.get(vfqn_text)
+                            && let Some(fields) = self.env.member_types(vfqn)
+                        {
+                            // 按位置绑定 binder 到字段类型。
+                            let field_tys: Vec<TypeId> = fields.values().copied().collect();
+                            if let Some(args) = args {
+                                for (i, arg) in args.iter().enumerate() {
+                                    if let PatternKind::Bind(ident) = &arg.kind
+                                        && let Some(&ft) = field_tys.get(i)
+                                    {
+                                        self.locals.insert(ident.symbol, ft);
+                                    }
+                                }
+                            }
+                            return;
+                        }
+                    }
+                }
+                // 回退：Nothing。
+                self.bind_pattern_locals(pat);
+            }
+            PatternKind::Or(alts) => {
+                for alt in alts {
+                    self.bind_pattern_locals_typed(alt, subject_ty);
+                }
+            }
+            _ => {
+                self.bind_pattern_locals(pat);
+            }
+        }
+    }
+
     /// 校验 when 分支模式与 subject 类型匹配（or-pattern 递归检查每个分支）。
     fn check_when_pattern(&mut self, pat: &ast::Pattern, subject_ty: TypeId) {
         use crate::syntax::ast::{PatternKind, PatternLiteral};
@@ -2945,6 +4683,40 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let kind = self.env.store.kind(subject_ty);
         match &pat.kind {
             PatternKind::Or(alts) => {
+                // or-pattern 不允许引入 binder（当前语言 contract 下 scope/dominance 未定义）。
+                for alt in alts {
+                    let mut binders: Vec<Symbol> = Vec::new();
+                    collect_pattern_binders(&alt.kind, &mut binders);
+                    if !binders.is_empty() {
+                        self.diags
+                            .push(diagnostics::when_or_pattern_binder_not_allowed(alt.span));
+                    }
+                }
+                // variant arity 检查：若所有分支是同一 enum 的 variant，校验 args 数量与
+                // payload 一致（裸名形式对带 payload 的 variant 是 arity 不匹配）。
+                // 先把 enum_fqn（Copy 的 Symbol）取出，释放对 store 的不可变借用，再做可变调用。
+                let enum_fqn = nominal_fqn_of(kind);
+                if let Some(fqn) = enum_fqn {
+                    for alt in alts {
+                        if let PatternKind::Variant { path, args } = &alt.kind
+                            && let Some(seg) = path.segments.last()
+                        {
+                            let provided = args.as_ref().map(|a| a.len()).unwrap_or(0);
+                            let has_rest = args.as_ref().is_some_and(|a| {
+                                a.iter().any(|e| matches!(e.kind, PatternKind::Rest))
+                            });
+                            let expected = self.variant_payload_arity(fqn, seg.symbol);
+                            if let Some(exp) = expected
+                                && provided != exp
+                                && !has_rest
+                            {
+                                self.diags
+                                    .push(diagnostics::when_variant_pat_arity_mismatch(alt.span));
+                            }
+                        }
+                    }
+                }
+                // 递归校验每个分支（放在最后，避免与上面的不可变借用冲突）。
                 for alt in alts {
                     self.check_when_pattern(alt, subject_ty);
                 }
@@ -3014,6 +4786,36 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             ));
                         }
                     }
+                }
+            }
+            PatternKind::Is(ty_ref) => {
+                // `when is T`：runtime type test。spec 限定只对**引用**类型可用，
+                // 且函数类型即使闭合也不支持（effect row 只存在于编译期）。
+                // value 类型（struct/enum/标量）无运行期 tag，前端拒绝。
+                let ty = self.lower_type(ty_ref);
+                match self.env.store.kind(ty) {
+                    TypeKind::Value(_) => {
+                        self.diags
+                            .push(diagnostics::when_type_pattern_runtime_test_not_supported(
+                                pat.span,
+                            ));
+                    }
+                    TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) => {
+                        if ft.closed && ft.effects.is_pure() {
+                            self.diags
+                                .push(diagnostics::when_function_type_pattern_not_supported(
+                                    pat.span,
+                                ));
+                        } else {
+                            self.diags.push(
+                                diagnostics::when_effectful_function_type_pattern_not_supported(
+                                    pat.span,
+                                ),
+                            );
+                        }
+                    }
+                    // 引用 nominal 类型（class/interface/object）：合法的 runtime test。
+                    _ => {}
                 }
             }
             _ => {}
@@ -3150,6 +4952,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         arg_types: &[TypeId],
         args: &[CallArg],
         span: Span,
+        name_span: Span,
     ) -> TypeId {
         // Nothing 接收者（类型未知）→ lenient（返回 Nothing，不报错误）。
         if self.env.store.is_nothing(receiver_ty) {
@@ -3168,29 +4971,90 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let Some(tp) = tp_clone {
             return self.check_typeparam_method(&tp, method_name, span);
         }
-        let Some(fqn) = nominal_fqn_of(self.env.store.kind(receiver_ty))
-            .or_else(|| scalar_fqn(self.env.store.kind(receiver_ty), self.env.interner))
-        else {
+        let fqn = self
+            .resolve_member_owner_fqn(receiver_ty)
+            .or_else(|| nominal_fqn_of(self.env.store.kind(receiver_ty)))
+            .or_else(|| scalar_fqn(self.env.store.kind(receiver_ty), self.env.interner));
+        let Some(fqn) = fqn else {
             return self.unsupported("该接收者的方法调用", span);
         };
-        let Some(sigs) = self.env.member_signatures(fqn, method_name) else {
-            // 方法未注册（可能是 typealias / 继承 / 扩展）→ lenient Nothing。
+        let sigs = self.env.member_signatures_with_inherited(fqn, method_name);
+        // 扩展方法：从 Index 的 extensions 表查找同名扩展函数。
+        // 扩展函数的签名已由 register_top_level_signatures 注册到 member_signatures
+        //（collect 阶段 resolve_extensions 将 receiver.FQN.name 注册为成员）。
+        // 但如果扩展在 sysroot（受信任文件），其 body 可能未注册签名。
+        // 此时 member_signatures_with_inherited 已包含扩展（resolve_extensions 注册）。
+        if sigs.is_empty() {
+            // 可能是 callable field（`holder.f()` 中 f 是函数类型字段）：检查成员类型。
+            if let Some(field_ty) = self
+                .resolve_member_owner_fqn(receiver_ty)
+                .and_then(|fqn| self.env.member_type(fqn, method_name))
+                && let Some(ft) = self.function_type_of(field_ty)
+            {
+                // callable field：按函数类型检查实参与返回。
+                return self.check_call_args_with(ft.params, ft.return_ty, args, span, false);
+            }
+            // 接收者类型确定（非 Nothing / 非 Param）却找不到方法 → 真实错误。
+            // lenient 模式抑制（可能是重载决议未定等假阳性）。
+            if !self.lenient_type_errors {
+                let method_text = self.env.interner.resolve(method_name);
+                let callee_fqn = if self.package_prefix.is_empty() {
+                    method_text.to_string()
+                } else {
+                    format!("{}.{}", self.package_prefix, method_text)
+                };
+                self.diags
+                    .push(diagnostics::callee_not_callable(&callee_fqn, name_span));
+            }
             return self.env.store.nothing();
-        };
-        let sigs: Vec<Signature> = sigs.to_vec();
+        }
         let non_generic: Vec<Signature> = sigs
-            .into_iter()
+            .iter()
             .filter(|s| s.type_param_count == 0)
+            .cloned()
             .collect();
         if non_generic.is_empty() {
-            return {
-                for (i, a) in arg_types.iter().enumerate() {
-                    // 泛型方法 lenient: walk done; return Nothing.
-                    let _ = i;
-                    let _ = a;
+            // 泛型方法：尝试用 receiver 类型实参替换类型参数后返回。
+            // 扩展方法 `MutableArray<T>.toArray(): Array<T>` 调用时 receiver 类型已知，
+            // 可推断 T 的值并替换返回类型。
+            let generic_sigs: Vec<Signature> = sigs
+                .into_iter()
+                .filter(|s| s.type_param_count > 0)
+                .collect();
+            if generic_sigs.len() == 1 {
+                let sig = &generic_sigs[0];
+                // 检查返回类型是否含 Param；若有，尝试从 receiver_ty 提取类型实参替换。
+                if let TypeKind::Ref(crate::ty::RefTypeKind::Function(_)) =
+                    self.env.store.kind(receiver_ty)
+                {
+                    // 函数类型 receiver 不是常规 nominal；lenient。
+                    return self.env.store.nothing();
                 }
-                self.env.store.nothing()
-            };
+                // 尝试从 receiver_ty 提取类型实参并替换 sig.return_ty 中的 Param。
+                let receiver_args =
+                    nominal_fqn_of(self.env.store.kind(receiver_ty)).and_then(|_| {
+                        match self.env.store.kind(receiver_ty) {
+                            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                                Some(n.args.clone())
+                            }
+                            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                                Some(n.args.clone())
+                            }
+                            _ => None,
+                        }
+                    });
+                if let Some(rargs) = receiver_args {
+                    // sig.return_ty 中的 Param 替换为 rargs 对应位置。
+                    // 简化：对所有 Param 类型，用 receiver 的第一个类型实参替换。
+                    let subst_arg = rargs
+                        .first()
+                        .copied()
+                        .unwrap_or_else(|| self.env.store.nothing());
+                    let substituted = self.subst_all_params(sig.return_ty, subst_arg);
+                    return substituted;
+                }
+            }
+            return self.env.store.nothing();
         }
         if non_generic.len() == 1 {
             let sig = &non_generic[0];
@@ -3805,6 +5669,7 @@ mod tests {
                 && interner.resolve(d.name.symbol) == "main"
                 && let Some(body) = &d.body
             {
+                let mut expr_types = crate::resolve::output::NodeIdTable::new();
                 check_function(
                     &d.params,
                     d.return_ty.as_ref(),
@@ -3817,6 +5682,9 @@ mod tests {
                     &prefix,
                     HashMap::new(),
                     None,
+                    false,
+                    &mut expr_types,
+                    false,
                     false,
                 );
             }

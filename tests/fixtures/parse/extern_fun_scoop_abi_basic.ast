@@ -1,108 +1,20 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 63..85,
-            path: [
-                Ident {
-                    span: 71..79,
-                },
-                Ident {
-                    span: 80..85,
-                },
-            ],
-        },
-    ),
-    imports: [
-        ImportDecl {
-            span: 87..106,
-            path: [
-                Ident {
-                    span: 94..99,
-                },
-                Ident {
-                    span: 100..104,
-                },
-            ],
-            has_star: true,
-            alias: None,
-        },
-    ],
-    items: [
-        Fun(
-            FunDecl {
-                span: 108..185,
-                annotations: [
-                    AnnotationUse {
-                        span: 108..146,
-                        path: [
-                            Ident {
-                                span: 109..115,
-                            },
-                        ],
-                        args: [
-                            AnnotationArg {
-                                span: 116..130,
-                                value: Expr {
-                                    span: 116..130,
-                                    kind: StringLit,
-                                },
-                            },
-                            AnnotationArg {
-                                span: 132..145,
-                                name: Some(
-                                    Ident {
-                                        span: 132..135,
-                                    },
-                                ),
-                                value: Expr {
-                                    span: 138..145,
-                                    kind: StringLit,
-                                },
-                            },
-                        ],
-                    },
-                ],
-                receiver: None,
-                name: Ident {
-                    span: 151..162,
-                },
-                type_params: [],
-                params_span: 162..177,
-                params: [
-                    Param {
-                        name: Ident {
-                            span: 163..168,
-                        },
-                        ty: Some(
-                            Path(
-                                TypePath {
-                                    span: 170..176,
-                                    segments: [
-                                        Ident {
-                                            span: 170..176,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        ),
-                    },
-                ],
-                return_ty: Some(
-                    Path(
-                        TypePath {
-                            span: 179..185,
-                            segments: [
-                                Ident {
-                                    span: 179..185,
-                                },
-                            ],
-                            args: [],
-                        },
-                    ),
-                ),
-                body: Missing,
-            },
-        ),
-    ],
-}
+File 0..186
+  package:
+    Package 63..85 path=fixtures.parse
+  imports:
+    Import 87..106 path=scoop.core wildcard
+  items:
+    FunDecl 108..185 name=managedEcho
+      annotations:
+        Annotation 108..146 path=Extern
+          args:
+            AnnotationArg 116..130
+              StringLit 116..130 value="managed_echo"
+            AnnotationArg 132..145 name=abi
+              StringLit 138..145 value="scoop"
+      params:
+        Param 163..176 name=value
+          ty:
+            PathType 170..176 path=String
+      return_ty:
+        PathType 179..185 path=String

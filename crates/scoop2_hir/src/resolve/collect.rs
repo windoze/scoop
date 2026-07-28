@@ -121,6 +121,46 @@ impl<'a> Collector<'a> {
     }
 
     /// 把超类型路径解析为 FQN（单段 → package.name；多段 → 完整路径）。
+    /// 解析 typealias 目标 FQN：尝试 package prefix / scoop.core / scoop.collections 候选。
+    /// collect 阶段无 import 表，故用候选集近似（与 supertype_fqn 一致的局限）。
+    fn resolve_typealias_target(&mut self, path: &ast::TypePath) -> Sym {
+        if path.segments.len() == 1 {
+            let name_text = self.interner.resolve(path.segments[0].symbol);
+            // 候选：当前包前缀 / scoop.core / scoop.collections / 裸名。
+            let candidates: Vec<String> = if self.package_prefix.is_empty() {
+                vec![
+                    name_text.to_string(),
+                    format!("scoop.core.{name_text}"),
+                    format!("scoop.collections.{name_text}"),
+                ]
+            } else {
+                vec![
+                    format!("{}.{}", self.package_prefix, name_text),
+                    name_text.to_string(),
+                    format!("scoop.core.{name_text}"),
+                    format!("scoop.collections.{name_text}"),
+                ]
+            };
+            for cand in &candidates {
+                if let Some(fqn) = self.interner.get(cand)
+                    && self.index.lookup_type(fqn).is_some()
+                {
+                    return fqn;
+                }
+            }
+            // 未命中：用 package 前缀兜底（与 fqn_of 一致）。
+            self.fqn_of(path.segments[0].symbol)
+        } else {
+            let text = path
+                .segments
+                .iter()
+                .map(|s| self.interner.resolve(s.symbol))
+                .collect::<Vec<_>>()
+                .join(".");
+            self.intern_str(&text)
+        }
+    }
+
     fn supertype_fqn(&mut self, path: &ast::TypePath) -> Sym {
         if path.segments.len() == 1 {
             self.fqn_of(path.segments[0].symbol)
@@ -217,7 +257,13 @@ impl<'a> Collector<'a> {
             ItemKind::TypeAlias(d) => {
                 self.check_visibility(&d.modifiers, item.span);
                 let sym = self.make_symbol(SymbolKind::TypeAlias, d.name, &d.modifiers);
+                let alias_fqn = sym.fqn;
                 self.insert_type(sym, d.name);
+                // 记录 typealias 目标 FQN（供 resolve 阶段成员查找展开）。
+                if let ast::TypeRefKind::Path { path, .. } = &d.ty.kind {
+                    let target_fqn = self.resolve_typealias_target(path);
+                    self.index.record_typealias(alias_fqn, target_fqn);
+                }
             }
             ItemKind::Fun(d) => match &d.receiver {
                 None => {
@@ -241,8 +287,18 @@ impl<'a> Collector<'a> {
                     let sym = self.make_symbol(SymbolKind::Value, *name, &d.modifiers);
                     self.insert_value(sym, *name);
                 }
-                ValBinding::Pattern(_) => {
-                    // 解构绑定的多个顶层绑定由 pattern 解析阶段处理。
+                ValBinding::Pattern(pat) => {
+                    // 解构绑定的多个顶层绑定：提取 pattern 中的绑定名并注册为顶层值。
+                    let mut names: Vec<Sym> = Vec::new();
+                    collect_pattern_binders(&pat.kind, &mut names);
+                    for name in names {
+                        let ident = Ident {
+                            symbol: name,
+                            span: pat.span,
+                        };
+                        let sym = self.make_symbol(SymbolKind::Value, ident, &d.modifiers);
+                        self.insert_value(sym, ident);
+                    }
                 }
             },
             ItemKind::ExtensionProperty(d) => {
@@ -350,6 +406,39 @@ impl<'a> Collector<'a> {
             kind,
             package_prefix: self.package_prefix.clone(),
         });
+    }
+}
+
+/// 收集 pattern 中的所有绑定名（`Bind` 变体）。
+fn collect_pattern_binders(kind: &ast::PatternKind, out: &mut Vec<Sym>) {
+    match kind {
+        ast::PatternKind::Bind(name) => out.push(name.symbol),
+        ast::PatternKind::Tuple(els) => {
+            for e in els {
+                collect_pattern_binders(&e.kind, out);
+            }
+        }
+        ast::PatternKind::Struct { fields, .. } => {
+            for f in fields {
+                match &f.pattern {
+                    None => out.push(f.name.symbol),
+                    Some(p) => collect_pattern_binders(&p.kind, out),
+                }
+            }
+        }
+        ast::PatternKind::Variant {
+            args: Some(els), ..
+        } => {
+            for e in els {
+                collect_pattern_binders(&e.kind, out);
+            }
+        }
+        ast::PatternKind::Or(alts) => {
+            for a in alts {
+                collect_pattern_binders(&a.kind, out);
+            }
+        }
+        _ => {}
     }
 }
 

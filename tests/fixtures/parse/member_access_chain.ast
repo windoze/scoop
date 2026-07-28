@@ -1,65 +1,14 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 136..158,
-            path: [
-                Ident {
-                    span: 144..152,
-                },
-                Ident {
-                    span: 153..158,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 160..176,
-                kind: Val,
-                name: Ident {
-                    span: 164..165,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 168..176,
-                        kind: Call {
-                            callee: Expr {
-                                span: 168..173,
-                                kind: MemberAccess {
-                                    receiver: Expr {
-                                        span: 168..171,
-                                        kind: MemberAccess {
-                                            receiver: Expr {
-                                                span: 168..169,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 168..169,
-                                                    },
-                                                ),
-                                            },
-                                            member: Ident {
-                                                span: 170..171,
-                                            },
-                                        },
-                                    },
-                                    member: Ident {
-                                        span: 172..173,
-                                    },
-                                },
-                            },
-                            args: [
-                                Expr {
-                                    span: 174..175,
-                                    kind: IntLit,
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..178
+  package:
+    Package 136..158 path=fixtures.parse
+  items:
+    ValDecl 164..176 kind=val name=x
+      init:
+        Call 168..176
+          callee:
+            MemberAccess 168..173 member=c
+              MemberAccess 168..171 member=b
+                Ident 168..169 name=a
+          args:
+            CallArg 174..175
+              IntLit 174..175 value=1

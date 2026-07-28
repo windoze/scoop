@@ -25,13 +25,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable: &crate::effect_lowered::source::NativeCallableFun,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let signature = self
-            .published_codegen_callable_signature(fqn)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "`@CallingConvention` native callable `{fqn}` 缺少 LIR callable signature"
-                ))
-            })?;
         let span = self
             .callable_sources
             .get(fqn)
@@ -52,6 +45,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ok_or_else(|| {
                 frontend_error(format!(
                     "`@CallingConvention` native callable `{fqn}` 缺少 LIR callable symbol handle"
+                ))
+            })?;
+        let target = scoopc_lir_facts::LirCallableRef::Local(callable_id);
+        let signature = self
+            .published_codegen_callable_signature_for_ref(target)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "`@CallingConvention` native callable `{fqn}` 缺少 LIR callable signature"
                 ))
             })?;
         let plain = abi.plain_callable_layout_for_id(program, callable_id)?;

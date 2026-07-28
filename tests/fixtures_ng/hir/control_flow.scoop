@@ -1,0 +1,15 @@
+// EXPECT-AST: control_flow.hir
+//
+// 覆盖：if-else 表达式、while 循环、赋值、一元/逻辑运算。
+// 验证控制流表达式的类型推断与标注。
+
+package fixtures_ng.hir
+
+fun loop(acc: Int): Int {
+    var total: Int = acc
+    while (total < 100) {
+        total = total + total
+    }
+    val done = if (total > 0) true else false
+    return total
+}

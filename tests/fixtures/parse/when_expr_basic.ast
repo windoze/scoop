@@ -1,129 +1,32 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 144..166,
-            path: [
-                Ident {
-                    span: 152..160,
-                },
-                Ident {
-                    span: 161..166,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 168..246,
-                kind: Val,
-                name: Ident {
-                    span: 172..173,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 176..246,
-                        kind: When {
-                            subject: Expr {
-                                span: 182..188,
-                                kind: Ident(
-                                    Ident {
-                                        span: 182..188,
-                                    },
-                                ),
-                            },
-                            arms: [
-                                WhenArm {
-                                    span: 196..219,
-                                    pat: Is {
-                                        is_span: 196..198,
-                                        ty: Path(
-                                            TypePath {
-                                                span: 199..202,
-                                                segments: [
-                                                    Ident {
-                                                        span: 199..202,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    },
-                                    guard: None,
-                                    arrow_span: 203..205,
-                                    body: Expr {
-                                        span: 206..219,
-                                        kind: Call {
-                                            callee: Expr {
-                                                span: 206..217,
-                                                kind: MemberAccess {
-                                                    receiver: Expr {
-                                                        span: 206..212,
-                                                        kind: Ident(
-                                                            Ident {
-                                                                span: 206..212,
-                                                            },
-                                                        ),
-                                                    },
-                                                    member: Ident {
-                                                        span: 213..217,
-                                                    },
-                                                },
-                                            },
-                                            args: [],
-                                        },
-                                    },
-                                },
-                                WhenArm {
-                                    span: 224..230,
-                                    pat: IntLit {
-                                        span: 224..225,
-                                    },
-                                    guard: None,
-                                    arrow_span: 226..228,
-                                    body: Expr {
-                                        span: 229..230,
-                                        kind: IntLit,
-                                    },
-                                },
-                                WhenArm {
-                                    span: 235..244,
-                                    pat: Else {
-                                        span: 235..239,
-                                    },
-                                    guard: None,
-                                    arrow_span: 240..242,
-                                    body: Expr {
-                                        span: 243..244,
-                                        kind: IntLit,
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 248..261,
-                receiver: None,
-                name: Ident {
-                    span: 252..256,
-                },
-                type_params: [],
-                params_span: 256..258,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 259..261,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..263
+  package:
+    Package 144..166 path=fixtures.parse
+  items:
+    ValDecl 172..246 kind=val name=x
+      init:
+        When 176..246
+          subject:
+            Ident 182..188 name=animal
+          arms:
+            WhenArm 196..219
+              pat:
+                IsPat 196..202
+                  PathType 199..202 path=Dog
+              body:
+                Call 206..219
+                  callee:
+                    MemberAccess 206..217 member=bark
+                      Ident 206..212 name=animal
+            WhenArm 224..230
+              pat:
+                IntPat 224..225 value=0
+              body:
+                IntLit 229..230 value=0
+            WhenArm 235..244
+              pat:
+                ElsePat 235..239
+              body:
+                IntLit 243..244 value=1
+    FunDecl 252..261 name=main
+      body:
+        Block 259..261

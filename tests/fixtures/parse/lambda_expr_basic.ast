@@ -1,160 +1,28 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 158..180,
-            path: [
-                Ident {
-                    span: 166..174,
-                },
-                Ident {
-                    span: 175..180,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 182..205,
-                kind: Val,
-                name: Ident {
-                    span: 186..187,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 190..205,
-                        kind: Lambda(
-                            LambdaExpr {
-                                params: [
-                                    Param {
-                                        name: Ident {
-                                            span: 192..193,
-                                        },
-                                        ty: Some(
-                                            Path(
-                                                TypePath {
-                                                    span: 195..198,
-                                                    segments: [
-                                                        Ident {
-                                                            span: 195..198,
-                                                        },
-                                                    ],
-                                                    args: [],
-                                                },
-                                            ),
-                                        ),
-                                    },
-                                ],
-                                arrow_span: Some(
-                                    199..201,
-                                ),
-                                body: Expr {
-                                    span: 202..203,
-                                    kind: Ident(
-                                        Ident {
-                                            span: 202..203,
-                                        },
-                                    ),
-                                },
-                            },
-                        ),
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 206..220,
-                kind: Val,
-                name: Ident {
-                    span: 210..211,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 214..220,
-                        kind: Lambda(
-                            LambdaExpr {
-                                params: [],
-                                arrow_span: None,
-                                body: Expr {
-                                    span: 216..218,
-                                    kind: Ident(
-                                        Ident {
-                                            span: 216..218,
-                                        },
-                                    ),
-                                },
-                            },
-                        ),
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 221..242,
-                kind: Val,
-                name: Ident {
-                    span: 225..226,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 229..242,
-                        kind: Lambda(
-                            LambdaExpr {
-                                params: [
-                                    Param {
-                                        name: Ident {
-                                            span: 231..232,
-                                        },
-                                        ty: None,
-                                    },
-                                    Param {
-                                        name: Ident {
-                                            span: 234..235,
-                                        },
-                                        ty: None,
-                                    },
-                                ],
-                                arrow_span: Some(
-                                    236..238,
-                                ),
-                                body: Expr {
-                                    span: 239..240,
-                                    kind: Ident(
-                                        Ident {
-                                            span: 239..240,
-                                        },
-                                    ),
-                                },
-                            },
-                        ),
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 244..257,
-                receiver: None,
-                name: Ident {
-                    span: 248..252,
-                },
-                type_params: [],
-                params_span: 252..254,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 255..257,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..259
+  package:
+    Package 158..180 path=fixtures.parse
+  items:
+    ValDecl 186..205 kind=val name=f
+      init:
+        Lambda 190..205
+          params:
+            LambdaParam 192..198 name=x
+              PathType 195..198 path=Any
+          body:
+            Ident 202..203 name=x
+    ValDecl 210..220 kind=val name=g
+      init:
+        Lambda 214..220
+          body:
+            Ident 216..218 name=it
+    ValDecl 225..242 kind=val name=h
+      init:
+        Lambda 229..242
+          params:
+            LambdaParam 231..232 name=a
+            LambdaParam 234..235 name=b
+          body:
+            Ident 239..240 name=a
+    FunDecl 248..257 name=main
+      body:
+        Block 255..257

@@ -1,87 +1,14 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 58..80,
-            path: [
-                Ident {
-                    span: 66..74,
-                },
-                Ident {
-                    span: 75..80,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 82..110,
-                kind: Val,
-                name: Ident {
-                    span: 86..87,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 90..110,
-                        kind: StructLit {
-                            ty: TypePath {
-                                span: 90..95,
-                                segments: [
-                                    Ident {
-                                        span: 90..95,
-                                    },
-                                ],
-                                args: [],
-                            },
-                            fields: [
-                                StructLitField {
-                                    span: 98..102,
-                                    name: Ident {
-                                        span: 98..99,
-                                    },
-                                    colon_span: 99..100,
-                                    value: Expr {
-                                        span: 101..102,
-                                        kind: IntLit,
-                                    },
-                                },
-                                StructLitField {
-                                    span: 104..108,
-                                    name: Ident {
-                                        span: 104..105,
-                                    },
-                                    colon_span: 105..106,
-                                    value: Expr {
-                                        span: 107..108,
-                                        kind: IntLit,
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 112..125,
-                receiver: None,
-                name: Ident {
-                    span: 116..120,
-                },
-                type_params: [],
-                params_span: 120..122,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 123..125,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..127
+  package:
+    Package 58..80 path=fixtures.parse
+  items:
+    ValDecl 86..110 kind=val name=p
+      init:
+        StructLit 90..110 name=Point
+          StructField 98..102 name=x
+            IntLit 101..102 value=1
+          StructField 104..108 name=y
+            IntLit 107..108 value=2
+    FunDecl 116..125 name=main
+      body:
+        Block 123..125

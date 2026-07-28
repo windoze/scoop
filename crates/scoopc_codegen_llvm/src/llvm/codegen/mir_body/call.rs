@@ -1216,6 +1216,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let named_intrinsic_entry = source_site
             .and_then(|site| site.named_entry_name.as_deref())
             .map(str::to_string)
+            .or_else(|| {
+                source_site
+                    .and_then(|site| site.semantic_root_fqn.as_deref())
+                    .and_then(|root| self.published_named_intrinsic_entry_name(root))
+            })
             .or_else(|| self.published_named_intrinsic_entry_name(concrete_fqn));
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.try_codegen_named_intrinsic_mir_direct_call(
@@ -1230,7 +1235,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(value);
         }
-        let callable_abi = self.direct_call_abi_identity(concrete_fqn);
+        let exact = exact_callee.as_ref().ok_or_else(|| {
+            frontend_error(format!(
+                "direct call `{concrete_fqn}` lacks target-bound LIR callable binding"
+            ))
+        })?;
+        let target_callable = exact.target_callable;
+        let callable_abi = self.direct_call_abi_identity_for_ref(target_callable);
         let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
         if require_plain_surface && uses_effect_step_surface {
             return Err(frontend_error(format!(
@@ -1240,7 +1251,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let uses_explicit_effect_hidden_abi = !require_plain_surface && uses_effect_step_surface;
         let (source_types, param_names, source_param_tys, source_return_ty) = self
-            .published_callable_signature_with_names(concrete_fqn)
+            .published_callable_signature_with_names_for_binding(exact)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!("direct call `{concrete_fqn}` 缺少 LIR callable signature facts"),
             })?;
@@ -1269,9 +1280,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let native_abi = if callable_abi.uses_native_abi() {
-            Some(self.classify_direct_extern_native_callable(
+            Some(self.classify_direct_extern_native_callable_for_ref(
                 span,
-                concrete_fqn,
+                target_callable,
                 &param_tys,
                 return_ty_for_codegen,
             )?)
@@ -1347,9 +1358,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 } else {
                     LlvmFunctionDeclarationSurface::ExportedAbi
                 };
-                self.declare_lir_plain_fun_with_symbol(
+                self.declare_lir_plain_fun_with_symbol_for_ref(
                     llvm_name,
                     declaration_surface,
+                    target_callable,
                     concrete_fqn,
                     &source_param_tys,
                     source_return_ty,
@@ -1373,7 +1385,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(result_ty) = hidden_sret_result_ty {
                     cg.add_sret_attribute_to_call(call_site, 0, result_ty);
                 }
-                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(concrete_fqn));
+                call_site.set_call_convention(
+                    cg.llvm_call_convention_for_lir_callable_ref(target_callable),
+                );
                 Ok(call_site)
             })
         };
@@ -1479,6 +1493,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let named_intrinsic_entry = source_site
             .and_then(|site| site.named_entry_name.as_deref())
             .map(str::to_string)
+            .or_else(|| {
+                source_site
+                    .and_then(|site| site.semantic_root_fqn.as_deref())
+                    .and_then(|root| self.published_named_intrinsic_entry_name(root))
+            })
             .or_else(|| self.published_named_intrinsic_entry_name(concrete_fqn));
         if let Some(entry_name) = named_intrinsic_entry
             && let Some(value) = self.try_codegen_named_intrinsic_lir_direct_call(
@@ -1529,10 +1548,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 slots,
             );
         }
-        let callable_abi = self.direct_call_abi_identity(concrete_fqn);
+        let callable_abi = self.direct_call_abi_identity_for_ref(target_callable);
         let uses_effect_step_surface = callable_abi.uses_effect_bridge_abi();
-        let (signature_types, param_names, source_param_tys, source_return_ty) = self
-            .published_callable_signature_with_names(concrete_fqn)
+        let signature = if let Some(exact) = exact_callee.as_ref() {
+            self.published_callable_signature_with_names_for_binding(exact)
+        } else {
+            self.published_callable_signature_with_names_for_ref(target_callable)
+        }
+        .or_else(|| self.published_callable_signature_with_names_for_root_label(concrete_fqn));
+        let (signature_types, param_names, source_param_tys, source_return_ty) = signature
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "LIR direct call `{concrete_fqn}` 缺少 LIR callable signature facts"
@@ -1589,9 +1613,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let native_abi = if callable_abi.uses_native_abi() {
-            Some(self.classify_direct_extern_native_callable(
+            Some(self.classify_direct_extern_native_callable_for_ref(
                 span,
-                concrete_fqn,
+                target_callable,
                 &param_tys,
                 return_ty_for_codegen,
             )?)
@@ -1710,9 +1734,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 } else {
                     LlvmFunctionDeclarationSurface::ExportedAbi
                 };
-                self.declare_lir_plain_fun_with_symbol(
+                self.declare_lir_plain_fun_with_symbol_for_ref(
                     &llvm_name,
                     declaration_surface,
+                    target_callable,
                     concrete_fqn,
                     &declaration_param_tys,
                     declaration_return_ty,
@@ -1736,7 +1761,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(result_ty) = hidden_sret_result_ty {
                     cg.add_sret_attribute_to_call(call_site, 0, result_ty);
                 }
-                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(concrete_fqn));
+                call_site.set_call_convention(
+                    cg.llvm_call_convention_for_lir_callable_ref(target_callable),
+                );
                 Ok(call_site)
             })
         };
@@ -2831,7 +2858,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 if !fun_ty.effects.is_pure() {
                     let carrier_key = self
-                        .lir_source_callable(fn_ptr)
+                        .lir_source_callable_by_root_label(fn_ptr)
                         .map(|(callable_id, _, _)| {
                             let program = self.expect_active_lir_program(
                                 "plain MIR closure dynamic call carrier target",

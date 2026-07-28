@@ -1,131 +1,25 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 158..180,
-            path: [
-                Ident {
-                    span: 166..174,
-                },
-                Ident {
-                    span: 175..180,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 182..296,
-                receiver: None,
-                name: Ident {
-                    span: 186..190,
-                },
-                type_params: [],
-                params_span: 190..192,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 193..296,
-                        stmts: [
-                            Stmt {
-                                span: 199..294,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 199..294,
-                                        kind: Val,
-                                        name: Ident {
-                                            span: 203..204,
-                                        },
-                                        ty: None,
-                                        init: Some(
-                                            Expr {
-                                                span: 207..294,
-                                                kind: Handle {
-                                                    body: Block {
-                                                        span: 214..231,
-                                                        stmts: [
-                                                            Stmt {
-                                                                span: 224..225,
-                                                                kind: Expr(
-                                                                    Expr {
-                                                                        span: 224..225,
-                                                                        kind: IntLit,
-                                                                    },
-                                                                ),
-                                                                has_trailing_semi: false,
-                                                            },
-                                                        ],
-                                                    },
-                                                    arms: [
-                                                        HandleArm {
-                                                            span: 245..288,
-                                                            op: HandleOp {
-                                                                span: 245..259,
-                                                                effect: TypePath {
-                                                                    span: 245..250,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 245..250,
-                                                                        },
-                                                                    ],
-                                                                    args: [],
-                                                                },
-                                                                dot_span: 250..251,
-                                                                op: Ident {
-                                                                    span: 251..256,
-                                                                },
-                                                                binders: [
-                                                                    HandleBinder {
-                                                                        span: 257..258,
-                                                                        name: Ident {
-                                                                            span: 257..258,
-                                                                        },
-                                                                        colon_span: None,
-                                                                        ty: None,
-                                                                    },
-                                                                ],
-                                                            },
-                                                            arrow_span: 260..262,
-                                                            body: Expr {
-                                                                span: 263..288,
-                                                                kind: Block(
-                                                                    Block {
-                                                                        span: 263..288,
-                                                                        stmts: [
-                                                                            Stmt {
-                                                                                span: 277..278,
-                                                                                kind: Expr(
-                                                                                    Expr {
-                                                                                        span: 277..278,
-                                                                                        kind: Ident(
-                                                                                            Ident {
-                                                                                                span: 277..278,
-                                                                                            },
-                                                                                        ),
-                                                                                    },
-                                                                                ),
-                                                                                has_trailing_semi: false,
-                                                                            },
-                                                                        ],
-                                                                    },
-                                                                ),
-                                                            },
-                                                        },
-                                                    ],
-                                                    finally: None,
-                                                },
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..298
+  package:
+    Package 158..180 path=fixtures.parse
+  items:
+    FunDecl 186..296 name=main
+      body:
+        Block 193..296
+          LocalValStmt 203..294
+            ValDecl 203..294 kind=val name=x
+              init:
+                Handle 207..294
+                  body:
+                    Block 214..231
+                      ExprStmt 224..225
+                        IntLit 224..225 value=1
+                  arms:
+                    HandleArm 245..288
+                      op:
+                        HandleOp 245..259 path=Raise op=raise
+                          binders:
+                            HandleBinder 257..258 name=e
+                      body:
+                        Block 263..288
+                          ExprStmt 277..278
+                            Ident 277..278 name=e

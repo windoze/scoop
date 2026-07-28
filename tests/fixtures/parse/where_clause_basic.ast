@@ -1,146 +1,30 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 55..77,
-            path: [
-                Ident {
-                    span: 63..71,
-                },
-                Ident {
-                    span: 72..77,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 79..114,
-                receiver: None,
-                name: Ident {
-                    span: 87..88,
-                },
-                type_params: [
-                    TypeParam {
-                        span: 84..85,
-                        name: Ident {
-                            span: 84..85,
-                        },
-                    },
-                ],
-                where_clause: Some(
-                    WhereClause {
-                        span: 98..111,
-                        constraints: [
-                            WhereConstraint {
-                                span: 104..111,
-                                ty_param: Ident {
-                                    span: 104..105,
-                                },
-                                bound: Path(
-                                    TypePath {
-                                        span: 107..111,
-                                        segments: [
-                                            Ident {
-                                                span: 107..111,
-                                            },
-                                        ],
-                                        args: [],
-                                    },
-                                ),
-                            },
-                        ],
-                    },
-                ),
-                params_span: 88..94,
-                params: [
-                    Param {
-                        name: Ident {
-                            span: 89..90,
-                        },
-                        ty: Some(
-                            Path(
-                                TypePath {
-                                    span: 92..93,
-                                    segments: [
-                                        Ident {
-                                            span: 92..93,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        ),
-                    },
-                ],
-                return_ty: Some(
-                    Path(
-                        TypePath {
-                            span: 96..97,
-                            segments: [
-                                Ident {
-                                    span: 96..97,
-                                },
-                            ],
-                            args: [],
-                        },
-                    ),
-                ),
-                body: Block(
-                    Block {
-                        span: 112..114,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-        Type(
-            TypeDecl {
-                span: 116..146,
-                kind: Class,
-                name: Ident {
-                    span: 122..125,
-                },
-                type_params: [
-                    TypeParam {
-                        span: 126..127,
-                        name: Ident {
-                            span: 126..127,
-                        },
-                    },
-                ],
-                where_clause: Some(
-                    WhereClause {
-                        span: 129..143,
-                        constraints: [
-                            WhereConstraint {
-                                span: 135..143,
-                                ty_param: Ident {
-                                    span: 135..136,
-                                },
-                                bound: Path(
-                                    TypePath {
-                                        span: 138..143,
-                                        segments: [
-                                            Ident {
-                                                span: 138..143,
-                                            },
-                                        ],
-                                        args: [],
-                                    },
-                                ),
-                            },
-                        ],
-                    },
-                ),
-                body: Some(
-                    TypeBody {
-                        span: 144..146,
-                        members: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..148
+  package:
+    Package 55..77 path=fixtures.parse
+  items:
+    FunDecl 87..114 name=f
+      type_params:
+        TypeParams 83..86
+          TypeParam 84..85 name=T
+      params:
+        Param 89..93 name=x
+          ty:
+            PathType 92..93 path=T
+      return_ty:
+        PathType 96..97 path=T
+      where:
+        Where 98..111
+          WhereConstraint 104..111 name=T
+            PathType 107..111 path=Show
+      body:
+        Block 112..114
+    ClassDecl 122..146 name=Box
+      type_params:
+        TypeParams 125..128
+          TypeParam 126..127 name=T
+      where:
+        Where 129..143
+          WhereConstraint 135..143 name=T
+            PathType 138..143 path=Clone
+      body:
+        TypeBody 144..146

@@ -1,0 +1,12 @@
+// EXPECT-AST: val_and_arith.hir
+//
+// 覆盖：顶层 fun、局部 val（带标注 + 推断）、二元算术、return。
+// 验证 dump-hir 为每个表达式节点标注推断类型（ty=...）。
+
+package fixtures_ng.hir
+
+fun add(a: Int, b: Int): Int {
+    val sum: Int = a + b
+    val doubled = sum * 2
+    return doubled
+}

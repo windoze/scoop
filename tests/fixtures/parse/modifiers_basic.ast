@@ -1,160 +1,26 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 52..74,
-            path: [
-                Ident {
-                    span: 60..68,
-                },
-                Ident {
-                    span: 69..74,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Type(
-            TypeDecl {
-                span: 76..184,
-                modifiers: [
-                    Public,
-                    Abstract,
-                    Sealed,
-                ],
-                kind: Class,
-                name: Ident {
-                    span: 105..106,
-                },
-                type_params: [],
-                body: Some(
-                    TypeBody {
-                        span: 107..184,
-                        members: [
-                            Fun(
-                                FunDecl {
-                                    span: 113..146,
-                                    modifiers: [
-                                        Internal,
-                                    ],
-                                    receiver: None,
-                                    name: Ident {
-                                        span: 126..127,
-                                    },
-                                    type_params: [],
-                                    params_span: 127..135,
-                                    params: [
-                                        Param {
-                                            name: Ident {
-                                                span: 128..129,
-                                            },
-                                            ty: Some(
-                                                Path(
-                                                    TypePath {
-                                                        span: 131..134,
-                                                        segments: [
-                                                            Ident {
-                                                                span: 131..134,
-                                                            },
-                                                        ],
-                                                        args: [],
-                                                    },
-                                                ),
-                                            ),
-                                        },
-                                    ],
-                                    return_ty: Some(
-                                        Path(
-                                            TypePath {
-                                                span: 137..140,
-                                                segments: [
-                                                    Ident {
-                                                        span: 137..140,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    ),
-                                    body: Block(
-                                        Block {
-                                            span: 141..146,
-                                            stmts: [
-                                                Stmt {
-                                                    span: 143..144,
-                                                    kind: Expr(
-                                                        Expr {
-                                                            span: 143..144,
-                                                            kind: IntLit,
-                                                        },
-                                                    ),
-                                                    has_trailing_semi: false,
-                                                },
-                                            ],
-                                        },
-                                    ),
-                                },
-                            ),
-                            Property(
-                                PropertyDecl {
-                                    span: 151..182,
-                                    modifiers: [
-                                        Private,
-                                        Override,
-                                    ],
-                                    kind: Val,
-                                    name: Ident {
-                                        span: 172..173,
-                                    },
-                                    ty: Some(
-                                        Path(
-                                            TypePath {
-                                                span: 175..178,
-                                                segments: [
-                                                    Ident {
-                                                        span: 175..178,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    ),
-                                    init: Some(
-                                        Expr {
-                                            span: 181..182,
-                                            kind: IntLit,
-                                        },
-                                    ),
-                                    getter: None,
-                                    setter: None,
-                                },
-                            ),
-                        ],
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 186..206,
-                modifiers: [
-                    Public,
-                ],
-                receiver: None,
-                name: Ident {
-                    span: 197..200,
-                },
-                type_params: [],
-                params_span: 200..202,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 203..206,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..207
+  package:
+    Package 52..74 path=fixtures.parse
+  items:
+    ClassDecl 105..184 name=C mods=[public, abstract, sealed]
+      body:
+        TypeBody 107..184
+          FunDecl 126..146 name=f mods=[internal]
+            params:
+              Param 128..134 name=x
+                ty:
+                  PathType 131..134 path=Int
+            return_ty:
+              PathType 137..140 path=Int
+            body:
+              Block 141..146
+                ExprStmt 143..144
+                  IntLit 143..144 value=1
+          PropertyDecl 172..182 kind=val name=p mods=[private, override]
+            ty:
+              PathType 175..178 path=Int
+            init:
+              IntLit 181..182 value=1
+    FunDecl 197..206 name=top mods=[public]
+      body:
+        Block 203..206

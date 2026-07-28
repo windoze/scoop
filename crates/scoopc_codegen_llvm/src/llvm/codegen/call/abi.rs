@@ -124,9 +124,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn native_call_convention_for_origin_impl(&self, origin: NativeCallableOrigin<'_>) -> u32 {
         match origin {
-            NativeCallableOrigin::DirectExtern { callable_fqn } => {
-                self.llvm_call_convention_for_fqn(callable_fqn)
-            }
+            NativeCallableOrigin::Direct { calling_convention } => calling_convention
+                .map(|name| self.llvm_call_convention_for_name(name))
+                .unwrap_or(0),
             NativeCallableOrigin::FunPtr => 0,
         }
     }
@@ -216,18 +216,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    pub(in crate::llvm::codegen) fn classify_direct_extern_native_callable_impl(
+    pub(in crate::llvm::codegen) fn classify_direct_extern_native_callable_for_ref_impl(
         &mut self,
         span: crate::span::Span,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
         param_tys: &[TypeId],
         return_ty: TypeId,
     ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
+        let calling_convention = self
+            .lir_callable_symbol_facts_for_ref_impl(target)
+            .and_then(|facts| {
+                facts
+                    .native
+                    .as_ref()
+                    .map(|native| native.calling_convention.as_str())
+                    .or_else(|| {
+                        facts
+                            .extern_
+                            .as_ref()
+                            .and_then(|extern_| extern_.calling_convention.as_deref())
+                    })
+            });
         self.classify_native_callable_impl(
             span,
             param_tys,
             return_ty,
-            NativeCallableOrigin::DirectExtern { callable_fqn },
+            NativeCallableOrigin::Direct { calling_convention },
         )
     }
 
@@ -300,24 +314,80 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(call_site)
     }
 
-    fn direct_callable_abi_identity_for_fqn_impl(
+    fn callable_symbol_kind_abi_identity_impl(
         &self,
-        callable_fqn: &str,
+        kind: scoopc_lir_facts::LirCallableSymbolKind,
     ) -> hir::CallableAbiIdentity {
-        if let Some(extern_fun) = self.extern_funs.get(callable_fqn) {
-            return extern_fun.callable_abi_identity();
+        match kind {
+            scoopc_lir_facts::LirCallableSymbolKind::ManagedOrdinary => {
+                hir::CallableAbiIdentity::ManagedOrdinary
+            }
+            scoopc_lir_facts::LirCallableSymbolKind::NativeExtern => {
+                hir::CallableAbiIdentity::NativeExtern
+            }
+            scoopc_lir_facts::LirCallableSymbolKind::ManagedExtern => {
+                hir::CallableAbiIdentity::ManagedExtern
+            }
+            scoopc_lir_facts::LirCallableSymbolKind::EffectBridge => {
+                hir::CallableAbiIdentity::EffectBridge
+            }
         }
-        if self.callable_uses_explicit_effect_hidden_abi_impl(callable_fqn) {
+    }
+
+    fn published_lir_callable_id_for_ref_impl(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<LirCallableId> {
+        let program = self.active_lir_program()?;
+        match target {
+            scoopc_lir_facts::LirCallableRef::Local(id) => {
+                program.callable_by_id(id).is_some().then_some(id)
+            }
+            scoopc_lir_facts::LirCallableRef::ExternalHash(hash) => program
+                .callables()
+                .iter()
+                .enumerate()
+                .find_map(|(index, callable)| {
+                    callable
+                        .lir_callable_key()
+                        .is_some_and(|key| {
+                            scoopc_ids::LirCallableHash::from_stable_key(key) == hash
+                        })
+                        .then(|| LirCallableId::from_index(index))
+                        .flatten()
+                }),
+        }
+    }
+
+    fn published_lir_callable_for_ref_impl(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<&'a crate::effect_lowered::LateLoweredCallable> {
+        let program = self.active_lir_program()?;
+        let id = self.published_lir_callable_id_for_ref_impl(target)?;
+        program.callable_by_id(id)
+    }
+
+    fn lir_callable_symbol_facts_for_ref_impl(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<&'a scoopc_lir_facts::LirCallableSymbolFacts> {
+        let program = self.active_lir_program()?;
+        let id = self.published_lir_callable_id_for_ref_impl(target)?;
+        program.physical_layout().callable_symbols.get(&id)
+    }
+
+    pub(in crate::llvm::codegen) fn direct_call_abi_identity_for_ref_impl(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> hir::CallableAbiIdentity {
+        if let Some(symbol) = self.lir_callable_symbol_facts_for_ref_impl(target) {
+            return self.callable_symbol_kind_abi_identity_impl(symbol.kind);
+        }
+        if self.callable_uses_explicit_effect_hidden_abi_for_ref_impl(target) {
             return hir::CallableAbiIdentity::EffectBridge;
         }
         hir::CallableAbiIdentity::ManagedOrdinary
-    }
-
-    pub(in crate::llvm::codegen) fn direct_call_abi_identity_impl(
-        &self,
-        callable_fqn: &str,
-    ) -> hir::CallableAbiIdentity {
-        self.direct_callable_abi_identity_for_fqn_impl(callable_fqn)
     }
 
     pub(in crate::llvm::codegen) fn managed_callable_abi_identity_impl(
@@ -334,24 +404,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.managed_callable_abi_identity_impl(!fun_ty.effects.is_pure())
     }
 
-    fn published_lir_callable_facts_by_root(
+    fn published_lir_callable_facts_for_ref(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Option<&'a scoopc_lir_facts::LirCallableFacts> {
-        self.active_lir_program()?
-            .callables()
-            .iter()
-            .find(|callable| callable.root_fqn() == callable_fqn)?
+        self.published_lir_callable_for_ref_impl(target)?
             .published_callable_facts()
     }
 
     /// 已发布 callable contract 中，只要某个 root version 仍需要 effect-step callable surface，
     /// 其遗留声明入口就必须预留显式 hidden ABI，而不能再从 HIR `effectful` 布尔值反推。
-    pub(in crate::llvm::codegen) fn callable_uses_explicit_effect_hidden_abi_impl(
+    pub(in crate::llvm::codegen) fn callable_uses_explicit_effect_hidden_abi_for_ref_impl(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> bool {
-        self.published_lir_callable_facts_by_root(callable_fqn)
+        self.published_lir_callable_facts_for_ref(target)
             .is_some_and(|callable| {
                 matches!(
                     callable.kind(),
@@ -360,24 +427,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
-    pub(in crate::llvm::codegen) fn callable_needs_callee_resume_shell_impl(
+    pub(in crate::llvm::codegen) fn callable_needs_callee_resume_shell_for_ref_impl(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> bool {
-        self.published_lir_callable_facts_by_root(callable_fqn)
+        self.published_lir_callable_facts_for_ref(target)
             .is_some_and(|callable| callable.body_version.needs_reentry)
     }
 
-    pub(in crate::llvm::codegen) fn published_callable_signature_impl(
+    pub(in crate::llvm::codegen) fn published_callable_signature_for_ref_impl(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Option<(&'a TypeStore, Vec<TypeId>, TypeId)> {
         let program = self.active_lir_program()?;
         let source_types = self.published_late_lowered_types()?;
-        let callable = program
-            .callables()
-            .iter()
-            .find(|callable| callable.root_fqn() == callable_fqn)?;
+        let callable = self.published_lir_callable_for_ref_impl(target)?;
         if let Some(plain) = callable.plain_abi() {
             return Some((source_types, plain.param_tys().to_vec(), plain.return_ty()));
         }
@@ -390,19 +454,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Some((source_types, param_tys, return_ty))
     }
 
-    pub(in crate::llvm::codegen) fn published_callable_signature_with_names_impl(
+    pub(in crate::llvm::codegen) fn published_callable_signature_with_names_for_ref_impl(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
-        let program = self.active_lir_program()?;
         if let Some((source_types, param_tys, return_ty)) =
-            self.published_callable_signature_impl(callable_fqn)
+            self.published_callable_signature_for_ref_impl(target)
         {
-            let callable_facts = program
-                .callables()
-                .iter()
-                .find(|callable| callable.root_fqn() == callable_fqn)?
-                .published_callable_facts()?;
+            let callable_facts = self.published_lir_callable_facts_for_ref(target)?;
             return Some((
                 source_types,
                 callable_facts.param_names.clone(),
@@ -410,27 +469,105 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return_ty,
             ));
         }
-        if let Some(signature) = program.source_signature(callable_fqn) {
-            let source_types = self.published_late_lowered_types()?;
-            return Some((
-                source_types,
-                signature.param_names.clone(),
-                signature.param_tys.clone(),
-                signature.return_ty,
-            ));
-        }
         None
     }
 
-    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_impl(
+    pub(in crate::llvm::codegen) fn published_callable_signature_with_names_for_binding_impl(
         &self,
-        callable_fqn: &str,
+        binding: &scoopc_lir_facts::LirExactCalleeBinding,
+    ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
+        if let Some(signature) =
+            self.published_callable_signature_with_names_for_ref_impl(binding.target_callable)
+        {
+            return Some(signature);
+        }
+        let program = self.active_lir_program()?;
+        let source_types = self.published_late_lowered_types()?;
+        let signature = program
+            .source_signatures()
+            .find(|signature| signature.signature_key == binding.signature_key)?;
+        Some((
+            source_types,
+            signature.param_names.clone(),
+            signature.param_tys.clone(),
+            signature.return_ty,
+        ))
+    }
+
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_binding_impl(
+        &self,
+        binding: &scoopc_lir_facts::LirExactCalleeBinding,
     ) -> Option<CodegenCallableSignature> {
         let (source_types, param_names, param_tys, return_ty) =
-            self.published_callable_signature_with_names_impl(callable_fqn)?;
+            self.published_callable_signature_with_names_for_binding_impl(binding)?;
         let (param_tys, return_ty) =
             self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)?;
         Some(CodegenCallableSignature {
+            target: Some(binding.target_callable),
+            fqn: binding.root_fqn.clone(),
+            param_names,
+            param_tys,
+            return_ty,
+        })
+    }
+
+    pub(in crate::llvm::codegen) fn published_callable_signature_with_names_for_root_label_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
+        let program = self.active_lir_program()?;
+        let source_types = self.published_late_lowered_types()?;
+        let callable = program
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn().eq(callable_fqn));
+        if let Some(callable) = callable {
+            let callable_id = program.callable_id_for(callable)?;
+            return self.published_callable_signature_with_names_for_ref_impl(
+                scoopc_lir_facts::LirCallableRef::Local(callable_id),
+            );
+        }
+        let signature = program
+            .source_signatures()
+            .find(|signature| signature.root_fqn.eq(callable_fqn))?;
+        Some((
+            source_types,
+            signature.param_names.clone(),
+            signature.param_tys.clone(),
+            signature.return_ty,
+        ))
+    }
+
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_root_label_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<CodegenCallableSignature> {
+        let program = self.active_lir_program()?;
+        let (source_types, param_names, param_tys, return_ty) =
+            self.published_callable_signature_with_names_for_root_label_impl(callable_fqn)?;
+        let (param_tys, return_ty) =
+            self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)?;
+        let target = program
+            .callables()
+            .iter()
+            .find(|callable| callable.root_fqn().eq(callable_fqn))
+            .and_then(|callable| program.callable_id_for(callable))
+            .map(scoopc_lir_facts::LirCallableRef::Local)
+            .or_else(|| {
+                program
+                    .physical_layout()
+                    .abi_symbols
+                    .values()
+                    .find(|symbol| {
+                        symbol
+                            .root_fqn
+                            .as_deref()
+                            .is_some_and(|root| root.eq(callable_fqn))
+                    })
+                    .and_then(|symbol| symbol.callable)
+            });
+        Some(CodegenCallableSignature {
+            target,
             fqn: callable_fqn.to_string(),
             param_names,
             param_tys,
@@ -473,6 +610,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let (param_tys, return_ty) =
             self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)?;
         Some(CodegenCallableSignature {
+            target: Some(target),
             fqn: callable.root_fqn().to_string(),
             param_names,
             param_tys,
@@ -988,6 +1126,11 @@ mod tests {
             }),
             None,
         );
+        let declaration_signature_key = declaration
+            .source_signature()
+            .expect("declaration should publish a source signature")
+            .signature_key
+            .clone();
         let program = crate::effect_lowered::LateLoweredProgram::new(
             Vec::new(),
             Vec::new(),
@@ -1060,14 +1203,22 @@ mod tests {
             effect_op_tags,
         });
         let codegen = unit_codegen.fresh_main_codegen();
+        let binding = scoopc_lir_facts::LirExactCalleeBinding {
+            target_callable: scoopc_lir_facts::LirCallableRef::external_hash(
+                scoopc_ids::LirCallableHash::from_canonical_text("fixtures.synthetic.declared"),
+            ),
+            root_fqn: root.clone(),
+            abi_symbol: "fixtures_synthetic_declared".to_string(),
+            signature_key: declaration_signature_key,
+        };
 
         let signature = codegen
-            .published_callable_signature_with_names(&root)
+            .published_callable_signature_with_names_for_binding(&binding)
             .expect("declaration source signature should come from the active LIR program");
         assert_eq!(signature.2.as_slice(), &[synthetic_param_ty]);
         assert!(
             codegen
-                .published_codegen_callable_signature(&root)
+                .published_codegen_callable_signature_for_binding(&binding)
                 .is_none(),
             "declaration signature TypeIds must be remapped from the published TypeStore owner"
         );

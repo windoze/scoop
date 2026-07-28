@@ -364,6 +364,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             )));
         }
         let (symbol_name, surface, closure_like) = if callable.root_fqn().contains("$lambda") {
+            let callable_id = self.callable_id(callable)?;
             let source_callable = callable.source_callable().ok_or_else(|| {
                 frontend_error(format!(
                     "LLVM ABI materialization 发现 plain closure `{}` 缺少 source callable contract",
@@ -372,11 +373,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             })?;
             (
                 self.codegen
-                    .lir_source_closure_body_symbol(callable.root_fqn(), source_callable.span)?,
+                    .lir_source_closure_body_symbol_for_id(callable_id, source_callable.span)?,
                 LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
                 true,
             )
-        } else if callable.root_fqn() == "main" {
+        } else if callable.root_fqn().eq("main") {
             (
                 "__scoop_plain_source_main".to_string(),
                 LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
@@ -389,9 +390,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 false,
             )
         };
-        let llvm_fun = self.codegen.declare_lir_plain_fun_with_symbol(
+        let llvm_fun = self.codegen.declare_lir_plain_fun_with_symbol_for_ref(
             &symbol_name,
             surface,
+            scoopc_lir_facts::LirCallableRef::Local(self.callable_id(callable)?),
             callable.root_fqn(),
             &plain_param_tys,
             plain_return_ty,

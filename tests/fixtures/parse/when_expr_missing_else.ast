@@ -1,99 +1,24 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 155..177,
-            path: [
-                Ident {
-                    span: 163..171,
-                },
-                Ident {
-                    span: 172..177,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 179..226,
-                kind: Val,
-                name: Ident {
-                    span: 183..184,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 187..226,
-                        kind: When {
-                            subject: Expr {
-                                span: 193..194,
-                                kind: Ident(
-                                    Ident {
-                                        span: 193..194,
-                                    },
-                                ),
-                            },
-                            arms: [
-                                WhenArm {
-                                    span: 202..208,
-                                    pat: IntLit {
-                                        span: 202..203,
-                                    },
-                                    guard: None,
-                                    arrow_span: 204..206,
-                                    body: Expr {
-                                        span: 207..208,
-                                        kind: IntLit,
-                                    },
-                                },
-                                WhenArm {
-                                    span: 213..224,
-                                    pat: Is {
-                                        is_span: 213..215,
-                                        ty: Path(
-                                            TypePath {
-                                                span: 216..219,
-                                                segments: [
-                                                    Ident {
-                                                        span: 216..219,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    },
-                                    guard: None,
-                                    arrow_span: 220..222,
-                                    body: Expr {
-                                        span: 223..224,
-                                        kind: IntLit,
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 228..241,
-                receiver: None,
-                name: Ident {
-                    span: 232..236,
-                },
-                type_params: [],
-                params_span: 236..238,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 239..241,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..243
+  package:
+    Package 155..177 path=fixtures.parse
+  items:
+    ValDecl 183..226 kind=val name=y
+      init:
+        When 187..226
+          subject:
+            Ident 193..194 name=n
+          arms:
+            WhenArm 202..208
+              pat:
+                IntPat 202..203 value=0
+              body:
+                IntLit 207..208 value=0
+            WhenArm 213..224
+              pat:
+                IsPat 213..219
+                  PathType 216..219 path=Int
+              body:
+                IntLit 223..224 value=1
+    FunDecl 232..241 name=main
+      body:
+        Block 239..241

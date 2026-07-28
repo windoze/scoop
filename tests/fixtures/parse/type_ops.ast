@@ -1,252 +1,47 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 123..145,
-            path: [
-                Ident {
-                    span: 131..139,
-                },
-                Ident {
-                    span: 140..145,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 147..163,
-                kind: Val,
-                name: Ident {
-                    span: 151..152,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 155..163,
-                        kind: TypeCheck {
-                            expr: Expr {
-                                span: 155..156,
-                                kind: Ident(
-                                    Ident {
-                                        span: 155..156,
-                                    },
-                                ),
-                            },
-                            op: Is,
-                            op_span: 157..159,
-                            ty: Path(
-                                TypePath {
-                                    span: 160..163,
-                                    segments: [
-                                        Ident {
-                                            span: 160..163,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 164..181,
-                kind: Val,
-                name: Ident {
-                    span: 168..169,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 172..181,
-                        kind: TypeCheck {
-                            expr: Expr {
-                                span: 172..173,
-                                kind: Ident(
-                                    Ident {
-                                        span: 172..173,
-                                    },
-                                ),
-                            },
-                            op: NotIs,
-                            op_span: 174..177,
-                            ty: Path(
-                                TypePath {
-                                    span: 178..181,
-                                    segments: [
-                                        Ident {
-                                            span: 178..181,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 182..198,
-                kind: Val,
-                name: Ident {
-                    span: 186..187,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 190..198,
-                        kind: Cast {
-                            expr: Expr {
-                                span: 190..191,
-                                kind: Ident(
-                                    Ident {
-                                        span: 190..191,
-                                    },
-                                ),
-                            },
-                            op: As,
-                            op_span: 192..194,
-                            ty: Path(
-                                TypePath {
-                                    span: 195..198,
-                                    segments: [
-                                        Ident {
-                                            span: 195..198,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 199..216,
-                kind: Val,
-                name: Ident {
-                    span: 203..204,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 207..216,
-                        kind: Cast {
-                            expr: Expr {
-                                span: 207..208,
-                                kind: Ident(
-                                    Ident {
-                                        span: 207..208,
-                                    },
-                                ),
-                            },
-                            op: AsQ,
-                            op_span: 209..212,
-                            ty: Path(
-                                TypePath {
-                                    span: 213..216,
-                                    segments: [
-                                        Ident {
-                                            span: 213..216,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        },
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 218..362,
-                receiver: None,
-                name: Ident {
-                    span: 222..226,
-                },
-                type_params: [],
-                params_span: 226..228,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 229..362,
-                        stmts: [
-                            Stmt {
-                                span: 341..360,
-                                kind: Expr(
-                                    Expr {
-                                        span: 341..360,
-                                        kind: If {
-                                            cond: Expr {
-                                                span: 345..353,
-                                                kind: TypeCheck {
-                                                    expr: Expr {
-                                                        span: 345..346,
-                                                        kind: Ident(
-                                                            Ident {
-                                                                span: 345..346,
-                                                            },
-                                                        ),
-                                                    },
-                                                    op: Is,
-                                                    op_span: 347..349,
-                                                    ty: Path(
-                                                        TypePath {
-                                                            span: 350..353,
-                                                            segments: [
-                                                                Ident {
-                                                                    span: 350..353,
-                                                                },
-                                                            ],
-                                                            args: [],
-                                                        },
-                                                    ),
-                                                },
-                                            },
-                                            then_branch: Expr {
-                                                span: 355..360,
-                                                kind: Block(
-                                                    Block {
-                                                        span: 355..360,
-                                                        stmts: [
-                                                            Stmt {
-                                                                span: 357..358,
-                                                                kind: Expr(
-                                                                    Expr {
-                                                                        span: 357..358,
-                                                                        kind: Ident(
-                                                                            Ident {
-                                                                                span: 357..358,
-                                                                            },
-                                                                        ),
-                                                                    },
-                                                                ),
-                                                                has_trailing_semi: false,
-                                                            },
-                                                        ],
-                                                    },
-                                                ),
-                                            },
-                                            else_branch: None,
-                                        },
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..363
+  package:
+    Package 123..145 path=fixtures.parse
+  items:
+    ValDecl 151..163 kind=val name=a
+      init:
+        TypeCheck 155..163 op=is
+          expr:
+            Ident 155..156 name=x
+          ty:
+            PathType 160..163 path=Foo
+    ValDecl 168..181 kind=val name=b
+      init:
+        TypeCheck 172..181 op=!is
+          expr:
+            Ident 172..173 name=x
+          ty:
+            PathType 178..181 path=Foo
+    ValDecl 186..198 kind=val name=c
+      init:
+        Cast 190..198 op=as
+          expr:
+            Ident 190..191 name=x
+          ty:
+            PathType 195..198 path=Foo
+    ValDecl 203..216 kind=val name=d
+      init:
+        Cast 207..216 op=as?
+          expr:
+            Ident 207..208 name=x
+          ty:
+            PathType 213..216 path=Foo
+    FunDecl 222..362 name=main
+      body:
+        Block 229..362
+          ExprStmt 341..360
+            If 341..360
+              cond:
+                TypeCheck 345..353 op=is
+                  expr:
+                    Ident 345..346 name=x
+                  ty:
+                    PathType 350..353 path=Foo
+              then:
+                Block 355..360
+                  ExprStmt 357..358
+                    Ident 357..358 name=x

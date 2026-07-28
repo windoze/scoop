@@ -2620,7 +2620,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                 let existing = self.callable_layout_by_step_key(*existing_step_key);
                 let incoming = self.callable_layout_by_step_key(step_key);
                 if existing.zip(incoming).is_some_and(|(lhs, rhs)| {
-                    lhs.root_fqn() == rhs.root_fqn()
+                    lhs.root_fqn().eq(rhs.root_fqn())
                         && lhs.body_version_key() == rhs.body_version_key()
                 }) {
                     continue;
@@ -2645,7 +2645,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     ) -> Result<(), LlvmEmitError> {
         for (version_key, layout) in source {
             if let Some(existing) = self.plain_callable_layouts_by_version_key.get(&version_key) {
-                if existing.root_fqn() == layout.root_fqn()
+                if existing.root_fqn().eq(layout.root_fqn())
                     && existing.direct_entry().symbol_name() == layout.direct_entry().symbol_name()
                 {
                     continue;
@@ -2930,7 +2930,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             .get(&AbiProgramOrigin::primary_step(step_schema))
     }
 
-    pub(super) fn callable_layout_for_root_text(
+    pub(super) fn callable_layout_for_root_label(
         &self,
         root_fqn: &str,
     ) -> Result<&CallableLayout<'ctx>, LlvmEmitError> {
@@ -2938,7 +2938,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         for layout in self
             .callable_layouts
             .values()
-            .filter(|layout| layout.root_fqn() == root_fqn)
+            .filter(|layout| layout.root_fqn().eq(root_fqn))
         {
             if !matches.iter().any(|existing: &&CallableLayout<'ctx>| {
                 existing.body_version_key() == layout.body_version_key()
@@ -3131,7 +3131,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         matches.next().is_none().then_some(first)
     }
 
-    pub(super) fn plain_callable_layout_for_root_text(
+    pub(super) fn plain_callable_layout_for_root_label(
         &self,
         root_fqn: &str,
     ) -> Result<&PlainCallableLayout<'ctx>, LlvmEmitError> {
@@ -3139,7 +3139,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         for layout in self
             .plain_callable_layouts_by_version_key
             .values()
-            .filter(|layout| layout.root_fqn() == root_fqn)
+            .filter(|layout| layout.root_fqn().eq(root_fqn))
         {
             if !matches.iter().any(|existing: &&PlainCallableLayout<'ctx>| {
                 existing.body_version_key() == layout.body_version_key()
@@ -3162,7 +3162,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         }
     }
 
-    pub(super) fn maybe_plain_callable_layout_for_root_text(
+    pub(super) fn maybe_plain_callable_layout_for_root_label(
         &self,
         root_fqn: &str,
     ) -> Result<Option<&PlainCallableLayout<'ctx>>, LlvmEmitError> {
@@ -3170,7 +3170,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         for layout in self
             .plain_callable_layouts_by_version_key
             .values()
-            .filter(|layout| layout.root_fqn() == root_fqn)
+            .filter(|layout| layout.root_fqn().eq(root_fqn))
         {
             if !matches.iter().any(|existing: &&PlainCallableLayout<'ctx>| {
                 existing.body_version_key() == layout.body_version_key()

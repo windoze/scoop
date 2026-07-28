@@ -1,75 +1,18 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 139..161,
-            path: [
-                Ident {
-                    span: 147..155,
-                },
-                Ident {
-                    span: 156..161,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 163..180,
-                kind: Val,
-                name: Ident {
-                    span: 167..168,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 171..180,
-                        kind: Binary {
-                            lhs: Expr {
-                                span: 171..172,
-                                kind: IntLit,
-                            },
-                            op: Add,
-                            op_span: 173..174,
-                            rhs: Expr {
-                                span: 175..180,
-                                kind: Binary {
-                                    lhs: Expr {
-                                        span: 175..176,
-                                        kind: IntLit,
-                                    },
-                                    op: Mul,
-                                    op_span: 177..178,
-                                    rhs: Expr {
-                                        span: 179..180,
-                                        kind: IntLit,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 182..195,
-                receiver: None,
-                name: Ident {
-                    span: 186..190,
-                },
-                type_params: [],
-                params_span: 190..192,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 193..195,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..197
+  package:
+    Package 139..161 path=fixtures.parse
+  items:
+    ValDecl 167..180 kind=val name=x
+      init:
+        Binary 171..180 op=+
+          lhs:
+            IntLit 171..172 value=1
+          rhs:
+            Binary 175..180 op=*
+              lhs:
+                IntLit 175..176 value=2
+              rhs:
+                IntLit 179..180 value=3
+    FunDecl 186..195 name=main
+      body:
+        Block 193..195

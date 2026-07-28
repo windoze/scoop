@@ -1,7 +1,7 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::parse::expected
-// EXPECT-ERROR-AT: 13:5
-// EXPECT-ERROR: 可赋值的左值（标识符或成员访问）
+// EXPECT-ERROR-CODE: scoop::parse::assignment_expression_not_allowed
+// EXPECT-ERROR-AT: 13:12
+// EXPECT-ERROR: 语法错误：赋值左侧必须是标识符、成员访问或下标
 
 package fixtures.parse
 

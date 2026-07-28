@@ -1,776 +1,159 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 393..415,
-            path: [
-                Ident {
-                    span: 401..409,
-                },
-                Ident {
-                    span: 410..415,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Type(
-            TypeDecl {
-                span: 417..473,
-                kind: Effect,
-                name: Ident {
-                    span: 424..428,
-                },
-                type_params: [
-                    TypeParam {
-                        span: 429..430,
-                        name: Ident {
-                            span: 429..430,
-                        },
-                    },
-                    TypeParam {
-                        span: 432..433,
-                        name: Ident {
-                            span: 432..433,
-                        },
-                    },
-                ],
-                body: Some(
-                    TypeBody {
-                        span: 435..473,
-                        members: [
-                            Fun(
-                                FunDecl {
-                                    span: 441..471,
-                                    kind: EffectOp,
-                                    receiver: None,
-                                    name: Ident {
-                                        span: 445..449,
-                                    },
-                                    type_params: [],
-                                    params_span: 449..466,
-                                    params: [
-                                        Param {
-                                            name: Ident {
-                                                span: 450..457,
-                                            },
-                                            ty: Some(
-                                                Tuple(
-                                                    TypeTuple {
-                                                        span: 459..465,
-                                                        elements: [
-                                                            Path(
-                                                                TypePath {
-                                                                    span: 460..461,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 460..461,
-                                                                        },
-                                                                    ],
-                                                                    args: [],
-                                                                },
-                                                            ),
-                                                            Path(
-                                                                TypePath {
-                                                                    span: 463..464,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 463..464,
-                                                                        },
-                                                                    ],
-                                                                    args: [],
-                                                                },
-                                                            ),
-                                                        ],
-                                                    },
-                                                ),
-                                            ),
-                                        },
-                                    ],
-                                    return_ty: Some(
-                                        Path(
-                                            TypePath {
-                                                span: 468..471,
-                                                segments: [
-                                                    Ident {
-                                                        span: 468..471,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    ),
-                                    body: Missing,
-                                },
-                            ),
-                        ],
-                    },
-                ),
-            },
-        ),
-        Type(
-            TypeDecl {
-                span: 475..521,
-                kind: Effect,
-                name: Ident {
-                    span: 482..487,
-                },
-                type_params: [],
-                body: Some(
-                    TypeBody {
-                        span: 488..521,
-                        members: [
-                            Fun(
-                                FunDecl {
-                                    span: 494..519,
-                                    kind: EffectOp,
-                                    receiver: None,
-                                    name: Ident {
-                                        span: 502..505,
-                                    },
-                                    type_params: [
-                                        TypeParam {
-                                            span: 499..500,
-                                            name: Ident {
-                                                span: 499..500,
-                                            },
-                                        },
-                                    ],
-                                    params_span: 505..516,
-                                    params: [
-                                        Param {
-                                            name: Ident {
-                                                span: 506..510,
-                                            },
-                                            ty: Some(
-                                                Path(
-                                                    TypePath {
-                                                        span: 512..515,
-                                                        segments: [
-                                                            Ident {
-                                                                span: 512..515,
-                                                            },
-                                                        ],
-                                                        args: [],
-                                                    },
-                                                ),
-                                            ),
-                                        },
-                                    ],
-                                    return_ty: Some(
-                                        Path(
-                                            TypePath {
-                                                span: 518..519,
-                                                segments: [
-                                                    Ident {
-                                                        span: 518..519,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    ),
-                                    body: Missing,
-                                },
-                            ),
-                        ],
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 523..1021,
-                receiver: None,
-                name: Ident {
-                    span: 527..531,
-                },
-                type_params: [],
-                params_span: 531..533,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 534..1021,
-                        stmts: [
-                            Stmt {
-                                span: 540..711,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 540..711,
-                                        kind: Val,
-                                        name: Ident {
-                                            span: 544..545,
-                                        },
-                                        ty: Some(
-                                            Path(
-                                                TypePath {
-                                                    span: 547..550,
-                                                    segments: [
-                                                        Ident {
-                                                            span: 547..550,
-                                                        },
-                                                    ],
-                                                    args: [],
-                                                },
-                                            ),
-                                        ),
-                                        init: Some(
-                                            Expr {
-                                                span: 553..711,
-                                                kind: Handle {
-                                                    body: Block {
-                                                        span: 560..598,
-                                                        stmts: [
-                                                            Stmt {
-                                                                span: 570..592,
-                                                                kind: Expr(
-                                                                    Expr {
-                                                                        span: 570..592,
-                                                                        kind: Call {
-                                                                            callee: Expr {
-                                                                                span: 570..579,
-                                                                                kind: MemberAccess {
-                                                                                    receiver: Expr {
-                                                                                        span: 570..574,
-                                                                                        kind: Ident(
-                                                                                            Ident {
-                                                                                                span: 570..574,
-                                                                                            },
-                                                                                        ),
-                                                                                    },
-                                                                                    member: Ident {
-                                                                                        span: 575..579,
-                                                                                    },
-                                                                                },
-                                                                            },
-                                                                            args: [
-                                                                                Expr {
-                                                                                    span: 580..591,
-                                                                                    kind: TupleLit {
-                                                                                        elements: [
-                                                                                            Expr {
-                                                                                                span: 581..587,
-                                                                                                kind: StringLit,
-                                                                                            },
-                                                                                            Expr {
-                                                                                                span: 589..590,
-                                                                                                kind: IntLit,
-                                                                                            },
-                                                                                        ],
-                                                                                    },
-                                                                                },
-                                                                            ],
-                                                                        },
-                                                                    },
-                                                                ),
-                                                                has_trailing_semi: false,
-                                                            },
-                                                        ],
-                                                    },
-                                                    arms: [
-                                                        HandleArm {
-                                                            span: 612..705,
-                                                            op: HandleOp {
-                                                                span: 612..643,
-                                                                effect: TypePath {
-                                                                    span: 612..629,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 612..616,
-                                                                        },
-                                                                    ],
-                                                                    args: [
-                                                                        Path(
-                                                                            TypePath {
-                                                                                span: 617..623,
-                                                                                segments: [
-                                                                                    Ident {
-                                                                                        span: 617..623,
-                                                                                    },
-                                                                                ],
-                                                                                args: [],
-                                                                            },
-                                                                        ),
-                                                                        Path(
-                                                                            TypePath {
-                                                                                span: 625..628,
-                                                                                segments: [
-                                                                                    Ident {
-                                                                                        span: 625..628,
-                                                                                    },
-                                                                                ],
-                                                                                args: [],
-                                                                            },
-                                                                        ),
-                                                                    ],
-                                                                },
-                                                                dot_span: 629..630,
-                                                                op: Ident {
-                                                                    span: 630..634,
-                                                                },
-                                                                binders: [
-                                                                    HandleBinder {
-                                                                        span: 635..642,
-                                                                        name: Ident {
-                                                                            span: 635..642,
-                                                                        },
-                                                                        colon_span: None,
-                                                                        ty: None,
-                                                                    },
-                                                                ],
-                                                            },
-                                                            arrow_span: 644..646,
-                                                            body: Expr {
-                                                                span: 647..705,
-                                                                kind: Block(
-                                                                    Block {
-                                                                        span: 647..705,
-                                                                        stmts: [
-                                                                            Stmt {
-                                                                                span: 661..681,
-                                                                                kind: Val(
-                                                                                    ValDecl {
-                                                                                        span: 661..681,
-                                                                                        kind: Val,
-                                                                                        pattern: Pattern {
-                                                                                            span: 665..671,
-                                                                                            kind: Tuple(
-                                                                                                [
-                                                                                                    Pattern {
-                                                                                                        span: 666..667,
-                                                                                                        kind: Wildcard,
-                                                                                                    },
-                                                                                                    Pattern {
-                                                                                                        span: 669..670,
-                                                                                                        kind: Bind(
-                                                                                                            Ident {
-                                                                                                                span: 669..670,
-                                                                                                            },
-                                                                                                        ),
-                                                                                                    },
-                                                                                                ],
-                                                                                            ),
-                                                                                        },
-                                                                                        ty: None,
-                                                                                        init: Some(
-                                                                                            Expr {
-                                                                                                span: 674..681,
-                                                                                                kind: Ident(
-                                                                                                    Ident {
-                                                                                                        span: 674..681,
-                                                                                                    },
-                                                                                                ),
-                                                                                            },
-                                                                                        ),
-                                                                                    },
-                                                                                ),
-                                                                                has_trailing_semi: false,
-                                                                            },
-                                                                            Stmt {
-                                                                                span: 694..695,
-                                                                                kind: Expr(
-                                                                                    Expr {
-                                                                                        span: 694..695,
-                                                                                        kind: Ident(
-                                                                                            Ident {
-                                                                                                span: 694..695,
-                                                                                            },
-                                                                                        ),
-                                                                                    },
-                                                                                ),
-                                                                                has_trailing_semi: false,
-                                                                            },
-                                                                        ],
-                                                                    },
-                                                                ),
-                                                            },
-                                                        },
-                                                    ],
-                                                    finally: None,
-                                                },
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 717..867,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 717..867,
-                                        kind: Val,
-                                        name: Ident {
-                                            span: 721..729,
-                                        },
-                                        ty: Some(
-                                            Path(
-                                                TypePath {
-                                                    span: 731..734,
-                                                    segments: [
-                                                        Ident {
-                                                            span: 731..734,
-                                                        },
-                                                    ],
-                                                    args: [],
-                                                },
-                                            ),
-                                        ),
-                                        init: Some(
-                                            Expr {
-                                                span: 737..867,
-                                                kind: Handle {
-                                                    body: Block {
-                                                        span: 744..777,
-                                                        stmts: [
-                                                            Stmt {
-                                                                span: 754..771,
-                                                                kind: Expr(
-                                                                    Expr {
-                                                                        span: 754..771,
-                                                                        kind: Call {
-                                                                            callee: Expr {
-                                                                                span: 754..768,
-                                                                                kind: TypeApply {
-                                                                                    callee: Expr {
-                                                                                        span: 754..763,
-                                                                                        kind: MemberAccess {
-                                                                                            receiver: Expr {
-                                                                                                span: 754..759,
-                                                                                                kind: Ident(
-                                                                                                    Ident {
-                                                                                                        span: 754..759,
-                                                                                                    },
-                                                                                                ),
-                                                                                            },
-                                                                                            member: Ident {
-                                                                                                span: 760..763,
-                                                                                            },
-                                                                                        },
-                                                                                    },
-                                                                                    args: [
-                                                                                        Path(
-                                                                                            TypePath {
-                                                                                                span: 764..767,
-                                                                                                segments: [
-                                                                                                    Ident {
-                                                                                                        span: 764..767,
-                                                                                                    },
-                                                                                                ],
-                                                                                                args: [],
-                                                                                            },
-                                                                                        ),
-                                                                                    ],
-                                                                                },
-                                                                            },
-                                                                            args: [
-                                                                                Expr {
-                                                                                    span: 769..770,
-                                                                                    kind: IntLit,
-                                                                                },
-                                                                            ],
-                                                                        },
-                                                                    },
-                                                                ),
-                                                                has_trailing_semi: false,
-                                                            },
-                                                        ],
-                                                    },
-                                                    arms: [
-                                                        HandleArm {
-                                                            span: 791..861,
-                                                            op: HandleOp {
-                                                                span: 791..811,
-                                                                effect: TypePath {
-                                                                    span: 791..796,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 791..796,
-                                                                        },
-                                                                    ],
-                                                                    args: [],
-                                                                },
-                                                                dot_span: 796..797,
-                                                                op: Ident {
-                                                                    span: 797..800,
-                                                                },
-                                                                op_type_args: [
-                                                                    Path(
-                                                                        TypePath {
-                                                                            span: 801..804,
-                                                                            segments: [
-                                                                                Ident {
-                                                                                    span: 801..804,
-                                                                                },
-                                                                            ],
-                                                                            args: [],
-                                                                        },
-                                                                    ),
-                                                                ],
-                                                                binders: [
-                                                                    HandleBinder {
-                                                                        span: 806..810,
-                                                                        name: Ident {
-                                                                            span: 806..810,
-                                                                        },
-                                                                        colon_span: None,
-                                                                        ty: None,
-                                                                    },
-                                                                ],
-                                                            },
-                                                            arrow_span: 816..818,
-                                                            k_span: 814..815,
-                                                            body: Expr {
-                                                                span: 819..861,
-                                                                kind: Block(
-                                                                    Block {
-                                                                        span: 819..861,
-                                                                        stmts: [
-                                                                            Stmt {
-                                                                                span: 833..851,
-                                                                                kind: Expr(
-                                                                                    Expr {
-                                                                                        span: 833..851,
-                                                                                        kind: Call {
-                                                                                            callee: Expr {
-                                                                                                span: 833..841,
-                                                                                                kind: MemberAccess {
-                                                                                                    receiver: Expr {
-                                                                                                        span: 833..834,
-                                                                                                        kind: Ident(
-                                                                                                            Ident {
-                                                                                                                span: 833..834,
-                                                                                                            },
-                                                                                                        ),
-                                                                                                    },
-                                                                                                    member: Ident {
-                                                                                                        span: 835..841,
-                                                                                                    },
-                                                                                                },
-                                                                                            },
-                                                                                            args: [
-                                                                                                Expr {
-                                                                                                    span: 842..850,
-                                                                                                    kind: Binary {
-                                                                                                        lhs: Expr {
-                                                                                                            span: 842..846,
-                                                                                                            kind: Ident(
-                                                                                                                Ident {
-                                                                                                                    span: 842..846,
-                                                                                                                },
-                                                                                                            ),
-                                                                                                        },
-                                                                                                        op: Add,
-                                                                                                        op_span: 847..848,
-                                                                                                        rhs: Expr {
-                                                                                                            span: 849..850,
-                                                                                                            kind: IntLit,
-                                                                                                        },
-                                                                                                    },
-                                                                                                },
-                                                                                            ],
-                                                                                        },
-                                                                                    },
-                                                                                ),
-                                                                                has_trailing_semi: false,
-                                                                            },
-                                                                        ],
-                                                                    },
-                                                                ),
-                                                            },
-                                                        },
-                                                    ],
-                                                    finally: None,
-                                                },
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 873..1019,
-                                kind: Val(
-                                    ValDecl {
-                                        span: 873..1019,
-                                        kind: Val,
-                                        name: Ident {
-                                            span: 877..884,
-                                        },
-                                        ty: Some(
-                                            Path(
-                                                TypePath {
-                                                    span: 886..890,
-                                                    segments: [
-                                                        Ident {
-                                                            span: 886..890,
-                                                        },
-                                                    ],
-                                                    args: [],
-                                                },
-                                            ),
-                                        ),
-                                        init: Some(
-                                            Expr {
-                                                span: 893..1019,
-                                                kind: Handle {
-                                                    body: Block {
-                                                        span: 900..946,
-                                                        stmts: [
-                                                            Stmt {
-                                                                span: 910..940,
-                                                                kind: Val(
-                                                                    ValDecl {
-                                                                        span: 910..940,
-                                                                        kind: Val,
-                                                                        name: Ident {
-                                                                            span: 914..915,
-                                                                        },
-                                                                        ty: Some(
-                                                                            Path(
-                                                                                TypePath {
-                                                                                    span: 917..920,
-                                                                                    segments: [
-                                                                                        Ident {
-                                                                                            span: 917..920,
-                                                                                        },
-                                                                                    ],
-                                                                                    args: [],
-                                                                                },
-                                                                            ),
-                                                                        ),
-                                                                        init: Some(
-                                                                            Expr {
-                                                                                span: 923..940,
-                                                                                kind: Call {
-                                                                                    callee: Expr {
-                                                                                        span: 923..937,
-                                                                                        kind: TypeApply {
-                                                                                            callee: Expr {
-                                                                                                span: 923..932,
-                                                                                                kind: MemberAccess {
-                                                                                                    receiver: Expr {
-                                                                                                        span: 923..928,
-                                                                                                        kind: Ident(
-                                                                                                            Ident {
-                                                                                                                span: 923..928,
-                                                                                                            },
-                                                                                                        ),
-                                                                                                    },
-                                                                                                    member: Ident {
-                                                                                                        span: 929..932,
-                                                                                                    },
-                                                                                                },
-                                                                                            },
-                                                                                            args: [
-                                                                                                Path(
-                                                                                                    TypePath {
-                                                                                                        span: 933..936,
-                                                                                                        segments: [
-                                                                                                            Ident {
-                                                                                                                span: 933..936,
-                                                                                                            },
-                                                                                                        ],
-                                                                                                        args: [],
-                                                                                                    },
-                                                                                                ),
-                                                                                            ],
-                                                                                        },
-                                                                                    },
-                                                                                    args: [
-                                                                                        Expr {
-                                                                                            span: 938..939,
-                                                                                            kind: IntLit,
-                                                                                        },
-                                                                                    ],
-                                                                                },
-                                                                            },
-                                                                        ),
-                                                                    },
-                                                                ),
-                                                                has_trailing_semi: false,
-                                                            },
-                                                        ],
-                                                    },
-                                                    arms: [
-                                                        HandleArm {
-                                                            span: 960..1013,
-                                                            op: HandleOp {
-                                                                span: 960..980,
-                                                                effect: TypePath {
-                                                                    span: 960..965,
-                                                                    segments: [
-                                                                        Ident {
-                                                                            span: 960..965,
-                                                                        },
-                                                                    ],
-                                                                    args: [],
-                                                                },
-                                                                dot_span: 965..966,
-                                                                op: Ident {
-                                                                    span: 966..969,
-                                                                },
-                                                                op_type_args: [
-                                                                    Path(
-                                                                        TypePath {
-                                                                            span: 970..973,
-                                                                            segments: [
-                                                                                Ident {
-                                                                                    span: 970..973,
-                                                                                },
-                                                                            ],
-                                                                            args: [],
-                                                                        },
-                                                                    ),
-                                                                ],
-                                                                binders: [
-                                                                    HandleBinder {
-                                                                        span: 975..979,
-                                                                        name: Ident {
-                                                                            span: 975..979,
-                                                                        },
-                                                                        colon_span: None,
-                                                                        ty: None,
-                                                                    },
-                                                                ],
-                                                            },
-                                                            arrow_span: 984..986,
-                                                            k_span: 982..983,
-                                                            body: Expr {
-                                                                span: 987..1013,
-                                                                kind: Block(
-                                                                    Block {
-                                                                        span: 987..1013,
-                                                                        stmts: [
-                                                                            Stmt {
-                                                                                span: 1001..1003,
-                                                                                kind: Expr(
-                                                                                    Expr {
-                                                                                        span: 1001..1003,
-                                                                                        kind: UnitLit,
-                                                                                    },
-                                                                                ),
-                                                                                has_trailing_semi: false,
-                                                                            },
-                                                                        ],
-                                                                    },
-                                                                ),
-                                                            },
-                                                        },
-                                                    ],
-                                                    finally: None,
-                                                },
-                                            },
-                                        ),
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..1022
+  package:
+    Package 393..415 path=fixtures.parse
+  items:
+    EffectDecl 424..473 name=Pair
+      type_params:
+        TypeParams 428..434
+          TypeParam 429..430 name=A
+          TypeParam 432..433 name=B
+      body:
+        TypeBody 435..473
+          FunDecl 445..471 name=ping
+            params:
+              Param 450..465 name=payload
+                ty:
+                  TupleType 459..465
+                    PathType 460..461 path=A
+                    PathType 463..464 path=B
+            return_ty:
+              PathType 468..471 path=Int
+    EffectDecl 482..521 name=Query
+      body:
+        TypeBody 488..521
+          FunDecl 502..519 name=ask
+            type_params:
+              TypeParams 498..501
+                TypeParam 499..500 name=T
+            params:
+              Param 506..515 name=seed
+                ty:
+                  PathType 512..515 path=Int
+            return_ty:
+              PathType 518..519 path=T
+    FunDecl 527..1021 name=demo
+      body:
+        Block 534..1021
+          LocalValStmt 544..711
+            ValDecl 544..711 kind=val name=_
+              ty:
+                PathType 547..550 path=Int
+              init:
+                Handle 553..711
+                  body:
+                    Block 560..598
+                      ExprStmt 570..592
+                        Call 570..592
+                          callee:
+                            MemberAccess 570..579 member=ping
+                              Ident 570..574 name=Pair
+                          args:
+                            CallArg 580..591
+                              TupleLit 580..591
+                                StringLit 581..587 value="left"
+                                IntLit 589..590 value=7
+                  arms:
+                    HandleArm 612..705
+                      op:
+                        HandleOp 612..643 path=Pair op=ping
+                          effect_args:
+                            TypeArg 617..623
+                              PathType 617..623 path=String
+                            TypeArg 625..628
+                              PathType 625..628 path=Int
+                          binders:
+                            HandleBinder 635..642 name=payload
+                      body:
+                        Block 647..705
+                          LocalValStmt 665..681
+                            ValDecl 665..681 kind=val
+                              pattern:
+                                TuplePat 665..671
+                                  WildcardPat 666..667
+                                  BindPat 669..670 name=n
+                              init:
+                                Ident 674..681 name=payload
+                          ExprStmt 694..695
+                            Ident 694..695 name=n
+          LocalValStmt 721..867
+            ValDecl 721..867 kind=val name=_ignored
+              ty:
+                PathType 731..734 path=Int
+              init:
+                Handle 737..867
+                  body:
+                    Block 744..777
+                      ExprStmt 754..771
+                        Call 754..771
+                          callee:
+                            TypeApply 754..768
+                              callee:
+                                MemberAccess 754..763 member=ask
+                                  Ident 754..759 name=Query
+                              args:
+                                TypeArg 764..767
+                                  PathType 764..767 path=Int
+                          args:
+                            CallArg 769..770
+                              IntLit 769..770 value=5
+                  arms:
+                    HandleArm 791..861 escape=k
+                      op:
+                        HandleOp 791..811 path=Query op=ask
+                          op_type_args:
+                            TypeArg 801..804
+                              PathType 801..804 path=Int
+                          binders:
+                            HandleBinder 806..810 name=seed
+                      body:
+                        Block 819..861
+                          ExprStmt 833..851
+                            Call 833..851
+                              callee:
+                                MemberAccess 833..841 member=resume
+                                  Ident 833..834 name=k
+                              args:
+                                CallArg 842..850
+                                  Binary 842..850 op=+
+                                    lhs:
+                                      Ident 842..846 name=seed
+                                    rhs:
+                                      IntLit 849..850 value=1
+          LocalValStmt 877..1019
+            ValDecl 877..1019 kind=val name=_escape
+              ty:
+                PathType 886..890 path=Unit
+              init:
+                Handle 893..1019
+                  body:
+                    Block 900..946
+                      LocalValStmt 914..940
+                        ValDecl 914..940 kind=val name=_
+                          ty:
+                            PathType 917..920 path=Int
+                          init:
+                            Call 923..940
+                              callee:
+                                TypeApply 923..937
+                                  callee:
+                                    MemberAccess 923..932 member=ask
+                                      Ident 923..928 name=Query
+                                  args:
+                                    TypeArg 933..936
+                                      PathType 933..936 path=Int
+                              args:
+                                CallArg 938..939
+                                  IntLit 938..939 value=6
+                  arms:
+                    HandleArm 960..1013 escape=k
+                      op:
+                        HandleOp 960..980 path=Query op=ask
+                          op_type_args:
+                            TypeArg 970..973
+                              PathType 970..973 path=Int
+                          binders:
+                            HandleBinder 975..979 name=seed
+                      body:
+                        Block 987..1013
+                          ExprStmt 1001..1003
+                            UnitLit 1001..1003

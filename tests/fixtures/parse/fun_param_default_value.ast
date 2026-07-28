@@ -1,72 +1,15 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 60..82,
-            path: [
-                Ident {
-                    span: 68..76,
-                },
-                Ident {
-                    span: 77..82,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 84..112,
-                receiver: None,
-                name: Ident {
-                    span: 88..89,
-                },
-                type_params: [],
-                params_span: 89..109,
-                params: [
-                    Param {
-                        name: Ident {
-                            span: 90..91,
-                        },
-                        ty: Some(
-                            Path(
-                                TypePath {
-                                    span: 93..96,
-                                    segments: [
-                                        Ident {
-                                            span: 93..96,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        ),
-                        default_value: Some(
-                            Expr {
-                                span: 99..108,
-                                kind: Call {
-                                    callee: Expr {
-                                        span: 99..106,
-                                        kind: Ident(
-                                            Ident {
-                                                span: 99..106,
-                                            },
-                                        ),
-                                    },
-                                    args: [],
-                                },
-                            },
-                        ),
-                    },
-                ],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 110..112,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..114
+  package:
+    Package 60..82 path=fixtures.parse
+  items:
+    FunDecl 88..112 name=f
+      params:
+        Param 90..108 name=x
+          ty:
+            PathType 93..96 path=Any
+          default:
+            Call 99..108
+              callee:
+                Ident 99..106 name=default
+      body:
+        Block 110..112

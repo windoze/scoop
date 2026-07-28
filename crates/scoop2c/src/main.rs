@@ -256,54 +256,93 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
             }
             report_diagnostics(&source, diags)
         }
-        cli::Phase::Typecheck => {
-            let mut interner = scoop2_base::Interner::new();
-            let mut diags = scoop2_base::diag::DiagnosticSink::new();
-            let mut parsed: Vec<scoop2_syntax::parser::ParsedFile> = Vec::with_capacity(1 + 32);
-            let mut user_indices: Vec<usize> = vec![0]; // 主文件始终是 user
-            parsed.push(scoop2_syntax::parser::parse_file_with(
-                &source,
-                &mut interner,
-            ));
-            if let Some(sysroot) = locate_sysroot() {
-                for path in walk_scoop_files(&sysroot.join("lib")) {
-                    if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
-                        parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
-                    }
-                }
-            }
-            // Fixture sysroot overlay（`.sysroot` 目录中的 `.scoop` 文件）→ 当作用户代码检查。
-            for path in collect_overlay_files() {
-                if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
-                    user_indices.push(parsed.len());
-                    parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
-                }
-            }
+        cli::Phase::Typecheck | cli::Phase::Infer | cli::Phase::Lower => {
+            // infer / lower 在本前端中等价于 typecheck：HIR 是前端终点（spec 明确
+            // 「只关心 parser/AST/HIR 阶段涵盖的错误」），不再有独立 infer/lower 阶段。
+            // 三个 phase 都运行完整的 typecheck 管线并汇报相同诊断。
+            let BuiltProgram {
+                parsed,
+                user_indices,
+                mut interner,
+                mut diags,
+            } = build_program(&source);
             let user_parse_ok = !parsed[0].diagnostics.has_errors();
             for pf in &parsed {
                 diags.extend(pf.diagnostics.iter().cloned());
             }
             if user_parse_ok {
-                let inputs: Vec<scoop2_hir::resolve::InputFile> = parsed
-                    .iter()
-                    .enumerate()
-                    .map(|(i, pf)| scoop2_hir::resolve::InputFile {
-                        file: &pf.file,
-                        file_id: scoop2_base::FileId(i as u32),
-                        origin: if user_indices.contains(&i) {
-                            scoop2_hir::resolve::InputOrigin::User
-                        } else {
-                            scoop2_hir::resolve::InputOrigin::Sysroot
-                        },
-                        // 主文件（i==0）非受信任；sysroot + `.sysroot` overlay 文件受信任。
-                        trusted: i != 0,
-                    })
-                    .collect();
-                scoop2_hir::typecheck::run_typecheck(&inputs, &mut interner, &mut diags);
+                let inputs = make_inputs(&parsed, &user_indices);
+                scoop2_hir::typecheck::run_typecheck(
+                    &inputs,
+                    &mut interner,
+                    &mut diags,
+                    args.target_platform.as_deref(),
+                );
             }
             report_diagnostics(&source, diags)
         }
-        cli::Phase::Infer | cli::Phase::Lower => not_wired("check-source"),
+    }
+}
+
+/// 把解析好的文件集合构造为 resolve/typecheck 的 `InputFile` 列表。
+fn make_inputs<'a>(
+    parsed: &'a [scoop2_syntax::parser::ParsedFile],
+    user_indices: &[usize],
+) -> Vec<scoop2_hir::resolve::InputFile<'a>> {
+    parsed
+        .iter()
+        .enumerate()
+        .map(|(i, pf)| scoop2_hir::resolve::InputFile {
+            file: &pf.file,
+            file_id: scoop2_base::FileId(i as u32),
+            origin: if user_indices.contains(&i) {
+                scoop2_hir::resolve::InputOrigin::User
+            } else {
+                scoop2_hir::resolve::InputOrigin::Sysroot
+            },
+            // 主文件（i==0）非受信任；sysroot + `.sysroot` overlay 文件受信任。
+            trusted: i != 0,
+        })
+        .collect()
+}
+
+/// 解析主文件 + sysroot + `.sysroot` overlay，返回（解析文件、用户文件下标、
+/// interner、解析诊断）。主文件（index 0）始终是 user。
+struct BuiltProgram {
+    parsed: Vec<scoop2_syntax::parser::ParsedFile>,
+    user_indices: Vec<usize>,
+    interner: scoop2_base::Interner,
+    diags: scoop2_base::diag::DiagnosticSink,
+}
+
+fn build_program(source: &scoop2_base::SourceFile) -> BuiltProgram {
+    let mut interner = scoop2_base::Interner::new();
+    let diags = scoop2_base::diag::DiagnosticSink::new();
+    let mut parsed: Vec<scoop2_syntax::parser::ParsedFile> = Vec::with_capacity(1 + 32);
+    let mut user_indices: Vec<usize> = vec![0]; // 主文件始终是 user
+    parsed.push(scoop2_syntax::parser::parse_file_with(
+        source,
+        &mut interner,
+    ));
+    if let Some(sysroot) = locate_sysroot() {
+        for path in walk_scoop_files(&sysroot.join("lib")) {
+            if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
+                parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
+            }
+        }
+    }
+    // Fixture sysroot overlay（`.sysroot` 目录中的 `.scoop` 文件）→ 当作用户代码检查。
+    for path in collect_overlay_files() {
+        if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
+            user_indices.push(parsed.len());
+            parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
+        }
+    }
+    BuiltProgram {
+        parsed,
+        user_indices,
+        interner,
+        diags,
     }
 }
 
@@ -331,6 +370,11 @@ fn report_diagnostics(
     if !diagnostics.has_errors() {
         return ExitCode::SUCCESS;
     }
+    // 去重：resolve 已报 unresolved_type 的位置，移除 typecheck 的 unresolved_type_ref。
+    diagnostics.dedup_redundant(
+        "scoop::typecheck::unresolved_type_ref",
+        "scoop::resolve::unresolved_type",
+    );
     diagnostics.sort_by_offset();
     for diag in diagnostics.iter() {
         eprint!("{}", scoop2_base::diag::render_diagnostic(source, diag));
@@ -338,13 +382,39 @@ fn report_diagnostics(
     ExitCode::from(1)
 }
 
-fn not_wired(command: &str) -> ExitCode {
-    eprintln!("error: scoop2c: `{command}` 的前端管线尚未接通（前端重写进行中）");
-    ExitCode::from(1)
-}
-
 fn run_dump_hir(input: &std::path::Path) -> ExitCode {
-    let _ = input;
-    eprintln!("error: scoop2c: dump-hir 的语义阶段尚未接通（前端重写进行中）");
-    ExitCode::from(1)
+    let source = match load_source(input) {
+        Ok(source) => source,
+        Err(code) => return code,
+    };
+    let BuiltProgram {
+        parsed,
+        user_indices,
+        mut interner,
+        mut diags,
+    } = build_program(&source);
+    let user_parse_ok = !parsed[0].diagnostics.has_errors();
+    for pf in &parsed {
+        diags.extend(pf.diagnostics.iter().cloned());
+    }
+    if !user_parse_ok {
+        return report_diagnostics(&source, diags);
+    }
+    let inputs = make_inputs(&parsed, &user_indices);
+    let hir = scoop2_hir::typecheck::run_typecheck(&inputs, &mut interner, &mut diags, None);
+    if diags.has_errors() {
+        return report_diagnostics(&source, diags);
+    }
+    // dump-hir 是尽力而为的调试视图：未类型化的节点（typecheck 未覆盖的边角）
+    // 不追加 `ty=`，而非阻塞输出。完整性闸门（`completeness::verify`）供
+    // 需要严格完整性的编译管线调用，不在此强制。
+    let files: Vec<(scoop2_base::FileId, &scoop2_syntax::ast::File)> = parsed
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| user_indices.contains(i))
+        .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
+        .collect();
+    let rendered = hir.render(files.iter().map(|(id, f)| (*id, *f)));
+    print!("{rendered}");
+    ExitCode::SUCCESS
 }

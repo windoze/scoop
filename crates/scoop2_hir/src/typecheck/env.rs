@@ -29,6 +29,8 @@ pub struct Signature {
     pub param_names: Vec<Symbol>,
     /// 各参数是否有默认值（与 params 等长）。
     pub has_defaults: Vec<bool>,
+    /// 是否有 vararg 参数（最后一个参数为 `vararg`，可接收任意多余位置实参）。
+    pub has_vararg: bool,
     /// 声明处修饰符（open/abstract/override/final 等；M6 override 匹配用）。
     pub modifiers: crate::resolve::symbol::ModifierSet,
     /// 声明的 effect 行（M6 override effect containment 用）。
@@ -75,7 +77,10 @@ pub struct TypeEnv<'i> {
     /// 顶层 val/var 简单名 → 已降级类型（供表达式引用解析）。
     top_level_vals: HashMap<Symbol, TypeId>,
     /// enum FQN → variant 名列表（when 穷尽性检查用）。
-    enum_variants: HashMap<Symbol, Vec<Symbol>>,
+    pub enum_variants: HashMap<Symbol, Vec<Symbol>>,
+    /// (enum FQN, variant 名) → payload 字段数（pattern arity 校验用）。
+    /// 内建 Option 的 Some/None 在 typecheck 侧特判（不登记在此）。
+    enum_variant_arities: HashMap<(Symbol, Symbol), usize>,
     /// 声明了 eff 形参的类型 FQN 集合（use-site eff 实参合法性检查用）。
     eff_param_types: HashSet<Symbol>,
     /// 类型 FQN → 直接超类型列表（(超类型 FQN, 类型实参 TypeIds)）。
@@ -100,6 +105,7 @@ impl<'i> TypeEnv<'i> {
             type_constraints: HashMap::new(),
             top_level_vals: HashMap::new(),
             enum_variants: HashMap::new(),
+            enum_variant_arities: HashMap::new(),
             eff_param_types: HashSet::new(),
             supertype_instances: HashMap::new(),
         }
@@ -107,13 +113,33 @@ impl<'i> TypeEnv<'i> {
 
     /// nominal 子类型（传递超类型链）。
     pub fn fqn_is_subtype(&self, sub: Symbol, sup: Symbol) -> bool {
-        if sub == sup {
+        eprintln!(
+            "DEBUG fqn_is_subtype sub={} sup={} same_simple={} supertypes={:?}",
+            self.interner.resolve(sub),
+            self.interner.resolve(sup),
+            self.fqn_same_simple_name(sub, sup),
+            self.index
+                .supertypes_of(sub)
+                .iter()
+                .map(|s| self.interner.resolve(*s).to_string())
+                .collect::<Vec<_>>()
+        );
+        if sub == sup || self.fqn_same_simple_name(sub, sup) {
             return true;
         }
         self.index
             .supertypes_of(sub)
             .iter()
             .any(|&s| self.fqn_is_subtype(s, sup))
+    }
+
+    /// 两个 FQN 是否末段名相同（simple name 匹配）。
+    /// 用于超类型 FQN 解析不精确时的回退匹配（collect 阶段超类型按 package 前缀解析，
+    /// 跨 import 的超类型可能 FQN 不精确但 simple name 一致）。
+    fn fqn_same_simple_name(&self, a: Symbol, b: Symbol) -> bool {
+        let ta = self.interner.resolve(a);
+        let tb = self.interner.resolve(b);
+        ta.rsplit('.').next() == tb.rsplit('.').next() && !ta.is_empty()
     }
 
     /// 顶层 val 类型查询（表达式引用解析用）。
@@ -124,6 +150,12 @@ impl<'i> TypeEnv<'i> {
     /// enum variant 列表查询（when 穷尽性用）。
     pub fn enum_variants(&self, fqn: Symbol) -> Option<&[Symbol]> {
         self.enum_variants.get(&fqn).map(|v| v.as_slice())
+    }
+
+    /// (enum FQN, variant 名) → payload 字段数（pattern arity 校验用）。
+    /// 内建 Option 由 typecheck 侧特判（不登记在此）。
+    pub fn enum_variant_arity(&self, enum_fqn: Symbol, variant: Symbol) -> Option<usize> {
+        self.enum_variant_arities.get(&(enum_fqn, variant)).copied()
     }
 
     /// 类型是否声明了 eff 形参。
@@ -201,6 +233,30 @@ impl<'i> TypeEnv<'i> {
             .and_then(|m| m.get(&method).map(|v| v.as_slice()))
     }
 
+    /// 成员方法签名（含继承）：遍历超类型链，收集所有层级的同名方法签名。
+    /// 用于方法重载决议——子类可继承父类的方法重载。
+    pub fn member_signatures_with_inherited(
+        &self,
+        type_fqn: Symbol,
+        method: Symbol,
+    ) -> Vec<Signature> {
+        let mut all: Vec<Signature> = Vec::new();
+        let mut visited: std::collections::HashSet<Symbol> = std::collections::HashSet::new();
+        let mut current = Some(type_fqn);
+        while let Some(fqn) = current {
+            if !visited.insert(fqn) {
+                break;
+            }
+            if let Some(sigs) = self.member_signatures(fqn, method) {
+                all.extend(sigs.iter().cloned());
+            }
+            // 沿超类型链上溯。
+            let supertypes = self.index.supertypes_of(fqn);
+            current = supertypes.first().copied();
+        }
+        all
+    }
+
     /// 类型的所有成员方法名 → 签名集（M6 interface 成员枚举 / impl 完整性用）。
     pub fn member_method_table(
         &self,
@@ -262,6 +318,61 @@ impl<'i> TypeEnv<'i> {
     /// nominal 类型是否引用类型（按 [`Index::category`]）。
     pub fn is_reference_nominal(&self, fqn: Symbol) -> bool {
         self.index.category(fqn).is_some_and(|c| c.is_reference())
+    }
+
+    /// 把 typecheck 产出的类型数据 move 进自包含的 [`crate::hir::TypedHir`]。
+    ///
+    /// 消费 `self`（取出 `store` / 签名 / 成员 / 顶层 val / enum variant 表），
+    /// 并把 per-file `expr_types` 与 interner 副本一并装入。调用后 `self` 不可用。
+    pub fn into_typed_hir(
+        self,
+        interner: scoop2_base::Interner,
+        files: Vec<crate::hir::TypedFile>,
+    ) -> crate::hir::TypedHir {
+        use crate::hir::{TypedHir, TypedSignature};
+        // 把私有 Signature 表转换为公开 TypedSignature 表。
+        let convert_sigs = |sigs: Vec<Signature>| -> Vec<TypedSignature> {
+            sigs.into_iter()
+                .map(|s| TypedSignature {
+                    param_types: s.params,
+                    return_ty: s.return_ty,
+                    type_param_count: s.type_param_count,
+                    param_names: s.param_names,
+                    has_defaults: s.has_defaults,
+                })
+                .collect()
+        };
+        let top_level_funs = self
+            .signatures
+            .into_iter()
+            .map(|(k, v)| (k, convert_sigs(v)))
+            .collect();
+        let member_funs = self
+            .member_signatures
+            .into_iter()
+            .map(|(k, m)| {
+                (
+                    k,
+                    m.into_iter().map(|(mk, v)| (mk, convert_sigs(v))).collect(),
+                )
+            })
+            .collect();
+        let ctor_signatures = self
+            .ctor_signatures
+            .into_iter()
+            .map(|(k, v)| (k, convert_sigs(v)))
+            .collect();
+        TypedHir {
+            store: self.store,
+            interner,
+            top_level_funs,
+            member_funs,
+            members: self.members,
+            ctor_signatures,
+            top_level_vals: self.top_level_vals,
+            enum_variants: self.enum_variants,
+            files,
+        }
     }
 }
 
@@ -332,6 +443,7 @@ pub fn register_top_level_signatures(
                     .push(Signature {
                         param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                         has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
+                        has_vararg: d.params.iter().any(|p| p.is_vararg),
                         params,
                         return_ty,
                         type_param_count: d
@@ -377,9 +489,17 @@ pub fn register_top_level_signatures(
             .collect();
         let tpc = tp_map.len();
         let unit_ty = env.store.unit();
+        let (prb, pvb) = collect_param_kind_bounds(d.type_params.as_ref(), d.where_clause.as_ref());
         let sig = {
-            let mut lower =
-                TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
+            let mut lower = TypeLowering::with_bounds(
+                env,
+                imports,
+                tp_map,
+                package_prefix.to_string(),
+                diags,
+                prb,
+                pvb,
+            );
             let params: Vec<TypeId> = d
                 .params
                 .iter()
@@ -395,6 +515,7 @@ pub fn register_top_level_signatures(
             Signature {
                 param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                 has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
+                has_vararg: d.params.iter().any(|p| p.is_vararg),
                 params,
                 return_ty,
                 type_param_count: tpc,
@@ -592,7 +713,20 @@ fn register_body_members(
                 }
             }
             TypeMemberKind::Fun(d) => {
-                let tp_map = build_tp_map(type_params);
+                let mut tp_map = build_tp_map(type_params);
+                // 合并成员函数自身的类型参数（`fun <T> ask(...)` 中的 T）。
+                if let Some(m_tp) = &d.type_params {
+                    for p in &m_tp.params {
+                        tp_map.insert(
+                            p.name.symbol,
+                            crate::ty::TypeParamType {
+                                name: p.name.symbol,
+                                file: scoop2_base::FileId(0),
+                                span: p.name.span,
+                            },
+                        );
+                    }
+                }
                 let unit_ty = env.store.unit();
                 let sig = {
                     let mut lower =
@@ -612,6 +746,7 @@ fn register_body_members(
                     Signature {
                         param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                         has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
+                        has_vararg: d.params.iter().any(|p| p.is_vararg),
                         params,
                         return_ty,
                         type_param_count: 0,
@@ -634,9 +769,32 @@ fn register_body_members(
                     .or_default()
                     .push(sig);
             }
-            TypeMemberKind::EnumVariant(_)
-            | TypeMemberKind::InitBlock(_)
-            | TypeMemberKind::SecondaryCtor(_) => {}
+            TypeMemberKind::EnumVariant(ev) => {
+                // 把 variant 的字段类型注册到 `<enum_fqn>.<variant_name>` 的 members。
+                let variant_fqn_text = format!(
+                    "{}.{}",
+                    env.interner.resolve(owner),
+                    env.interner.resolve(ev.name.symbol)
+                );
+                if let Some(variant_fqn) = env.interner.get(&variant_fqn_text) {
+                    let tp_map = build_tp_map(type_params);
+                    for field in &ev.fields {
+                        let mut lower = TypeLowering::new(
+                            env,
+                            imports,
+                            tp_map.clone(),
+                            package_prefix.to_string(),
+                            diags,
+                        );
+                        let ft = lower.lower(&field.ty);
+                        env.members
+                            .entry(variant_fqn)
+                            .or_default()
+                            .insert(field.name.symbol, ft);
+                    }
+                }
+            }
+            TypeMemberKind::InitBlock(_) | TypeMemberKind::SecondaryCtor(_) => {}
         }
     }
 }
@@ -675,6 +833,46 @@ pub(super) fn build_tp_map(tpl: Option<&TypeParamList>) -> HashMap<Symbol, TypeP
         }
     }
     map
+}
+
+/// 收集类型参数列表与 where 子句中声明了 `ref` / `value` kind bound 的参数名集合。
+/// 用于约束 forward 检查：`<U: ref>` 的 U 转发给 `<T: ref>` 函数是合法的。
+pub(super) fn collect_param_kind_bounds(
+    tpl: Option<&TypeParamList>,
+    wc: Option<&crate::syntax::ast::WhereClause>,
+) -> (HashSet<Symbol>, HashSet<Symbol>) {
+    use crate::syntax::ast::GenericBound;
+    let mut ref_bounds = HashSet::new();
+    let mut value_bounds = HashSet::new();
+    if let Some(tpl) = tpl {
+        for p in &tpl.params {
+            if let Some(b) = &p.bound {
+                match b {
+                    GenericBound::Ref(_) => {
+                        ref_bounds.insert(p.name.symbol);
+                    }
+                    GenericBound::Value(_) => {
+                        value_bounds.insert(p.name.symbol);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    if let Some(wc) = wc {
+        for c in &wc.constraints {
+            match &c.bound {
+                GenericBound::Ref(_) => {
+                    ref_bounds.insert(c.name.symbol);
+                }
+                GenericBound::Value(_) => {
+                    value_bounds.insert(c.name.symbol);
+                }
+                _ => {}
+            }
+        }
+    }
+    (ref_bounds, value_bounds)
 }
 
 fn fqn_of(env: &TypeEnv, package_prefix: &str, name: Symbol) -> Symbol {
@@ -728,6 +926,9 @@ pub fn register_enum_variants(env: &mut TypeEnv, file: &File, package_prefix: &s
             for m in &body.members {
                 if let TypeMemberKind::EnumVariant(ev) = &m.kind {
                     variants.push(ev.name.symbol);
+                    // 登记 variant payload arity（键 (enum FQN, variant 名)）。
+                    env.enum_variant_arities
+                        .insert((fqn, ev.name.symbol), ev.fields.len());
                 }
             }
         }
@@ -968,6 +1169,71 @@ pub fn register_constructors(
                 })
                 .collect();
             env.ctors.insert(owner, params);
+        } else if d.primary_ctor.is_none()
+            && let Some(body) = &d.body
+        {
+            // 无主构造器头（`struct S { val a: T }`）：从 body 的属性字段合成构造参数。
+            use crate::syntax::ast::TypeMemberKind;
+            let tp_map = build_tp_map(d.type_params.as_ref());
+            let unit_ty = env.store.unit();
+            let mut params: Vec<TypeId> = Vec::new();
+            let mut names: Vec<Symbol> = Vec::new();
+            let mut defaults: Vec<bool> = Vec::new();
+            let mut vararg = false;
+            for m in &body.members {
+                if let TypeMemberKind::Property(pd) = &m.kind
+                    && pd.accessors.is_empty()
+                {
+                    let pt = pd
+                        .ty
+                        .as_ref()
+                        .map(|t| {
+                            let mut lower = TypeLowering::new(
+                                env,
+                                imports,
+                                tp_map.clone(),
+                                package_prefix.to_string(),
+                                diags,
+                            );
+                            lower.lower(t)
+                        })
+                        .unwrap_or(unit_ty);
+                    params.push(pt);
+                    names.push(pd.name.symbol);
+                    defaults.push(pd.init.is_some());
+                    // PropertyDecl 无 vararg 标记；body-field 属性构造参数不是 vararg。
+                    vararg = false;
+                }
+            }
+            if !params.is_empty() {
+                env.ctors.insert(owner, params.clone());
+                // 也注册为 ctor_signatures（使 resolve_ctor_overloads 处理命名实参 / vararg）。
+                let tp_count = d
+                    .type_params
+                    .as_ref()
+                    .map(|tp| tp.params.len())
+                    .unwrap_or(0);
+                let tp_bounds = lower_type_param_bounds(
+                    d.type_params.as_ref(),
+                    &mut TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags),
+                );
+                env.ctor_signatures.insert(
+                    owner,
+                    vec![Signature {
+                        params,
+                        return_ty: unit_ty,
+                        type_param_count: tp_count,
+                        type_param_bounds: tp_bounds,
+                        param_names: names,
+                        has_defaults: defaults,
+                        has_vararg: vararg,
+                        modifiers: crate::resolve::symbol::ModifierSet::default(),
+                        effect: None,
+                        has_body: true,
+                        decl_span: d.name.span,
+                    }],
+                );
+            }
         }
         // 次构造器签名（M3 构造器重载决议用）。若有次构造器，则连同主构造器一起登记。
         if let Some(body) = &d.body {
@@ -1004,6 +1270,7 @@ pub fn register_constructors(
                 secondary.push(Signature {
                     param_names: c.params.iter().map(|p| p.name.symbol).collect(),
                     has_defaults: c.params.iter().map(|p| p.default.is_some()).collect(),
+                    has_vararg: c.params.iter().any(|p| p.is_vararg),
                     params,
                     return_ty: unit_ty,
                     type_param_count: c
@@ -1018,44 +1285,92 @@ pub fn register_constructors(
                     decl_span: c.span,
                 });
             }
-            if !secondary.is_empty() {
-                // 主构造器作为首个候选（含默认参数；共享类型的类型参数）。
-                if let Some(primary_params) = env.ctors.get(&owner).cloned() {
-                    let primary_tp_bounds = {
-                        let mut lower = TypeLowering::new(
-                            env,
-                            imports,
-                            build_tp_map(d.type_params.as_ref()),
-                            package_prefix.to_string(),
-                            diags,
-                        );
-                        lower_type_param_bounds(d.type_params.as_ref(), &mut lower)
-                    };
-                    let primary_defaults: Vec<bool> = d
-                        .primary_ctor
-                        .iter()
-                        .flat_map(|pc| pc.params.iter().map(|cp| cp.default.is_some()))
-                        .collect();
-                    let primary_names: Vec<Symbol> = d
-                        .primary_ctor
-                        .iter()
-                        .flat_map(|pc| pc.params.iter().map(|cp| cp.name.symbol))
-                        .collect();
-                    let mut all = vec![Signature {
-                        param_names: primary_names,
-                        has_defaults: primary_defaults,
-                        params: primary_params,
-                        return_ty: env.store.unit(),
-                        type_param_count: type_tp_count,
-                        type_param_bounds: primary_tp_bounds,
-                        modifiers: crate::resolve::symbol::ModifierSet::default(),
-                        effect: None,
-                        has_body: true,
-                        decl_span: d.name.span,
-                    }];
-                    all.extend(secondary);
-                    env.ctor_signatures.insert(owner, all);
+            // 主构造器始终注册为候选（即使无次构造器），使 resolve_ctor_overloads 统一处理
+            // arity / vararg / 默认值（否则仅主构造器的类走 ctor_params + check_call_args，
+            // 无法识别 vararg）。
+            if let Some(mut primary_params) = env.ctors.get(&owner).cloned() {
+                // 若有主构造器，追加 body-field 属性的类型到主构造器参数（使 param_names 与 params 对齐）。
+                // 无主构造器的 struct 的 body-field 已在合成路径中处理，不重复追加。
+                if d.primary_ctor.is_some() {
+                    let tp_map = build_tp_map(d.type_params.as_ref());
+                    let unit_ty = env.store.unit();
+                    for m in &body.members {
+                        if let TypeMemberKind::Property(pd) = &m.kind
+                            && pd.accessors.is_empty()
+                        {
+                            let pt = pd
+                                .ty
+                                .as_ref()
+                                .map(|t| {
+                                    let mut lower = TypeLowering::new(
+                                        env,
+                                        imports,
+                                        tp_map.clone(),
+                                        package_prefix.to_string(),
+                                        diags,
+                                    );
+                                    lower.lower(t)
+                                })
+                                .unwrap_or(unit_ty);
+                            primary_params.push(pt);
+                        }
+                    }
+                    let _ = tp_map;
                 }
+                let primary_tp_bounds = {
+                    let mut lower = TypeLowering::new(
+                        env,
+                        imports,
+                        build_tp_map(d.type_params.as_ref()),
+                        package_prefix.to_string(),
+                        diags,
+                    );
+                    lower_type_param_bounds(d.type_params.as_ref(), &mut lower)
+                };
+                let primary_defaults: Vec<bool> = d
+                    .primary_ctor
+                    .iter()
+                    .flat_map(|pc| pc.params.iter().map(|cp| cp.default.is_some()))
+                    .chain(body.members.iter().filter_map(|m| match &m.kind {
+                        TypeMemberKind::Property(pd) => Some(pd.init.is_some()),
+                        _ => None,
+                    }))
+                    .collect();
+                let primary_names: Vec<Symbol> = d
+                    .primary_ctor
+                    .iter()
+                    .flat_map(|pc| pc.params.iter().map(|cp| cp.name.symbol))
+                    .chain(body.members.iter().filter_map(|m| match &m.kind {
+                        TypeMemberKind::Property(pd) if pd.accessors.is_empty() => {
+                            Some(pd.name.symbol)
+                        }
+                        _ => None,
+                    }))
+                    .collect();
+                let primary_vararg = d
+                    .primary_ctor
+                    .iter()
+                    .flat_map(|pc| pc.params.iter())
+                    .any(|cp| cp.is_vararg);
+                let mut all = vec![Signature {
+                    param_names: primary_names,
+                    has_defaults: primary_defaults,
+                    has_vararg: primary_vararg,
+                    params: primary_params,
+                    return_ty: env.store.unit(),
+                    type_param_count: type_tp_count,
+                    type_param_bounds: primary_tp_bounds,
+                    modifiers: crate::resolve::symbol::ModifierSet::default(),
+                    effect: None,
+                    has_body: true,
+                    decl_span: d
+                        .primary_ctor
+                        .as_ref()
+                        .map(|pc| pc.span)
+                        .unwrap_or(d.name.span),
+                }];
+                all.extend(secondary);
+                env.ctor_signatures.insert(owner, all);
             }
         }
     }

@@ -43,7 +43,7 @@ pub(super) fn llvm_callable_carrier_layout_resolves_non_boundary_virtual_contrac
             for target in targets {
                 assert!(
                     query
-                        .plain_callable_layout_for_root_text(target.root_fqn())
+                        .plain_callable_layout_for_root_label(target.root_fqn())
                         .is_ok(),
                     "NoOutward virtual target `{}` 应发布 plain callable layout",
                     target.root_fqn()
@@ -368,7 +368,7 @@ pub(super) fn llvm_callable_carrier_version_selection_rejects_ambiguous_root_tar
         },
         |_inputs, result, _module| {
             let query = result.expect("duplicated plain versions 应允许物化到 version-key 查询面");
-            let err = match query.plain_callable_layout_for_root_text("fixtures.build.makeClosure")
+            let err = match query.plain_callable_layout_for_root_label("fixtures.build.makeClosure")
             {
                 Ok(_) => panic!("歧义 root 查询必须要求调用方改用 body version key"),
                 Err(err) => err,

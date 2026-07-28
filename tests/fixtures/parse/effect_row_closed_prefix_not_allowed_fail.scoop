@@ -1,6 +1,6 @@
 // EXPECT: fail
-// EXPECT-ERROR: 类型名（标识符）
-// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR: 语法错误：期望类型
+// EXPECT-ERROR-CODE: scoop::parse::expected_type
 // EXPECT-ERROR-AT: 9:17
 // 目标：闭合 effect row 仅支持后缀 `E!`，不支持前缀 `!E`（T0626 / spec §5.8.4）。
 

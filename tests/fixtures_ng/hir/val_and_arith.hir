@@ -1,0 +1,36 @@
+File 0..329
+  package:
+    Package 201..224 path=fixtures_ng.hir
+  items:
+    FunDecl 230..328 name=add
+      params:
+        Param 234..240 name=a
+          ty:
+            PathType 237..240 path=Int
+        Param 242..248 name=b
+          ty:
+            PathType 245..248 path=Int
+      return_ty:
+        PathType 251..254 path=Int
+      body:
+        Block 255..328
+          LocalValStmt 265..281
+            ValDecl 265..281 kind=val name=sum
+              ty:
+                PathType 270..273 path=Int
+              init:
+                Binary 276..281 op=+ ty=Int
+                  lhs:
+                    Ident 276..277 name=a ty=Int
+                  rhs:
+                    Ident 280..281 name=b ty=Int
+          LocalValStmt 290..307
+            ValDecl 290..307 kind=val name=doubled
+              init:
+                Binary 300..307 op=* ty=Int
+                  lhs:
+                    Ident 300..303 name=sum ty=Int
+                  rhs:
+                    IntLit 306..307 value=2 ty=Int
+          ReturnStmt 312..326
+            Ident 319..326 name=doubled ty=Int

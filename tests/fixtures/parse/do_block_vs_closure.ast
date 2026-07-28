@@ -1,95 +1,18 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 140..162,
-            path: [
-                Ident {
-                    span: 148..156,
-                },
-                Ident {
-                    span: 157..162,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 164..177,
-                kind: Val,
-                name: Ident {
-                    span: 168..169,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 172..177,
-                        kind: Lambda(
-                            LambdaExpr {
-                                params: [],
-                                arrow_span: None,
-                                body: Expr {
-                                    span: 174..175,
-                                    kind: IntLit,
-                                },
-                            },
-                        ),
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 178..194,
-                kind: Val,
-                name: Ident {
-                    span: 182..183,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 186..194,
-                        kind: DoBlock {
-                            do_span: 186..188,
-                            body: Block {
-                                span: 189..194,
-                                stmts: [
-                                    Stmt {
-                                        span: 191..192,
-                                        kind: Expr(
-                                            Expr {
-                                                span: 191..192,
-                                                kind: IntLit,
-                                            },
-                                        ),
-                                        has_trailing_semi: false,
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 196..209,
-                receiver: None,
-                name: Ident {
-                    span: 200..204,
-                },
-                type_params: [],
-                params_span: 204..206,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 207..209,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..210
+  package:
+    Package 140..162 path=fixtures.parse
+  items:
+    ValDecl 168..177 kind=val name=f
+      init:
+        Lambda 172..177
+          body:
+            IntLit 174..175 value=1
+    ValDecl 182..194 kind=val name=x
+      init:
+        DoBlock 186..194
+          Block 189..194
+            ExprStmt 191..192
+              IntLit 191..192 value=1
+    FunDecl 200..209 name=main
+      body:
+        Block 207..209

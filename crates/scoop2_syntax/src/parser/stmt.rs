@@ -60,10 +60,15 @@ impl<'a> Parser<'a> {
             return Err(self.err_unclosed(start, "`}`"));
         }
         let close = self.expect_sym(Symbol::RBrace)?;
+        // 检测最后一条语句是否带 `;`（影响 block 值类型）。
+        let last_trailing_semi = stmts
+            .last()
+            .is_some_and(|s| stmt_had_trailing_semi(s, self.source));
         Ok(Block {
             id: block_id,
             span: Span::new(start, close.span.end),
             stmts,
+            last_trailing_semi,
         })
     }
 
@@ -355,12 +360,9 @@ impl<'a> Parser<'a> {
             ValBinding::Name(self.ident(name_tok))
         };
 
-        // `:` 类型标注只在普通名字绑定上出现（§3.3）。
-        let ty = if matches!(binding, ValBinding::Name(_)) && self.eat_sym(Symbol::Colon) {
+        // `:` 类型标注：普通名字绑定与解构绑定均允许（§3.3 + 顶层 val pattern）。
+        let ty = if self.eat_sym(Symbol::Colon) {
             Some(self.parse_type_ref()?)
-        } else if matches!(binding, ValBinding::Pattern(_)) && self.at_sym(Symbol::Colon) {
-            let tok = self.peek();
-            return Err(self.err_expected("`=`（解构绑定不支持 `:` 类型标注）", tok));
         } else {
             None
         };

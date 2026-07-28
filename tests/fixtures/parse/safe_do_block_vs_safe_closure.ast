@@ -1,129 +1,24 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 169..191,
-            path: [
-                Ident {
-                    span: 177..185,
-                },
-                Ident {
-                    span: 186..191,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 193..224,
-                kind: Val,
-                name: Ident {
-                    span: 197..202,
-                },
-                ty: Some(
-                    Path(
-                        TypePath {
-                            span: 204..207,
-                            segments: [
-                                Ident {
-                                    span: 204..207,
-                                },
-                            ],
-                            args: [],
-                        },
-                    ),
-                ),
-                init: Some(
-                    Expr {
-                        span: 210..224,
-                        kind: SafeBlock {
-                            at_safe_span: 210..215,
-                            body: Block {
-                                span: 219..224,
-                                stmts: [
-                                    Stmt {
-                                        span: 221..222,
-                                        kind: Expr(
-                                            Expr {
-                                                span: 221..222,
-                                                kind: IntLit,
-                                            },
-                                        ),
-                                        has_trailing_semi: false,
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 225..261,
-                kind: Val,
-                name: Ident {
-                    span: 229..236,
-                },
-                ty: Some(
-                    Function(
-                        TypeFunction {
-                            span: 238..247,
-                            receiver: None,
-                            params_span: 238..240,
-                            params: [],
-                            return_ty: Path(
-                                TypePath {
-                                    span: 244..247,
-                                    segments: [
-                                        Ident {
-                                            span: 244..247,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                            effects: None,
-                        },
-                    ),
-                ),
-                init: Some(
-                    Expr {
-                        span: 250..261,
-                        kind: Lambda(
-                            LambdaExpr {
-                                at_safe_span: 250..255,
-                                params: [],
-                                arrow_span: None,
-                                body: Expr {
-                                    span: 258..259,
-                                    kind: IntLit,
-                                },
-                            },
-                        ),
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 263..276,
-                receiver: None,
-                name: Ident {
-                    span: 267..271,
-                },
-                type_params: [],
-                params_span: 271..273,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 274..276,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..277
+  package:
+    Package 169..191 path=fixtures.parse
+  items:
+    ValDecl 197..224 kind=val name=block
+      ty:
+        PathType 204..207 path=Int
+      init:
+        SafeBlock 210..224
+          Block 219..224
+            ExprStmt 221..222
+              IntLit 221..222 value=1
+    ValDecl 229..261 kind=val name=closure
+      ty:
+        FunctionType 238..247
+          ret:
+            PathType 244..247 path=Int
+      init:
+        Lambda 250..261 safe
+          body:
+            IntLit 258..259 value=2
+    FunDecl 267..276 name=main
+      body:
+        Block 274..276

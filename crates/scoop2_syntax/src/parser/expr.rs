@@ -953,6 +953,7 @@ impl<'a> Parser<'a> {
             id: block_id,
             span: block_span,
             stmts,
+            last_trailing_semi,
         } = block;
         let single_expr = stmts.len() == 1
             && matches!(semi_flags.first(), Some(false))
@@ -972,6 +973,7 @@ impl<'a> Parser<'a> {
                         id: block_id,
                         span: block_span,
                         stmts: restored,
+                        last_trailing_semi,
                     })
                 }
             }
@@ -980,6 +982,7 @@ impl<'a> Parser<'a> {
                 id: block_id,
                 span: block_span,
                 stmts,
+                last_trailing_semi,
             })
         };
 
@@ -1292,18 +1295,19 @@ impl<'a> Parser<'a> {
         if self.eat_sym(Symbol::Comma) {
             let k_tok = self.expect_ident("continuation binder")?;
             let k = self.ident(k_tok);
-            self.expect_sym(Symbol::Arrow)?;
+            let arrow_tok = self.expect_sym(Symbol::Arrow)?;
             let body = self.parse_control_body_expr("表达式（handler arm body）")?;
             return Ok(HandleArm {
                 id: self.nid(),
                 span: Span::new(op.span.start, body.span.end),
                 op,
                 escape_continuation: Some(k),
+                arrow_span: arrow_tok.span,
                 body,
             });
         }
 
-        self.expect_sym(Symbol::Arrow)?;
+        let arrow_tok = self.expect_sym(Symbol::Arrow)?;
 
         // `-> resume { ... }` 已移除：消费 block 后报专用错误（§10）。
         if self.at_ident_text("resume") && self.at_sym_n(1, Symbol::LBrace) {
@@ -1318,6 +1322,7 @@ impl<'a> Parser<'a> {
             span: Span::new(op.span.start, body.span.end),
             op,
             escape_continuation: None,
+            arrow_span: arrow_tok.span,
             body,
         })
     }
@@ -1526,6 +1531,8 @@ impl<'a> Parser<'a> {
                 span: Span::new(op.span.start, catch_body.span.end),
                 op,
                 escape_continuation: None,
+                // catch arm 无显式 `->`，用 body 起始作为近似定位。
+                arrow_span: catch_body.span,
                 body: catch_body,
             });
         }

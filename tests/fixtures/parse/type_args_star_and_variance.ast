@@ -1,89 +1,20 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 64..86,
-            path: [
-                Ident {
-                    span: 72..80,
-                },
-                Ident {
-                    span: 81..86,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Type(
-            TypeDecl {
-                span: 172..203,
-                kind: Interface,
-                name: Ident {
-                    span: 182..190,
-                },
-                type_params: [],
-                supertypes: [
-                    SuperType {
-                        span: 193..200,
-                        ty: Path(
-                            TypePath {
-                                span: 193..200,
-                                segments: [
-                                    Ident {
-                                        span: 193..197,
-                                    },
-                                ],
-                                args: [
-                                    Star {
-                                        span: 198..199,
-                                    },
-                                ],
-                            },
-                        ),
-                    },
-                ],
-                body: Some(
-                    TypeBody {
-                        span: 201..203,
-                        members: [],
-                    },
-                ),
-            },
-        ),
-        Type(
-            TypeDecl {
-                span: 284..326,
-                kind: Interface,
-                name: Ident {
-                    span: 294..310,
-                },
-                type_params: [
-                    TypeParam {
-                        span: 311..315,
-                        variance: Some(
-                            In,
-                        ),
-                        name: Ident {
-                            span: 314..315,
-                        },
-                    },
-                    TypeParam {
-                        span: 317..322,
-                        variance: Some(
-                            Out,
-                        ),
-                        name: Ident {
-                            span: 321..322,
-                        },
-                    },
-                ],
-                body: Some(
-                    TypeBody {
-                        span: 324..326,
-                        members: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..328
+  package:
+    Package 64..86 path=fixtures.parse
+  items:
+    InterfaceDecl 182..203 name=StarList
+      supertypes:
+        SuperType 193..200
+          ty:
+            PathType 193..200 path=List
+              args:
+                StarProjection 198..199
+      body:
+        TypeBody 201..203
+    InterfaceDecl 294..326 name=ReadOnlyProperty
+      type_params:
+        TypeParams 310..323
+          TypeParam 311..315 name=T variance=in
+          TypeParam 317..322 name=V variance=out
+      body:
+        TypeBody 324..326

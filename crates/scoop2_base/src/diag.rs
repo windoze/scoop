@@ -168,6 +168,27 @@ impl DiagnosticSink {
         self.diags
             .sort_by_key(|d| d.primary_offset().unwrap_or(usize::MAX));
     }
+
+    /// 去重冗余诊断：当同一偏移位置同时存在 `redundant_code` 与 `kept_code` 时，
+    /// 移除 `redundant_code`（保留更精确的 `kept_code`）。
+    /// 例如 resolve 已报 unresolved_type 时，移除 typecheck 的 unresolved_type_ref。
+    pub fn dedup_redundant(&mut self, redundant_code: &str, kept_code: &str) {
+        use std::collections::HashSet;
+        let offsets: HashSet<usize> = self
+            .diags
+            .iter()
+            .filter(|d| d.is_error() && d.code == kept_code)
+            .filter_map(|d| d.primary_offset())
+            .collect();
+        if offsets.is_empty() {
+            return;
+        }
+        self.diags.retain(|d| {
+            !(d.is_error()
+                && d.code == redundant_code
+                && d.primary_offset().is_some_and(|o| offsets.contains(&o)))
+        });
+    }
 }
 
 impl IntoIterator for DiagnosticSink {

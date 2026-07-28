@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR: `:`
+// EXPECT-ERROR: 语法错误：期望 `: 类型` 或 `= 初始化表达式`
 // EXPECT-ERROR-CODE: scoop::parse::expected
 // EXPECT-ERROR-AT: 9:11
 

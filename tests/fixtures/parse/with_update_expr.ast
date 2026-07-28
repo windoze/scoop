@@ -1,207 +1,37 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 136..158,
-            path: [
-                Ident {
-                    span: 144..152,
-                },
-                Ident {
-                    span: 153..158,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 160..190,
-                kind: Val,
-                name: Ident {
-                    span: 164..166,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 169..190,
-                        kind: WithUpdate {
-                            base: Expr {
-                                span: 169..170,
-                                kind: Ident(
-                                    Ident {
-                                        span: 169..170,
-                                    },
-                                ),
-                            },
-                            with_span: 171..175,
-                            updates: [
-                                WithUpdateField {
-                                    span: 178..182,
-                                    path: FieldPath {
-                                        span: 178..179,
-                                        segments: [
-                                            Ident {
-                                                span: 178..179,
-                                            },
-                                        ],
-                                    },
-                                    colon_span: 179..180,
-                                    value: Expr {
-                                        span: 181..182,
-                                        kind: IntLit,
-                                    },
-                                },
-                                WithUpdateField {
-                                    span: 184..188,
-                                    path: FieldPath {
-                                        span: 184..185,
-                                        segments: [
-                                            Ident {
-                                                span: 184..185,
-                                            },
-                                        ],
-                                    },
-                                    colon_span: 185..186,
-                                    value: Expr {
-                                        span: 187..188,
-                                        kind: IntLit,
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 191..255,
-                kind: Val,
-                name: Ident {
-                    span: 195..197,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 200..255,
-                        kind: WithUpdate {
-                            base: Expr {
-                                span: 200..202,
-                                kind: Ident(
-                                    Ident {
-                                        span: 200..202,
-                                    },
-                                ),
-                            },
-                            with_span: 203..207,
-                            updates: [
-                                WithUpdateField {
-                                    span: 210..218,
-                                    path: FieldPath {
-                                        span: 210..215,
-                                        segments: [
-                                            Ident {
-                                                span: 210..213,
-                                            },
-                                            Ident {
-                                                span: 214..215,
-                                            },
-                                        ],
-                                    },
-                                    colon_span: 215..216,
-                                    value: Expr {
-                                        span: 217..218,
-                                        kind: IntLit,
-                                    },
-                                },
-                                WithUpdateField {
-                                    span: 220..228,
-                                    path: FieldPath {
-                                        span: 220..225,
-                                        segments: [
-                                            Ident {
-                                                span: 220..223,
-                                            },
-                                            Ident {
-                                                span: 224..225,
-                                            },
-                                        ],
-                                    },
-                                    colon_span: 225..226,
-                                    value: Expr {
-                                        span: 227..228,
-                                        kind: IntLit,
-                                    },
-                                },
-                                WithUpdateField {
-                                    span: 230..253,
-                                    path: FieldPath {
-                                        span: 230..242,
-                                        segments: [
-                                            Ident {
-                                                span: 230..234,
-                                            },
-                                            Ident {
-                                                span: 235..240,
-                                            },
-                                            Ident {
-                                                span: 241..242,
-                                            },
-                                        ],
-                                    },
-                                    colon_span: 242..243,
-                                    value: Expr {
-                                        span: 244..253,
-                                        kind: Binary {
-                                            lhs: Expr {
-                                                span: 244..245,
-                                                kind: IntLit,
-                                            },
-                                            op: Add,
-                                            op_span: 246..247,
-                                            rhs: Expr {
-                                                span: 248..253,
-                                                kind: Binary {
-                                                    lhs: Expr {
-                                                        span: 248..249,
-                                                        kind: IntLit,
-                                                    },
-                                                    op: Mul,
-                                                    op_span: 250..251,
-                                                    rhs: Expr {
-                                                        span: 252..253,
-                                                        kind: IntLit,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 257..270,
-                receiver: None,
-                name: Ident {
-                    span: 261..265,
-                },
-                type_params: [],
-                params_span: 265..267,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 268..270,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..272
+  package:
+    Package 136..158 path=fixtures.parse
+  items:
+    ValDecl 164..190 kind=val name=p2
+      init:
+        WithUpdate 169..190
+          base:
+            Ident 169..170 name=p
+          updates:
+            WithUpdateField 178..182 path=x
+              IntLit 181..182 value=1
+            WithUpdateField 184..188 path=y
+              IntLit 187..188 value=2
+    ValDecl 195..255 kind=val name=p3
+      init:
+        WithUpdate 200..255
+          base:
+            Ident 200..202 name=p2
+          updates:
+            WithUpdateField 210..218 path=pos.x
+              IntLit 217..218 value=3
+            WithUpdateField 220..228 path=pos.y
+              IntLit 227..228 value=4
+            WithUpdateField 230..253 path=meta.inner.z
+              Binary 244..253 op=+
+                lhs:
+                  IntLit 244..245 value=5
+                rhs:
+                  Binary 248..253 op=*
+                    lhs:
+                      IntLit 248..249 value=6
+                    rhs:
+                      IntLit 252..253 value=7
+    FunDecl 261..270 name=main
+      body:
+        Block 268..270

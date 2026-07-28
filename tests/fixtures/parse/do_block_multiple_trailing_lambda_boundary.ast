@@ -1,234 +1,59 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 451..473,
-            path: [
-                Ident {
-                    span: 459..467,
-                },
-                Ident {
-                    span: 468..473,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 475..589,
-                receiver: None,
-                name: Ident {
-                    span: 479..483,
-                },
-                type_params: [],
-                params_span: 483..485,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 486..589,
-                        stmts: [
-                            Stmt {
-                                span: 492..524,
-                                kind: Expr(
-                                    Expr {
-                                        span: 492..524,
-                                        kind: Call {
-                                            callee: Expr {
-                                                span: 492..499,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 492..499,
-                                                    },
-                                                ),
-                                            },
-                                            args: [
-                                                Expr {
-                                                    span: 500..501,
-                                                    kind: IntLit,
-                                                },
-                                                Expr {
-                                                    span: 503..513,
-                                                    kind: Lambda(
-                                                        LambdaExpr {
-                                                            params: [],
-                                                            arrow_span: None,
-                                                            body: Expr {
-                                                                span: 505..511,
-                                                                kind: Binary {
-                                                                    lhs: Expr {
-                                                                        span: 505..507,
-                                                                        kind: Ident(
-                                                                            Ident {
-                                                                                span: 505..507,
-                                                                            },
-                                                                        ),
-                                                                    },
-                                                                    op: Add,
-                                                                    op_span: 508..509,
-                                                                    rhs: Expr {
-                                                                        span: 510..511,
-                                                                        kind: IntLit,
-                                                                    },
-                                                                },
-                                                            },
-                                                        },
-                                                    ),
-                                                },
-                                                Expr {
-                                                    span: 514..524,
-                                                    kind: Lambda(
-                                                        LambdaExpr {
-                                                            params: [],
-                                                            arrow_span: None,
-                                                            body: Expr {
-                                                                span: 516..522,
-                                                                kind: Binary {
-                                                                    lhs: Expr {
-                                                                        span: 516..518,
-                                                                        kind: Ident(
-                                                                            Ident {
-                                                                                span: 516..518,
-                                                                            },
-                                                                        ),
-                                                                    },
-                                                                    op: Add,
-                                                                    op_span: 519..520,
-                                                                    rhs: Expr {
-                                                                        span: 521..522,
-                                                                        kind: IntLit,
-                                                                    },
-                                                                },
-                                                            },
-                                                        },
-                                                    ),
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                            Stmt {
-                                span: 529..587,
-                                kind: Expr(
-                                    Expr {
-                                        span: 529..587,
-                                        kind: DoBlock {
-                                            do_span: 529..531,
-                                            body: Block {
-                                                span: 532..587,
-                                                stmts: [
-                                                    Stmt {
-                                                        span: 542..581,
-                                                        kind: Expr(
-                                                            Expr {
-                                                                span: 542..581,
-                                                                kind: Call {
-                                                                    callee: Expr {
-                                                                        span: 542..549,
-                                                                        kind: Ident(
-                                                                            Ident {
-                                                                                span: 542..549,
-                                                                            },
-                                                                        ),
-                                                                    },
-                                                                    args: [
-                                                                        Expr {
-                                                                            span: 550..558,
-                                                                            kind: DoBlock {
-                                                                                do_span: 550..552,
-                                                                                body: Block {
-                                                                                    span: 553..558,
-                                                                                    stmts: [
-                                                                                        Stmt {
-                                                                                            span: 555..556,
-                                                                                            kind: Expr(
-                                                                                                Expr {
-                                                                                                    span: 555..556,
-                                                                                                    kind: IntLit,
-                                                                                                },
-                                                                                            ),
-                                                                                            has_trailing_semi: false,
-                                                                                        },
-                                                                                    ],
-                                                                                },
-                                                                            },
-                                                                        },
-                                                                        Expr {
-                                                                            span: 560..570,
-                                                                            kind: Lambda(
-                                                                                LambdaExpr {
-                                                                                    params: [],
-                                                                                    arrow_span: None,
-                                                                                    body: Expr {
-                                                                                        span: 562..568,
-                                                                                        kind: Binary {
-                                                                                            lhs: Expr {
-                                                                                                span: 562..564,
-                                                                                                kind: Ident(
-                                                                                                    Ident {
-                                                                                                        span: 562..564,
-                                                                                                    },
-                                                                                                ),
-                                                                                            },
-                                                                                            op: Add,
-                                                                                            op_span: 565..566,
-                                                                                            rhs: Expr {
-                                                                                                span: 567..568,
-                                                                                                kind: IntLit,
-                                                                                            },
-                                                                                        },
-                                                                                    },
-                                                                                },
-                                                                            ),
-                                                                        },
-                                                                        Expr {
-                                                                            span: 571..581,
-                                                                            kind: Lambda(
-                                                                                LambdaExpr {
-                                                                                    params: [],
-                                                                                    arrow_span: None,
-                                                                                    body: Expr {
-                                                                                        span: 573..579,
-                                                                                        kind: Binary {
-                                                                                            lhs: Expr {
-                                                                                                span: 573..575,
-                                                                                                kind: Ident(
-                                                                                                    Ident {
-                                                                                                        span: 573..575,
-                                                                                                    },
-                                                                                                ),
-                                                                                            },
-                                                                                            op: Add,
-                                                                                            op_span: 576..577,
-                                                                                            rhs: Expr {
-                                                                                                span: 578..579,
-                                                                                                kind: IntLit,
-                                                                                            },
-                                                                                        },
-                                                                                    },
-                                                                                },
-                                                                            ),
-                                                                        },
-                                                                    ],
-                                                                },
-                                                            },
-                                                        ),
-                                                        has_trailing_semi: false,
-                                                    },
-                                                ],
-                                            },
-                                        },
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..590
+  package:
+    Package 451..473 path=fixtures.parse
+  items:
+    FunDecl 479..589 name=main
+      body:
+        Block 486..589
+          ExprStmt 492..524
+            Call 492..524
+              callee:
+                Ident 492..499 name=combine
+              args:
+                CallArg 500..501
+                  IntLit 500..501 value=1
+                CallArg 503..513
+                  Lambda 503..513
+                    body:
+                      Binary 505..511 op=+
+                        lhs:
+                          Ident 505..507 name=it
+                        rhs:
+                          IntLit 510..511 value=1
+                CallArg 514..524
+                  Lambda 514..524
+                    body:
+                      Binary 516..522 op=+
+                        lhs:
+                          Ident 516..518 name=it
+                        rhs:
+                          IntLit 521..522 value=2
+          ExprStmt 529..587
+            DoBlock 529..587
+              Block 532..587
+                ExprStmt 542..581
+                  Call 542..581
+                    callee:
+                      Ident 542..549 name=combine
+                    args:
+                      CallArg 550..558
+                        DoBlock 550..558
+                          Block 553..558
+                            ExprStmt 555..556
+                              IntLit 555..556 value=3
+                      CallArg 560..570
+                        Lambda 560..570
+                          body:
+                            Binary 562..568 op=+
+                              lhs:
+                                Ident 562..564 name=it
+                              rhs:
+                                IntLit 567..568 value=4
+                      CallArg 571..581
+                        Lambda 571..581
+                          body:
+                            Binary 573..579 op=+
+                              lhs:
+                                Ident 573..575 name=it
+                              rhs:
+                                IntLit 578..579 value=5

@@ -12,7 +12,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         false
     }
 
-    pub(in crate::llvm::codegen) fn lir_source_callable(
+    pub(in crate::llvm::codegen) fn lir_source_callable_by_id(
+        &self,
+        callable_id: LirCallableId,
+    ) -> Option<(
+        LirCallableId,
+        &'a TypeStore,
+        &'a crate::effect_lowered::LateLoweredSourceCallable,
+    )> {
+        let program = self.published_late_lowered_program()?;
+        let source_types = self.published_late_lowered_types()?;
+        let callable = program.callable_by_id(callable_id)?;
+        let source_callable = callable.source_callable()?;
+        callable.executable_body()?;
+        Some((callable_id, source_types, source_callable))
+    }
+
+    pub(in crate::llvm::codegen) fn lir_source_callable_by_root_label(
         &self,
         fqn: &str,
     ) -> Option<(
@@ -24,47 +40,59 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return None;
         }
         let program = self.published_late_lowered_program()?;
-        let source_types = self.published_late_lowered_types()?;
         let callable_id =
             program
                 .callables()
                 .iter()
                 .enumerate()
                 .find_map(|(index, callable)| {
-                    (callable.root_fqn() == fqn)
+                    callable
+                        .root_fqn()
+                        .eq(fqn)
                         .then(|| LirCallableId::from_index(index))
                         .flatten()
                 })?;
-        let callable = program.callable_by_id(callable_id)?;
-        let source_callable = callable.source_callable()?;
-        callable.executable_body()?;
-        Some((callable_id, source_types, source_callable))
+        self.lir_source_callable_by_id(callable_id)
     }
 
-    pub(in crate::llvm::codegen) fn lir_source_closure_body_symbol(
+    pub(in crate::llvm::codegen) fn stable_closure_key_for_lir_root_label(
         &self,
         callable_fqn: &str,
         at: crate::span::Span,
+    ) -> Result<StableClosureKey, LlvmEmitError> {
+        let (callable_id, _, _) = self.lir_source_callable_by_root_label(callable_fqn).unwrap_or_else(|| {
+            panic!("stable_closure_key_for_lir_root_label: LIR source contract accepted missing closure callable")
+        });
+        self.stable_closure_key_for_lir_callable_id(callable_id, at)
+    }
+
+    pub(in crate::llvm::codegen) fn lir_source_closure_body_symbol_for_id(
+        &self,
+        callable_id: LirCallableId,
+        at: crate::span::Span,
     ) -> Result<String, LlvmEmitError> {
         Ok(private_closure_body_fn_name(
-            &self.stable_closure_key_for_lir_source_callable(callable_fqn, at)?,
+            &self.stable_closure_key_for_lir_callable_id(callable_id, at)?,
         ))
     }
 
-    pub(in crate::llvm::codegen) fn ensure_lir_source_closure_callable_defined(
+    pub(in crate::llvm::codegen) fn ensure_lir_source_closure_callable_defined_for_id(
         &mut self,
         span: crate::span::Span,
-        fn_ptr: &str,
+        callable_id: LirCallableId,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let (callable_id, source_types, source_fun) = self.lir_source_callable(fn_ptr).unwrap_or_else(|| {
+        let (callable_id, source_types, source_fun) = self.lir_source_callable_by_id(callable_id).unwrap_or_else(|| {
             panic!(
-                "ensure_lir_source_closure_callable_defined: missing LIR source closure callable"
+                "ensure_lir_source_closure_callable_defined_for_id: missing LIR source closure callable"
             )
         });
         if !source_fun.name.starts_with("$lambda") {
-            panic!("ensure_lir_source_closure_callable_defined: callable is not a closure body")
+            panic!(
+                "ensure_lir_source_closure_callable_defined_for_id: callable is not a closure body"
+            )
         }
-        let body_symbol = self.lir_source_closure_body_symbol(fn_ptr, source_fun.span)?;
+        let body_symbol =
+            self.lir_source_closure_body_symbol_for_id(callable_id, source_fun.span)?;
         if let Some(existing) = self.module.get_function(&body_symbol)
             && existing.count_basic_blocks() > 0
         {
@@ -74,20 +102,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_block = self.expect_insert_block("LIR source closure body lookup");
         let mut child = self.fresh_child_codegen();
         child.function_cx.current_lir_callable_id = Some(callable_id);
-        child.current_source_id = child.lir_source_callable_source_id(fn_ptr, span)?;
-        let llvm_fun = child.declare_lir_source_closure_fun(span, source_fun, source_types)?;
+        child.current_source_id = child.lir_source_callable_source_id_for_id(callable_id, span)?;
+        let llvm_fun =
+            child.declare_lir_source_closure_fun(callable_id, span, source_fun, source_types)?;
         if llvm_fun.count_basic_blocks() == 0 {
-            child.codegen_lir_source_closure_fun(source_fun, source_types, llvm_fun)?;
+            child.codegen_lir_source_closure_fun(
+                callable_id,
+                source_fun,
+                source_types,
+                llvm_fun,
+            )?;
         }
         self.builder.position_at_end(saved_block);
         Ok(llvm_fun)
     }
 
-    pub(in crate::llvm::codegen) fn lir_source_callable_source_id(
+    pub(in crate::llvm::codegen) fn lir_source_callable_source_id_for_id(
         &self,
-        fqn: &str,
+        callable_id: LirCallableId,
         span: crate::span::Span,
     ) -> Result<SourceId, LlvmEmitError> {
+        let (_, _, source_callable) = self.lir_source_callable_by_id(callable_id).unwrap_or_else(|| {
+            panic!("lir_source_callable_source_id_for_id: LIR source contract accepted missing callable")
+        });
+        let fqn = source_callable.fqn.as_str();
         let mut owner_fqn = fqn;
         loop {
             if let Some(source) = self.callable_sources.get(owner_fqn) {
@@ -99,12 +137,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             owner_fqn = parent;
         }
         panic!(
-            "lir_source_callable_source_id: LIR source contract accepted callable without source path"
+            "lir_source_callable_source_id_for_id: LIR source contract accepted callable without source path"
         )
     }
 
     pub(in crate::llvm::codegen) fn declare_lir_source_closure_fun(
         &mut self,
+        callable_id: LirCallableId,
         span: crate::span::Span,
         source_fun: &crate::effect_lowered::LateLoweredSourceCallable,
         source_types: &TypeStore,
@@ -115,6 +154,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|param| param.ty)
             .collect::<Vec<_>>();
         self.declare_lir_source_closure_fun_with_signature(
+            callable_id,
             span,
             source_fun,
             &param_tys,
@@ -125,13 +165,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn declare_lir_source_closure_fun_with_signature(
         &mut self,
+        callable_id: LirCallableId,
         span: crate::span::Span,
         source_fun: &crate::effect_lowered::LateLoweredSourceCallable,
         param_tys: &[TypeId],
         return_ty: TypeId,
         source_types: &TypeStore,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let body_symbol = self.lir_source_closure_body_symbol(source_fun.fqn.as_str(), span)?;
+        let body_symbol = self.lir_source_closure_body_symbol_for_id(callable_id, span)?;
         if let Some(existing) = self.module.get_function(&body_symbol) {
             return Ok(existing);
         }
@@ -272,11 +313,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(in crate::llvm::codegen) fn declare_lir_plain_fun_with_symbol(
+    pub(in crate::llvm::codegen) fn declare_lir_plain_fun_with_symbol_for_ref(
         &mut self,
         llvm_name: &str,
         surface: LlvmFunctionDeclarationSurface,
-        owner_fqn: &str,
+        owner: scoopc_lir_facts::LirCallableRef,
+        owner_label: &str,
         param_tys: &[TypeId],
         return_ty: TypeId,
         source_types: &TypeStore,
@@ -284,12 +326,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let span = self
             .callable_sources
-            .get(owner_fqn)
+            .get(owner_label)
             .map(|source| source.span)
             .unwrap_or_else(|| crate::span::Span::new(0, 0));
         let llvm_name = match surface {
             LlvmFunctionDeclarationSurface::ExportedAbi => {
-                if owner_fqn == "main" {
+                if owner_label == "main" {
                     "main".to_string()
                 } else {
                     llvm_name.to_string()
@@ -302,7 +344,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(existing);
         }
 
-        let callable_abi = self.direct_call_abi_identity(owner_fqn);
+        let callable_abi = self.direct_call_abi_identity_for_ref(owner);
         let codegen_param_tys = param_tys
             .iter()
             .copied()
@@ -317,9 +359,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .equivalent_codegen_type_id(source_types, return_ty)
             .unwrap_or(return_ty);
         let native_abi = if callable_abi.uses_native_abi() {
-            Some(self.classify_direct_extern_native_callable(
+            Some(self.classify_direct_extern_native_callable_for_ref(
                 span,
-                owner_fqn,
+                owner,
                 &codegen_param_tys,
                 codegen_return_ty,
             )?)
@@ -404,24 +446,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_lir_source_closure_fun(
         mut self,
+        callable_id: LirCallableId,
         source_fun: &crate::effect_lowered::LateLoweredSourceCallable,
         source_types: &TypeStore,
         llvm_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let executable_body = self
             .published_late_lowered_program()
-            .and_then(|program| {
-                program
-                    .callables()
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, callable)| {
-                        (callable.root_fqn() == source_fun.fqn)
-                            .then(|| LirCallableId::from_index(index))
-                            .flatten()
-                    })
-                    .and_then(|id| program.callable_by_id(id))
-            })
+            .and_then(|program| program.callable_by_id(callable_id))
             .and_then(|callable| callable.executable_body())
             .unwrap_or_else(|| {
                 panic!("codegen_lir_source_closure_fun: missing LIR executable closure body")
@@ -662,7 +694,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         )
                     })
                     .into_pointer_value();
-                let closure_key = self.stable_closure_key_for_lir_source_callable(fn_ptr, span)?;
+                let callable_id = self.function_cx.current_lir_callable_id.unwrap_or_else(|| {
+                    panic!(
+                        "codegen_mir_closure_env_param: LIR closure env lowering missing current callable id for `{fn_ptr}`"
+                    )
+                });
+                let closure_key = self.stable_closure_key_for_lir_callable_id(callable_id, span)?;
                 let env_ty =
                     self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
                 let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());

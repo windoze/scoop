@@ -1,37 +1,7 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 57..79,
-            path: [
-                Ident {
-                    span: 65..73,
-                },
-                Ident {
-                    span: 74..79,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 81..94,
-                receiver: None,
-                name: Ident {
-                    span: 85..89,
-                },
-                type_params: [],
-                params_span: 89..91,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 92..94,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..95
+  package:
+    Package 57..79 path=fixtures.parse
+  items:
+    FunDecl 85..94 name=main
+      body:
+        Block 92..94

@@ -634,10 +634,10 @@ fn parse_top_level_val_destructuring() {
 }
 
 #[test]
-fn destructuring_with_type_annotation_is_rejected() {
-    // §3.3：模式绑定后直接走 `=`，`:` 类型标注不再解析。
+fn destructuring_with_type_annotation_is_accepted() {
+    // §3.3 + 顶层 val pattern：模式绑定后允许 `:` 类型标注。
     let codes = err_codes("val (a, b): (Int, Int) = (1, 2)\n");
-    assert!(!codes.is_empty(), "解构 + `:` 类型标注应报错");
+    assert!(codes.is_empty(), "解构 + `:` 类型标注应合法");
 }
 
 #[test]

@@ -1,0 +1,53 @@
+File 0..373
+  package:
+    Package 170..193 path=fixtures_ng.hir
+  items:
+    FunDecl 199..372 name=loop
+      params:
+        Param 204..212 name=acc
+          ty:
+            PathType 209..212 path=Int
+      return_ty:
+        PathType 215..218 path=Int
+      body:
+        Block 219..372
+          LocalValStmt 229..245
+            ValDecl 229..245 kind=var name=total
+              ty:
+                PathType 236..239 path=Int
+              init:
+                Ident 242..245 name=acc ty=Int
+          WhileStmt 250..307
+            cond:
+              Binary 257..268 op=< ty=Bool
+                lhs:
+                  Ident 257..262 name=total ty=Int
+                rhs:
+                  IntLit 265..268 value=100 ty=Int
+            body:
+              Block 270..307
+                AssignStmt 280..301
+                  target:
+                    IdentTarget 280..285 name=total
+                  value:
+                    Binary 288..301 op=+ ty=Int
+                      lhs:
+                        Ident 288..293 name=total ty=Int
+                      rhs:
+                        Ident 296..301 name=total ty=Int
+          LocalValStmt 316..353
+            ValDecl 316..353 kind=val name=done
+              init:
+                If 323..353 ty=Bool
+                  cond:
+                    Binary 327..336 op=> ty=Bool
+                      lhs:
+                        Ident 327..332 name=total ty=Int
+                      rhs:
+                        IntLit 335..336 value=0 ty=Int
+                  then:
+                    Ident 338..342 name=true ty=Bool
+                  else:
+                    Ident 348..353 name=false ty=Bool
+          ReturnStmt 358..370
+            Ident 365..370 name=total ty=Int

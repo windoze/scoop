@@ -186,10 +186,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         callee_span: crate::span::Span,
         fqn: &str,
+        target: scoopc_lir_facts::LirExactCalleeBinding,
         args: &[hir::CallArg],
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        self.codegen_top_level_fun_call_impl(span, callee_span, fqn, args, result_ty)
+        self.codegen_top_level_fun_call_impl(span, callee_span, fqn, target, args, result_ty)
     }
 
     /// 为 native callable 调用点生成 `scoop_enter_native(root_slots, len)`。
@@ -336,14 +337,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.ordinary_param_abi_impl(span, ty)
     }
 
-    pub(in crate::llvm::codegen) fn classify_direct_extern_native_callable(
+    pub(in crate::llvm::codegen) fn classify_direct_extern_native_callable_for_ref(
         &mut self,
         span: crate::span::Span,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
         param_tys: &[TypeId],
         return_ty: TypeId,
     ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
-        self.classify_direct_extern_native_callable_impl(span, callable_fqn, param_tys, return_ty)
+        self.classify_direct_extern_native_callable_for_ref_impl(span, target, param_tys, return_ty)
     }
 
     pub(in crate::llvm::codegen) fn classify_funptr_native_callable(
@@ -365,18 +366,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.emit_native_callable_call_impl(at, abi, target, llvm_args)
     }
 
-    pub(in crate::llvm::codegen) fn callable_uses_explicit_effect_hidden_abi(
+    pub(in crate::llvm::codegen) fn callable_uses_explicit_effect_hidden_abi_for_ref(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> bool {
-        self.callable_uses_explicit_effect_hidden_abi_impl(callable_fqn)
+        self.callable_uses_explicit_effect_hidden_abi_for_ref_impl(target)
     }
 
-    pub(in crate::llvm::codegen) fn direct_call_abi_identity(
+    pub(in crate::llvm::codegen) fn direct_call_abi_identity_for_ref(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> hir::CallableAbiIdentity {
-        self.direct_call_abi_identity_impl(callable_fqn)
+        self.direct_call_abi_identity_for_ref_impl(target)
     }
 
     pub(in crate::llvm::codegen) fn managed_callable_abi_identity(
@@ -393,25 +394,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.managed_callable_abi_identity_from_fun_ty_impl(fun_ty)
     }
 
-    pub(in crate::llvm::codegen) fn callable_needs_callee_resume_shell(
+    pub(in crate::llvm::codegen) fn callable_needs_callee_resume_shell_for_ref(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> bool {
-        self.callable_needs_callee_resume_shell_impl(callable_fqn)
+        self.callable_needs_callee_resume_shell_for_ref_impl(target)
     }
 
-    pub(in crate::llvm::codegen) fn published_callable_signature(
+    pub(in crate::llvm::codegen) fn published_callable_signature_for_ref(
         &self,
-        callable_fqn: &str,
+        target: scoopc_lir_facts::LirCallableRef,
     ) -> Option<(&'a TypeStore, Vec<TypeId>, TypeId)> {
-        self.published_callable_signature_impl(callable_fqn)
+        self.published_callable_signature_for_ref_impl(target)
     }
 
-    pub(in crate::llvm::codegen) fn published_callable_signature_with_names(
+    pub(in crate::llvm::codegen) fn published_callable_signature_with_names_for_ref(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
+        self.published_callable_signature_with_names_for_ref_impl(target)
+    }
+
+    pub(in crate::llvm::codegen) fn published_callable_signature_with_names_for_binding(
+        &self,
+        binding: &scoopc_lir_facts::LirExactCalleeBinding,
+    ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
+        self.published_callable_signature_with_names_for_binding_impl(binding)
+    }
+
+    pub(in crate::llvm::codegen) fn published_callable_signature_with_names_for_root_label(
         &self,
         callable_fqn: &str,
     ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
-        self.published_callable_signature_with_names_impl(callable_fqn)
+        self.published_callable_signature_with_names_for_root_label_impl(callable_fqn)
     }
 
     pub(in crate::llvm::codegen) fn published_signature_tys_as_codegen_tys(
@@ -423,11 +438,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)
     }
 
-    pub(in crate::llvm::codegen) fn published_codegen_callable_signature(
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_binding(
+        &self,
+        binding: &scoopc_lir_facts::LirExactCalleeBinding,
+    ) -> Option<CodegenCallableSignature> {
+        self.published_codegen_callable_signature_for_binding_impl(binding)
+    }
+
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_root_label(
         &self,
         callable_fqn: &str,
     ) -> Option<CodegenCallableSignature> {
-        self.published_codegen_callable_signature_impl(callable_fqn)
+        self.published_codegen_callable_signature_for_root_label_impl(callable_fqn)
     }
 
     pub(in crate::llvm::codegen) fn published_codegen_callable_signature_for_ref(

@@ -53,6 +53,8 @@ pub struct Index {
     categories: HashMap<Symbol, NominalCategory>,
     /// nominal 类型 FQN → 直接超类型 FQN 列表（供 typecheck 子类型 / assignability）。
     supertypes: HashMap<Symbol, Vec<Symbol>>,
+    /// typealias FQN → 目标类型 FQN（供 resolve 阶段展开）。
+    typealiases: HashMap<Symbol, Symbol>,
 }
 
 /// 插入类型/值命名空间的结果：`Ok(())` 或 `Err(first)`（首定义的 span）。
@@ -260,6 +262,32 @@ impl Index {
             .get(&fqn)
             .map(|v| v.as_slice())
             .unwrap_or(&[])
+    }
+
+    /// 记录 typealias 目标（`typealias Name = Target`）。
+    pub fn record_typealias(&mut self, fqn: Symbol, target: Symbol) {
+        self.typealiases.insert(fqn, target);
+    }
+
+    /// 查询 typealias 目标（若有）；递归展开（最多 8 层防环）。
+    pub fn resolve_typealias(&self, fqn: Symbol) -> Symbol {
+        let mut current = fqn;
+        for _ in 0..8 {
+            if let Some(&target) = self.typealiases.get(&current) {
+                if target == current {
+                    break;
+                }
+                current = target;
+            } else {
+                break;
+            }
+        }
+        current
+    }
+
+    /// 是否是 typealias。
+    pub fn is_typealias(&self, fqn: Symbol) -> bool {
+        self.typealiases.contains_key(&fqn)
     }
 }
 

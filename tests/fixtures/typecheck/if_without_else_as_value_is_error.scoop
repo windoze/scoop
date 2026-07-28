@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
-// EXPECT-ERROR: 期望 Int，但得到 Unit
+// EXPECT-ERROR: 期望 Int，但得到 ()
 //
 // T0142: if-without-else used as a value expression should be a type error,
 // because the expression type is Unit (no else branch to produce a value).

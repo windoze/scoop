@@ -1,7 +1,7 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-CODE: scoop::parse::expected_expression
 // EXPECT-ERROR-AT: 10:5
-// EXPECT-ERROR: 语句
+// EXPECT-ERROR: 语法错误：期望表达式
 // 目标：parser recovery 可以内部生成 Missing stmt，但成功 parse 不能携带该 sentinel 进入 HIR。
 
 package fixtures.parse

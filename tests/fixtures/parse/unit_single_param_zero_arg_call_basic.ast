@@ -1,75 +1,17 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 150..172,
-            path: [
-                Ident {
-                    span: 158..166,
-                },
-                Ident {
-                    span: 167..172,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 174..188,
-                kind: Val,
-                name: Ident {
-                    span: 178..182,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 185..188,
-                        kind: Call {
-                            callee: Expr {
-                                span: 185..186,
-                                kind: Ident(
-                                    Ident {
-                                        span: 185..186,
-                                    },
-                                ),
-                            },
-                            args: [],
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 189..209,
-                kind: Val,
-                name: Ident {
-                    span: 193..201,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 204..209,
-                        kind: Call {
-                            callee: Expr {
-                                span: 204..205,
-                                kind: Ident(
-                                    Ident {
-                                        span: 204..205,
-                                    },
-                                ),
-                            },
-                            args: [
-                                Expr {
-                                    span: 206..208,
-                                    kind: UnitLit,
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..210
+  package:
+    Package 150..172 path=fixtures.parse
+  items:
+    ValDecl 178..188 kind=val name=zero
+      init:
+        Call 185..188
+          callee:
+            Ident 185..186 name=f
+    ValDecl 193..209 kind=val name=explicit
+      init:
+        Call 204..209
+          callee:
+            Ident 204..205 name=f
+          args:
+            CallArg 206..208
+              UnitLit 206..208

@@ -27,7 +27,10 @@ impl fmt::Debug for Symbol {
 }
 
 /// 字符串 interner。同一文本多次 intern 返回同一 [`Symbol`]。
-#[derive(Debug, Default)]
+///
+/// 可克隆（深拷贝 map + strings）；句柄值在新副本中保持稳定。用于把 typecheck
+/// 产出的 `Symbol` 键表连同 interner 一起移入 typed-HIR / dump-hir 消费侧。
+#[derive(Clone, Debug, Default)]
 pub struct Interner {
     map: HashMap<Box<str>, Symbol>,
     strings: Vec<Box<str>>,

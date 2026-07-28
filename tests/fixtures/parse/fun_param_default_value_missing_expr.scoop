@@ -1,6 +1,6 @@
 // EXPECT: fail
-// EXPECT-ERROR: 参数默认值
-// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR: 语法错误：期望表达式
+// EXPECT-ERROR-CODE: scoop::parse::expected_expression
 // EXPECT-ERROR-AT: 6:15
 
 fun f(x: Any =) {}

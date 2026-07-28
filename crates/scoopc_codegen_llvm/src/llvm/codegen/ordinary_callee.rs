@@ -353,7 +353,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         fun: &hir::FunDecl,
     ) -> Option<CalleeSuspendPlan> {
-        if !self.callable_needs_callee_resume_shell(&fun.fqn) {
+        let needs_shell = self
+            .lir_source_callable_by_root_label(&fun.fqn)
+            .is_some_and(|(callable_id, _, _)| {
+                self.callable_needs_callee_resume_shell_for_ref(
+                    scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                )
+            });
+        if !needs_shell {
             return None;
         }
         self.build_ordinary_callee_suspend_plan_for_callable(
@@ -372,7 +379,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         receiver_binding: Option<&(hir::SymbolId, String, TypeId)>,
         param_bindings: &[(hir::SymbolId, String, TypeId)],
     ) -> Option<CalleeSuspendPlan> {
-        if !self.callable_needs_callee_resume_shell(callable_fqn) {
+        let needs_shell = self
+            .lir_source_callable_by_root_label(callable_fqn)
+            .is_some_and(|(callable_id, _, _)| {
+                self.callable_needs_callee_resume_shell_for_ref(
+                    scoopc_lir_facts::LirCallableRef::Local(callable_id),
+                )
+            });
+        if !needs_shell {
             return None;
         }
         let hir::ExprKind::Block(block) = &closure.body.kind else {

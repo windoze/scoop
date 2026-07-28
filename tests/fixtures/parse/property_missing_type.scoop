@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR: `:`
+// EXPECT-ERROR: 语法错误：期望 `: 类型` 或 `= 初始化表达式`
 // EXPECT-ERROR-CODE: scoop::parse::expected
 // EXPECT-ERROR-AT: 11:9
 // 目标：spec §10.1：当前阶段 type body 属性要求显式类型（缺失 `: Type` 时在 accessor 处报错）。

@@ -28,11 +28,15 @@ use scoop2_base::diag::DiagnosticSink;
 
 /// 完整的 typecheck 管线（resolve → typecheck）。接收与 `resolve::run_program` 相同的
 /// 输入，内部完成 header 收集 → import → 类型引用 → body 解析 → 扩展 → 类型检查。
+///
+/// 返回自包含的 [`crate::hir::TypedHir`]（含 per-NodeId 表达式类型表），供
+/// `dump-hir` 与后续 lowering 消费。诊断仍通过 `diags` 汇报。
 pub fn run_typecheck(
     inputs: &[crate::resolve::InputFile],
     interner: &mut Interner,
     diags: &mut DiagnosticSink,
-) {
+    target_platform: Option<&str>,
+) -> crate::hir::TypedHir {
     use crate::resolve::{
         ConeKind, Index, InputOrigin, Resolution, body, collect, imports, type_refs,
     };
@@ -61,6 +65,7 @@ pub fn run_typecheck(
 
     // ---- Phase 2：解析用户文件 ----
     struct UserFile<'a> {
+        file_id: scoop2_base::FileId,
         file: &'a File,
         prefix: String,
         imports: imports::ImportTable,
@@ -83,6 +88,7 @@ pub fn run_typecheck(
             &prefix,
         );
         user_files.push(UserFile {
+            file_id: inp.file_id,
             file: inp.file,
             prefix,
             imports,
@@ -99,22 +105,30 @@ pub fn run_typecheck(
         let imports = imports::ImportTable::collect(inp.file, inp.file_id, &index, interner, diags);
         file_state.push((i, prefix, imports));
     }
+    // 注册顺序：sysroot 文件先于用户文件（typealias / 签名等需 sysroot 先注册）。
+    file_state.sort_by_key(|(i, _, _)| match inputs[*i].origin {
+        InputOrigin::Sysroot => 0,
+        InputOrigin::User => 1,
+    });
     // 创建 TypeEnv（借用 interner 不可变）。
     let mut env = TypeEnv::new(&index, interner);
     for &(i, ref prefix, ref imports) in &file_state {
         let inp = &inputs[i];
         // register_type_constraints 先运行（填充 eff_param_types 等供后续降级使用）。
         env::register_type_constraints(&mut env, inp.file, imports, prefix, diags);
+        // typealias 先于签名/成员/构造器注册，使后续降级时能展开 typealias。
+        env::register_type_aliases(&mut env, inp.file, prefix, diags);
         env::register_top_level_signatures(&mut env, inp.file, imports, prefix, diags);
         env::register_members(&mut env, inp.file, imports, prefix, diags);
         env::register_constructors(&mut env, inp.file, imports, prefix, diags);
         env::register_clayout_structs(&mut env, inp.file, prefix);
-        env::register_type_aliases(&mut env, inp.file, prefix, diags);
         env::register_top_level_vals(&mut env, inp.file, imports, prefix, diags);
         env::register_enum_variants(&mut env, inp.file, prefix);
     }
-    // 检查每个用户文件的函数体。
+    // 检查每个用户文件的函数体；同时收集 per-file 表达式类型表。
+    let mut typed_files: Vec<crate::hir::TypedFile> = Vec::with_capacity(user_files.len());
     for uf in &user_files {
+        let mut expr_types = crate::resolve::output::NodeIdTable::new();
         check_file_bodies(
             uf.file,
             &mut env,
@@ -123,11 +137,21 @@ pub fn run_typecheck(
             diags,
             &uf.prefix,
             uf.trusted,
+            &mut expr_types,
+            target_platform,
         );
+        typed_files.push(crate::hir::TypedFile {
+            file_id: uf.file_id,
+            package_prefix: uf.prefix.clone(),
+            expr_types,
+        });
     }
+    // 把 typecheck 产出 move 进自包含的 TypedHir（含 interner 副本，解耦借用）。
+    env.into_typed_hir(interner.clone(), typed_files)
 }
 
 /// 检查一个文件的**顶层 + 成员**函数体 + 声明头语义检查。
+#[allow(clippy::too_many_arguments)]
 fn check_file_bodies(
     file: &crate::syntax::ast::File,
     env: &mut TypeEnv,
@@ -136,6 +160,8 @@ fn check_file_bodies(
     diags: &mut DiagnosticSink,
     package_prefix: &str,
     trusted: bool,
+    expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
+    target_platform: Option<&str>,
 ) {
     use crate::syntax::ast::{ItemKind, ModifierKind};
     use std::collections::{HashMap, HashSet};
@@ -155,6 +181,25 @@ fn check_file_bodies(
     overloads::check_top_level_overload_conflicts(env, imports, diags, package_prefix, &top_funs);
     // 文件级注解目标检查（`@file:...`）。
     check_file_annotation_targets(file, env.interner, diags);
+    // 文件级 `@AllowIntrinsic` 不支持参数。
+    check_allow_intrinsic_args(&file.file_annotations, env.interner, diags);
+    // 文件级注解实参必须是编译期常量。
+    check_annotation_const_args(&file.file_annotations, env.interner, diags);
+    // 文件级 `@Retention` 策略实参校验。
+    check_retention_policy(&file.file_annotations, env.interner, diags);
+    // 收集本文件的 annotation class 信息（FQN + @Target 声明），供运行期使用检查与
+    // @Target 强制复用。注：跨文件 / sysroot 的 annotation class 在各自文件收集。
+    let mut anno_classes: std::collections::HashSet<scoop2_base::Symbol> =
+        std::collections::HashSet::new();
+    let mut anno_targets: std::collections::HashMap<scoop2_base::Symbol, Vec<AnnotationUseTarget>> =
+        std::collections::HashMap::new();
+    collect_annotation_class_info(
+        file,
+        env.interner,
+        package_prefix,
+        &mut anno_classes,
+        &mut anno_targets,
+    );
     for item in &file.items {
         // @Experimental / @Suppress 注解校验（item 级目标是合法的）。
         check_experimental_annotations(item_annotations(item), false, env.interner, diags);
@@ -164,6 +209,25 @@ fn check_file_bodies(
         check_deprecated_annotation_args(item_annotations(item), env.interner, diags);
         // 内建注解目标检查。
         check_builtin_annotation_targets(item, env.interner, diags);
+        // 注解实参必须是编译期常量。
+        check_annotation_const_args(item_annotations(item), env.interner, diags);
+        // `@AllowIntrinsic` 不支持参数。
+        check_allow_intrinsic_args(item_annotations(item), env.interner, diags);
+        // `@Retention` 策略实参校验。
+        check_retention_policy(item_annotations(item), env.interner, diags);
+        // annotation class 不能作为普通类型 / 运行期构造。
+        check_annotation_runtime_use(item, env, imports, package_prefix, &anno_classes, diags);
+        // `@Target(...)` 强制：注解被用在不允许的目标上。
+        check_annotation_target_enforcement(
+            item,
+            env,
+            imports,
+            package_prefix,
+            &anno_targets,
+            diags,
+        );
+        // enum variant 字段类型必须可解析（`NotAType` 等报 unresolved_type）。
+        check_enum_variant_field_types(item, env, imports, package_prefix, diags);
         match &item.kind {
             ItemKind::Fun(d) => {
                 // `annotation` 修饰符只能用于 annotation class，不能用于函数。
@@ -231,12 +295,28 @@ fn check_file_bodies(
                 if name_text == "main" && d.receiver.is_none() {
                     check_main_signature(d, env, imports, package_prefix, diags);
                 }
-                // 扩展函数：this = 接收者类型（lowered）。
+                // 扩展函数：this = 接收者类型（lowered）；接收者类型参数合并到函数作用域。
+                let ext_tp_map = if let Some(tp_list) = &d.type_params {
+                    let mut m = empty_tp.clone();
+                    for p in &tp_list.params {
+                        m.insert(
+                            p.name.symbol,
+                            crate::ty::TypeParamType {
+                                name: p.name.symbol,
+                                file: scoop2_base::FileId(0),
+                                span: p.name.span,
+                            },
+                        );
+                    }
+                    m
+                } else {
+                    empty_tp.clone()
+                };
                 let ext_this_ty = d.receiver.as_ref().map(|recv| {
                     let mut lower = crate::typecheck::lower::TypeLowering::new(
                         env,
                         imports,
-                        empty_tp.clone(),
+                        ext_tp_map.clone(),
                         package_prefix.to_string(),
                         diags,
                     );
@@ -249,8 +329,9 @@ fn check_file_bodies(
                     resolution,
                     diags,
                     package_prefix,
-                    &empty_tp,
+                    &ext_tp_map,
                     ext_this_ty,
+                    expr_types,
                 );
             }
             ItemKind::Type(d) => {
@@ -509,10 +590,13 @@ fn check_file_bodies(
                             }
                         }
                     }
-                    // 类型体字段。
+                    // 类型体字段：只有带 backing field 的属性（非计算属性）报错。
+                    // 计算属性（带 getter/setter，无 backing field）是合法的。
                     if let Some(body) = &d.body {
                         for m in &body.members {
-                            if let crate::syntax::ast::TypeMemberKind::Property(pd) = &m.kind {
+                            if let crate::syntax::ast::TypeMemberKind::Property(pd) = &m.kind
+                                && pd.accessors.is_empty()
+                            {
                                 let fname = env.interner.resolve(pd.name.symbol);
                                 diags.push(diagnostics::intrinsic_type_field_not_supported(
                                     &format!("{owner_fqn_text}.{fname}"),
@@ -577,7 +661,14 @@ fn check_file_bodies(
                         if let crate::syntax::ast::TypeMemberKind::Property(pd) = &m.kind
                             && pd.delegate.is_some()
                         {
-                            check_delegated_property(env, imports, diags, package_prefix, pd);
+                            check_delegated_property(
+                                env,
+                                imports,
+                                diags,
+                                package_prefix,
+                                pd,
+                                target_platform,
+                            );
                         }
                     }
                 }
@@ -635,6 +726,7 @@ fn check_file_bodies(
                         diags,
                         package_prefix,
                         &tp_map,
+                        expr_types,
                     );
                     // computed property 引用 `field` 检查。
                     check_computed_property_field_ref(&body.members, env.interner, diags);
@@ -659,6 +751,7 @@ fn check_file_bodies(
                             diags,
                             package_prefix,
                             &empty_tp,
+                            expr_types,
                         );
                         // object 的 init 块与属性初始化器必须 `Pure!`（静态初始化器）。
                         for m in &body.members {
@@ -675,6 +768,7 @@ fn check_file_bodies(
                                         this_ty,
                                         what,
                                         expr::PureInitSite::Block(&ib.body),
+                                        expr_types,
                                     );
                                 }
                                 TypeMemberKind::Property(pd) if pd.init.is_some() => {
@@ -690,6 +784,7 @@ fn check_file_bodies(
                                             this_ty,
                                             what,
                                             expr::PureInitSite::Expr(init),
+                                            expr_types,
                                         );
                                     }
                                 }
@@ -702,7 +797,8 @@ fn check_file_bodies(
             ItemKind::Val(d) => {
                 let is_extern_var = has_annotation(&d.annotations, "Extern", env.interner);
                 // 顶层 `val`/`var` 必须显式标注类型（顶层不做类型推断）。
-                if d.ty.is_none() {
+                // 但解构绑定（`val (a, b) = ...`）从 initializer 推断整体类型，不要求标注。
+                if d.ty.is_none() && matches!(&d.binding, crate::syntax::ast::ValBinding::Name(_)) {
                     let name_span = match &d.binding {
                         crate::syntax::ast::ValBinding::Name(id) => id.span,
                         _ => scoop2_base::Span::default(),
@@ -711,7 +807,15 @@ fn check_file_bodies(
                 }
                 // 降级类型注解 + 检查 initializer。
                 if d.init.is_some() {
-                    expr::check_top_level_val(d, env, imports, resolution, diags, package_prefix);
+                    expr::check_top_level_val(
+                        d,
+                        env,
+                        imports,
+                        resolution,
+                        diags,
+                        package_prefix,
+                        expr_types,
+                    );
                 } else if let Some(ty_ref) = &d.ty {
                     let mut lower = crate::typecheck::lower::TypeLowering::new(
                         env,
@@ -991,6 +1095,7 @@ fn check_delegated_property(
     diags: &mut DiagnosticSink,
     package_prefix: &str,
     pd: &crate::syntax::ast::PropertyDecl,
+    target_platform: Option<&str>,
 ) {
     use crate::syntax::ast::{ExprKind, ValKind};
     // 仅处理 `Type()` 构造调用形式的 delegate。
@@ -1010,6 +1115,27 @@ fn check_delegated_property(
     let Some(callee) = callee_name else {
         return;
     };
+    // `lazy(LazyThreadSafetyMode.Synchronized)` 在不支持线程的平台（wasm-browser）上报错。
+    let callee_text = env.interner.resolve(callee);
+    if callee_text == "lazy"
+        && target_platform.is_some_and(|p| p == "wasm-browser" || p.contains("wasm"))
+        && let ExprKind::Call { args, .. } = &delegate_expr.kind
+        && let Some(first) = args.first()
+    {
+        // 实参形如 `LazyThreadSafetyMode.Synchronized`（MemberAccess）。
+        if let ExprKind::MemberAccess { member, .. } = &first.value.kind
+            && let crate::syntax::ast::MemberName::Named(seg) = member
+            && env.interner.resolve(seg.symbol) == "Synchronized"
+        {
+            diags.push(
+                diagnostics::lazy_thread_safety_mode_not_supported_on_platform(
+                    target_platform.unwrap_or(""),
+                    "LazyThreadSafetyMode.Synchronized",
+                    first.value.span,
+                ),
+            );
+        }
+    }
     let fqn_text = {
         let n = env.interner.resolve(callee);
         if package_prefix.is_empty() {
@@ -1101,34 +1227,14 @@ fn is_property_meta_type(env: &TypeEnv, id: crate::ty::TypeId) -> bool {
         .unwrap_or(false)
 }
 
-/// 类型短名（诊断用）。
+/// 类型短名（诊断用）。委托给统一的 [`crate::ty::render_type`]。
 fn fmt_type_short(env: &TypeEnv, id: crate::ty::TypeId) -> String {
-    match env.store.kind(id) {
-        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any) => "Any".into(),
-        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::String) => "String".into(),
-        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
-        | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
-            env.interner.resolve(n.fqn).to_string()
-        }
-        other => format!("{other:?}"),
-    }
+    crate::ty::render_type(&env.store, env.interner, id, false)
 }
 
-/// 类型 FQN（诊断用；标量映射到 scoop.core 短名，nominal 用全限定）。
+/// 类型 FQN（诊断用；nominal 用全限定，标量用裸短名）。委托给统一的 [`crate::ty::render_type`]。
 fn fmt_type_fqn(env: &TypeEnv, id: crate::ty::TypeId) -> String {
-    match env.store.kind(id) {
-        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any) => "scoop.core.Any".into(),
-        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::String) => "scoop.core.String".into(),
-        crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
-        | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
-            env.interner.resolve(n.fqn).to_string()
-        }
-        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Int) => "scoop.core.Int".into(),
-        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UInt) => "scoop.core.UInt".into(),
-        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Bool) => "scoop.core.Bool".into(),
-        crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Unit) => "scoop.core.Unit".into(),
-        other => format!("{other:?}"),
-    }
+    crate::ty::render_type(&env.store, env.interner, id, true)
 }
 
 /// 校验 `@Target(AnnotationTarget.X, ...)` 的实参：每个 X 必须是合法的 target variant。
@@ -1226,6 +1332,20 @@ fn check_where_clause(
         }
         seen.insert(key, c.span);
     }
+    // 每个 Type bound 必须解析为已知类型（AnyValue/AnyRef 等非类型名应报 unresolved_type）。
+    for c in &wc.constraints {
+        if let crate::syntax::ast::GenericBound::Type(t) = &c.bound
+            && !where_type_bound_resolves(t, env, package_prefix)
+        {
+            use crate::syntax::ast::TypeRefKind;
+            if let TypeRefKind::Path { path, .. } = &t.kind
+                && let Some(seg) = path.segments.last()
+            {
+                let name = env.interner.resolve(seg.symbol);
+                diags.push(crate::resolve::errors::unresolved_type(name, t.span));
+            }
+        }
+    }
     // ref 与 value 互斥（任一类型参数同时带两者）。
     for (name, ref_span) in &ref_bounds {
         if let Some(value_span) = value_bounds.get(name) {
@@ -1282,6 +1402,47 @@ fn is_class_bound(t: &crate::syntax::ast::TypeRef, env: &TypeEnv, package_prefix
         .get(&fqn_text)
         .and_then(|f| env.index.category(f))
         .is_some_and(|c| matches!(c, crate::resolve::symbol::NominalCategory::Class))
+}
+
+/// where 子句的 Type bound 是否解析为已知类型（类型命名空间命中即视为解析）。
+/// AnyValue/AnyRef 等非类型名返回 false。
+fn where_type_bound_resolves(
+    t: &crate::syntax::ast::TypeRef,
+    env: &TypeEnv,
+    package_prefix: &str,
+) -> bool {
+    use crate::syntax::ast::TypeRefKind;
+    let path = match &t.kind {
+        TypeRefKind::Path { path, .. } => path,
+        _ => return true, // 非 path 类型（函数类型等）不在此检查。
+    };
+    let fqn_text = if path.segments.len() == 1 {
+        let n = env.interner.resolve(path.segments[0].symbol);
+        // 候选：裸名 / 当前包前缀 / scoop.core 前缀（sysroot 接口如 Hashable 常在此）。
+        for cand in [
+            n.to_string(),
+            format!("{package_prefix}.{n}"),
+            format!("scoop.core.{n}"),
+        ] {
+            if env
+                .interner
+                .get(&cand)
+                .is_some_and(|f| env.index.lookup_type(f).is_some())
+            {
+                return true;
+            }
+        }
+        return false;
+    } else {
+        path.segments
+            .iter()
+            .map(|s| env.interner.resolve(s.symbol))
+            .collect::<Vec<_>>()
+            .join(".")
+    };
+    env.interner
+        .get(&fqn_text)
+        .is_some_and(|f| env.index.lookup_type(f).is_some())
 }
 
 /// where 约束的判重键（类型约束用 path 文本；ref/value 用固定标记）。
@@ -1756,6 +1917,720 @@ fn check_suppress_annotation(
         }
     }
     let _ = interner;
+}
+
+/// B3-1：注解实参必须是编译期常量（字面量 / 常量算术 / 数组字面量 / enum 变体 /
+/// 嵌套注解 / `::class` 等）。调用等非常量表达式不允许。
+fn check_annotation_const_args(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    for ann in anns {
+        for arg in &ann.args {
+            if !is_const_annotation_expr(&arg.value, interner) {
+                diags.push(diagnostics::annotation_arg_not_const(arg.value.span));
+            }
+        }
+    }
+}
+
+/// 判断注解实参表达式是否为编译期常量。
+fn is_const_annotation_expr(
+    expr: &crate::syntax::ast::Expr,
+    interner: &scoop2_base::Interner,
+) -> bool {
+    use crate::syntax::ast::{ExprKind, MemberName};
+    match &expr.kind {
+        ExprKind::IntLit(_)
+        | ExprKind::FloatLit(_)
+        | ExprKind::CharLit(_)
+        | ExprKind::StringLit(_)
+        | ExprKind::UnitLit => true,
+        // `true` / `false` / 常量引用 是 Ident。
+        ExprKind::Ident(_) => true,
+        // 负数字面量 `-1`：一元 Neg 作用于常量。
+        ExprKind::Unary {
+            op: crate::syntax::ast::UnaryOp::Neg,
+            expr: inner,
+        } => is_const_annotation_expr(inner, interner),
+        // 常量算术 `1 + 2`：二元运算作用于常量操作数。
+        ExprKind::Binary { lhs, rhs, .. } => {
+            is_const_annotation_expr(lhs, interner) && is_const_annotation_expr(rhs, interner)
+        }
+        // 数组字面量 `[1, 2, 3]`：元素全为常量。
+        ExprKind::ArrayLit(els) => els.iter().all(|e| is_const_annotation_expr(e, interner)),
+        // 元组字面量 `(1, 2)`：元素全为常量。
+        ExprKind::TupleLit(els) => els.iter().all(|e| is_const_annotation_expr(e, interner)),
+        // `Color.Red` / `AnnotationTarget.Field`：成员访问，receiver 是大写 Ident 或
+        // 嵌套成员访问（enum 变体 / 静态常量）。方法调用形如 `a.foo()` 是 Call，不在此处。
+        ExprKind::MemberAccess { receiver, member } => {
+            let recv_const = match &receiver.kind {
+                ExprKind::Ident(ident) => {
+                    let name = interner.resolve(ident.symbol);
+                    name.chars().next().is_some_and(|c| c.is_uppercase())
+                }
+                _ => is_const_annotation_expr(receiver, interner),
+            };
+            recv_const && matches!(member, MemberName::Named(_))
+        }
+        // `T::class`：类型字面量，编译期常量。
+        ExprKind::ClassLit { .. } => true,
+        // 嵌套注解：`@Inner(...)` 形式（Annotated）。
+        ExprKind::Annotated { expr, .. } => is_const_annotation_expr(expr, interner),
+        _ => false,
+    }
+}
+
+/// B3-5：`@AllowIntrinsic` 不支持任何参数。
+fn check_allow_intrinsic_args(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    for ann in anns {
+        if let Some(last) = ann.path.segments.last()
+            && interner.resolve(last.symbol) == "AllowIntrinsic"
+            && !ann.args.is_empty()
+        {
+            diags.push(diagnostics::builtin_annotation_args_not_supported(
+                "@AllowIntrinsic",
+                last.span,
+            ));
+        }
+    }
+}
+
+/// B3-3：`@Retention("local" | "cone")` 策略实参校验。
+fn check_retention_policy(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    interner: &scoop2_base::Interner,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::ExprKind;
+    for ann in anns {
+        let Some(last) = ann.path.segments.last() else {
+            continue;
+        };
+        if interner.resolve(last.symbol) != "Retention" {
+            continue;
+        }
+        // 第一个位置实参必须是字符串字面量 "local" 或 "cone"。
+        let Some(first) = ann.args.first() else {
+            continue;
+        };
+        let span = first.value.span;
+        if let ExprKind::StringLit(s) = &first.value.kind {
+            if s.value != "local" && s.value != "cone" {
+                diags.push(diagnostics::invalid_annotation_retention_policy(
+                    &s.value, span,
+                ));
+            }
+        } else {
+            diags.push(diagnostics::invalid_annotation_retention_policy(
+                "<非字符串>",
+                span,
+            ));
+        }
+    }
+}
+
+/// B3-2：annotation class 不能作为普通类型使用，也不能在运行期构造实例。
+/// 用 `anno_classes`（本文件 + sysroot 收集的 annotation class FQN 集合）扫描
+/// item 内的类型引用与构造调用。
+fn check_annotation_runtime_use(
+    item: &crate::syntax::ast::Item,
+    env: &TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+    anno_classes: &std::collections::HashSet<scoop2_base::Symbol>,
+    diags: &mut DiagnosticSink,
+) {
+    let mut type_refs: Vec<&crate::syntax::ast::TypeRef> = Vec::new();
+    let mut ctor_calls: Vec<&crate::syntax::ast::Expr> = Vec::new();
+    collect_item_type_refs_and_ctors(item, &mut type_refs, &mut ctor_calls);
+    for tr in type_refs {
+        collect_type_ref_paths(tr, &mut |path| {
+            if path_resolves_to_anno_class(path, env, imports, package_prefix, anno_classes) {
+                let name = path
+                    .segments
+                    .last()
+                    .map(|s| env.interner.resolve(s.symbol))
+                    .unwrap_or("");
+                diags.push(diagnostics::annotation_type_runtime_use_not_allowed(
+                    name, tr.span,
+                ));
+            }
+        });
+    }
+    for call in ctor_calls {
+        if let crate::syntax::ast::ExprKind::Call { callee, .. } = &call.kind {
+            // 单段 `Foo(args)`：callee 是 Ident，取其名。
+            // 多段 `pkg.Foo(args)`：callee 是 MemberAccess，取末段。
+            let name_sym = match &callee.kind {
+                crate::syntax::ast::ExprKind::Ident(ident) => Some(ident.symbol),
+                _ => callee_simple_name_symbol(callee),
+            };
+            if let Some(sym) = name_sym {
+                let name = env.interner.resolve(sym);
+                if name_resolves_to_anno_class(name, env, imports, package_prefix, anno_classes) {
+                    diags.push(diagnostics::annotation_type_runtime_use_not_allowed(
+                        name, call.span,
+                    ));
+                }
+            }
+        }
+    }
+}
+
+/// B3-4：`@Target(...)` 强制——注解被用在不允许的 item 目标上。
+/// `anno_targets`：annotation class FQN → 允许的目标类别（由声明侧 `@Target` 收集）。
+fn check_annotation_target_enforcement(
+    item: &crate::syntax::ast::Item,
+    env: &TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+    anno_targets: &std::collections::HashMap<scoop2_base::Symbol, Vec<AnnotationUseTarget>>,
+    diags: &mut DiagnosticSink,
+) {
+    for ann in item_annotations(item) {
+        let Some(fqn) = resolve_annotation_fqn(&ann.path, env, imports, package_prefix) else {
+            continue;
+        };
+        let Some(allowed) = anno_targets.get(&fqn) else {
+            continue;
+        };
+        if allowed.is_empty() {
+            continue;
+        }
+        let Some(it_target) = item_annotation_target(item) else {
+            continue;
+        };
+        if !allowed.contains(&it_target) {
+            let ann_name = ann
+                .path
+                .segments
+                .last()
+                .map(|s| env.interner.resolve(s.symbol))
+                .unwrap_or("");
+            let allowed_str = allowed
+                .iter()
+                .map(|t| t.display())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let span = ann
+                .path
+                .segments
+                .last()
+                .map(|s| s.span)
+                .unwrap_or(ann.path.span);
+            diags.push(diagnostics::annotation_invalid_target(
+                &format!("@{ann_name}"),
+                &allowed_str,
+                span,
+            ));
+        }
+    }
+    // 主构造参数上的注解（`@param:Column` / `@Column val x`）：目标类别 Param。
+    if let crate::syntax::ast::ItemKind::Type(d) = &item.kind
+        && let Some(ctor) = d.primary_ctor.as_ref()
+    {
+        for param in &ctor.params {
+            for ann in &param.annotations {
+                let Some(fqn) = resolve_annotation_fqn(&ann.path, env, imports, package_prefix)
+                else {
+                    continue;
+                };
+                let Some(allowed) = anno_targets.get(&fqn) else {
+                    continue;
+                };
+                if allowed.is_empty() {
+                    continue;
+                }
+                // use-site target `@param:` → Param；`@property:` → Property；无 target
+                // 但参数声明属性（`val x`）→ Property；纯参数 → Param。
+                let target = match ann.target.as_ref().map(|t| env.interner.resolve(t.symbol)) {
+                    Some("param") => AnnotationUseTarget::Param,
+                    Some("property") | Some("field") => AnnotationUseTarget::Property,
+                    _ => {
+                        if param.property.is_some() {
+                            AnnotationUseTarget::Property
+                        } else {
+                            AnnotationUseTarget::Param
+                        }
+                    }
+                };
+                if !allowed.contains(&target) {
+                    let ann_name = ann
+                        .path
+                        .segments
+                        .last()
+                        .map(|s| env.interner.resolve(s.symbol))
+                        .unwrap_or("");
+                    let allowed_str = allowed
+                        .iter()
+                        .map(|t| t.display())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let span = ann
+                        .path
+                        .segments
+                        .last()
+                        .map(|s| s.span)
+                        .unwrap_or(ann.path.span);
+                    diags.push(diagnostics::annotation_invalid_target(
+                        &format!("@{ann_name}"),
+                        &allowed_str,
+                        span,
+                    ));
+                }
+            }
+        }
+    }
+}
+
+/// enum variant 字段类型必须可解析（`NotAType` 等非类型名报 unresolved_type）。
+fn check_enum_variant_field_types(
+    item: &crate::syntax::ast::Item,
+    env: &TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::syntax::ast::{ItemKind, TypeKind};
+    let ItemKind::Type(d) = &item.kind else {
+        return;
+    };
+    if !matches!(d.kind, TypeKind::Enum) {
+        return;
+    }
+    // 收集 enum 声明的类型参数名（单段路径若是这些名，视为已解析，如 `Some(val value: T)`）。
+    let tp_names: std::collections::HashSet<String> = d
+        .type_params
+        .as_ref()
+        .map(|tp| {
+            tp.params
+                .iter()
+                .map(|p| env.interner.resolve(p.name.symbol).to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+    let Some(body) = &d.body else { return };
+    for m in &body.members {
+        if let crate::syntax::ast::TypeMemberKind::EnumVariant(ev) = &m.kind {
+            for field in &ev.fields {
+                collect_type_ref_paths(&field.ty, &mut |path| {
+                    // 单段名是类型参数 → 视为已解析。
+                    if path.segments.len() == 1
+                        && let Some(seg) = path.segments.last()
+                        && tp_names.contains(env.interner.resolve(seg.symbol))
+                    {
+                        return;
+                    }
+                    if !path_resolves_to_known_type(path, env, imports, package_prefix)
+                        && let Some(seg) = path.segments.last()
+                    {
+                        let name = env.interner.resolve(seg.symbol);
+                        diags.push(crate::resolve::errors::unresolved_type(name, field.ty.span));
+                    }
+                });
+            }
+        }
+    }
+}
+
+/// TypePath 是否解析为已知类型（Index 命中）。候选：裸名 / 包前缀 / scoop.core / import。
+fn path_resolves_to_known_type(
+    path: &crate::syntax::ast::TypePath,
+    env: &TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+) -> bool {
+    resolve_annotation_fqn(path, env, imports, package_prefix).is_some()
+}
+
+/// 收集一个文件中所有 annotation class 的 FQN 与 `@Target` 声明。
+pub(super) fn collect_annotation_class_info(
+    file: &crate::syntax::ast::File,
+    interner: &scoop2_base::Interner,
+    package_prefix: &str,
+    anno_classes: &mut std::collections::HashSet<scoop2_base::Symbol>,
+    anno_targets: &mut std::collections::HashMap<scoop2_base::Symbol, Vec<AnnotationUseTarget>>,
+) {
+    use crate::syntax::ast::{ExprKind, ItemKind};
+    for item in &file.items {
+        let ItemKind::Type(d) = &item.kind else {
+            continue;
+        };
+        if !d
+            .modifiers
+            .iter()
+            .any(|m| m.kind == crate::syntax::ast::ModifierKind::Annotation)
+        {
+            continue;
+        }
+        let fqn_text = if package_prefix.is_empty() {
+            interner.resolve(d.name.symbol).to_string()
+        } else {
+            format!("{package_prefix}.{}", interner.resolve(d.name.symbol))
+        };
+        if let Some(fqn) = interner.get(&fqn_text) {
+            anno_classes.insert(fqn);
+        } else {
+            // 未 intern 过的 FQN：intern 之（collect 阶段 interner 可写不在本签名；
+            // 这里用 get 兜底，若不存在则跳过——annotation class 名通常已在 header 收集时 intern）。
+            let _ = fqn_text;
+        }
+        // 解析 @Target(AnnotationTarget.X, ...) 实参。
+        let mut targets = Vec::new();
+        for ann in &d.annotations {
+            let Some(last) = ann.path.segments.last() else {
+                continue;
+            };
+            if interner.resolve(last.symbol) != "Target" {
+                continue;
+            }
+            for arg in &ann.args {
+                // 实参形如 `AnnotationTarget.Property`（MemberAccess）。
+                if let ExprKind::MemberAccess { member, .. } = &arg.value.kind
+                    && let crate::syntax::ast::MemberName::Named(seg) = member
+                {
+                    let tname = interner.resolve(seg.symbol);
+                    if let Some(t) = annotation_target_from_str(tname) {
+                        targets.push(t);
+                    }
+                }
+            }
+        }
+        if !targets.is_empty()
+            && let Some(fqn) = interner.get(&fqn_text)
+        {
+            anno_targets.insert(fqn, targets);
+        }
+    }
+}
+
+/// 注解目标类别（对应 spec AnnotationTarget variant 子集）。
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum AnnotationUseTarget {
+    Function,
+    Property,
+    Field,
+    Param,
+    Type,
+    Constructor,
+    LocalVariable,
+    Expression,
+    Module,
+    TypeParam,
+    EnumVariant,
+}
+
+impl AnnotationUseTarget {
+    fn display(self) -> &'static str {
+        match self {
+            AnnotationUseTarget::Function => "Function",
+            AnnotationUseTarget::Property => "Property",
+            AnnotationUseTarget::Field => "Field",
+            AnnotationUseTarget::Param => "Param",
+            AnnotationUseTarget::Type => "Type",
+            AnnotationUseTarget::Constructor => "Constructor",
+            AnnotationUseTarget::LocalVariable => "LocalVariable",
+            AnnotationUseTarget::Expression => "Expression",
+            AnnotationUseTarget::Module => "Module",
+            AnnotationUseTarget::TypeParam => "TypeParam",
+            AnnotationUseTarget::EnumVariant => "EnumVariant",
+        }
+    }
+}
+
+fn annotation_target_from_str(s: &str) -> Option<AnnotationUseTarget> {
+    Some(match s {
+        "Function" => AnnotationUseTarget::Function,
+        "Property" => AnnotationUseTarget::Property,
+        "Field" => AnnotationUseTarget::Field,
+        "Param" => AnnotationUseTarget::Param,
+        "Type" => AnnotationUseTarget::Type,
+        "Constructor" => AnnotationUseTarget::Constructor,
+        "LocalVariable" => AnnotationUseTarget::LocalVariable,
+        "Expression" => AnnotationUseTarget::Expression,
+        "Module" => AnnotationUseTarget::Module,
+        "TypeParam" => AnnotationUseTarget::TypeParam,
+        "EnumVariant" => AnnotationUseTarget::EnumVariant,
+        _ => return None,
+    })
+}
+
+/// item 的注解目标类别。
+fn item_annotation_target(item: &crate::syntax::ast::Item) -> Option<AnnotationUseTarget> {
+    use crate::syntax::ast::ItemKind;
+    Some(match &item.kind {
+        ItemKind::Fun(_) => AnnotationUseTarget::Function,
+        ItemKind::Val(_) | ItemKind::ExtensionProperty(_) => AnnotationUseTarget::Property,
+        ItemKind::Type(_) | ItemKind::Object(_) | ItemKind::TypeAlias(_) => {
+            AnnotationUseTarget::Type
+        }
+    })
+}
+
+/// 解析注解 use 的 path 为 annotation class FQN（Symbol）。
+fn resolve_annotation_fqn(
+    path: &crate::syntax::ast::TypePath,
+    env: &TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+) -> Option<scoop2_base::Symbol> {
+    let name_text: String = path
+        .segments
+        .iter()
+        .map(|s| env.interner.resolve(s.symbol))
+        .collect::<Vec<_>>()
+        .join(".");
+    let last = path.segments.last()?;
+    let last_text = env.interner.resolve(last.symbol);
+    let mut candidates = vec![name_text.clone()];
+    if !name_text.contains('.') {
+        if !package_prefix.is_empty() {
+            candidates.push(format!("{package_prefix}.{last_text}"));
+        }
+        if let Some(fqn) = imports.resolve_name(last.symbol, env.index, env.interner) {
+            candidates.push(env.interner.resolve(fqn).to_string());
+        }
+        candidates.push(format!("scoop.core.{last_text}"));
+    }
+    for c in &candidates {
+        if let Some(fqn) = env.interner.get(c)
+            && env.index.lookup_type(fqn).is_some()
+        {
+            return Some(fqn);
+        }
+    }
+    None
+}
+
+/// TypePath 是否解析为 annotation class。
+fn path_resolves_to_anno_class(
+    path: &crate::syntax::ast::TypePath,
+    env: &TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+    anno_classes: &std::collections::HashSet<scoop2_base::Symbol>,
+) -> bool {
+    let Some(fqn) = resolve_annotation_fqn(path, env, imports, package_prefix) else {
+        return false;
+    };
+    anno_classes.contains(&fqn)
+}
+
+/// 单段名是否解析为 annotation class（用于构造调用 `Foo(args)`）。
+fn name_resolves_to_anno_class(
+    name: &str,
+    env: &TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+    anno_classes: &std::collections::HashSet<scoop2_base::Symbol>,
+) -> bool {
+    let mut candidates = vec![name.to_string()];
+    if !package_prefix.is_empty() {
+        candidates.push(format!("{package_prefix}.{name}"));
+    }
+    if let Some(sym) = env.interner.get(name)
+        && let Some(fqn) = imports.resolve_name(sym, env.index, env.interner)
+    {
+        candidates.push(env.interner.resolve(fqn).to_string());
+    }
+    candidates.push(format!("scoop.core.{name}"));
+    for c in &candidates {
+        if let Some(fqn) = env.interner.get(c)
+            && anno_classes.contains(&fqn)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// 构造调用 callee 的简单名（单段 `Foo(...)` 或多段 `a.Foo(...)`）。
+/// 构造调用 callee 的简单名 Symbol（多段 `a.Foo(...)` 取末段；单段返回 None 交由
+/// 表达式阶段 nominal 检查覆盖，避免重复扫描）。
+fn callee_simple_name_symbol(callee: &crate::syntax::ast::Expr) -> Option<scoop2_base::Symbol> {
+    use crate::syntax::ast::{ExprKind, MemberName};
+    match &callee.kind {
+        ExprKind::MemberAccess { member, .. } => match member {
+            MemberName::Named(seg) => Some(seg.symbol),
+            MemberName::TupleIndex { .. } => None,
+        },
+        _ => None,
+    }
+}
+
+/// 收集 item 内所有类型引用与构造调用（表达式）。
+fn collect_item_type_refs_and_ctors<'a>(
+    item: &'a crate::syntax::ast::Item,
+    type_refs: &mut Vec<&'a crate::syntax::ast::TypeRef>,
+    ctor_calls: &mut Vec<&'a crate::syntax::ast::Expr>,
+) {
+    use crate::syntax::ast::ItemKind;
+    match &item.kind {
+        ItemKind::Fun(d) => {
+            for p in &d.params {
+                if let Some(t) = &p.ty {
+                    type_refs.push(t);
+                }
+            }
+            if let Some(t) = &d.return_ty {
+                type_refs.push(t);
+            }
+            if let Some(b) = &d.body {
+                collect_body_exprs(b, ctor_calls);
+            }
+        }
+        ItemKind::Val(d) => {
+            if let Some(t) = &d.ty {
+                type_refs.push(t);
+            }
+            if let Some(init) = &d.init {
+                collect_expr_calls(init, ctor_calls);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_body_exprs<'a>(
+    body: &'a crate::syntax::ast::FunBody,
+    out: &mut Vec<&'a crate::syntax::ast::Expr>,
+) {
+    match body {
+        crate::syntax::ast::FunBody::Block(b) => collect_block_calls(b, out),
+        crate::syntax::ast::FunBody::Expr(e) => collect_expr_calls(e, out),
+    }
+}
+
+fn collect_block_calls<'a>(
+    block: &'a crate::syntax::ast::Block,
+    out: &mut Vec<&'a crate::syntax::ast::Expr>,
+) {
+    for s in &block.stmts {
+        collect_stmt_calls(s, out);
+    }
+}
+
+fn collect_stmt_calls<'a>(
+    stmt: &'a crate::syntax::ast::Stmt,
+    out: &mut Vec<&'a crate::syntax::ast::Expr>,
+) {
+    use crate::syntax::ast::StmtKind;
+    match &stmt.kind {
+        StmtKind::Expr(e) => collect_expr_calls(e, out),
+        StmtKind::Assign { value, .. } => collect_expr_calls(value, out),
+        StmtKind::LocalVal(d) => {
+            if let Some(init) = &d.init {
+                collect_expr_calls(init, out);
+            }
+        }
+        StmtKind::Return { value } => {
+            if let Some(e) = value {
+                collect_expr_calls(e, out);
+            }
+        }
+        StmtKind::While { body, .. } | StmtKind::For { body, .. } => collect_block_calls(body, out),
+        StmtKind::Empty | StmtKind::Break | StmtKind::Continue => {}
+    }
+}
+
+fn collect_expr_calls<'a>(
+    expr: &'a crate::syntax::ast::Expr,
+    out: &mut Vec<&'a crate::syntax::ast::Expr>,
+) {
+    use crate::syntax::ast::ExprKind;
+    if let ExprKind::Call { .. } = &expr.kind {
+        out.push(expr);
+    }
+    match &expr.kind {
+        ExprKind::Call { callee, args } => {
+            collect_expr_calls(callee, out);
+            for a in args {
+                collect_expr_calls(&a.value, out);
+            }
+        }
+        ExprKind::Binary { lhs, rhs, .. } => {
+            collect_expr_calls(lhs, out);
+            collect_expr_calls(rhs, out);
+        }
+        ExprKind::Unary { expr: inner, .. } => collect_expr_calls(inner, out),
+        ExprKind::MemberAccess { receiver, .. } | ExprKind::SafeMemberAccess { receiver, .. } => {
+            collect_expr_calls(receiver, out)
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_expr_calls(cond, out);
+            collect_expr_calls(then_branch, out);
+            if let Some(e) = else_branch {
+                collect_expr_calls(e, out);
+            }
+        }
+        ExprKind::Block(b)
+        | ExprKind::DoBlock(b)
+        | ExprKind::UnsafeBlock(b)
+        | ExprKind::SafeBlock(b) => collect_block_calls(b, out),
+        _ => {}
+    }
+}
+
+/// 递归收集 TypeRef 中的所有 Path 类型路径。
+fn collect_type_ref_paths(
+    tr: &crate::syntax::ast::TypeRef,
+    f: &mut impl FnMut(&crate::syntax::ast::TypePath),
+) {
+    use crate::syntax::ast::TypeRefKind;
+    match &tr.kind {
+        TypeRefKind::Path { path, args } => {
+            f(path);
+            for a in args {
+                collect_type_arg_paths(a, f);
+            }
+        }
+        TypeRefKind::Tuple(els) => {
+            for e in els {
+                collect_type_ref_paths(e, f);
+            }
+        }
+        TypeRefKind::Function { params, ret, .. } => {
+            for p in params {
+                collect_type_ref_paths(p, f);
+            }
+            collect_type_ref_paths(ret, f);
+        }
+        TypeRefKind::ReceiverFunction {
+            receiver,
+            params,
+            ret,
+            ..
+        } => {
+            collect_type_ref_paths(receiver, f);
+            for p in params {
+                collect_type_ref_paths(p, f);
+            }
+            collect_type_ref_paths(ret, f);
+        }
+        TypeRefKind::Nullable(inner) => collect_type_ref_paths(inner, f),
+        TypeRefKind::Unit => {}
+    }
+}
+
+fn collect_type_arg_paths(
+    arg: &crate::syntax::ast::TypeArg,
+    f: &mut impl FnMut(&crate::syntax::ast::TypePath),
+) {
+    use crate::syntax::ast::TypeArgKind;
+    match &arg.kind {
+        TypeArgKind::Type(t) => collect_type_ref_paths(t, f),
+        TypeArgKind::Star | TypeArgKind::Effect(_) => {}
+    }
 }
 
 /// 已知 warning code（复刻 legacy `is_known_warning_code`）。
@@ -2353,6 +3228,7 @@ fn check_one_fun(
         crate::ty::TypeParamType,
     >,
     this_ty: Option<crate::ty::TypeId>,
+    expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
 ) {
     use scoop2_base::FileId;
     // 闭合 effect row（`...!`）不允许引用 effect row 变量（`eff E`）—— header 级检查。
@@ -2388,6 +3264,9 @@ fn check_one_fun(
     }
     // 构建类型参数作用域：外层类型参数 + 本函数自身的类型参数。
     let mut tp = enclosing_type_params.clone();
+    // 收集 ref/value kind bound（从内联 bound + where 子句）。
+    let mut param_ref_bounds: std::collections::HashSet<scoop2_base::Symbol> = std::collections::HashSet::new();
+    let mut param_value_bounds: std::collections::HashSet<scoop2_base::Symbol> = std::collections::HashSet::new();
     if let Some(type_params) = &d.type_params {
         for p in &type_params.params {
             tp.insert(
@@ -2398,10 +3277,40 @@ fn check_one_fun(
                     span: p.name.span,
                 },
             );
+            // 内联 bound（§5.1 `T: ref` / `T: value`）。
+            if let Some(bound) = &p.bound {
+                match bound {
+                    crate::syntax::ast::GenericBound::Ref(_) => {
+                        param_ref_bounds.insert(p.name.symbol);
+                    }
+                    crate::syntax::ast::GenericBound::Value(_) => {
+                        param_value_bounds.insert(p.name.symbol);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    // where 子句中的 ref/value bound。
+    if let Some(wc) = &d.where_clause {
+        for c in &wc.constraints {
+            match &c.bound {
+                crate::syntax::ast::GenericBound::Ref(_) => {
+                    param_ref_bounds.insert(c.name.symbol);
+                }
+                crate::syntax::ast::GenericBound::Value(_) => {
+                    param_value_bounds.insert(c.name.symbol);
+                }
+                _ => {}
+            }
         }
     }
     // private/internal 函数省略 effect row 时，由函数体推断（不报错）。
+    // 但 entry-point main 是 program boundary，必须 Pure——即使 internal 也不跳过 effect 检查。
+    let is_entry_main_flag =
+        d.receiver.is_none() && this_ty.is_none() && env.interner.resolve(d.name.symbol) == "main";
     let skip_effect_check = d.effect.is_none()
+        && !is_entry_main_flag
         && d.modifiers.iter().any(|m| {
             matches!(
                 m.kind,
@@ -2409,6 +3318,10 @@ fn check_one_fun(
                     | crate::syntax::ast::ModifierKind::Internal
             )
         });
+    // 是否 entry-point main（顶层、无 receiver、名为 main）。
+    let is_entry_main =
+        this_ty.is_none() && d.receiver.is_none() && env.interner.resolve(d.name.symbol) == "main";
+    let in_nogc = has_annotation(&d.annotations, "NoGC", env.interner);
     expr::check_function(
         &d.params,
         d.return_ty.as_ref(),
@@ -2420,8 +3333,13 @@ fn check_one_fun(
         diags,
         package_prefix,
         tp,
+        param_ref_bounds,
+        param_value_bounds,
         this_ty,
         skip_effect_check,
+        expr_types,
+        is_entry_main,
+        in_nogc,
     );
 }
 
@@ -2438,6 +3356,7 @@ fn check_member_funs(
         scoop2_base::Symbol,
         crate::ty::TypeParamType,
     >,
+    expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
 ) {
     use crate::syntax::ast::TypeMemberKind;
     for m in members {
@@ -2452,6 +3371,7 @@ fn check_member_funs(
                     package_prefix,
                     enclosing_type_params,
                     this_ty,
+                    expr_types,
                 );
             }
             TypeMemberKind::Object(d) => {
@@ -2468,6 +3388,7 @@ fn check_member_funs(
                         diags,
                         package_prefix,
                         enclosing_type_params,
+                        expr_types,
                     );
                 }
             }
@@ -2486,6 +3407,7 @@ fn check_member_funs(
                         diags,
                         package_prefix,
                         &merged,
+                        expr_types,
                     );
                 }
             }

@@ -356,7 +356,7 @@ fn validate_plain_callable_layout(
         ))
     })?;
     let entry = layout.direct_entry();
-    let exact = layout.root_fqn() == callable.root_fqn()
+    let exact = layout.root_fqn().eq(callable.root_fqn())
         && entry.param_tys() == plain.param_tys()
         && entry.return_ty() == plain.return_ty();
     let same_generic_instance_shape = layout.surface_instance().template

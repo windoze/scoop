@@ -65,6 +65,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(in crate::llvm::codegen) fn llvm_call_convention_for_lir_callable_ref(
+        &self,
+        target: scoopc_lir_facts::LirCallableRef,
+    ) -> u32 {
+        let Some(id) = target.local_id() else {
+            return 0;
+        };
+        let Some(facts) = self
+            .active_lir_program()
+            .and_then(|program| program.physical_layout().callable_symbols.get(&id))
+        else {
+            return 0;
+        };
+        let calling_convention = facts
+            .native
+            .as_ref()
+            .map(|native| native.calling_convention.as_str())
+            .or_else(|| {
+                facts
+                    .extern_
+                    .as_ref()
+                    .and_then(|extern_| extern_.calling_convention.as_deref())
+            });
+        calling_convention
+            .map(|name| self.llvm_call_convention_for_name(name))
+            .unwrap_or(0)
+    }
+
     pub(in crate::llvm::codegen) fn llvm_type_needs_sret(ty: BasicTypeEnum<'ctx>) -> bool {
         matches!(
             ty,

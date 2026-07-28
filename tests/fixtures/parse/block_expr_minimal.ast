@@ -1,67 +1,12 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 160..182,
-            path: [
-                Ident {
-                    span: 168..176,
-                },
-                Ident {
-                    span: 177..182,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 184..197,
-                receiver: None,
-                name: Ident {
-                    span: 188..189,
-                },
-                type_params: [],
-                params_span: 189..191,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 192..197,
-                        stmts: [
-                            Stmt {
-                                span: 194..195,
-                                kind: Expr(
-                                    Expr {
-                                        span: 194..195,
-                                        kind: IntLit,
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 198..211,
-                receiver: None,
-                name: Ident {
-                    span: 202..206,
-                },
-                type_params: [],
-                params_span: 206..208,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 209..211,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..213
+  package:
+    Package 160..182 path=fixtures.parse
+  items:
+    FunDecl 188..197 name=f
+      body:
+        Block 192..197
+          ExprStmt 194..195
+            IntLit 194..195 value=1
+    FunDecl 202..211 name=main
+      body:
+        Block 209..211

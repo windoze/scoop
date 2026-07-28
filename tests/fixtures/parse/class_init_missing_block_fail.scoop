@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR: `{`
-// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-CODE: scoop::parse::expected_token
 // EXPECT-ERROR-AT: 10:5
 
 package fixtures.parse

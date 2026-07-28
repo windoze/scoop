@@ -1,121 +1,21 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 59..81,
-            path: [
-                Ident {
-                    span: 67..75,
-                },
-                Ident {
-                    span: 76..81,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Type(
-            TypeDecl {
-                span: 83..123,
-                modifiers: [
-                    Annotation,
-                ],
-                kind: Class,
-                name: Ident {
-                    span: 100..106,
-                },
-                type_params: [],
-                primary_ctor: Some(
-                    PrimaryCtorDecl {
-                        params_span: 106..123,
-                        params: [
-                            Param {
-                                name: Ident {
-                                    span: 111..114,
-                                },
-                                kind: Some(
-                                    Val,
-                                ),
-                                ty: Some(
-                                    Path(
-                                        TypePath {
-                                            span: 116..122,
-                                            segments: [
-                                                Ident {
-                                                    span: 116..122,
-                                                },
-                                            ],
-                                            args: [],
-                                        },
-                                    ),
-                                ),
-                            },
-                        ],
-                    },
-                ),
-                body: None,
-            },
-        ),
-        Type(
-            TypeDecl {
-                span: 125..191,
-                kind: Class,
-                name: Ident {
-                    span: 131..135,
-                },
-                type_params: [],
-                body: Some(
-                    TypeBody {
-                        span: 136..191,
-                        members: [
-                            Property(
-                                PropertyDecl {
-                                    span: 142..189,
-                                    annotations: [
-                                        AnnotationUse {
-                                            span: 142..163,
-                                            path: [
-                                                Ident {
-                                                    span: 143..149,
-                                                },
-                                            ],
-                                            args: [
-                                                AnnotationArg {
-                                                    span: 150..162,
-                                                    value: Expr {
-                                                        span: 150..162,
-                                                        kind: StringLit,
-                                                    },
-                                                },
-                                            ],
-                                        },
-                                    ],
-                                    kind: Val,
-                                    name: Ident {
-                                        span: 172..181,
-                                    },
-                                    ty: Some(
-                                        Path(
-                                            TypePath {
-                                                span: 183..189,
-                                                segments: [
-                                                    Ident {
-                                                        span: 183..189,
-                                                    },
-                                                ],
-                                                args: [],
-                                            },
-                                        ),
-                                    ),
-                                    init: None,
-                                    getter: None,
-                                    setter: None,
-                                },
-                            ),
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..193
+  package:
+    Package 59..81 path=fixtures.parse
+  items:
+    ClassDecl 100..123 name=Rename mods=[annotation]
+      primary_ctor:
+        PrimaryCtor 106..123
+          CtorParam 107..122 name=key property=val
+            ty:
+              PathType 116..122 path=String
+    ClassDecl 131..191 name=User
+      body:
+        TypeBody 136..191
+          PropertyDecl 142..189 kind=val name=createdAt
+            annotations:
+              Annotation 142..163 path=Rename
+                args:
+                  AnnotationArg 150..162
+                    StringLit 150..162 value="created_at"
+            ty:
+              PathType 183..189 path=String

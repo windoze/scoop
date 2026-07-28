@@ -425,7 +425,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         self.program
             .callables()
             .iter()
-            .find(|callable| callable.root_fqn() == callee_fqn)
+            .find(|callable| callable.root_fqn().eq(callee_fqn))
             .and_then(|callable| callable.source_callable())
             .map(|source| {
                 source
@@ -445,7 +445,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         args: &[mir::CallArg],
         target_cg: super::super::types::CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let layout = self.abi.plain_callable_layout_for_root_text(callee_fqn)?;
+        let layout = self.abi.plain_callable_layout_for_root_label(callee_fqn)?;
         let entry = layout.direct_entry();
         let mut param_tys = entry.param_tys().to_vec();
         if args.iter().any(|arg| arg.name.is_some())
@@ -453,7 +453,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 .program
                 .callables()
                 .iter()
-                .find(|callable| callable.root_fqn() == callee_fqn)
+                .find(|callable| callable.root_fqn().eq(callee_fqn))
                 .and_then(|callable| callable.source_callable())
                 .is_none()
         {
@@ -1263,7 +1263,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         };
         let carrier_key = self
             .codegen
-            .lir_source_callable(fn_ptr)
+            .lir_source_callable_by_root_label(fn_ptr)
             .map(|(callable_id, _, _)| {
                 let program = self
                     .codegen
@@ -1296,7 +1296,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         if self
             .abi
-            .maybe_plain_callable_layout_for_root_text(fn_ptr)?
+            .maybe_plain_callable_layout_for_root_label(fn_ptr)?
             .is_some()
         {
             return self
@@ -1404,13 +1404,13 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         };
         let surface_ty = match kind {
             mir::CallKind::Direct { callee_fqn, .. } => {
-                if let Ok(layout) = self.abi.callable_layout_for_root_text(callee_fqn) {
+                if let Ok(layout) = self.abi.callable_layout_for_root_label(callee_fqn) {
                     source_carrier_types(
                         self.source_types,
                         layout.direct_entry().invoke_args_tuple_ty(),
                     )
                     .and_then(|tys| tys.get(arg_index).copied())
-                } else if let Ok(layout) = self.abi.plain_callable_layout_for_root_text(callee_fqn)
+                } else if let Ok(layout) = self.abi.plain_callable_layout_for_root_label(callee_fqn)
                 {
                     layout.direct_entry().param_tys().get(arg_index).copied()
                 } else {
@@ -1568,7 +1568,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         adapter: ClosureSurfaceLayout<'ctx>,
     ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
-        let plain = self.abi.plain_callable_layout_for_root_text(fn_ptr)?;
+        let plain = self.abi.plain_callable_layout_for_root_label(fn_ptr)?;
         let return_step_layout = self
             .abi
             .step_layout(adapter.return_step_schema)
@@ -1618,7 +1618,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let entry = self.codegen.context.append_basic_block(function, "entry");
         self.codegen.builder.position_at_end(entry);
 
-        let plain = self.abi.plain_callable_layout_for_root_text(fn_ptr)?;
+        let plain = self.abi.plain_callable_layout_for_root_label(fn_ptr)?;
         let plain_fun = self
             .codegen
             .module
@@ -2085,10 +2085,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         } else {
             None
         };
-        let published_call_root = source_site
+        let exact_callee = source_site
             .and_then(|site| site.contract.exact_callee.as_ref())
             .or_else(|| plain_site.and_then(|site| site.contract.exact_callee.as_ref()))
-            .map(|exact| exact.root_fqn.clone());
+            .cloned();
+        let published_call_root = exact_callee.as_ref().map(|exact| exact.root_fqn.clone());
         let published_semantic_root = source_site
             .and_then(|site| site.semantic_root_fqn.clone())
             .or_else(|| published_call_root.clone());
@@ -2191,7 +2192,13 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        let callable_abi = self.codegen.direct_call_abi_identity(callee_fqn);
+        let callable_abi = exact_callee
+            .as_ref()
+            .map(|exact| {
+                self.codegen
+                    .direct_call_abi_identity_for_ref(exact.target_callable)
+            })
+            .unwrap_or(crate::effect_lowered::source::CallableAbiIdentity::ManagedOrdinary);
         if callable_abi.uses_native_abi() {
             let value = self.codegen.codegen_mir_direct_call(
                 span,
@@ -2234,7 +2241,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         if self
             .abi
-            .maybe_plain_callable_layout_for_root_text(callee_fqn)?
+            .maybe_plain_callable_layout_for_root_label(callee_fqn)?
             .is_some()
         {
             return self.lower_published_plain_direct_call(span, callee_fqn, args, target_cg);
@@ -2259,7 +2266,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 self.slots,
             );
         }
-        let layout = self.abi.callable_layout_for_root_text(callee_fqn).map_err(|err| {
+        let layout = self.abi.callable_layout_for_root_label(callee_fqn).map_err(|err| {
             frontend_error(format!(
                 "pure statement call 缺少 callee `{callee_fqn}` 的 published LIR callable contract: {err:?}"
             ))
@@ -3824,7 +3831,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn is_unused_callee_ref(&self, fqn: &str) -> bool {
         self.codegen
-            .published_codegen_callable_signature(fqn)
+            .published_codegen_callable_signature_for_root_label(fqn)
             .is_some()
             || self.codegen.extern_funs.contains_key(fqn)
             || matches!(

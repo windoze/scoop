@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::parse::handler_with_keyword_removed
-// EXPECT-ERROR: handler keyword `with` was replaced by `on`
+// EXPECT-ERROR: 语法错误：handler 关键字 `with` 已被 `on` 取代
 // EXPECT-ERROR-AT: 11:7
 
 package fixtures.parse

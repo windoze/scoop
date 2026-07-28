@@ -1,141 +1,26 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 52..74,
-            path: [
-                Ident {
-                    span: 60..68,
-                },
-                Ident {
-                    span: 69..74,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Fun(
-            FunDecl {
-                span: 76..100,
-                receiver: None,
-                name: Ident {
-                    span: 80..81,
-                },
-                type_params: [],
-                params_span: 81..97,
-                params: [
-                    Param {
-                        name: Ident {
-                            span: 82..83,
-                        },
-                        ty: Some(
-                            Path(
-                                TypePath {
-                                    span: 85..88,
-                                    segments: [
-                                        Ident {
-                                            span: 85..88,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        ),
-                    },
-                    Param {
-                        name: Ident {
-                            span: 90..91,
-                        },
-                        ty: Some(
-                            Path(
-                                TypePath {
-                                    span: 93..96,
-                                    segments: [
-                                        Ident {
-                                            span: 93..96,
-                                        },
-                                    ],
-                                    args: [],
-                                },
-                            ),
-                        ),
-                    },
-                ],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 98..100,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 102..136,
-                receiver: None,
-                name: Ident {
-                    span: 106..110,
-                },
-                type_params: [],
-                params_span: 110..112,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 113..136,
-                        stmts: [
-                            Stmt {
-                                span: 119..134,
-                                kind: Expr(
-                                    Expr {
-                                        span: 119..134,
-                                        kind: Call {
-                                            callee: Expr {
-                                                span: 119..120,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 119..120,
-                                                    },
-                                                ),
-                                            },
-                                            args: [
-                                                Expr {
-                                                    span: 121..126,
-                                                    kind: NamedArg {
-                                                        name: Ident {
-                                                            span: 121..122,
-                                                        },
-                                                        eq_span: 123..124,
-                                                        value: Expr {
-                                                            span: 125..126,
-                                                            kind: IntLit,
-                                                        },
-                                                    },
-                                                },
-                                                Expr {
-                                                    span: 128..133,
-                                                    kind: NamedArg {
-                                                        name: Ident {
-                                                            span: 128..129,
-                                                        },
-                                                        eq_span: 130..131,
-                                                        value: Expr {
-                                                            span: 132..133,
-                                                            kind: IntLit,
-                                                        },
-                                                    },
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ),
-                                has_trailing_semi: false,
-                            },
-                        ],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..137
+  package:
+    Package 52..74 path=fixtures.parse
+  items:
+    FunDecl 80..100 name=f
+      params:
+        Param 82..88 name=x
+          ty:
+            PathType 85..88 path=Any
+        Param 90..96 name=y
+          ty:
+            PathType 93..96 path=Any
+      body:
+        Block 98..100
+    FunDecl 106..136 name=main
+      body:
+        Block 113..136
+          ExprStmt 119..134
+            Call 119..134
+              callee:
+                Ident 119..120 name=f
+              args:
+                CallArg 121..126 name=x
+                  IntLit 125..126 value=1
+                CallArg 128..133 name=y
+                  IntLit 132..133 value=2

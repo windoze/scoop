@@ -43,6 +43,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
             })?;
         let signature = CodegenCallableSignature {
+            target: Some(target),
             fqn: symbol_facts.root_fqn.clone(),
             param_names: symbol_facts.param_names.clone(),
             param_tys,
@@ -81,9 +82,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             LlvmFunctionDeclarationSurface::ExportedAbi
         };
-        self.declare_lir_plain_fun_with_symbol(
+        self.declare_lir_plain_fun_with_symbol_for_ref(
             &llvm_name,
             surface,
+            target,
             &signature.fqn,
             &signature.param_tys,
             signature.return_ty,
@@ -148,7 +150,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let signature = self
-            .published_codegen_callable_signature(&hook.target_fqn)
+            .published_codegen_callable_signature_for_root_label(&hook.target_fqn)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
                     "release hook target `{}` 缺少 LIR callable signature contract",
@@ -165,6 +167,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
             });
         }
+        let target_ref = signature.target.ok_or_else(|| LlvmEmitError::Frontend {
+            message: format!(
+                "release hook target `{}` 缺少 LIR callable handle contract",
+                hook.target_fqn
+            ),
+        })?;
 
         let saved_block = self.builder.get_insert_block();
         let entry = self.context.append_basic_block(trampoline, "entry");
@@ -188,11 +196,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let llvm_name = self
-            .published_symbol_for_source_root_text(&hook.target_fqn)
-            .unwrap_or_else(|| hook.target_fqn.clone());
-        let target = self.declare_lir_plain_fun_with_symbol(
+            .exported_abi_symbol_for_lir_callable_ref(target_ref)
+            .unwrap_or_else(|_| hook.target_fqn.clone());
+        let target = self.declare_lir_plain_fun_with_symbol_for_ref(
             &llvm_name,
             LlvmFunctionDeclarationSurface::ExportedAbi,
+            target_ref,
             &signature.fqn,
             &signature.param_tys,
             signature.return_ty,
@@ -202,7 +211,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let call = self
             .builder
             .build_call(target, &args, "release_hook_call")?;
-        call.set_call_convention(self.llvm_call_convention_for_fqn(&hook.target_fqn));
+        call.set_call_convention(self.llvm_call_convention_for_lir_callable_ref(target_ref));
         self.builder.build_return(None)?;
 
         if let Some(block) = saved_block {

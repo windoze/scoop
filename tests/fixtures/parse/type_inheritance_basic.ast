@@ -1,102 +1,22 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 59..81,
-            path: [
-                Ident {
-                    span: 67..75,
-                },
-                Ident {
-                    span: 76..81,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Type(
-            TypeDecl {
-                span: 83..130,
-                kind: Class,
-                name: Ident {
-                    span: 89..92,
-                },
-                type_params: [],
-                primary_ctor: Some(
-                    PrimaryCtorDecl {
-                        params_span: 92..106,
-                        params: [
-                            Param {
-                                name: Ident {
-                                    span: 93..97,
-                                },
-                                ty: Some(
-                                    Path(
-                                        TypePath {
-                                            span: 99..105,
-                                            segments: [
-                                                Ident {
-                                                    span: 99..105,
-                                                },
-                                            ],
-                                            args: [],
-                                        },
-                                    ),
-                                ),
-                            },
-                        ],
-                    },
-                ),
-                supertypes: [
-                    SuperType {
-                        span: 109..121,
-                        ty: Path(
-                            TypePath {
-                                span: 109..115,
-                                segments: [
-                                    Ident {
-                                        span: 109..115,
-                                    },
-                                ],
-                                args: [],
-                            },
-                        ),
-                        ctor_args_span: Some(
-                            115..121,
-                        ),
-                        ctor_args: [
-                            Expr {
-                                span: 116..120,
-                                kind: Ident(
-                                    Ident {
-                                        span: 116..120,
-                                    },
-                                ),
-                            },
-                        ],
-                    },
-                    SuperType {
-                        span: 123..127,
-                        ty: Path(
-                            TypePath {
-                                span: 123..127,
-                                segments: [
-                                    Ident {
-                                        span: 123..127,
-                                    },
-                                ],
-                                args: [],
-                            },
-                        ),
-                    },
-                ],
-                body: Some(
-                    TypeBody {
-                        span: 128..130,
-                        members: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..132
+  package:
+    Package 59..81 path=fixtures.parse
+  items:
+    ClassDecl 89..130 name=Dog
+      primary_ctor:
+        PrimaryCtor 92..106
+          CtorParam 93..105 name=name
+            ty:
+              PathType 99..105 path=String
+      supertypes:
+        SuperType 109..121
+          ty:
+            PathType 109..115 path=Animal
+          args:
+            CallArg 116..120
+              Ident 116..120 name=name
+        SuperType 123..127
+          ty:
+            PathType 123..127 path=IFoo
+      body:
+        TypeBody 128..130

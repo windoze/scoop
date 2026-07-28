@@ -46,6 +46,29 @@ pub fn dump_file(file: &File, interner: &Interner) -> String {
         interner,
         out: String::new(),
         indent: 0,
+        type_of: None,
+    };
+    dumper.file(file);
+    dumper.out
+}
+
+/// 渲染整个源文件为稳定的缩进树文本，并为每个表达式节点追加 `ty=<type>`。
+///
+/// `type_of` 把表达式 [`scoop2_base::NodeId`] 映射为其推断类型的可读文本（如
+/// `"Int"`、`"() -> String / Pure"`）。返回 `None` 的节点不追加 `ty=`（例如
+/// typecheck 未覆盖或被跳过的节点）。
+///
+/// 其余格式与 [`dump_file`] 完全一致；本函数供 `dump-hir` 使用。
+pub fn dump_file_typed(
+    file: &File,
+    interner: &Interner,
+    type_of: &dyn Fn(scoop2_base::NodeId) -> Option<String>,
+) -> String {
+    let mut dumper = Dumper {
+        interner,
+        out: String::new(),
+        indent: 0,
+        type_of: Some(type_of),
     };
     dumper.file(file);
     dumper.out
@@ -55,6 +78,8 @@ struct Dumper<'a> {
     interner: &'a Interner,
     out: String,
     indent: usize,
+    /// 可选：表达式 NodeId → 类型文本（dump-hir 用；普通 dump-ast 为 None）。
+    type_of: Option<&'a dyn Fn(scoop2_base::NodeId) -> Option<String>>,
 }
 
 impl Dumper<'_> {
@@ -68,6 +93,19 @@ impl Dumper<'_> {
         }
         self.out.push_str(&text);
         self.out.push('\n');
+    }
+
+    /// 渲染一个表达式节点行：在 `text` 后追加 ` ty=<type>`（若 `type_of` 提供）。
+    /// 仅 dump-hir 路径会带 `type_of`；普通 dump-ast 等价于直接 `line`。
+    fn expr_line(&mut self, id: scoop2_base::NodeId, text: String) {
+        let mut text = text;
+        if let Some(type_of) = self.type_of
+            && let Some(ty) = type_of(id)
+        {
+            text.push_str(" ty=");
+            text.push_str(&ty);
+        }
+        self.line(text);
     }
 
     /// 以加一缩进级别渲染子节点（无标签）。
@@ -913,7 +951,7 @@ impl Dumper<'_> {
 
     fn expr(&mut self, expr: &Expr) {
         match &expr.kind {
-            ExprKind::Ident(ident) => self.ident_expr(expr.span, *ident),
+            ExprKind::Ident(ident) => self.ident_expr(expr.id, expr.span, *ident),
             ExprKind::IntLit(lit) => {
                 let mut text = format!("IntLit {} value={}", expr.span, lit.value);
                 if let Some(suffix) = lit.suffix {
@@ -924,27 +962,33 @@ impl Dumper<'_> {
                     };
                     text.push_str(&format!(" suffix={suffix}"));
                 }
-                self.line(text);
+                self.expr_line(expr.id, text);
             }
             ExprKind::FloatLit(lit) => {
                 let mut text = format!("FloatLit {} value={}", expr.span, lit.value);
                 if lit.suffix.is_some() {
                     text.push_str(" suffix=F32");
                 }
-                self.line(text);
+                self.expr_line(expr.id, text);
             }
             ExprKind::CharLit(lit) => {
-                self.line(format!("CharLit {} value={:?}", expr.span, lit.value));
+                self.expr_line(
+                    expr.id,
+                    format!("CharLit {} value={:?}", expr.span, lit.value),
+                );
             }
             ExprKind::StringLit(lit) => {
-                self.line(format!("StringLit {} value={:?}", expr.span, lit.value));
+                self.expr_line(
+                    expr.id,
+                    format!("StringLit {} value={:?}", expr.span, lit.value),
+                );
             }
             ExprKind::InterpolatedString { raw, parts } => {
                 let mut text = format!("InterpolatedString {}", expr.span);
                 if *raw {
                     text.push_str(" raw");
                 }
-                self.line(text);
+                self.expr_line(expr.id, text);
                 self.child(|d| {
                     for part in parts {
                         match part {
@@ -957,9 +1001,9 @@ impl Dumper<'_> {
                     }
                 });
             }
-            ExprKind::UnitLit => self.line(format!("UnitLit {}", expr.span)),
+            ExprKind::UnitLit => self.expr_line(expr.id, format!("UnitLit {}", expr.span)),
             ExprKind::TupleLit(elements) => {
-                self.line(format!("TupleLit {}", expr.span));
+                self.expr_line(expr.id, format!("TupleLit {}", expr.span));
                 self.child(|d| {
                     for element in elements {
                         d.expr(element);
@@ -967,7 +1011,7 @@ impl Dumper<'_> {
                 });
             }
             ExprKind::ArrayLit(elements) => {
-                self.line(format!("ArrayLit {}", expr.span));
+                self.expr_line(expr.id, format!("ArrayLit {}", expr.span));
                 self.child(|d| {
                     for element in elements {
                         d.expr(element);
@@ -975,11 +1019,10 @@ impl Dumper<'_> {
                 });
             }
             ExprKind::StructLit { name, fields } => {
-                self.line(format!(
-                    "StructLit {} name={}",
-                    expr.span,
-                    self.sym(name.symbol)
-                ));
+                self.expr_line(
+                    expr.id,
+                    format!("StructLit {} name={}", expr.span, self.sym(name.symbol)),
+                );
                 self.child(|d| {
                     for field in fields {
                         d.line(format!(
@@ -993,15 +1036,15 @@ impl Dumper<'_> {
             }
             ExprKind::Block(block) => self.block(block),
             ExprKind::DoBlock(block) => {
-                self.line(format!("DoBlock {}", expr.span));
+                self.expr_line(expr.id, format!("DoBlock {}", expr.span));
                 self.child(|d| d.block(block));
             }
             ExprKind::UnsafeBlock(block) => {
-                self.line(format!("UnsafeBlock {}", expr.span));
+                self.expr_line(expr.id, format!("UnsafeBlock {}", expr.span));
                 self.child(|d| d.block(block));
             }
             ExprKind::SafeBlock(block) => {
-                self.line(format!("SafeBlock {}", expr.span));
+                self.expr_line(expr.id, format!("SafeBlock {}", expr.span));
                 self.child(|d| d.block(block));
             }
             ExprKind::Lambda(lambda) => {
@@ -1009,7 +1052,7 @@ impl Dumper<'_> {
                 if lambda.is_safe {
                     text.push_str(" safe");
                 }
-                self.line(text);
+                self.expr_line(expr.id, text);
                 self.child(|d| {
                     if !lambda.params.is_empty() {
                         d.section("params", |d| {
@@ -1036,7 +1079,7 @@ impl Dumper<'_> {
                 then_branch,
                 else_branch,
             } => {
-                self.line(format!("If {}", expr.span));
+                self.expr_line(expr.id, format!("If {}", expr.span));
                 self.child(|d| {
                     d.section("cond", |d| d.expr(cond));
                     d.section("then", |d| d.expr(then_branch));
@@ -1046,7 +1089,7 @@ impl Dumper<'_> {
                 });
             }
             ExprKind::When { subject, arms } => {
-                self.line(format!("When {}", expr.span));
+                self.expr_line(expr.id, format!("When {}", expr.span));
                 self.child(|d| {
                     d.section("subject", |d| d.expr(subject));
                     d.section("arms", |d| {
@@ -1061,7 +1104,7 @@ impl Dumper<'_> {
                 arms,
                 finally,
             } => {
-                self.line(format!("Handle {}", expr.span));
+                self.expr_line(expr.id, format!("Handle {}", expr.span));
                 self.child(|d| {
                     d.section("body", |d| d.block(body));
                     d.section("arms", |d| {
@@ -1075,30 +1118,36 @@ impl Dumper<'_> {
                 });
             }
             ExprKind::MemberAccess { receiver, member } => {
-                self.line(format!(
-                    "MemberAccess {} member={}",
-                    expr.span,
-                    self.member_name_text(member)
-                ));
+                self.expr_line(
+                    expr.id,
+                    format!(
+                        "MemberAccess {} member={}",
+                        expr.span,
+                        self.member_name_text(member)
+                    ),
+                );
                 self.child(|d| d.expr(receiver));
             }
             ExprKind::SafeMemberAccess { receiver, member } => {
-                self.line(format!(
-                    "SafeMemberAccess {} member={}",
-                    expr.span,
-                    self.member_name_text(member)
-                ));
+                self.expr_line(
+                    expr.id,
+                    format!(
+                        "SafeMemberAccess {} member={}",
+                        expr.span,
+                        self.member_name_text(member)
+                    ),
+                );
                 self.child(|d| d.expr(receiver));
             }
             ExprKind::SpliceField { receiver, field } => {
-                self.line(format!("SpliceField {}", expr.span));
+                self.expr_line(expr.id, format!("SpliceField {}", expr.span));
                 self.child(|d| {
                     d.section("receiver", |d| d.expr(receiver));
                     d.section("field", |d| d.expr(field));
                 });
             }
             ExprKind::Index { receiver, indices } => {
-                self.line(format!("Index {}", expr.span));
+                self.expr_line(expr.id, format!("Index {}", expr.span));
                 self.child(|d| {
                     d.section("receiver", |d| d.expr(receiver));
                     d.section("indices", |d| {
@@ -1109,11 +1158,11 @@ impl Dumper<'_> {
                 });
             }
             ExprKind::NotNullAssert { expr: inner } => {
-                self.line(format!("NotNullAssert {}", expr.span));
+                self.expr_line(expr.id, format!("NotNullAssert {}", expr.span));
                 self.child(|d| d.expr(inner));
             }
             ExprKind::TypeApply { callee, args } => {
-                self.line(format!("TypeApply {}", expr.span));
+                self.expr_line(expr.id, format!("TypeApply {}", expr.span));
                 self.child(|d| {
                     d.section("callee", |d| d.expr(callee));
                     d.section("args", |d| {
@@ -1124,7 +1173,7 @@ impl Dumper<'_> {
                 });
             }
             ExprKind::Call { callee, args } => {
-                self.line(format!("Call {}", expr.span));
+                self.expr_line(expr.id, format!("Call {}", expr.span));
                 self.child(|d| {
                     d.section("callee", |d| d.expr(callee));
                     if !args.is_empty() {
@@ -1137,11 +1186,10 @@ impl Dumper<'_> {
                 });
             }
             ExprKind::ClassLit { path } => {
-                self.line(format!(
-                    "ClassLit {} path={}",
-                    expr.span,
-                    self.path_text(path)
-                ));
+                self.expr_line(
+                    expr.id,
+                    format!("ClassLit {} path={}", expr.span, self.path_text(path)),
+                );
             }
             ExprKind::Unary { op, expr: inner } => {
                 let op = match op {
@@ -1149,7 +1197,7 @@ impl Dumper<'_> {
                     UnaryOp::Neg => "-",
                     UnaryOp::BitNot => "~",
                 };
-                self.line(format!("Unary {} op={op}", expr.span));
+                self.expr_line(expr.id, format!("Unary {} op={op}", expr.span));
                 self.child(|d| d.expr(inner));
             }
             ExprKind::Binary { lhs, op, rhs } => {
@@ -1175,7 +1223,7 @@ impl Dumper<'_> {
                     BinaryOp::LogOr => "||",
                     BinaryOp::Elvis => "?:",
                 };
-                self.line(format!("Binary {} op={op}", expr.span));
+                self.expr_line(expr.id, format!("Binary {} op={op}", expr.span));
                 self.child(|d| {
                     d.section("lhs", |d| d.expr(lhs));
                     d.section("rhs", |d| d.expr(rhs));
@@ -1186,11 +1234,10 @@ impl Dumper<'_> {
                 name,
                 arg,
             } => {
-                self.line(format!(
-                    "InfixCall {} name={}",
-                    expr.span,
-                    self.sym(name.symbol)
-                ));
+                self.expr_line(
+                    expr.id,
+                    format!("InfixCall {} name={}", expr.span, self.sym(name.symbol)),
+                );
                 self.child(|d| {
                     d.section("receiver", |d| d.expr(receiver));
                     d.section("arg", |d| d.expr(arg));
@@ -1205,7 +1252,7 @@ impl Dumper<'_> {
                     TypeCheckOp::Is => "is",
                     TypeCheckOp::NotIs => "!is",
                 };
-                self.line(format!("TypeCheck {} op={op}", expr.span));
+                self.expr_line(expr.id, format!("TypeCheck {} op={op}", expr.span));
                 self.child(|d| {
                     d.section("expr", |d| d.expr(inner));
                     d.section("ty", |d| d.type_ref(ty));
@@ -1220,14 +1267,14 @@ impl Dumper<'_> {
                     CastOp::As => "as",
                     CastOp::AsSafe => "as?",
                 };
-                self.line(format!("Cast {} op={op}", expr.span));
+                self.expr_line(expr.id, format!("Cast {} op={op}", expr.span));
                 self.child(|d| {
                     d.section("expr", |d| d.expr(inner));
                     d.section("ty", |d| d.type_ref(ty));
                 });
             }
             ExprKind::WithUpdate { base, updates } => {
-                self.line(format!("WithUpdate {}", expr.span));
+                self.expr_line(expr.id, format!("WithUpdate {}", expr.span));
                 self.child(|d| {
                     d.section("base", |d| d.expr(base));
                     d.section("updates", |d| {
@@ -1246,7 +1293,7 @@ impl Dumper<'_> {
                 annotations,
                 expr: inner,
             } => {
-                self.line(format!("Annotated {}", expr.span));
+                self.expr_line(expr.id, format!("Annotated {}", expr.span));
                 self.child(|d| {
                     d.section("annotations", |d| {
                         for ann in annotations {
@@ -1259,8 +1306,8 @@ impl Dumper<'_> {
         }
     }
 
-    fn ident_expr(&mut self, span: Span, ident: Ident) {
-        self.line(format!("Ident {span} name={}", self.sym(ident.symbol)));
+    fn ident_expr(&mut self, id: scoop2_base::NodeId, span: Span, ident: Ident) {
+        self.expr_line(id, format!("Ident {span} name={}", self.sym(ident.symbol)));
     }
 
     fn call_arg(&mut self, arg: &CallArg) {
@@ -1565,6 +1612,7 @@ mod tests {
                 id: self.nid(),
                 span: sp(s, e),
                 stmts,
+                last_trailing_semi: false,
             }
         }
 
@@ -3678,6 +3726,7 @@ mod tests {
                                 id: b.nid(),
                                 span,
                                 stmts: vec![],
+                                last_trailing_semi: false,
                             }),
                         }),
                     },

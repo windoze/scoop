@@ -339,39 +339,9 @@ fn is_gc_free_nominal(
 
 // ===== 工具 =====
 
-/// 类型短名。
+/// 类型短名。委托给统一的 [`crate::ty::render_type`]。
 fn fmt_type(env: &TypeEnv, id: TypeId) -> String {
-    match env.store.kind(id) {
-        TyKind::Ref(crate::ty::RefTypeKind::Any) => "Any".into(),
-        TyKind::Ref(crate::ty::RefTypeKind::String) => "String".into(),
-        TyKind::Ref(crate::ty::RefTypeKind::Nominal(n))
-        | TyKind::Value(ValueTypeKind::Nominal(n)) => env
-            .interner
-            .resolve(n.fqn)
-            .rsplit('.')
-            .next()
-            .unwrap_or("")
-            .into(),
-        TyKind::Ref(crate::ty::RefTypeKind::Function(_)) => "function".into(),
-        TyKind::Ref(crate::ty::RefTypeKind::Union(_)) => "union".into(),
-        TyKind::Nothing => "Nothing".into(),
-        TyKind::Param(p) => env.interner.resolve(p.name).into(),
-        TyKind::StarProjection => "*".into(),
-        TyKind::Value(ValueTypeKind::Unit) => "Unit".into(),
-        TyKind::Value(ValueTypeKind::Bool) => "Bool".into(),
-        TyKind::Value(ValueTypeKind::Char) => "Char".into(),
-        TyKind::Value(ValueTypeKind::Float64) => "Float64".into(),
-        TyKind::Value(ValueTypeKind::Float32) => "Float32".into(),
-        TyKind::Value(ValueTypeKind::Int) => "Int".into(),
-        TyKind::Value(ValueTypeKind::UInt) => "UInt".into(),
-        TyKind::Value(ValueTypeKind::IntN(n)) => format!("Int{n}"),
-        TyKind::Value(ValueTypeKind::UIntN(n)) => format!("UInt{n}"),
-        TyKind::Value(ValueTypeKind::Option(inner)) => format!("{}?", fmt_type(env, *inner)),
-        TyKind::Value(ValueTypeKind::Tuple(els)) => {
-            let inner: Vec<String> = els.iter().map(|e| fmt_type(env, *e)).collect();
-            format!("({})", inner.join(", "))
-        }
-    }
+    crate::ty::render_type(&env.store, env.interner, id, false)
 }
 
 /// 释放函数名 span（用于 leaf/Unit 错误定位）。

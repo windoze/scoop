@@ -34,6 +34,19 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// 是否包含「管线未接通」类占位符措辞（曾被 scoop2c 使用，现已全部消除）。
+/// 这些字符串若再次出现，说明某条命令回退到了占位实现。
+fn matches_placeholder_wording(line: &str) -> bool {
+    const FORBIDDEN: &[&str] = &[
+        "not_wired",
+        "尚未接通",
+        "前端重写进行中",
+        "尚未实现",
+        "not yet implemented",
+    ];
+    FORBIDDEN.iter().any(|w| line.contains(w))
+}
+
 #[test]
 fn no_unimplemented_macros_or_placeholders() {
     let root = workspace_root();
@@ -71,6 +84,13 @@ fn no_unimplemented_macros_or_placeholders() {
                             index + 1
                         ));
                     }
+                }
+                if matches_placeholder_wording(trimmed) {
+                    violations.push(format!(
+                        "{}:{}: forbidden placeholder wording: {trimmed}",
+                        file.display(),
+                        index + 1
+                    ));
                 }
             }
         }

@@ -1,305 +1,58 @@
-File {
-    package: Some(
-        PackageDecl {
-            span: 160..182,
-            path: [
-                Ident {
-                    span: 168..176,
-                },
-                Ident {
-                    span: 177..182,
-                },
-            ],
-        },
-    ),
-    imports: [],
-    items: [
-        Val(
-            ValDecl {
-                span: 184..206,
-                kind: Val,
-                name: Ident {
-                    span: 188..189,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 192..206,
-                        kind: InterpolatedString {
-                            raw: false,
-                            parts: [
-                                Text {
-                                    span: 194..197,
-                                },
-                                Expr {
-                                    expr: Expr {
-                                        span: 199..203,
-                                        kind: Ident(
-                                            Ident {
-                                                span: 199..203,
-                                            },
-                                        ),
-                                    },
-                                },
-                                Text {
-                                    span: 204..205,
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 207..248,
-                kind: Val,
-                name: Ident {
-                    span: 211..214,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 217..248,
-                        kind: Call {
-                            callee: Expr {
-                                span: 217..246,
-                                kind: MemberAccess {
-                                    receiver: Expr {
-                                        span: 217..235,
-                                        kind: InterpolatedString {
-                                            raw: true,
-                                            parts: [
-                                                Text {
-                                                    span: 221..225,
-                                                },
-                                                Expr {
-                                                    expr: Expr {
-                                                        span: 227..231,
-                                                        kind: Ident(
-                                                            Ident {
-                                                                span: 227..231,
-                                                            },
-                                                        ),
-                                                    },
-                                                },
-                                            ],
-                                        },
-                                    },
-                                    member: Ident {
-                                        span: 236..246,
-                                    },
-                                },
-                            },
-                            args: [],
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 249..299,
-                kind: Val,
-                name: Ident {
-                    span: 253..257,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 260..299,
-                        kind: InterpolatedString {
-                            raw: true,
-                            parts: [
-                                Text {
-                                    span: 264..274,
-                                },
-                                Expr {
-                                    expr: Expr {
-                                        span: 276..280,
-                                        kind: Ident(
-                                            Ident {
-                                                span: 276..280,
-                                            },
-                                        ),
-                                    },
-                                },
-                                Text {
-                                    span: 281..296,
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 300..345,
-                kind: Val,
-                name: Ident {
-                    span: 304..310,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 313..345,
-                        kind: InterpolatedString {
-                            raw: false,
-                            parts: [
-                                Expr {
-                                    expr: Expr {
-                                        span: 317..343,
-                                        kind: If {
-                                            cond: Expr {
-                                                span: 321..325,
-                                                kind: Ident(
-                                                    Ident {
-                                                        span: 321..325,
-                                                    },
-                                                ),
-                                            },
-                                            then_branch: Expr {
-                                                span: 327..332,
-                                                kind: Block(
-                                                    Block {
-                                                        span: 327..332,
-                                                        stmts: [
-                                                            Stmt {
-                                                                span: 329..330,
-                                                                kind: Expr(
-                                                                    Expr {
-                                                                        span: 329..330,
-                                                                        kind: IntLit,
-                                                                    },
-                                                                ),
-                                                                has_trailing_semi: false,
-                                                            },
-                                                        ],
-                                                    },
-                                                ),
-                                            },
-                                            else_branch: Some(
-                                                Expr {
-                                                    span: 338..343,
-                                                    kind: Block(
-                                                        Block {
-                                                            span: 338..343,
-                                                            stmts: [
-                                                                Stmt {
-                                                                    span: 340..341,
-                                                                    kind: Expr(
-                                                                        Expr {
-                                                                            span: 340..341,
-                                                                            kind: IntLit,
-                                                                        },
-                                                                    ),
-                                                                    has_trailing_semi: false,
-                                                                },
-                                                            ],
-                                                        },
-                                                    ),
-                                                },
-                                            ),
-                                        },
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 346..372,
-                kind: Val,
-                name: Ident {
-                    span: 350..360,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 363..372,
-                        kind: InterpolatedString {
-                            raw: false,
-                            parts: [
-                                Expr {
-                                    expr: Expr {
-                                        span: 367..370,
-                                        kind: CharLit,
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 373..414,
-                kind: Val,
-                name: Ident {
-                    span: 377..389,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 392..414,
-                        kind: InterpolatedString {
-                            raw: false,
-                            parts: [
-                                Text {
-                                    span: 394..413,
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Val(
-            ValDecl {
-                span: 415..455,
-                kind: Val,
-                name: Ident {
-                    span: 419..429,
-                },
-                ty: None,
-                init: Some(
-                    Expr {
-                        span: 432..455,
-                        kind: InterpolatedString {
-                            raw: false,
-                            parts: [
-                                Text {
-                                    span: 434..454,
-                                },
-                            ],
-                        },
-                    },
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 457..470,
-                receiver: None,
-                name: Ident {
-                    span: 461..465,
-                },
-                type_params: [],
-                params_span: 465..467,
-                params: [],
-                return_ty: None,
-                body: Block(
-                    Block {
-                        span: 468..470,
-                        stmts: [],
-                    },
-                ),
-            },
-        ),
-    ],
-}
+File 0..471
+  package:
+    Package 160..182 path=fixtures.parse
+  items:
+    ValDecl 188..206 kind=val name=s
+      init:
+        InterpolatedString 192..206
+          TextPart "hi "
+          ExprPart
+            Ident 199..203 name=name
+          TextPart "!"
+    ValDecl 211..248 kind=val name=raw
+      init:
+        Call 217..248
+          callee:
+            MemberAccess 217..246 member=trimIndent
+              InterpolatedString 217..235 raw
+                TextPart "raw "
+                ExprPart
+                  Ident 227..231 name=name
+    ValDecl 253..299 kind=val name=json
+      init:
+        InterpolatedString 260..299 raw
+          TextPart "{\"name\": \""
+          ExprPart
+            Ident 276..280 name=name
+          TextPart "\", \"shape\": {}}"
+    ValDecl 304..345 kind=val name=nested
+      init:
+        InterpolatedString 313..345
+          ExprPart
+            If 317..343
+              cond:
+                Ident 321..325 name=true
+              then:
+                Block 327..332
+                  ExprStmt 329..330
+                    IntLit 329..330 value=1
+              else:
+                Block 338..343
+                  ExprStmt 340..341
+                    IntLit 340..341 value=2
+    ValDecl 350..372 kind=val name=char_brace
+      init:
+        InterpolatedString 363..372
+          ExprPart
+            CharLit 367..370 value='}'
+    ValDecl 377..414 kind=val name=no_shorthand
+      init:
+        InterpolatedString 392..414
+          TextPart "$name stays literal"
+    ValDecl 419..455 kind=val name=old_braces
+      init:
+        InterpolatedString 432..455
+          TextPart "{name} stays literal"
+    FunDecl 461..470 name=main
+      body:
+        Block 468..470

@@ -1,0 +1,15 @@
+// EXPECT-AST: when_expr.hir
+//
+// 覆盖：when 表达式（多 arm）、字符串/整型字面量、比较、Unit 返回。
+// 验证 when / arm body / 字面量的类型标注。
+
+package fixtures_ng.hir
+
+fun classify(n: Int): Int {
+    when (n) {
+        0 -> { return 0 }
+        1 -> { return 1 }
+        else -> { return 2 }
+    }
+    return 3
+}

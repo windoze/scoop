@@ -577,6 +577,202 @@ impl Subst {
     }
 }
 
+// ---------------------------------------------------------------------------
+// 类型渲染：TypeId → 可读字符串（诊断 / dump-hir 共用）
+// ---------------------------------------------------------------------------
+
+/// 把一个 [`TypeId`] 渲染为 spec 风格的可读类型文本。
+///
+/// 这是全前端唯一的类型渲染器（诊断与 `dump-hir` 共用），取代此前散落在
+/// `typecheck/{mod,extern_fn,release_hook}` 里的 4 份重复 `fmt_type*`。
+///
+/// 渲染约定（与 spec 表面语法一致）：
+/// - 标量：`Unit` / `Bool` / `Char` / `Int` / `UInt` / `Float64` / `Float32` /
+///   `Int8`..`Int64` / `UInt8`..`UInt64`；
+/// - `Option<T>` → `T?`（嵌套不拍平，`Int??` 合法）；
+/// - 元组 `(A, B)`（单元素带尾逗号 `(A,)`，空元组 `()`）；
+/// - nominal：全限定名 + `<args>` + 可选 `/ eff`（`List<Int>`、`Effect<Raise<Err>>`）；
+/// - 函数 `(A, B) -> C / R`（闭合行加 `!`，接收者 `T.(A) -> C`）；
+/// - `Any` / `String` / `Nothing` / `*`（星投影）/ 类型参数名。
+///
+/// `interner` 用于把 [`Symbol`] 解析为字符串；`full_fqn=true` 时 nominal 用全限定名，
+/// `false` 时用末段短名（诊断 `found` 字段用短名更易读）。
+pub fn render_type(
+    store: &TypeStore,
+    interner: &scoop2_base::Interner,
+    id: TypeId,
+    full_fqn: bool,
+) -> String {
+    render_kind(store, interner, store.kind(id), full_fqn)
+}
+
+/// nominal 名渲染辅助：按 `full_fqn` 取全限定或末段短名。
+fn nominal_name(interner: &scoop2_base::Interner, fqn: Symbol, full_fqn: bool) -> String {
+    let text = interner.resolve(fqn);
+    if full_fqn {
+        text.to_string()
+    } else {
+        text.rsplit('.').next().unwrap_or(text).to_string()
+    }
+}
+
+/// nominal 实参与可选 effect 行渲染：`<A, B>` / `<A, B> / Eff`。
+fn nominal_tail(
+    store: &TypeStore,
+    interner: &scoop2_base::Interner,
+    n: &NominalType,
+    full_fqn: bool,
+) -> String {
+    let mut out = String::new();
+    if !n.args.is_empty() {
+        out.push('<');
+        let args: Vec<String> = n
+            .args
+            .iter()
+            .map(|&a| render_type(store, interner, a, full_fqn))
+            .collect();
+        out.push_str(&args.join(", "));
+        out.push('>');
+    }
+    if let Some(eff) = &n.eff {
+        out.push_str(" / ");
+        out.push_str(&render_effect_row(store, interner, eff, full_fqn));
+    }
+    out
+}
+
+/// effect 行渲染：`Pure`（空）/ `A` / `A + B`。
+fn render_effect_row(
+    store: &TypeStore,
+    interner: &scoop2_base::Interner,
+    row: &EffectRow,
+    full_fqn: bool,
+) -> String {
+    if row.terms.is_empty() {
+        return "Pure".to_string();
+    }
+    let items: Vec<String> = row
+        .terms
+        .iter()
+        .map(|&t| render_type(store, interner, t, full_fqn))
+        .collect();
+    items.join(" + ")
+}
+
+/// [`TypeKind`] 级渲染（递归）。
+fn render_kind(
+    store: &TypeStore,
+    interner: &scoop2_base::Interner,
+    kind: &TypeKind,
+    full_fqn: bool,
+) -> String {
+    match kind {
+        TypeKind::Nothing => "Nothing".into(),
+        TypeKind::StarProjection => "*".into(),
+        TypeKind::Param(p) => interner.resolve(p.name).into(),
+        TypeKind::Ref(r) => render_ref(store, interner, r, full_fqn),
+        TypeKind::Value(v) => render_value(store, interner, v, full_fqn),
+    }
+}
+
+fn render_ref(
+    store: &TypeStore,
+    interner: &scoop2_base::Interner,
+    r: &RefTypeKind,
+    full_fqn: bool,
+) -> String {
+    match r {
+        RefTypeKind::Any => "Any".into(),
+        RefTypeKind::String => {
+            if full_fqn {
+                "scoop.core.String".into()
+            } else {
+                "String".into()
+            }
+        }
+        RefTypeKind::Nominal(n) => {
+            let mut s = nominal_name(interner, n.fqn, full_fqn);
+            s.push_str(&nominal_tail(store, interner, n, full_fqn));
+            s
+        }
+        RefTypeKind::Function(ft) => {
+            let mut s = String::new();
+            if let Some(recv) = ft.receiver {
+                s.push_str(&render_type(store, interner, recv, full_fqn));
+                s.push_str(".(");
+            } else {
+                s.push('(');
+            }
+            let params: Vec<String> = ft
+                .params
+                .iter()
+                .map(|&p| render_type(store, interner, p, full_fqn))
+                .collect();
+            s.push_str(&params.join(", "));
+            s.push_str(") -> ");
+            s.push_str(&render_type(store, interner, ft.return_ty, full_fqn));
+            s.push_str(" / ");
+            s.push_str(&render_effect_row(store, interner, &ft.effects, full_fqn));
+            if ft.closed {
+                s.push('!');
+            }
+            s
+        }
+        RefTypeKind::Union(u) => {
+            // 并类型用 `|` 连接（与 spec 的 union 表面语法一致）。
+            let items: Vec<String> = u
+                .variants
+                .iter()
+                .map(|&v| render_type(store, interner, v, full_fqn))
+                .collect();
+            items.join(" | ")
+        }
+    }
+}
+
+fn render_value(
+    store: &TypeStore,
+    interner: &scoop2_base::Interner,
+    v: &ValueTypeKind,
+    full_fqn: bool,
+) -> String {
+    match v {
+        ValueTypeKind::Unit => "()".into(),
+        ValueTypeKind::Bool => "Bool".into(),
+        ValueTypeKind::Char => "Char".into(),
+        ValueTypeKind::Float64 => "Float64".into(),
+        ValueTypeKind::Float32 => "Float32".into(),
+        ValueTypeKind::Int => "Int".into(),
+        ValueTypeKind::UInt => "UInt".into(),
+        ValueTypeKind::IntN(bits) => format!("Int{bits}"),
+        ValueTypeKind::UIntN(bits) => format!("UInt{bits}"),
+        ValueTypeKind::Option(inner) => {
+            // 嵌套 Option 不拍平：`Int??` 合法。inner 若是裸标识需加括号？spec 用 `T?`
+            // 后缀且对复合类型无歧义，故直接后缀。
+            format!("{}?", render_type(store, interner, *inner, full_fqn))
+        }
+        ValueTypeKind::Tuple(els) => {
+            if els.is_empty() {
+                "()".into()
+            } else if els.len() == 1 {
+                // 单元组带尾逗号。
+                format!("({},)", render_type(store, interner, els[0], full_fqn))
+            } else {
+                let items: Vec<String> = els
+                    .iter()
+                    .map(|&e| render_type(store, interner, e, full_fqn))
+                    .collect();
+                format!("({})", items.join(", "))
+            }
+        }
+        ValueTypeKind::Nominal(n) => {
+            let mut s = nominal_name(interner, n.fqn, full_fqn);
+            s.push_str(&nominal_tail(store, interner, n, full_fqn));
+            s
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -824,5 +1020,152 @@ mod tests {
             v.sort();
             v
         });
+    }
+
+    // ----- render_type -----
+
+    #[test]
+    fn render_scalars_and_option_tuple() {
+        let mut s = TypeStore::new();
+        let interner = scoop2_base::Interner::new();
+        let unit = s.unit();
+        let bool_ = s.bool();
+        let int = s.int();
+        let int8 = s.int_n(8);
+        let uint64 = s.uint_n(64);
+        let f64 = s.float64();
+        let str_ = s.string();
+        let any = s.any();
+        let nothing = s.nothing();
+        assert_eq!(render_type(&s, &interner, unit, true), "()");
+        assert_eq!(render_type(&s, &interner, bool_, true), "Bool");
+        assert_eq!(render_type(&s, &interner, int, true), "Int");
+        assert_eq!(render_type(&s, &interner, int8, true), "Int8");
+        assert_eq!(render_type(&s, &interner, uint64, true), "UInt64");
+        assert_eq!(render_type(&s, &interner, f64, true), "Float64");
+        assert_eq!(render_type(&s, &interner, str_, true), "String");
+        assert_eq!(render_type(&s, &interner, any, true), "Any");
+        assert_eq!(render_type(&s, &interner, nothing, true), "Nothing");
+        // Option<Int> → Int?
+        let opt = s.option(int);
+        assert_eq!(render_type(&s, &interner, opt, true), "Int?");
+        // 嵌套 Option<Option<Int>> → Int??（不拍平）
+        let opt2 = s.option(opt);
+        assert_eq!(render_type(&s, &interner, opt2, true), "Int??");
+        // 元组 (Int, Bool) / 单元组 (Int,)
+        let b2 = s.bool();
+        let tup = s.tuple(vec![int, b2]);
+        assert_eq!(render_type(&s, &interner, tup, true), "(Int, Bool)");
+        let i3 = s.int();
+        let tup1 = s.tuple(vec![i3]);
+        assert_eq!(render_type(&s, &interner, tup1, true), "(Int,)");
+    }
+
+    #[test]
+    fn render_nominal_and_function_and_param() {
+        let mut s = TypeStore::new();
+        let mut interner = scoop2_base::Interner::new();
+        let int = s.int();
+        let bool_ = s.bool();
+        let str_ = s.string();
+        let unit = s.unit();
+        // nominal ref List<Int>
+        let list = s.ref_nominal(NominalType {
+            fqn: fqn(&mut interner, "a.b.List"),
+            args: vec![int],
+            eff: None,
+        });
+        assert_eq!(render_type(&s, &interner, list, true), "a.b.List<Int>");
+        assert_eq!(render_type(&s, &interner, list, false), "List<Int>");
+        // nominal with effect arg: Effect<Raise<Err>>
+        let err = s.ref_nominal(NominalType {
+            fqn: fqn(&mut interner, "a.Err"),
+            args: vec![],
+            eff: None,
+        });
+        let raise = s.ref_nominal(NominalType {
+            fqn: fqn(&mut interner, "a.Raise"),
+            args: vec![err],
+            eff: None,
+        });
+        let effect = s.ref_nominal(NominalType {
+            fqn: fqn(&mut interner, "a.Effect"),
+            args: vec![raise],
+            eff: None,
+        });
+        assert_eq!(
+            render_type(&s, &interner, effect, false),
+            "Effect<Raise<Err>>"
+        );
+        // nominal with use-site eff row: Effect<Raise<Err>> / Async
+        let async_eff = s.ref_nominal(NominalType {
+            fqn: fqn(&mut interner, "a.Async"),
+            args: vec![],
+            eff: None,
+        });
+        let raise2 = s.ref_nominal(NominalType {
+            fqn: fqn(&mut interner, "a.Raise"),
+            args: vec![err],
+            eff: None,
+        });
+        let effect_eff = s.ref_nominal(NominalType {
+            fqn: fqn(&mut interner, "a.Effect"),
+            args: vec![raise2],
+            eff: Some(EffectRow::single(async_eff)),
+        });
+        assert_eq!(
+            render_type(&s, &interner, effect_eff, false),
+            "Effect<Raise<Err>> / Async"
+        );
+        // function (Int, Bool) -> String / Pure
+        let ft = s.function(FunctionType {
+            receiver: None,
+            params: vec![int, bool_],
+            return_ty: str_,
+            effects: EffectRow::pure(),
+            closed: false,
+        });
+        assert_eq!(
+            render_type(&s, &interner, ft, true),
+            "(Int, Bool) -> String / Pure"
+        );
+        // closed function (Int) -> Unit / Raise<Err>!
+        let i4 = s.int();
+        let raise3 = s.ref_nominal(NominalType {
+            fqn: fqn(&mut interner, "a.Raise"),
+            args: vec![err],
+            eff: None,
+        });
+        let ft_closed = s.function(FunctionType {
+            receiver: None,
+            params: vec![i4],
+            return_ty: unit,
+            effects: EffectRow::single(raise3),
+            closed: true,
+        });
+        assert_eq!(
+            render_type(&s, &interner, ft_closed, false),
+            "(Int) -> () / Raise<Err>!"
+        );
+        // receiver function String.(Int) -> Bool / Pure
+        let i5 = s.int();
+        let str3 = s.string();
+        let b5 = s.bool();
+        let ft_recv = s.function(FunctionType {
+            receiver: Some(str3),
+            params: vec![i5],
+            return_ty: b5,
+            effects: EffectRow::pure(),
+            closed: false,
+        });
+        assert_eq!(
+            render_type(&s, &interner, ft_recv, true),
+            "String.(Int) -> Bool / Pure"
+        );
+        // type param + star projection
+        let p = s.param(param("T", &mut interner));
+        assert_eq!(render_type(&s, &interner, p, true), "T");
+        let star = s.star();
+        assert_eq!(render_type(&s, &interner, star, true), "*");
     }
 }

@@ -1,8 +1,7 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::parse::assignment_expression_not_allowed
-// EXPECT-ERROR: 赋值表达式不能进入 HIR
-// EXPECT-ERROR: 只能作为语句
-// EXPECT-ERROR-AT: 10:14
+// EXPECT-ERROR: 赋值只能作为语句使用，不能嵌入表达式
+// EXPECT-ERROR-AT: 9:14
 
 package fixtures.parse
 
