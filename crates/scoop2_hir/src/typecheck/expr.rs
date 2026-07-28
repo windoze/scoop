@@ -2635,11 +2635,22 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
                 if conflict {
-                    self.diags
-                        .push(diagnostics::no_applicable_overload_with_reason(
-                            "generic type arguments 与 ctor 实参反推的类型实参冲突",
-                            span,
-                        ));
+                    // 添加类型声明处的 related 标注（帮助定位冲突的泛型参数声明）。
+                    let decl_span = self
+                        .env
+                        .index
+                        .lookup_type(fqn)
+                        .map(|d| d.span)
+                        .unwrap_or_default();
+                    let mut diag = diagnostics::no_applicable_overload_with_reason(
+                        "generic type arguments 与 ctor 实参反推的类型实参冲突",
+                        span,
+                    );
+                    if decl_span.start != 0 || decl_span.end != 0 {
+                        let name = self.env.interner.resolve(fqn).to_string();
+                        diag = diag.with_related(decl_span, name);
+                    }
+                    self.diags.push(diag);
                 }
             }
         }
