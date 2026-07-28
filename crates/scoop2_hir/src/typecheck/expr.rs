@@ -347,11 +347,15 @@ pub fn check_top_level_val<'a, 'i>(
     let init_ty = val.init.as_ref().map(|e| c.walk_expr(e));
     // 空数组字面量 `[]` 无显式类型标注时必须报错（无法推断元素类型）。
     if declared.is_none()
-        && val.init.as_ref().is_some_and(|e| matches!(&e.kind, ExprKind::ArrayLit(els) if els.is_empty()))
+        && val
+            .init
+            .as_ref()
+            .is_some_and(|e| matches!(&e.kind, ExprKind::ArrayLit(els) if els.is_empty()))
     {
-        c.diags.push(diagnostics::array_lit_type_annotation_required(
-            val.init.as_ref().map(|e| e.span).unwrap_or_default(),
-        ));
+        c.diags
+            .push(diagnostics::array_lit_type_annotation_required(
+                val.init.as_ref().map(|e| e.span).unwrap_or_default(),
+            ));
     }
     // lenient 模式抑制类型级假阳性（重载决议未定等），但**字面量初始化器**类型确定、
     // 无重载歧义，其与声明类型不匹配是真实错误，必须报（即使 lenient）。
@@ -942,11 +946,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let init_ty = val.init.as_ref().map(|e| self.walk_expr(e));
         // 空数组字面量 `[]` 无显式类型标注时必须报错（无法推断元素类型）。
         if declared.is_none()
-            && val.init.as_ref().is_some_and(|e| matches!(&e.kind, ExprKind::ArrayLit(els) if els.is_empty()))
+            && val
+                .init
+                .as_ref()
+                .is_some_and(|e| matches!(&e.kind, ExprKind::ArrayLit(els) if els.is_empty()))
         {
-            self.diags.push(diagnostics::array_lit_type_annotation_required(
-                val.init.as_ref().map(|e| e.span).unwrap_or(stmt.span),
-            ));
+            self.diags
+                .push(diagnostics::array_lit_type_annotation_required(
+                    val.init.as_ref().map(|e| e.span).unwrap_or(stmt.span),
+                ));
         }
         // 函数值擦除到 Any：必须是闭合 Pure!（open / Pure 或带 effect 的函数不可擦除）。
         if let (Some(d), Some(i)) = (declared, init_ty)
@@ -1747,7 +1755,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                         Span::new(start, start + sym.len()),
                                     ));
                                 }
-                                return self.method_call_return_type(lt, m, &[rt], &[], expr.span, expr.span);
+                                return self.method_call_return_type(
+                                    lt,
+                                    m,
+                                    &[rt],
+                                    &[],
+                                    expr.span,
+                                    expr.span,
+                                );
                             }
                             // 接收者是已知 nominal 但缺运算符方法 → 报错。
                             if !self.env.store.is_nothing(lt)
@@ -1793,7 +1808,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 .or_else(|| scalar_fqn(self.env.store.kind(t), self.env.interner))
                                 .is_some_and(|f| self.env.member_signatures(f, m).is_some());
                             if has_method {
-                                return self.method_call_return_type(t, m, &[], &[], expr.span, expr.span);
+                                return self.method_call_return_type(
+                                    t,
+                                    m,
+                                    &[],
+                                    &[],
+                                    expr.span,
+                                    expr.span,
+                                );
                             }
                             if !self.env.store.is_nothing(t)
                                 && !matches!(self.env.store.kind(t), TypeKind::Param(_))
@@ -2396,7 +2418,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         self.diags
                             .push(diagnostics::funptr_invoke_named_args_not_supported(span));
                     }
-                    return self.method_call_return_type(rt, name.symbol, &arg_types, args, span, name.span);
+                    return self.method_call_return_type(
+                        rt,
+                        name.symbol,
+                        &arg_types,
+                        args,
+                        span,
+                        name.span,
+                    );
                 }
                 MemberName::TupleIndex { .. } => {}
             }
@@ -3553,20 +3582,23 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn resolve_top_level_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
         // scoop.thread.threadSpawn：线程入口必须在静态上等价于 Pure!。
         let callee_name = self.env.interner.resolve(fqn);
-        let stripped = callee_name.strip_prefix("scoop.core.").unwrap_or(callee_name);
-        if stripped == "threadSpawn" || callee_name.ends_with(".threadSpawn") {
-            if let Some(first) = args.first() {
-                let entry_ty = self.walk_expr(&first.value);
-                let is_pure = matches!(
-                    self.env.store.kind(entry_ty),
-                    TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) if f.effects.is_pure()
-                );
-                if !is_pure {
-                    self.diags.push(diagnostics::thread_spawn_entry_must_be_pure(
+        let stripped = callee_name
+            .strip_prefix("scoop.core.")
+            .unwrap_or(callee_name);
+        if (stripped == "threadSpawn" || callee_name.ends_with(".threadSpawn"))
+            && let Some(first) = args.first()
+        {
+            let entry_ty = self.walk_expr(&first.value);
+            let is_pure = matches!(
+                self.env.store.kind(entry_ty),
+                TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) if f.effects.is_pure()
+            );
+            if !is_pure {
+                self.diags
+                    .push(diagnostics::thread_spawn_entry_must_be_pure(
                         &self.describe(entry_ty),
                         first.value.span,
                     ));
-                }
             }
         }
         // @NoGC 上下文：被调用函数必须是 @NoGC 或 native @Extern(c)。
@@ -5087,13 +5119,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
                 // 无 receiver 类型实参可推断：若返回类型仍含 Param 且无法从参数推断，报错。
                 // 检查参数类型是否含与返回类型相同的 Param（可从实参推断）。
-                let return_has_param = matches!(
-                    self.env.store.kind(sig.return_ty),
-                    TypeKind::Param(_)
-                );
-                let params_have_matching_param = sig.params.iter().any(|p| {
-                    matches!(self.env.store.kind(*p), TypeKind::Param(_))
-                });
+                let return_has_param =
+                    matches!(self.env.store.kind(sig.return_ty), TypeKind::Param(_));
+                let params_have_matching_param = sig
+                    .params
+                    .iter()
+                    .any(|p| matches!(self.env.store.kind(*p), TypeKind::Param(_)));
                 if return_has_param
                     && !params_have_matching_param
                     && arg_types.iter().all(|a| !self.env.store.is_nothing(*a))
@@ -5137,11 +5168,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .resolve_member_owner_fqn(receiver_ty)
                     .map(|fqn| self.env.interner.resolve(fqn).to_string())
                     .unwrap_or_else(|| self.describe(receiver_ty));
-                let param_descs: Vec<String> = sig
-                    .params
-                    .iter()
-                    .map(|&p| self.describe(p))
-                    .collect();
+                let param_descs: Vec<String> =
+                    sig.params.iter().map(|&p| self.describe(p)).collect();
                 let candidate_desc = format!(
                     "{method_text}({recv_desc}{})",
                     if param_descs.is_empty() {
@@ -5776,6 +5804,8 @@ mod tests {
                     &mut diags,
                     &prefix,
                     HashMap::new(),
+                    HashSet::new(),
+                    HashSet::new(),
                     None,
                     false,
                     &mut expr_types,

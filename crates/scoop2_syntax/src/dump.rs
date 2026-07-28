@@ -2516,6 +2516,7 @@ mod tests {
             span: sp(26, 56),
             op,
             escape_continuation: Some(b.ident("k", 49, 50)),
+            arrow_span: sp(51, 53),
             body: b.ident_expr(54, 55, "k"),
         };
 
@@ -2630,6 +2631,7 @@ mod tests {
             span: sp(catch_kw, 52),
             op,
             escape_continuation: None,
+            arrow_span: sp(39, 52),
             body: b.block_expr(39, 52, vec![b.expr_stmt(report_call)]),
         };
 

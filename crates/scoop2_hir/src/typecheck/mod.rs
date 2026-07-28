@@ -3336,8 +3336,10 @@ fn check_one_fun(
     // 构建类型参数作用域：外层类型参数 + 本函数自身的类型参数。
     let mut tp = enclosing_type_params.clone();
     // 收集 ref/value kind bound（从内联 bound + where 子句）。
-    let mut param_ref_bounds: std::collections::HashSet<scoop2_base::Symbol> = std::collections::HashSet::new();
-    let mut param_value_bounds: std::collections::HashSet<scoop2_base::Symbol> = std::collections::HashSet::new();
+    let mut param_ref_bounds: std::collections::HashSet<scoop2_base::Symbol> =
+        std::collections::HashSet::new();
+    let mut param_value_bounds: std::collections::HashSet<scoop2_base::Symbol> =
+        std::collections::HashSet::new();
     if let Some(type_params) = &d.type_params {
         for p in &type_params.params {
             tp.insert(

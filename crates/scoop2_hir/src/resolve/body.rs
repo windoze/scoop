@@ -508,7 +508,10 @@ impl<'a> BodyResolver<'a> {
             return;
         }
         // 4. enum variant / 值符号裸名回退（Some、None、Ok 等）。
-        if let Some(fqn) = self.index.find_value_by_simple_name(ident.symbol, self.interner) {
+        if let Some(fqn) = self
+            .index
+            .find_value_by_simple_name(ident.symbol, self.interner)
+        {
             self.resolution
                 .value_refs
                 .set(expr_id, ResolvedValue::TopLevelValue { fqn });

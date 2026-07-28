@@ -1043,7 +1043,7 @@ mod tests {
         assert_eq!(render_type(&s, &interner, int8, true), "Int8");
         assert_eq!(render_type(&s, &interner, uint64, true), "UInt64");
         assert_eq!(render_type(&s, &interner, f64, true), "Float64");
-        assert_eq!(render_type(&s, &interner, str_, true), "String");
+        assert_eq!(render_type(&s, &interner, str_, true), "scoop.core.String");
         assert_eq!(render_type(&s, &interner, any, true), "Any");
         assert_eq!(render_type(&s, &interner, nothing, true), "Nothing");
         // Option<Int> → Int?
@@ -1127,7 +1127,7 @@ mod tests {
         });
         assert_eq!(
             render_type(&s, &interner, ft, true),
-            "(Int, Bool) -> String / Pure"
+            "(Int, Bool) -> scoop.core.String / Pure"
         );
         // closed function (Int) -> Unit / Raise<Err>!
         let i4 = s.int();
@@ -1160,7 +1160,7 @@ mod tests {
         });
         assert_eq!(
             render_type(&s, &interner, ft_recv, true),
-            "String.(Int) -> Bool / Pure"
+            "scoop.core.String.(Int) -> Bool / Pure"
         );
         // type param + star projection
         let p = s.param(param("T", &mut interner));
