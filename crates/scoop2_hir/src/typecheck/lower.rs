@@ -155,9 +155,7 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
         for term in &eff.terms {
             // Pure 项不计入行。
             let last_seg = term.path.segments.last();
-            if last_seg
-                .is_some_and(|s| self.env.interner.resolve(s.symbol) == "Pure")
-            {
+            if last_seg.is_some_and(|s| self.env.interner.resolve(s.symbol) == "Pure") {
                 continue;
             }
             // eff 行参数（`<eff E>` 中的 E）：保留为 Param，供 typecheck 推断替换。
@@ -261,7 +259,8 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             .iter()
             .filter_map(|a| match &a.kind {
                 TypeArgKind::Type(t) => Some(self.lower(t)),
-                _ => None, // Star / Effect 实参：M0 不降级。
+                TypeArgKind::Star => Some(self.env.store.star()),
+                _ => None, // Effect 实参单独处理。
             })
             .collect();
         // 6. where 约束满足性检查：类型实参必须满足声明处的 where / 直接 bound。

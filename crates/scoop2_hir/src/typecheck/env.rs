@@ -449,9 +449,17 @@ pub fn register_top_level_signatures(
             if let Some(recv_fqn) = recv_fqn {
                 let tp_map = build_tp_map(d.type_params.as_ref());
                 let unit_ty = env.store.unit();
+                // 收集 effect 行参数名（`<eff E = Pure>` 中的 E）。
+                let eff_param_names: HashSet<Symbol> = d
+                    .type_params
+                    .iter()
+                    .flat_map(|tpl| tpl.effect_row.iter())
+                    .map(|er| er.name.symbol)
+                    .collect();
                 let (params, tpb) = {
                     let mut lower =
                         TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
+                    lower.set_eff_params(eff_param_names.clone());
                     let params: Vec<TypeId> = d
                         .params
                         .iter()
@@ -472,6 +480,7 @@ pub fn register_top_level_signatures(
                             package_prefix.to_string(),
                             diags,
                         );
+                        lower.set_eff_params(eff_param_names);
                         lower.lower(t)
                     }
                     None => unit_ty,

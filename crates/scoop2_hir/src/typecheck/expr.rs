@@ -363,10 +363,25 @@ pub fn check_top_level_val<'a, 'i>(
         .init
         .as_ref()
         .is_some_and(|e| init_expr_is_unambiguous_literal(&e.kind));
+    // 星投影类型 `Array<*>` 作为声明类型：显式值赋值是确定的真实错误（非重载假阳性），
+    // 即使 lenient 也报。
+    let declared_is_star = declared
+        .is_some_and(|d| matches!(c.env.store.kind(d), TypeKind::StarProjection))
+        || declared.is_some_and(|d| {
+            // nominal 的类型实参含 StarProjection 也算（`Array<*>`）。
+            match c.env.store.kind(d) {
+                TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+                | TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => n
+                    .args
+                    .iter()
+                    .any(|&a| matches!(c.env.store.kind(a), TypeKind::StarProjection)),
+                _ => false,
+            }
+        });
     if let (Some(d), Some(i)) = (declared, init_ty)
         && !c.env.store.is_unit(d)
         && !c.assignable(i, d)
-        && (!c.lenient_type_errors || init_is_literal)
+        && (!c.lenient_type_errors || init_is_literal || declared_is_star)
         && !matches!(
             c.env.store.kind(i),
             TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
@@ -562,6 +577,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if matches!(fk, TypeKind::Param(_)) || matches!(ek, TypeKind::Param(_)) {
             return true;
         }
+        // 星投影 `*` 作为期望类型：任何显式值都不能直接赋值（需 boxing / 显式转换）。
+        if matches!(ek, TypeKind::StarProjection) {
+            return false;
+        }
         let ek = self.env.store.kind(expected);
         // 提取所有需递归检查的数据到 owned（释放 store 借用）。
         let nominal = (nominal_fqn_of(fk), nominal_fqn_of(ek));
@@ -588,6 +607,35 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         };
         // nominal 子类型
         if let (Some(ffqn), Some(efqn)) = nominal {
+            // 期望类型（ek）的 nominal 类型实参含星投影 `*` 时，
+            // 引用类型与 `Option<Ref>` 可作为读视图（`Any?`），其它值类型需显式 boxing。
+            let expected_has_star_arg = match ek {
+                TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+                | TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => n
+                    .args
+                    .iter()
+                    .any(|&a| matches!(self.env.store.kind(a), TypeKind::StarProjection)),
+                _ => false,
+            };
+            if expected_has_star_arg {
+                // found 的元素类型必须是引用或 Option<Ref>。
+                let found_read_compatible = match fk {
+                    TypeKind::Ref(crate::ty::RefTypeKind::Nominal(fn_)) => fn_
+                        .args
+                        .iter()
+                        .all(|&a| self.is_star_read_compatible_elem(a)),
+                    TypeKind::Value(crate::ty::ValueTypeKind::Nominal(fn_)) => fn_
+                        .args
+                        .iter()
+                        .all(|&a| self.is_star_read_compatible_elem(a)),
+                    _ => false,
+                };
+                if !found_read_compatible {
+                    return false;
+                }
+                // 读视图兼容：FQN 匹配即可。
+                return self.fqn_is_subtype(ffqn, efqn);
+            }
             return self.fqn_is_subtype(ffqn, efqn);
         }
         // 内建标量的 nominal 子类型（Int → scoop.core.Int 的超类型链）。
@@ -3185,7 +3233,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // 在 handle arm body 内（suspend > 0），resume 的 resumed-step effect 已被
         // handle 体外层的 body_effects 捕获（build_continuation_type_with_effects
         // 从 handle body 提取了这些 effect 作为 continuation 的 eff row）。
-        // 若在此处也记录，会导致重复——handle_mixed_arm_kinds_ok 中 Boom.next() 的
+        // 若在此处也记录，会导致重复——handle_mixed_arm_kinds_ok 中 Yield.next() 的
         // effect 会在 handle body 中记录一次（build_continuation），再在 resume 中记录一次。
         if self.effect_suspend_depth > 0 {
             return;
@@ -4668,10 +4716,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // 仅保留可解析为 nominal 的 effect（effect 类型名 → FQN nominal TypeId）。
         let mut eff_terms: Vec<TypeId> = Vec::new();
         for (eff_name, _) in &body_effects {
-            if let Some(ty) = self.effect_type_to_typeid(eff_name) {
-                if !eff_terms.contains(&ty) {
-                    eff_terms.push(ty);
-                }
+            if let Some(ty) = self.effect_type_to_typeid(eff_name)
+                && !eff_terms.contains(&ty)
+            {
+                eff_terms.push(ty);
             }
         }
         let effects = crate::ty::EffectRow::from_terms(eff_terms);
@@ -4703,14 +4751,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 计算调用实参的类型（用于 eff 变量推断）。
     /// 若实参是裸块（`{ ... }`）且期望参数是函数类型，则按零参 lambda 降级，
     /// 以捕获块体执行的 effect（供 `<eff E = Pure>` 推断）。
-    fn walk_call_arg_for_inference(&mut self, arg: &CallArg, expected_pt: Option<TypeId>) -> TypeId {
-        let is_block = matches!(
-            &arg.value.kind,
-            ExprKind::Block(_) | ExprKind::DoBlock(_)
-        );
-        let expected_is_fn = expected_pt
-            .is_some_and(|pt| matches!(self.env.store.kind(pt), TypeKind::Ref(crate::ty::RefTypeKind::Function(_))));
-        if is_block && expected_is_fn
+    fn walk_call_arg_for_inference(
+        &mut self,
+        arg: &CallArg,
+        expected_pt: Option<TypeId>,
+    ) -> TypeId {
+        let is_block = matches!(&arg.value.kind, ExprKind::Block(_) | ExprKind::DoBlock(_));
+        let expected_is_fn = expected_pt.is_some_and(|pt| {
+            matches!(
+                self.env.store.kind(pt),
+                TypeKind::Ref(crate::ty::RefTypeKind::Function(_))
+            )
+        });
+        if is_block
+            && expected_is_fn
             && let ExprKind::Block(b) | ExprKind::DoBlock(b) = &arg.value.kind
         {
             // 合成零参 lambda：block 体作为 lambda body。
@@ -4722,6 +4776,34 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return self.type_lambda_with_expected(&lam, None);
         }
         self.walk_expr(&arg.value)
+    }
+
+    /// 类型是否含 effect 行参数（函数类型的 effect row 中的 `TypeKind::Param`）。
+    /// 用于 `<eff E = Pure>` 函数的方法调用 lenient 判定。
+    fn type_contains_eff_param(&self, ty: TypeId) -> bool {
+        match self.env.store.kind(ty) {
+            TypeKind::Param(_) => true,
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) => {
+                ft.effects
+                    .terms
+                    .iter()
+                    .any(|&t| matches!(self.env.store.kind(t), TypeKind::Param(_)))
+                    || ft.params.iter().any(|&p| self.type_contains_eff_param(p))
+                    || self.type_contains_eff_param(ft.return_ty)
+            }
+            _ => false,
+        }
+    }
+
+    /// 星投影读视图兼容性：元素类型为引用类型或 `Option<Ref>` 可作为 `*` 的读视图。
+    fn is_star_read_compatible_elem(&self, elem: TypeId) -> bool {
+        match self.env.store.kind(elem) {
+            TypeKind::Ref(_) => true,
+            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
+                matches!(self.env.store.kind(*inner), TypeKind::Ref(_))
+            }
+            _ => false,
+        }
     }
 
     /// `when` 表达式：walk subject + 每分支体；返回各分支体的 LUB（同类型 → 该类型；否则 Unit）。
@@ -5238,10 +5320,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // 泛型方法签名：param 类型含 TypeParam → lenient on arity + types。
             // 注意：仅当方法自身非泛型（type_param_count == 0）且 receiver 有类型实参时，
             // 尝试用 receiver 类型实参替换 Param（如 AtomicValue<Pair>.cas(Box<T>, T)）。
-            let has_param = sig
-                .params
-                .iter()
-                .any(|p| matches!(self.env.store.kind(*p), TypeKind::Param(_)));
+            let has_param = sig.params.iter().any(|p| {
+                // 顶层 Param 或函数类型 effect row 含 Param（`<eff E>` 的 E 在 effect row 中）。
+                self.type_contains_eff_param(*p)
+            });
             if has_param {
                 // 仅对非泛型方法（type_param_count == 0）的 Param 用 receiver 类型实参替换。
                 // 泛型方法（如 <U: ref> forwardRefMember(x: U)）的 U 是方法自己的类型参数，
@@ -5300,9 +5382,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             )
                         } else {
                             let mut found = None;
-                            for (i, (&at, &pt)) in
-                                arg_types.iter().zip(&subst_params).enumerate()
-                            {
+                            for (i, (&at, &pt)) in arg_types.iter().zip(&subst_params).enumerate() {
                                 if !self.assignable(at, pt) {
                                     let pname = sig
                                         .param_names
@@ -5332,6 +5412,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.record_callee_effects(sig, args, span);
                     return sig.return_ty;
                 }
+                // eff-param 方法（`<eff E>`）：从 lambda 实参推断 E 的 effect 并传播到外层。
+                self.record_callee_effects(sig, args, span);
                 return sig.return_ty;
             }
             // 若唯一候选的 arity / 参数类型不匹配，走 no_applicable_overload
@@ -5487,7 +5569,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // receiver 子类型：oa（声明者）是 ob 的子类型。
             let recv_more = self.fqn_is_subtype(*oa, *ob);
             let params_more = sa.params.len() == sb.params.len()
-                && sa.params
+                && sa
+                    .params
                     .iter()
                     .zip(&sb.params)
                     .all(|(ap, bp)| self.assignable_strict(*ap, *bp));
