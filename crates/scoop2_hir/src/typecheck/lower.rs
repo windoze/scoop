@@ -320,9 +320,11 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             } else {
                 // 函数签名参数/返回类型必须是 native ABI 支持的值类型。
                 // 跳过含 TypeParam 的签名（泛型声明，sysroot 中常见）。
-                let has_type_param = ft.params.iter().any(|&p| {
-                    matches!(self.env.store.kind(p), TypeKind::Param(_))
-                }) || matches!(self.env.store.kind(ft.return_ty), TypeKind::Param(_));
+                let has_type_param = ft
+                    .params
+                    .iter()
+                    .any(|&p| matches!(self.env.store.kind(p), TypeKind::Param(_)))
+                    || matches!(self.env.store.kind(ft.return_ty), TypeKind::Param(_));
                 if !has_type_param {
                     let mut bad: Option<String> = None;
                     for &p in &ft.params {

@@ -5613,10 +5613,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 } else {
                     // receiver-aware 选择无唯一胜者 → 报歧义（receiver 差异使其不可比较）。
                     let method_text = self.env.interner.resolve(method_name);
-                    // 构造候选对比描述：`A.m(Pa) vs B.m(Pb): position 0`。
+                    // 构造候选对比描述：`A.m(Pa) vs B.m(Pb): position 0`（短名，less-specific owner 在前）。
+                    let short_name = |fqn: scoop2_base::Symbol| {
+                        self.env
+                            .interner
+                            .resolve(fqn)
+                            .rsplit('.')
+                            .next()
+                            .unwrap_or("")
+                            .to_string()
+                    };
+                    let mut sorted: Vec<&(&Signature, Symbol)> = applicable.iter().collect();
+                    sorted.sort_by_key(|(_, owner)| short_name(*owner));
                     let mut vs_parts: Vec<String> = Vec::new();
-                    for (sig, owner) in &applicable {
-                        let owner_text = self.env.interner.resolve(*owner);
+                    for (sig, owner) in &sorted {
+                        let owner_text = short_name(*owner);
                         let params: Vec<String> =
                             sig.params.iter().map(|&p| self.describe(p)).collect();
                         vs_parts.push(format!("{owner_text}.{method_text}({})", params.join(", ")));
