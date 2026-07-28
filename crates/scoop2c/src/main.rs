@@ -27,6 +27,7 @@ mod cli {
         CheckSource(CheckSourceArgs),
         DumpAst { input: PathBuf },
         DumpHir { input: PathBuf },
+        DumpMir { input: PathBuf },
     }
 
     #[derive(Debug)]
@@ -71,13 +72,14 @@ mod cli {
             "check-source" => parse_check_source(rest).map(Command::CheckSource),
             "dump-ast" => parse_dump(rest).map(|input| Command::DumpAst { input }),
             "dump-hir" => parse_dump(rest).map(|input| Command::DumpHir { input }),
+            "dump-mir" => parse_dump(rest).map(|input| Command::DumpMir { input }),
             "-h" | "--help" => Err(usage()),
             other => Err(format!("未知子命令 `{other}`\n\n{}", usage())),
         }
     }
 
     fn usage() -> String {
-        "用法：\n  scoop2c check-source --phase <parse|resolve|typecheck|infer|lower> --input <path> [--source <file>] [--target-platform <p>]\n  scoop2c dump-ast <file.scoop>\n  scoop2c dump-hir <file.scoop>".to_string()
+        "用法：\n  scoop2c check-source --phase <parse|resolve|typecheck|infer|lower> --input <path> [--source <file>] [--target-platform <p>]\n  scoop2c dump-ast <file.scoop>\n  scoop2c dump-hir <file.scoop>\n  scoop2c dump-mir <file.scoop>".to_string()
     }
 
     fn parse_check_source(args: &[String]) -> Result<CheckSourceArgs, String> {
@@ -137,6 +139,7 @@ fn run(command: Command) -> ExitCode {
         Command::CheckSource(args) => run_check_source(&args),
         Command::DumpAst { input } => run_dump_ast(&input),
         Command::DumpHir { input } => run_dump_hir(&input),
+        Command::DumpMir { input } => run_dump_mir(&input),
     }
 }
 
@@ -467,6 +470,153 @@ fn run_dump_hir(input: &std::path::Path) -> ExitCode {
         .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
         .collect();
     let rendered = hir.render(files.iter().map(|(id, f)| (*id, *f)));
+    print!("{rendered}");
+    ExitCode::SUCCESS
+}
+
+/// `dump-mir`：typecheck → MIR lowering → 文本 dump。
+///
+/// 流程：parse + resolve + typecheck（与 dump-hir 同）→ 完整性闸门
+/// (`completeness::verify`，作为 MIR 消费前的门禁) → `scoop2_mir::lower` →
+/// `scoop2_mir::dump`。有 typecheck / 完整性 / lowering 错误则报诊断并退出 1。
+fn run_dump_mir(input: &std::path::Path) -> ExitCode {
+    let source = match load_source(input) {
+        Ok(source) => source,
+        Err(code) => return code,
+    };
+    let BuiltProgram {
+        parsed,
+        sources,
+        user_indices,
+        mut interner,
+        mut diags,
+    } = build_program(&source);
+    let user_parse_ok = !parsed[0].diagnostics.has_errors();
+    for pf in &parsed {
+        diags.extend(pf.diagnostics.iter().cloned());
+    }
+    if !user_parse_ok {
+        return report_diagnostics(&source, &[], diags);
+    }
+    let inputs = make_inputs(&parsed, &user_indices);
+    let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
+    let hir = scoop2_hir::typecheck::run_typecheck(
+        &inputs,
+        &mut interner,
+        &mut diags,
+        None,
+        &declared_deps,
+    );
+    if diags.has_errors() {
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, diags);
+    }
+    // 完整性闸门：run_typecheck 末尾已无条件启用 completeness::verify（untyped_node
+    // 诊断已 push 进 diags）。此处无需再调用；有 untyped_node 时 diags.has_errors() 为真，
+    // 报诊断退出（保证 MIR 只消费完整 HIR）。
+    let mir_files: Vec<(scoop2_base::FileId, &scoop2_syntax::ast::File)> = parsed
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| user_indices.contains(i))
+        .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
+        .collect();
+    // MIR lowering。
+    let mut lower_diags = scoop2_base::diag::DiagnosticSink::new();
+    let lower_result = scoop2_mir::mir::lower::lower_module(
+        mir_files.iter().map(|(id, f)| (*id, *f)),
+        &hir,
+        &mut lower_diags,
+    );
+    if lower_diags.has_errors() || !lower_result.errors.is_empty() {
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, lower_diags);
+    }
+    // 单态化（generic → monomorphic）：自 entry main 起 BFS。单态化错误（如缺模板）在此报。
+    // 注意：dump 输出仍是 generic 模板模块（与 mir2 golden 一致）；materialize 仅用于
+    // 触发单态化阶段错误检测。
+    //
+    // dump-mir 模拟可执行程序的 MIR，需要 entry `main`：从模块中查找名为 main 的函数 FQN
+    // 作为种子。若无 main（库 / 缺入口），materialize 以 `Some("main")` 为种子但模板集合
+    // 无 `main` → 报 `scoop::mir::monomorph_no_template`（单态化阶段明确拒绝缺入口的程序）。
+    let entry = lower_result
+        .module
+        .items
+        .iter()
+        .find_map(|it| match it {
+            scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| "main".to_string());
+    let monomorph_result = scoop2_mir::mir::materialize::materialize(
+        lower_result.module.clone(),
+        Some(&entry),
+        &hir,
+    );
+    if let Err(merr) = monomorph_result {
+        lower_diags.push(merr.to_diagnostic());
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, lower_diags);
+    }
+    // MIR 验证：CFG 结构 + direct-style + production 语义完整性。
+    // 构建外部符号集：从 HIR 收集所有已知的函数/类型 FQN（含 sysroot/prelude）。
+    let mut external_symbols: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for (&fqn_sym, _) in &hir.top_level_funs {
+        external_symbols.insert(hir.interner.resolve(fqn_sym).to_string());
+    }
+    for (&type_sym, _) in &hir.enum_variants {
+        external_symbols.insert(hir.interner.resolve(type_sym).to_string());
+    }
+    for (&type_sym, _) in &hir.members {
+        external_symbols.insert(hir.interner.resolve(type_sym).to_string());
+    }
+    for (&type_sym, methods) in &hir.member_funs {
+        let type_fqn_text = hir.interner.resolve(type_sym).to_string();
+        external_symbols.insert(type_fqn_text.clone());
+        // 同时插入 owner.method 形式的 FQN（如 scoop.core.Int.plus）。
+        for (&method_sym, _) in methods {
+            let method_name = hir.interner.resolve(method_sym);
+            external_symbols.insert(format!("{}.{}", type_fqn_text, method_name));
+        }
+    }
+    for (&val_sym, _) in &hir.top_level_vals {
+        external_symbols.insert(hir.interner.resolve(val_sym).to_string());
+    }
+    let verify_errors = scoop2_mir::mir::verify::verify_module_with_external(
+        &lower_result.module,
+        &external_symbols,
+    );
+    if !verify_errors.is_empty() {
+        for ve in &verify_errors {
+            lower_diags.push(scoop2_base::diag::Diagnostic::error(
+                ve.code,
+                ve.message.clone(),
+            ));
+        }
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, lower_diags);
+    }
+    // dump（generic 模板模块）。
+    let rendered = scoop2_mir::mir::dump::dump_module(&lower_result.module, &hir.interner);
     print!("{rendered}");
     ExitCode::SUCCESS
 }

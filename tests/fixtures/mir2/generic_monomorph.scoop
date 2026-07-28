@@ -1,0 +1,13 @@
+// 泛型函数单态化：identity<T>(x: T): T 在 main 中以 Int 实例化。
+// MIR lowering 线程化泛型类型实参；materialize 从 main BFS 单态化 identity<Int>。
+
+package fixtures.mir2
+
+fun identity<T>(x: T): T {
+  x
+}
+
+fun main() {
+  val r = identity<Int>(42)
+  println(r)
+}

@@ -1,0 +1,54 @@
+Module {
+    items: [
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.add",
+            name: "add",
+            ty: (Nothing, Nothing) -> () / Pure,
+            params: [Param { name: "a", ty: Nothing, local: local#19317fe1 }, Param { name: "b", ty: Nothing, local: local#18317e4e }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("a"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: Some("b"), ty: Nothing, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#17317cbb = Call(Direct { callee: "plus", type_args: , intrinsic: false }, [Local(local#18317e4e)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#18317e4e, name: Some("r"), ty: Int, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = Call(Direct { callee: "fixtures.mir2.add", type_args: , intrinsic: false }, [Const(Int(1)), Const(Int(2))], transport={trace:false, box:false}),
+                    local#18317e4e = Use(Local(local#19317fe1)),
+                    local#17317cbb = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#18317e4e)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

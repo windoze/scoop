@@ -18,6 +18,17 @@ impl Symbol {
     pub fn as_usize(self) -> usize {
         self.0 as usize
     }
+
+    /// 从原始 u32 构造（仅供语义阶段 / 测试用；正常 Symbol 应由 Interner 产出）。
+    pub fn from_u32(raw: u32) -> Self {
+        Symbol(raw)
+    }
+}
+
+impl Default for Symbol {
+    fn default() -> Self {
+        Symbol(0)
+    }
 }
 
 impl fmt::Debug for Symbol {

@@ -1,0 +1,22 @@
+package fixtures.mir2
+
+import scoop.core.*
+
+enum Color {
+  Red(val r: Int),
+  Green(val g: Int),
+  Blue(val b: Int)
+}
+
+fun value(c: Color): Int {
+  when (c) {
+    Color.Red(r) -> r
+    Color.Green(g) -> g
+    Color.Blue(b) -> b
+  }
+}
+
+fun main() {
+  val c = Color.Red(42)
+  println(value(c))
+}

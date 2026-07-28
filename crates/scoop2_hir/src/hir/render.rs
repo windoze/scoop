@@ -39,10 +39,27 @@ pub fn render_hir<'f>(
         first = false;
         let store = &hir.store;
         let expr_types = &typed_file.expr_types;
+        let effect_rows = &typed_file.facts.expr_effect_rows;
         let type_of = |id: NodeId| -> Option<String> {
-            expr_types
+            let ty_text = expr_types
                 .get(id)
-                .map(|&ty| render_type(store, &hir.interner, ty, true))
+                .map(|&ty| render_type(store, &hir.interner, ty, true));
+            let eff_text = effect_rows.get(id).map(|row| {
+                if row.is_pure() {
+                    String::new()
+                } else {
+                    row.terms
+                        .iter()
+                        .map(|t| render_type(store, &hir.interner, *t, false))
+                        .collect::<Vec<_>>()
+                        .join(" + ")
+                }
+            });
+            match (ty_text, eff_text) {
+                (Some(ty), Some(eff)) if !eff.is_empty() => Some(format!("{ty} eff={eff}")),
+                (Some(ty), _) => Some(ty),
+                (None, _) => None,
+            }
         };
         let chunk = crate::syntax::dump::dump_file_typed(file, &hir.interner, &type_of);
         out.push_str(&chunk);

@@ -48,9 +48,17 @@ impl Default for Resolution {
 /// 以 [`NodeId`] 为键的致密侧表。
 ///
 /// 稀疏写入（`set` 自动扩展到足够容量）；读取返回 `Option`。
-#[derive(Debug, Default)]
+#[derive(Debug, Clone)]
 pub struct NodeIdTable<T> {
     slots: Vec<Option<T>>,
+}
+
+// 手动实现 Default，使 `NodeIdTable<T>` 对任意 `T` 都 `Default`（空表）。
+// `#[derive(Default)]` 会错误地要求 `T: Default`，但 `Vec::new()` 无此需要。
+impl<T> Default for NodeIdTable<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T> NodeIdTable<T> {

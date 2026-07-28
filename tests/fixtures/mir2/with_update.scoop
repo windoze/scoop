@@ -1,0 +1,14 @@
+package fixtures.mir2
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun shift(p: Point): Point {
+  p with { x: p.x + 1 }
+}
+
+fun main() {
+  val p = Point(1, 2)
+  println(shift(p).x)
+}

@@ -1,0 +1,20 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::mir::splice_field_removed
+// splice field `p.["x"]` / `p.[FieldMeta{...}]` 是 comptime 反射特性，已从语言移除。
+// MIR 阶段明确拒绝（scoop::mir::splice_field_removed），引导用户改用具体字段访问 `p.x`。
+// typecheck 通过（splice field 在前端解析为字段访问），MIR lowering 阶段拒绝。
+
+package fixtures.mir2_fail
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun get_x(p: Point): Int {
+    return p.["x"]
+}
+
+fun main() {
+    val pt = Point(1, 2)
+    println(get_x(pt))
+}

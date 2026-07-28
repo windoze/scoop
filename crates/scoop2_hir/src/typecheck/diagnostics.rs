@@ -52,12 +52,83 @@ pub fn unresolved_type_ref(name: &str, span: Span) -> Diagnostic {
 
 /// `scoop::typecheck::unsupported_in_this_phase`：该语法形式在当前类型检查里程碑
 /// 尚未覆盖（仅在里程碑之间过渡使用；M8 退出闸门要求零到达）。
+#[deprecated(note = "用具体错误码替代；勿新增调用")]
 pub fn unsupported_in_this_phase(what: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::unsupported_in_this_phase",
         format!("当前类型检查阶段暂不支持：{what}"),
     )
     .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::this_outside_member`：`this` 出现在非成员函数体内。
+/// （取代 unsupported_in_this_phase 的「合法拒绝」语义。）
+pub fn this_outside_member(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::this_outside_member",
+        "`this` 只能在成员函数体内使用",
+    )
+    .with_primary(span, "`this` 在非成员上下文")
+}
+
+/// `scoop::typecheck::prelude_symbol_missing`：prelude 必需符号（Array / get 等）未注册。
+/// 这是编译环境错误（prelude 未加载），不是用户程序错误。
+pub fn prelude_symbol_missing(what: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::prelude_symbol_missing",
+        format!("prelude 必需符号未注册：{what}（检查 sysroot / prelude 加载）"),
+    )
+    .with_primary(span, "这里")
+}
+
+/// `scoop::typecheck::unknown_field`：访问的类型上不存在该字段 / 属性。
+/// （取代 unsupported_member_access 在「未知字段」场景的合法拒绝。）
+pub fn unknown_field(type_name: &str, field: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::unknown_field",
+        format!("类型 `{type_name}` 上不存在字段 `{field}`"),
+    )
+    .with_primary(span, field)
+}
+
+/// `scoop::typecheck::member_not_a_value`：方法成员在值位置访问（未调用）。
+/// （取代 unsupported_member_access 在「方法作值」场景的合法拒绝。）
+pub fn member_not_a_value(member: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::member_not_a_value",
+        format!("`{member}` 是方法，不能作为值访问（需以 `()` 调用）"),
+    )
+    .with_primary(span, member)
+}
+
+/// `scoop::typecheck::struct_lit_unknown_type`：struct 字面量的类型名未解析。
+/// （取代 unsupported_in_this_phase 的「未知类型」语义。）
+pub fn struct_lit_unknown_type(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::struct_lit_unknown_type",
+        format!("struct 字面量引用了未知类型 `{name}`"),
+    )
+    .with_primary(span, name)
+}
+
+/// `scoop::typecheck::no_such_method`：接收者类型上不存在该方法。
+/// （取代 unsupported_in_this_phase 的「方法调用无 owner」语义。）
+pub fn no_such_method(receiver_desc: &str, method: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::no_such_method",
+        format!("类型 `{receiver_desc}` 上不存在方法 `{method}`"),
+    )
+    .with_primary(span, method)
+}
+
+/// `scoop::typecheck::local_val_missing_initializer`：局部 val/var 缺少 initializer。
+/// （取代 unsupported_expr 的「缺 initializer」合法拒绝。）
+pub fn local_val_missing_initializer(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::local_val_missing_initializer",
+        "局部 val/var 必须提供 initializer",
+    )
+    .with_primary(span, "缺少 initializer")
 }
 
 /// `scoop::typecheck::break_not_in_loop`：`break` 出现在循环体外。
@@ -325,6 +396,7 @@ pub fn splice_field_name_not_static(span: Span) -> Diagnostic {
 }
 
 /// `scoop::typecheck::unsupported_member_access`：不支持的成员访问。
+#[deprecated(note = "用 unknown_field / member_not_a_value 等具体码替代")]
 pub fn unsupported_member_access(member: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::unsupported_member_access",
@@ -1714,6 +1786,7 @@ pub fn invalid_cast(span: Span) -> Diagnostic {
 }
 
 /// `scoop::typecheck::unsupported_expr`：当前阶段不支持的表达式形式。
+#[deprecated(note = "用 local_val_missing_initializer 等具体码替代")]
 pub fn unsupported_expr(what: &str, span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::unsupported_expr",

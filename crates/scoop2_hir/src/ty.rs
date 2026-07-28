@@ -133,6 +133,18 @@ impl EffectRow {
     pub fn contains(&self, term: TypeId) -> bool {
         self.terms.binary_search(&term).is_ok()
     }
+
+    /// 差集：`self − other`（从 self 中移除 other 中存在的 terms）。
+    /// self 已排序去重，过滤后仍有序，无需再规范化。
+    pub fn difference(&self, other: &EffectRow) -> EffectRow {
+        let result: Vec<TypeId> = self
+            .terms
+            .iter()
+            .filter(|t| !other.contains(**t))
+            .copied()
+            .collect();
+        EffectRow { terms: result }
+    }
 }
 
 impl std::fmt::Debug for EffectRow {
@@ -336,7 +348,7 @@ impl std::fmt::Debug for UnionType {
 // ---------------------------------------------------------------------------
 
 /// 类型存储：拥有全部 [`TypeKind`]，按结构 hash-cons。
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TypeStore {
     kinds: Vec<TypeKind>,
     dedup: HashMap<TypeKind, u32>,
@@ -369,6 +381,25 @@ impl TypeStore {
     /// 取一个 id 的种类。`id` 必须由本 store 的 [`intern`][Self::intern] 产出。
     pub fn kind(&self, id: TypeId) -> &TypeKind {
         &self.kinds[id.0 as usize]
+    }
+
+    /// 把 `other` 中的全部类型重新 intern 进本 store，返回 `other` TypeId → 本 store
+    /// TypeId 的重映射表。用于合并多个 per-function store 到一个规范 store。
+    ///
+    /// 结构同构的类型经 hash-cons 复用现有 TypeId；新类型追加到末尾。
+    pub fn extend_from(&mut self, other: &TypeStore) -> std::collections::HashMap<TypeId, TypeId> {
+        let mut remap = std::collections::HashMap::new();
+        for (i, kind) in other.kinds.iter().enumerate() {
+            let old = TypeId(i as u32);
+            let new = self.intern(kind.clone());
+            remap.insert(old, new);
+        }
+        remap
+    }
+
+    /// 把一个 TypeId 按重映射表翻译（缺省返回原值）。
+    pub fn remap_id(remap: &std::collections::HashMap<TypeId, TypeId>, id: TypeId) -> TypeId {
+        *remap.get(&id).unwrap_or(&id)
     }
 
     // ----- 类别查询（结构性，无需查 nominal 声明）-----

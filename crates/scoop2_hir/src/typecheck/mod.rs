@@ -143,10 +143,13 @@ pub fn run_typecheck(
         env::register_top_level_vals(&mut env, inp.file, imports, prefix, diags);
         env::register_enum_variants(&mut env, inp.file, prefix);
     }
-    // 检查每个用户文件的函数体；同时收集 per-file 表达式类型表。
+    // 检查每个用户文件的函数体；同时收集 per-file 表达式类型表与语义事实。
     let mut typed_files: Vec<crate::hir::TypedFile> = Vec::with_capacity(user_files.len());
     for uf in &user_files {
         let mut expr_types = crate::resolve::output::NodeIdTable::new();
+        // 把 resolve 阶段的 value_refs 搬入 SemanticFacts（typed HIR 不再持有 Resolution）。
+        let mut facts = crate::hir::SemanticFacts::new();
+        facts.value_refs = uf.resolution.value_refs.clone();
         check_file_bodies(
             uf.file,
             &mut env,
@@ -156,16 +159,32 @@ pub fn run_typecheck(
             &uf.prefix,
             uf.trusted,
             &mut expr_types,
+            &mut facts,
             target_platform,
         );
         typed_files.push(crate::hir::TypedFile {
             file_id: uf.file_id,
             package_prefix: uf.prefix.clone(),
             expr_types,
+            facts,
         });
     }
     // 把 typecheck 产出 move 进自包含的 TypedHir（含 interner 副本，解耦借用）。
-    env.into_typed_hir(interner.clone(), typed_files)
+    let hir = env.into_typed_hir(interner.clone(), typed_files);
+    // 完整性闸门：在 run_typecheck 末尾**无条件**启用 completeness::verify 作门禁。
+    //
+    // typechecker 通过 walk_expr 漏斗的 backfill_child_types 为所有子表达式补类型，
+    // 且 completeness::verify 对 typechecker 覆盖最小的区域（class init block /
+    // secondary ctor body / class·struct property initializer）采取宽容策略（仅在
+    // 顶层表达式有类型时递归验证）。这使 558 个 typecheck fixture 无回归，同时
+    // 为 MIR lowering 提供完整性保证：任何未类型化的可 lower 表达式都会在此报
+    // `scoop::typecheck::untyped_node`。
+    let user_file_refs: Vec<(scoop2_base::FileId, &File)> = user_files
+        .iter()
+        .map(|uf| (uf.file_id, uf.file))
+        .collect();
+    crate::completeness::verify(&hir, &user_file_refs, diags);
+    hir
 }
 
 /// 检查一个文件的**顶层 + 成员**函数体 + 声明头语义检查。
@@ -179,6 +198,7 @@ fn check_file_bodies(
     package_prefix: &str,
     trusted: bool,
     expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
+    facts: &mut crate::hir::SemanticFacts,
     target_platform: Option<&str>,
 ) {
     use crate::syntax::ast::{ItemKind, ModifierKind};
@@ -354,6 +374,7 @@ fn check_file_bodies(
                     &ext_tp_map,
                     ext_this_ty,
                     expr_types,
+                    facts,
                 );
             }
             ItemKind::Type(d) => {
@@ -749,6 +770,7 @@ fn check_file_bodies(
                         package_prefix,
                         &tp_map,
                         expr_types,
+                        facts,
                     );
                     // computed property 引用 `field` 检查。
                     check_computed_property_field_ref(&body.members, env.interner, diags);
@@ -774,6 +796,7 @@ fn check_file_bodies(
                             package_prefix,
                             &empty_tp,
                             expr_types,
+                            facts,
                         );
                         // object 的 init 块与属性初始化器必须 `Pure!`（静态初始化器）。
                         for m in &body.members {
@@ -791,6 +814,7 @@ fn check_file_bodies(
                                         what,
                                         expr::PureInitSite::Block(&ib.body),
                                         expr_types,
+                                        facts,
                                     );
                                 }
                                 TypeMemberKind::Property(pd) if pd.init.is_some() => {
@@ -807,6 +831,7 @@ fn check_file_bodies(
                                             what,
                                             expr::PureInitSite::Expr(init),
                                             expr_types,
+                                            facts,
                                         );
                                     }
                                 }
@@ -837,6 +862,7 @@ fn check_file_bodies(
                         diags,
                         package_prefix,
                         expr_types,
+                        facts,
                     );
                 } else if let Some(ty_ref) = &d.ty {
                     let mut lower = crate::typecheck::lower::TypeLowering::new(
@@ -3318,6 +3344,7 @@ fn check_one_fun(
     >,
     this_ty: Option<crate::ty::TypeId>,
     expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
+    facts: &mut crate::hir::SemanticFacts,
 ) {
     use scoop2_base::FileId;
     // 闭合 effect row（`...!`）不允许引用 effect row 变量（`eff E`）—— header 级检查。
@@ -3429,6 +3456,7 @@ fn check_one_fun(
         this_ty,
         skip_effect_check,
         expr_types,
+        facts,
         is_entry_main,
         in_nogc,
     );
@@ -3448,6 +3476,7 @@ fn check_member_funs(
         crate::ty::TypeParamType,
     >,
     expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
+    facts: &mut crate::hir::SemanticFacts,
 ) {
     use crate::syntax::ast::TypeMemberKind;
     for m in members {
@@ -3463,6 +3492,7 @@ fn check_member_funs(
                     enclosing_type_params,
                     this_ty,
                     expr_types,
+                    facts,
                 );
             }
             TypeMemberKind::Object(d) => {
@@ -3480,6 +3510,7 @@ fn check_member_funs(
                         package_prefix,
                         enclosing_type_params,
                         expr_types,
+                        facts,
                     );
                 }
             }
@@ -3499,6 +3530,7 @@ fn check_member_funs(
                         package_prefix,
                         &merged,
                         expr_types,
+                        facts,
                     );
                 }
             }

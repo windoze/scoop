@@ -1,0 +1,16 @@
+package fixtures.mir2
+
+import scoop.core.*
+
+fun f(): Int {
+  handle {
+    Raise.raise(1)
+    0
+  } on {
+    Raise.raise(e: Int) -> e
+  }
+}
+
+fun main() {
+  println(f())
+}

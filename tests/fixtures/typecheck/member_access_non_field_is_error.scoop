@@ -1,7 +1,7 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_member_access
+// EXPECT-ERROR-CODE: scoop::typecheck::member_not_a_value
 // EXPECT-ERROR-AT: 16:20
-// EXPECT-ERROR: 暂不支持的成员访问
+// EXPECT-ERROR: 是方法，不能作为值访问
 // 目标：T0408 当前仅支持 struct 字段；方法成员访问（`p.m`）应在 typecheck 报错。
 
 package fixtures.typecheck

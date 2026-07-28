@@ -1,0 +1,20 @@
+// variant 解构绑定 `val Result.Ok(v) = ...`（spec §3420 允许）。
+// MIR lowering 从 pattern_bindings 侧表取 variant payload 字段并提取绑定。
+
+package fixtures.mir2
+
+import scoop.core.*
+
+enum Result {
+  Ok(val value: Int),
+  Err(val msg: String)
+}
+
+fun f(r: Result): Int {
+  val Result.Ok(v) = r
+  v
+}
+
+fun main() {
+  println(f(Result.Ok(42)))
+}

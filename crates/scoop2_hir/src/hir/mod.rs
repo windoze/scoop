@@ -16,14 +16,20 @@
 //! - **per-file 表达式类型表**：每个用户文件一份 `expr_types: NodeIdTable<TypeId>`，
 //!   在 typecheck body 时由 `ExprChecker` 写回。
 
+pub mod facts;
 pub mod render;
 
 use std::collections::HashMap;
 
 use scoop2_base::{FileId, Interner, NodeId, Symbol};
 
-use crate::resolve::output::NodeIdTable;
-use crate::ty::{TypeId, TypeStore};
+use crate::resolve::output::{NodeIdTable, ResolvedValue};
+use crate::ty::{EffectRow, TypeId, TypeStore};
+
+pub use facts::{
+    EffectSite, PatternBinding, PatternBindingKey, PatternBindingSource, ResolvedCall,
+    ResolvedMember, ResolvedPlace, SemanticFacts,
+};
 
 /// 一个顶层函数 / 成员函数 / 构造器的类型化签名快照（render 用）。
 #[derive(Clone)]
@@ -38,6 +44,23 @@ pub struct TypedSignature {
     pub param_names: Vec<Symbol>,
     /// 是否带默认值（与 param_types 平行）。
     pub has_defaults: Vec<bool>,
+    /// effect 行（`/ Row`）；`Pure`（空行）若未声明。
+    pub effect_row: EffectRow,
+    /// 是否带 `vararg`。
+    pub has_vararg: bool,
+    /// 声明 span（定位源声明）。
+    pub decl_span: scoop2_base::Span,
+    /// 声明文件。
+    pub decl_file: FileId,
+}
+
+/// 类型参数约束快照（导出 type_constraints 供 MIR 单态化用）。
+#[derive(Clone, Debug)]
+pub struct TypeConstraintsSnapshot {
+    /// 类型参数名序列（按声明顺序）。
+    pub type_params: Vec<Symbol>,
+    /// where 约束（参数名, bound 文本）。
+    pub constraints: Vec<(Symbol, crate::syntax::ast::GenericBound)>,
 }
 
 /// 一个文件的 typed 产物：源 AST 句柄 + per-NodeId 表达式类型表。
@@ -47,6 +70,8 @@ pub struct TypedFile {
     pub package_prefix: String,
     /// 表达式 `NodeId → TypeId`（仅 User 文件；Sysroot 不做 body 类型检查）。
     pub expr_types: NodeIdTable<TypeId>,
+    /// 语义事实侧表（调用决议 / 成员 / place / effect / value_refs）。
+    pub facts: SemanticFacts,
 }
 
 /// typecheck 的完整产出：自包含的 typed HIR。
@@ -71,7 +96,9 @@ pub struct TypedHir {
     pub top_level_vals: HashMap<Symbol, TypeId>,
     /// enum FQN → variant 名列表。
     pub enum_variants: HashMap<Symbol, Vec<Symbol>>,
-    /// 每个用户文件的 typed 产物（含 expr_types）。
+    /// 类型 FQN → 类型参数约束快照（导出 type_constraints 供 MIR 单态化用）。
+    pub type_constraints: HashMap<Symbol, TypeConstraintsSnapshot>,
+    /// 每个用户文件的 typed 产物（含 expr_types + 语义事实）。
     pub files: Vec<TypedFile>,
 }
 
@@ -87,6 +114,55 @@ impl TypedHir {
     /// 查找某 FileId 的 typed 文件产物。
     pub fn file(&self, file_id: FileId) -> Option<&TypedFile> {
         self.files.iter().find(|f| f.file_id == file_id)
+    }
+
+    /// 查找某 FileId 的 typed 文件产物（可变）。
+    pub fn file_mut(&mut self, file_id: FileId) -> Option<&mut TypedFile> {
+        self.files.iter_mut().find(|f| f.file_id == file_id)
+    }
+
+    /// 查询某调用表达式的决议结果。
+    pub fn call_resolution(&self, file_id: FileId, node: NodeId) -> Option<&ResolvedCall> {
+        self.file(file_id)
+            .and_then(|f| f.facts.call_resolutions.get(node))
+    }
+
+    /// 查询某成员访问的决议结果。
+    pub fn member_ref(&self, file_id: FileId, node: NodeId) -> Option<&ResolvedMember> {
+        self.file(file_id)
+            .and_then(|f| f.facts.member_refs.get(node))
+    }
+
+    /// 查询某赋值目标的 place 分类。
+    pub fn assign_place(&self, file_id: FileId, node: NodeId) -> Option<&ResolvedPlace> {
+        self.file(file_id)
+            .and_then(|f| f.facts.assign_places.get(node))
+    }
+
+    /// 查询某值引用的解析结果。
+    pub fn value_ref(&self, file_id: FileId, node: NodeId) -> Option<&ResolvedValue> {
+        self.file(file_id)
+            .and_then(|f| f.facts.value_refs.get(node))
+    }
+
+    /// 查询某模式节点引入的全部绑定（when arm / 解构 val）。
+    pub fn pattern_bindings(
+        &self,
+        file_id: FileId,
+        node: NodeId,
+    ) -> Option<&[PatternBinding]> {
+        self.file(file_id)
+            .and_then(|f| f.facts.pattern_bindings.get(node).map(|v| v.as_slice()))
+    }
+
+    /// 查询某表达式的 actual effect row。
+    pub fn expr_effect_row(
+        &self,
+        file_id: FileId,
+        node: NodeId,
+    ) -> Option<&crate::ty::EffectRow> {
+        self.file(file_id)
+            .and_then(|f| f.facts.expr_effect_rows.get(node))
     }
 
     /// 渲染为稳定缩进树文本。
@@ -113,6 +189,7 @@ impl TypedHir {
             ctor_signatures: HashMap::new(),
             top_level_vals: HashMap::new(),
             enum_variants: HashMap::new(),
+            type_constraints: HashMap::new(),
             files: Vec::new(),
         }
     }

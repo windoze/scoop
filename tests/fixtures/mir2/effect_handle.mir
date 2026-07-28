@@ -1,0 +1,82 @@
+Module {
+    items: [
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.f",
+            name: "f",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#18317e4e, name: None, ty: Nothing, source: Temp },
+                LocalDecl { label: local#17317cbb, name: None, ty: Nothing, source: Temp },
+                LocalDecl { label: local#16317b28, name: Some("e"), ty: Any, source: Source },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Handle(body=bb#8c2c24bc, arms=[bb#8e2c27e2], finally=None, exit=bb#8f2c2975), unwind: Propagate },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                is_cleanup: false,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Perform(Raise.raise, [Const(Int(1))], resume=local#17317cbb -> bb#892c2003), unwind: Propagate },
+                },
+                BasicBlock {
+                label: bb#8f2c2975,
+                is_cleanup: false,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8e2c27e2,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = Use(Local(local#16317b28)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8f2c2975), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#892c2003,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = Use(Const(Int(0))),
+                ],
+                terminator: Terminator { kind: Goto(bb#8f2c2975), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#18317e4e, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = Call(Direct { callee: "fixtures.mir2.f", type_args: , intrinsic: false }, [], transport={trace:false, box:false}),
+                    local#18317e4e = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#19317fe1)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

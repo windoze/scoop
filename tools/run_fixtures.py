@@ -491,6 +491,8 @@ PHASE_DIRS = {
     "effect_lowered",
     "scoopir",
     "umb_fix",
+    "mir2",
+    "mir2_fail",
 }
 
 
@@ -528,6 +530,10 @@ def run_one_file(fixtures_root: Path, path: Path, options: Options, stdout: list
         result = lambda: run_dump_golden(path, "dump-hir", path.with_suffix(".hir"), options)
     elif phase in ("mir", "mir_lowered"):
         result = lambda: run_dump_golden(path, "dump-mir", path.with_suffix(".mir"), options)
+    elif phase == "mir2":
+        result = lambda: run_dump_golden(path, "dump-mir", path.with_suffix(".mir"), options)
+    elif phase == "mir2_fail":
+        result = lambda: run_mir2_fail_fixture(path, exp, options)
     elif phase == "mir_materialized":
         result = lambda: run_dump_golden(path, "dump-ir", path.with_suffix(".mir"), options)
     elif phase == "effect_facts":
@@ -792,6 +798,21 @@ def run_dump_golden(path: Path, command: str, golden_path: Path, options: Option
         f"{command} snapshot",
         accept=options.accept,
     )
+
+
+def run_mir2_fail_fixture(path: Path, exp: Expectation, options: Options) -> None:
+    """mir2_fail：运行 dump-mir，期望失败并以 EXPECT-ERROR-CODE: scoop::mir::* 匹配诊断码。
+    把非零退出包装为 FixtureError 抛出，由 assert_expectation 走负向匹配路径。"""
+    output = run_command(
+        [options.scoopc, "dump-mir", path],
+        env=env_for_expectation(path, exp),
+    )
+    if output.returncode == 0:
+        raise FixtureError(
+            f"expected mir2 failure, but dump-mir succeeded (fixture: {path})",
+            code="scoop::fixtures::expected_mir2_failure",
+        )
+    raise command_failure("scoopc dump-mir", path, output)
 
 
 def run_scoopir_fixture(path: Path, exp: Expectation, options: Options) -> None:

@@ -1,0 +1,62 @@
+Module {
+    items: [
+        Metadata { fqn: "fixtures.mir2.Point", kind: Struct },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.shift",
+            name: "shift",
+            ty: (Nothing) -> () / Pure,
+            params: [Param { name: "p", ty: Nothing, local: local#19317fe1 }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("p"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#16317b28, name: None, ty: Point, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#18317e4e = MemberAccess(Local(local#19317fe1), x),
+                    local#17317cbb = Call(Direct { callee: "scoop.core.Int.plus", type_args: , intrinsic: false }, [Const(Int(1))], transport={trace:false, box:false}),
+                    local#16317b28 = WithUpdate(Local(local#19317fe1), [x = Local(local#17317cbb)], Point),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Point, source: Temp },
+                LocalDecl { label: local#18317e4e, name: Some("p"), ty: Point, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: Point, source: Temp },
+                LocalDecl { label: local#16317b28, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#1d31862d, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = ClassCtor(fixtures.mir2.Point, [Const(Int(1)), Const(Int(2))]),
+                    local#18317e4e = Use(Local(local#19317fe1)),
+                    local#17317cbb = Call(Direct { callee: "fixtures.mir2.shift", type_args: , intrinsic: false }, [Local(local#18317e4e)], transport={trace:true, box:false}),
+                    local#16317b28 = MemberAccess(Local(local#17317cbb), x),
+                    local#1d31862d = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#16317b28)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

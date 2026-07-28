@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::mir::monomorph_no_template
+// 单态化错误 fixture：本程序只定义辅助函数 helper，无 entry-point `main`。
+// dump-mir 的 materialize 阶段以 `main` 为种子做 BFS 单态化；模板集合中无 `main`
+// 函数 → 报 `scoop::mir::monomorph_no_template`（单态化阶段明确拒绝缺入口的程序）。
+//
+// 注：单文件合法程序若含 main，typecheck 拦截未定义引用 + materialize 跳过外部
+// callee，无法在单态化阶段自然失败（缺模板）。本 fixture 利用「main 是单态化种子」
+// 的契约，构造一个合法但无入口的程序触发 monomorph_no_template。
+// 该错误路径另由 materialize/tests.rs 的 materialize_missing_template_errors 单测
+// 直接覆盖（materialize(module, Some("nonexistent")) → monomorph_no_template）。
+
+package fixtures.mir2_fail
+
+fun helper(): Int {
+  42
+}

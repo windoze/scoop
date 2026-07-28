@@ -1,0 +1,18 @@
+package fixtures.mir2
+
+import scoop.core.*
+
+open class Animal
+class Dog(val name: String) : Animal()
+
+fun asDog(a: Animal): String {
+  when (a) {
+    is Dog -> (a as Dog).name
+    else -> "unknown"
+  }
+}
+
+fun main() {
+  val d: Animal = Dog("rex")
+  println(asDog(d))
+}

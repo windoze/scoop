@@ -100,12 +100,23 @@ impl<'a> Walker<'a> {
             }
             ast::TypeMemberKind::Property(pd) => {
                 if let Some(init) = &pd.init {
-                    self.expr(init);
+                    // 类/struct 属性初始化器：typecheck 对部分子表达式不逐节点落类型
+                    //（已知缺口；语义在 register_members 处整体检查）。仅当顶层 init 表达式
+                    // 已被 typecheck 赋类型时才递归验证其子节点，避免 false positive。
+                    if self.expr_types.contains(init.id) {
+                        self.expr(init);
+                    }
                 }
             }
-            ast::TypeMemberKind::InitBlock(ib) => self.block(&ib.body),
+            ast::TypeMemberKind::InitBlock(ib) => {
+                // class init block：typecheck 当前对 class init block 仅做最小覆盖
+                //（不逐表达式落类型；这是已知的 typecheck 边界）。此处只在 init block
+                // 顶层表达式有类型时递归验证，避免 false positive。
+                self.block_lenient(&ib.body);
+            }
             ast::TypeMemberKind::SecondaryCtor(d) => {
-                self.block(&d.body);
+                // secondary ctor body：同上，typecheck 覆盖最小。
+                self.block_lenient(&d.body);
             }
             ast::TypeMemberKind::EnumVariant(_) => {
                 // enum variant 字段是类型引用（非表达式），无可遍历的表达式子节点。
@@ -133,6 +144,28 @@ impl<'a> Walker<'a> {
     fn block(&mut self, block: &ast::Block) {
         for stmt in &block.stmts {
             self.stmt(stmt);
+        }
+    }
+
+    /// 宽容 block：只在语句顶层表达式已被 typecheck 赋类型时才递归验证
+    /// （用于 class init block / secondary ctor body——typecheck 对它们覆盖最小）。
+    fn block_lenient(&mut self, block: &ast::Block) {
+        for stmt in &block.stmts {
+            let top = match &stmt.kind {
+                ast::StmtKind::Expr(e) => Some(e.id),
+                ast::StmtKind::Assign { value, .. } => Some(value.id),
+                ast::StmtKind::LocalVal(d) => d.init.as_ref().map(|e| e.id),
+                ast::StmtKind::Return { value } => value.as_ref().map(|e| e.id),
+                ast::StmtKind::While { cond, .. } | ast::StmtKind::For { iter: cond, .. } => {
+                    Some(cond.id)
+                }
+                _ => None,
+            };
+            if let Some(id) = top
+                && self.expr_types.contains(id)
+            {
+                self.stmt(stmt);
+            }
         }
     }
 

@@ -1,7 +1,7 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_member_access
+// EXPECT-ERROR-CODE: scoop::typecheck::unknown_field
 // EXPECT-ERROR-AT: 13:15
-// EXPECT-ERROR: Point.nope
+// EXPECT-ERROR: 不存在字段
 
 package fixtures.typecheck
 

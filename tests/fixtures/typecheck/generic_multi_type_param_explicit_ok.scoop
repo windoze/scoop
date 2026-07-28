@@ -1,0 +1,18 @@
+// EXPECT: pass
+// 多类型参数泛型函数显式实参替换：makePair<Int, String> 的返回类型
+// 应正确替换为包含两个不同类型实参的结果（而非全部替换为首个实参）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun makePair<A, B>(a: A, b: B): (A, B) {
+  (a, b)
+}
+
+fun main() {
+  val p = makePair<Int, String>(42, "hello")
+  val first: Int = p.0
+  val second: String = p.1
+  println(first)
+}

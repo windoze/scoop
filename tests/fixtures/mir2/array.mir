@@ -1,0 +1,34 @@
+Module {
+    items: [
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Array<Int>, source: Temp },
+                LocalDecl { label: local#18317e4e, name: Some("xs"), ty: Array<Int>, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: T, source: Temp },
+                LocalDecl { label: local#16317b28, name: Some("first"), ty: T, source: Source },
+                LocalDecl { label: local#1d31862d, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = MakeArray([Const(Int(1)), Const(Int(2)), Const(Int(3))], Array<Int>),
+                    local#18317e4e = Use(Local(local#19317fe1)),
+                    local#17317cbb = IndexAccess(Local(local#18317e4e), [Const(Int(0))], T),
+                    local#16317b28 = Use(Local(local#17317cbb)),
+                    local#1d31862d = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#16317b28)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

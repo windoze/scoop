@@ -1,0 +1,10 @@
+package fixtures.mir2
+
+fun apply(f: (Int) -> Int, x: Int): Int {
+  f(x)
+}
+
+fun main() {
+  val r = apply({ it + 1 }, 41)
+  println(r)
+}

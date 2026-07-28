@@ -1,0 +1,10 @@
+package fixtures.mir2
+
+fun add(a: Int, b: Int): Int {
+  a + b
+}
+
+fun main() {
+  val r = add(1, 2)
+  println(r)
+}

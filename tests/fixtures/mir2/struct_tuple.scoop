@@ -1,0 +1,9 @@
+package fixtures.mir2
+
+struct Point(val x: Int, val y: Int)
+
+fun main() {
+  val p = Point(1, 2)
+  val t = (p.x, p.y)
+  println(t)
+}

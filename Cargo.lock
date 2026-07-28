@@ -670,6 +670,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop2_mir"
+version = "0.1.0"
+dependencies = [
+ "scoop2_base",
+ "scoop2_hir",
+ "scoop2_syntax",
+]
+
+[[package]]
 name = "scoop2_syntax"
 version = "0.1.0"
 dependencies = [
@@ -682,6 +691,7 @@ version = "0.1.0"
 dependencies = [
  "scoop2_base",
  "scoop2_hir",
+ "scoop2_mir",
  "scoop2_syntax",
 ]
 

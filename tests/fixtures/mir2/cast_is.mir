@@ -1,0 +1,100 @@
+Module {
+    items: [
+        Metadata { fqn: "fixtures.mir2.Animal", kind: Class },
+        Metadata { fqn: "fixtures.mir2.Dog", kind: Class },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.asDog",
+            name: "asDog",
+            ty: (Nothing) -> () / Pure,
+            params: [Param { name: "a", ty: Nothing, local: local#19317fe1 }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("a"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: None, ty: String, source: Temp },
+                LocalDecl { label: local#17317cbb, name: None, ty: Bool, source: Temp },
+                LocalDecl { label: local#16317b28, name: None, ty: Dog, source: Temp },
+                LocalDecl { label: local#1d31862d, name: None, ty: String, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#17317cbb = PatternMatch(Local(local#19317fe1), Is { ty: ty#205, negated: false }),
+                ],
+                terminator: Terminator { kind: CondBr(Local(local#17317cbb), bb#8f2c2975, bb#8e2c27e2), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                is_cleanup: false,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8f2c2975,
+                is_cleanup: false,
+                stmts: [
+                    local#16317b28 = Cast(Local(local#19317fe1), As, Dog),
+                    local#1d31862d = MemberAccess(Local(local#16317b28), name),
+                    local#18317e4e = Use(Local(local#1d31862d)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8c2c24bc), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8e2c27e2,
+                is_cleanup: false,
+                stmts: [
+                ],
+                terminator: Terminator { kind: CondBr(Const(Bool(true)), bb#892c2003, bb#882c1e70), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#892c2003,
+                is_cleanup: false,
+                stmts: [
+                    local#18317e4e = Use(Const(String("unknown"))),
+                ],
+                terminator: Terminator { kind: Goto(bb#8c2c24bc), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#882c1e70,
+                is_cleanup: false,
+                stmts: [
+                    local#18317e4e = Use(Const(Unit)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8c2c24bc), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Dog, source: Temp },
+                LocalDecl { label: local#18317e4e, name: Some("d"), ty: Dog, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: String, source: Temp },
+                LocalDecl { label: local#16317b28, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = ClassCtor(fixtures.mir2.Dog, [Const(String("rex"))]),
+                    local#18317e4e = Use(Local(local#19317fe1)),
+                    local#17317cbb = Call(Direct { callee: "fixtures.mir2.asDog", type_args: , intrinsic: false }, [Local(local#18317e4e)], transport={trace:true, box:false}),
+                    local#16317b28 = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#17317cbb)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

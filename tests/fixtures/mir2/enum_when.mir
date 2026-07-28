@@ -1,0 +1,120 @@
+Module {
+    items: [
+        Metadata { fqn: "fixtures.mir2.Color", kind: Enum },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.value",
+            name: "value",
+            ty: (Nothing) -> () / Pure,
+            params: [Param { name: "c", ty: Nothing, local: local#19317fe1 }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("c"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#17317cbb, name: None, ty: Bool, source: Temp },
+                LocalDecl { label: local#16317b28, name: Some("r"), ty: Int, source: Source },
+                LocalDecl { label: local#1d31862d, name: None, ty: Bool, source: Temp },
+                LocalDecl { label: local#1c31849a, name: Some("g"), ty: Int, source: Source },
+                LocalDecl { label: local#1b318307, name: None, ty: Bool, source: Temp },
+                LocalDecl { label: local#1a318174, name: Some("b"), ty: Int, source: Source },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#17317cbb = PatternMatch(Local(local#19317fe1), Variant { enum_fqn: sym#5, variant_name: sym#5, args: [Bind { name: sym#6, ty: ty#10 }] }),
+                ],
+                terminator: Terminator { kind: CondBr(Local(local#17317cbb), bb#8f2c2975, bb#8e2c27e2), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                is_cleanup: false,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8f2c2975,
+                is_cleanup: false,
+                stmts: [
+                    local#16317b28 = Use(Local(local#19317fe1)),
+                    local#18317e4e = Use(Local(local#16317b28)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8c2c24bc), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8e2c27e2,
+                is_cleanup: false,
+                stmts: [
+                    local#1d31862d = PatternMatch(Local(local#19317fe1), Variant { enum_fqn: sym#8, variant_name: sym#8, args: [Bind { name: sym#9, ty: ty#10 }] }),
+                ],
+                terminator: Terminator { kind: CondBr(Local(local#1d31862d), bb#892c2003, bb#882c1e70), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#892c2003,
+                is_cleanup: false,
+                stmts: [
+                    local#1c31849a = Use(Local(local#19317fe1)),
+                    local#18317e4e = Use(Local(local#1c31849a)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8c2c24bc), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#882c1e70,
+                is_cleanup: false,
+                stmts: [
+                    local#1b318307 = PatternMatch(Local(local#19317fe1), Variant { enum_fqn: sym#10, variant_name: sym#10, args: [Bind { name: sym#11, ty: ty#10 }] }),
+                ],
+                terminator: Terminator { kind: CondBr(Local(local#1b318307), bb#8b2c2329, bb#8a2c2196), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8b2c2329,
+                is_cleanup: false,
+                stmts: [
+                    local#1a318174 = Use(Local(local#19317fe1)),
+                    local#18317e4e = Use(Local(local#1a318174)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8c2c24bc), unwind: NoUnwind },
+                },
+                BasicBlock {
+                label: bb#8a2c2196,
+                is_cleanup: false,
+                stmts: [
+                    local#18317e4e = Use(Const(Unit)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8c2c24bc), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Nothing, source: Temp },
+                LocalDecl { label: local#18317e4e, name: Some("c"), ty: Nothing, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#16317b28, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = EnumVariant(fixtures.mir2.Color.Red, [Const(Int(42))]),
+                    local#18317e4e = Use(Local(local#19317fe1)),
+                    local#17317cbb = Call(Direct { callee: "fixtures.mir2.value", type_args: , intrinsic: false }, [Local(local#18317e4e)], transport={trace:false, box:false}),
+                    local#16317b28 = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#17317cbb)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

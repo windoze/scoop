@@ -1,0 +1,39 @@
+Module {
+    items: [
+        Metadata { fqn: "fixtures.mir2.Point", kind: Struct },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Point, source: Temp },
+                LocalDecl { label: local#18317e4e, name: Some("p"), ty: Point, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#16317b28, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#1d31862d, name: None, ty: (Int, Int), source: Temp },
+                LocalDecl { label: local#1c31849a, name: Some("t"), ty: (Int, Int), source: Source },
+                LocalDecl { label: local#1b318307, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = ClassCtor(fixtures.mir2.Point, [Const(Int(1)), Const(Int(2))]),
+                    local#18317e4e = Use(Local(local#19317fe1)),
+                    local#17317cbb = MemberAccess(Local(local#18317e4e), x),
+                    local#16317b28 = MemberAccess(Local(local#18317e4e), y),
+                    local#1d31862d = MakeTuple([Local(local#17317cbb), Local(local#16317b28)]),
+                    local#1c31849a = Use(Local(local#1d31862d)),
+                    local#1b318307 = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#1c31849a)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

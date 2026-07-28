@@ -11,3 +11,4 @@ path = "src/main.rs"
 scoop2_base = { path = "../scoop2_base" }
 scoop2_syntax = { path = "../scoop2_syntax" }
 scoop2_hir = { path = "../scoop2_hir" }
+scoop2_mir = { path = "../scoop2_mir" }

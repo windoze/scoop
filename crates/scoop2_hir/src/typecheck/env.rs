@@ -12,7 +12,7 @@ use scoop2_base::{FileId, Interner, Symbol};
 use crate::resolve::imports::ImportTable;
 use crate::resolve::index::Index;
 use crate::syntax::ast::{File, ItemKind, TypeMember, TypeMemberKind, TypeParamList, ValBinding};
-use crate::ty::{TypeId, TypeParamType, TypeStore};
+use crate::ty::{EffectRow, TypeId, TypeParamType, TypeStore};
 
 use super::lower::TypeLowering;
 
@@ -397,8 +397,11 @@ impl<'i> TypeEnv<'i> {
         files: Vec<crate::hir::TypedFile>,
     ) -> crate::hir::TypedHir {
         use crate::hir::{TypedHir, TypedSignature};
+        let index = self.index;
+        let interner_ref = &interner;
+        let index_ref = &index;
         // 把私有 Signature 表转换为公开 TypedSignature 表。
-        let convert_sigs = |sigs: Vec<Signature>| -> Vec<TypedSignature> {
+        let convert_sigs = |sigs: Vec<Signature>, store: &mut TypeStore| -> Vec<TypedSignature> {
             sigs.into_iter()
                 .map(|s| TypedSignature {
                     param_types: s.params,
@@ -406,13 +409,18 @@ impl<'i> TypeEnv<'i> {
                     type_param_count: s.type_param_count,
                     param_names: s.param_names,
                     has_defaults: s.has_defaults,
+                    effect_row: resolve_signature_effect_row(store, index_ref, interner_ref, s.effect.as_ref()),
+                    has_vararg: s.has_vararg,
+                    decl_span: s.decl_span,
+                    decl_file: s.decl_file,
                 })
                 .collect()
         };
+        let mut store = self.store;
         let top_level_funs = self
             .signatures
             .into_iter()
-            .map(|(k, v)| (k, convert_sigs(v)))
+            .map(|(k, v)| (k, convert_sigs(v, &mut store)))
             .collect();
         let member_funs = self
             .member_signatures
@@ -420,17 +428,30 @@ impl<'i> TypeEnv<'i> {
             .map(|(k, m)| {
                 (
                     k,
-                    m.into_iter().map(|(mk, v)| (mk, convert_sigs(v))).collect(),
+                    m.into_iter().map(|(mk, v)| (mk, convert_sigs(v, &mut store))).collect(),
                 )
             })
             .collect();
         let ctor_signatures = self
             .ctor_signatures
             .into_iter()
-            .map(|(k, v)| (k, convert_sigs(v)))
+            .map(|(k, v)| (k, convert_sigs(v, &mut store)))
+            .collect();
+        let type_constraints = self
+            .type_constraints
+            .into_iter()
+            .map(|(k, (params, cons))| {
+                (
+                    k,
+                    crate::hir::TypeConstraintsSnapshot {
+                        type_params: params,
+                        constraints: cons,
+                    },
+                )
+            })
             .collect();
         TypedHir {
-            store: self.store,
+            store,
             interner,
             top_level_funs,
             member_funs,
@@ -438,9 +459,75 @@ impl<'i> TypeEnv<'i> {
             ctor_signatures,
             top_level_vals: self.top_level_vals,
             enum_variants: self.enum_variants,
+            type_constraints,
             files,
         }
     }
+}
+
+/// 把签名的 effect 行 AST（`Option<EffectRowExpr>`）解析为规范化的 [`EffectRow`]。
+///
+/// 与 [`TypeLowering::lower_effect_row`] 同语义（宽容降级，不报 unresolved），
+/// 但作为独立函数可在 `into_typed_hir` 末尾对每条签名快照调用，避免在签名构造点
+/// 散落 effect 行解析。effect 行参数（`<eff E>`）无声明上下文，按短名保留为 Param。
+fn resolve_signature_effect_row(
+    store: &mut TypeStore,
+    index: &Index,
+    interner: &Interner,
+    effect: Option<&crate::syntax::ast::EffectRowExpr>,
+) -> EffectRow {
+    use crate::resolve::symbol::NominalCategory;
+    use crate::ty::{NominalType, TypeParamType};
+    let Some(eff) = effect else {
+        return EffectRow::pure();
+    };
+    let mut terms: Vec<TypeId> = Vec::new();
+    for term in &eff.terms {
+        let Some(last) = term.path.segments.last() else {
+            continue;
+        };
+        let last_name = interner.resolve(last.symbol);
+        // `Pure` 项不计入行。
+        if last_name == "Pure" {
+            continue;
+        }
+        // 单段名：可能是 eff 行参数（`<eff E>`）→ 保留为 Param。
+        if term.path.segments.len() == 1 {
+            let tp = TypeParamType {
+                name: last.symbol,
+                file: scoop2_base::FileId(0),
+                span: last.span,
+            };
+            terms.push(store.param(tp));
+            continue;
+        }
+        // 多段名：拼 FQN，查 index。
+        let fqn_text = term
+            .path
+            .segments
+            .iter()
+            .map(|s| interner.resolve(s.symbol).to_string())
+            .collect::<Vec<_>>()
+            .join(".");
+        if let Some(fqn) = interner.get(&fqn_text)
+            && index.category(fqn).is_some()
+        {
+            let is_ref = matches!(index.category(fqn), Some(NominalCategory::Class | NominalCategory::Interface | NominalCategory::Effect));
+            let nominal = NominalType {
+                fqn,
+                args: vec![],
+                eff: None,
+            };
+            let ty = if is_ref {
+                store.ref_nominal(nominal)
+            } else {
+                store.value_nominal(nominal)
+            };
+            terms.push(ty);
+        }
+        // 未解析 → 跳过（宽容）。
+    }
+    EffectRow::from_terms(terms)
 }
 
 /// 把文件的**顶层函数**（非扩展、非成员）签名降级并登记进 `env.signatures`。

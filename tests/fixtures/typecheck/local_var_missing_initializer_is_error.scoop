@@ -1,7 +1,7 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_expr
+// EXPECT-ERROR-CODE: scoop::typecheck::local_val_missing_initializer
 // EXPECT-ERROR-AT: 11:9
-// EXPECT-ERROR: 局部 val/var（缺少 initializer）
+// EXPECT-ERROR: 局部 val/var 必须提供 initializer
 
 package fixtures.typecheck
 

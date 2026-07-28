@@ -1,0 +1,82 @@
+Module {
+    items: [
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.apply",
+            name: "apply",
+            ty: (Nothing, Nothing) -> () / Pure,
+            params: [Param { name: "f", ty: Nothing, local: local#19317fe1 }, Param { name: "x", ty: Nothing, local: local#18317e4e }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("f"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: Some("x"), ty: Nothing, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#17317cbb = Call(FunValue { callee: Local(local#19317fe1) }, [Local(local#18317e4e)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: (), source: Temp },
+                LocalDecl { label: local#18317e4e, name: None, ty: () -> Nothing / Pure, source: Temp },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#16317b28, name: Some("r"), ty: Int, source: Source },
+                LocalDecl { label: local#1d31862d, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = MakeTuple([]),
+                    local#18317e4e = MakeClosure(Local(local#19317fe1), fixtures.mir2.main$closure1),
+                    local#17317cbb = Call(Direct { callee: "fixtures.mir2.apply", type_args: , intrinsic: false }, [Local(local#18317e4e), Const(Int(41))], transport={trace:false, box:false}),
+                    local#16317b28 = Use(Local(local#17317cbb)),
+                    local#1d31862d = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#16317b28)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main$closure1",
+            name: "$closure1",
+            ty: (()) -> Nothing / Pure,
+            params: [Param { name: "$env", ty: (), local: local#19317fe1 }, Param { name: "it", ty: Any, local: local#18317e4e }],
+            return_ty: Nothing,
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("$env"), ty: (), source: Source },
+                LocalDecl { label: local#18317e4e, name: Some("it"), ty: Any, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#17317cbb = Call(Direct { callee: "plus", type_args: , intrinsic: false }, [Const(Int(1))], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Local(local#17317cbb)), unwind: Propagate },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

@@ -17,6 +17,17 @@ impl NodeId {
     pub fn as_usize(self) -> usize {
         self.0 as usize
     }
+
+    /// 从原始 u32 构造（仅供语义阶段 / 测试用；正常 NodeId 应由 parser 分配）。
+    pub fn from_u32(raw: u32) -> Self {
+        NodeId(raw)
+    }
+}
+
+impl Default for NodeId {
+    fn default() -> Self {
+        NodeId(0)
+    }
 }
 
 impl fmt::Debug for NodeId {

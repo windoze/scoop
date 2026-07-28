@@ -1,0 +1,54 @@
+Module {
+    items: [
+        Metadata { fqn: "fixtures.mir2.Result", kind: Enum },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.f",
+            name: "f",
+            ty: (Nothing) -> () / Pure,
+            params: [Param { name: "r", ty: Nothing, local: local#19317fe1 }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("r"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: Some("v"), ty: Nothing, source: Source },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#18317e4e = Use(Local(local#19317fe1)),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Nothing, source: Temp },
+                LocalDecl { label: local#18317e4e, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#17317cbb, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                is_cleanup: false,
+                stmts: [
+                    local#19317fe1 = EnumVariant(fixtures.mir2.Result.Ok, [Const(Int(42))]),
+                    local#18317e4e = Call(Direct { callee: "fixtures.mir2.f", type_args: , intrinsic: false }, [Local(local#19317fe1)], transport={trace:false, box:false}),
+                    local#17317cbb = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#18317e4e)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit), unwind: NoUnwind },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}
