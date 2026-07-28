@@ -2437,7 +2437,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         return self.ctor_call(ctor_fqn, args, span, explicit_type_args);
                     }
                 }
-                return self.resolve_top_level_call(fqn, args, span);
+                return self.resolve_top_level_call(fqn, args, span, explicit_type_args);
             }
             // enum variant ctor（resolve 解析到 TopLevelValue，但实际是 variant 调用）。
             if let Some(ResolvedValue::TopLevelValue { fqn }) = resolved {
@@ -3779,7 +3779,105 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     /// 顶层函数重载解析：单候选 → 直接检查（arity / 实参）；多候选 → 适用性过滤。
-    fn resolve_top_level_call(&mut self, fqn: Symbol, args: &[CallArg], span: Span) -> TypeId {
+    /// 泛型函数调用的显式类型实参替换返回类型，并对 FunPtr 结果做 native-ABI 检查。
+    fn subst_return_with_explicit_args(
+        &mut self,
+        sig: &Signature,
+        explicit_type_args: &[crate::syntax::ast::TypeArg],
+        span: Span,
+    ) -> TypeId {
+        if explicit_type_args.is_empty() {
+            return sig.return_ty;
+        }
+        // 降级显式类型实参。
+        let explicit_arg_types: Vec<TypeId> = explicit_type_args
+            .iter()
+            .filter_map(|a| match &a.kind {
+                crate::syntax::ast::TypeArgKind::Type(t) => Some(self.lower_type(t)),
+                _ => None,
+            })
+            .collect();
+        if explicit_arg_types.is_empty() {
+            return sig.return_ty;
+        }
+        // 用第一个显式类型实参替换返回类型中的 Param（简化：单类型参数）。
+        let subst_arg = explicit_arg_types
+            .first()
+            .copied()
+            .unwrap_or_else(|| self.env.store.nothing());
+        let substituted = self.subst_all_params(sig.return_ty, subst_arg);
+        // 若结果是 FunPtr<F>，对 F 做 native-ABI 签名检查。
+        let nominal_args = match self.env.store.kind(substituted) {
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+            | TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => Some(n.clone()),
+            _ => None,
+        };
+        if let Some(n) = nominal_args {
+            let name = self.env.interner.resolve(n.fqn);
+            let stripped = name.strip_prefix("scoop.unsafe.").unwrap_or(name);
+            if stripped == "FunPtr"
+                && let Some(&f_arg) = n.args.first()
+                && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) =
+                    self.env.store.kind(f_arg)
+            {
+                if !ft.effects.is_pure() {
+                    self.diags
+                        .push(crate::typecheck::diagnostics::funptr_type_arg_must_be_pure(
+                            span,
+                        ));
+                } else {
+                    let has_type_param = ft
+                        .params
+                        .iter()
+                        .any(|&p| matches!(self.env.store.kind(p), TypeKind::Param(_)))
+                        || matches!(self.env.store.kind(ft.return_ty), TypeKind::Param(_));
+                    if !has_type_param {
+                        let mut bad: Option<String> = None;
+                        for &p in &ft.params {
+                            if !crate::typecheck::extern_fn::is_native_abi_value_type(self.env, p) {
+                                bad = Some(crate::ty::render_type(
+                                    &self.env.store,
+                                    self.env.interner,
+                                    p,
+                                    false,
+                                ));
+                                break;
+                            }
+                        }
+                        if bad.is_none()
+                            && !crate::typecheck::extern_fn::is_native_abi_value_type(
+                                self.env,
+                                ft.return_ty,
+                            )
+                        {
+                            bad = Some(crate::ty::render_type(
+                                &self.env.store,
+                                self.env.interner,
+                                ft.return_ty,
+                                false,
+                            ));
+                        }
+                        if let Some(found) = bad {
+                            self.diags.push(
+                            crate::typecheck::diagnostics::funptr_signature_not_supported_by_native_abi(
+                                &found, span,
+                            ),
+                        );
+                        }
+                    }
+                }
+            }
+        }
+        substituted
+    }
+
+    fn resolve_top_level_call(
+        &mut self,
+        fqn: Symbol,
+        args: &[CallArg],
+        span: Span,
+        explicit_type_args: &[crate::syntax::ast::TypeArg],
+    ) -> TypeId {
         // scoop.thread.threadSpawn：线程入口必须在静态上等价于 Pure!。
         let callee_name = self.env.interner.resolve(fqn);
         let stripped = callee_name
@@ -3855,7 +3953,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 // 然后将 E 替换到后续参数的嵌套 effect row 中做类型检查。
                 self.check_eff_param_args(&sig, &arg_types, args, span);
                 self.record_callee_effects(&sig, args, span);
-                return sig.return_ty;
+                // 显式类型实参替换返回类型中的类型参数。
+                let ret = self.subst_return_with_explicit_args(&sig, explicit_type_args, span);
+                return ret;
             }
             // 多候选：按 bound 特异性比较（bound1 <: bound2 → 更具体）。
             let bound_of = |s: &Signature| s.type_param_bounds.first().and_then(|b| *b);
