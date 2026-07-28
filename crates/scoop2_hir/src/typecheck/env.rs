@@ -531,6 +531,13 @@ pub fn register_top_level_signatures(
         let tpc = tp_map.len();
         let unit_ty = env.store.unit();
         let (prb, pvb) = collect_param_kind_bounds(d.type_params.as_ref(), d.where_clause.as_ref());
+        // 收集 effect 行参数名（`<eff E = Pure>` 中的 E）。
+        let eff_param_names: HashSet<Symbol> = d
+            .type_params
+            .iter()
+            .flat_map(|tpl| tpl.effect_row.iter())
+            .map(|er| er.name.symbol)
+            .collect();
         let sig = {
             let mut lower = TypeLowering::with_bounds(
                 env,
@@ -541,6 +548,7 @@ pub fn register_top_level_signatures(
                 prb,
                 pvb,
             );
+            lower.set_eff_params(eff_param_names);
             let params: Vec<TypeId> = d
                 .params
                 .iter()

@@ -24,7 +24,7 @@ use crate::syntax::ast::{
     self, AssignTargetKind, BinaryOp, Block, CallArg, CastOp, Expr, ExprKind, FunBody, MemberName,
     Param, Stmt, StmtKind, StructLitField, TypeRef, TypeRefKind, UnaryOp, ValBinding,
 };
-use crate::ty::{EffectRow, FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
+use crate::ty::{FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
 
 use super::diagnostics;
 use super::env::{Signature, TypeEnv};
@@ -2754,6 +2754,38 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         false
     }
 
+    /// 将 effect 类型名解析为 nominal TypeId（用于 lambda body effect 构造 EffectRow）。
+    fn effect_type_to_typeid(&mut self, name: &str) -> Option<TypeId> {
+        // 候选 FQN：优先 package prefix（用户 effect），再 scoop.core（prelude），再裸名。
+        // 避免裸名 `IO` 命中 interner 中残留的非 FQN 符号而非 `fixtures.typecheck.IO`。
+        let prefix = self.package_prefix.clone();
+        let candidates = [
+            format!("{}.{}", prefix, name),
+            format!("scoop.core.{}", name),
+            name.to_string(),
+        ];
+        for candidate in &candidates {
+            if let Some(sym) = self.env.interner.get(candidate) {
+                // 仅接受在 Index 中注册为类型（含 Effect category）的 FQN。
+                if self.env.index.category(sym).is_none() {
+                    continue;
+                }
+                let is_ref = self.env.is_reference_nominal(sym);
+                let nominal = NominalType {
+                    fqn: sym,
+                    args: vec![],
+                    eff: None,
+                };
+                return Some(if is_ref {
+                    self.env.store.ref_nominal(nominal)
+                } else {
+                    self.env.store.value_nominal(nominal)
+                });
+            }
+        }
+        None
+    }
+
     /// 记录被调用函数声明的 effect 到 performed_effects（effect 传播）。
     /// 在 handle/lambda 体内不记录（被捕获）。
     /// `<eff E = Pure>` 泛型函数的嵌套 effect row 参数检查：
@@ -3808,8 +3840,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             let eff_var = self.eff_var_of_fqn_or_sig(&sig);
             let mut subst_params = sig.params.clone();
             if let Some(ev) = eff_var {
-                let arg_types_pre: Vec<TypeId> =
-                    args.iter().map(|a| self.walk_expr(&a.value)).collect();
+                // 计算预实参类型（块实参按函数类型参数降级为 lambda）。
+                let arg_types_pre: Vec<TypeId> = args
+                    .iter()
+                    .enumerate()
+                    .map(|(i, a)| self.walk_call_arg_for_inference(a, sig.params.get(i).copied()))
+                    .collect();
                 let inferred = self.infer_eff_var_from_arg(&ev, &sig, &arg_types_pre);
                 if !inferred.is_empty() {
                     subst_params = sig
@@ -4048,7 +4084,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.walk_expr(&a.value)
                 }
             } else {
-                self.walk_expr(&a.value)
+                // 裸块实参 `{ ... }` 且期望参数是函数类型 → 按零参 lambda 降级（捕获 effect）。
+                self.walk_call_arg_for_inference(a, param_types.get(i).copied())
             };
             if a.name.is_some() {
                 continue;
@@ -4610,23 +4647,39 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let saved_fn = self.in_function_body;
         self.in_function_body = false;
         self.lambda_depth += 1;
-        self.effect_suspend_depth += 1;
+        // 记录 body 前的 performed_effects 长度；lambda body 执行的 effect 用于构造函数类型。
+        // 不增加 effect_suspend_depth（需要采集 body 的 effect 以构造函数类型的 effect row）。
+        let body_eff_start = self.performed_effects.len();
         let return_ty = match &lambda.body {
             ast::LambdaBody::Block(b) => self.walk_block(b),
             ast::LambdaBody::Expr(e) => self.walk_expr(e),
         };
         self.lambda_depth -= 1;
-        self.effect_suspend_depth -= 1;
         self.in_function_body = saved_fn;
         // 清理隐式 `it`。
         if inject_it && let Some(it_sym) = self.env.interner.get("it") {
             self.locals.remove(&it_sym);
         }
+        // 收集 lambda body 执行的 effect，构造函数类型的 effect row。
+        // 这些 effect 不应传播到外层函数（lambda 的 effect 由其函数类型携带，
+        // 由调用点的 assignability 检查决定是否允许）。
+        let body_effects = self.performed_effects[body_eff_start..].to_vec();
+        self.performed_effects.truncate(body_eff_start);
+        // 仅保留可解析为 nominal 的 effect（effect 类型名 → FQN nominal TypeId）。
+        let mut eff_terms: Vec<TypeId> = Vec::new();
+        for (eff_name, _) in &body_effects {
+            if let Some(ty) = self.effect_type_to_typeid(eff_name) {
+                if !eff_terms.contains(&ty) {
+                    eff_terms.push(ty);
+                }
+            }
+        }
+        let effects = crate::ty::EffectRow::from_terms(eff_terms);
         self.env.store.function(FunctionType {
             receiver: None,
             params: param_types,
             return_ty,
-            effects: EffectRow::pure(),
+            effects,
             closed: false,
         })
     }
@@ -4645,6 +4698,30 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         } else {
             None
         }
+    }
+
+    /// 计算调用实参的类型（用于 eff 变量推断）。
+    /// 若实参是裸块（`{ ... }`）且期望参数是函数类型，则按零参 lambda 降级，
+    /// 以捕获块体执行的 effect（供 `<eff E = Pure>` 推断）。
+    fn walk_call_arg_for_inference(&mut self, arg: &CallArg, expected_pt: Option<TypeId>) -> TypeId {
+        let is_block = matches!(
+            &arg.value.kind,
+            ExprKind::Block(_) | ExprKind::DoBlock(_)
+        );
+        let expected_is_fn = expected_pt
+            .is_some_and(|pt| matches!(self.env.store.kind(pt), TypeKind::Ref(crate::ty::RefTypeKind::Function(_))));
+        if is_block && expected_is_fn
+            && let ExprKind::Block(b) | ExprKind::DoBlock(b) = &arg.value.kind
+        {
+            // 合成零参 lambda：block 体作为 lambda body。
+            let lam = ast::LambdaExpr {
+                is_safe: false,
+                params: vec![],
+                body: ast::LambdaBody::Block(b.clone()),
+            };
+            return self.type_lambda_with_expected(&lam, None);
+        }
+        self.walk_expr(&arg.value)
     }
 
     /// `when` 表达式：walk subject + 每分支体；返回各分支体的 LUB（同类型 → 该类型；否则 Unit）。

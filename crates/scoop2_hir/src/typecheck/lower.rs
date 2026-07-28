@@ -36,6 +36,9 @@ pub struct TypeLowering<'a, 'i> {
     param_ref_bounds: HashSet<Symbol>,
     /// 当前作用域声明了 `value` bound 的类型参数名集合。
     param_value_bounds: HashSet<Symbol>,
+    /// 当前声明的 effect 行参数名（`<eff E = Pure>` 中的 E）。
+    /// 在 effect row 降级时保留为 `TypeKind::Param`，供 typecheck 推断替换。
+    eff_params: HashSet<Symbol>,
 }
 
 impl<'a, 'i> TypeLowering<'a, 'i> {
@@ -56,6 +59,7 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             alias_depth: 0,
             param_ref_bounds: HashSet::new(),
             param_value_bounds: HashSet::new(),
+            eff_params: HashSet::new(),
         }
     }
 
@@ -79,7 +83,13 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             alias_depth: 0,
             param_ref_bounds,
             param_value_bounds,
+            eff_params: HashSet::new(),
         }
+    }
+
+    /// 设置当前声明的 effect 行参数名（`<eff E = Pure>` 中的 E）。
+    pub fn set_eff_params(&mut self, names: HashSet<Symbol>) {
+        self.eff_params = names;
     }
 
     /// 降级一个 `TypeRef`。无法解析时记录诊断并返回 `Nothing`（bottom，宽容降级）。
@@ -144,12 +154,23 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
         let mut terms: Vec<TypeId> = Vec::new();
         for term in &eff.terms {
             // Pure 项不计入行。
-            if term
-                .path
-                .segments
-                .last()
+            let last_seg = term.path.segments.last();
+            if last_seg
                 .is_some_and(|s| self.env.interner.resolve(s.symbol) == "Pure")
             {
+                continue;
+            }
+            // eff 行参数（`<eff E>` 中的 E）：保留为 Param，供 typecheck 推断替换。
+            if term.path.segments.len() == 1
+                && let Some(seg) = last_seg
+                && self.eff_params.contains(&seg.symbol)
+            {
+                let tp = crate::ty::TypeParamType {
+                    name: seg.symbol,
+                    file: scoop2_base::FileId(0),
+                    span: seg.span,
+                };
+                terms.push(self.env.store.param(tp));
                 continue;
             }
             // 尝试解析为 nominal（不带类型实参——effect 行按 FQN 短名比较）。
