@@ -5307,7 +5307,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             _ => None,
                         }
                     });
-                if let Some(rargs) = receiver_args {
+                if let Some(rargs) = receiver_args
+                    && !rargs.is_empty()
+                {
                     // sig.return_ty 中的 Param 替换为 rargs 对应位置。
                     // 简化：对所有 Param 类型，用 receiver 的第一个类型实参替换。
                     let subst_arg = rargs
@@ -5330,7 +5332,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     && arg_types.iter().all(|a| !self.env.store.is_nothing(*a))
                 {
                     self.diags
-                        .push(diagnostics::generic_type_arg_not_inferred(name_span));
+                        .push(diagnostics::generic_type_arg_not_inferred(span));
                 }
             }
             return self.env.store.nothing();

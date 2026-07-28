@@ -1571,7 +1571,7 @@ pub fn invalid_annotation_target_name(name: &str, span: Span) -> Diagnostic {
 pub fn generic_type_arg_not_inferred(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::generic_type_arg_not_inferred",
-        "泛型函数作为值使用时无法推断类型实参，需要显式类型标注",
+        "无法推断泛型类型实参，需要显式类型实参或类型标注",
     )
     .with_primary(span, "这里")
 }

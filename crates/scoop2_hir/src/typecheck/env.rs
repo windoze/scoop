@@ -821,7 +821,11 @@ fn register_body_members(
                         has_vararg: d.params.iter().any(|p| p.is_vararg),
                         params,
                         return_ty,
-                        type_param_count: 0,
+                        type_param_count: d
+                            .type_params
+                            .as_ref()
+                            .map(|tp| tp.params.len())
+                            .unwrap_or(0),
                         type_param_bounds: lower_type_param_bounds(
                             d.type_params.as_ref(),
                             &mut lower,
