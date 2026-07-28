@@ -75,7 +75,14 @@ pub fn run_typecheck(
     let mut user_files: Vec<UserFile> = Vec::new();
     for inp in inputs.iter().filter(|i| i.origin == InputOrigin::User) {
         let prefix = collect::package_prefix_of(inp.file, interner);
-        let imports = imports::ImportTable::collect(inp.file, inp.file_id, &index, interner, diags);
+        let imports = imports::ImportTable::collect_with_origin(
+            inp.file,
+            inp.file_id,
+            &index,
+            interner,
+            diags,
+            false,
+        );
         type_refs::resolve_file_type_refs(inp.file, &index, &imports, interner, diags, &prefix);
         let mut resolution = Resolution::new();
         body::resolve_file_bodies(
@@ -102,7 +109,15 @@ pub fn run_typecheck(
     let mut file_state: Vec<(usize, String, imports::ImportTable)> = Vec::new();
     for (i, inp) in inputs.iter().enumerate() {
         let prefix = collect::package_prefix_of(inp.file, interner);
-        let imports = imports::ImportTable::collect(inp.file, inp.file_id, &index, interner, diags);
+        let is_sysroot = inp.origin == InputOrigin::Sysroot;
+        let imports = imports::ImportTable::collect_with_origin(
+            inp.file,
+            inp.file_id,
+            &index,
+            interner,
+            diags,
+            is_sysroot,
+        );
         file_state.push((i, prefix, imports));
     }
     // 注册顺序：sysroot 文件先于用户文件（typealias / 签名等需 sysroot 先注册）。

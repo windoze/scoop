@@ -31,6 +31,8 @@ pub struct ImportTable {
     explicits: HashMap<Symbol, (Symbol, Span)>,
     /// 通配包前缀 FQN（含 prelude）。
     wildcards: Vec<Symbol>,
+    /// 是否在收集 sysroot 文件的导入（sysroot 文件可自由导入其他 sysroot 包）。
+    collecting_sysroot: bool,
 }
 
 impl ImportTable {
@@ -46,7 +48,20 @@ impl ImportTable {
         interner: &mut Interner,
         diags: &mut DiagnosticSink,
     ) -> ImportTable {
+        Self::collect_with_origin(file, _file_id, index, interner, diags, false)
+    }
+
+    /// 同 [`collect`]，但可指定是否为 sysroot 文件（sysroot 可自由导入其他 sysroot 包）。
+    pub fn collect_with_origin(
+        file: &File,
+        _file_id: FileId,
+        index: &Index,
+        interner: &mut Interner,
+        diags: &mut DiagnosticSink,
+        is_sysroot: bool,
+    ) -> ImportTable {
         let mut t = ImportTable::new();
+        t.collecting_sysroot = is_sysroot;
         for p in PRELUDE_WILDCARDS {
             t.wildcards.push(interner.intern(p));
         }
@@ -131,6 +146,21 @@ fn path_text(imp: &ImportDecl, interner: &Interner) -> String {
         .map(|seg| interner.resolve(seg.symbol))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+/// auto-dependency 包：这些 sysroot 包无需显式声明依赖即可通过 wildcard 导入。
+/// 其他 sysroot 包（scoop.thread / scoop.sync 等）需要显式依赖声明（build-system 级）。
+/// 当前前端无 manifest，无法区分；保留定义供未来 manifest-aware 阶段使用。
+#[allow(dead_code)]
+fn is_auto_dependency(package: &str) -> bool {
+    matches!(
+        package,
+        "scoop.core"
+            | "scoop.collections"
+            | "scoop.unsafe"
+            | "scoop.delegates"
+            | "scoop.lang.string"
+    )
 }
 
 #[cfg(test)]
