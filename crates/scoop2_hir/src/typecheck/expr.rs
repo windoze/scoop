@@ -1861,6 +1861,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                     &[],
                                     expr.span,
                                     expr.span,
+                                    false,
                                 );
                             }
                             // 接收者是已知 nominal 但缺运算符方法 → 报错。
@@ -1914,6 +1915,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                     &[],
                                     expr.span,
                                     expr.span,
+                                    false,
                                 );
                             }
                             if !self.env.store.is_nothing(t)
@@ -2215,7 +2217,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let Some(get_sym) = self.env.interner.get("get") else {
                     return self.unsupported("下标访问（operator get 未注册）", expr.span);
                 };
-                self.method_call_return_type(rt, get_sym, &idx_types, &[], expr.span, expr.span)
+                self.method_call_return_type(
+                    rt,
+                    get_sym,
+                    &idx_types,
+                    &[],
+                    expr.span,
+                    expr.span,
+                    false,
+                )
             }
             ExprKind::InfixCall {
                 receiver,
@@ -2224,7 +2234,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             } => {
                 let rt = self.walk_expr(receiver);
                 let at = self.walk_expr(arg);
-                self.method_call_return_type(rt, name.symbol, &[at], &[], expr.span, name.span)
+                self.method_call_return_type(
+                    rt,
+                    name.symbol,
+                    &[at],
+                    &[],
+                    expr.span,
+                    name.span,
+                    false,
+                )
             }
             ExprKind::ClassLit { .. } => self.env.store.string(),
             ExprKind::ArrayLit(els) => {
@@ -2484,7 +2502,24 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.performed_effects.push((recv_name.to_string(), span));
                 }
             }
-            let rt = self.walk_expr(receiver);
+            let rt = if let ExprKind::Ident(recv_ident) = &receiver.kind
+                && !args.iter().any(|a| a.name.is_some())
+            {
+                let recv_name = self.env.interner.resolve(recv_ident.symbol);
+                // effect 类型名作为 receiver（`Make.make()` 的 Make）→ 返回 nominal 类型，
+                // 使方法查找能定位 effect operation。
+                // 仅在无命名实参时（`Echo.bump(receiver=...)` 的 receiver 命名实参
+                // 是 receiver-effect-op 专用语法，不走常规方法查找）。
+                if self.is_effect_type_name(recv_name)
+                    && let Some(ty) = self.effect_type_to_typeid(recv_name)
+                {
+                    ty
+                } else {
+                    self.walk_expr(receiver)
+                }
+            } else {
+                self.walk_expr(receiver)
+            };
             let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
             // Continuation.resume 步骤 effect 传播：`k.resume(v)` 的 effect 行为
             // `E + Raise<RuntimeError>`（E 为 `Continuation<..., eff E>` 的第三类型实参）。
@@ -2537,6 +2572,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         args,
                         span,
                         name.span,
+                        !explicit_type_args.is_empty(),
                     );
                 }
                 MemberName::TupleIndex { .. } => {}
@@ -5238,6 +5274,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 方法调用（`receiver.method(args)` / `receiver[args]` / `receiver until arg`）：
     /// 查 receiver nominal 类型的成员函数签名，按适用性选择，返回返回类型。
+    /// `has_explicit_type_args`：调用是否带显式类型实参（`obj.m<T>(x)`），用于抑制
+    /// generic_type_arg_not_inferred（显式提供时不需推断）。
+    #[allow(clippy::too_many_arguments)]
     fn method_call_return_type(
         &mut self,
         receiver_ty: TypeId,
@@ -5246,6 +5285,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         args: &[CallArg],
         span: Span,
         name_span: Span,
+        has_explicit_type_args: bool,
     ) -> TypeId {
         // Nothing 接收者（类型未知）→ lenient（返回 Nothing，不报错误）。
         if self.env.store.is_nothing(receiver_ty) {
@@ -5350,7 +5390,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     return substituted;
                 }
                 // 无 receiver 类型实参可推断：若返回类型仍含 Param 且无法从参数推断，报错。
-                // 检查参数类型是否含与返回类型相同的 Param（可从实参推断）。
+                // 但显式类型实参已提供（`obj.m<T>(x)`）时不报（T 已显式给出）。
                 let return_has_param =
                     matches!(self.env.store.kind(sig.return_ty), TypeKind::Param(_));
                 let params_have_matching_param = sig
@@ -5359,6 +5399,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .any(|p| matches!(self.env.store.kind(*p), TypeKind::Param(_)));
                 if return_has_param
                     && !params_have_matching_param
+                    && !has_explicit_type_args
                     && arg_types.iter().all(|a| !self.env.store.is_nothing(*a))
                 {
                     self.diags
@@ -5573,10 +5614,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         let owner_text = self.env.interner.resolve(*owner);
                         let params: Vec<String> =
                             sig.params.iter().map(|&p| self.describe(p)).collect();
-                        vs_parts.push(format!(
-                            "{owner_text}.{method_text}({})",
-                            params.join(", ")
-                        ));
+                        vs_parts.push(format!("{owner_text}.{method_text}({})", params.join(", ")));
                     }
                     let vs_desc = vs_parts.join(" vs ");
                     let mut diag = scoop2_base::diag::Diagnostic::error(
@@ -5584,7 +5622,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         format!("重载决议歧义：{vs_desc}: position 0"),
                     )
                     .with_primary(span, "这里")
-                    .with_help("reason: receiver 更具体但参数更宽泛（或反之），无法确定唯一最具体候选");
+                    .with_help(
+                        "reason: receiver 更具体但参数更宽泛（或反之），无法确定唯一最具体候选",
+                    );
                     // 添加候选声明处的 related 标注。
                     for (sig, owner) in &applicable {
                         let owner_text = self.env.interner.resolve(*owner);
@@ -5697,7 +5737,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             None
         }
     }
-
 }
 
 /// 收集模式中的绑定名（`Bind` / struct 简写）。
