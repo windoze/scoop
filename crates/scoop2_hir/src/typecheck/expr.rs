@@ -2641,10 +2641,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 n.strip_prefix("scoop.core.").unwrap_or(n).to_string()
             });
             let is_array = nominal.as_deref() == Some("Array");
-            let is_mutable_array = nominal.as_deref() == Some("MutableArray");
             let is_tuple = matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Tuple(_)));
-            let suggest = matches!(nominal.as_deref(), Some("MutableList" | "List"));
-            (is_array || is_mutable_array || is_tuple, suggest)
+            // MutableArray / MutableList / List 等集合需要 toArray() 桥接，不能直接 spread。
+            let suggest = matches!(
+                nominal.as_deref(),
+                Some("MutableArray" | "MutableList" | "List")
+            );
+            (is_array || is_tuple, suggest)
         };
         if !ok {
             self.diags

@@ -287,6 +287,17 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             args: lowered_args,
             eff: nominal_eff,
         };
+        // `FunPtr<F>` 的类型实参 F 必须是无 effect（Pure）的函数类型（C ABI 约束）。
+        let name = self.env.interner.resolve(fqn);
+        let stripped = name.strip_prefix("scoop.unsafe.").unwrap_or(name);
+        if stripped == "FunPtr"
+            && let Some(arg) = nominal.args.first()
+            && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = self.env.store.kind(*arg)
+            && !ft.effects.is_pure()
+        {
+            self.diags
+                .push(super::diagnostics::funptr_type_arg_must_be_pure(span));
+        }
         if self.env.is_reference_nominal(fqn) {
             self.env.store.ref_nominal(nominal)
         } else {

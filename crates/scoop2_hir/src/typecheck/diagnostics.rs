@@ -762,6 +762,16 @@ pub fn funptr_invoke_named_args_not_supported(span: Span) -> Diagnostic {
     .with_primary(span, "这里")
 }
 
+/// `scoop::typecheck::funptr_type_arg_must_be_pure`：`FunPtr<F>` 的类型实参 F
+/// 必须是无 effect 的函数类型（C ABI 不支持 effect）。
+pub fn funptr_type_arg_must_be_pure(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "scoop::typecheck::funptr_type_arg_must_be_pure",
+        "`FunPtr<F>` 的类型实参必须是无 effect 的函数类型",
+    )
+    .with_primary(span, "这里")
+}
+
 /// `scoop::typecheck::continuation_not_constructible`：
 /// `Continuation` 是 compiler-owned interface，用户代码不能直接构造。
 pub fn continuation_not_constructible(span: Span) -> Diagnostic {
