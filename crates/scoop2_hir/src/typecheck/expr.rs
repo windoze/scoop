@@ -695,11 +695,41 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if fqn_a == fqn_b || self.fqn_same_simple_name(fqn_a, fqn_b) {
             return true;
         }
-        self.env
+        // 显式超类型链。
+        if self
+            .env
             .index
             .supertypes_of(fqn_a)
             .iter()
             .any(|&sup| self.fqn_is_subtype(sup, fqn_b))
+        {
+            return true;
+        }
+        // 隐式 Any 根：所有引用类型（非值标量）是 Any 的子类型。
+        if let Some(any_fqn) = self.env.interner.get("scoop.core.Any")
+            && fqn_b == any_fqn
+        {
+            let a_text = self.env.interner.resolve(fqn_a);
+            // 值标量不是 Any 的子类型（需 boxing）。
+            let is_value_scalar = matches!(
+                a_text,
+                "scoop.core.Int"
+                    | "scoop.core.UInt"
+                    | "scoop.core.Bool"
+                    | "scoop.core.Char"
+                    | "scoop.core.Float32"
+                    | "scoop.core.Float64"
+            ) || a_text.contains("IntN")
+                || a_text.contains("UIntN");
+            // effect 类型不是值类型，可作为 Any。
+            let is_effect = self
+                .env
+                .index
+                .category(fqn_a)
+                .is_some_and(|c| matches!(c, crate::resolve::symbol::NominalCategory::Effect));
+            return !is_value_scalar || is_effect;
+        }
+        false
     }
 
     /// 两个 FQN 是否末段名相同（simple name 匹配）。
@@ -5535,7 +5565,44 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.record_callee_effects(sig_refs[idx], args, span);
                     sig_refs[idx].return_ty
                 } else {
-                    self.pick_most_specific(&sig_refs, span)
+                    // receiver-aware 选择无唯一胜者 → 报歧义（receiver 差异使其不可比较）。
+                    let method_text = self.env.interner.resolve(method_name);
+                    // 构造候选对比描述：`A.m(Pa) vs B.m(Pb): position 0`。
+                    let mut vs_parts: Vec<String> = Vec::new();
+                    for (sig, owner) in &applicable {
+                        let owner_text = self.env.interner.resolve(*owner);
+                        let params: Vec<String> =
+                            sig.params.iter().map(|&p| self.describe(p)).collect();
+                        vs_parts.push(format!(
+                            "{owner_text}.{method_text}({})",
+                            params.join(", ")
+                        ));
+                    }
+                    let vs_desc = vs_parts.join(" vs ");
+                    let mut diag = scoop2_base::diag::Diagnostic::error(
+                        "scoop::typecheck::ambiguous_overload",
+                        format!("重载决议歧义：{vs_desc}: position 0"),
+                    )
+                    .with_primary(span, "这里")
+                    .with_help("reason: receiver 更具体但参数更宽泛（或反之），无法确定唯一最具体候选");
+                    // 添加候选声明处的 related 标注。
+                    for (sig, owner) in &applicable {
+                        let owner_text = self.env.interner.resolve(*owner);
+                        let params: Vec<String> =
+                            sig.params.iter().map(|&p| self.describe(p)).collect();
+                        let label = format!(
+                            "{method_text}({}{})",
+                            owner_text,
+                            if params.is_empty() {
+                                String::new()
+                            } else {
+                                format!(", {}", params.join(", "))
+                            }
+                        );
+                        diag = diag.with_related(sig.decl_span, label);
+                    }
+                    self.diags.push(diag);
+                    sig_refs[0].return_ty
                 }
             }
         }
@@ -5631,48 +5698,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
-    fn pick_most_specific(&mut self, candidates: &[&Signature], span: Span) -> TypeId {
-        let n = candidates.len();
-        // best[i] = true 如果候选 i 比所有其他候选更具体（或并列）。
-        let mut best_idx = 0;
-        for i in 1..n {
-            // i 比 best_idx 更具体？
-            let i_more = candidates[i]
-                .params
-                .iter()
-                .zip(&candidates[best_idx].params)
-                .all(|(ip, bp)| self.assignable(*ip, *bp));
-            let best_more = candidates[best_idx]
-                .params
-                .iter()
-                .zip(&candidates[i].params)
-                .all(|(bp, ip)| self.assignable(*bp, *ip));
-            if i_more && !best_more {
-                best_idx = i;
-            }
-        }
-        // 验证 best_idx 确实比所有其他候选更具体。
-        let unique_best = candidates.iter().enumerate().all(|(j, _)| {
-            j == best_idx || {
-                // best_idx 不比 j 差（j 不严格比 best_idx 更具体）
-                let j_strictly_better = candidates[j]
-                    .params
-                    .iter()
-                    .zip(&candidates[best_idx].params)
-                    .all(|(jp, bp)| self.assignable(*jp, *bp))
-                    && candidates[best_idx]
-                        .params
-                        .iter()
-                        .zip(&candidates[j].params)
-                        .any(|(bp, jp)| !self.assignable(*bp, *jp));
-                !j_strictly_better
-            }
-        });
-        if !unique_best && n > 1 {
-            self.diags.push(diagnostics::ambiguous_overload(span));
-        }
-        candidates[best_idx].return_ty
-    }
 }
 
 /// 收集模式中的绑定名（`Bind` / struct 简写）。
@@ -5727,6 +5752,7 @@ pub(super) fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> O
         TypeKind::Value(ValueTypeKind::UIntN(32)) => "scoop.core.UInt32",
         TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
         TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
+        TypeKind::Ref(RefTypeKind::Any) => "scoop.core.Any",
         _ => return None,
     };
     interner.get(name)

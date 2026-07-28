@@ -118,7 +118,7 @@ pub fn no_applicable_overload_member(
 pub fn ambiguous_overload(span: Span) -> Diagnostic {
     Diagnostic::error(
         "scoop::typecheck::ambiguous_overload",
-        "重载解析有歧义：多个候选同等匹配",
+        "重载决议歧义：多个候选同等匹配，无法选择",
     )
     .with_primary(span, "这里")
 }

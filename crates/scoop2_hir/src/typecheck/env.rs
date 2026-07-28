@@ -286,7 +286,31 @@ impl<'i> TypeEnv<'i> {
             }
             // 沿超类型链上溯。
             let supertypes = self.index.supertypes_of(fqn);
-            current = supertypes.first().copied();
+            if let Some(&sup) = supertypes.first() {
+                current = Some(sup);
+            } else {
+                // 无显式超类型链：引用类型隐式继承 Any（prelude 根引用类型），
+                // 使 Any 的扩展方法对所有引用类型可见。
+                let fqn_text = self.interner.resolve(fqn);
+                let is_ref_type = fqn_text.starts_with("scoop.core.")
+                    && !matches!(
+                        fqn_text,
+                        "scoop.core.Int"
+                            | "scoop.core.UInt"
+                            | "scoop.core.Bool"
+                            | "scoop.core.Char"
+                            | "scoop.core.Float32"
+                            | "scoop.core.Float64"
+                    );
+                if is_ref_type
+                    && let Some(any_fqn) = self.interner.get("scoop.core.Any")
+                    && any_fqn != fqn
+                {
+                    current = Some(any_fqn);
+                } else {
+                    current = None;
+                }
+            }
         }
         all
     }
