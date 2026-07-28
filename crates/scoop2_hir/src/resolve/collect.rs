@@ -331,6 +331,10 @@ impl<'a> Collector<'a> {
                 if let Some(cat) = NominalCategory::from_ast_type_kind(d.kind) {
                     self.index.record_category(owner_fqn, cat);
                 }
+                // 记录主构造器声明 span（供诊断定位）。
+                if let Some(ctor) = &d.primary_ctor {
+                    self.index.record_ctor_span(owner_fqn, ctor.span);
+                }
                 // 记录超类型（`: Base(args), Iface`）用于子类型 / assignability。
                 let sup_fqns: Vec<Sym> = d
                     .supertypes

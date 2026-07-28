@@ -55,6 +55,8 @@ pub struct Index {
     supertypes: HashMap<Symbol, Vec<Symbol>>,
     /// typealias FQN → 目标类型 FQN（供 resolve 阶段展开）。
     typealiases: HashMap<Symbol, Symbol>,
+    /// 类型 FQN → 主构造器声明 span（`(val seed: T)` 的 `(` 位置）。
+    ctor_spans: HashMap<Symbol, Span>,
 }
 
 /// 插入类型/值命名空间的结果：`Ok(())` 或 `Err(first)`（首定义的 span）。
@@ -282,6 +284,16 @@ impl Index {
     /// 记录 typealias 目标（`typealias Name = Target`）。
     pub fn record_typealias(&mut self, fqn: Symbol, target: Symbol) {
         self.typealiases.insert(fqn, target);
+    }
+
+    /// 记录类型的主构造器声明 span。
+    pub fn record_ctor_span(&mut self, fqn: Symbol, span: Span) {
+        self.ctor_spans.insert(fqn, span);
+    }
+
+    /// 查询类型的主构造器声明 span（若有）。
+    pub fn ctor_span(&self, fqn: Symbol) -> Option<Span> {
+        self.ctor_spans.get(&fqn).copied()
     }
 
     /// 查询 typealias 目标（若有）；递归展开（最多 8 层防环）。
