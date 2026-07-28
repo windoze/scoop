@@ -546,6 +546,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         crate::ty::render_type(&self.env.store, self.env.interner, id, false)
     }
 
+    /// 类型描述（全限定名；用于诊断消息中需精确标识类型的场景）。
+    fn describe_fqn(&self, id: TypeId) -> String {
+        crate::ty::render_type(&self.env.store, self.env.interner, id, true)
+    }
+
     /// 赋值性（M1+）：相等、`Nothing` bottom、nominal 子类型（继承/接口）、
     /// 函数逆变/协变、Option/元组协变。
     fn assignable(&self, found: TypeId, expected: TypeId) -> bool {
@@ -5496,7 +5501,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                         i + 2,
                                         self.describe(at),
                                         pname,
-                                        self.describe(pt)
+                                        self.describe_fqn(pt)
                                     ));
                                     break;
                                 }
@@ -5564,7 +5569,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 i + 2,
                                 self.describe(at),
                                 pname,
-                                self.describe(pt)
+                                self.describe_fqn(pt)
                             ));
                             break;
                         }
