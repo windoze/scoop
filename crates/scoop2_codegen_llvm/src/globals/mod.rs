@@ -309,29 +309,21 @@ impl<'ctx> CodegenContext<'ctx> {
                         }
                         // itable 符号格式：scoop_core_String_toString（含 class 名）。
                         // 实际函数符号：scoop_core_toString_<hash>（不含 class 名，带 hash 后缀）。
-                        // 策略：从 itable 符号中提取 method 部分，在前缀匹配的函数中找
-                        // 参数类型匹配的（receiver = GC ptr for class）。
+                        // 从 itable 符号提取 class_simple 和 method_name。
                         let class_simple = class_fqn.rsplit('.').next().unwrap_or("");
-                        // itable 符号中去掉 class 名后的前缀。
-                        let method_prefix = if s.contains(&format!("_{class_simple}_")) {
-                            s.replace(&format!("_{class_simple}_"), "_")
-                        } else {
-                            s.clone()
-                        };
-                        // 搜索以 method_prefix 开头的函数。
+                        let method_name = s.rsplit('_').next().unwrap_or("");
+                        // 构造 method_prefix：去掉 class 名后的符号前缀。
+                        // "scoop_core_String_toString" -> "scoop_core_toString"
+                        let needle = format!("_{}_{}", class_simple, method_name);
+                        let method_prefix = s.replace(&needle, &format!("_{}", method_name));
+                        // 在所有函数中找前缀匹配的，选择第一个返回类型为 GC ptr 且
+                        // 参数数量 = 1（仅 receiver）的函数（toString 无额外参数）。
                         for name in &all_fn_names {
-                            if name.starts_with(&method_prefix) {
+                            if name.starts_with(&method_prefix) && name.len() > method_prefix.len() {
                                 if let Some(fv) = self.module.get_function(name) {
-                                    // 验证：第一个参数是 GC ptr（addrspace 1），表示 receiver。
-                                    if fv.count_params() > 0 {
-                                        let p0 = fv.get_nth_param(0);
-                                        if let Some(p) = p0 {
-                                            if p.get_type().into_pointer_type().get_address_space()
-                                                == crate::context::gc_address_space()
-                                            {
-                                                return unsafe { PointerValue::new(fv.as_value_ref()) };
-                                            }
-                                        }
+                                    // 验证：参数数量 = 1（仅 receiver this 参数）。
+                                    if fv.count_params() == 1 {
+                                        return unsafe { PointerValue::new(fv.as_value_ref()) };
                                     }
                                 }
                             }

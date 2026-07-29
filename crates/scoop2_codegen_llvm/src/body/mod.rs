@@ -101,6 +101,19 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
             self.locals.insert(d.id, slot);
             self.local_types.insert(d.id, d.ty);
         }
+        // 将函数参数值存储到对应的 local slot。
+        // LIR callable 的 params 与 body.locals 的前 N 个一一对应（按 MIR lower 顺序）。
+        let param_count = self.fv.count_params();
+        for i in 0..param_count {
+            let local_id = i as u32;
+            if let Some(&slot) = self.locals.get(&local_id) {
+                if let Some(param) = self.fv.get_nth_param(i) {
+                    self.builder
+                        .build_store(slot, param)
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "store param", scoop2_base::Span::default()))?;
+                }
+            }
+        }
         // 若需要 root frame，在此分配（entry 中）。
         if rf.needs_frame() {
             let header_ty = self.cg.root_frame_header_type();

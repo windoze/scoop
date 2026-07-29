@@ -208,6 +208,8 @@ fn declare_callable<'ctx>(
         .module
         .add_function(&callable.symbol_name, fn_ty, Some(Linkage::External));
     cg.cache_callable_fn(callable.symbol_name.clone(), fv);
+    // 同时缓存 FQN → FunctionValue（供 itable 方法解析按 FQN 查找正确重载）。
+    cg.cache_callable_fn(callable.fqn.clone(), fv);
     Ok(fv)
 }
 
