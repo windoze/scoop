@@ -232,7 +232,8 @@ fn remap_rvalue(
         Rvalue::Use(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::InterpolatedString { .. }
-        | Rvalue::ClassLit { .. } | Rvalue::PatternMatch { .. } | Rvalue::PatternExtract { .. } => {}
+        | Rvalue::ClassLit { .. } | Rvalue::PatternMatch { .. } | Rvalue::PatternExtract { .. }
+        | Rvalue::IntEq { .. } => {}
         Rvalue::TopLevelRef(tl) => {
             for t in &mut tl.generic_type_args {
                 *t = TypeStore::remap_id(remap, *t);
@@ -296,7 +297,7 @@ fn remap_call_kind(
                 *t = TypeStore::remap_id(remap, *t);
             }
         }
-        CallKind::Closure { .. } | CallKind::FunValue { .. } => {}
+        CallKind::Closure { .. } | CallKind::FunValue { .. } | CallKind::Resume { .. } => {}
     }
 }
 

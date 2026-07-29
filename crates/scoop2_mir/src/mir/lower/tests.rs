@@ -24,13 +24,12 @@ fn dumps_empty_module_stably() {
 #[test]
 fn verify_minimal_body() {
     use crate::mir::verify::verify_body;
-    use crate::mir::{BasicBlock, Body, Terminator, TerminatorKind, UnwindAction};
+    use crate::mir::{BasicBlock, Body, Terminator, TerminatorKind};
     let mut body = Body::new();
     // push 入口块。
     let _ = body.push_block(BasicBlock::new(Terminator {
         span: scoop2_base::Span::default(),
         kind: TerminatorKind::Return { value: None },
-        unwind: UnwindAction::NoUnwind,
     }));
     let mut errors = Vec::new();
     verify_body(&body, &mut errors);
@@ -43,7 +42,7 @@ fn verify_detects_dangling_successor() {
     use crate::diagnostics::VerifyError;
     use crate::mir::verify::verify_body;
     use crate::mir::{
-        BasicBlock, BasicBlockId, Body, Terminator, TerminatorKind, UnwindAction,
+        BasicBlock, BasicBlockId, Body, Terminator, TerminatorKind,
     };
     let mut body = Body::new();
     // push 入口块，Goto 一个不存在的基本块。
@@ -52,7 +51,6 @@ fn verify_detects_dangling_successor() {
         kind: TerminatorKind::Goto {
             target: BasicBlockId(99),
         },
-        unwind: UnwindAction::NoUnwind,
     }));
     let mut errors = Vec::new();
     verify_body(&body, &mut errors);
@@ -70,7 +68,7 @@ fn verify_semantic_detects_empty_callee() {
     use crate::mir::verify::verify_semantic;
     use crate::mir::{
         BasicBlock, Body, CallArg, CallKind, FunDecl, LocalDecl, LocalId, LocalSource, Operand,
-        Rvalue, Statement, StatementKind, Terminator, TerminatorKind, UnwindAction,
+        Rvalue, Statement, StatementKind, Terminator, TerminatorKind,
     };
     use scoop2_hir::ty::TypeStore;
     let mut store = TypeStore::new();
@@ -87,7 +85,6 @@ fn verify_semantic_detects_empty_callee() {
         mutable: false,
     });
     let _ = body.push_block(BasicBlock {
-        is_cleanup: false,
         stmts: vec![Statement {
             span: scoop2_base::Span::default(),
             kind: StatementKind::Assign {
@@ -114,7 +111,6 @@ fn verify_semantic_detects_empty_callee() {
         terminator: Terminator {
             span: scoop2_base::Span::default(),
             kind: TerminatorKind::Return { value: None },
-            unwind: UnwindAction::NoUnwind,
         },
     });
     let fd = FunDecl {
@@ -129,6 +125,7 @@ fn verify_semantic_detects_empty_callee() {
         body: None,
         file: scoop2_base::FileId(0),
         stable_template_key: None,
+        effect_abi: None,
     };
     let mut errors = Vec::new();
     let kf: std::collections::HashSet<String> = std::collections::HashSet::new();

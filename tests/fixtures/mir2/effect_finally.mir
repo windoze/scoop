@@ -1,0 +1,108 @@
+Module {
+    items: [
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.f",
+            name: "f",
+            ty: (Nothing) -> () / Pure,
+            params: [Param { name: "flag", ty: Nothing, local: local#19317fe1 }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("flag"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#17317cbb, name: Some("e"), ty: Any, source: Source },
+                LocalDecl { label: local#16317b28, name: None, ty: (), source: Temp },
+                LocalDecl { label: local#1d31862d, name: None, ty: Nothing, source: Temp },
+                LocalDecl { label: local#1c31849a, name: None, ty: Nothing, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Handle(body=bb#8c2c24bc, arms=[bb#8e2c27e2], finally=bb#892c2003, exit=bb#8f2c2975) },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                stmts: [
+                ],
+                terminator: Terminator { kind: CondBr(Local(local#19317fe1), bb#882c1e70, bb#8b2c2329) },
+                },
+                BasicBlock {
+                label: bb#8f2c2975,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+                BasicBlock {
+                label: bb#8e2c27e2,
+                stmts: [
+                    local#18317e4e = Use(Local(local#17317cbb)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8f2c2975) },
+                },
+                BasicBlock {
+                label: bb#892c2003,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Goto(bb#8f2c2975) },
+                },
+                BasicBlock {
+                label: bb#882c1e70,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Perform(Raise.raise, [Const(Int(1))], resume=local#1c31849a -> bb#952c32e7) },
+                },
+                BasicBlock {
+                label: bb#8b2c2329,
+                stmts: [
+                    local#16317b28 = Use(Const(Unit)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8a2c2196) },
+                },
+                BasicBlock {
+                label: bb#8a2c2196,
+                stmts: [
+                    local#18317e4e = Use(Const(Int(42))),
+                ],
+                terminator: Terminator { kind: Goto(bb#8f2c2975) },
+                },
+                BasicBlock {
+                label: bb#952c32e7,
+                stmts: [
+                    local#16317b28 = Use(Local(local#1c31849a)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8a2c2196) },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#18317e4e, name: None, ty: (), source: Temp },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#16317b28, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                    local#19317fe1 = Call(Direct { callee: "fixtures.mir2.f", type_args: , intrinsic: false }, [Const(Bool(true))], transport={trace:false, box:false}),
+                    local#18317e4e = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#19317fe1)], transport={trace:false, box:false}),
+                    local#17317cbb = Call(Direct { callee: "fixtures.mir2.f", type_args: , intrinsic: false }, [Const(Bool(false))], transport={trace:false, box:false}),
+                    local#16317b28 = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#17317cbb)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

@@ -1,5 +1,15 @@
 Module {
     items: [
+        Metadata { fqn: "fixtures.mir2.Yield", kind: Effect },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.next",
+            name: "next",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            body: None,
+        }),
         Fun(FunDecl {
             fqn: "fixtures.mir2.f",
             name: "f",
@@ -9,9 +19,12 @@ Module {
             effect_row: Pure,
             locals: [
                 LocalDecl { label: local#19317fe1, name: None, ty: Int, source: Temp },
-                LocalDecl { label: local#18317e4e, name: Some("e"), ty: Any, source: Source },
-                LocalDecl { label: local#17317cbb, name: None, ty: Nothing, source: Temp },
-                LocalDecl { label: local#16317b28, name: None, ty: Nothing, source: Temp },
+                LocalDecl { label: local#18317e4e, name: Some("k"), ty: Any, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#16317b28, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#1d31862d, name: Some("x"), ty: Int, source: Source },
+                LocalDecl { label: local#1c31849a, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#1b318307, name: None, ty: Answer, source: Temp },
             ],
             blocks: [
                 BasicBlock {
@@ -24,7 +37,7 @@ Module {
                 label: bb#8c2c24bc,
                 stmts: [
                 ],
-                terminator: Terminator { kind: Perform(Raise.raise, [Const(Int(1))], resume=local#16317b28 -> bb#892c2003) },
+                terminator: Terminator { kind: Perform(Yield.next, [], resume=local#16317b28 -> bb#892c2003) },
                 },
                 BasicBlock {
                 label: bb#8f2c2975,
@@ -35,14 +48,17 @@ Module {
                 BasicBlock {
                 label: bb#8e2c27e2,
                 stmts: [
-                    local#19317fe1 = Use(Local(local#18317e4e)),
+                    local#1b318307 = Call(Resume { cont: Local(local#18317e4e), value: Const(Int(41)) }, [], transport={trace:true, box:false}),
+                    local#19317fe1 = Use(Local(local#1b318307)),
                 ],
                 terminator: Terminator { kind: Goto(bb#8f2c2975) },
                 },
                 BasicBlock {
                 label: bb#892c2003,
                 stmts: [
-                    local#19317fe1 = Use(Const(Int(0))),
+                    local#1d31862d = Use(Local(local#16317b28)),
+                    local#1c31849a = Call(Direct { callee: "scoop.core.Int.plus", type_args: , intrinsic: false }, [Const(Int(1))], transport={trace:false, box:false}),
+                    local#19317fe1 = Use(Local(local#1c31849a)),
                 ],
                 terminator: Terminator { kind: Goto(bb#8f2c2975) },
                 },
@@ -57,15 +73,13 @@ Module {
             return_ty: (),
             effect_row: Pure,
             locals: [
-                LocalDecl { label: local#19317fe1, name: None, ty: Int, source: Temp },
-                LocalDecl { label: local#18317e4e, name: None, ty: (), source: Temp },
+                LocalDecl { label: local#19317fe1, name: None, ty: (), source: Temp },
             ],
             blocks: [
                 BasicBlock {
                 label: bb#8d2c264f,
                 stmts: [
-                    local#19317fe1 = Call(Direct { callee: "fixtures.mir2.f", type_args: , intrinsic: false }, [], transport={trace:false, box:false}),
-                    local#18317e4e = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#19317fe1)], transport={trace:false, box:false}),
+                    local#19317fe1 = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Const(Int(0))], transport={trace:false, box:false}),
                 ],
                 terminator: Terminator { kind: Return(Unit) },
                 },

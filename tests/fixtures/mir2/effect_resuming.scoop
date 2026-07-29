@@ -1,0 +1,22 @@
+package fixtures.mir2
+
+import scoop.core.*
+
+// 验证 resuming arm：perform 被 handle 捕获，arm 中 resume continuation。
+// k.resume(41) 恢复被挂起的 body，从 perform 续点继续执行。
+effect Yield {
+    fun next(): Int
+}
+
+fun f(): Int {
+  handle {
+    val x: Int = Yield.next()
+    x + 1
+  } on {
+    Yield.next(), k -> k.resume(41)
+  }
+}
+
+fun main() {
+  println(0)
+}

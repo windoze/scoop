@@ -279,6 +279,9 @@ pub fn materialize(
         &mut result_module,
         crate::mir::inline::InlineConfig::default(),
     );
+    // effect lowering pass：把 Perform/Handle/Resume 消除为本地 dispatch / 状态机。
+    // 在 inline 之后运行：inline 消除 effect-transparent HOF 后，effect 边界更少。
+    crate::mir::effect_lower::lower_effects(&mut result_module, &hir.interner);
     // 为所有顶层函数计算 stable template key（供分离编译）。
     crate::mir::stable_id::compute_public_stable_keys(&mut result_module, &hir.interner);
     Ok(MaterializedMir {
@@ -551,6 +554,7 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
         Rvalue::PatternExtract { subject: _, result_ty, .. } => {
             *result_ty = store.apply_subst(*result_ty, subst);
         }
+        Rvalue::IntEq { .. } => {}
     }
 }
 
@@ -571,7 +575,7 @@ fn subst_call_kind(kind: &mut CallKind, subst: &Subst, store: &mut TypeStore) {
             subst_type_ids(store, &mut dispatch.generic_type_args, subst);
             subst_effect_rows(store, &mut dispatch.generic_eff_args, subst);
         }
-        CallKind::Closure { .. } | CallKind::FunValue { .. } => {}
+        CallKind::Closure { .. } | CallKind::FunValue { .. } | CallKind::Resume { .. } => {}
     }
 }
 
@@ -849,6 +853,8 @@ fn scan_call_kind(kind: &CallKind, reqs: &mut Vec<InstanceKey>) {
         // FunValue 调用：callee 是函数值 local，无静态 FQN 可扫描。
         // 若该 local 绑定到一个已知闭包，其 invoke_fqn 已在 MakeClosure 处入队。
         CallKind::FunValue { .. } => {}
+        // Resume 调用：continuation 是 continuation 对象，不产生新实例。
+        CallKind::Resume { .. } => {}
     }
 }
 

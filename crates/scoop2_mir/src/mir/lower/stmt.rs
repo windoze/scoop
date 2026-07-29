@@ -4,7 +4,7 @@ use scoop2_base::Span;
 use scoop2_syntax::ast::{self, Block, Stmt, StmtKind};
 
 use crate::mir::lower::FnLowering;
-use crate::mir::{Operand, Terminator, TerminatorKind, UnwindAction};
+use crate::mir::{Operand, Terminator, TerminatorKind};
 
 /// lower 一个 block：lower 所有语句；返回块值（尾表达式或 Unit）。
 pub fn lower_block(builder: &mut FnLowering, block: &Block) -> Operand {
@@ -34,12 +34,10 @@ pub fn lower_block(builder: &mut FnLowering, block: &Block) -> Operand {
                     .as_ref()
                     .map(|e| super::expr::lower_expr(builder, e))
                     .unwrap_or(Operand::Const(crate::mir::ConstValue::Unit));
-                let unwind = builder.build_unwind();
                 builder.terminate(
                     Terminator {
                         span: stmt.span,
                         kind: TerminatorKind::Return { value: Some(v) },
-                        unwind,
                     },
                     builder.current_bb,
                 );
@@ -439,7 +437,6 @@ pub fn lower_while(builder: &mut FnLowering, cond: &ast::Expr, body: &Block, spa
                 then_target: body_bb,
                 else_target: exit_bb,
             },
-            unwind: UnwindAction::NoUnwind,
         },
         body_bb,
     );
@@ -559,7 +556,6 @@ pub fn lower_for(
                 then_target: body_bb,
                 else_target: exit_bb,
             },
-            unwind: UnwindAction::NoUnwind,
         },
         body_bb,
     );

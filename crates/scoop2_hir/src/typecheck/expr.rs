@@ -3374,10 +3374,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.walk_expr(receiver)
             };
             let arg_types: Vec<TypeId> = args.iter().map(|a| self.walk_expr(&a.value)).collect();
-            // Continuation.resume 步骤 effect 传播：`k.resume(v)` 的 effect 行为
-            // `E + Raise<RuntimeError>`（E 为 `Continuation<..., eff E>` 的第三类型实参）。
-            // resume 在 handle arm 体内执行时也需传播 effect 到外层函数体——
-            // 即使 effect_suspend_depth > 0（arm body 挂起了其他 effect 采集），
+            // Continuation.resume 步骤 effect 传播：`k.resume(v)` 的 effect 行为仅为 `E`
+            // （E 为 `Continuation<..., eff E>` 的第三类型实参）。第二次 resume 直接 panic，
+            // 不再贡献 `Raise<RuntimeError>`。resume 在 handle arm 体内执行时也需传播 effect
+            // 到外层函数体——即使 effect_suspend_depth > 0（arm body 挂起了其他 effect 采集），
             // resume 的 effect 仍需穿透到外层（resume 的 effect 是 resumed-step 的，
             // 不是 handle 捕获的）。
             if let MemberName::Named(name) = member
@@ -4148,14 +4148,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 记录 `k.resume(v)` 的步骤 effect 到 performed_effects。
     ///
-    /// `Continuation<Resume, Answer, eff E>.resume` 的 effect 行为 `E + Raise<RuntimeError>`
-    /// （spec §5.5）：恒定执行 `Raise`（即 `Raise<RuntimeError>`），外加 E 解析出的具体 effect。
+    /// `Continuation<Resume, Answer, eff E>.resume` 的 effect 行为仅为 `E`
+    /// （spec §5.5 修订）：resume 执行 E 解析出的具体 effect。第二次 resume 直接 panic
+    /// （不是 effect），不再恒定执行 `Raise`（即 `Raise<RuntimeError>`）。
     /// E 为类型参数（多态）或 `Pure` 时不贡献额外 effect。
-    /// 当 receiver 类型未知（Nothing，如 pattern binder）时仍记录恒定 `Raise`。
     fn record_continuation_resume_effects(&mut self, recv_ty: TypeId, span: Span) {
         let kind = self.env.store.kind(recv_ty);
-        // Continuation 或未知（Nothing/binder）→ resume 恒定执行 Raise<RuntimeError>。
-        // 已知非 Continuation receiver → 不记录。
+        // 已知非 Continuation receiver → 不记录。Continuation 或未知（Nothing/binder）→ 记录 E。
         let is_continuation_or_unknown = match nominal_fqn_of(kind) {
             Some(fqn) => {
                 let n = self.env.interner.resolve(fqn);
@@ -4166,11 +4165,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if !is_continuation_or_unknown {
             return;
         }
-        // 在 effect_suspend_depth > 0（handle arm body 内）时，不记录 Raise（已被 handle 捕获），
-        // 仅记录 resumed-step effect（非 Pure / 非 Raise）。
-        if self.effect_suspend_depth == 0 {
-            self.performed_effects.push(("Raise".to_string(), span));
-        }
+        // 仅记录 continuation 的 eff E 项（非 Pure / 非 Raise）。effect_suspend_depth 的处理
+        // 在 record_resume_step_effects 内：E 项记入 escape_effects，穿透 handle arm 体的
+        // effect 采集挂起（resume 的 effect 是 resumed-step 的，不被外层 handle 捕获）。
         let kind_clone = kind.clone();
         self.record_resume_step_effects(&kind_clone, span);
     }

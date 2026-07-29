@@ -223,9 +223,13 @@ fn try_make_inlineable_with_store(
     })
 }
 
-/// 检查终结符是否安全（不含 Perform/Handle）。
+/// 检查终结符是否可安全内联。
+///
+/// Handle 终结符涉及 dispatch 路由，多块内联时处理复杂，暂不允许内联。
+/// Perform 终结符允许内联——effect-transparent HOF（如 forEach）体内含 Perform，
+/// 内联后 Perform 直接出现在调用者体内，后续 effect lowering pass 统一处理。
 fn is_safe_terminator(kind: &TerminatorKind) -> bool {
-    !matches!(kind, TerminatorKind::Perform { .. } | TerminatorKind::Handle { .. })
+    !matches!(kind, TerminatorKind::Handle { .. })
 }
 
 /// 克隆 Body（深拷贝 locals + blocks）。
@@ -233,7 +237,6 @@ fn clone_body(body: &Body) -> Body {
     Body {
         locals: body.locals.clone(),
         blocks: body.blocks.iter().map(|b| BasicBlock {
-            is_cleanup: b.is_cleanup,
             stmts: b.stmts.clone(),
             terminator: b.terminator.clone(),
         }).collect(),
@@ -402,12 +405,10 @@ fn do_inline(
         let new_bid = BasicBlockId(body.blocks.len() as u32);
         block_map.insert(BasicBlockId(i as u32), new_bid);
         body.blocks.push(BasicBlock {
-            is_cleanup: callee.body.blocks[i].is_cleanup,
             stmts: Vec::new(),
             terminator: Terminator {
                 span: scoop2_base::Span::default(),
                 kind: TerminatorKind::Unreachable,
-                unwind: callee.body.blocks[i].terminator.unwind.clone(),
             },
         });
     }
@@ -517,7 +518,6 @@ fn do_inline(
         }
         body.blocks[dst_idx].stmts = renamed_stmts;
         body.blocks[dst_idx].terminator = renamed_term;
-        body.blocks[dst_idx].is_cleanup = src_block.is_cleanup;
     }
 }
 
@@ -569,6 +569,27 @@ fn rename_terminator(
             }
             if let Some(m) = block_map.get(else_target) {
                 *else_target = *m;
+            }
+        }
+        TerminatorKind::Perform {
+            resume_local,
+            resume_target,
+            args,
+            ..
+        } => {
+            // 重命名 resume_local 和 args 中的 local 引用。
+            if let Some(m) = local_map.get(resume_local) {
+                *resume_local = *m;
+            }
+            for a in args.iter_mut() {
+                a.value = rename_operand(&a.value, local_map);
+            }
+            // resume_target 可能指向 callee 的块 0（已在 splice 中）或块 1..N（需重定向）。
+            // 块 0 的 resume_target 实际上已通过 splice 进入 caller，但 resume_target
+            // 指向的是 callee 的块编号——如果它在 block_map 中则重定向，否则保持
+            // （它可能指向 splice 序列中的续接位置，由 do_inline 的块 0 处理逻辑管理）。
+            if let Some(m) = block_map.get(resume_target) {
+                *resume_target = *m;
             }
         }
         _ => {}
@@ -681,6 +702,10 @@ fn rename_rvalue(rv: &mut Rvalue, map: &HashMap<LocalId, LocalId>) {
         Rvalue::PatternExtract { subject, .. } => {
             *subject = rename_operand(subject, map);
         }
+        Rvalue::IntEq { lhs, rhs } => {
+            *lhs = rename_operand(lhs, map);
+            *rhs = rename_operand(rhs, map);
+        }
     }
 }
 
@@ -691,6 +716,10 @@ fn rename_call_kind(kind: &mut CallKind, map: &HashMap<LocalId, LocalId>) {
         }
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
             *receiver = rename_operand(receiver, map);
+        }
+        CallKind::Resume { continuation, resume_value } => {
+            *continuation = rename_operand(continuation, map);
+            *resume_value = rename_operand(resume_value, map);
         }
         CallKind::Direct { .. } => {}
     }
@@ -730,12 +759,12 @@ mod tests {
     }
 
     #[test]
-    fn is_safe_terminator_rejects_perform_handle() {
-        // Return / Goto / CondBr / Unreachable 都是安全的（不含 effect 终结符）。
+    fn is_safe_terminator_allows_perform_rejects_handle() {
+        // Return / Goto / CondBr / Unreachable / Perform 都是安全的。
         assert!(is_safe_terminator(&TerminatorKind::Return { value: None }));
         assert!(is_safe_terminator(&TerminatorKind::Goto { target: BasicBlockId(0) }));
         assert!(is_safe_terminator(&TerminatorKind::Unreachable));
-        // Perform / Handle 不安全（effect 终结符，控制流复杂）。
-        // 这些终结符的构造需要完整 metadata，这里只验证 is_safe_terminator 的逻辑。
+        // Handle 不安全（dispatch 路由复杂），但 Handle 的构造需要完整 metadata，
+        // 这里只验证 is_safe_terminator 对非 Handle 终结符返回 true。
     }
 }

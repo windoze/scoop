@@ -1,7 +1,7 @@
 //! MIR 验证：CFG 结构 + direct-style 语义 + production 语义完整性。
 //!
 //! 四个层次：
-//! - [`verify_cfg`]：基本块图结构（悬空后继 / cleanup 目标 / 块终止符）。
+//! - [`verify_cfg`]：基本块图结构（悬空后继 / 块终止符）。
 //! - [`verify_direct_style`]：effect 终结符语义（Perform 的 resume_target / resume_local）。
 //! - [`verify_semantic`]：production 语义完整性（**解析性**检查：交叉引用模块符号表验证
 //!   callee 可解析 / dispatch 候选非空 / member resolved 非空 / effect site 元数据完整）。
@@ -13,7 +13,7 @@ use std::collections::HashSet;
 use scoop2_hir::ty::{RefTypeKind, TypeKind, TypeId, TypeStore};
 
 use crate::diagnostics::VerifyError;
-use crate::mir::{BasicBlockId, Body, CallKind, Module, Rvalue, TerminatorKind, UnwindAction};
+use crate::mir::{BasicBlockId, Body, CallKind, Module, Rvalue, TerminatorKind};
 use crate::mir::transport::{ValueTransportMetadata, AggregateTransportMetadata};
 
 /// 从 Module 中收集所有已声明的函数 FQN（用于解析性 callee 检查）。
@@ -110,13 +110,54 @@ pub fn verify_materialized_with_external(
         {
             verify_transport(body, store, &mut errors);
             verify_no_generic_residue(body, store, &mut errors);
+            verify_no_effect_residue(body, &mut errors);
         }
         if let crate::mir::Item::Initializer(ir) = item {
             verify_transport(&ir.body, store, &mut errors);
             verify_no_generic_residue(&ir.body, store, &mut errors);
+            verify_no_effect_residue(&ir.body, &mut errors);
         }
     }
     errors
+}
+
+/// 验证 effect lowering 后无 Perform/Handle 终结符残留。
+/// 被 Handle 捕获的 Perform 和 Handle 终结符应已被 effect_lower pass 消除。
+fn verify_no_effect_residue(body: &Body, errors: &mut Vec<VerifyError>) {
+    for (i, block) in body.blocks.iter().enumerate() {
+        match &block.terminator.kind {
+            TerminatorKind::Handle { .. } => {
+                errors.push(VerifyError::semantic(format!(
+                    "effect lowering 后仍有 Handle 终结符残留（block {}）",
+                    BasicBlockId(i as u32)
+                )));
+            }
+            TerminatorKind::Perform { .. } => {
+                errors.push(VerifyError::semantic(format!(
+                    "effect lowering 后仍有 Perform 终结符残留（block {}）",
+                    BasicBlockId(i as u32)
+                )));
+            }
+            _ => {}
+        }
+    }
+    // 检查 Resume 调用残留。
+    for (i, block) in body.blocks.iter().enumerate() {
+        for stmt in &block.stmts {
+            if let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind {
+                if let crate::mir::Rvalue::Call {
+                    kind: crate::mir::CallKind::Resume { .. },
+                    ..
+                } = value
+                {
+                    errors.push(VerifyError::semantic(format!(
+                        "effect lowering 后仍有 Resume 调用残留（block {}）",
+                        BasicBlockId(i as u32)
+                    )));
+                }
+            }
+        }
+    }
 }
 
 /// 验证单个 body（CFG + direct-style）。
@@ -272,6 +313,9 @@ fn verify_call_kind_resolved(
         CallKind::FunValue { .. } => {
             // 函数值调用：callee 在运行期为函数值，无静态 callee_fqn；跳过。
         }
+        CallKind::Resume { .. } => {
+            // continuation resume：continuation 在运行期为 continuation 对象；跳过。
+        }
     }
 }
 
@@ -309,23 +353,6 @@ pub fn verify_cfg(body: &Body, errors: &mut Vec<VerifyError>) {
     }
     for (i, block) in body.blocks.iter().enumerate() {
         let id = BasicBlockId(i as u32);
-        // cleanup 目标必须是 cleanup 块。
-        if let UnwindAction::Cleanup { target } = &block.terminator.unwind {
-            if !valid(*target) {
-                errors.push(VerifyError::cfg(
-                    Some(id),
-                    format!(
-                        "UnwindAction::Cleanup 指向不存在的基本块 {}",
-                        target
-                    ),
-                ));
-            } else if !body.blocks[target.0 as usize].is_cleanup {
-                errors.push(VerifyError::cfg(
-                    Some(id),
-                    format!("UnwindAction::Cleanup 目标 {} 不是 cleanup 块", target),
-                ));
-            }
-        }
         // 后继必须存在。
         for succ in block.successors() {
             if !valid(succ) {
@@ -394,6 +421,7 @@ where
         | Rvalue::MemberAccess { receiver: value, .. }
         | Rvalue::TupleIndex { receiver: value, .. }
         | Rvalue::MakeClosure { env: value, .. } | Rvalue::PatternMatch { subject: value, .. } | Rvalue::PatternExtract { subject: value, .. } => vec![value],
+        Rvalue::IntEq { lhs, rhs } => vec![lhs, rhs],
         Rvalue::PerformResult { .. }
         | Rvalue::ClassLit { .. }
         | Rvalue::TopLevelRef { .. }
@@ -792,6 +820,7 @@ fn verify_no_residue_rvalue(
         Rvalue::PatternExtract { result_ty, .. } => {
             check_type_for_param(store, *result_ty, &format!("PatternExtract.result_ty (block {block})"), errors);
         }
+        Rvalue::IntEq { .. } => {}
         Rvalue::PatternMatch { pattern, .. } => {
             verify_no_residue_pattern(pattern, store, block, errors);
         }

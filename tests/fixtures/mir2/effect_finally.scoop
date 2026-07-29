@@ -1,0 +1,23 @@
+package fixtures.mir2
+
+import scoop.core.*
+
+// 验证 handle with finally：finally 在 body 正常完成和 arm 触发时都运行。
+fun f(flag: Bool): Int {
+  handle {
+    if (flag) {
+      Raise.raise(1)
+    }
+    42
+  } on {
+    Raise.raise(e: Int) -> e
+  } finally {
+    // finally 块——在退出 handle 前执行
+    0
+  }
+}
+
+fun main() {
+  println(f(true))
+  println(f(false))
+}

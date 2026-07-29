@@ -10,7 +10,7 @@ use scoop2_hir::ty::{EffectRow, TypeId, TypeStore};
 
 use crate::mir::{
     BasicBlockId, Body, CallArg, CallKind, ConstValue, FunDecl, InitializerRoot, Item, LocalId,
-    Module, Operand, Rvalue, Statement, StatementKind, Terminator, TerminatorKind, UnwindAction,
+    Module, Operand, Rvalue, Statement, StatementKind, Terminator, TerminatorKind,
 };
 
 /// dump 一个 Module 为稳定文本。
@@ -129,7 +129,6 @@ fn dump_body(
         let bid = BasicBlockId(i as u32);
         let _ = writeln!(out, "{pad2}BasicBlock {{");
         let _ = writeln!(out, "{pad}    label: {},", block_label_by_map(&labels, bid));
-        let _ = writeln!(out, "{pad}    is_cleanup: {},", block.is_cleanup);
         let _ = writeln!(out, "{pad}    stmts: [");
         for stmt in &block.stmts {
             let _ = writeln!(
@@ -478,6 +477,11 @@ fn dump_rvalue(
             dump_operand(subject, labels),
             render_type(types, interner, *result_ty)
         ),
+        Rvalue::IntEq { lhs, rhs } => format!(
+            "IntEq({}, {})",
+            dump_operand(lhs, labels),
+            dump_operand(rhs, labels)
+        ),
     }
 }
 
@@ -549,6 +553,13 @@ fn dump_call_kind(
         CallKind::FunValue { callee } => {
             format!("FunValue {{ callee: {} }}", dump_operand(callee, labels))
         }
+        CallKind::Resume { continuation, resume_value } => {
+            format!(
+                "Resume {{ cont: {}, value: {} }}",
+                dump_operand(continuation, labels),
+                dump_operand(resume_value, labels)
+            )
+        }
     }
 }
 
@@ -559,13 +570,6 @@ fn dump_terminator(
     labels: &BodyLabels,
 ) -> String {
     let _ = types;
-    let unwind = match &term.unwind {
-        UnwindAction::NoUnwind => "NoUnwind".to_string(),
-        UnwindAction::Propagate => "Propagate".to_string(),
-        UnwindAction::Cleanup { target } => {
-            format!("Cleanup({})", block_label_by_map(labels, *target))
-        }
-    };
     let kind = match &term.kind {
         TerminatorKind::Return { value } => format!(
             "Return({})",
@@ -574,7 +578,6 @@ fn dump_terminator(
                 .map(|o| dump_operand(o, labels))
                 .unwrap_or_else(|| "Unit".to_string())
         ),
-        TerminatorKind::ResumeUnwind => "ResumeUnwind".to_string(),
         TerminatorKind::Goto { target } => format!("Goto({})", block_label_by_map(labels, *target)),
         TerminatorKind::CondBr {
             cond,
@@ -621,7 +624,7 @@ fn dump_terminator(
             block_label_by_map(labels, *exit_target)
         ),
     };
-    format!("Terminator {{ kind: {}, unwind: {} }}", kind, unwind)
+    format!("Terminator {{ kind: {} }}", kind)
 }
 
 // ---------------------------------------------------------------------------

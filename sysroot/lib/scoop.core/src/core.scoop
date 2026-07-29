@@ -1475,9 +1475,11 @@ public enum Option<T> {
 // - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
 //   `-> resume` 已从语言语法移除，若编译器内部仍保留 tail-resume fast path，只能视为 lowering/codegen
 //   优化分类而不是独立 surface。
-// - 运行期语义 / one-shot 约束见 spec §5.5 与 `SCOOP_RUNTIME.md` 第 10 节。
+// - 运行期语义 / one-shot 约束见 spec §5.5 与 `SCOOP_RUNTIME.md` 第 10 节：
+//   对已 resume 过的 continuation 再次 resume 会在运行期直接 panic（fatal trap），
+//   这是调用方的契约责任，不作为 `resume` 的效果出现在效果行中。
 public interface Continuation<Resume, Answer, eff E = Pure> {
-    public fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
+    public fun resume(value: Resume): Answer / E
 }
 
 // Runtime errors that remain explicitly expressible through `Raise<RuntimeError>`.

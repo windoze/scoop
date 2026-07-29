@@ -1,7 +1,7 @@
 //! per-function lowering 构建器 [`FnLowering`]。
 //!
-//! 持有正在构建的 [`Body`]（locals + blocks）、当前块、符号→local 映射、loop 栈、
-//! cleanup 栈。表达式 lowering（[`expr`]）与语句 lowering（[`stmt`]）通过
+//! 持有正在构建的 [`Body`]（locals + blocks）、当前块、符号→local 映射、loop 栈。
+//! 表达式 lowering（[`expr`]）与语句 lowering（[`stmt`]）通过
 //! `&mut FnLowering` 写入。
 
 use std::collections::HashMap;
@@ -32,9 +32,6 @@ pub struct FnLowering<'hir> {
     pub effect_row: EffectRow,
     /// loop 栈（break/continue 目标）。
     pub loop_stack: Vec<LoopContext>,
-    /// cleanup 栈（finally / effect-unwind）：在作用域退出（return/break/continue/
-    /// perform-unwind）时按 LIFO 路由到这些 cleanup 块，再继续原控制流。
-    pub cleanup_scopes: Vec<CleanupScope>,
     /// 返回 local（隐式 return 的目的地；函数返回值写这里）。
     pub return_local: Option<LocalId>,
     /// 成员函数的 `this` local（隐式接收者；成员函数体内裸字段访问 / 赋值的接收者）。
@@ -56,20 +53,6 @@ pub struct FnLowering<'hir> {
 pub struct LoopContext {
     pub break_target: BasicBlockId,
     pub continue_target: BasicBlockId,
-}
-
-/// cleanup 作用域：`try/finally` 或 effect handle 的 finally 子句。
-///
-/// 当控制流从该作用域内退出（return / break / continue / perform unwind）时，
-/// 必须先路由到 `cleanup_target`（执行 finally 块），再继续原目标。
-/// `UnwindAction::Cleanup { target: cleanup_target }` 由 [`FnLowering::build_unwind`]
-/// 在终结符上据当前 `cleanup_scopes` 深度生成。
-#[derive(Clone)]
-pub struct CleanupScope {
-    /// finally cleanup 块（is_cleanup = true）。
-    pub cleanup_target: BasicBlockId,
-    /// 进入此作用域时的 cleanup_scopes 深度（用于判断该 scope 是否「最内层」）。
-    pub depth: usize,
 }
 
 impl<'hir> FnLowering<'hir> {
@@ -98,7 +81,6 @@ impl<'hir> FnLowering<'hir> {
             symbol_locals: HashMap::new(),
             effect_row,
             loop_stack: Vec::new(),
-            cleanup_scopes: Vec::new(),
             return_local: None,
             this_local: None,
             errors,
@@ -107,36 +89,6 @@ impl<'hir> FnLowering<'hir> {
             current_expr_id: scoop2_base::NodeId::from_u32(u32::MAX),
             enum_fqns,
         }
-    }
-
-    /// 当前最内层 cleanup 作用域（若有）；返回其 cleanup 块目标。
-    pub fn current_cleanup_target(&self) -> Option<BasicBlockId> {
-        self.cleanup_scopes.last().map(|s| s.cleanup_target)
-    }
-
-    /// 根据当前 cleanup_scopes 构造终结符的 [`UnwindAction`]。
-    /// 有 cleanup 时返回 `Cleanup { target }`，否则 `Propagate`（或调用方指定的 NoUnwind）。
-    pub fn build_unwind(&self) -> crate::mir::UnwindAction {
-        if let Some(t) = self.current_cleanup_target() {
-            crate::mir::UnwindAction::Cleanup { target: t }
-        } else {
-            crate::mir::UnwindAction::Propagate
-        }
-    }
-
-    /// 进入一个 cleanup 作用域（push finally cleanup 块）；返回其 depth（pop 时用）。
-    pub fn enter_cleanup_scope(&mut self, cleanup_target: BasicBlockId) -> usize {
-        let depth = self.cleanup_scopes.len();
-        self.cleanup_scopes.push(CleanupScope {
-            cleanup_target,
-            depth,
-        });
-        depth
-    }
-
-    /// 退出 cleanup 作用域（pop 到指定 depth）。
-    pub fn exit_cleanup_scope(&mut self, depth: usize) {
-        self.cleanup_scopes.truncate(depth);
     }
 
     /// 申明一个 local（命名或临时），返回 id。
@@ -234,7 +186,6 @@ impl<'hir> FnLowering<'hir> {
         let term = Terminator {
             span,
             kind: TerminatorKind::Goto { target },
-            unwind: crate::mir::UnwindAction::NoUnwind,
         };
         let bb = self.current_bb;
         self.body.blocks[bb.0 as usize].terminator = term;
@@ -523,7 +474,6 @@ impl<'hir> FnLowering<'hir> {
             self.body.blocks[bb.0 as usize].terminator = Terminator {
                 span: Span::default(),
                 kind: TerminatorKind::Return { value: None },
-                unwind: crate::mir::UnwindAction::NoUnwind,
             };
         }
         (self.body, self.nested_funs, self.types)
@@ -534,7 +484,6 @@ fn unreachable_term() -> Terminator {
     Terminator {
         span: Span::default(),
         kind: TerminatorKind::Unreachable,
-        unwind: crate::mir::UnwindAction::NoUnwind,
     }
 }
 
@@ -596,6 +545,7 @@ pub fn lower_fun_decl(
         body: None,
         file: file_id,
         stable_template_key: None,
+        effect_abi: None,
     };
     // 先为参数分配 local（仅当有 body 时才创建 builder；无 body 的声明不消耗 store）。
     let Some(body) = &d.body else {
@@ -641,7 +591,6 @@ fn lower_fun_body(
                 Terminator {
                     span,
                     kind: TerminatorKind::Return { value: Some(val) },
-                    unwind: crate::mir::UnwindAction::NoUnwind,
                 },
                 builder.current_bb,
             );
@@ -722,12 +671,10 @@ pub fn lower_top_level_val(
     let mut builder = FnLowering::new(hir, probe_store, file_id, owner_fqn, ty, effect_row.clone(), errors);
     let val = crate::mir::lower::expr::lower_expr(&mut builder, init);
     let cur_bb = builder.current_bb;
-    let unwind = builder.build_unwind();
     builder.terminate(
         Terminator {
             span: init.span,
             kind: TerminatorKind::Return { value: Some(val) },
-            unwind,
         },
         cur_bb,
     );

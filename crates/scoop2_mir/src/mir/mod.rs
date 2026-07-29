@@ -13,6 +13,7 @@
 
 pub mod devirtualize;
 pub mod dump;
+pub mod effect_lower;
 pub mod inline;
 pub mod lower;
 pub mod materialize;
@@ -108,6 +109,38 @@ pub struct FunDecl {
     /// 由 `compute_public_stable_keys` pass 填充；含 FQN + type params + overload sig。
     /// None = 尚未计算（lowering 产出时为 None）。
     pub stable_template_key: Option<crate::mir::transport::StableTemplateKey>,
+    /// Effect step ABI 信息。None = Plain 函数（普通 ABI）。
+    /// Some = EffectStep 函数（经过 effect lowering，含未捕获 Perform，
+    /// 函数体已变换为状态机，返回 Step tagged union）。
+    pub effect_abi: Option<EffectStepAbi>,
+}
+
+/// EffectStep 函数的 ABI 信息。
+#[derive(Clone, Debug)]
+pub struct EffectStepAbi {
+    /// Frame tuple 类型的 TypeId。
+    pub frame_ty: TypeId,
+    /// Step enum 合成类型的 TypeId。
+    pub step_ty: TypeId,
+    /// Step enum 的所有变体信息（Complete + 各 effect 操作变体）。
+    pub step_variants: Vec<StepVariant>,
+    /// frame local 的 LocalId（在函数体内）。
+    pub frame_local: LocalId,
+    /// state local 的 LocalId（用于 state dispatch）。
+    pub state_local: LocalId,
+}
+
+/// Step enum 的一个变体。
+#[derive(Clone, Debug)]
+pub struct StepVariant {
+    /// 变体名称（如 "Complete"、"scoop_core_Raise_raise"）。
+    pub name: String,
+    /// 变体的 FQN Symbol。
+    pub name_sym: scoop2_base::Symbol,
+    /// 变体的 payload 类型（Complete = 原始返回类型；effect 变体 = payload tuple 类型）。
+    pub payload_ty: TypeId,
+    /// 是否为 Complete 变体（正常完成）。
+    pub is_complete: bool,
 }
 
 /// 函数参数（同时也是一个 local）。
@@ -257,8 +290,6 @@ pub enum LocalSource {
 /// 基本块。
 #[derive(Clone, Debug)]
 pub struct BasicBlock {
-    /// 是否 cleanup 块（finally / effect-unwind；UnwindAction::Cleanup 必须落到此）。
-    pub is_cleanup: bool,
     pub stmts: Vec<Statement>,
     pub terminator: Terminator,
 }
@@ -266,7 +297,6 @@ pub struct BasicBlock {
 impl BasicBlock {
     pub fn new(terminator: Terminator) -> Self {
         Self {
-            is_cleanup: false,
             stmts: Vec::new(),
             terminator,
         }
@@ -523,6 +553,12 @@ pub enum Rvalue {
         path: Vec<PatternBindingStep>,
         result_ty: TypeId,
     },
+    /// 整数相等比较：`lhs == rhs`，产出 Bool。
+    /// 用于 effect lowering 的 state dispatch（检查 frame.state 值）。
+    IntEq {
+        lhs: Operand,
+        rhs: Operand,
+    },
 }
 
 /// 调用实参（可命名 / 可展开 `*expr`）。
@@ -600,6 +636,12 @@ pub enum CallKind {
     FunValue {
         callee: Operand,
     },
+    /// continuation resume 调用（`k.resume(value)`）。
+    /// continuation 是 Continuation<Resume, Answer, eff E> 接口的实例。
+    Resume {
+        continuation: Operand,
+        resume_value: Operand,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -610,16 +652,13 @@ pub enum CallKind {
 pub struct Terminator {
     pub span: Span,
     pub kind: TerminatorKind,
-    pub unwind: UnwindAction,
 }
 
 impl Terminator {
     pub fn successors(&self) -> SmallSuccessors {
         let mut s = SmallSuccessors::new();
         match &self.kind {
-            TerminatorKind::Return { .. }
-            | TerminatorKind::Unreachable
-            | TerminatorKind::ResumeUnwind => {}
+            TerminatorKind::Return { .. } | TerminatorKind::Unreachable => {}
             TerminatorKind::Goto { target } => s.push(*target),
             TerminatorKind::CondBr {
                 then_target,
@@ -657,8 +696,6 @@ pub enum TerminatorKind {
     Return {
         value: Option<Operand>,
     },
-    /// cleanup 块结束，继续向外传播 unwind。
-    ResumeUnwind,
     /// 无条件跳转。
     Goto {
         target: BasicBlockId,
@@ -689,19 +726,6 @@ pub enum TerminatorKind {
         arm_targets: Vec<BasicBlockId>,
         finally_target: Option<BasicBlockId>,
         exit_target: BasicBlockId,
-    },
-}
-
-/// 每终结符的 unwind 动作（cleanup 路由）。
-#[derive(Clone, Debug)]
-pub enum UnwindAction {
-    /// 不可能 unwind（Pure / 标量运算）。
-    NoUnwind,
-    /// unwind 直接向外传播（无本地 cleanup）。
-    Propagate,
-    /// 先跳到 cleanup 块，再传播。
-    Cleanup {
-        target: BasicBlockId,
     },
 }
 

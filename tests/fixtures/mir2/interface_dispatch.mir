@@ -1,226 +1,171 @@
-File {
+Module {
     items: [
-        Metadata(
-            Nominal(
-                NominalMetadata {
-                    span: 347..389,
-                    fqn: "fixtures.mir2.Greeter",
-                    name: "Greeter",
-                    kind: Interface,
-                    type_params: [],
-                    supertypes: [],
-                    interfaces: [],
-                    constructors: [],
-                    members: [Fun(MemberFunMetadata { span: 371..387, fqn: "fixtures.mir2.Greeter.greet", name: "greet", type_params: [], params: [], return_ty: Int })],
+        Metadata { fqn: "fixtures.mir2.Greeter", kind: Interface },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.greet",
+            name: "greet",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            body: None,
+        }),
+        Metadata { fqn: "fixtures.mir2.Animal", kind: Class },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.sound",
+            name: "sound",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Const(Int(1))) },
                 },
-            ),
-        ),
-        Metadata(
-            Nominal(
-                NominalMetadata {
-                    span: 391..463,
-                    fqn: "fixtures.mir2.Animal",
-                    name: "Animal",
-                    kind: Class,
-                    type_params: [],
-                    supertypes: [],
-                    interfaces: [],
-                    constructors: [],
-                    members: [Fun(MemberFunMetadata { span: 415..461, fqn: "fixtures.mir2.Animal.sound", name: "sound", type_params: [], params: [], return_ty: Int })],
+                BasicBlock {
+                label: bb#8c2c24bc,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit) },
                 },
-            ),
-        ),
-        Metadata(
-            Nominal(
-                NominalMetadata {
-                    span: 547..607,
-                    fqn: "fixtures.mir2.Dog",
-                    name: "Dog",
-                    kind: Class,
-                    type_params: [],
-                    supertypes: [],
-                    interfaces: [],
-                    constructors: [],
-                    members: [Fun(MemberFunMetadata { span: 563..605, fqn: "fixtures.mir2.Dog.sound2", name: "sound2", type_params: [], params: [], return_ty: Int })],
+            ],
+            body: Some(...),
+        }),
+        Metadata { fqn: "fixtures.mir2.Dog", kind: Class },
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.sound2",
+            name: "sound2",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Const(Int(2))) },
                 },
-            ),
-        ),
-        Fun(
-            FunDecl {
-                span: 609..668,
-                fqn: "fixtures.mir2.callInterface",
-                name: "callInterface",
-                ty: (fixtures.mir2.Greeter) -> Int / Pure,
-                params: [Param { span: 627..628, name: "g", ty: fixtures.mir2.Greeter, local: local#h5add838dff05bd7e011aacfbec461d5e }],
-                return_ty: Int,
-                body: Some(
-                    Body {
-                        locals: [LocalDecl { label: local#h5add838dff05bd7e011aacfbec461d5e, span: 627..628, name: Some("g"), ty: fixtures.mir2.Greeter, source: SourceLocal }, LocalDecl { label: local#h43c2f49cf340f66a59cbaf19e52e4335, span: 657..666, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h88fa3c7d692fad09c97f578221467c6c, span: 644..668, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
-                        blocks: [
-                            BasicBlock {
-                                label: bb#ha7ec4fc8972eca0d05d8d6b191b50118,
-                                is_cleanup: false,
-                                stmts: [Statement { span: 657..666, kind: Assign { target: local#h43c2f49cf340f66a59cbaf19e52e4335, value: Call { site_id: site#hb32b3ccad8f20a445345bdb5775034f9, kind: Interface { receiver: Local(local#h5add838dff05bd7e011aacfbec461d5e), dispatch: DispatchMetadata { owner_fqn: "fixtures.mir2.Greeter", member_name: "greet", member_fqn: "fixtures.mir2.Greeter.greet", member_decl_span: Some(375..380), receiver_ty: fixtures.mir2.Greeter } }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
-                                terminator: Terminator { span: 650..666, kind: Return { value: Some(Local(local#h43c2f49cf340f66a59cbaf19e52e4335)) }, unwind: NoUnwind },
-                            },
-                        ],
-                        start: bb#ha7ec4fc8972eca0d05d8d6b191b50118,
-                    }
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 670..726,
-                fqn: "fixtures.mir2.callVirtual",
-                name: "callVirtual",
-                ty: (fixtures.mir2.Animal) -> Int / Pure,
-                params: [Param { span: 686..687, name: "a", ty: fixtures.mir2.Animal, local: local#h5938f56aa746d4c3ccf17ee2e62d1f26 }],
-                return_ty: Int,
-                body: Some(
-                    Body {
-                        locals: [LocalDecl { label: local#h5938f56aa746d4c3ccf17ee2e62d1f26, span: 686..687, name: Some("a"), ty: fixtures.mir2.Animal, source: SourceLocal }, LocalDecl { label: local#h08e149de890a5ea07b57f8e7d45eb34e, span: 715..724, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hebddcd3c790bdf50ef8fe4fe972b60f8, span: 702..726, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
-                        blocks: [
-                            BasicBlock {
-                                label: bb#hc55f0f8d4300595f678804a745c73c48,
-                                is_cleanup: false,
-                                stmts: [Statement { span: 715..724, kind: Assign { target: local#h08e149de890a5ea07b57f8e7d45eb34e, value: Call { site_id: site#h270d14adb90b66717261f2d078d3958b, kind: Virtual { receiver: Local(local#h5938f56aa746d4c3ccf17ee2e62d1f26), dispatch: DispatchMetadata { owner_fqn: "fixtures.mir2.Animal", member_name: "sound", member_fqn: "fixtures.mir2.Animal.sound", member_decl_span: Some(424..429), receiver_ty: fixtures.mir2.Animal } }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
-                                terminator: Terminator { span: 708..724, kind: Return { value: Some(Local(local#h08e149de890a5ea07b57f8e7d45eb34e)) }, unwind: NoUnwind },
-                            },
-                        ],
-                        start: bb#hc55f0f8d4300595f678804a745c73c48,
-                    }
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 728..783,
-                fqn: "fixtures.mir2.callConcrete",
-                name: "callConcrete",
-                ty: (fixtures.mir2.Dog) -> Int / Pure,
-                params: [Param { span: 745..746, name: "d", ty: fixtures.mir2.Dog, local: local#h797fef4b4fe65b1533078cf3ac4b45d9 }],
-                return_ty: Int,
-                body: Some(
-                    Body {
-                        locals: [LocalDecl { label: local#h797fef4b4fe65b1533078cf3ac4b45d9, span: 745..746, name: Some("d"), ty: fixtures.mir2.Dog, source: SourceLocal }, LocalDecl { label: local#h7de08d576693355a22575888c392281b, span: 771..781, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h603c1d2d1aa583a75ee1f2beccddd287, span: 758..783, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
-                        blocks: [
-                            BasicBlock {
-                                label: bb#h7d80c904c9ebfd8e41d1f015a387792e,
-                                is_cleanup: false,
-                                stmts: [Statement { span: 771..781, kind: Assign { target: local#h7de08d576693355a22575888c392281b, value: Call { site_id: site#h6d292ec7d17a373f439afb20a3cffd1c, kind: Virtual { receiver: Local(local#h797fef4b4fe65b1533078cf3ac4b45d9), dispatch: DispatchMetadata { owner_fqn: "fixtures.mir2.Dog", member_name: "sound2", member_fqn: "fixtures.mir2.Dog.sound2", member_decl_span: Some(567..573), receiver_ty: fixtures.mir2.Dog } }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
-                                terminator: Terminator { span: 764..781, kind: Return { value: Some(Local(local#h7de08d576693355a22575888c392281b)) }, unwind: NoUnwind },
-                            },
-                        ],
-                        start: bb#h7d80c904c9ebfd8e41d1f015a387792e,
-                    }
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 785..814,
-                fqn: "fixtures.mir2.main",
-                name: "main",
-                ty: () -> Unit / Pure,
-                params: [],
-                return_ty: Unit,
-                body: Some(
-                    Body {
-                        locals: [LocalDecl { label: local#h643a0d4583396f93a614af52fe99cefd, span: 802..812, name: Some("tmp0"), ty: Unit, source: CompilerTemporary }],
-                        blocks: [
-                            BasicBlock {
-                                label: bb#h81d17e8675575c927480739fbd8e0ed3,
-                                is_cleanup: false,
-                                stmts: [Statement { span: 802..812, kind: Assign { target: local#h643a0d4583396f93a614af52fe99cefd, value: Call { site_id: site#h8f7ec4811d45a6e6997ab8d10552b22b, kind: Direct { callee_fqn: "scoop.core.println" }, args: [CallArg { span: 810..811, name: None, value: Const(Int) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
-                                terminator: Terminator { span: 785..814, kind: Return { value: None }, unwind: NoUnwind },
-                            },
-                        ],
-                        start: bb#h81d17e8675575c927480739fbd8e0ed3,
-                    }
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 371..387,
-                fqn: "fixtures.mir2.Greeter.greet",
-                name: "greet",
-                ty: (fixtures.mir2.Greeter) -> Int / Pure,
-                params: [Param { span: 357..364, name: "this", ty: fixtures.mir2.Greeter }],
-                return_ty: Int,
-                body: None,
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 415..461,
-                fqn: "fixtures.mir2.Animal.sound",
-                name: "sound",
-                ty: (fixtures.mir2.Animal) -> Int / Pure,
-                params: [Param { span: 402..408, name: "this", ty: fixtures.mir2.Animal, local: local#he9d81a8eaae357e82abc5b1b4ff686f1 }],
-                return_ty: Int,
-                body: Some(
-                    Body {
-                        locals: [LocalDecl { label: local#he9d81a8eaae357e82abc5b1b4ff686f1, span: 402..408, name: Some("this"), ty: fixtures.mir2.Animal, source: SourceLocal }, LocalDecl { label: local#he8f4bf49826fa855ab2a0eee92b1954b, span: 454..455, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h6f512506e3621303ca879f48e1da5c8f, span: 437..461, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
-                        blocks: [
-                            BasicBlock {
-                                label: bb#h09569f72d45f392546ecc0a9ee637c59,
-                                is_cleanup: false,
-                                stmts: [Statement { span: 454..455, kind: Assign { target: local#he8f4bf49826fa855ab2a0eee92b1954b, value: Use(Const(Int)) } }],
-                                terminator: Terminator { span: 447..455, kind: Return { value: Some(Local(local#he8f4bf49826fa855ab2a0eee92b1954b)) }, unwind: NoUnwind },
-                            },
-                        ],
-                        start: bb#h09569f72d45f392546ecc0a9ee637c59,
-                    }
-                ),
-            },
-        ),
-        Fun(
-            FunDecl {
-                span: 563..605,
-                fqn: "fixtures.mir2.Dog.sound2",
-                name: "sound2",
-                ty: (fixtures.mir2.Dog) -> Int / Pure,
-                params: [Param { span: 553..556, name: "this", ty: fixtures.mir2.Dog, local: local#h6dcbdc4b4ebdb5c796704fb26e63264f }],
-                return_ty: Int,
-                body: Some(
-                    Body {
-                        locals: [LocalDecl { label: local#h6dcbdc4b4ebdb5c796704fb26e63264f, span: 553..556, name: Some("this"), ty: fixtures.mir2.Dog, source: SourceLocal }, LocalDecl { label: local#hc7c48a863731d550aeba298a3b75a9f4, span: 598..599, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h3602bcf82e13609a73e48b6d12a6e13c, span: 581..605, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
-                        blocks: [
-                            BasicBlock {
-                                label: bb#h87c633aa52efec1f086c03f5b238bab4,
-                                is_cleanup: false,
-                                stmts: [Statement { span: 598..599, kind: Assign { target: local#hc7c48a863731d550aeba298a3b75a9f4, value: Use(Const(Int)) } }],
-                                terminator: Terminator { span: 591..599, kind: Return { value: Some(Local(local#hc7c48a863731d550aeba298a3b75a9f4)) }, unwind: NoUnwind },
-                            },
-                        ],
-                        start: bb#h87c633aa52efec1f086c03f5b238bab4,
-                    }
-                ),
-            },
-        ),
+                BasicBlock {
+                label: bb#8c2c24bc,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.callInterface",
+            name: "callInterface",
+            ty: (Nothing) -> () / Pure,
+            params: [Param { name: "g", ty: Nothing, local: local#19317fe1 }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("g"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: None, ty: Int, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                    local#18317e4e = Call(Interface { recv: Local(local#19317fe1), fixtures.mir2.Greeter.greet }, [], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Local(local#18317e4e)) },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.callVirtual",
+            name: "callVirtual",
+            ty: (Nothing) -> () / Pure,
+            params: [Param { name: "a", ty: Nothing, local: local#19317fe1 }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("a"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: None, ty: Int, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                    local#18317e4e = Call(Virtual { recv: Local(local#19317fe1), fixtures.mir2.Animal.sound }, [], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Local(local#18317e4e)) },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.callConcrete",
+            name: "callConcrete",
+            ty: (Nothing) -> () / Pure,
+            params: [Param { name: "d", ty: Nothing, local: local#19317fe1 }],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: Some("d"), ty: Nothing, source: Source },
+                LocalDecl { label: local#18317e4e, name: None, ty: Int, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                    local#18317e4e = Call(Direct { callee: "fixtures.mir2.Dog.sound2", type_args: , intrinsic: false }, [], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Local(local#18317e4e)) },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                    local#19317fe1 = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Const(Int(0))], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+            ],
+            body: Some(...),
+        }),
     ],
-}
-
-
-mir_facts {
-  roots: callable_bodies=6, initializers=0, extern_globals=0, metadata_roots=3
-  callable_bodies {
-    - item=8 fqn=fixtures.mir2.Animal.sound kind=callable_body span=415..461
-    - item=9 fqn=fixtures.mir2.Dog.sound2 kind=callable_body span=563..605
-    - item=5 fqn=fixtures.mir2.callConcrete kind=callable_body span=728..783
-    - item=3 fqn=fixtures.mir2.callInterface kind=callable_body span=609..668
-    - item=4 fqn=fixtures.mir2.callVirtual kind=callable_body span=670..726
-    - item=6 fqn=fixtures.mir2.main kind=callable_body span=785..814
-  }
-  metadata_roots {
-    - item=1 fqn=fixtures.mir2.Animal kind=metadata span=391..463 metadata_kind=nominal
-    - item=2 fqn=fixtures.mir2.Dog kind=metadata span=547..607 metadata_kind=nominal
-    - item=0 fqn=fixtures.mir2.Greeter kind=metadata span=347..389 metadata_kind=nominal
-  }
-  snapshots: canonical=<none>, snapshots=0
-  families: instances=0, callable_families=0
-  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
-  pass_pipeline: runs=0
 }

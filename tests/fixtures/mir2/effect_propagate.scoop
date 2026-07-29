@@ -1,0 +1,19 @@
+package fixtures.mir2
+
+import scoop.core.*
+
+// 验证 effect 传播：函数声明 effect 但不 handle，perform 向上传播到调用者。
+// 调用者（main）有 handle 捕获这个 perform。
+fun risky(): Int / Raise<Int> {
+  Raise.raise(42)
+  0
+}
+
+fun main() {
+  val r: Int = handle {
+    risky()
+  } on {
+    Raise.raise(e: Int) -> e
+  }
+  println(r)
+}

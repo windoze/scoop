@@ -1,0 +1,78 @@
+Module {
+    items: [
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.risky",
+            name: "risky",
+            ty: () -> () / Raise,
+            params: [],
+            return_ty: (),
+            effect_row: Raise,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Nothing, source: Temp },
+                LocalDecl { label: local#18317e4e, name: None, ty: Nothing, source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Perform(Raise.raise, [Const(Int(42))], resume=local#18317e4e -> bb#8c2c24bc) },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+            ],
+            body: Some(...),
+        }),
+        Fun(FunDecl {
+            fqn: "fixtures.mir2.main",
+            name: "main",
+            ty: () -> () / Pure,
+            params: [],
+            return_ty: (),
+            effect_row: Pure,
+            locals: [
+                LocalDecl { label: local#19317fe1, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#18317e4e, name: Some("e"), ty: Any, source: Source },
+                LocalDecl { label: local#17317cbb, name: None, ty: Int, source: Temp },
+                LocalDecl { label: local#16317b28, name: Some("r"), ty: Int, source: Source },
+                LocalDecl { label: local#1d31862d, name: None, ty: (), source: Temp },
+            ],
+            blocks: [
+                BasicBlock {
+                label: bb#8d2c264f,
+                stmts: [
+                ],
+                terminator: Terminator { kind: Handle(body=bb#8c2c24bc, arms=[bb#8e2c27e2], finally=None, exit=bb#8f2c2975) },
+                },
+                BasicBlock {
+                label: bb#8c2c24bc,
+                stmts: [
+                    local#17317cbb = Call(Direct { callee: "fixtures.mir2.risky", type_args: , intrinsic: false }, [], transport={trace:false, box:false}),
+                    local#19317fe1 = Use(Local(local#17317cbb)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8f2c2975) },
+                },
+                BasicBlock {
+                label: bb#8f2c2975,
+                stmts: [
+                    local#16317b28 = Use(Local(local#19317fe1)),
+                    local#1d31862d = Call(Direct { callee: "scoop.core.println", type_args: , intrinsic: false }, [Local(local#16317b28)], transport={trace:false, box:false}),
+                ],
+                terminator: Terminator { kind: Return(Unit) },
+                },
+                BasicBlock {
+                label: bb#8e2c27e2,
+                stmts: [
+                    local#19317fe1 = Use(Local(local#18317e4e)),
+                ],
+                terminator: Terminator { kind: Goto(bb#8f2c2975) },
+                },
+            ],
+            body: Some(...),
+        }),
+    ],
+}

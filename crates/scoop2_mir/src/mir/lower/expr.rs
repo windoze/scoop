@@ -575,6 +575,27 @@ fn emit_call_resolution(
             });
             let owner_str = builder.hir.interner.resolve(*owner_fqn).to_string();
             let method_str = builder.hir.interner.resolve(*method_name).to_string();
+            // 特殊检测：Continuation.resume → CallKind::Resume。
+            // resume 是 continuation 对象上的方法，不是普通的 interface 分发。
+            if method_str == "resume" && owner_str.ends_with("Continuation") {
+                // resume 的实参是 resume 值（第一个 arg）。
+                let resume_value = args.into_iter().next().map(|a| a.value).unwrap_or(Operand::Const(crate::mir::ConstValue::Unit));
+                let kind = crate::mir::CallKind::Resume {
+                    continuation: recv,
+                    resume_value,
+                };
+                builder.assign(
+                    tmp,
+                    Rvalue::Call {
+                        site_id: call_site_id,
+                        kind,
+                        args: Vec::new(),
+                        transport: call_transport,
+                    },
+                    span,
+                );
+                return Operand::Local(tmp);
+            }
             let member_fqn = format!("{}.{}", owner_str, method_str);
             let overload_sig = member_overload_sig(builder, *owner_fqn, *method_name);
             let stk = crate::mir::stable_id::make_stable_template_key(
@@ -678,7 +699,6 @@ fn emit_call_resolution(
             );
             let resume_local = builder.alloc_temp(ty, span);
             let resume_target = builder.new_block();
-            let unwind = builder.build_unwind();
             // 从 args 构造 payload metadata。
             let payload_component_tys: Vec<scoop2_hir::ty::TypeId> = args
                 .iter()
@@ -739,7 +759,6 @@ fn emit_call_resolution(
                         resume_local,
                         resume_target,
                     },
-                    unwind,
                 },
                 resume_target,
             );
@@ -893,7 +912,6 @@ fn lower_binary(
                         then_target: then_bb,
                         else_target: else_bb,
                     },
-                    unwind: crate::mir::UnwindAction::NoUnwind,
                 },
                 then_bb,
             );
@@ -929,7 +947,6 @@ fn lower_binary(
                         then_target: then_bb,
                         else_target: else_bb,
                     },
-                    unwind: crate::mir::UnwindAction::NoUnwind,
                 },
                 then_bb,
             );
@@ -966,7 +983,6 @@ fn lower_binary(
                         then_target: then_bb,
                         else_target: else_bb,
                     },
-                    unwind: crate::mir::UnwindAction::NoUnwind,
                 },
                 then_bb,
             );
@@ -1243,7 +1259,6 @@ fn lower_safe_member_access(
                 then_target: then_bb,
                 else_target: else_bb,
             },
-            unwind: crate::mir::UnwindAction::NoUnwind,
         },
         then_bb,
     );
@@ -1321,7 +1336,6 @@ fn lower_not_null_assert(
                 then_target: then_bb,
                 else_target: else_bb,
             },
-            unwind: crate::mir::UnwindAction::NoUnwind,
         },
         then_bb,
     );
@@ -1820,12 +1834,10 @@ fn lower_lambda(
         ast::LambdaBody::Expr(e) => {
             let val = lower_expr(&mut nested_builder, e);
             let cur_bb = nested_builder.current_bb;
-            let unwind = nested_builder.build_unwind();
             nested_builder.terminate(
                 crate::mir::Terminator {
                     span: e.span,
                     kind: crate::mir::TerminatorKind::Return { value: Some(val) },
-                    unwind,
                 },
                 cur_bb,
             );
@@ -1845,6 +1857,7 @@ fn lower_lambda(
         body: Some(body),
         file: builder.file_id,
         stable_template_key: None,
+        effect_abi: None,
     };
     builder.nested_funs.push(nested);
     builder.nested_funs.extend(nested_more);
@@ -1893,7 +1906,6 @@ pub fn lower_when(
                     then_target: arm_bb,
                     else_target: next_bb,
                 },
-                unwind: crate::mir::UnwindAction::NoUnwind,
             },
             arm_bb,
         );
@@ -2034,7 +2046,6 @@ fn lower_pattern_test(
                             then_target: match_bb,
                             else_target: next_bb,
                         },
-                        unwind: crate::mir::UnwindAction::NoUnwind,
                     },
                     match_bb,
                 );
@@ -2147,7 +2158,95 @@ pub fn lower_handle(
     let exit_bb = builder.new_block();
     let arm_bbs: Vec<_> = arms.iter().map(|_| builder.new_block()).collect();
     let finally_bb = finally.map(|_| builder.new_block());
-    // 发射 Handle 终结符（unwind 据 cleanup_scopes 构造；handle 区入口不携带 cleanup）。
+    // 为每个 arm 构造 HandlerArm 契约。
+    let mut handler_arms: Vec<crate::mir::transport::HandlerArm> = Vec::with_capacity(arms.len());
+    for arm in arms {
+        // op_fqn = effect_path.last_segment . op_name
+        let effect_name = arm
+            .op
+            .effect_path
+            .segments
+            .last()
+            .map(|s| builder.hir.interner.resolve(s.symbol).to_string())
+            .unwrap_or_default();
+        let op_name = builder.hir.interner.resolve(arm.op.op.symbol).to_string();
+        let op_fqn = if effect_name.is_empty() {
+            op_name.clone()
+        } else {
+            format!("{}.{}", effect_name, op_name)
+        };
+        // 解析 handled effect type。
+        let handled_effect_ty = builder
+            .hir
+            .interner
+            .get(&effect_name)
+            .and_then(|fqn| {
+                // 尝试构造 effect nominal 类型。
+                if builder.hir.enum_variants.contains_key(&fqn) {
+                    Some(builder.types.ref_nominal(scoop2_hir::ty::NominalType {
+                        fqn,
+                        args: vec![],
+                        eff: None,
+                    }))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| builder.types.any());
+        // binder 类型。
+        let mut binder_locals: Vec<crate::mir::LocalId> = Vec::new();
+        let mut payload_component_tys: Vec<scoop2_hir::ty::TypeId> = Vec::new();
+        for b in &arm.op.binders {
+            let bty = b
+                .ty
+                .as_ref()
+                .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
+                .unwrap_or_else(|| builder.types.any());
+            payload_component_tys.push(bty);
+            let lid = builder.alloc_named(
+                builder.hir.interner.resolve(b.name.symbol).to_string(),
+                bty,
+                b.name.span,
+            );
+            builder.symbol_locals.insert(b.name.symbol, lid);
+            binder_locals.push(lid);
+        }
+        // continuation_local：resuming arm 的 escape_continuation binder。
+        let (continuation_local, kind) = if let Some(k_ident) = &arm.escape_continuation {
+            // resuming arm：, k -> expr
+            // k 的类型是 Continuation<Resume, Answer, eff E>，由 typecheck 推断。
+            // 这里先分配一个 Any 类型的 local（effect lowering pass 会用精确类型替换）。
+            let cont_ty = builder.types.any();
+            let lid = builder.alloc_named(
+                builder.hir.interner.resolve(k_ident.symbol).to_string(),
+                cont_ty,
+                k_ident.span,
+            );
+            builder.symbol_locals.insert(k_ident.symbol, lid);
+            (Some(lid), crate::mir::transport::HandlerArmKind::EscapeContinuation)
+        } else {
+            (None, crate::mir::transport::HandlerArmKind::NonResuming)
+        };
+        handler_arms.push(crate::mir::transport::HandlerArm {
+            op_fqn: op_fqn.clone(),
+            op_type_args: Vec::new(),
+            binder_count: arm.op.binders.len(),
+            binder_locals: binder_locals.clone(),
+            continuation_local,
+            handled_effect_ty,
+            payload_tuple_ty: if payload_component_tys.len() == 1 {
+                Some(payload_component_tys[0])
+            } else if payload_component_tys.is_empty() {
+                None
+            } else {
+                Some(builder.types.tuple(payload_component_tys.clone()))
+            },
+            payload_component_tys: payload_component_tys.clone(),
+            body_ty: ty,
+            kind,
+        });
+    }
+    // 发射 Handle 终结符。
     let handle_metadata = HandleMetadata {
         result_ty: ty,
         body_result_ty: ty,
@@ -2160,50 +2259,28 @@ pub fn lower_handle(
             kind: crate::mir::TerminatorKind::Handle {
                 site_id: handle_site_id,
                 metadata: handle_metadata,
-                arms: Vec::new(),
+                arms: handler_arms,
                 body_target: body_bb,
                 arm_targets: arm_bbs.clone(),
                 finally_target: finally_bb,
                 exit_target: exit_bb,
             },
-            unwind: crate::mir::UnwindAction::Propagate,
         },
         body_bb,
     );
-    // 若有 finally，进入 cleanup 作用域：body / arms 内的控制流退出时路由到 finally_bb。
-    let cleanup_depth = if let Some(fb) = finally_bb {
-        builder.enter_cleanup_scope(fb)
-    } else {
-        builder.cleanup_scopes.len()
-    };
     // body。
     builder.current_bb = body_bb;
     let bv = super::stmt::lower_block(builder, body);
     builder.assign(result, Rvalue::Use(bv), span);
     builder.goto(exit_bb, span);
-    // arms（简化：lower 各 arm body 到对应块，结果写 result）。
+    // arms（lower 各 arm body 到对应块，结果写 result）。
     for (i, arm) in arms.iter().enumerate() {
         builder.current_bb = arm_bbs[i];
-        // 注册 handle arm binders（`Raise.raise(e: Int) -> e` 中的 e）为 locals。
-        for b in &arm.op.binders {
-            let bty = b
-                .ty
-                .as_ref()
-                .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
-                .unwrap_or_else(|| builder.types.any());
-            let lid = builder.alloc_named(
-                builder.hir.interner.resolve(b.name.symbol).to_string(),
-                bty,
-                b.name.span,
-            );
-            builder.symbol_locals.insert(b.name.symbol, lid);
-        }
+        // binder locals 已在上方 HandlerArm 构造时注册。
         let v = lower_expr(builder, &arm.body);
         builder.assign(result, Rvalue::Use(v), arm.body.span);
         builder.goto(exit_bb, arm.span);
     }
-    // 退出 cleanup 作用域（finally 块自身不路由到自己）。
-    builder.exit_cleanup_scope(cleanup_depth);
     // finally。
     if let (Some(fb), Some(fblock)) = (finally_bb, finally) {
         builder.current_bb = fb;
@@ -2236,7 +2313,6 @@ fn lower_if(
                 then_target: then_bb,
                 else_target: else_bb,
             },
-            unwind: crate::mir::UnwindAction::NoUnwind,
         },
         then_bb,
     );
