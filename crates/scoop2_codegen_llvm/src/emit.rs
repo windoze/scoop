@@ -46,15 +46,26 @@ pub fn emit_object_to_file(
     let context = inkwell::context::Context::create();
     let target_info = TargetInfo::host();
     let cg = CodegenContext::new(&context, program, target_info.clone())?;
-    // 注入 class_itables 数据（供 globals 层构建 itable 全局）。
     *cg.class_itables_data.borrow_mut() = program.class_itables.clone();
     let rt = cg.declare_runtime();
     cg.declare_gc_globals()?;
+    // 1. 先声明所有 callable（建立函数符号；不含函数体）。
+    let mut callable_fns = Vec::new();
+    for callable in &program.callables {
+        callable_fns.push(declare_callable(&cg, program, callable)?);
+    }
+    for decl in &program.declarations {
+        declare_declaration(&cg, program, decl)?;
+    }
+    // 2. 生成 type descriptor + itable 全局（此时函数符号已可见，itable 可正确引用）。
     cg.declare_all_globals()?;
-    lower_all_callables(&cg, program, &rt)?;
-    // entry main（若存在用户 main）。
+    // 3. lowering 函数体。
+    for (callable, fv) in program.callables.iter().zip(callable_fns.iter().copied()) {
+        if callable.body.is_some() {
+            crate::body::FunctionLowerer::lower(&cg, &program.type_layouts, &rt, callable, fv)?;
+        }
+    }
     lower_entry_main(&cg, program, &rt)?;
-
     // 验证 module。
     if let Err(e) = cg.module.verify() {
         return Err(CodegenError::Verification {

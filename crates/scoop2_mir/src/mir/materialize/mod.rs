@@ -157,6 +157,40 @@ pub fn materialize(
         }
     }
     work.run()?;
+    // 强制实例化 class_itables 中引用的所有方法（它们通过 itable 间接调用，scan_calls 检测不到）。
+    let itable_method_fqns: Vec<String> = work
+        .backend_contracts
+        .class_itables
+        .iter()
+        .flat_map(|ci| {
+            let class = &ci.class_fqn;
+            ci.interface_fqns
+                .iter()
+                .flat_map(|iface_fqn| {
+                    hir.interner
+                        .get(iface_fqn)
+                        .and_then(|sym| hir.member_funs.get(&sym))
+                        .map(|methods| {
+                            methods
+                                .keys()
+                                .map(move |m| format!("{}.{}", class, hir.interner.resolve(*m)))
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    for method_fqn in &itable_method_fqns {
+        let key = InstanceKey {
+            template_fqn: method_fqn.clone(),
+            overload_sig: String::new(),
+            type_args: Vec::new(),
+        };
+        if work.templates.contains_key(&key.template_fqn) && !work.instances.contains_key(&key) {
+            let _ = work.run();
+        }
+    }
     // 构造 materialized module。
     let mut items: Vec<Item> = Vec::new();
     for key in &work.order {

@@ -53,7 +53,8 @@ impl<'ctx> CodegenContext<'ctx> {
             false,
         );
 
-        let type_desc = self.get_or_declare_string_type_desc();
+        // 使用 codegen 生成的 String type descriptor（含 itable），而非运行时提供的（无 itable）。
+        let type_desc = self.get_or_create_type_descriptor("scoop.core.String");
         let str_global_name = format!("__scoop_str_{key}");
         let str_global = self.module.add_global(
             header_ty,
