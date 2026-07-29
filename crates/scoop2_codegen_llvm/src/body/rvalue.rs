@@ -172,17 +172,58 @@ fn lower_tuple_index<'a, 'ctx>(
     index: u32,
     element_ty: TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
-    // receiver 的 tuple 值（StructValue）。
-    let agg = match receiver {
-        LirOperand::Local(id) => fl.load_local(*id)?.into_struct_value(),
-        LirOperand::Const(c) => fl.lower_const_value(c)?.into_struct_value(),
-    };
+    // receiver 的 tuple 值（StructValue），或指向 tuple 的引用（GC ptr → deref）。
+    let agg = load_struct_or_deref(fl, receiver)?;
     let _ = element_ty;
     let v = fl
         .builder
         .build_extract_value(agg, index, &format!("ti{}", index))
         .map_err(|e| CodegenError::llvm(e.to_string(), "build_extract_value", scoop2_base::Span::default()))?;
     Ok(v)
+}
+
+/// 加载一个聚合值（Struct/Tuple）。
+///
+/// 若值本身是 StructValue，直接返回。
+/// 若值是指针（GC ref 或 native ptr），按其指向的聚合类型 deref + load。
+fn load_struct_or_deref<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    operand: &LirOperand,
+) -> CodegenResult<inkwell::values::StructValue<'ctx>> {
+    let val = match operand {
+        LirOperand::Local(id) => fl.load_local(*id)?,
+        LirOperand::Const(c) => fl.lower_const_value(c)?,
+    };
+    match val {
+        BasicValueEnum::StructValue(s) => Ok(s),
+        BasicValueEnum::PointerValue(p) => {
+            // 指针 → deref：按 local 声明类型 load struct。
+            let ty = match operand {
+                LirOperand::Local(id) => fl.local_types.get(id).copied(),
+                _ => None,
+            };
+            let native = if p.get_type().get_address_space() == crate::context::gc_address_space() {
+                let as_int = fl.builder.build_ptr_to_int(p, fl.cg.context.i64_type(), "deref_int")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "deref_int", scoop2_base::Span::default()))?;
+                fl.builder.build_int_to_ptr(as_int, fl.cg.native_ptr_ty(), "deref_native")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "deref_native", scoop2_base::Span::default()))?
+            } else {
+                p
+            };
+            let agg_ty = ty
+                .and_then(|t| fl.cg.lower_type(t, fl.layouts).ok())
+                .unwrap_or_else(|| fl.cg.native_ptr_ty().into())
+                .into_struct_type();
+            let loaded = fl.builder.build_load(agg_ty, native, "deref_agg")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "deref_load", scoop2_base::Span::default()))?;
+            Ok(loaded.into_struct_value())
+        }
+        _ => Err(CodegenError::llvm(
+            "expected struct or pointer for aggregate access",
+            "load_struct_or_deref",
+            scoop2_base::Span::default(),
+        )),
+    }
 }
 
 /// `MemberAccess { receiver, member }` → struct extractvalue / class GEP+load。
@@ -204,7 +245,25 @@ fn lower_member_access<'a, 'ctx>(
             // 按 member_name 查找 HIR members 表获取 field index。
             // 简化：直接用 result_ty 匹配 fields 中类型匹配的第一个字段。
             let field_idx = fields.iter().position(|f| f.ty == result_ty).unwrap_or(0);
-            let agg = recv_val.into_struct_value();
+            let agg = match recv_val {
+                BasicValueEnum::StructValue(s) => s,
+                BasicValueEnum::PointerValue(p) => {
+                    // struct 通过引用存储：deref + load struct。
+                    let native = if p.get_type().get_address_space() == crate::context::gc_address_space() {
+                        let as_int = fl.builder.build_ptr_to_int(p, fl.cg.context.i64_type(), "ma_deref_int")
+                            .map_err(|e| CodegenError::llvm(e.to_string(), "ma_deref_int", scoop2_base::Span::default()))?;
+                        fl.builder.build_int_to_ptr(as_int, fl.cg.native_ptr_ty(), "ma_deref_native")
+                            .map_err(|e| CodegenError::llvm(e.to_string(), "ma_deref_native", scoop2_base::Span::default()))?
+                    } else {
+                        p
+                    };
+                    let agg_ty = fl.cg.lower_type(recv_ty, fl.layouts)?.into_struct_type();
+                    fl.builder.build_load(agg_ty, native, "ma_deref_agg")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "ma_deref_load", scoop2_base::Span::default()))?
+                        .into_struct_value()
+                }
+                _ => return Err(CodegenError::llvm("MemberAccess struct expected struct/ptr", "member_access", scoop2_base::Span::default())),
+            };
             let v = fl
                 .builder
                 .build_extract_value(agg, field_idx as u32, "member")
@@ -688,7 +747,10 @@ fn lower_cast<'a, 'ctx>(
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     // 先做 TypeTest：命中则原值返回；否则按 failure 处理。
     let test = lower_type_test(fl, value, _target_ty, scoop2_mir::mir::transport::RuntimeTypeStaticFold::Dynamic, descriptor)?;
-    let test_i1 = test.into_int_value();
+    // test 是 i8（Bool）；select/condbr 需 i1。truncate 到 i1（非 0 → true）。
+    let test_i8 = test.into_int_value();
+    let test_i1 = fl.builder.build_int_truncate(test_i8, fl.cg.context.bool_type(), "cast_test_i1")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "cast_trunc_test", scoop2_base::Span::default()))?;
     let val = match value {
         LirOperand::Local(id) => fl.load_local(*id)?,
         LirOperand::Const(c) => fl.lower_const_value(c)?,
@@ -720,12 +782,17 @@ fn lower_cast<'a, 'ctx>(
         }
         scoop2_mir::mir::transport::RuntimeCastFailure::ReturnNone => {
             // as? T：失败返回 None。Option 布局：null 指针 niche（None = null）。
-            // 选中 val，未选中 None（zero）。
+            // select 需要操作数类型一致：None 用与 val 同类型的 null。
+            let none_val: BasicValueEnum<'ctx> = match val {
+                BasicValueEnum::PointerValue(_) => fl.cg.gc_ptr_ty().const_null().into(),
+                BasicValueEnum::IntValue(_) => fl.cg.context.i64_type().const_zero().into(),
+                _ => fl.cg.context.i64_type().const_zero().into(),
+            };
             let result = fl.builder
                 .build_select(
                     test_i1,
                     val,
-                    fl.cg.context.i64_type().const_zero().into(),
+                    none_val,
                     "cast_opt",
                 )
                 .map_err(|e| CodegenError::llvm(e.to_string(), "cast_select", scoop2_base::Span::default()))?;
