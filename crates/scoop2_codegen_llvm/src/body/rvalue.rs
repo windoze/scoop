@@ -31,9 +31,10 @@ pub fn lower_rvalue<'a, 'ctx>(
         LirRvalue::MemberAccess {
             receiver_local,
             member_name,
+            field_offset,
             result_ty,
             ..
-        } => lower_member_access(fl, receiver_local, member_name, *result_ty),
+        } => lower_member_access(fl, receiver_local, member_name, *field_offset, *result_ty),
         LirRvalue::TopLevelRef { fqn, .. } => lower_top_level_ref(fl, fqn),
         LirRvalue::IndexAccess { receiver_local, index_locals, element_ty } => {
             lower_index_access(fl, receiver_local, index_locals, *element_ty)
@@ -189,6 +190,7 @@ fn lower_member_access<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     receiver: &LirOperand,
     member_name: &str,
+    lir_field_offset: u64,
     result_ty: TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let (recv_val, recv_ty) = lower_receiver_with_ty(fl, receiver)?;
@@ -237,9 +239,12 @@ fn lower_member_access<'a, 'ctx>(
                 },
                 None => "unknown",
             };
-            // 简化方案：从 receiver 的 type_desc 查 type_id，再用 type_id 反查 class layout。
-            // 当前简化：load header 后第一个字段（offset = header_size）。
-            let field_offset = header_size; // 默认第一个字段
+            // field_offset 由 LIR compute_field_offset 预计算（含正确 header_size + 对齐）。
+            let _ = class_fqn_text;
+            // LIR field_offset 已含正确的 header_size(32) + 对齐字段偏移（与 class_ctor 一致）。
+            let field_offset = lir_field_offset;
+            let field_llvm_ty = fl.cg.lower_type(result_ty, fl.layouts)?;
+            let _ = member_name;
             let field_slot = unsafe {
                 fl.builder.build_in_bounds_gep(
                     fl.cg.context.i8_type(),
@@ -249,12 +254,10 @@ fn lower_member_access<'a, 'ctx>(
                 )
             }
             .map_err(|e| CodegenError::llvm(e.to_string(), "gep field_slot", scoop2_base::Span::default()))?;
-            let field_ty = fl.cg.lower_type(result_ty, fl.layouts)?;
             let val = fl
                 .builder
-                .build_load(field_ty, field_slot, "field_val")
+                .build_load(field_llvm_ty, field_slot, "field_val")
                 .map_err(|e| CodegenError::llvm(e.to_string(), "load field_val", scoop2_base::Span::default()))?;
-            let _ = (class_fqn_text, member_name);
             Ok(val)
         }
         _ => Err(CodegenError::unsupported(
@@ -972,16 +975,8 @@ fn lower_interpolated_string<'a, 'ctx>(
                 let lit = fl.cg.get_or_create_string_literal(s)?;
                 result = Some(match result {
                     Some(prev) => {
-                        // concat(prev, lit)
-                        let prev_native = fl.builder.build_ptr_to_int(prev, fl.cg.context.i64_type(), "prev_int")
-                            .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int interp", scoop2_base::Span::default()))?;
-                        let prev_ptr = fl.builder.build_int_to_ptr(prev_native, fl.cg.native_ptr_ty(), "prev_native")
-                            .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr interp", scoop2_base::Span::default()))?;
-                        let lit_native = fl.builder.build_ptr_to_int(lit, fl.cg.context.i64_type(), "lit_int")
-                            .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int lit", scoop2_base::Span::default()))?;
-                        let lit_ptr = fl.builder.build_int_to_ptr(lit_native, fl.cg.native_ptr_ty(), "lit_native")
-                            .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr lit", scoop2_base::Span::default()))?;
-                        let concat_result = fl.builder.build_call(fl.rt.string_concat, &[prev_ptr.into(), lit_ptr.into()], "concat")
+                        // concat(prev, lit) — string_concat 接受 GC ptr 参数。
+                        let concat_result = fl.builder.build_call(fl.rt.string_concat, &[prev.into(), lit.into()], "concat")
                             .map_err(|e| CodegenError::llvm(e.to_string(), "call concat", scoop2_base::Span::default()))?;
                         match concat_result.try_as_basic_value() {
                             inkwell::values::ValueKind::Basic(v) => v.into_pointer_value(),
@@ -1066,7 +1061,25 @@ fn lower_enum_variant<'a, 'ctx>(
     Ok(tag_field.into_struct_value().into())
 }
 
+/// 对齐向上取整：返回 >= val 的最小 align 倍数（align > 0）。
+fn align_up(val: u64, align: u64) -> u64 {
+    if align == 0 {
+        return val;
+    }
+    let rem = val % align;
+    if rem == 0 {
+        val
+    } else {
+        val + (align - rem)
+    }
+}
+
 /// `ClassCtor { class_fqn, args }` → 分配 GC 对象 + 初始化字段。
+///
+/// 字段布局从 class_inits 的 field_inits 推导：每个字段按其 LLVM 类型的 store size
+/// 排列，带对齐填充。这与 type descriptor 的 size_bytes/trace_bitmap 计算对齐
+/// （都基于 ptr-sized slot 打包——当前简化：每个字段取 max(field_size, ptr_size)，
+/// 按 ptr_size 对齐，保证 MemberAccess 的偏移计算一致）。
 fn lower_class_ctor<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     class_fqn: &str,
@@ -1074,12 +1087,35 @@ fn lower_class_ctor<'a, 'ctx>(
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     // 1. 获取 type descriptor。
     let type_desc = fl.cg.get_or_create_type_descriptor(class_fqn);
-    // 2. 构造对象布局：{ header; payload }。
+    // 2. 构造对象布局：{ header; field0; field1; ... }。
     let header_ty = fl.cg.object_header_type();
     let header_size = fl.cg.target_data.get_store_size(&header_ty);
-    // payload size：简化为 args.len() * 8（每个 arg 一个 ptr 槽）。
-    let payload_size = (args.len() as u64) * fl.cg.pointer_byte_size;
-    let total_size = header_size + payload_size;
+    let ptr_size = fl.cg.pointer_byte_size;
+    // 从 class_inits 取字段类型，计算每个字段的 LLVM size（回退到 ptr_size）。
+    let class_init = fl.cg.class_inits.iter().find(|ci| ci.class_fqn == class_fqn);
+    let field_layouts: Vec<(u64, inkwell::types::BasicTypeEnum<'ctx>)> = args
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            let field_ty = class_init
+                .and_then(|ci| ci.field_inits.get(i))
+                .map(|fi| fi.ty);
+            let llvm_ty = field_ty
+                .and_then(|ty| fl.cg.lower_type(ty, fl.layouts).ok())
+                .unwrap_or_else(|| fl.cg.native_ptr_ty().into());
+            let store_size = fl.cg.target_data.get_store_size(&llvm_ty).max(ptr_size);
+            (store_size, llvm_ty)
+        })
+        .collect();
+    // 计算每个字段的偏移（累加 size，按 ptr_size 对齐）。
+    let mut offsets: Vec<u64> = Vec::with_capacity(field_layouts.len());
+    let mut cur = header_size;
+    for &(size, _) in &field_layouts {
+        cur = align_up(cur, ptr_size);
+        offsets.push(cur);
+        cur += size;
+    }
+    let total_size = align_up(cur, ptr_size).max(header_size + ptr_size);
     // 3. scoop_alloc_typed(type_desc, size)。
     let alloc_result = fl
         .builder
@@ -1095,9 +1131,10 @@ fn lower_class_ctor<'a, 'ctx>(
     };
     // 4. memset payload 为 0（header 已由 runtime 初始化）。
     // 简化：跳过 memset，直接写字段。
-    // 5. 写入字段。
+    // 5. 写入字段（按计算偏移 + 字段 LLVM 类型）。
     for (i, arg) in args.iter().enumerate() {
-        let field_offset = header_size + (i as u64) * fl.cg.pointer_byte_size;
+        let field_offset = offsets[i];
+        let (_, field_llvm_ty) = field_layouts[i];
         let field_slot = unsafe {
             fl.builder.build_in_bounds_gep(
                 fl.cg.context.i8_type(),
@@ -1111,24 +1148,59 @@ fn lower_class_ctor<'a, 'ctx>(
             LirOperand::Local(id) => fl.load_local(*id)?,
             LirOperand::Const(c) => fl.lower_const_value(c)?,
         };
-        // GC ptr → native ptr for store。
-        let val_native = match val {
+        // 字段值存储：按字段 LLVM 类型 store 到 field_slot。
+        // - 指针：GC ptr → native ptr 后 store。
+        // - 标量（Int/Bool/Char/Float）：直接 store（bit pattern）。
+        // - 聚合（Struct/Tuple）：按聚合 LLVM 类型 store（field_slot 类型需匹配）。
+        match val {
             BasicValueEnum::PointerValue(p) => {
                 let pi = fl.builder.build_ptr_to_int(p, fl.cg.context.i64_type(), "arg_int")
                     .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int ctor_arg", scoop2_base::Span::default()))?;
-                fl.builder.build_int_to_ptr(pi, fl.cg.native_ptr_ty(), "arg_native")
-                    .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr ctor_arg", scoop2_base::Span::default()))?
+                let native = fl.builder.build_int_to_ptr(pi, fl.cg.native_ptr_ty(), "arg_native")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr ctor_arg", scoop2_base::Span::default()))?;
+                fl.builder
+                    .build_store(field_slot, native)
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "store ctor_ptr_field", scoop2_base::Span::default()))?;
             }
-            _ => {
-                // 整数值存为 ptr（bit pattern）。
-                let iv = val.into_int_value();
-                fl.builder.build_int_to_ptr(iv, fl.cg.native_ptr_ty(), "arg_int_as_ptr")
-                    .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr ctor_int", scoop2_base::Span::default()))?
+            BasicValueEnum::IntValue(iv) => {
+                // 标量直接 store（field_slot 类型需匹配——当前是 i8* GEP，store int 需 cast）。
+                // 简化：转 i64 后按 ptr bit pattern store（与原有逻辑一致）。
+                let iv64 = if iv.get_type().get_bit_width() == 64 {
+                    iv
+                } else {
+                    fl.builder.build_int_z_extend(iv, fl.cg.context.i64_type(), "arg_ext")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "zext ctor_arg", scoop2_base::Span::default()))?
+                };
+                let as_ptr = fl.builder.build_int_to_ptr(iv64, fl.cg.native_ptr_ty(), "arg_int_as_ptr")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr ctor_int", scoop2_base::Span::default()))?;
+                fl.builder
+                    .build_store(field_slot, as_ptr)
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "store ctor_int_field", scoop2_base::Span::default()))?;
             }
-        };
-        fl.builder
-            .build_store(field_slot, val_native)
-            .map_err(|e| CodegenError::llvm(e.to_string(), "store ctor_field", scoop2_base::Span::default()))?;
+            BasicValueEnum::StructValue(sv) => {
+                // 聚合字段：按聚合类型 GEP 到 field_slot 后 store。
+                let struct_ty = field_llvm_ty.into_struct_type();
+                let typed_slot = unsafe {
+                    fl.builder.build_in_bounds_gep(
+                        struct_ty,
+                        obj_native,
+                        &[fl.cg.context.i64_type().const_int(field_offset / ptr_size, false)],
+                        &format!("ctor_field{}_s", i),
+                    )
+                }
+                .map_err(|e| CodegenError::llvm(e.to_string(), "gep ctor_struct_field", scoop2_base::Span::default()))?;
+                fl.builder
+                    .build_store(typed_slot, sv)
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "store ctor_struct_field", scoop2_base::Span::default()))?;
+            }
+            other => {
+                return Err(CodegenError::llvm(
+                    &format!("unsupported ctor field value type: {:?}", other),
+                    "class_ctor field",
+                    scoop2_base::Span::default(),
+                ));
+            }
+        }
     }
     // 6. 返回 GC ptr（native → addrspace 1）。
     let obj_int = fl

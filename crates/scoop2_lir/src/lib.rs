@@ -497,9 +497,19 @@ fn compute_field_offset(
         Some(m) => m,
         None => return 0,
     };
-    // 计算字段偏移：class 引用从 GC 头(8B)开始，value struct 从 0 开始。
-    let mut offset: u64 = if is_ref { 8 } else { 0 };
+    // 计算字段偏移：class 引用从对象头(32B: next+type_desc+size_bytes+flags+mark)开始，
+    // value struct 从 0 开始。字段按 ptr_size(8) 对齐打包（与 codegen class_ctor 一致）。
+    let header_size: u64 = 32;
+    let ptr_size: u64 = 8;
+    let align_up = |val: u64, align: u64| -> u64 {
+        if align == 0 { val } else {
+            let rem = val % align;
+            if rem == 0 { val } else { val + (align - rem) }
+        }
+    };
+    let mut offset: u64 = if is_ref { header_size } else { 0 };
     for (&member_sym, &member_ty) in members {
+        offset = align_up(offset, ptr_size);
         if interner.resolve(member_sym) == member_name {
             return offset;
         }
