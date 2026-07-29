@@ -1,5 +1,6 @@
 //! terminator lowering：`LirTerminator` → LLVM terminator 指令。
 
+use inkwell::values::BasicValueEnum;
 use scoop2_lir::LirTerminator;
 
 use crate::body::FunctionLowerer;
@@ -63,11 +64,20 @@ pub fn lower_terminator<'a, 'ctx>(
         } => {
             // cond 是 Bool（i8），按其声明类型 load 后转 i1。
             let cond_val = fl.lower_operand(cond, bool_ty())?;
+            // 若 cond 是指针（GC ref，effect/continuation 路径可能产生），转 i64 后比较。
+            let cond_i = match cond_val {
+                BasicValueEnum::IntValue(i) => i,
+                BasicValueEnum::PointerValue(p) => {
+                    fl.builder.build_ptr_to_int(p, fl.cg.context.i64_type(), "cond_ptr2int")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "cond_ptr2int", scoop2_base::Span::default()))?
+                }
+                _ => fl.cg.context.i8_type().const_zero(),
+            };
             let i1 = fl
                 .builder
                 .build_int_compare(
                     inkwell::IntPredicate::NE,
-                    cond_val.into_int_value(),
+                    cond_i,
                     fl.cg.context.i8_type().const_zero(),
                     "condbr",
                 )
