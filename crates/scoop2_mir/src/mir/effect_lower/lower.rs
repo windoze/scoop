@@ -543,21 +543,11 @@ struct PerformSite {
     live_out_at_resume: Vec<LocalId>,
 }
 
-/// Resume 调用信息。
-struct ResumeSite {
-    block_idx: usize,
-    stmt_idx: usize,
-    continuation: Operand,
-    resume_value: Operand,
-    target: LocalId,
-}
-
 /// 对含未捕获 Perform / Resume 的 body 执行 EffectStep 变换。
 /// 返回 EffectStepAbi 信息（含 frame 类型、outward cases、frame/state local IDs）。
 fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Interner, fqn: &str) -> Option<crate::mir::EffectStepAbi> {
     let live_out = analyze::compute_live_out(body);
     let perform_sites = collect_perform_sites(body, &live_out);
-    let resume_sites = collect_resume_sites(body);
 
     // 收集所有需要保存的 live locals（跨所有 Perform 站点的并集）。
     let mut all_live_locals: Vec<LocalId> = Vec::new();
@@ -601,8 +591,9 @@ fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Inter
     // 重写 Perform 站点。
     rewrite_perform_sites(body, &perform_sites, &live_to_slot, frame_local, frame_ty, store, interner, fqn);
 
-    // 重写 Resume 调用。
-    rewrite_resume_sites(body, &resume_sites);
+    // Resume 调用保持 `CallKind::Resume` 原样流向 LIR/codegen：
+    // resumed 标志检查 + step_fn 间接调用由 codegen 基于 canonical continuation
+    // 布局（scoop2_lir::effect）统一 lowering，MIR 不做字段级重写。
 
     // 添加 state dispatch 入口。
     let state_local = if !perform_sites.is_empty() {
@@ -700,31 +691,6 @@ fn collect_perform_sites(
                 resume_local: *resume_local,
                 live_out_at_resume: live_vec,
             });
-        }
-    }
-    sites
-}
-
-/// 收集所有 Resume 调用。
-fn collect_resume_sites(body: &Body) -> Vec<ResumeSite> {
-    let mut sites = Vec::new();
-    for (bi, block) in body.blocks.iter().enumerate() {
-        for (si, stmt) in block.stmts.iter().enumerate() {
-            if let StatementKind::Assign { target, value } = &stmt.kind {
-                if let Rvalue::Call {
-                    kind: CallKind::Resume { continuation, resume_value },
-                    ..
-                } = value
-                {
-                    sites.push(ResumeSite {
-                        block_idx: bi,
-                        stmt_idx: si,
-                        continuation: continuation.clone(),
-                        resume_value: resume_value.clone(),
-                        target: *target,
-                    });
-                }
-            }
         }
     }
     sites
@@ -905,161 +871,6 @@ fn rewrite_perform_sites(
         };
     }
     let _ = frame_ty;
-}
-
-/// 重写 Resume 调用：检查 resumed 标志 + 通过 continuation 重入。
-///
-/// `k.resume(v)` 变换为：
-/// 1. 读取 continuation 的 resumed 标志（MemberAccess 访问 "resumed" 字段）
-/// 2. 如果 resumed == true → Panic（二次 resume，终止性）
-/// 3. 设置 continuation.resumed = true（StoreMember 写 "resumed" 字段）
-/// 4. 调用 continuation 的 resume 函数（Direct 调用 scoop.core.Continuation.resume）
-///    传入 continuation + resume value
-/// 5. 返回结果赋值到 target local
-fn rewrite_resume_sites(body: &mut Body, sites: &[ResumeSite]) {
-    for site in sites {
-        let span = body.blocks[site.block_idx].stmts[site.stmt_idx].span;
-        let cont_ty = operand_type(&site.continuation, body);
-        let val_ty = operand_type(&site.resume_value, body);
-        let target_ty = body
-            .locals
-            .get(site.target.0 as usize)
-            .map(|d| d.ty)
-            .unwrap_or_else(|| {
-                let mut s = TypeStore::new();
-                s.any()
-            });
-
-        // 分配 resumed_flag local（Bool）。
-        let mut store = TypeStore::new();
-        let bool_ty = store.bool();
-        let resumed_local = LocalId(body.locals.len() as u32);
-        body.locals.push(LocalDecl {
-            span,
-            name: None,
-            ty: bool_ty,
-            source: crate::mir::LocalSource::Temp,
-            mutable: false,
-        });
-
-        // 保存原块的终结符（在修改前保存）。
-        let orig_terminator = body.blocks[site.block_idx].terminator.clone();
-        let orig_span = body.blocks[site.block_idx].terminator.span;
-
-        // 读取 continuation 的 resumed 标志。
-        // continuation 是 Continuation<Resume, Answer, eff E> nominal 类型。
-        // resumed 标志通过 MemberAccess("resumed") 访问。
-        let check_resumed = Statement {
-            span,
-            kind: StatementKind::Assign {
-                target: resumed_local,
-                value: Rvalue::MemberAccess {
-                    site_id: None,
-                    receiver: site.continuation.clone(),
-                    member: MemberAccessMetadata {
-                        name: "resumed".to_string(),
-                        receiver_ty: cont_ty,
-                        resolved: None,
-                        hidden_effects: scoop2_hir::ty::EffectRow::pure(),
-                    },
-                },
-            },
-        };
-
-        // 创建条件分支块：if resumed_local → panic_block, else → resume_block
-        let panic_block_id = BasicBlockId(body.blocks.len() as u32);
-        let resume_block_id = BasicBlockId(body.blocks.len() as u32 + 1);
-
-        // 分割当前块：在 resume 调用语句前插入 CondBr。
-        let block = &mut body.blocks[site.block_idx];
-        let after_stmts: Vec<Statement> = block.stmts[site.stmt_idx + 1..].to_vec();
-        let before_stmts: Vec<Statement> = block.stmts[..site.stmt_idx].to_vec();
-        // 当前块保留 before_stmts + check_resumed，终结符改为 CondBr。
-        block.stmts = before_stmts;
-        block.stmts.push(check_resumed);
-        block.terminator = Terminator {
-            span: orig_span,
-            kind: TerminatorKind::CondBr {
-                cond: Operand::Local(resumed_local),
-                then_target: panic_block_id,
-                else_target: resume_block_id,
-            },
-        };
-
-        // panic_block: Panic 语句（终止性）。
-        body.blocks.push(crate::mir::BasicBlock {
-            stmts: vec![Statement {
-                span,
-                kind: StatementKind::Panic {
-                    message: "ContinuationAlreadyResumed".to_string(),
-                },
-            }],
-            terminator: Terminator {
-                span,
-                kind: TerminatorKind::Unreachable,
-            },
-        });
-
-        // resume_block: 设置 resumed + 执行 resume 调用 + 后续语句 + 原终结符。
-        // 设置 continuation.resumed = true（StoreMember）。
-        let set_resumed = Statement {
-            span,
-            kind: StatementKind::StoreMember {
-                receiver: site.continuation.clone(),
-                member: MemberAccessMetadata {
-                    name: "resumed".to_string(),
-                    receiver_ty: cont_ty,
-                    resolved: None,
-                    hidden_effects: scoop2_hir::ty::EffectRow::pure(),
-                },
-                value: Operand::Const(crate::mir::ConstValue::Bool(true)),
-                value_ty: bool_ty,
-                continuation_route: StoredContinuationRoutePublication::None,
-            },
-        };
-        let resume_call = Statement {
-            span,
-            kind: StatementKind::Assign {
-                target: site.target,
-                value: Rvalue::Call {
-                    site_id: None,
-                    kind: CallKind::Direct {
-                        callee_fqn: "scoop.core.Continuation.resume".to_string(),
-                        type_args: Vec::new(),
-                        is_intrinsic: false,
-                        stable_template_key: None,
-                        stable_instance_key: None,
-                        generic_type_args: Vec::new(),
-                        generic_eff_args: Vec::new(),
-                    },
-                    args: vec![
-                        crate::mir::CallArg {
-                            name: None,
-                            is_spread: false,
-                            value: site.continuation.clone(),
-                            value_ty: cont_ty,
-                        },
-                        crate::mir::CallArg {
-                            name: None,
-                            is_spread: false,
-                            value: site.resume_value.clone(),
-                            value_ty: val_ty,
-                        },
-                    ],
-                    transport: CallTransportMetadata::plain_no_outward(
-                        target_ty,
-                        MirTransportKind::Scalar,
-                    ),
-                },
-            },
-        };
-        let mut resume_stmts = vec![set_resumed, resume_call];
-        resume_stmts.extend(after_stmts);
-        body.blocks.push(crate::mir::BasicBlock {
-            stmts: resume_stmts,
-            terminator: orig_terminator,
-        });
-    }
 }
 
 /// 添加 state dispatch 入口块。

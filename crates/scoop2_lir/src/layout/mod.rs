@@ -435,6 +435,19 @@ fn sub_size_align(ty: TypeId, types: &TypeStore) -> (u64, u64) {
     }
 }
 
+/// 在已计算的 type_layouts 中查找首个匹配 `pred` 的 Scalar 类型 TypeId。
+fn find_scalar_type_in_program(
+    program: &LirProgram,
+    pred: impl Fn(&crate::ScalarKind) -> bool,
+) -> Option<TypeId> {
+    program
+        .type_layouts
+        .entries
+        .iter()
+        .find(|(_, l)| matches!(&l.kind, TypeLayoutKind::Scalar { scalar_kind } if pred(scalar_kind)))
+        .map(|(t, _)| *t)
+}
+
 /// 把 `n` 向上取整到 >= n 的最小 2 的幂（用于对齐）。
 fn align_up_pow2(bits: u64) -> u64 {
     if bits <= 8 {
@@ -671,29 +684,37 @@ fn prepare_effect_synthetic_layouts(
     }
 
     // Continuation struct（resuming arm 的 continuation binder 类型）：
-    // 简化为固定 header（GC header 8B + resumed flag 1B + state tag 8B + frame ptr 8B + step fn ptr 8B）。
+    // canonical 布局（见 effect/mod.rs 顶部常量），与 resume lowering 严格一致。
     if program
         .synthetic_types
         .iter()
         .all(|s| s.fqn != format!("{}$continuation", fd.fqn))
     {
+        let bool_ty = find_scalar_type_in_program(program, |sk| matches!(sk, crate::ScalarKind::Bool))
+            .unwrap_or(eff_abi.frame_ty);
+        let int_ty = find_scalar_type_in_program(program, |sk| {
+            matches!(sk, crate::ScalarKind::Int { .. })
+        })
+        .unwrap_or(eff_abi.frame_ty);
+        let fields = crate::effect::canonical_continuation_fields(eff_abi.frame_ty, bool_ty, int_ty)
+            .into_iter()
+            .map(|f| {
+                let size = match f.kind {
+                    crate::ContinuationFieldKind::Header => crate::effect::OBJECT_HEADER_SIZE_BYTES,
+                    crate::ContinuationFieldKind::ResumedFlag => 1,
+                    _ => 8,
+                };
+                FieldLayout {
+                    offset: f.offset,
+                    size,
+                    ty: f.ty,
+                }
+            })
+            .collect();
         let cont_layout = TypeLayout {
-            size: 40,
-            align: 8,
-            kind: TypeLayoutKind::Struct {
-                fields: vec![
-                    FieldLayout {
-                        offset: 0,
-                        size: 8,
-                        ty: eff_abi.frame_ty,
-                    },
-                    FieldLayout {
-                        offset: 8,
-                        size: 8,
-                        ty: eff_abi.frame_ty,
-                    },
-                ],
-            },
+            size: crate::effect::CONT_SIZE_BYTES,
+            align: crate::effect::CONT_ALIGN_BYTES,
+            kind: TypeLayoutKind::Struct { fields },
         };
         program.synthetic_types.push(SyntheticTypeDecl {
             fqn: format!("{}$continuation", fd.fqn),

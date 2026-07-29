@@ -365,12 +365,14 @@ mod tests {
     }
 
     #[test]
-    fn ref_types_are_not_final() {
+    fn string_is_final_any_is_not() {
         let interner = Interner::new();
         let ctx = empty_ctx(&interner);
         let mut store = TypeStore::new();
+        // String 是 final（无子类，不可继承）→ 可去虚化。
         let str_ty = store.string();
-        assert!(!is_final_type(&store, &ctx, str_ty));
+        assert!(is_final_type(&store, &ctx, str_ty));
+        // Any 可有任意子类 → 不可去虚化。
         let any_ty = store.any();
         assert!(!is_final_type(&store, &ctx, any_ty));
     }

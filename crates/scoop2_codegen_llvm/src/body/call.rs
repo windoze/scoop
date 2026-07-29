@@ -37,6 +37,204 @@ pub fn lower_call<'a, 'ctx>(
         LirCallKind::FunValue { callee_local } => {
             lower_funvalue_call(fl, callee_local, &call.args, call.result_ty)
         }
+        LirCallKind::Resume { continuation, resume_value } => {
+            lower_resume(fl, continuation, resume_value, call.result_ty)
+        }
+    }
+}
+
+/// Resume continuation：`k.resume(value)`（Direct 调用入口）。
+///
+/// 当 devirtualize / Direct fallback 把 `Continuation.resume` 解析为 Direct 调用时
+/// 由此进入；正常路径是 `LirCallKind::Resume`。两者共用 `lower_resume`。
+pub fn lower_resume_direct<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    continuation: &LirOperand,
+    resume_value: &LirOperand,
+    result_ty: scoop2_hir::ty::TypeId,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    lower_resume(fl, continuation, resume_value, result_ty)
+}
+
+/// Resume continuation：`k.resume(value)`。
+///
+/// continuation 对象布局取 canonical 布局常量（`scoop2_lir::effect::CONT_OFFSET_*`），
+/// 与 LIR `prepare_effect_abi` / synthetic_types 严格一致：
+///   header(0..32) | resumed(32, i8) | state(40, i64) | frame(48) | step_fn(56) | resume_value(64)
+///
+/// resume 语义：
+/// 1. 加载 continuation（GC ptr → native ptr）。
+/// 2. 读 resumed_flag → 若已 resumed，`scoop_panic("ContinuationAlreadyResumed")`
+///    （continuation 单发，不可重入，对应 RuntimeError::ContinuationAlreadyResumed）。
+/// 3. 置 resumed_flag = true。
+/// 4. resume_value 归一为 8 字节 word，写入 continuation 的 resume_value 字段。
+/// 5. 读 step_fn_ptr + frame_ptr，间接调用 `step_fn(frame, resume_word)` → 返回 Step。
+///    （Step 的具体 ABI 由 EffectStep callable lowering 定义；resume 透传其返回值。）
+fn lower_resume<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    continuation: &LirOperand,
+    resume_value: &LirOperand,
+    _result_ty: scoop2_hir::ty::TypeId,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    use scoop2_lir::effect::{
+        CONT_OFFSET_FRAME, CONT_OFFSET_RESUME_VALUE, CONT_OFFSET_RESUMED, CONT_OFFSET_STEP_FN,
+    };
+    let i64 = fl.cg.context.i64_type();
+    let i8 = fl.cg.context.i8_type();
+    let native_ptr = fl.cg.native_ptr_ty();
+    let llvm = |e: inkwell::builder::BuilderError, what: &str| {
+        CodegenError::llvm(e.to_string(), what, scoop2_base::Span::default())
+    };
+    // 加载 continuation 值（GC ptr → native ptr）。
+    let cont_val = match continuation {
+        LirOperand::Local(id) => fl.load_local(*id)?,
+        LirOperand::Const(c) => fl.lower_const_value(c)?,
+    };
+    let cont_native = match cont_val {
+        BasicValueEnum::PointerValue(p) => {
+            if p.get_type().get_address_space() == crate::context::gc_address_space() {
+                let as_int = fl
+                    .builder
+                    .build_ptr_to_int(p, i64, "res_cont_int")
+                    .map_err(|e| llvm(e, "res_cont_int"))?;
+                fl.builder
+                    .build_int_to_ptr(as_int, native_ptr, "res_cont_native")
+                    .map_err(|e| llvm(e, "res_cont_native"))?
+            } else {
+                p
+            }
+        }
+        _ => {
+            return Err(CodegenError::llvm(
+                "resume: continuation must be a pointer",
+                "lower_resume",
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+
+    // 1. 读 resumed_flag → 若 true，panic。
+    let resumed_slot = unsafe {
+        fl.builder
+            .build_in_bounds_gep(i8, cont_native, &[i64.const_int(CONT_OFFSET_RESUMED, false)], "res_resumed_slot")
+            .map_err(|e| llvm(e, "res_gep_resumed"))?
+    };
+    let resumed = fl
+        .builder
+        .build_load(i8, resumed_slot, "res_resumed")
+        .map_err(|e| llvm(e, "res_load_resumed"))?
+        .into_int_value();
+    let already = fl
+        .builder
+        .build_int_compare(inkwell::IntPredicate::NE, resumed, i8.const_zero(), "res_already")
+        .map_err(|e| llvm(e, "res_already"))?;
+    let ok_bb = fl.cg.context.append_basic_block(fl.fv, "resume_ok");
+    let panic_bb = fl.cg.context.append_basic_block(fl.fv, "resume_panic");
+    fl.builder
+        .build_conditional_branch(already, panic_bb, ok_bb)
+        .map_err(|e| llvm(e, "res_br"))?;
+    fl.builder.position_at_end(panic_bb);
+    let msg = fl.cg.get_or_create_string_literal("ContinuationAlreadyResumed")?;
+    let msg_native = fl
+        .builder
+        .build_bit_cast(msg, native_ptr, "res_panic_msg")
+        .map_err(|e| llvm(e, "res_panic_msg"))?;
+    fl.builder
+        .build_call(fl.rt.panic, &[msg_native.into()], "resume_panic_call")
+        .map_err(|e| llvm(e, "resume_panic_call"))?;
+    fl.builder
+        .build_unreachable()
+        .map_err(|e| llvm(e, "resume_unreachable"))?;
+    fl.builder.position_at_end(ok_bb);
+
+    // 2. 置 resumed_flag = true。
+    fl.builder
+        .build_store(resumed_slot, i8.const_int(1, false))
+        .map_err(|e| llvm(e, "res_store_resumed"))?;
+
+    // 3. resume_value 归一为 8 字节 word。
+    let rv = match resume_value {
+        LirOperand::Local(id) => fl.load_local(*id)?,
+        LirOperand::Const(c) => fl.lower_const_value(c)?,
+    };
+    let rv_word = match rv {
+        BasicValueEnum::PointerValue(p) => fl
+            .builder
+            .build_ptr_to_int(p, i64, "res_rv_word")
+            .map_err(|e| llvm(e, "res_rv_word"))?,
+        BasicValueEnum::IntValue(iv) => crate::intrinsics::zext_to_i64(fl, iv),
+        BasicValueEnum::FloatValue(fv) => {
+            let float_ty = fv.get_type();
+            let bits = if float_ty == fl.cg.context.f32_type() {
+                let b32 = fl
+                    .builder
+                    .build_bit_cast(fv, fl.cg.context.i32_type(), "res_rv_bits32")
+                    .map_err(|e| llvm(e, "res_rv_bits32"))?
+                    .into_int_value();
+                fl.builder
+                    .build_int_z_extend(b32, i64, "res_rv_zext")
+                    .map_err(|e| llvm(e, "res_rv_zext"))?
+            } else {
+                fl.builder
+                    .build_bit_cast(fv, i64, "res_rv_bits")
+                    .map_err(|e| llvm(e, "res_rv_bits"))?
+                    .into_int_value()
+            };
+            bits
+        }
+        other => {
+            return Err(CodegenError::unsupported(
+                format!("resume value 类型不支持按 word 传递：{:?}（复合值需装箱）", other.get_type()),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+
+    // 4. 写 resume_value word 到 continuation 的 resume_value 字段。
+    let rv_slot = unsafe {
+        fl.builder
+            .build_in_bounds_gep(i8, cont_native, &[i64.const_int(CONT_OFFSET_RESUME_VALUE, false)], "res_rv_slot")
+            .map_err(|e| llvm(e, "res_gep_rv"))?
+    };
+    fl.builder
+        .build_store(rv_slot, rv_word)
+        .map_err(|e| llvm(e, "res_store_rv"))?;
+
+    // 5. 读 step_fn_ptr + frame_ptr，间接调用 step_fn(frame, resume_word)。
+    let step_fn_slot = unsafe {
+        fl.builder
+            .build_in_bounds_gep(i8, cont_native, &[i64.const_int(CONT_OFFSET_STEP_FN, false)], "res_stepfn_slot")
+            .map_err(|e| llvm(e, "res_gep_stepfn"))?
+    };
+    let step_fn = fl
+        .builder
+        .build_load(native_ptr, step_fn_slot, "res_stepfn")
+        .map_err(|e| llvm(e, "res_load_stepfn"))?
+        .into_pointer_value();
+    let frame_slot = unsafe {
+        fl.builder
+            .build_in_bounds_gep(i8, cont_native, &[i64.const_int(CONT_OFFSET_FRAME, false)], "res_frame_slot")
+            .map_err(|e| llvm(e, "res_gep_frame"))?
+    };
+    let frame_ptr = fl
+        .builder
+        .build_load(native_ptr, frame_slot, "res_frame")
+        .map_err(|e| llvm(e, "res_load_frame"))?
+        .into_pointer_value();
+    // step_fn 签名：ptr step_fn(ptr frame, i64 resume_word) → 返回 Step。
+    let step_fn_ty = native_ptr.fn_type(&[native_ptr.into(), i64.into()], false);
+    let call = fl
+        .builder
+        .build_indirect_call(step_fn_ty, step_fn, &[frame_ptr.into(), rv_word.into()], "res_step_call")
+        .map_err(|e| llvm(e, "res_step_call"))?;
+    match call.try_as_basic_value() {
+        inkwell::values::ValueKind::Basic(v) => Ok(v),
+        inkwell::values::ValueKind::Instruction(_) => Err(CodegenError::llvm(
+            "resume: step_fn 未返回值",
+            "lower_resume",
+            scoop2_base::Span::default(),
+        )),
     }
 }
 

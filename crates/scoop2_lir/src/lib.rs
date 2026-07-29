@@ -316,10 +316,9 @@ fn map_rvalue(rv: &scoop2_mir::mir::Rvalue, types: &scoop2_hir::ty::TypeStore, h
                 CallKind::FunValue { callee } => LirCallKind::FunValue {
                     callee_local: map_operand(callee),
                 },
-                CallKind::Resume { .. } => LirCallKind::Direct {
-                    callee_symbol: "scoop.core.Continuation.resume".to_string(),
-                    callee_fqn: "scoop.core.Continuation.resume".to_string(),
-                    stable_instance_key: None,
+                CallKind::Resume { continuation, resume_value, .. } => LirCallKind::Resume {
+                    continuation: map_operand(continuation),
+                    resume_value: map_operand(resume_value),
                 },
             };
             LirRvalue::Call(LirCall {

@@ -634,6 +634,13 @@ pub enum LirCallKind {
     FunValue {
         callee_local: LirOperand,
     },
+    /// Continuation resume（`k.resume(value)`）。
+    /// continuation 是 Continuation 对象引用；resume_value 是 resume 的实参。
+    /// codegen 从 continuation 读取 step_fn 函数指针并间接调用。
+    Resume {
+        continuation: LirOperand,
+        resume_value: LirOperand,
+    },
 }
 
 /// LIR 模式。

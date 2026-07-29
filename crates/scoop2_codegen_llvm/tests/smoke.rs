@@ -126,6 +126,8 @@ fn program_arithmetic() -> LirProgram {
                     value: LirRvalue::Call(LirCall {
                         kind: LirCallKind::Direct {
                             callee_symbol: "scoop.core.Int.plus".to_string(),
+                            callee_fqn: "scoop.core.Int.plus".to_string(),
+                            stable_instance_key: None,
                         },
                         args: vec![LirOperand::Local(0), LirOperand::Local(1)],
                         result_ty: TypeId(2),

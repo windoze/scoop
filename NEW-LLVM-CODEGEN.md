@@ -393,3 +393,10 @@ codegen 是 pipeline 末端，绝大多数非法程序在 parse/typecheck/MIR/LI
 ### 注意：sysroot 精简对 fixture 的影响
 
 精简 sysroot 后，使用已移除功能（@CLayout/atomic/GC/reflection/collections/progression 等）的 typecheck fixture 会失败（~64 个）。这是预期的（sysroot 有意精简）；这些 fixture 待辅助功能逐步加回后再恢复。
+
+### 进展更新（resume 路径贯通）
+
+- **canonical continuation 布局**：`scoop2_lir::effect` 新增唯一权威来源（`OBJECT_HEADER_SIZE_BYTES=32` + `CONT_OFFSET_*` 常量 + `canonical_continuation_fields`）。此前三处布局互相矛盾（LIR attach 假设 8B header；synthetic_types 只有 2 个不透明字段；codegen 硬编码另一组偏移），现已统一为：header(0..32) | resumed(32) | state(40) | frame(48) | step_fn(56) | resume_value(64)，总 72B。
+- **resume 语义归属 codegen**：MIR `rewrite_resume_sites`（把 resume 重写为对不存在字段 `resumed` 的 MemberAccess，offset 静默为 0）已移除，`CallKind::Resume` 原样流向 LIR `LirCallKind::Resume` → codegen `lower_resume`（resumed 检查 + 真实 panic 消息 + resume_value 归一为 word + `step_fn(frame, word)` 间接调用）。
+- 顺带修复既有破坏：`scoop2_mir` 测试缺 `instance_symbol` 字段（编译失败）；devirtualize 陈旧测试 `ref_types_are_not_final`（String 自 5a984827 起为 final，测试未更新）。
+- 注意：continuation 对象的构造（perform 捕获续体）尚未实现，effect e2e 仍属 W1-10 待办。

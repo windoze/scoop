@@ -73,12 +73,14 @@ pub fn lower_terminator<'a, 'ctx>(
                 }
                 _ => fl.cg.context.i8_type().const_zero(),
             };
+            // 与同类型的 zero 比较（cond_i 可能是 i8 或 i64）。
+            let zero = cond_i.get_type().const_zero();
             let i1 = fl
                 .builder
                 .build_int_compare(
                     inkwell::IntPredicate::NE,
                     cond_i,
-                    fl.cg.context.i8_type().const_zero(),
+                    zero,
                     "condbr",
                 )
                 .map_err(|e| CodegenError::llvm(e.to_string(), "build_icmp", scoop2_base::Span::default()))?;
