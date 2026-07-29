@@ -520,13 +520,25 @@ pub fn lower_fun_decl_inner(
     // builder 私有 store（从 base 克隆；TypeId 在 base 范围内一致）。
     let mut types = base_types.clone();
     // 函数类型：从签名构造（用 store.function）。
-    // 参数类型优先从 TypedHir::top_level_funs 的 TypedSignature.param_types 获取。
-    let sig_param_tys: Option<Vec<TypeId>> = hir
-        .interner
-        .get(&owner_fqn)
-        .and_then(|fqn_sym| hir.top_level_funs.get(&fqn_sym))
-        .and_then(|sigs| sigs.first())
-        .map(|sig| sig.param_types.clone());
+    // 参数类型优先从 TypedSignature 获取（顶层函数或成员函数）。
+    let sig_param_tys: Option<Vec<TypeId>> = {
+        let fqn_sym = hir.interner.get(&owner_fqn);
+        let from_top = fqn_sym
+            .and_then(|s| hir.top_level_funs.get(&s))
+            .and_then(|sigs| sigs.first())
+            .map(|sig| sig.param_types.clone());
+        if from_top.is_some() {
+            from_top
+        } else {
+            // 成员函数：搜索 member_funs。
+            hir.member_funs
+                .values()
+                .flat_map(|methods| methods.get(&d.name.symbol))
+                .flat_map(|sigs| sigs.first())
+                .map(|sig| sig.param_types.clone())
+                .next()
+        }
+    };
     let param_tys: Vec<TypeId> = if let Some(sig_tys) = sig_param_tys {
         // 使用 HIR 签名的参数类型（已由 typecheck 解析为正确 TypeId）。
         sig_tys
@@ -541,19 +553,39 @@ pub fn lower_fun_decl_inner(
             })
             .collect()
     };
-    // 返回类型：优先从 TypedSignature 获取。
-    let return_ty = hir
-        .interner
-        .get(&owner_fqn)
-        .and_then(|fqn_sym| hir.top_level_funs.get(&fqn_sym))
-        .and_then(|sigs| sigs.first())
-        .map(|sig| sig.return_ty)
-        .unwrap_or_else(|| {
-            d.return_ty
-                .as_ref()
-                .and_then(|t| hir.expr_type(file_id, t.id).or_else(|| hir_type_ref(t, hir)))
-                .unwrap_or_else(|| types.unit())
-        });
+    // 返回类型：优先从 TypedSignature 获取（顶层函数或成员函数）。
+    let return_ty = {
+        let fqn_sym = hir.interner.get(&owner_fqn);
+        // 1. 顶层函数签名。
+        let from_top = fqn_sym
+            .and_then(|s| hir.top_level_funs.get(&s))
+            .and_then(|sigs| sigs.first())
+            .map(|sig| sig.return_ty);
+        // 2. 成员函数签名：owner_fqn = "pkg.method" → 拆 owner + method，查 member_funs。
+        let from_member = if from_top.is_none() {
+            // owner_fqn 格式：package.method（不含 class）。需要找声明此方法的 class。
+            // 拆分最后一段为 method name，其余为 package prefix。
+            let fqn_text = hir.interner.resolve(hir.interner.get(&owner_fqn).unwrap_or_default());
+            let method_name_sym = d.name.symbol;
+            // 搜索所有 member_funs 条目，找 method name 匹配的签名。
+            hir.member_funs
+                .values()
+                .flat_map(|methods| methods.get(&method_name_sym))
+                .flat_map(|sigs| sigs.first())
+                .map(|sig| sig.return_ty)
+                .next()
+        } else {
+            None
+        };
+        from_top
+            .or(from_member)
+            .unwrap_or_else(|| {
+                d.return_ty
+                    .as_ref()
+                    .and_then(|t| hir.expr_type(file_id, t.id).or_else(|| hir_type_ref(t, hir)))
+                    .unwrap_or_else(|| types.unit())
+            })
+    };
     // effect 行：尝试从 TypedSignature 表查（顶层函数）。
     let effect_row = lookup_effect_row(hir, d.name.symbol, package_prefix);
     let fn_ty = types.function(scoop2_hir::ty::FunctionType {

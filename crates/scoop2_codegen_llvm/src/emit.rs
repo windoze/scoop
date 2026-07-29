@@ -234,12 +234,13 @@ fn declare_declaration<'ctx>(
     if let Some(existing) = cg.module.get_function(&decl.symbol_name) {
         return Ok(existing);
     }
-    // extern 用 native 指针参数布局（C ABI）。
-    let return_llvm = cg.lower_type(decl.return_ty, &program.type_layouts)?;
+    // extern 函数使用 C ABI：标量参数提升到 i64（与 runtime int64_t 对齐）；
+    // 引用参数用 GC ptr（addrspace 1）—— runtime 的 extern(abi="scoop") 接受 GC ptr。
+    let return_llvm = lower_extern_type(cg, decl.return_ty, &program.type_layouts)?;
     let params: Vec<BasicMetadataTypeEnum<'ctx>> = decl
         .params
         .iter()
-        .map(|p| Ok::<_, CodegenError>(cg.lower_type(p.ty, &program.type_layouts)?.into()))
+        .map(|p| Ok::<_, CodegenError>(lower_extern_type(cg, p.ty, &program.type_layouts)?.into()))
         .collect::<CodegenResult<_>>()?;
     let fn_ty = fn_type_from_basic(return_llvm, &params);
     let fv = cg
@@ -295,4 +296,29 @@ fn fn_type_from_basic<'ctx>(
             ret.into_int_type().fn_type(params, false)
         }
     }
+}
+
+/// extern/runtime 函数的类型降级：标量 → i64（C ABI int64_t），引用 → GC ptr（addrspace 1）。
+/// 这与 runtime C 函数签名对齐（scoop_bool_to_string(int64_t) 等）。
+fn lower_extern_type<'ctx>(
+    cg: &CodegenContext<'ctx>,
+    ty: scoop2_hir::ty::TypeId,
+    layouts: &scoop2_lir::TypeLayoutTable,
+) -> CodegenResult<inkwell::types::BasicTypeEnum<'ctx>> {
+    let layout = layouts.get(ty);
+    if let Some(l) = layout {
+        match &l.kind {
+            scoop2_lir::TypeLayoutKind::Scalar { .. } => {
+                // 所有标量（Bool/Char/Int/Float）在 C ABI 中用 i64（runtime 的 int64_t 参数）。
+                // Float 除外：Float 用 f64/f32。但当前 runtime 函数都用 int64_t，故标量 → i64。
+                return Ok(cg.context.i64_type().into());
+            }
+            scoop2_lir::TypeLayoutKind::Reference { .. } | scoop2_lir::TypeLayoutKind::Function => {
+                return Ok(cg.gc_ptr_ty().into());
+            }
+            _ => {}
+        }
+    }
+    // 回退：正常降级。
+    cg.lower_type(ty, layouts)
 }

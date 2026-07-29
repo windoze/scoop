@@ -54,9 +54,13 @@ fn lower_known_fn<'a, 'ctx>(
     let mut arg_vals: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(args.len());
     for (i, operand) in args.iter().enumerate() {
         let val = lower_call_arg(fl, operand, None)?;
-        // 若参数是 GC 指针（addrspace 1）但被调用函数期望 native 指针（addrspace 0），
-        // 经 i64 中转转换。
-        let val = coerce_arg_addrspace(fl, val);
+        // 按被调用函数的参数类型转换实参。
+        let val = if (i as u32) < param_count {
+            let param_ty = fv.get_nth_param(i as u32).map(|p| p.get_type());
+            coerce_call_arg(fl, val, param_ty)
+        } else {
+            coerce_arg_addrspace(fl, val)
+        };
         arg_vals.push(val.into());
     }
     let call = fl
@@ -107,6 +111,56 @@ fn resolve_runtime_symbol<'a, 'ctx>(
         "scoop.core.println" | "scoop.core.__scoop_println" => Some(fl.rt.println),
         "scoop.core.print" | "scoop.core.__scoop_print" => Some(fl.rt.print),
         _ => None,
+    }
+}
+
+/// 按被调用函数参数类型转换实参（标量宽度扩展/收缩 + addrspace 转换）。
+fn coerce_call_arg<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    val: BasicValueEnum<'ctx>,
+    param_ty: Option<inkwell::types::BasicTypeEnum<'ctx>>,
+) -> BasicValueEnum<'ctx> {
+    let Some(target_ty) = param_ty else {
+        return coerce_arg_addrspace(fl, val);
+    };
+    match (val, target_ty) {
+        // 整数：宽度不匹配时 zext/sext/trunc。
+        (BasicValueEnum::IntValue(src), inkwell::types::BasicTypeEnum::IntType(dst_ty)) => {
+            let src_bits = src.get_type().get_bit_width();
+            let dst_bits = dst_ty.get_bit_width();
+            if src_bits == dst_bits {
+                src.into()
+            } else if src_bits < dst_bits {
+                fl.builder
+                    .build_int_z_extend(src, dst_ty, "arg_ext")
+                    .ok()
+                    .map(|v| v.into())
+                    .unwrap_or_else(|| dst_ty.const_zero().into())
+            } else {
+                fl.builder
+                    .build_int_truncate(src, dst_ty, "arg_trunc")
+                    .ok()
+                    .map(|v| v.into())
+                    .unwrap_or_else(|| dst_ty.const_zero().into())
+            }
+        }
+        // 指针：addrspace 转换。
+        (BasicValueEnum::PointerValue(ptr_val), _) => {
+            coerce_arg_addrspace(fl, ptr_val.into())
+        }
+        // 浮点：bitcast 若宽度不同。
+        (BasicValueEnum::FloatValue(fv), inkwell::types::BasicTypeEnum::FloatType(dst_ty)) => {
+            if fv.get_type() == dst_ty {
+                fv.into()
+            } else {
+                fl.builder
+                    .build_bit_cast(fv, dst_ty, "arg_fcast")
+                    .ok()
+                    .map(|v| v.into())
+                    .unwrap_or_else(|| fv.into())
+            }
+        }
+        (v, _) => v,
     }
 }
 
