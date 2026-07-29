@@ -79,6 +79,7 @@ fn intrinsic_name_from_fqn(fqn: &str) -> Option<String> {
         "gt" => "gt",
         "ge" => "ge",
         "hashCode" | "hash" => "hash",
+        "toInt" => "to_int",
         _ => return None,
     };
     Some(format!("{type_prefix}_{mapped}"))
@@ -146,6 +147,34 @@ fn lower_named_intrinsic<'a, 'ctx>(
                 .build_not(v, "not")
                 .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
             return Ok(r.into());
+        }
+        n if n.ends_with("_to_int") => {
+            let v = one_arg(fl, args, 0)?;
+            let result: BasicValueEnum = match v {
+                BasicValueEnum::IntValue(iv) => {
+                    let src_width = iv.get_type().get_bit_width();
+                    if src_width < 64 {
+                        fl.builder
+                            .build_int_z_extend(iv, ctx.i64_type(), "to_int_ext")
+                            .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?
+                            .into()
+                    } else {
+                        iv.into()
+                    }
+                }
+                BasicValueEnum::FloatValue(fv) => {
+                    fl.builder
+                        .build_float_to_signed_int(fv, ctx.i64_type(), "f2i")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?
+                        .into()
+                }
+                _ => return Err(CodegenError::unsupported(
+                    format!("to_int 不支持的类型: {name}"),
+                    &fl.fqn,
+                    scoop2_base::Span::default(),
+                )),
+            };
+            return Ok(result);
         }
         n if n.ends_with("_compare_to") => {
             let lhs = one_arg(fl, args, 0)?.into_int_value();

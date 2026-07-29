@@ -156,6 +156,8 @@ pub fn materialize(
             work.enqueue(s);
         }
     }
+    // 先收集 backend_contracts（从 metadata items），供 itable 方法实例化使用。
+    collect_metadata_contracts(&mut work, &generic.items, hir, &generic_types);
     work.run()?;
     // 强制实例化 class_itables 中引用的所有方法（它们通过 itable 间接调用，scan_calls 检测不到）。
     let itable_method_fqns: Vec<String> = work
@@ -171,9 +173,11 @@ pub fn materialize(
                         .get(iface_fqn)
                         .and_then(|sym| hir.member_funs.get(&sym))
                         .map(|methods| {
+                            // 成员函数模板 FQN = package.method（与 lower_fun_decl 的 fqn_of 一致）。
+                            let pkg = class.rsplit_once('.').map(|(p, _)| p).unwrap_or(class);
                             methods
                                 .keys()
-                                .map(move |m| format!("{}.{}", class, hir.interner.resolve(*m)))
+                                .map(move |m| format!("{}.{}", pkg, hir.interner.resolve(*m)))
                                 .collect::<Vec<_>>()
                         })
                         .unwrap_or_default()
@@ -182,15 +186,31 @@ pub fn materialize(
         })
         .collect();
     for method_fqn in &itable_method_fqns {
-        let key = InstanceKey {
-            template_fqn: method_fqn.clone(),
-            overload_sig: String::new(),
-            type_args: Vec::new(),
-        };
-        if work.templates.contains_key(&key.template_fqn) && !work.instances.contains_key(&key) {
-            let _ = work.run();
+        let in_t = work.templates.contains_key(method_fqn);
+        if !in_t {
+
+            // 尝试不带 owner 的 FQN（成员函数模板可能用 package.method 而非 owner.method）。
+            let alt = method_fqn.rsplit_once('.').map(|(owner, m)| {
+                // owner = "scoop.core.String"，取 package = owner 去掉最后一段
+                let pkg = owner.rsplit_once('.').map(|(p, _)| p).unwrap_or(owner);
+                format!("{}.{}", pkg, m)
+            }).unwrap_or_else(|| method_fqn.clone());
+            let in_t2 = work.templates.contains_key(&alt);
+            eprintln!("DEBUG itable_method fqn={method_fqn} alt={alt} in_t={in_t} in_t2={in_t2}");
+            if in_t2 {
+                work.enqueue(InstanceKey { template_fqn: alt, overload_sig: String::new(), type_args: Vec::new() });
+                continue;
+            }
+        }
+        if in_t {
+            work.enqueue(InstanceKey {
+                template_fqn: method_fqn.clone(),
+                overload_sig: String::new(),
+                type_args: Vec::new(),
+            });
         }
     }
+    work.run()?;
     // 构造 materialized module。
     let mut items: Vec<Item> = Vec::new();
     for key in &work.order {
@@ -251,10 +271,16 @@ pub fn materialize(
                             })
                             .unwrap_or_default();
                         if !interface_fqns.is_empty() {
-                            work.backend_contracts.class_itables.push(ClassItableContract {
-                                class_fqn: m.fqn.clone(),
-                                interface_fqns,
-                            });
+                            // 避免重复（已在 collect_metadata_contracts 中收集）。
+                            let already = work.backend_contracts.class_itables
+                                .iter()
+                                .any(|ci| ci.class_fqn == m.fqn);
+                            if !already {
+                                work.backend_contracts.class_itables.push(ClassItableContract {
+                                    class_fqn: m.fqn.clone(),
+                                    interface_fqns,
+                                });
+                            }
                         }
                     }
                     crate::mir::MetadataKind::Interface => {
@@ -343,6 +369,41 @@ pub fn materialize(
         instance_keys: work.order,
         backend_contracts: work.backend_contracts,
     })
+}
+
+/// 从 generic.items 的 Class metadata 收集 class_itables contracts。
+/// 提前于 materialize 的 run()，使 itable 方法实例化可用。
+fn collect_metadata_contracts(
+    work: &mut Materializer,
+    items: &[Item],
+    hir: &scoop2_hir::hir::TypedHir,
+    _types: &scoop2_hir::ty::TypeStore,
+) {
+    for it in items {
+        if let Item::Metadata(m) = it {
+            if matches!(m.kind, crate::mir::MetadataKind::Class) {
+                let interface_fqns: Vec<String> = hir_fqn_for_metadata(hir, &m.fqn)
+                    .and_then(|fqn_sym| hir.supertypes.get(&fqn_sym))
+                    .map(|supers| {
+                        supers
+                            .iter()
+                            .map(|&s| hir.interner.resolve(s).to_string())
+                            .filter(|fqn| {
+                                hir.interner.get(fqn)
+                                    .is_some_and(|sym| hir.interface_fqns.contains(&sym))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if !interface_fqns.is_empty() {
+                    work.backend_contracts.class_itables.push(ClassItableContract {
+                        class_fqn: m.fqn.clone(),
+                        interface_fqns,
+                    });
+                }
+            }
+        }
+    }
 }
 
 struct Materializer {
