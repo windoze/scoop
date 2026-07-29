@@ -1209,7 +1209,17 @@ fn lower_enum_variant<'a, 'ctx>(
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     // enum 布局：{ iN tag; payload_bytes }（简化版）。
     let enum_llvm_ty = fl.cg.lower_type(enum_ty, fl.layouts)?;
-    let enum_struct = enum_llvm_ty.into_struct_type();
+    // 若 enum 通过引用存储（LLVM 类型为 ptr），按布局构造内联 enum struct。
+    let enum_struct = match enum_llvm_ty {
+        inkwell::types::BasicTypeEnum::StructType(s) => s,
+        _ => {
+            // 引用类型：用 enum 布局构造 struct（{ i64 tag; [payload_bytes] }）。
+            // 简化：tag i64 + 足够 payload（按 args 数 * ptr_size）。
+            let payload_words = args.len().max(1) as u32;
+            let payload_ty = fl.cg.context.i64_type().array_type(payload_words);
+            fl.cg.context.struct_type(&[fl.cg.context.i64_type().into(), payload_ty.into()], false)
+        }
+    };
     let agg = enum_struct.const_zero();
     // field 0 = tag。
     let tag_field = fl
