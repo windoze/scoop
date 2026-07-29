@@ -30,8 +30,9 @@ pub fn lower_terminator<'a, 'ctx>(
                         .get(fl.return_ty)
                         .is_some_and(|l| matches!(l.kind, scoop2_lir::TypeLayoutKind::Scalar { scalar_kind: scoop2_lir::ScalarKind::Unit }));
                     if is_unit {
+                        // Unit 返回类型降级为 i8；返回 i8 zero（与函数 i8 返回类型一致）。
                         fl.builder
-                            .build_return(None)
+                            .build_return(Some(&fl.cg.context.i8_type().const_zero()))
                             .map_err(|e| CodegenError::llvm(e.to_string(), "build_return(unit)", scoop2_base::Span::default()))?;
                     } else {
                         // 不可达冗余 block：返回零值（实际不会执行到）。

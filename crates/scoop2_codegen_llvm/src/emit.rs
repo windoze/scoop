@@ -51,7 +51,7 @@ pub fn emit_object_to_file(
     let rt = cg.declare_runtime();
     cg.declare_gc_globals()?;
     cg.declare_all_globals()?;
-    lower_all_callables(&cg, program, &rt)?
+    lower_all_callables(&cg, program, &rt)?;
     // entry main（若存在用户 main）。
     lower_entry_main(&cg, program, &rt)?;
 
@@ -206,8 +206,19 @@ fn declare_declaration<'ctx>(
     program: &LirProgram,
     decl: &scoop2_lir::LirDeclaration,
 ) -> CodegenResult<FunctionValue<'ctx>> {
-    if cg.module.get_function(&decl.symbol_name).is_some() {
-        return Ok(cg.module.get_function(&decl.symbol_name).unwrap());
+    // extern 符号名：`@Extern(name=...)` 的真实符号。
+    // LIR 用 FQN 作为 symbol_name；对 `__scoop_*` 前缀的 extern，映射到运行时符号。
+    let actual_symbol = if decl.is_extern {
+        resolve_extern_runtime_symbol(&decl.symbol_name)
+    } else {
+        decl.symbol_name.clone()
+    };
+    if cg.module.get_function(&actual_symbol).is_some() {
+        return Ok(cg.module.get_function(&actual_symbol).unwrap());
+    }
+    // 同时缓存 FQN → 已声明函数（供 Direct 调用解析）。
+    if let Some(existing) = cg.module.get_function(&decl.symbol_name) {
+        return Ok(existing);
     }
     // extern 用 native 指针参数布局（C ABI）。
     let return_llvm = cg.lower_type(decl.return_ty, &program.type_layouts)?;
@@ -219,8 +230,24 @@ fn declare_declaration<'ctx>(
     let fn_ty = fn_type_from_basic(return_llvm, &params);
     let fv = cg
         .module
-        .add_function(&decl.symbol_name, fn_ty, Some(Linkage::External));
+        .add_function(&actual_symbol, fn_ty, Some(Linkage::External));
+    // 缓存 FQN → 声明（供 Direct 调用按 FQN 解析到正确函数）。
+    if actual_symbol != decl.symbol_name {
+        cg.cache_callable_fn(decl.symbol_name.clone(), fv);
+    }
     Ok(fv)
+}
+
+/// 把 extern FQN 映射到运行时符号名。
+/// `scoop.core.__scoop_println` → `scoop_println`；`scoop.core.__scoop_int_to_string` → `scoop_int_to_string`。
+fn resolve_extern_runtime_symbol(fqn: &str) -> String {
+    // 取最后一段（simple name），把 `__scoop_` 前缀替换为 `scoop_`。
+    let simple = fqn.rsplit('.').next().unwrap_or(fqn);
+    if let Some(stripped) = simple.strip_prefix("__scoop_") {
+        format!("scoop_{stripped}")
+    } else {
+        fqn.to_string()
+    }
 }
 
 /// 构造 callable 的 LLVM 函数类型（参数 + 返回值，GC 引用按 addrspace）。

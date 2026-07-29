@@ -581,10 +581,20 @@ pub fn lower_fun_decl_inner(
         stable_template_key: None,
         effect_abi: None,
     };
-    // 先为参数分配 local（仅当有 body 时才创建 builder；无 body 的声明不消耗 store）。
-    let Some(body) = &d.body else {
+    // 无函数体的声明（extern / abstract / intrinsic）：仍需填充签名参数。
+    if d.body.is_none() {
+        for (i, p) in d.params.iter().enumerate() {
+            let pty = param_tys.get(i).copied().unwrap_or_else(|| types.nothing());
+            fd.params.push(Param {
+                span: p.name.span,
+                name: hir.interner.resolve(p.name.symbol).to_string(),
+                ty: pty,
+                local: crate::mir::LocalId(0),
+            });
+        }
         return (Some(fd), Vec::new(), types);
-    };
+    }
+    let body = d.body.as_ref().expect("已处理无 body 的情况");
     let mut builder = FnLowering::new(hir, types, file_id, owner_fqn, return_ty, effect_row, errors);
     // 成员函数：receiver（`this`）作为隐式首参前置（与调用侧 receiver prepend 对齐）。
     if let Some(owner_sym) = member_owner {
