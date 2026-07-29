@@ -109,6 +109,10 @@ fn exact_receiver_fqn(
             }
             Some(n.fqn)
         }
+        TypeKind::Ref(RefTypeKind::String) => {
+            // String 是 final（无子类）；映射到 nominal FQN。
+            ctx.interner.get("scoop.core.String")
+        }
         TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Nominal(n)) => {
             // 值类型 nominal（struct/enum）不可继承 → 总是精确。
             Some(n.fqn)
@@ -150,6 +154,7 @@ fn is_final_type(
 ) -> bool {
     match store.kind(ty) {
         TypeKind::Value(_) | TypeKind::Nothing => true,
+        TypeKind::Ref(RefTypeKind::String) => true, // String 是 final（无子类）。
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
             let fqn_text = ctx.interner.resolve(n.fqn);
             !ctx.is_extensible_class(fqn_text) && !ctx.is_interface(fqn_text)

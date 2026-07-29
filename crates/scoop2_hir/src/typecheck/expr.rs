@@ -6802,8 +6802,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             _ => {
                 // 特异性选择（含 receiver FQN）+ effect 传播。
-                let sig_refs: Vec<&Signature> = applicable.iter().map(|(s, _)| *s).collect();
-                if let Some(idx) = self.select_most_specific_with_receiver(&applicable) {
+                // 去重：相同 (owner, params, type_param_count) 的候选视为同一重载
+                //（扩展方法注册可能产生重复）。
+                let mut seen: std::collections::HashSet<(scoop2_base::Symbol, usize, usize)> = std::collections::HashSet::new();
+                let deduped: Vec<(&Signature, scoop2_base::Symbol)> = applicable
+                    .iter()
+                    .filter(|(s, owner)| {
+                        seen.insert((*owner, s.params.len(), s.type_param_count))
+                    })
+                    .copied()
+                    .collect();
+                let sig_refs: Vec<&Signature> = deduped.iter().map(|(s, _)| *s).collect();
+                if let Some(idx) = self.select_most_specific_with_receiver(&deduped) {
                     self.record_callee_effects(sig_refs[idx], args, span);
                     self.subst_return_with_receiver_args(sig_refs[idx].return_ty, receiver_ty)
                 } else {

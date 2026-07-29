@@ -240,11 +240,26 @@ pub fn compute_gc_info_for_body(
         for (si, stmt) in block.stmts.iter().enumerate() {
             if let StatementKind::Assign { value, .. } = &stmt.kind {
                 if let Some(callee_symbol) = extract_call_callee(value) {
+                    // 调用 safepoint：live roots 包含调用实参中的 GC local（它们在调用期间存活，
+                    // 即使 live_out 不含——调用期间 GC 可能移动它们，必须作为 root 暴露）。
+                    let mut call_live = live_gc.clone();
+                    if let Rvalue::Call { args, .. } = value {
+                        for arg in args {
+                            if let scoop2_mir::mir::Operand::Local(lid) = &arg.value {
+                                let id = lid.0;
+                                if gc_local_ids.contains(&id) {
+                                    call_live.push(id);
+                                }
+                            }
+                        }
+                        call_live.sort_unstable();
+                        call_live.dedup();
+                    }
                     safepoints.push(GcSafepoint {
                         block_id: bi as u32,
                         stmt_index: si as u32,
                         kind: SafepointKind::Call { callee_symbol },
-                        live_gc_locals: live_gc.clone(),
+                        live_gc_locals: call_live,
                     });
                 }
             }
