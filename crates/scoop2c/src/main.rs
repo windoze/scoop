@@ -29,6 +29,21 @@ mod cli {
         DumpHir { input: PathBuf },
         DumpMir { input: PathBuf },
         DumpLir { input: PathBuf },
+        Build(BuildArgs),
+        Run(RunArgs),
+    }
+
+    #[derive(Debug)]
+    pub struct BuildArgs {
+        pub input: PathBuf,
+        pub output: PathBuf,
+        pub emit_ir: Option<PathBuf>,
+    }
+
+    #[derive(Debug)]
+    pub struct RunArgs {
+        pub input: PathBuf,
+        pub args: Vec<String>,
     }
 
     #[derive(Debug)]
@@ -75,9 +90,57 @@ mod cli {
             "dump-hir" => parse_dump(rest).map(|input| Command::DumpHir { input }),
             "dump-mir" => parse_dump(rest).map(|input| Command::DumpMir { input }),
             "dump-lir" => parse_dump(rest).map(|input| Command::DumpLir { input }),
+            "build" => parse_build(rest).map(Command::Build),
+            "run" => parse_run(rest).map(Command::Run),
             "-h" | "--help" => Err(usage()),
             other => Err(format!("未知子命令 `{other}`\n\n{}", usage())),
         }
+    }
+
+    fn parse_build(args: &[String]) -> Result<BuildArgs, String> {
+        let mut input = None;
+        let mut output = None;
+        let mut emit_ir = None;
+        let mut i = 0;
+        while i < args.len() {
+            let flag = args[i].as_str();
+            let take = |i: &mut usize| -> Result<String, String> {
+                *i += 1;
+                args.get(*i)
+                    .cloned()
+                    .ok_or_else(|| format!("选项 {flag} 缺少参数值"))
+            };
+            match flag {
+                "-o" | "--output" => output = Some(PathBuf::from(take(&mut i)?)),
+                "--emit-ir" => emit_ir = Some(PathBuf::from(take(&mut i)?)),
+                other if other.starts_with('-') => {
+                    return Err(format!("build: 未知选项 `{other}`"))
+                }
+                other => {
+                    if input.is_none() {
+                        input = Some(PathBuf::from(other));
+                    } else {
+                        return Err(format!("build: 多余的位置参数 `{other}`"));
+                    }
+                }
+            }
+            i += 1;
+        }
+        Ok(BuildArgs {
+            input: input.ok_or_else(|| "build: 缺少输入文件".to_string())?,
+            output: output.ok_or_else(|| "build: 缺少 -o 输出路径".to_string())?,
+            emit_ir,
+        })
+    }
+
+    fn parse_run(args: &[String]) -> Result<RunArgs, String> {
+        if args.is_empty() {
+            return Err("run: 缺少输入文件".to_string());
+        }
+        Ok(RunArgs {
+            input: PathBuf::from(&args[0]),
+            args: args[1..].to_vec(),
+        })
     }
 
     fn usage() -> String {
@@ -143,6 +206,8 @@ fn run(command: Command) -> ExitCode {
         Command::DumpHir { input } => run_dump_hir(&input),
         Command::DumpMir { input } => run_dump_mir(&input),
         Command::DumpLir { input } => run_dump_lir(&input),
+        Command::Build(args) => run_build(&args),
+        Command::Run(args) => run_run(&args),
     }
 }
 
@@ -729,4 +794,230 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
     let rendered = scoop2_lir::dump::dump_program(&lir_program);
     print!("{rendered}");
     ExitCode::SUCCESS
+}
+
+// =========================================================================
+// build / run：完整 e2e 管线（parse → typecheck[sysroot bodies] → MIR → materialize → LIR → codegen）
+// =========================================================================
+
+/// 共享 e2e 构建管线：返回 LirProgram（含 sysroot 函数体的单态化）。
+/// 失败时打印诊断并返回 None。
+fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::LirProgram> {
+    let BuiltProgram {
+        parsed,
+        sources,
+        user_indices,
+        mut interner,
+        mut diags,
+    } = build_program(source);
+    let user_parse_ok = !parsed[0].diagnostics.has_errors();
+    for pf in &parsed {
+        diags.extend(pf.diagnostics.iter().cloned());
+    }
+    if !user_parse_ok {
+        report_diagnostics(source, &[], diags);
+        return None;
+    }
+    let inputs = make_inputs(&parsed, &user_indices);
+    let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
+    // e2e：启用 sysroot 函数体 typecheck（println<String> 等库函数可单态化）。
+    let hir = scoop2_hir::typecheck::run_typecheck_with_options(
+        &inputs,
+        &mut interner,
+        &mut diags,
+        None,
+        &declared_deps,
+        true,
+    );
+    if diags.has_errors() {
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        report_diagnostics(source, &extra_sources, diags);
+        return None;
+    }
+    // MIR lowering：包含 sysroot 全量（库函数体）。
+    let mir_files: Vec<(scoop2_base::FileId, &scoop2_syntax::ast::File)> = parsed
+        .iter()
+        .enumerate()
+        .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
+        .collect();
+    let mut lower_diags = scoop2_base::diag::DiagnosticSink::new();
+    let lower_result = scoop2_mir::mir::lower::lower_module(
+        mir_files.into_iter(),
+        &hir,
+        &mut lower_diags,
+    );
+    if lower_diags.has_errors() {
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        report_diagnostics(source, &extra_sources, lower_diags);
+        return None;
+    }
+    // 查找 entry main。
+    let entry = lower_result
+        .module
+        .items
+        .iter()
+        .find_map(|it| match it {
+            scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| "main".to_string());
+    let monomorph_result = scoop2_mir::mir::materialize::materialize(
+        lower_result.module.clone(),
+        Some(&entry),
+        &hir,
+    );
+    if let Err(merr) = monomorph_result {
+        lower_diags.push(merr.to_diagnostic());
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        report_diagnostics(source, &extra_sources, lower_diags);
+        return None;
+    }
+    let monomorph = monomorph_result.as_ref().expect("materialize 已成功");
+    let lir_program = scoop2_lir::lower_to_lir(monomorph, &hir, &interner);
+    let _ = sources;
+    Some(lir_program)
+}
+
+/// 定位 `libscooprt.a`：优先环境变量 `SCOOP_LIBSCROOT`，否则在已知 target 目录搜索。
+fn locate_libscooprt() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("SCOOP_LIBSCROOT") {
+        let pb = PathBuf::from(p);
+        if pb.is_file() {
+            return Some(pb);
+        }
+    }
+    let target_dir: PathBuf = match std::env::var_os("CARGO_TARGET_DIR") {
+        Some(t) => PathBuf::from(t),
+        None => {
+            let exe = std::env::current_exe().ok()?;
+            // exe = target/<profile>/scoop2c → target/
+            exe.parent()?.parent()?.to_path_buf()
+        }
+    };
+    // 1. target/<profile>/liblibscooprt.a（cc 默认链接产物）。
+    for cand in ["liblibscooprt.a", "libscooprt.a"] {
+        let p = target_dir.join(cand);
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    // 2. cc build script OUT_DIR：target/<profile>/build/scoop_runtime-*/out/libscooprt.a
+    let build_dir = target_dir.join("debug").join("build");
+    if let Ok(entries) = std::fs::read_dir(&build_dir) {
+        let mut found: Vec<PathBuf> = Vec::new();
+        for e in entries.flatten() {
+            let name = e.file_name();
+            if name.to_string_lossy().starts_with("scoop_runtime-") {
+                let cand = e.path().join("out").join("libscooprt.a");
+                if cand.is_file() {
+                    found.push(cand);
+                }
+            }
+        }
+        // 取最新修改时间的一个。
+        found.sort_by_key(|p| {
+            std::fs::metadata(p)
+                .and_then(|m| m.modified())
+                .ok()
+        });
+        if let Some(latest) = found.into_iter().next() {
+            return Some(latest);
+        }
+    }
+    None
+}
+
+fn run_build(args: &cli::BuildArgs) -> ExitCode {
+    let source = match load_source(&args.input) {
+        Ok(s) => s,
+        Err(code) => return code,
+    };
+    let lir_program = match build_lir_program(&source) {
+        Some(p) => p,
+        None => return ExitCode::from(1),
+    };
+    // codegen → object。
+    let options = scoop2_codegen_llvm::EmitOptions::default();
+    let tmp_obj = std::env::temp_dir().join(format!(
+        "scoop2c_build_{}.o",
+        std::process::id()
+    ));
+    if let Err(e) = scoop2_codegen_llvm::emit_object_to_file(&lir_program, &tmp_obj, &options) {
+        eprintln!("error: codegen 失败：{e}");
+        return ExitCode::from(1);
+    }
+    if let Some(ir_path) = &args.emit_ir {
+        let emitted = scoop2_codegen_llvm::emit_program(&lir_program, &options);
+        if let Ok(emitted) = emitted {
+            let _ = std::fs::write(ir_path, emitted.ir_text);
+        }
+    }
+    // 链接：clang <obj> libscooprt.a -o <exe>。
+    let libscooprt = match locate_libscooprt() {
+        Some(p) => p,
+        None => {
+            eprintln!("error: 找不到 libscooprt.a（设置 SCOOP_LIBSCROOT 环境变量）");
+            return ExitCode::from(1);
+        }
+    };
+    let clang = std::env::var("SCOOP_LINKER").unwrap_or_else(|_| "clang".to_string());
+    let link_status = std::process::Command::new(&clang)
+        .arg(&tmp_obj)
+        .arg(&libscooprt)
+        .arg("-o")
+        .arg(&args.output)
+        .arg("-lpthread")
+        .status();
+    let _ = std::fs::remove_file(&tmp_obj);
+    match link_status {
+        Ok(s) if s.success() => ExitCode::SUCCESS,
+        Ok(s) => {
+            eprintln!("error: 链接失败（exit {:?}）", s.code());
+            ExitCode::from(1)
+        }
+        Err(e) => {
+            eprintln!("error: 无法启动链接器 {clang}：{e}");
+            ExitCode::from(1)
+        }
+    }
+}
+
+fn run_run(args: &cli::RunArgs) -> ExitCode {
+    let exe = std::env::temp_dir().join(format!("scoop2c_run_{}", std::process::id()));
+    let build_args = cli::BuildArgs {
+        input: args.input.clone(),
+        output: exe.clone(),
+        emit_ir: None,
+    };
+    let code = run_build(&build_args);
+    if code != ExitCode::SUCCESS {
+        return code;
+    }
+    let status = std::process::Command::new(&exe).args(&args.args).status();
+    let _ = std::fs::remove_file(&exe);
+    match status {
+        Ok(s) => match s.code() {
+            Some(c) => ExitCode::from((c & 0xff) as u8),
+            None => ExitCode::FAILURE,
+        },
+        Err(e) => {
+            eprintln!("error: 无法执行 {exe:?}：{e}");
+            ExitCode::from(1)
+        }
+    }
 }

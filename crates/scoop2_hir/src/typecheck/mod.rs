@@ -38,6 +38,23 @@ pub fn run_typecheck(
     target_platform: Option<&str>,
     declared_deps: &[String],
 ) -> crate::hir::TypedHir {
+    run_typecheck_with_options(inputs, interner, diags, target_platform, declared_deps, false)
+}
+
+/// 带 `lower_sysroot_bodies` 选项的 typecheck。
+///
+/// - `lower_sysroot_bodies = false`（默认；dump/check-source 路径）：sysroot 仅贡献符号声明，
+///   其函数体不进入 typecheck（保持现有行为 + fixture 基线）。
+/// - `lower_sysroot_bodies = true`（e2e build/run 路径）：sysroot 文件也产出 TypedFile，
+///   其函数体可被后续 MIR lowering（为 println<String> 等库函数生成实例）。
+pub fn run_typecheck_with_options(
+    inputs: &[crate::resolve::InputFile],
+    interner: &mut Interner,
+    diags: &mut DiagnosticSink,
+    target_platform: Option<&str>,
+    declared_deps: &[String],
+    lower_sysroot_bodies: bool,
+) -> crate::hir::TypedHir {
     use crate::resolve::{
         ConeKind, Index, InputOrigin, Resolution, body, collect, imports, type_refs,
     };
@@ -74,15 +91,20 @@ pub fn run_typecheck(
         trusted: bool,
     }
     let mut user_files: Vec<UserFile> = Vec::new();
-    for inp in inputs.iter().filter(|i| i.origin == InputOrigin::User) {
+    for inp in inputs.iter() {
+        // 默认仅 User-origin 文件产出 TypedFile；lower_sysroot_bodies 时包含 sysroot。
+        if !lower_sysroot_bodies && inp.origin != InputOrigin::User {
+            continue;
+        }
         let prefix = collect::package_prefix_of(inp.file, interner);
+        let is_sysroot = inp.origin == InputOrigin::Sysroot;
         let imports = imports::ImportTable::collect_with_origin(
             inp.file,
             inp.file_id,
             &index,
             interner,
             diags,
-            false,
+            is_sysroot,
             declared_deps,
         );
         type_refs::resolve_file_type_refs(inp.file, &index, &imports, interner, diags, &prefix);
@@ -1570,12 +1592,64 @@ const KNOWN_INTRINSIC_ENTRIES: &[&str] = &[
     "array_size_outofline",
     "bool_to_string",
     "char_to_string",
+    "char_compare_to",
+    "char_equals",
+    "char_hash",
+    "char_minus_char",
+    "char_minus_int",
+    "char_plus_int",
+    "char_to_int",
     "composite_copy",
     "dummy_ir",
     "dummy_runtime",
+    "float32_to_int",
     "float32_to_string",
+    "float64_to_int",
     "float64_to_string",
+    "float_compare_to",
+    "float_div",
+    "float_equals",
+    "float_minus",
+    "float_plus",
+    "float_rem",
+    "float_times",
+    "float_to_int",
+    "float_unary_minus",
+    "float_unary_plus",
+    "int_and",
+    "int_compare_to",
+    "int_dec",
+    "int_div",
+    "int_eq",
+    "int_equals",
+    "int_ge",
+    "int_gt",
+    "int_hash",
+    "int_inc",
+    "int_inv",
+    "int_le",
+    "int_lt",
+    "int_minus",
+    "int_ne",
+    "int_not_equals",
+    "int_or",
+    "int_plus",
+    "int_rem",
+    "int_shl",
+    "int_shr",
+    "int_times",
+    "int_to_int",
     "int_to_string",
+    "int_unary_minus",
+    "int_unary_plus",
+    "int_ushr",
+    "int_xor",
+    "string_byte_length",
+    "string_get_byte",
+    "uint_compare_to",
+    "uint_equals",
+    "uint_hash",
+    "uint_to_int",
     "unsafe_array_cast",
     "unsafe_mutable_array_cast",
     "unsafe_mutable_array_erase",

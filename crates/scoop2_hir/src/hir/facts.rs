@@ -35,6 +35,9 @@ pub enum ResolvedCall {
         decl_file: scoop2_base::FileId,
         /// 显式给出的类型实参（`callee<T, eff E>`）；空表示未显式指定。
         explicit_type_args: Vec<TypeId>,
+        /// 调用点推断的类型实参（按 callee type_params 声明顺序）；供 MIR 单态化使用。
+        /// 当 explicit_type_args 非空时，与之一致；否则为从实参类型推断的结果。
+        inferred_type_args: Vec<TypeId>,
         /// 调用点推断的返回类型。
         return_ty: TypeId,
     },
@@ -56,6 +59,8 @@ pub enum ResolvedCall {
         is_interface: bool,
         /// 显式类型实参。
         explicit_type_args: Vec<TypeId>,
+        /// 调用点推断的类型实参（按方法 type_params 声明顺序）。
+        inferred_type_args: Vec<TypeId>,
         /// 返回类型。
         return_ty: TypeId,
     },

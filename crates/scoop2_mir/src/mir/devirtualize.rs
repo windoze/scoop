@@ -146,18 +146,23 @@ pub fn devirtualize_body(store: &TypeStore, ctx: &DevirtContext, body: &mut Body
 
 fn devirtualize_rvalue(store: &TypeStore, ctx: &DevirtContext, rv: &mut Rvalue) {
     match rv {
-        Rvalue::Call { kind, .. } => {
-            devirtualize_call_kind(store, ctx, kind);
+        Rvalue::Call { kind, args, .. } => {
+            devirtualize_call_kind(store, ctx, kind, args);
         }
         _ => {}
     }
 }
 
-fn devirtualize_call_kind(store: &TypeStore, ctx: &DevirtContext, kind: &mut CallKind) {
+fn devirtualize_call_kind(
+    store: &TypeStore,
+    ctx: &DevirtContext,
+    kind: &mut CallKind,
+    args: &mut Vec<crate::mir::CallArg>,
+) {
     // Virtual（class vtable）和 Interface（itable）分发都可在满足条件时退化为 Direct。
-    let (is_interface_dispatch, receiver_ty, owner_fqn, member_name) = match &kind {
-        CallKind::Virtual { dispatch, .. } => (false, dispatch.receiver_ty, dispatch.owner_fqn.clone(), dispatch.member_name.clone()),
-        CallKind::Interface { dispatch, .. } => (true, dispatch.receiver_ty, dispatch.owner_fqn.clone(), dispatch.member_name.clone()),
+    let (is_interface_dispatch, receiver_ty, owner_fqn, member_name, receiver_operand) = match &kind {
+        CallKind::Virtual { dispatch, receiver } => (false, dispatch.receiver_ty, dispatch.owner_fqn.clone(), dispatch.member_name.clone(), Some(receiver.clone())),
+        CallKind::Interface { dispatch, receiver } => (true, dispatch.receiver_ty, dispatch.owner_fqn.clone(), dispatch.member_name.clone(), Some(receiver.clone())),
         _ => return,
     };
 
@@ -205,6 +210,19 @@ fn devirtualize_call_kind(store: &TypeStore, ctx: &DevirtContext, kind: &mut Cal
             &dispatch.generic_eff_args,
         )
     });
+    // 去虚化为 Direct 调用时，receiver 是隐式首参（`this`），需前置到 args，
+    // 使 codegen 的 Direct 调用能正确传递 receiver（如 `a * b` → Int.times(a, b)）。
+    if let Some(recv) = receiver_operand {
+        args.insert(
+            0,
+            crate::mir::CallArg {
+                name: None,
+                is_spread: false,
+                value: recv,
+                value_ty: receiver_ty,
+            },
+        );
+    }
     *kind = CallKind::Direct {
         callee_fqn,
         type_args: dispatch.generic_type_args.clone(),

@@ -26,6 +26,7 @@ members = [
     "crates/scoop2_hir",
     "crates/scoop2_mir",
     "crates/scoop2_lir",
+    "crates/scoop2_codegen_llvm",
     "crates/scoop2c",
 ]
 

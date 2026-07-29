@@ -1,0 +1,19 @@
+[package]
+name = "scoop2_codegen_llvm"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["llvm"]
+# 启用 LLVM 后端（inkwell + llvm-sys）。默认开启；如需在无 LLVM 环境编译本 crate，
+# 使用 `--no-default-features`（此时 lib 仅暴露类型/数据结构，不暴露 emit 入口）。
+llvm = ["dep:inkwell", "dep:llvm-sys"]
+
+[dependencies]
+scoop2_base = { path = "../scoop2_base" }
+scoop2_hir = { path = "../scoop2_hir" }
+scoop2_lir = { path = "../scoop2_lir" }
+inkwell = { version = "0.8.0", optional = true, features = ["llvm21-1"] }
+llvm-sys = { version = "211.0.0", optional = true }
+thiserror = "2.0.12"
+sha2 = "0.10.9"

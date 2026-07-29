@@ -661,6 +661,19 @@ name = "scoop2_base"
 version = "0.1.0"
 
 [[package]]
+name = "scoop2_codegen_llvm"
+version = "0.1.0"
+dependencies = [
+ "inkwell",
+ "llvm-sys",
+ "scoop2_base",
+ "scoop2_hir",
+ "scoop2_lir",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
 name = "scoop2_hir"
 version = "0.1.0"
 dependencies = [
@@ -699,6 +712,7 @@ name = "scoop2c"
 version = "0.1.0"
 dependencies = [
  "scoop2_base",
+ "scoop2_codegen_llvm",
  "scoop2_hir",
  "scoop2_lir",
  "scoop2_mir",

@@ -1,13 +1,15 @@
-// Scoop sysroot (early stage)
+// Scoop sysroot (minimal) —— 语言必须的最小集合。
 //
-// 说明：
-// - sysroot 是编译器内建 API 的"声明源"（便于 IDE/文档/规范一致）
-// - 早期阶段这里只放最小集合，随着实现推进逐步补齐
+// 精简原则：只保留语言/编译器必需的类型与函数；辅助功能（progression、反射、原子、
+// GC、Platform、sizeOf、delegates、sync、thread、collections、lang.string 扩展、runtime.test）
+// 暂时移除，后续逐步加回。
+//
+// 保留：基础标量类型、Any/Hashable/ToString、String（字节级 substrate）、Array/MutableArray、
+// Option、Continuation、RuntimeError、panic、println/print、UIntPtr。
 
 package scoop.core
 
-import scoop.unsafe.*
-
+// ---- runtime extern 声明（@Extern(abi="scoop")）----
 @Extern(name = "scoop_bool_to_string", abi = "scoop")
 fun __scoop_bool_to_string(value: Bool): String
 
@@ -26,41 +28,31 @@ fun __scoop_float64_to_string(value: Float64): String
 @Extern(name = "scoop_string_unsafe_slice_bytes", abi = "scoop")
 fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength: Int): String
 
-// Root types
+@Extern(name = "scoop_print", abi = "scoop")
+fun __scoop_print(value: String): Unit
+
+@Extern(name = "scoop_println", abi = "scoop")
+fun __scoop_println(value: String): Unit
+
+@Extern(name = "scoop_panic", abi = "scoop")
+public fun panic(message: String): Nothing
+
+// ---- 根类型 ----
 public interface Any
 
-// 基础接口：Hashable（spec §2.2.2 / std v1）。
-//
-// 说明：
-// - 当前阶段 typecheck 尚未支持"普通成员函数调用"（class/interface methods），`receiver.hash()`
-//   仍主要走"扩展函数调用"的最小子集；但 `where T: Hashable` 等约束已经会被验证；
-// - 为避免在 early stage 对所有内建类型强制补齐成员实现，这里先提供一个默认实现（有 body → 非抽象）。
-//   后续当虚方法/接口调用链路落地后，可再把默认实现收紧为更合理的实现策略。
 public interface Hashable {
     public fun hash(): Int {
         return 0
     }
 }
 
-// ToString 接口：统一的文本转换表面。
-//
-// 说明：
-// - 任何类型实现 `ToString` 即可被传入泛型 `print`/`println`（`where T: ToString`）。
-// - 内建标量与 String 通过各自的 intrinsic type body method 实现。
-// - 用户自定义类型只需在 class/struct 上声明 `: ToString` 并提供 `fun toString(): String` 即可。
-// - 默认实现（有 body）用于避免 interface implementation check 在 early stage 报错；
-//   后续可收紧为抽象方法。
 public interface ToString {
     public fun toString(): String {
         return ""
     }
 }
 
-// Built-in scalar types（声明层 + intrinsic body methods）。
-//
-// 说明：
-// - 这些类型的布局/语义由编译器与运行时固定；
-// - `toString` 走普通 method body；operator/helper surface 走 method-level intrinsic 声明。
+// ---- 基础标量类型（@Intrinsic 类型，intrinsic body methods）----
 @Intrinsic
 public struct Bool : Hashable, ToString {
     public override fun toString(): String {
@@ -80,9 +72,6 @@ public struct Bool : Hashable, ToString {
     public operator fun equals(other: Bool): Bool
 
     @Intrinsic("bool_ne")
-    public operator fun notEquals(other: Bool): Bool
-
-    @Intrinsic("bool_not")
     public operator fun not(): Bool
 }
 
@@ -95,8 +84,9 @@ public struct Char : Hashable, ToString {
     @Intrinsic("char_to_int")
     public fun toInt(): Int
 
-    @Intrinsic("char_hash")
-    public fun hash(): Int
+    public override fun hash(): Int {
+        return this.toInt()
+    }
 
     @Intrinsic("char_compare_to")
     public operator fun compareTo(other: Char): Int
@@ -120,9 +110,6 @@ public struct Float64 : Hashable, ToString {
         return __scoop_float64_to_string(this)
     }
 
-    @Intrinsic
-    public fun toInt(): Int
-
     @Intrinsic("float_plus")
     public operator fun plus(other: Float64): Float64
 
@@ -144,38 +131,14 @@ public struct Float64 : Hashable, ToString {
     @Intrinsic("float_unary_plus")
     public operator fun unaryPlus(): Float64
 
-    @Intrinsic("float_lt")
-    public operator fun lt(other: Float64): Bool
-
-    @Intrinsic("float_le")
-    public operator fun le(other: Float64): Bool
-
-    @Intrinsic("float_gt")
-    public operator fun gt(other: Float64): Bool
-
-    @Intrinsic("float_ge")
-    public operator fun ge(other: Float64): Bool
-
-    @Intrinsic("float_eq")
-    public operator fun equals(other: Float64): Bool
-
-    @Intrinsic("float_ne")
-    public operator fun notEquals(other: Float64): Bool
-
     @Intrinsic("float_compare_to")
     public operator fun compareTo(other: Float64): Int
 
-    @Intrinsic("float_abs")
-    public fun abs(): Float64
+    @Intrinsic("float_equals")
+    public operator fun equals(other: Float64): Bool
 
-    @Intrinsic("float_is_nan")
-    public fun isNaN(): Bool
-
-    @Intrinsic("float_is_infinite")
-    public fun isInfinite(): Bool
-
-    @Intrinsic("float_hash")
-    public fun hash(): Int
+    @Intrinsic("float_to_int")
+    public fun toInt(): Int
 }
 
 @Intrinsic
@@ -183,9 +146,6 @@ public struct Float32 : Hashable, ToString {
     public override fun toString(): String {
         return __scoop_float32_to_string(this)
     }
-
-    @Intrinsic
-    public fun toInt(): Int
 
     @Intrinsic("float_plus")
     public operator fun plus(other: Float32): Float32
@@ -208,99 +168,65 @@ public struct Float32 : Hashable, ToString {
     @Intrinsic("float_unary_plus")
     public operator fun unaryPlus(): Float32
 
-    @Intrinsic("float_lt")
-    public operator fun lt(other: Float32): Bool
-
-    @Intrinsic("float_le")
-    public operator fun le(other: Float32): Bool
-
-    @Intrinsic("float_gt")
-    public operator fun gt(other: Float32): Bool
-
-    @Intrinsic("float_ge")
-    public operator fun ge(other: Float32): Bool
-
-    @Intrinsic("float_eq")
-    public operator fun equals(other: Float32): Bool
-
-    @Intrinsic("float_ne")
-    public operator fun notEquals(other: Float32): Bool
-
     @Intrinsic("float_compare_to")
     public operator fun compareTo(other: Float32): Int
 
-    @Intrinsic("float_abs")
-    public fun abs(): Float32
+    @Intrinsic("float_equals")
+    public operator fun equals(other: Float32): Bool
 
-    @Intrinsic("float_is_nan")
-    public fun isNaN(): Bool
-
-    @Intrinsic("float_is_infinite")
-    public fun isInfinite(): Bool
-
-    @Intrinsic("float_hash")
-    public fun hash(): Int
+    @Intrinsic("float_to_int")
+    public fun toInt(): Int
 }
 
-@Intrinsic
+// ---- String（字节级 substrate；算法在 string.scoop）----
 public class String : Hashable, ToString {
     public override fun toString(): String {
         return this
-    }
-
-    public fun length(): Int {
-        return __scoop_string_length(this)
-    }
-
-    public fun toInt(): Int {
-        return __scoop_string_to_int(this)
     }
 
     public fun concat(other: String): String {
         return __scoop_string_concat(this, other)
     }
 
-    public fun hash(): Int {
-        return __scoop_string_hash(this)
-    }
-
-    public fun isEmpty(): Bool {
-        return __scoop_string_is_empty(this)
-    }
-
-    public fun replace(old: String, new: String): String {
-        return __scoop_string_replace(this, old, new)
-    }
-
-    public fun charAt(index: Int): Int {
-        return __scoop_string_char_at(this, index)
-    }
-
-    public fun repeat(n: Int): String {
-        return __scoop_string_repeat(this, n)
-    }
-
-    public operator fun compareTo(other: String): Int {
-        return __scoop_string_compare_to(this, other)
-    }
-
-    public fun trimIndent(): String {
-        return __scoop_string_trim_indent(this)
-    }
-
     @Unsafe
     public fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
         return __scoop_string_unsafe_slice_bytes(this, byteOffset, byteLength)
     }
+
+    // 字节级 substrate（被 string.scoop 算法依赖）。
+    // byteLength → runtime scoop_string_byte_length；getByte → runtime scoop_string_bytes + 索引 load。
+    @Intrinsic("string_byte_length")
+    public fun byteLength(): Int
+
+    @Intrinsic("string_get_byte")
+    public fun getByte(index: Int): Int
 }
-public typealias Double = Float64
-// 泛型数组类型（compile-time + runtime 表面）。
-//
-// 说明：
-// - layout 仍由编译器/runtime 固定；
-// - `size/get/set` 等基础访问通过 method-level named intrinsic lowering 接到编译器的
-//   array intrinsic 表，而不是再靠 `scoop.core.size/get/set` 的 extension + codegen 按名分流。
-@Intrinsic
+
+@Extern(name = "scoop_string_concat", abi = "scoop")
+fun __scoop_string_concat(a: String, b: String): String
+
+@Intrinsic("float64_to_int")
+public fun Float64.toInt(): Int
+
+@Intrinsic("float32_to_int")
+public fun Float32.toInt(): Int
+
+@Intrinsic("bool_to_string")
+public fun Bool.toString(): String
+
+@Intrinsic("char_to_string")
+public fun Char.toString(): String
+
+@Intrinsic("int_to_string")
+public fun Int.toString(): String
+
+@Intrinsic("float32_to_string")
+public fun Float32.toString(): String
+
+@Intrinsic("float64_to_string")
+public fun Float64.toString(): String
+
+// ---- Array / MutableArray ----
 public class Array<T> {
     @Intrinsic("array_size_inline")
     public fun size(): Int
@@ -312,308 +238,37 @@ public class Array<T> {
     public fun __dataPtr(): UIntPtr
 }
 
-// 可变泛型数组类型（runtime 表面）。
-//
-// 说明：
-// - `MutableArray<T>` 是 collections 的唯一可变集合底座；
-// - 基础读写与 `Array<T>` 一样走 named intrinsic 表；真正涉及分配/搬移/GC 协作的路径仍由
-//   stdlib helper + runtime substrate 承接。
-@Intrinsic
 public class MutableArray<T> {
     @Intrinsic("array_size_outofline")
     public fun size(): Int
 
-    @Intrinsic("array_get_outofline")
-    public operator fun get(index: Int): T
-
     @Intrinsic("array_set_outofline")
     public operator fun set(index: Int, value: T): Unit
 
-    @Intrinsic("array_data_ptr_outofline")
-    public fun __dataPtr(): UIntPtr
+    @Intrinsic("array_get_outofline")
+    public operator fun get(index: Int): T
 }
 
-@Extern(name = "scoop_mutable_array_new", abi = "scoop")
-fun __scoop_mutable_array_new(
-    elemKind: Int,
-    elemSize: Int,
-    elemAlign: Int,
-    elemDesc: UIntPtr,
-    capacity: Int,
-): MutableArray<Any>
+public struct MetaList<T>
 
-@Extern(name = "scoop_mutable_array_push_word", abi = "scoop")
-fun __scoop_mutable_array_push_word(arr: MutableArray<Any>, value: UIntPtr): Unit
-
-@Extern(name = "scoop_mutable_array_push_ref", abi = "scoop")
-fun __scoop_mutable_array_push_ref(arr: MutableArray<Any>, value: Any): Unit
-
-@Extern(name = "scoop_mutable_array_push_composite", abi = "scoop")
-fun __scoop_mutable_array_push_composite(arr: MutableArray<Any>, slot: UIntPtr, elemSize: Int): Unit
-
-@Extern(name = "scoop_mutable_array_freeze", abi = "scoop")
-fun __scoop_mutable_array_freeze(arr: MutableArray<Any>): Array<Any>
-
-@Extern(name = "scoop_mutable_array_to_array_data", abi = "scoop")
-fun __scoop_mutable_array_to_array_data(arr: MutableArray<Any>): UIntPtr
-
-public fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
-    val raw: MutableArray<Any> = __scoop_mutable_array_new(
-        kindOf<T>(),
-        sizeOf<T>(),
-        alignOf<T>(),
-        descOf<T>(),
-        capacity,
-    )
-    return @Unsafe do { __scoop_unsafe_mutable_array_cast<T>(raw) }
-}
-
-public fun <T> MutableArray<T>.push(value: T): Unit {
-    val kind: Int = kindOf<T>()
-    val raw: MutableArray<Any> = @Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) }
-
-    if (kind == ARRAY_ELEM_KIND_WORD) {
-        val word: UIntPtr = @Unsafe do { __scoop_unsafe_value_to_word<T>(value) }
-        __scoop_mutable_array_push_word(raw, word)
-        return
-    }
-
-    if (kind == ARRAY_ELEM_KIND_REF) {
-        val refValue: Any = @Unsafe do { __scoop_unsafe_value_to_any<T>(value) }
-        __scoop_mutable_array_push_ref(raw, refValue)
-        return
-    }
-
-    if (kind == ARRAY_ELEM_KIND_COMPOSITE) {
-        val slot: UIntPtr = @Unsafe do { __scoop_unsafe_value_slot<T>(value) }
-        __scoop_mutable_array_push_composite(raw, slot, sizeOf<T>())
-        return
-    }
-}
-
-public fun <T> MutableArray<T>.freeze(): Array<T> {
-    val raw: Array<Any> = __scoop_mutable_array_freeze(@Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) })
-    return @Unsafe do { __scoop_unsafe_array_cast<T>(raw) }
-}
-
-// Kotlin-like collections：List / MutableList（std v1）。
-//
-// 说明：
-// - v0 先把 `List<T>`/`MutableList<T>` 作为 `Array<T>`/`MutableArray<T>` 的类型别名，
-//   以便在不引入新布局/新 intrinsic 的前提下，先把常用 API 表面固定下来；
-// - 后续若需要更强的语义区分（例如只读视图 vs 不可变值、或更丰富的接口层级），
-//   可在保持现有别名兼容的前提下逐步演进（例如增加 `scoop.collections` 的接口表面）。
-public typealias List<T> = Array<T>
-public typealias MutableList<T> = MutableArray<T>
-
-// 静态元数据列表（spec §5）。
-//
-// 说明：
-// - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的静态元数据集合；
-// - v0 阶段先把它作为纯声明面，具体可迭代/索引语义由后续反射元数据 lowering 补齐。
-public class MetaList<T>
+// ---- Unit / Nothing ----
 public struct Unit
 public enum Nothing
 
-// Built-in annotations（spec §15.5）。
-//
-// 说明：
-// - annotation 是 compile-time marker surface，不是普通 runtime nominal type；
-// - 这些注解由编译器识别并在不同子系统中被消费（typecheck/lowering/codegen/...）；
-// - sysroot 在这里提供"声明面"，用于名字解析、类型检查与工具链可见性；
-// - 当前阶段先补齐缺失的内建注解集合与 `AnnotationTarget` enum，
-//   更完整的 meta-annotation 规则（`@Target/@Retention` 约束）由后续任务实现。
-
-public enum AnnotationTarget {
-    Function,
-    Property,
-    Field,
-    Param,
-    Type,
-    Constructor,
-    LocalVariable,
-    Expression,
-    Module,
-    TypeParam,
-    EnumVariant,
-}
-
-public annotation class TailRec
-// `@AllowIntrinsic`：文件 / 模块级 gate。
-//
-// 说明：
-// - `@Intrinsic` declaration surface 只允许 trusted `syslib` source 持有；
-// - 用户源码和普通 `lib` cone 不能通过文件级注解打开 intrinsic 权限。
-public annotation class AllowIntrinsic
-public annotation class Deprecated(val message: String = "", val replaceWith: String = "")
-// `@Suppress`：warning suppression surface。
-//
-// 说明：
-// - 支持 expression / declaration / `@file:...` 三类 surface；
-// - 当前稳定 warning code：`deprecated` / `enum-size-disparity` / `redundant-when-else`。
-public annotation class Suppress(vararg val warnings: String)
-// `@Experimental(feature = "...")`：保留的 feature-gate marker surface。
-//
-// 说明：
-// - 当前只保留 built-in marker 与参数校验，不接入任何具体 experimental feature；
-// - 规范 use-site 形状固定为 `@Experimental(feature = "...")`。
-public annotation class Experimental(val feature: String)
-// `@ReleaseHook(name = "fqn", args = ["field", ...])` marks a final class for
-// best-effort resource release when the GC reclaims an unreachable instance.
-public annotation class ReleaseHook(val name: String, val args: Array<String>)
-// `@CLayout(aligned?, packed?)`（spec §15.5.2）：
-// - `aligned`：可选的结构体整体对齐（0 表示未指定）
-// - `packed`：可选的 pack 值（0 表示未指定；v0 仅支持 packed = 1）
-public annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
-public annotation class Target(val targets: AnnotationTarget)
-public annotation class Retention(val policy: String)
-public annotation class ThreadLocal
-public annotation class Global
-
-public fun abs(x: Int): Int {
-    if (x < 0) {
-        return -x
+// ---- UIntPtr（地址大小整数）----
+@Intrinsic
+public struct UIntPtr : Hashable, ToString {
+    public override fun toString(): String {
+        return __scoop_int_to_string(this.toInt())
     }
-    return x
+
+    @Intrinsic("int_plus")
+    public operator fun plus(other: UIntPtr): UIntPtr
+
+    @Intrinsic("int_to_int")
+    public fun toInt(): Int
 }
 
-// I/O（内部 runtime 映射）。
-//
-// 说明：
-// - `__scoop_print` / `__scoop_println` 是 scoop ABI runtime 映射的内部函数；
-// - 泛型 `print<T>` / `println<T>`（在 sysroot/lib/scoop.core/src/print.scoop 中定义）调用这些内部函数。
-@Extern(name = "scoop_print", abi = "scoop")
-fun __scoop_print(value: String): Unit
-@Extern(name = "scoop_println", abi = "scoop")
-fun __scoop_println(value: String): Unit
-
-// GC pinning API（spec §15.10）。
-//
-// 说明：
-// - 该 API 用于把某个 heap 对象标记为 pinned，供把对象地址交给外部系统（FFI/异步 I/O）时使用；
-// - v0（非移动 mark-sweep）阶段 pin 的主要效果是：把对象视为额外 roots，避免在无 shadow stack 引用时被 sweep；
-// - `Pinned` 是 Scoop 侧 pin handle，不是 ordinary `@Extern` 的长期 token surface；丢弃 handle 不会自动 unpin（资源泄漏）；每次 pin 必须配对一次 unpin。
-@Intrinsic
-public object GC {
-    // Stable GC handles（spec §15.10.1）。
-    //
-    // 说明：
-    // - 用于把 heap 对象引用以"稳定 token"形式交给 native 长期持有（token 稳定，对象地址可变化）；
-    // - `GcHandle.raw` 可作为 `UIntPtr` 经 `@Extern` 往返 native state；复制 `GcHandle` / `.raw`
-    //   不会克隆底层 handle record，因此每次 `handleNew` 仍只允许一次 `handleDrop`；
-    // - stale handle 的 runtime lookup 会失败；语言级 `handleGet` / `handleDrop` 会把它视为错误；
-    // - ordinary `@Extern` / reactor / callback 的长期 round-trip 应通过 `GcHandle.raw`
-    //   （word-sized `UIntPtr` token）；需要时再在 Scoop 侧重建 `GcHandle`；
-    // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
-    @Intrinsic @Unsafe
-    public fun handleNew(obj: Any): GcHandle
-
-    @Intrinsic @NoGC @Unsafe
-    public fun handleGet(h: GcHandle): Any
-
-    @Intrinsic @NoGC @Unsafe
-    public fun handleDrop(h: GcHandle): Unit
-
-    @Intrinsic @NoGC @Unsafe
-    public fun pin(obj: Any): Pinned
-
-    @Intrinsic @NoGC @Unsafe
-    public fun unpin(pinned: Pinned): Unit
-}
-
-// Opaque token. Representation is toolchain-defined but must be stably passable to native code.
-public struct GcHandle(val raw: UIntPtr)
-
-// Value type handle. Exact fields are implementation-defined (spec §15.10).
-// 仅用于短时裸地址借出；不承担 reactor / callback 的长期 wake-token 语义，也不能直接作为 ordinary `@Extern` ABI token。
-public struct Pinned(val value: Any)
-
-// Static metadata（spec §5 / §10.4）。
-//
-// 说明：
-// - 这些类型承载编译器发布的静态元数据：
-//   - 反射 intrinsics（如 `fieldsOf<T>()`）会返回它们的 `MetaList<...>`；
-//   - delegated properties lowering 会把 `PropertyMeta` 作为隐式参数传给 `getValue/setValue`（spec §10.4）。
-// - 当前阶段已实现"可回归的最小集合"：
-//   - `TypeMeta`：类型名 + kind + 注解列表
-//   - `FieldMeta`：字段名 + 字段类型 + 字段序号 + 注解列表
-//   - `VariantMeta`：enum variant 名 + 字段列表 + 序号 + 注解列表
-//   - `ParamMeta`：函数参数名 + 参数类型 + 序号 + 注解列表
-//   - `PropertyMeta`：属性名 + 属性类型 + owner 类型
-// - 说明：注解参数值仅保证字面量、枚举值和 class literal 等静态参数可读；更复杂表达式与导出规则后续任务补齐。
-public enum TypeKind {
-    Struct,
-    Enum,
-    Class,
-    Interface,
-    Effect,
-    Tuple,
-    Primitive,
-}
-
-public struct TypeMeta {
-    public val name: String
-    public val kind: TypeKind
-    public val annotations: MetaList<AnnotationMeta>
-}
-
-public struct FieldMeta {
-    public val name: String
-    public val type: TypeMeta
-    public val index: Int
-    public val annotations: MetaList<AnnotationMeta>
-}
-
-public struct VariantMeta {
-    public val name: String
-    public val fields: MetaList<FieldMeta>
-    public val index: Int
-    public val annotations: MetaList<AnnotationMeta>
-}
-
-public struct ParamMeta {
-    public val name: String
-    public val type: TypeMeta
-    public val index: Int
-    public val annotations: MetaList<AnnotationMeta>
-}
-
-public struct PropertyMeta {
-    public val name: String
-    public val type: TypeMeta
-    public val owner: TypeMeta
-}
-
-// Function meta（spec §6.4）。
-//
-// 说明：
-// - v0 阶段先只暴露"函数名"作为可构造的句柄，用于 `paramsOf(fn)` 等反射 intrinsics；
-// - 更完整的 `FunctionMeta`（params/returnType/annotations）可在后续阶段升级，
-//   但应保持"可用 name 构造句柄"这一能力（避免影响工具链/fixtures）。
-public struct FunctionMeta {
-    public val name: String
-}
-
-// Static annotation metadata（spec §15.6）。
-//
-// 说明：
-// - 用于读取注解名与参数（`annotationsOf<T>()` 等）；参数值为静态注解参数；
-// - v0 阶段先要求"注解名 + 静态参数"可回归：字面量/数组字面量/enum 常量/class literal；
-// - 更复杂的表达式（例如函数调用、运行期依赖值）与跨 cone 导出规则后续补齐。
-public struct AnnotationMeta {
-    public val name: String
-    public val args: MetaList<AnnotationArgMeta>
-}
-
-public struct AnnotationArgMeta {
-    public val name: String
-    public val value: Any
-}
-
-// Integers（spec §2.3.4 / runtime §3）
-//
-// word-sized：随 target 指针宽度变化（Swift 约定）。
-@Intrinsic
 public struct Int : Hashable, ToString {
     public override fun toString(): String {
         return __scoop_int_to_string(this)
@@ -1157,466 +812,35 @@ public struct UInt64 : Hashable {
 }
 
 // Kotlin-like ranges/progressions（Appendix B.12）所需的核心类型表面。
-public struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
-public struct LongProgression(val first: Long, val last: Long, val step: Long, val increasing: Bool)
-public struct UIntProgression(val first: UInt, val last: UInt, val step: UInt, val increasing: Bool)
-public struct ULongProgression(val first: ULong, val last: ULong, val step: ULong, val increasing: Bool)
 
-// 标准别名（Kotlin/Swift 风格）。
-public typealias Byte = UInt8
-public typealias Short = Int16
-public typealias UShort = UInt16
-public typealias Long = Int64
-public typealias ULong = UInt64
-public typealias UIntPtr = UInt
-
-fun __scoop_range_default_step(sample: Int): Int {
-    return 1
+// ---- print / println（泛型，编译时为每个 T: ToString 单态化）----
+public fun <T> print(value: T): Unit where T: ToString {
+    __scoop_print(value.toString())
 }
 
-fun __scoop_range_default_step(sample: Long): Long {
-    return 1
+public fun <T> println(value: T): Unit where T: ToString {
+    __scoop_println(value.toString())
 }
 
-fun __scoop_range_default_step(sample: UInt): UInt {
-    return 1u
-}
-
-fun __scoop_range_default_step(sample: ULong): ULong {
-    return 1UL
-}
-
-public operator fun Int.rangeTo(endInclusive: Int, step: Int): IntProgression {
-    return IntProgression {
-        first: this,
-        last: endInclusive,
-        step: step,
-        increasing: true,
-    }
-}
-
-public fun Int.downTo(endInclusive: Int, step: Int): IntProgression {
-    return IntProgression {
-        first: this,
-        last: endInclusive,
-        step: step,
-        increasing: false,
-    }
-}
-
-public fun Int.until(endExclusive: Int): IntProgression {
-    val one: Int = __scoop_range_default_step(this)
-    return this.rangeTo(endExclusive - one, one)
-}
-
-public fun <eff E = Pure> IntProgression.forEach(action: (Int) -> Unit / E): Unit / E {
-    var cur: Int = this.first
-    when (this.increasing) {
-        true -> {
-            while (cur <= this.last) {
-                action(cur)
-                if (cur == this.last) {
-                    break
-                }
-                cur = cur + this.step
-            }
-        }
-        false -> {
-            while (cur >= this.last) {
-                action(cur)
-                if (cur == this.last) {
-                    break
-                }
-                cur = cur - this.step
-            }
-        }
-    }
-    return ()
-}
-
-public operator fun Long.rangeTo(endInclusive: Long, step: Long): LongProgression {
-    return LongProgression {
-        first: this,
-        last: endInclusive,
-        step: step,
-        increasing: true,
-    }
-}
-
-public fun Long.downTo(endInclusive: Long, step: Long): LongProgression {
-    return LongProgression {
-        first: this,
-        last: endInclusive,
-        step: step,
-        increasing: false,
-    }
-}
-
-public fun Long.until(endExclusive: Long): LongProgression {
-    val one: Long = __scoop_range_default_step(this)
-    return this.rangeTo(endExclusive - one, one)
-}
-
-public fun <eff E = Pure> LongProgression.forEach(action: (Long) -> Unit / E): Unit / E {
-    var cur: Long = this.first
-    when (this.increasing) {
-        true -> {
-            while (cur <= this.last) {
-                action(cur)
-                if (cur == this.last) {
-                    break
-                }
-                cur = cur + this.step
-            }
-        }
-        false -> {
-            while (cur >= this.last) {
-                action(cur)
-                if (cur == this.last) {
-                    break
-                }
-                cur = cur - this.step
-            }
-        }
-    }
-    return ()
-}
-
-public operator fun UInt.rangeTo(endInclusive: UInt, step: UInt): UIntProgression {
-    return UIntProgression {
-        first: this,
-        last: endInclusive,
-        step: step,
-        increasing: true,
-    }
-}
-
-public fun UInt.downTo(endInclusive: UInt, step: UInt): UIntProgression {
-    return UIntProgression {
-        first: this,
-        last: endInclusive,
-        step: step,
-        increasing: false,
-    }
-}
-
-public fun UInt.until(endExclusive: UInt): UIntProgression {
-    val one: UInt = __scoop_range_default_step(this)
-    if (endExclusive == 0u) {
-        return UIntProgression {
-            first: one,
-            last: endExclusive,
-            step: one,
-            increasing: true,
-        }
-    }
-    return this.rangeTo(endExclusive - one, one)
-}
-
-public fun <eff E = Pure> UIntProgression.forEach(action: (UInt) -> Unit / E): Unit / E {
-    var cur: UInt = this.first
-    when (this.increasing) {
-        true -> {
-            while (cur <= this.last) {
-                action(cur)
-                if (cur == this.last) {
-                    break
-                }
-                cur = cur + this.step
-            }
-        }
-        false -> {
-            while (cur >= this.last) {
-                action(cur)
-                if (cur == this.last) {
-                    break
-                }
-                cur = cur - this.step
-            }
-        }
-    }
-    return ()
-}
-
-public operator fun ULong.rangeTo(endInclusive: ULong, step: ULong): ULongProgression {
-    return ULongProgression {
-        first: this,
-        last: endInclusive,
-        step: step,
-        increasing: true,
-    }
-}
-
-public fun ULong.downTo(endInclusive: ULong, step: ULong): ULongProgression {
-    return ULongProgression {
-        first: this,
-        last: endInclusive,
-        step: step,
-        increasing: false,
-    }
-}
-
-public fun ULong.until(endExclusive: ULong): ULongProgression {
-    val one: ULong = __scoop_range_default_step(this)
-    if (endExclusive == 0UL) {
-        return ULongProgression {
-            first: one,
-            last: endExclusive,
-            step: one,
-            increasing: true,
-        }
-    }
-    return this.rangeTo(endExclusive - one, one)
-}
-
-public fun <eff E = Pure> ULongProgression.forEach(action: (ULong) -> Unit / E): Unit / E {
-    var cur: ULong = this.first
-    when (this.increasing) {
-        true -> {
-            while (cur <= this.last) {
-                action(cur)
-                if (cur == this.last) {
-                    break
-                }
-                cur = cur + this.step
-            }
-        }
-        false -> {
-            while (cur >= this.last) {
-                action(cur)
-                if (cur == this.last) {
-                    break
-                }
-                cur = cur - this.step
-            }
-        }
-    }
-    return ()
-}
-
-// Compiler intrinsics（spec §15.7）。
-//
-// 说明：
-// - 泛型反射 intrinsic 由编译器在运行期 lowering 中识别；
-// - typecheck 的"跨文件泛型函数签名 lowering"也未补齐，因此这里先用一组 overload 作为最小可调用表面：
-//   - `sizeOf(1)` / `sizeOf("s")`
-// - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供。
-@Intrinsic
-public fun sizeOf(value: Int): Int
-@Intrinsic
-public fun sizeOf(value: String): Int
-
-// Reflection intrinsics v0。
-//
-// 说明：
-// - 这些函数只保留运行期 intrinsic surface；旧 compile-time evaluator 已删除。
-// - 当前阶段 `fieldsOf<T>()` 返回 `FieldMeta` 列表。
-@Intrinsic
-public fun <T> nameOf(): String
-@Intrinsic
-public fun <T> sizeOf(): Int
-@Intrinsic
-public fun <T> alignOf(): Int
-@Intrinsic
-public fun <T> kindOf(): Int
-@Intrinsic
-public fun <T> descOf(): UIntPtr
-@Intrinsic
-public fun <T> fieldsOf(): MetaList<FieldMeta>
-@Intrinsic
-public fun <T> variantsOf(): MetaList<VariantMeta>
-@Intrinsic
-public fun <T> superTypesOf(): MetaList<TypeMeta>
-@Intrinsic
-public fun <T> annotationsOf(): MetaList<AnnotationMeta>
-@Intrinsic
-public fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
-
-public val ARRAY_ELEM_KIND_WORD: Int = 1
-public val ARRAY_ELEM_KIND_REF: Int = 2
-public val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
-
-// Platform Introspection（spec §6.4）。
-//
-// 说明：
-// - `Platform` 表示一个平台选择器（LLVM target triple + 拆分字段）；
-// - `getPlatform()` 在运行期查询当前执行环境；
-// - 当前阶段先只保证 host target 可回归，交叉编译与更严格校验后续补齐。
-public struct Platform {
-    public val triple: String
-    public val arch: String
-    public val vendor: String
-    public val os: String
-    public val env: String
-}
-
-@Intrinsic
-public fun getPlatform(): Platform
-
-// Option / nullable sugar
+// ---- Option ----
 public enum Option<T> {
     Some(val value: T),
     None
 }
 
-// Continuation（spec §5.5）
-//
-// 说明：
-// - `Continuation<Resume, Answer, eff E>` 是源码可见的 compiler-owned interface：
-//   `Resume` 是 resume payload，`Answer` 是最近 delimiter 的结果类型，`E` 是 resumed-step
-//   的 required effects；
-// - 按 spec §5.3.1 / §5.5，源码层只保留普通方法调用 `k.resume(...)`；`resume(...): Answer`
-//   在 resumed computation 正常完成最近 delimiter 时返回该 delimiter 的 answer type；
-// - `E` 表示恢复该 continuation 可能执行的效果集合（required effects）。
-// - `Continuation<Unit, Answer>` 允许 `k.resume()` 作为 `k.resume(())` 的 sugar；
-//   更一般地，单一 `Unit` 参数 callable 允许 `f()` 作为 `f(())` 的 sugar；
-// - 若 resume payload 是 tuple，应把 tuple 值作为单一实参传递，例如 `k.resume((a, b))`；
-//   不再保留 tuple payload 扁平传参或专用 resume surface。
-// - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
-//   `-> resume` 已从语言语法移除，若编译器内部仍保留 tail-resume fast path，只能视为 lowering/codegen
-//   优化分类而不是独立 surface。
-// - 运行期语义 / one-shot 约束见 spec §5.5 与 `SCOOP_RUNTIME.md` 第 10 节：
-//   对已 resume 过的 continuation 再次 resume 会在运行期直接 panic（fatal trap），
-//   这是调用方的契约责任，不作为 `resume` 的效果出现在效果行中。
+// ---- Continuation（spec §5.5）----
 public interface Continuation<Resume, Answer, eff E = Pure> {
     public fun resume(value: Resume): Answer / E
 }
 
-// Runtime errors that remain explicitly expressible through `Raise<RuntimeError>`.
-// `!!` and `as` assertion failures use `panic(...)` directly and do not perform this effect.
+// ---- RuntimeError ----
 public enum RuntimeError {
     NullAssertionFailed,
     ClassCastFailed,
     ContinuationAlreadyResumed,
 }
 
-// Fatal trap runtime boundary.
-//
-// 说明：
-// - `panic(message)` 用于表达“不应继续执行”的 fatal trap / invariant break；
-// - 它返回 `Nothing`，因此类型检查与控制流分析会把它视为 bottom；
-// - 当前 runtime 仍允许把它实现为 `exit(3)` / 等价立即终止，但该细节必须隐藏在
-//   core / runtime 边界后，而不是继续暴露为用户直接调用的 process-style surface。
-@Extern(name = "scoop_panic", abi = "scoop")
-public fun panic(message: String): Nothing
-
-// Built-in effect: Raise
+// ---- Built-in effect: Raise ----
 public effect Raise<in E> {
     public fun raise(error: E): Nothing
-}
-
-// Explicit heap cells for shared state. `RefCell` is single-threaded and
-// mutable; `Box` is an immutable wrapper used when an extra heap indirection is
-// required by library APIs such as atomic value snapshots.
-public class RefCell<T>(initial: T) {
-    public var value: T = initial
-}
-
-public class Box<T>(val value: T)
-
-fun __atomicBoolToInt(value: Bool): Int {
-    if (value) {
-        return 1
-    }
-    return 0
-}
-
-fun __atomicIntToBool(value: Int): Bool {
-    return value != 0
-}
-
-public class AtomicInt(initial: Int) {
-    var raw: __AtomicInt = __AtomicInt(initial)
-
-    public fun load(): Int {
-        return @Unsafe do { __atomicIntLoad(this.raw) }
-    }
-
-    public fun store(value: Int): Unit {
-        @Unsafe do { __atomicIntStore(this.raw, value) }
-    }
-
-    public fun cas(expected: Int, desired: Int): Bool {
-        return @Unsafe do { __atomicIntCompareExchange(this.raw, expected, desired) }
-    }
-
-    public fun exchange(value: Int): Int {
-        var old: Int = this.load()
-        while (!this.cas(old, value)) {
-            old = this.load()
-        }
-        return old
-    }
-}
-
-public class AtomicBool(initial: Bool) {
-    var raw: __AtomicInt = __AtomicInt(__atomicBoolToInt(initial))
-
-    public fun load(): Bool {
-        return __atomicIntToBool(@Unsafe do { __atomicIntLoad(this.raw) })
-    }
-
-    public fun store(value: Bool): Unit {
-        @Unsafe do { __atomicIntStore(this.raw, __atomicBoolToInt(value)) }
-    }
-
-    public fun cas(expected: Bool, desired: Bool): Bool {
-        return @Unsafe do { __atomicIntCompareExchange(this.raw, __atomicBoolToInt(expected), __atomicBoolToInt(desired)) }
-    }
-
-    public fun exchange(value: Bool): Bool {
-        var old: Bool = this.load()
-        while (!this.cas(old, value)) {
-            old = this.load()
-        }
-        return old
-    }
-}
-
-public class Atomic<T: ref>(initial: T) {
-    var raw: T = initial
-
-    public fun load(): T {
-        return @Unsafe do { __atomicRefLoad<T>(this.raw) }
-    }
-
-    public fun store(value: T): Unit {
-        @Unsafe do { __atomicRefStore<T>(this.raw, value) }
-    }
-
-    public fun cas(expected: T, desired: T): Bool {
-        return @Unsafe do { __atomicRefCompareExchange<T>(this.raw, expected, desired) }
-    }
-
-    public fun exchange(value: T): T {
-        var old: T = this.load()
-        while (!this.cas(old, value)) {
-            old = this.load()
-        }
-        return old
-    }
-}
-
-public class AtomicValue<T: value>(initial: T) {
-    val raw: Atomic<scoop.core.Box<T>> = Atomic(scoop.core.Box(initial))
-
-    public fun snapshot(): scoop.core.Box<T> {
-        return this.raw.load()
-    }
-
-    public fun load(): T {
-        return this.snapshot().value
-    }
-
-    public fun store(value: T): Unit {
-        this.raw.store(scoop.core.Box(value))
-    }
-
-    public fun cas(expected: scoop.core.Box<T>, desired: T): Bool {
-        return this.raw.cas(expected, scoop.core.Box(desired))
-    }
-
-    public fun exchange(value: T): T {
-        return this.raw.exchange(scoop.core.Box(value)).value
-    }
 }

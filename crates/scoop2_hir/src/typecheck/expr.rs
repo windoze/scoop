@@ -584,6 +584,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if found == expected || self.env.store.is_nothing(found) {
             return true;
         }
+        // 结构等价回退：标量值类型（Bool/Char/Unit/Float/Int 变体）按 TypeKind 比较，
+        // 规避跨 type store 的 TypeId 不稳定（如泛型实例化产出的副本 Bool 与规范 Bool 不同 TypeId），
+        // 以及 sysroot 中 nominal 声明（struct Bool）与内建 Value(Bool) 的等价性。
+        if scalar_kinds_equal(self.env.store.kind(found), self.env.store.kind(expected), self.env.interner) {
+            return true;
+        }
         if absorb {
             // 整数字面量吸收：Int 可赋值给任何整数类型（Int8/UInt/.../Byte/...）。
             if matches!(
@@ -2247,6 +2253,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 decl_span,
                                 decl_file,
                                 explicit_type_args: Vec::new(),
+                                inferred_type_args: Vec::new(),
                                 return_ty,
                             });
                         }
@@ -2310,6 +2317,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     is_virtual,
                     is_interface,
                     explicit_type_args: Vec::new(),
+                    inferred_type_args: Vec::new(),
                     return_ty,
                 })
             }
@@ -2348,6 +2356,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 is_virtual,
                 is_interface,
                 explicit_type_args: Vec::new(),
+                inferred_type_args: Vec::new(),
                 return_ty,
             },
         );
@@ -2381,6 +2390,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 is_virtual,
                 is_interface,
                 explicit_type_args: Vec::new(),
+                inferred_type_args: Vec::new(),
                 return_ty,
             },
         );
@@ -2411,6 +2421,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 is_virtual,
                 is_interface,
                 explicit_type_args: Vec::new(),
+                inferred_type_args: Vec::new(),
                 return_ty,
             },
         );
@@ -3450,7 +3461,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 // 检查是否是已知顶层函数 / 类型 / 值。
                 let is_fun = self.resolution.value_refs.get(callee.id).is_some();
                 let is_type = self.callee_type_fqn(ident.symbol).is_some();
-                if !is_fun && !is_type {
+                // 同包 extern 函数（如 `@Extern fun __scoop_print`）在 resolve 阶段被刻意跳过
+                // （body.rs:__scoop_ 前缀不写入 value_refs），故此处按 FQN 在 index 中查证可调用性。
+                let is_indexed_fun = (!is_fun && !is_type).then(|| {
+                    let fqn_text = if self.package_prefix.is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{}.{}", self.package_prefix, name)
+                    };
+                    self.env
+                        .interner
+                        .get(&fqn_text)
+                        .map(|fqn_sym| !self.env.index.lookup_funs(fqn_sym).is_empty())
+                        .unwrap_or(false)
+                }).unwrap_or(false);
+                if !is_fun && !is_type && !is_indexed_fun {
                     self.diags
                         .push(diagnostics::callee_not_callable(name, span));
                 }
@@ -7429,6 +7454,104 @@ fn operator_method_name(kind: &ExprKind) -> Option<&'static str> {
         ExprKind::Unary { op, .. } => unop_to_method_name(*op),
         _ => None,
     }
+}
+
+/// 比较两个 TypeKind 是否为结构等价的标量值类型（Bool/Char/Unit/Float/Int 变体）。
+/// 用于规避跨 type store 的 TypeId 不稳定（同概念类型可能有不同 TypeId）。
+/// 仅对标量返回 Some(bool)；复合/nominal/param 返回 None（交由上层 TypeId 比较 + 子类型逻辑）。
+/// 比较两个 TypeKind 是否为结构等价的标量值类型。
+/// 覆盖：
+/// 1. 纯内建标量（Value(Bool) == Value(Bool) 等）——规避跨 type store 的 TypeId 不稳定；
+/// 2. nominal-vs-builtin：sysroot 中 `public struct Bool`/`public class String` 等被解析为
+///    Nominal(scoop.core.Bool)，而内建操作产出 Value(Bool)/Ref(String)，二者描述相同但 TypeKind 不同。
+fn scalar_kinds_equal(fk: &TypeKind, ek: &TypeKind, interner: &scoop2_base::Interner) -> bool {
+    use crate::ty::{TypeKind, ValueTypeKind};
+    // 1. 纯内建标量结构比较。
+    let f_builtin = builtin_scalar_tag(fk);
+    let e_builtin = builtin_scalar_tag(ek);
+    if let (Some(f), Some(e)) = (f_builtin, e_builtin) {
+        return f == e;
+    }
+    // 2. nominal FQN 尾段匹配内建标量名。
+    let f_nom_scalar = nominal_fqn_scalar_tag(fk, interner);
+    let e_nom_scalar = nominal_fqn_scalar_tag(ek, interner);
+    if let (Some(f), Some(e)) = (f_nom_scalar, e_builtin) {
+        return f == e;
+    }
+    if let (Some(e), Some(f)) = (e_nom_scalar, f_builtin) {
+        return e == f;
+    }
+    if let (Some(f), Some(e)) = (f_nom_scalar, e_nom_scalar) {
+        return f == e;
+    }
+    false
+}
+
+/// 内建标量的规范化标签（用于跨 nominal/builtin 比较）。
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ScalarTag {
+    Unit,
+    Bool,
+    Char,
+    Float64,
+    Float32,
+    Int,
+    UInt,
+    IntN(u16),
+    UIntN(u16),
+    String,
+}
+
+fn builtin_scalar_tag(k: &TypeKind) -> Option<ScalarTag> {
+    use crate::ty::{TypeKind, ValueTypeKind};
+    match k {
+        TypeKind::Value(ValueTypeKind::Unit) => Some(ScalarTag::Unit),
+        TypeKind::Value(ValueTypeKind::Bool) => Some(ScalarTag::Bool),
+        TypeKind::Value(ValueTypeKind::Char) => Some(ScalarTag::Char),
+        TypeKind::Value(ValueTypeKind::Float64) => Some(ScalarTag::Float64),
+        TypeKind::Value(ValueTypeKind::Float32) => Some(ScalarTag::Float32),
+        TypeKind::Value(ValueTypeKind::Int) => Some(ScalarTag::Int),
+        TypeKind::Value(ValueTypeKind::UInt) => Some(ScalarTag::UInt),
+        TypeKind::Value(ValueTypeKind::IntN(n)) => Some(ScalarTag::IntN(*n)),
+        TypeKind::Value(ValueTypeKind::UIntN(n)) => Some(ScalarTag::UIntN(*n)),
+        TypeKind::Ref(crate::ty::RefTypeKind::String) => Some(ScalarTag::String),
+        _ => None,
+    }
+}
+
+/// 若 TypeKind 是指向内建标量类型名（scoop.core.Bool 等）的 nominal，返回对应 ScalarTag。
+fn nominal_fqn_scalar_tag(k: &TypeKind, interner: &scoop2_base::Interner) -> Option<ScalarTag> {
+    use crate::ty::{TypeKind, RefTypeKind, ValueTypeKind};
+    let fqn_sym = match k {
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,
+        _ => return None,
+    };
+    let name = interner.resolve(fqn_sym);
+    // 识别内建标量的 FQN（scoop.core.{Unit,Bool,Char,Float64,Float32,Int,UInt,IntN..,String}）。
+    let simple = name.rsplit('.').next().unwrap_or("");
+    Some(match simple {
+        "Unit" => ScalarTag::Unit,
+        "Bool" => ScalarTag::Bool,
+        "Char" => ScalarTag::Char,
+        "Float64" | "Double" => ScalarTag::Float64,
+        "Float32" => ScalarTag::Float32,
+        "Int" => ScalarTag::Int,
+        "UInt" => ScalarTag::UInt,
+        "String" => ScalarTag::String,
+        "Int8" => ScalarTag::IntN(8),
+        "Int16" => ScalarTag::IntN(16),
+        "Int32" => ScalarTag::IntN(32),
+        "Int64" => ScalarTag::IntN(64),
+        "UInt8" | "Byte" => ScalarTag::UIntN(8),
+        "UInt16" | "UShort" => ScalarTag::UIntN(16),
+        "UInt32" => ScalarTag::UIntN(32),
+        "UInt64" | "ULong" | "Long" => match simple {
+            "Long" => ScalarTag::IntN(64),
+            _ => ScalarTag::UIntN(64),
+        },
+        _ => return None,
+    })
 }
 
 /// 取 tuple 类型第 `index` 个元素的类型（非 tuple / 越界返回 None）。

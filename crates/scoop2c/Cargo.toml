@@ -13,3 +13,4 @@ scoop2_syntax = { path = "../scoop2_syntax" }
 scoop2_hir = { path = "../scoop2_hir" }
 scoop2_mir = { path = "../scoop2_mir" }
 scoop2_lir = { path = "../scoop2_lir" }
+scoop2_codegen_llvm = { path = "../scoop2_codegen_llvm" }

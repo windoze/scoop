@@ -476,10 +476,6 @@ impl<'a> BodyResolver<'a> {
         if name_text == "field" {
             return;
         }
-        // `__scoop_` 前缀的运行时辅助函数由 typecheck 检查（callee_not_callable）。
-        if name_text.starts_with("__scoop_") {
-            return;
-        }
         // 0. 隐式 `it` 参数（无参 lambda 内的裸标识符）：defer 到 typecheck。
         if name_text == "it" {
             return;
@@ -517,7 +513,13 @@ impl<'a> BodyResolver<'a> {
                 .set(expr_id, ResolvedValue::TopLevelValue { fqn });
             return;
         }
-        // 5. unresolved
+        // 5. `__scoop_` 前缀的运行时辅助函数：同包 @Extern 声明（如 `__scoop_print`）由 typecheck
+        //    的 callee_not_callable 检查按 FQN 在 index 中查证可调用性（见 typecheck/expr.rs）。
+        //    到此步仍未解析的 `__scoop_` 不报 unresolved，留给 typecheck 处理。
+        if name_text.starts_with("__scoop_") {
+            return;
+        }
+        // 6. unresolved
         self.diags
             .push(errors::unresolved_value(name_text, ident.span));
     }
@@ -592,6 +594,14 @@ impl<'a> BodyResolver<'a> {
 
     fn fqn_of_simple(&self, name: Symbol) -> Symbol {
         let name_text = self.interner.resolve(name);
+        // 先尝试 import 解析（跨包类型，如 lang.string 中 `String` → scoop.core.String）。
+        if let Some(fqn) = self.imported_type_fqn(name) {
+            return fqn;
+        }
+        // 再尝试当前包顶层类型。
+        if let Some(fqn) = self.current_package_type_fqn(name) {
+            return fqn;
+        }
         let fqn_text = if self.package_prefix.is_empty() {
             name_text.to_string()
         } else {

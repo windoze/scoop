@@ -278,6 +278,77 @@ fn span_node(_builder: &FnLowering, _sym: Symbol, _span: Span) -> scoop2_base::N
 }
 
 /// lower 调用（Call）——消费 call_resolutions。
+/// 从调用实参类型推断泛型类型实参（按 callee type_params 声明顺序）。
+///
+/// 当显式类型实参缺失时，MIR 单态化仍需知道具体类型实参（如 `println("x")` → T=String）。
+/// 通过匹配 callee 签名的参数类型（含 TypeKind::Param）与调用实参的 value_ty 推断。
+fn infer_type_args_from_call(
+    builder: &FnLowering,
+    fqn: scoop2_base::Symbol,
+    args: &[crate::mir::CallArg],
+) -> Vec<scoop2_hir::ty::TypeId> {
+    use scoop2_hir::ty::{TypeKind, TypeStore};
+    // 取 callee type_params（声明顺序）。
+    let type_params: Vec<scoop2_base::Symbol> = builder
+        .hir
+        .type_constraints
+        .get(&fqn)
+        .map(|tc| tc.type_params.clone())
+        .unwrap_or_default();
+    if type_params.is_empty() {
+        return Vec::new();
+    }
+    // 取 callee 签名的参数类型（首个重载）。
+    let sig_param_tys: Vec<scoop2_hir::ty::TypeId> = builder
+        .hir
+        .top_level_funs
+        .get(&fqn)
+        .and_then(|sigs| sigs.first())
+        .map(|s| s.param_types.clone())
+        .unwrap_or_default();
+    if sig_param_tys.is_empty() {
+        return Vec::new();
+    }
+    // 推断：Param(name) → arg value_ty。
+    let mut inferred: std::collections::HashMap<scoop2_base::Symbol, scoop2_hir::ty::TypeId> =
+        std::collections::HashMap::new();
+    let store = &builder.hir.store;
+    for (i, sig_ty) in sig_param_tys.iter().enumerate() {
+        let arg_ty = match args.get(i) {
+            Some(a) => a.value_ty,
+            None => continue,
+        };
+        infer_tp_recursive(store, *sig_ty, arg_ty, &mut inferred);
+    }
+    let result: Vec<scoop2_hir::ty::TypeId> = type_params
+        .iter()
+        .filter_map(|&tp| inferred.get(&tp).copied())
+        .collect();
+    let callee_name = builder.hir.interner.resolve(fqn);
+    result
+}
+
+/// 递归匹配签名类型与实参类型，填充 Param→TypeId 映射。
+///
+/// 当前覆盖最常见的情形：签名参数类型直接是类型参数（如 `fun <T> println(value: T)`）。
+/// 嵌套泛型（如 `Array<T>` 的 T）在后续迭代中补充。
+fn infer_tp_recursive(
+    store: &scoop2_hir::ty::TypeStore,
+    sig_ty: scoop2_hir::ty::TypeId,
+    arg_ty: scoop2_hir::ty::TypeId,
+    out: &mut std::collections::HashMap<scoop2_base::Symbol, scoop2_hir::ty::TypeId>,
+) {
+    use scoop2_hir::ty::TypeKind;
+    match store.kind(sig_ty) {
+        TypeKind::Param(p) => {
+            // 签名是类型参数 → 绑定到实参类型。
+            out.entry(p.name).or_insert(arg_ty);
+        }
+        // 复合/引用类型的嵌套类型实参推断在后续迭代补充。
+        TypeKind::Ref(_) | TypeKind::Value(_) | TypeKind::Nothing | TypeKind::StarProjection => {}
+    }
+}
+
 fn lower_call(
     builder: &mut FnLowering,
     callee: &Expr,
@@ -536,7 +607,7 @@ fn derive_enum_variant_call(
 fn emit_call_resolution(
     builder: &mut FnLowering,
     rc: &ResolvedCall,
-    args: Vec<CallArg>,
+    mut args: Vec<CallArg>,
     span: Span,
     ty: scoop2_hir::ty::TypeId,
     receiver_operand: Option<Operand>,
@@ -548,14 +619,38 @@ fn emit_call_resolution(
         ResolvedCall::TopLevelFun {
             fqn,
             explicit_type_args,
+            inferred_type_args,
             ..
         } => {
             let callee_fqn = builder.hir.interner.resolve(*fqn).to_string();
-            // 线程化 explicit_type_args（泛型类型实参）到 CallKind::Direct。
+            // 方法调用解析为顶层函数 Direct 调用时（如 `a * b` → `scoop.core.Int.times`），
+            // receiver 是隐式首参（`this`），需前置到 args。
+            let mut final_args = args;
+            if let Some(recv) = receiver_operand {
+                let recv_ty = super::stmt::operand_ty(builder, &recv);
+                final_args.insert(
+                    0,
+                    crate::mir::CallArg {
+                        name: None,
+                        is_spread: false,
+                        value: recv,
+                        value_ty: recv_ty,
+                    },
+                );
+            }
+            // 优先用显式类型实参；否则用推断的类型实参；再否则从实参类型推断（供 scan_calls 单态化 println<String> 等）。
+            let mut type_args = if !explicit_type_args.is_empty() {
+                explicit_type_args.clone()
+            } else {
+                inferred_type_args.clone()
+            };
+            if type_args.is_empty() {
+                type_args = infer_type_args_from_call(builder, *fqn, &final_args);
+            }
             Rvalue::Call {
                 site_id: call_site_id,
-                kind: builder.make_direct_call_kind(callee_fqn.clone(), explicit_type_args.clone(), false),
-                args,
+                kind: builder.make_direct_call_kind(callee_fqn.clone(), type_args, false),
+                args: final_args,
                 transport: call_transport,
             }
         }
@@ -632,6 +727,17 @@ fn emit_call_resolution(
                     }
                 }
             } else {
+                // 非虚方法 → Direct 调用。receiver 是隐式首参，需前置到 args。
+                let recv_ty = *receiver_ty;
+                args.insert(
+                    0,
+                    crate::mir::CallArg {
+                        name: None,
+                        is_spread: false,
+                        value: recv,
+                        value_ty: recv_ty,
+                    },
+                );
                 builder.make_direct_call_kind(member_fqn, explicit_type_args.clone(), false)
             };
             Rvalue::Call {
@@ -1045,12 +1151,21 @@ fn lower_via_call_resolution(
         )
     };
     let rhs_ty = super::stmt::operand_ty(builder, &rhs);
-    let args = vec![CallArg {
-        name: None,
-        is_spread: false,
-        value: rhs,
-        value_ty: rhs_ty,
-    }];
+    // 标量内建运算符：receiver（lhs）是隐式首参，需前置（如 `a * b` → Int.times(a, b)）。
+    let args = vec![
+        CallArg {
+            name: None,
+            is_spread: false,
+            value: lhs,
+            value_ty: lhs_ty,
+        },
+        CallArg {
+            name: None,
+            is_spread: false,
+            value: rhs,
+            value_ty: rhs_ty,
+        },
+    ];
     let tmp = builder.alloc_temp(ty, span);
     let site_id = Some(builder.next_site_id());
     let transport = builder.call_transport(ty);
