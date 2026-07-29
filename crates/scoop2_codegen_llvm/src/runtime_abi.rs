@@ -263,27 +263,27 @@ impl<'ctx> CodegenContext<'ctx> {
             ret_fn(rt.i64.into(), &[rt.md_basic(self.context.f64_type().into())]),
         );
 
-        // arrays
+        // arrays — runtime C functions take/return native pointers (void*).
         let mutable_array_new = self.decl(
             sym::MUTABLE_ARRAY_NEW,
-            ret_fn(rt.gc_ptr.into(), &[i32m, i64m, i64m, vp, i64m]),
+            ret_fn(void_ptr_basic, &[i32m, i64m, i64m, vp, i64m]),
         );
-        let mutable_array_len = self.decl(sym::MUTABLE_ARRAY_LEN, ret_fn(rt.i64.into(), &[gc]));
+        let mutable_array_len = self.decl(sym::MUTABLE_ARRAY_LEN, ret_fn(rt.i64.into(), &[vp]));
         let mutable_array_push_word = self.decl(
             sym::MUTABLE_ARRAY_PUSH_WORD,
-            void_fn(&[gc, i64m]),
+            void_fn(&[vp, i64m]),
         );
         let mutable_array_push_ref = self.decl(
             sym::MUTABLE_ARRAY_PUSH_REF,
-            void_fn(&[gc, gc]),
+            void_fn(&[vp, vp]),
         );
         let mutable_array_push_composite = self.decl(
             sym::MUTABLE_ARRAY_PUSH_COMPOSITE,
-            void_fn(&[gc, vp, i64m]),
+            void_fn(&[vp, vp, i64m]),
         );
         let mutable_array_freeze = self.decl(
             sym::MUTABLE_ARRAY_FREEZE,
-            ret_fn(rt.gc_ptr.into(), &[gc]),
+            ret_fn(void_ptr_basic, &[vp]),
         );
 
         // pin/handle
