@@ -2684,6 +2684,13 @@ pub fn lower_handle(
     let arm_bbs: Vec<_> = arms.iter().map(|_| builder.new_block()).collect();
     let finally_bb = finally.map(|_| builder.new_block());
     // 为每个 arm 构造 HandlerArm 契约。
+    // binder 符号注册进 symbol_locals 会遮盖外层同名绑定；嵌套 handle 的
+    // arm body 在本 handle 之后 lower，若不恢复会把内层 binder 泄漏给外层
+    // arm body（同名 binder 解析错 local）。在此快照旧值，handle 结束后恢复。
+    let mut saved_binder_bindings: std::collections::HashMap<
+        scoop2_base::Symbol,
+        Option<crate::mir::LocalId>,
+    > = std::collections::HashMap::new();
     let mut handler_arms: Vec<crate::mir::transport::HandlerArm> = Vec::with_capacity(arms.len());
     for arm in arms {
         // op_fqn = effect_path.last_segment . op_name
@@ -2718,20 +2725,56 @@ pub fn lower_handle(
                 }
             })
             .unwrap_or_else(|| builder.types.any());
-        // binder 类型。
+        // binder 类型：优先 ascription；无 ascription 时从 op 声明的
+        // member_funs 签名回填参数类型（避免 binder 退化为 Any，导致 arm 体内
+        // 按 Any 使用——例如 `Int.plus(to, 4)` 会把 i64 存进 ptr alloca）。
+        let op_param_tys: Vec<scoop2_hir::ty::TypeId> = {
+            let prefix = builder
+                .hir
+                .file(builder.file_id)
+                .map(|f| f.package_prefix.as_str())
+                .unwrap_or("");
+            let candidates = if prefix.is_empty() {
+                vec![effect_name.clone(), format!("scoop.core.{effect_name}")]
+            } else {
+                vec![
+                    effect_name.clone(),
+                    format!("{prefix}.{effect_name}"),
+                    format!("scoop.core.{effect_name}"),
+                ]
+            };
+            candidates
+                .iter()
+                .filter_map(|c| builder.hir.interner.get(c))
+                .find_map(|eff| {
+                    builder
+                        .hir
+                        .member_funs
+                        .get(&eff)
+                        .and_then(|m| m.get(&arm.op.op.symbol))
+                })
+                .and_then(|sigs| sigs.first())
+                .map(|sig| sig.param_types.clone())
+                .unwrap_or_default()
+        };
         let mut binder_locals: Vec<crate::mir::LocalId> = Vec::new();
         let mut payload_component_tys: Vec<scoop2_hir::ty::TypeId> = Vec::new();
-        for b in &arm.op.binders {
-            let bty =
-                b.ty.as_ref()
-                    .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
-                    .unwrap_or_else(|| builder.types.any());
+        for (bi, b) in arm.op.binders.iter().enumerate() {
+            let bty = b
+                .ty
+                .as_ref()
+                .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
+                .or_else(|| op_param_tys.get(bi).copied())
+                .unwrap_or_else(|| builder.types.any());
             payload_component_tys.push(bty);
             let lid = builder.alloc_named(
                 builder.hir.interner.resolve(b.name.symbol).to_string(),
                 bty,
                 b.name.span,
             );
+            saved_binder_bindings
+                .entry(b.name.symbol)
+                .or_insert_with(|| builder.symbol_locals.get(&b.name.symbol).copied());
             builder.symbol_locals.insert(b.name.symbol, lid);
             binder_locals.push(lid);
         }
@@ -2746,6 +2789,9 @@ pub fn lower_handle(
                 cont_ty,
                 k_ident.span,
             );
+            saved_binder_bindings
+                .entry(k_ident.symbol)
+                .or_insert_with(|| builder.symbol_locals.get(&k_ident.symbol).copied());
             builder.symbol_locals.insert(k_ident.symbol, lid);
             (
                 Some(lid),
@@ -2813,6 +2859,18 @@ pub fn lower_handle(
         builder.current_bb = fb;
         super::stmt::lower_block(builder, fblock);
         builder.goto(exit_bb, span);
+    }
+    // 恢复 handle 之前的同名绑定（嵌套 handle 的 arm body 之后才会 lower，
+    // 不恢复会把本 handle 的 binder 泄漏给外层 arm body）。
+    for (sym, old) in saved_binder_bindings {
+        match old {
+            Some(lid) => {
+                builder.symbol_locals.insert(sym, lid);
+            }
+            None => {
+                builder.symbol_locals.remove(&sym);
+            }
+        }
     }
     builder.current_bb = exit_bb;
     Operand::Local(result)

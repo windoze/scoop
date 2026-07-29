@@ -61,12 +61,52 @@ pub fn lower_to_lir(
     // 6. 全局初始化规划
     global_init::plan_global_init(&mut program, mir, hir, interner);
     // 7. MIR→LIR body 映射（含 GC info + effect schema 挂载）
-    map_bodies(&mut program, mir, hir, interner)?;
+    let step_tags = build_step_tag_tables(mir, interner);
+    map_bodies(&mut program, mir, hir, interner, &step_tags)?;
     // 8. 回填分发表信息到调用点
     dispatch::backfill_call_sites(&mut program);
     // 9. 验证
     verify::verify_lir(&program);
     Ok(program)
+}
+
+// =========================================================================
+// 合成 Step enum 的 tag 表
+// =========================================================================
+
+/// 合成 Step enum 的变体判别值表。
+///
+/// Step enum 是 effect lowering 的合成类型，不在 HIR `enum_variants` 注册表中，
+/// 通用 tag 解析路径（HIR 查表）对它会静默回退 0/None。这里从各 EffectStep
+/// 函数的 `EffectStepAbi.step_variants`（声明序 = tag）直接构建权威映射。
+#[derive(Default)]
+struct StepTagTables {
+    /// (step_ty, variant_name_sym) → tag：用于 `Rvalue::EnumVariant` 构造点。
+    rvalue_tags: std::collections::HashMap<(scoop2_hir::ty::TypeId, scoop2_base::Symbol), u64>,
+    /// (enum_fqn_sym, variant_name_sym) → tag：用于 `Pattern::Variant` 匹配点
+    ///（enum_fqn_sym = 合成 Step 所属函数的 FQN Symbol）。
+    pattern_tags: std::collections::HashMap<(scoop2_base::Symbol, scoop2_base::Symbol), u64>,
+}
+
+/// 从 MaterializedMir 中所有 EffectStep 函数构建 tag 表。
+fn build_step_tag_tables(mir: &MaterializedMir, interner: &Interner) -> StepTagTables {
+    let mut tables = StepTagTables::default();
+    for item in &mir.module.items {
+        let scoop2_mir::mir::Item::Fun(fd) = item else {
+            continue;
+        };
+        let Some(abi) = &fd.effect_abi else {
+            continue;
+        };
+        let fn_sym = interner.get(&fd.fqn).unwrap_or_default();
+        for (i, v) in abi.step_variants.iter().enumerate() {
+            tables
+                .rvalue_tags
+                .insert((abi.step_ty, v.name_sym), i as u64);
+            tables.pattern_tags.insert((fn_sym, v.name_sym), i as u64);
+        }
+    }
+    tables
 }
 
 // =========================================================================
@@ -78,6 +118,7 @@ fn map_bodies(
     mir: &MaterializedMir,
     hir: &TypedHir,
     interner: &Interner,
+    step_tags: &StepTagTables,
 ) -> Result<(), LirError> {
     for item in &mir.module.items {
         match item {
@@ -90,6 +131,7 @@ fn map_bodies(
                         hir,
                         &program.type_layouts,
                         interner,
+                        step_tags,
                     )?);
                 } else {
                     // 无函数体（extern / abstract / intrinsic）：放入 declarations。
@@ -121,6 +163,7 @@ fn map_bodies(
                     &mir.module.types,
                     hir,
                     interner,
+                    step_tags,
                 )?);
             }
             scoop2_mir::mir::Item::ExternGlobal(eg) => {
@@ -146,6 +189,7 @@ fn map_callable(
     hir: &TypedHir,
     layouts: &TypeLayoutTable,
     interner: &Interner,
+    step_tags: &StepTagTables,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = fd
         .instance_symbol
@@ -171,7 +215,7 @@ fn map_callable(
     // 计算函数体的 GC info 和 effect schema。
     let (body, gc_info, frame_schema, step_layout, state_dispatch, continuation_layout) =
         if let Some(mir_body) = &fd.body {
-            let lir_body = map_body(mir_body, layouts, &mir.module.types, hir, interner)?;
+            let lir_body = map_body(mir_body, layouts, &mir.module.types, hir, interner, step_tags)?;
             let frame_for_gc = fd
                 .effect_abi
                 .as_ref()
@@ -209,9 +253,10 @@ fn map_initializer(
     types: &scoop2_hir::ty::TypeStore,
     hir: &TypedHir,
     interner: &Interner,
+    step_tags: &StepTagTables,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = abi::mangle_symbol(&ir.fqn, &None);
-    let body = map_body(&ir.body, layouts, types, hir, interner)?;
+    let body = map_body(&ir.body, layouts, types, hir, interner, step_tags)?;
     Ok(LirCallable {
         fqn: ir.fqn.clone(),
         symbol_name,
@@ -234,6 +279,7 @@ fn map_body(
     types: &scoop2_hir::ty::TypeStore,
     hir: &TypedHir,
     interner: &Interner,
+    step_tags: &StepTagTables,
 ) -> Result<LirBody, LirError> {
     let locals = body
         .locals
@@ -251,7 +297,7 @@ fn map_body(
     for (bi, blk) in body.blocks.iter().enumerate() {
         let mut stmts = Vec::with_capacity(blk.stmts.len());
         for s in &blk.stmts {
-            stmts.push(map_stmt(s, layouts, types, hir, interner)?);
+            stmts.push(map_stmt(s, layouts, types, hir, interner, step_tags)?);
         }
         blocks.push(LirBlock {
             id: bi as u32,
@@ -272,13 +318,14 @@ fn map_stmt(
     types: &scoop2_hir::ty::TypeStore,
     hir: &TypedHir,
     interner: &Interner,
+    step_tags: &StepTagTables,
 ) -> Result<LirStmt, LirError> {
     use scoop2_mir::mir::StatementKind;
     let kind = match &stmt.kind {
         StatementKind::Nop => LirStmtKind::Nop,
         StatementKind::Assign { target, value } => LirStmtKind::Assign {
             target: target.0,
-            value: map_rvalue(value, layouts, types, hir, interner)?,
+            value: map_rvalue(value, layouts, types, hir, interner, step_tags)?,
         },
         StatementKind::StoreMember {
             receiver,
@@ -340,6 +387,7 @@ fn map_rvalue(
     types: &scoop2_hir::ty::TypeStore,
     hir: &TypedHir,
     interner: &Interner,
+    step_tags: &StepTagTables,
 ) -> Result<LirRvalue, LirError> {
     use scoop2_mir::mir::{CallKind, Operand, Rvalue};
     let out = match rv {
@@ -463,14 +511,20 @@ fn map_rvalue(
                         .map(|i| i as u64)
                 })
             };
-            let tag_value = tag_from(enum_fqn).or_else(|| {
-                if let scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Nominal(n)) =
-                    types.kind(*enum_ty)
-                {
-                    tag_from(&n.fqn)
-                } else {
-                    None
-                }
+            // 合成 Step enum（MIR effect lowering 产物）不在 HIR enum_variants 中，
+            // tag 取 effect_abi.step_variants 声明序，见 NEW-LLVM-CODEGEN.md §3.1。
+            let step_tag = step_tags.rvalue_tags.get(&(*enum_ty, *variant_name)).copied();
+            let tag_value = step_tag.or_else(|| {
+                tag_from(enum_fqn).or_else(|| {
+                    if let scoop2_hir::ty::TypeKind::Value(
+                        scoop2_hir::ty::ValueTypeKind::Nominal(n),
+                    ) = types.kind(*enum_ty)
+                    {
+                        tag_from(&n.fqn)
+                    } else {
+                        None
+                    }
+                })
             });
             let tag_value = match tag_value {
                 Some(t) => t,
@@ -654,7 +708,7 @@ fn map_rvalue(
         }
         Rvalue::PatternMatch { subject, pattern } => LirRvalue::PatternMatch {
             subject_local: map_operand(subject),
-            pattern: map_pattern(pattern, types, hir, interner),
+            pattern: map_pattern(pattern, types, hir, interner, step_tags),
         },
         Rvalue::PatternExtract {
             subject, result_ty, ..
@@ -675,6 +729,7 @@ fn map_pattern(
     types: &scoop2_hir::ty::TypeStore,
     hir: &TypedHir,
     interner: &Interner,
+    step_tags: &StepTagTables,
 ) -> LirPattern {
     use scoop2_mir::mir::Pattern;
     match p {
@@ -704,7 +759,7 @@ fn map_pattern(
         Pattern::Tuple { elements } => LirPattern::Tuple {
             elements: elements
                 .iter()
-                .map(|p| map_pattern(p, types, hir, interner))
+                .map(|p| map_pattern(p, types, hir, interner, step_tags))
                 .collect(),
         },
         Pattern::Struct { type_fqn, fields } => LirPattern::Struct {
@@ -714,7 +769,7 @@ fn map_pattern(
                 .map(|f| {
                     (
                         interner.resolve(f.name).to_string(),
-                        map_pattern(&f.pattern, types, hir, interner),
+                        map_pattern(&f.pattern, types, hir, interner, step_tags),
                     )
                 })
                 .collect(),
@@ -726,25 +781,33 @@ fn map_pattern(
         } => {
             let vname = interner.resolve(*variant_name).to_string();
             // 判别值 = 变体在 enum_variants 声明序中的下标（与 EnumVariant 构造同源）。
-            let tag_value = hir.enum_variants.get(enum_fqn).and_then(|variants| {
-                variants
-                    .iter()
-                    .position(|&v| interner.resolve(v) == vname)
-                    .map(|i| i as u64)
-            });
+            // 合成 Step enum（effect lowering 产物）不在 HIR enum_variants 中，
+            // tag 取 effect_abi.step_variants 声明序（enum_fqn = 所属函数 FQN sym）。
+            let tag_value = step_tags
+                .pattern_tags
+                .get(&(*enum_fqn, *variant_name))
+                .copied()
+                .or_else(|| {
+                    hir.enum_variants.get(enum_fqn).and_then(|variants| {
+                        variants
+                            .iter()
+                            .position(|&v| interner.resolve(v) == vname)
+                            .map(|i| i as u64)
+                    })
+                });
             LirPattern::Variant {
                 variant_name: vname,
                 tag_value,
                 args: args
                     .iter()
-                    .map(|p| map_pattern(p, types, hir, interner))
+                    .map(|p| map_pattern(p, types, hir, interner, step_tags))
                     .collect(),
             }
         }
         Pattern::Or { patterns } => LirPattern::Or {
             patterns: patterns
                 .iter()
-                .map(|p| map_pattern(p, types, hir, interner))
+                .map(|p| map_pattern(p, types, hir, interner, step_tags))
                 .collect(),
         },
     }

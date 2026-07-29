@@ -727,6 +727,9 @@ fn prepare_effect_synthetic_layouts(
                     .collect(),
             },
         };
+        // Step enum 的真实 tagged-union 布局同时是 type_layouts 中 step_ty 的权威布局
+        //（step_ty 是合成 nominal 类型，通用 compute_layout 路径只会产出空 struct）。
+        program.type_layouts.insert(eff_abi.step_ty, step_layout.clone());
         program.synthetic_types.push(SyntheticTypeDecl {
             fqn: format!("{}$step", fd.fqn),
             kind: SyntheticTypeKind::StepEnum,

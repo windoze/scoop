@@ -155,9 +155,15 @@ fn lower_resume<'a, 'ctx>(
     let msg = fl
         .cg
         .get_or_create_string_literal("ContinuationAlreadyResumed")?;
+    // scoop_panic 是 native void*；string literal 是 GC ptr（addrspace 1），
+    // 跨地址空间不能 bitcast，走 ptrtoint/inttoptr。
+    let msg_int = fl
+        .builder
+        .build_ptr_to_int(msg, fl.cg.context.i64_type(), "res_panic_msg_int")
+        .map_err(|e| llvm(e, "res_panic_msg_int"))?;
     let msg_native = fl
         .builder
-        .build_bit_cast(msg, native_ptr, "res_panic_msg")
+        .build_int_to_ptr(msg_int, native_ptr, "res_panic_msg")
         .map_err(|e| llvm(e, "res_panic_msg"))?;
     fl.builder
         .build_call(fl.rt.panic, &[msg_native.into()], "resume_panic_call")

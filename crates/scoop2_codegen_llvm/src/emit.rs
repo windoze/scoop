@@ -129,8 +129,11 @@ fn lower_entry_main<'ctx>(
     program: &LirProgram,
     rt: &crate::runtime_abi::RuntimeFns<'ctx>,
 ) -> CodegenResult<()> {
-    // 查找用户 main：fqn == "main"。
-    let user_main = program.callables.iter().find(|c| c.fqn == "main");
+    // 查找用户 main：无 package 时 fqn == "main"；有 package 时为 "<pkg>.main"。
+    let user_main = program
+        .callables
+        .iter()
+        .find(|c| c.fqn == "main" || c.fqn.ends_with(".main"));
     let user_main = match user_main {
         Some(c) => c,
         None => return Ok(()), // 无 main（库模式）：不生成 entry。

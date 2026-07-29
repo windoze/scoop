@@ -43,6 +43,23 @@ pub fn dump_program(program: &LirProgram) -> String {
                 body.blocks.len(),
                 body.start_block
             ));
+            for l in &body.locals {
+                out.push_str(&format!(
+                    "    local {} {}{}: {:?} (gc={})\n",
+                    l.id,
+                    l.name.as_deref().unwrap_or(""),
+                    if l.mutable { " mut" } else { "" },
+                    l.ty,
+                    l.gc_traceable
+                ));
+            }
+            for b in &body.blocks {
+                out.push_str(&format!("    bb{}:\n", b.id));
+                for s in &b.stmts {
+                    out.push_str(&format!("      {:?}\n", s.kind));
+                }
+                out.push_str(&format!("      -> {:?}\n", b.terminator));
+            }
         }
     }
 
