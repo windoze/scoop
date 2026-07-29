@@ -6121,6 +6121,30 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         use crate::syntax::ast::PatternKind;
         match &pat.kind {
             PatternKind::Variant { path, args } => {
+                // Option 特判：Value(Option(inner)) 的 Some(x) 模式绑定 x 到 inner。
+                // Option 不是 Nominal（是 Value(Option(_))），nominal_fqn_of 无法解析。
+                if let TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) =
+                    self.env.store.kind(subject_ty)
+                {
+                    if let Some(last_seg) = path.segments.last()
+                        && self.env.interner.resolve(last_seg.symbol) == "Some"
+                        && let Some(args) = args
+                    {
+                        if let Some(PatternKind::Bind(ident)) = args.first().map(|a| &a.kind) {
+                            self.locals.insert(ident.symbol, *inner);
+                            self.facts.pattern_bindings.set(
+                                pat.id,
+                                vec![crate::hir::PatternBinding {
+                                    name: ident.symbol,
+                                    ty: *inner,
+                                    source: crate::hir::PatternBindingSource::VariantField,
+                                    span: ident.span,
+                                }],
+                            );
+                        }
+                    }
+                    return;
+                }
                 // 从 subject enum 的 variant payload 提取字段类型。
                 if let Some(enum_fqn) = nominal_fqn_of(self.env.store.kind(subject_ty))
                     && let Some(last_seg) = path.segments.last()
@@ -6138,7 +6162,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             && let Some(fields) = self.env.member_types(vfqn)
                         {
                             // 按位置绑定 binder 到字段类型。
-                            let field_tys: Vec<TypeId> = fields.values().copied().collect();
+                            // 字段类型可能含 enum 的类型参数（如 Option<T>.Some.value: T）；
+                            // 用 subject 的类型实参替换（Option<Int> → T 替换为 Int）。
+                            let raw_field_tys: Vec<TypeId> = fields.values().copied().collect();
+                            let subst_arg = match self.env.store.kind(subject_ty) {
+                                TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => n.args.first().copied(),
+                                TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => n.args.first().copied(),
+                                _ => None,
+                            };
+                            let field_tys: Vec<TypeId> = raw_field_tys
+                                .iter()
+                                .map(|&ft| match subst_arg {
+                                    Some(sa) => self.subst_all_params(ft, sa),
+                                    None => ft,
+                                })
+                                .collect();
                             // 收集此 variant 模式引入的绑定（供 pattern_bindings 侧表）。
                             let mut bindings: Vec<crate::hir::PatternBinding> = Vec::new();
                             if let Some(args) = args {
