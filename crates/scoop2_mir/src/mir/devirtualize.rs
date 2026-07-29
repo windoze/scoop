@@ -177,13 +177,24 @@ fn devirtualize_call_kind(
 
     // 条件 1：final 类型 → 直接去虚化（用 member_fqn 或 owner.member）。
     let callee_fqn = if is_final_type(store, ctx, receiver_ty) {
-        if dispatch.member_fqn.is_empty() {
-            format!("{}.{}", owner_fqn, member_name)
-        } else {
-            dispatch.member_fqn.clone()
+        // For final types, use the receiver's exact type to construct callee FQN.
+        // This handles both Ref(Nominal) and Value(Nominal) correctly.
+        match exact_receiver_fqn(store, ctx, receiver_ty) {
+            Some(exact_fqn) => {
+                let target_fqn_text = ctx.interner.resolve(exact_fqn);
+                format!("{}.{}", target_fqn_text, member_name)
+            }
+            None => {
+                if dispatch.member_fqn.is_empty() {
+                    format!("{}.{}", owner_fqn, member_name)
+                } else {
+                    dispatch.member_fqn.clone()
+                }
+            }
         }
     }
     // 条件 2：单候选 CHA（exact receiver）—— receiver 无已知子类。
+    // 使用 receiver 的精确类型（而非 interface owner 类型）构造 callee FQN。
     else if let Some(exact_fqn) = exact_receiver_fqn(store, ctx, receiver_ty) {
         let target_fqn_text = ctx.interner.resolve(exact_fqn);
         format!("{}.{}", target_fqn_text, member_name)
