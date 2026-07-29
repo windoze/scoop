@@ -1225,8 +1225,17 @@ fn lower_via_call_resolution(
     }
     // 回退（标量内建 / 未解析方法）：emit Direct 调用到 `<owner>.<method_hint>`，
     // owner 取 lhs 类型的 nominal FQN（标量 → scoop.core.<T>），使 callee 可解析。
+    // 若 lhs 类型无法解析（Nothing，如解构绑定未注册类型），尝试用 rhs 类型回退。
     let lhs_ty = super::stmt::operand_ty(builder, &lhs);
-    let owner_fqn = owner_fqn_of(builder, lhs_ty);
+    let rhs_ty = super::stmt::operand_ty(builder, &rhs);
+    let owner_fqn = {
+        let o = owner_fqn_of(builder, lhs_ty);
+        if o == Symbol::default() {
+            owner_fqn_of(builder, rhs_ty)
+        } else {
+            o
+        }
+    };
     let method_sym = builder.hir.interner.get(method_hint).unwrap_or_default();
     let callee_fqn = if owner_fqn == Symbol::default() {
         method_hint.to_string()
@@ -1237,7 +1246,6 @@ fn lower_via_call_resolution(
             method_hint
         )
     };
-    let rhs_ty = super::stmt::operand_ty(builder, &rhs);
     // 标量内建运算符：receiver（lhs）是隐式首参，需前置（如 `a * b` → Int.times(a, b)）。
     let args = vec![
         CallArg {
