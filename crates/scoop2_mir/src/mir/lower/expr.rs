@@ -214,7 +214,13 @@ fn lower_ident(builder: &mut FnLowering, sym: Symbol, span: Span, ty: scoop2_hir
     if let Some(&lid) = builder.symbol_locals.get(&sym) {
         return Operand::Local(lid);
     }
-    // true/false/this/field/it 由 typecheck 处理（这里只兜底）。
+    // 成员函数体内的 `this`：解析为隐式 this_local（接收者）。
+    if name == "this" {
+        if let Some(lid) = builder.this_local {
+            return Operand::Local(lid);
+        }
+    }
+    // true/false/null/field/it 由 typecheck 处理（这里只兜底）。
     match name {
         "true" => return Operand::Const(ConstValue::Bool(true)),
         "false" => return Operand::Const(ConstValue::Bool(false)),
