@@ -111,6 +111,9 @@ pub struct TypedHir {
     /// 若某类型在此 map 中有子类型，则 receiver 可能是子类实例，不能简单去虚化。
     /// 若无子类型（不在 key 中），则 receiver 类型是精确的（exact），可去虚化。
     pub direct_subtypes: HashMap<Symbol, Vec<Symbol>>,
+    /// 子类型 → 直接超类型 FQN 列表（正向 index.supertypes）。
+    /// 供 MIR 收集 class × interface itable 契约。
+    pub supertypes: HashMap<Symbol, Vec<Symbol>>,
     /// 每个用户文件的 typed 产物（含 expr_types + 语义事实）。
     pub files: Vec<TypedFile>,
 }
@@ -207,6 +210,7 @@ impl TypedHir {
             class_fqns: HashSet::new(),
             extensible_class_fqns: HashSet::new(),
             direct_subtypes: HashMap::new(),
+            supertypes: HashMap::new(),
             files: Vec::new(),
         }
     }

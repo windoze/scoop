@@ -202,6 +202,26 @@ pub fn materialize(
                         work.backend_contracts.class_inits.push(ClassInitContract {
                             class_fqn: m.fqn.clone(),
                         });
+                        // class × interface itable 契约：该 class 实现的所有 interface（来自超类型链）。
+                        let interface_fqns: Vec<String> = hir_fqn_for_metadata(hir, &m.fqn)
+                            .and_then(|fqn_sym| hir.supertypes.get(&fqn_sym))
+                            .map(|supers| {
+                                supers
+                                    .iter()
+                                    .map(|&s| hir.interner.resolve(s).to_string())
+                                    .filter(|fqn| {
+                                        hir.interner.get(fqn)
+                                            .is_some_and(|sym| hir.interface_fqns.contains(&sym))
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        if !interface_fqns.is_empty() {
+                            work.backend_contracts.class_itables.push(ClassItableContract {
+                                class_fqn: m.fqn.clone(),
+                                interface_fqns,
+                            });
+                        }
                     }
                     crate::mir::MetadataKind::Interface => {
                         let store_ref = &generic_types;

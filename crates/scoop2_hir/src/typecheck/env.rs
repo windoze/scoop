@@ -455,10 +455,13 @@ impl<'i> TypeEnv<'i> {
         // 收集超类型 → 直接子类型映射（反转 index.supertypes），供 MIR 去虚化 CHA。
         let mut direct_subtypes: std::collections::HashMap<scoop2_base::Symbol, Vec<scoop2_base::Symbol>> =
             std::collections::HashMap::new();
+        let mut supertypes: std::collections::HashMap<scoop2_base::Symbol, Vec<scoop2_base::Symbol>> =
+            std::collections::HashMap::new();
         for (child, supers) in index.supertypes_iter() {
             for &sup in supers {
                 direct_subtypes.entry(sup).or_default().push(child);
             }
+            supertypes.insert(child, supers.to_vec());
         }
         let top_level_funs = self
             .signatures
@@ -507,6 +510,7 @@ impl<'i> TypeEnv<'i> {
             class_fqns,
             extensible_class_fqns,
             direct_subtypes,
+            supertypes,
             files,
         }
     }
