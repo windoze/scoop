@@ -171,6 +171,11 @@ fn try_make_inlineable_with_store(
     config: &InlineConfig,
 ) -> Option<InlineableCallee> {
     let body = fd.body.as_ref()?;
+    // 排除有 receiver 参数的成员函数（owner-qualified FQN 后多个重载可能冲突）。
+    // 成员函数有隐式 <this> 参数（param name = "<this>"）。
+    if fd.params.iter().any(|p| p.name == "<this>") {
+        return None;
+    }
     let hof = is_effect_transparent(fd, store);
     // 条件 4：effect row 必须是 Pure 或 effect-transparent HOF。
     if !fd.effect_row.is_pure() && !hof {
