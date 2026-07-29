@@ -336,16 +336,20 @@ fn lower_named_intrinsic<'a, 'ctx>(
     args: &[LirOperand],
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let ctx = fl.cg.context;
-    // to_string：按类型 dispatch 到 runtime scoop_*_to_string。
+    // to_string：按类型 dispatch 到 runtime scoop_*_to_string（runtime 接受 i64 标量）。
     if name.ends_with("_to_string") {
         let gc_ptr_ty = fl.cg.gc_ptr_ty();
+        let i64 = ctx.i64_type();
         let arg0 = one_arg(fl, args, 0)?;
+        // 标量值扩展到 i64（runtime scoop_*_to_string 接受 int64_t）。
+        let arg_int = arg0.into_int_value();
+        let arg_int_64 = zext_to_i64(fl, arg_int);
         let call = if name.starts_with("int") {
-            fl.builder.build_call(fl.rt.int_to_string, &[arg0.into_int_value().into()], "i2s")
+            fl.builder.build_call(fl.rt.int_to_string, &[arg_int_64.into()], "i2s")
         } else if name.starts_with("bool") {
-            fl.builder.build_call(fl.rt.bool_to_string, &[arg0.into_int_value().into()], "b2s")
+            fl.builder.build_call(fl.rt.bool_to_string, &[arg_int_64.into()], "b2s")
         } else if name.starts_with("char") {
-            fl.builder.build_call(fl.rt.char_to_string, &[arg0.into_int_value().into()], "c2s")
+            fl.builder.build_call(fl.rt.char_to_string, &[arg_int_64.into()], "c2s")
         } else if name.starts_with("float") {
             fl.builder.build_call(fl.rt.float64_to_string, &[arg0.into_float_value().into()], "f2s")
         } else {
@@ -566,6 +570,20 @@ fn int_binary_op(name: &str) -> Option<IntBin> {
 }
 
 /// 取第 i 个实参的值（按其本地类型）。
+/// 把整数值 zext 到 i64（若已是 i64 则原样返回）。
+pub fn zext_to_i64<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    v: inkwell::values::IntValue<'ctx>,
+) -> inkwell::values::IntValue<'ctx> {
+    if v.get_type().get_bit_width() == 64 {
+        v
+    } else {
+        fl.builder
+            .build_int_z_extend(v, fl.cg.context.i64_type(), "zext_i64")
+            .unwrap_or_else(|_| fl.cg.context.i64_type().const_zero())
+    }
+}
+
 fn one_arg<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     args: &[LirOperand],

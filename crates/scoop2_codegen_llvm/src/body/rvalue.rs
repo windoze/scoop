@@ -1103,6 +1103,7 @@ fn lower_interp_expr_to_string<'a, 'ctx>(
     };
     let (v, kind) = val;
     let gc_ptr_ty = fl.cg.gc_ptr_ty();
+    let i64 = fl.cg.context.i64_type();
     // 按 layout kind dispatch。
     let str_val = match &kind {
         Some(scoop2_lir::TypeLayoutKind::Reference { gc_traceable: true, .. }) => {
@@ -1113,7 +1114,7 @@ fn lower_interp_expr_to_string<'a, 'ctx>(
             use scoop2_lir::ScalarKind;
             match scalar_kind {
                 ScalarKind::Int { .. } => {
-                    let iv = v.into_int_value();
+                    let iv = crate::intrinsics::zext_to_i64(fl, v.into_int_value());
                     let call = fl.builder.build_call(fl.rt.int_to_string, &[iv.into()], "i2s")
                         .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_string", scoop2_base::Span::default()))?;
                     match call.try_as_basic_value() {
@@ -1122,7 +1123,7 @@ fn lower_interp_expr_to_string<'a, 'ctx>(
                     }
                 }
                 ScalarKind::Bool => {
-                    let iv = v.into_int_value();
+                    let iv = crate::intrinsics::zext_to_i64(fl, v.into_int_value());
                     let call = fl.builder.build_call(fl.rt.bool_to_string, &[iv.into()], "b2s")
                         .map_err(|e| CodegenError::llvm(e.to_string(), "bool_to_string", scoop2_base::Span::default()))?;
                     match call.try_as_basic_value() {
@@ -1131,7 +1132,7 @@ fn lower_interp_expr_to_string<'a, 'ctx>(
                     }
                 }
                 ScalarKind::Char => {
-                    let iv = v.into_int_value();
+                    let iv = crate::intrinsics::zext_to_i64(fl, v.into_int_value());
                     let call = fl.builder.build_call(fl.rt.char_to_string, &[iv.into()], "c2s")
                         .map_err(|e| CodegenError::llvm(e.to_string(), "char_to_string", scoop2_base::Span::default()))?;
                     match call.try_as_basic_value() {
