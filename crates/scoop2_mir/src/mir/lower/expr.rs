@@ -44,8 +44,16 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
         }
         ExprKind::ArrayLit(els) => {
             let ops: Vec<Operand> = els.iter().map(|e| lower_expr(builder, e)).collect();
-            let tmp = builder.alloc_temp(ty, span);
-            builder.assign(tmp, Rvalue::MakeArray { elements: ops, result_ty: ty }, span);
+            // 空数组字面量 `[]` 的表达式类型为 Nothing（typecheck 让 check_assignable 通过），
+            // 但 MakeArray 结果总是 Array 引用（GC ptr）。用 Array 引用类型创建临时，
+            // 避免 Nothing 临时在 codegen 中被错误地以 i8 load（破坏指针）。
+            let arr_ty = if builder.types.is_nothing(ty) {
+                builder.array_ref_ty()
+            } else {
+                ty
+            };
+            let tmp = builder.alloc_temp(arr_ty, span);
+            builder.assign(tmp, Rvalue::MakeArray { elements: ops, result_ty: arr_ty }, span);
             Operand::Local(tmp)
         }
         ExprKind::StructLit { name, fields } => {

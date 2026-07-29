@@ -155,6 +155,17 @@ impl<'hir> FnLowering<'hir> {
         self.types.bool()
     }
 
+    /// Array 引用类型（`Ref(scoop.core.Array)`，无类型实参）。
+    /// 用于空数组字面量 `[]` 的 MakeArray 临时（表达式类型为 Nothing 时回退）。
+    pub fn array_ref_ty(&mut self) -> scoop2_hir::ty::TypeId {
+        let array_fqn = self.hir.interner.get("scoop.core.Array").unwrap_or_default();
+        self.types.ref_nominal(scoop2_hir::ty::NominalType {
+            fqn: array_fqn,
+            args: Vec::new(),
+            eff: None,
+        })
+    }
+
     /// 在当前块追加一条 statement。
     pub fn push_stmt(&mut self, stmt: crate::mir::Statement) {
         let bb = self.current_bb;
