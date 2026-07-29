@@ -12,11 +12,15 @@ pub fn lower_terminator<'a, 'ctx>(
 ) -> CodegenResult<()> {
     match term {
         LirTerminator::Return { value } => {
-            // pop root frame（在 ret 之前）。
+            // 先 load 返回值（GC local 从 frame slot 读取），再 pop root frame。
+            // 若先 pop，frame slot 被清零，GC local 读取得到 NULL。
+            let ret_val = match value {
+                Some(operand) => Some(fl.lower_operand(operand, fl.return_ty)?),
+                None => None,
+            };
             fl.emit_root_frame_pop()?;
-            match value {
-                Some(operand) => {
-                    let v = fl.lower_operand(operand, fl.return_ty)?;
+            match ret_val {
+                Some(v) => {
                     fl.builder
                         .build_return(Some(&v))
                         .map_err(|e| CodegenError::llvm(e.to_string(), "build_return", scoop2_base::Span::default()))?;

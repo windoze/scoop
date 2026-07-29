@@ -66,6 +66,7 @@ pub fn emit_object_to_file(
         }
     }
     lower_entry_main(&cg, program, &rt)?;
+    { let _ = std::fs::write("/tmp/hello.ll", cg.module.to_string()); }
     // 验证 module。
     if let Err(e) = cg.module.verify() {
         return Err(CodegenError::Verification {
