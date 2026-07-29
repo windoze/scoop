@@ -53,12 +53,10 @@ fn lower_known_fn<'a, 'ctx>(
     let param_count = fv.count_params();
     let mut arg_vals: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(args.len());
     for (i, operand) in args.iter().enumerate() {
-        let param_ty = if (i as u32) < param_count {
-            fv.get_nth_param(i as u32).map(|p| p.get_type())
-        } else {
-            None
-        };
-        let val = lower_call_arg(fl, operand, param_ty)?;
+        let val = lower_call_arg(fl, operand, None)?;
+        // 若参数是 GC 指针（addrspace 1）但被调用函数期望 native 指针（addrspace 0），
+        // 经 i64 中转转换。
+        let val = coerce_arg_addrspace(fl, val);
         arg_vals.push(val.into());
     }
     let call = fl
@@ -109,5 +107,36 @@ fn resolve_runtime_symbol<'a, 'ctx>(
         "scoop.core.println" | "scoop.core.__scoop_println" => Some(fl.rt.println),
         "scoop.core.print" | "scoop.core.__scoop_print" => Some(fl.rt.print),
         _ => None,
+    }
+}
+
+/// 若值是 GC 指针（addrspace 1），转换为 native 指针（addrspace 0）。
+/// 用于 extern / runtime 函数调用（期望 native ptr）。
+fn coerce_arg_addrspace<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    val: BasicValueEnum<'ctx>,
+) -> BasicValueEnum<'ctx> {
+    match val {
+        BasicValueEnum::PointerValue(ptr_val) => {
+            if ptr_val.get_type().get_address_space() == crate::context::gc_address_space() {
+                let as_int = fl
+                    .builder
+                    .build_ptr_to_int(ptr_val, fl.cg.context.i64_type(), "arg2int")
+                    .ok();
+                if let Some(int_val) = as_int {
+                    let native = fl
+                        .builder
+                        .build_int_to_ptr(int_val, fl.cg.native_ptr_ty(), "arg2native")
+                        .ok();
+                    if let Some(n) = native {
+                        return n.into();
+                    }
+                }
+                val
+            } else {
+                val
+            }
+        }
+        _ => val,
     }
 }
