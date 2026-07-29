@@ -48,6 +48,7 @@ fn intrinsic_name_from_fqn(fqn: &str) -> Option<String> {
         "UInt16" => "uint16",
         "UInt32" => "uint32",
         "UInt64" => "uint64",
+        "UIntPtr" => "uint",
         "Bool" => "bool",
         "Char" => "char",
         "Float" | "Float64" => "float",

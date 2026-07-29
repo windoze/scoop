@@ -234,6 +234,13 @@ fn compute_layout(
             compute_option_layout(*inner, types)
         }
         TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+            // 内建标量别名（@Intrinsic struct Bool/Char/Int/UInt/Int8../Float64/Float32/Unit）：
+            // FQN 尾段匹配内建标量名时，使用标量布局而非 struct 布局。
+            let fqn_text = interner.resolve(n.fqn);
+            let simple = fqn_text.rsplit('.').next().unwrap_or("");
+            if let Some(scalar) = builtin_scalar_kind(simple) {
+                return scalar_layout(scalar);
+            }
             // struct / enum 值类型。查询 HIR 获取字段列表。
             // 尝试 struct 布局：查 HIR members。
             if let Some(members) = hir.members.get(&n.fqn) {
@@ -693,5 +700,51 @@ fn prepare_effect_synthetic_layouts(
             kind: SyntheticTypeKind::ContinuationStruct,
             layout: cont_layout,
         });
+    }
+}
+
+/// 内建标量名 → ScalarKind 映射（识别 @Intrinsic struct 的标量别名）。
+fn builtin_scalar_kind(simple: &str) -> Option<crate::ScalarKind> {
+    use crate::ScalarKind;
+    Some(match simple {
+        "Unit" => ScalarKind::Unit,
+        "Bool" => ScalarKind::Bool,
+        "Char" => ScalarKind::Char,
+        "Int" => ScalarKind::Int { bits: 64, unsigned: false },
+        "UInt" => ScalarKind::Int { bits: 64, unsigned: true },
+        "Int8" => ScalarKind::Int { bits: 8, unsigned: false },
+        "Int16" => ScalarKind::Int { bits: 16, unsigned: false },
+        "Int32" => ScalarKind::Int { bits: 32, unsigned: false },
+        "Int64" | "Long" => ScalarKind::Int { bits: 64, unsigned: false },
+        "UInt8" | "Byte" => ScalarKind::Int { bits: 8, unsigned: true },
+        "UInt16" | "UShort" => ScalarKind::Int { bits: 16, unsigned: true },
+        "UInt32" => ScalarKind::Int { bits: 32, unsigned: true },
+        "UInt64" | "ULong" => ScalarKind::Int { bits: 64, unsigned: true },
+        "UIntPtr" => ScalarKind::Int { bits: 64, unsigned: true },
+        "Float64" | "Double" => ScalarKind::Float { bits: 64 },
+        "Float32" => ScalarKind::Float { bits: 32 },
+        _ => return None,
+    })
+}
+
+/// 为 ScalarKind 生成 TypeLayout。
+fn scalar_layout(kind: crate::ScalarKind) -> crate::TypeLayout {
+    use crate::ScalarKind;
+    let (size, align) = match kind {
+        ScalarKind::Unit => (0, 1),
+        ScalarKind::Bool => (1, 1),
+        ScalarKind::Char => (4, 4),
+        ScalarKind::Int { bits, .. } => {
+            let bytes = (bits as u64 + 7) / 8;
+            (bytes.max(1), bytes.max(1))
+        }
+        ScalarKind::Float { bits: 32 } => (4, 4),
+        ScalarKind::Float { bits: 64 } => (8, 8),
+        ScalarKind::Float { bits } => ((bits as u64 + 7) / 8, (bits as u64 + 7) / 8),
+    };
+    crate::TypeLayout {
+        size,
+        align,
+        kind: crate::TypeLayoutKind::Scalar { scalar_kind: kind },
     }
 }

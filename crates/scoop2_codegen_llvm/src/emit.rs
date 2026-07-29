@@ -224,10 +224,13 @@ fn declare_declaration<'ctx>(
     } else {
         decl.symbol_name.clone()
     };
-    if cg.module.get_function(&actual_symbol).is_some() {
-        return Ok(cg.module.get_function(&actual_symbol).unwrap());
+    // 若 actual_symbol 已存在（如 runtime 已声明），直接复用并缓存 FQN 别名。
+    if let Some(existing) = cg.module.get_function(&actual_symbol) {
+        if actual_symbol != decl.symbol_name {
+            cg.cache_callable_fn(decl.symbol_name.clone(), existing);
+        }
+        return Ok(existing);
     }
-    // 同时缓存 FQN → 已声明函数（供 Direct 调用解析）。
     if let Some(existing) = cg.module.get_function(&decl.symbol_name) {
         return Ok(existing);
     }
