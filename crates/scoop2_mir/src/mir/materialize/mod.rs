@@ -193,6 +193,10 @@ pub fn materialize(
         });
     }
     work.run()?;
+    for k in &work.order {
+        if k.template_fqn.contains("toString") || k.template_fqn.contains("hash") {
+        }
+    }
     // 构造 materialized module。
     let mut items: Vec<Item> = Vec::new();
     for key in &work.order {

@@ -290,20 +290,54 @@ impl<'ctx> CodegenContext<'ctx> {
     fn program_itables_for_class(&self, class_fqn: &str) -> Vec<(u64, Vec<PointerValue<'ctx>>)> {
         let itables = self.class_itables_data.borrow();
         let native_ptr = self.context.ptr_type(native_address_space());
+        // 收集所有已定义的函数符号（用于前缀匹配）。
+        let all_fn_names: Vec<String> = self
+            .module
+            .get_functions()
+            .map(|fv| fv.get_name().to_string_lossy().into_owned())
+            .collect();
         let mut result = Vec::new();
         for ci in itables.iter().filter(|ci| ci.class_fqn == class_fqn) {
             let method_ptrs: Vec<PointerValue<'ctx>> = ci
                 .method_impls
                 .iter()
                 .map(|sym| match sym {
-                    Some(s) => self
-                        .lookup_callable_fn(s)
-                        .or_else(|| self.module.get_function(s))
-                        .map(|fv| {
-                            // FunctionValue → PointerValue：经 LLVMValueRef 中转。
-                            unsafe { PointerValue::new(fv.as_value_ref()) }
-                        })
-                        .unwrap_or_else(|| native_ptr.const_null()),
+                    Some(s) => {
+                        // 先精确匹配。
+                        if let Some(fv) = self.lookup_callable_fn(s).or_else(|| self.module.get_function(s)) {
+                            return unsafe { PointerValue::new(fv.as_value_ref()) };
+                        }
+                        // itable 符号格式：scoop_core_String_toString（含 class 名）。
+                        // 实际函数符号：scoop_core_toString_<hash>（不含 class 名，带 hash 后缀）。
+                        // 策略：从 itable 符号中提取 method 部分，在前缀匹配的函数中找
+                        // 参数类型匹配的（receiver = GC ptr for class）。
+                        let class_simple = class_fqn.rsplit('.').next().unwrap_or("");
+                        // itable 符号中去掉 class 名后的前缀。
+                        let method_prefix = if s.contains(&format!("_{class_simple}_")) {
+                            s.replace(&format!("_{class_simple}_"), "_")
+                        } else {
+                            s.clone()
+                        };
+                        // 搜索以 method_prefix 开头的函数。
+                        for name in &all_fn_names {
+                            if name.starts_with(&method_prefix) {
+                                if let Some(fv) = self.module.get_function(name) {
+                                    // 验证：第一个参数是 GC ptr（addrspace 1），表示 receiver。
+                                    if fv.count_params() > 0 {
+                                        let p0 = fv.get_nth_param(0);
+                                        if let Some(p) = p0 {
+                                            if p.get_type().into_pointer_type().get_address_space()
+                                                == crate::context::gc_address_space()
+                                            {
+                                                return unsafe { PointerValue::new(fv.as_value_ref()) };
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        native_ptr.const_null()
+                    }
                     None => native_ptr.const_null(),
                 })
                 .collect();
