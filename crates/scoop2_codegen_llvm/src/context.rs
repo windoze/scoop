@@ -66,6 +66,8 @@ pub struct CodegenContext<'ctx> {
     string_literal_cache: RefCell<HashMap<String, PointerValue<'ctx>>>,
     /// type descriptor FQN → 全局指针缓存。
     type_desc_cache: RefCell<HashMap<String, PointerValue<'ctx>>>,
+    /// class_itables 数据（从 LirProgram 注入，供 globals 层构建 itable 全局）。
+    pub class_itables_data: RefCell<Vec<scoop2_lir::ClassItableLayout>>,
 }
 
 impl<'ctx> CodegenContext<'ctx> {
@@ -121,6 +123,7 @@ impl<'ctx> CodegenContext<'ctx> {
             global_cache: RefCell::new(HashMap::new()),
             string_literal_cache: RefCell::new(HashMap::new()),
             type_desc_cache: RefCell::new(HashMap::new()),
+            class_itables_data: RefCell::new(Vec::new()),
         })
     }
 

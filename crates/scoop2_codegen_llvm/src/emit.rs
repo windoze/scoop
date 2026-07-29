@@ -46,10 +46,12 @@ pub fn emit_object_to_file(
     let context = inkwell::context::Context::create();
     let target_info = TargetInfo::host();
     let cg = CodegenContext::new(&context, program, target_info.clone())?;
+    // 注入 class_itables 数据（供 globals 层构建 itable 全局）。
+    *cg.class_itables_data.borrow_mut() = program.class_itables.clone();
     let rt = cg.declare_runtime();
     cg.declare_gc_globals()?;
     cg.declare_all_globals()?;
-    lower_all_callables(&cg, program, &rt)?;
+    lower_all_callables(&cg, program, &rt)?
     // entry main（若存在用户 main）。
     lower_entry_main(&cg, program, &rt)?;
 
