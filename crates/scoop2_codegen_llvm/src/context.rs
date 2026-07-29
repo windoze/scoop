@@ -72,6 +72,9 @@ pub struct CodegenContext<'ctx> {
     pub type_layouts: scoop2_lir::TypeLayoutTable,
     /// 类初始化计划（从 LirProgram 注入，提供 class 字段布局）。
     pub class_inits: Vec<scoop2_lir::ClassInitPlan>,
+    /// interface FQN → interface_id 映射（从 LirProgram.itables 注入，
+    /// 供 TypeTest/Is-pattern 对接口做 itable 遍历匹配）。
+    pub interface_id_map: std::collections::HashMap<String, u64>,
 }
 
 impl<'ctx> CodegenContext<'ctx> {
@@ -83,6 +86,11 @@ impl<'ctx> CodegenContext<'ctx> {
     ) -> CodegenResult<Self> {
         let type_layouts = program.type_layouts.clone();
         let class_inits = program.class_inits.clone();
+        let interface_id_map = program
+            .itables
+            .iter()
+            .map(|il| (il.interface_fqn.clone(), il.interface_id))
+            .collect();
         // 初始化 native target（幂等）。
         Target::initialize_native(&InitializationConfig::default())
             .map_err(|e| CodegenError::TargetOutput {
@@ -131,6 +139,7 @@ impl<'ctx> CodegenContext<'ctx> {
             class_itables_data: RefCell::new(Vec::new()),
             type_layouts,
             class_inits,
+            interface_id_map,
         })
     }
 

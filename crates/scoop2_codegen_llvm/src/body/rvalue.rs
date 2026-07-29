@@ -447,25 +447,229 @@ fn lower_type_test<'a, 'ctx>(
         Fold::Dynamic => {}
     }
 
-    // 提取目标 FQN（Nominal descriptor → 计算 type_id）。
-    let target_type_id = match &descriptor.kind {
-        scoop2_mir::mir::transport::RuntimeTypeDescriptorKind::Nominal { fqn, .. } => {
-            crate::globals::stable_hash_u64_pub(fqn)
-        }
-        scoop2_mir::mir::transport::RuntimeTypeDescriptorKind::String => {
-            crate::globals::stable_hash_u64_pub("scoop.core.String")
-        }
+    // 提取目标 FQN（Nominal descriptor）。
+    let (target_fqn, is_string) = match &descriptor.kind {
+        scoop2_mir::mir::transport::RuntimeTypeDescriptorKind::Nominal { fqn, .. } => (fqn.clone(), false),
+        scoop2_mir::mir::transport::RuntimeTypeDescriptorKind::String => ("scoop.core.String".to_string(), true),
         // 非名义类型（Any/Tuple/Function/...）暂不支持动态匹配：保守返回 false。
         _ => return Ok(fl.cg.context.i8_type().const_int(0, false).into()),
     };
 
-    // 读取 value 的 type_id 并比较（复用 PatternMatch 共用的 type_id_equals）。
     let val = match value {
         LirOperand::Local(id) => fl.load_local(*id)?,
         LirOperand::Const(c) => fl.lower_const_value(c)?,
     };
+
+    // 若目标是 interface：遍历对象的 itable，查找匹配的 interface_id。
+    if !is_string {
+        if let Some(&target_iface_id) = fl.cg.interface_id_map.get(&target_fqn) {
+            return interface_itable_matches(fl, val, target_iface_id);
+        }
+    }
+
+    // 目标是 class（或 String）：精确 type_id 比较。
+    let target_type_id = crate::globals::stable_hash_u64_pub(&target_fqn);
     let result = type_id_equals(fl, val, target_type_id)?;
     Ok(result.into())
+}
+
+/// 遍历对象的 itable 容器，查找是否存在 interface_id == target_iface_id 的条目。
+/// 返回 i8（1 = 实现，0 = 未实现）。
+///
+/// itable 容器布局：`{ i32 count; i32 pad; ptr entries }`，
+/// entries 指向 `{ u64 interface_id; ptr methods }[count]`。
+fn interface_itable_matches<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    val: BasicValueEnum<'ctx>,
+    target_iface_id: u64,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    let i8 = fl.cg.context.i8_type();
+    let i32_ty = fl.cg.context.i32_type();
+    let i64 = fl.cg.context.i64_type();
+    let native_ptr = fl.cg.native_ptr_ty();
+
+    // obj → native ptr。
+    let obj_ptr = match val {
+        BasicValueEnum::PointerValue(p) => {
+            if p.get_type().get_address_space() == crate::context::gc_address_space() {
+                let as_int = fl
+                    .builder
+                    .build_ptr_to_int(p, i64, "iim_ptr2int")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "iim_ptr2int", scoop2_base::Span::default()))?;
+                fl.builder
+                    .build_int_to_ptr(as_int, native_ptr, "iim_native")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "iim_int2ptr", scoop2_base::Span::default()))?
+            } else {
+                p
+            }
+        }
+        _ => return Ok(i8.const_int(0, false).into()),
+    };
+
+    // 读取 type_desc（header 第 2 个字）。
+    let ptr_size = fl.cg.pointer_byte_size;
+    let desc_slot = unsafe {
+        fl.builder.build_in_bounds_gep(
+            fl.cg.context.i8_type(),
+            obj_ptr,
+            &[i64.const_int(ptr_size, false)],
+            "iim_desc_slot",
+        )
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_gep_desc", scoop2_base::Span::default()))?
+    };
+    let type_desc = fl
+        .builder
+        .build_load(native_ptr, desc_slot, "iim_desc")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_load_desc", scoop2_base::Span::default()))?
+        .into_pointer_value();
+    // 若 type_desc 为 null：未实现任何接口。
+    let desc_null = fl
+        .builder
+        .build_is_null(type_desc, "iim_desc_null")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_desc_null", scoop2_base::Span::default()))?;
+    // 读 itable 容器（type_desc 第 13 个字段，偏移见 ScoopTypeDescriptor）。
+    let td_ty = fl.cg.type_descriptor_type();
+    let itable_field = unsafe {
+        fl.builder.build_struct_gep(td_ty, type_desc, 12, "iim_itable_field")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "iim_gep_itable", scoop2_base::Span::default()))?
+    };
+    let itable_container = fl
+        .builder
+        .build_load(native_ptr, itable_field, "iim_itable")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_load_itable", scoop2_base::Span::default()))?
+        .into_pointer_value();
+    // 若 itable 为 null：未实现任何接口。
+    let itable_null = fl
+        .builder
+        .build_is_null(itable_container, "iim_itable_null")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_itable_null", scoop2_base::Span::default()))?;
+    let any_null = fl
+        .builder
+        .build_or(desc_null, itable_null, "iim_any_null")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_any_null", scoop2_base::Span::default()))?;
+
+    // 读 count（容器第 0 字段 i32）。
+    let container_ty = fl.cg.itable_container_type_pub();
+    let count_slot = unsafe {
+        fl.builder.build_struct_gep(container_ty, itable_container, 0, "iim_count_slot")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "iim_gep_count", scoop2_base::Span::default()))?
+    };
+    let count = fl
+        .builder
+        .build_load(i32_ty, count_slot, "iim_count")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_load_count", scoop2_base::Span::default()))?
+        .into_int_value();
+    // entries 指针（容器第 2 字段）。
+    let entries_slot = unsafe {
+        fl.builder.build_struct_gep(container_ty, itable_container, 2, "iim_entries_slot")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "iim_gep_entries", scoop2_base::Span::default()))?
+    };
+    let entries = fl
+        .builder
+        .build_load(native_ptr, entries_slot, "iim_entries")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_load_entries", scoop2_base::Span::default()))?
+        .into_pointer_value();
+
+    let entry_ty = fl.cg.itable_entry_type_pub();
+    // 构建循环：
+    //   entry_bb: if (!any_null && i < count) goto body_bb; else goto no_bb
+    //   body_bb:  load entry.interface_id; if == target goto yes_bb; i++; goto entry_bb
+    //   yes_bb/no_bb/merge_bb: 汇总结果。
+    let entry_bb = fl.cg.context.append_basic_block(fl.fv, "iim_loop");
+    let body_bb = fl.cg.context.append_basic_block(fl.fv, "iim_body");
+    let yes_bb = fl.cg.context.append_basic_block(fl.fv, "iim_yes");
+    let no_bb = fl.cg.context.append_basic_block(fl.fv, "iim_no");
+    let idx_slot = fl.builder.build_alloca(i32_ty, "iim_idx")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_alloca_idx", scoop2_base::Span::default()))?;
+    fl.builder
+        .build_store(idx_slot, i32_ty.const_zero())
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_store_idx0", scoop2_base::Span::default()))?;
+    fl.builder
+        .build_unconditional_branch(entry_bb)
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_br_loop", scoop2_base::Span::default()))?;
+
+    fl.builder.position_at_end(entry_bb);
+    let i = fl
+        .builder
+        .build_load(i32_ty, idx_slot, "iim_i")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_load_i", scoop2_base::Span::default()))?
+        .into_int_value();
+    let in_range = fl
+        .builder
+        .build_int_compare(inkwell::IntPredicate::ULT, i, count, "iim_in_range")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_in_range", scoop2_base::Span::default()))?;
+    let not_null = fl
+        .builder
+        .build_not(any_null, "iim_not_null")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_not_null", scoop2_base::Span::default()))?;
+    let cond = fl
+        .builder
+        .build_and(not_null, in_range, "iim_cond")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_cond", scoop2_base::Span::default()))?;
+    fl.builder
+        .build_conditional_branch(cond, body_bb, no_bb)
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_br_cond", scoop2_base::Span::default()))?;
+
+    fl.builder.position_at_end(body_bb);
+    // GEP 到 entries[i]。
+    let entry_ptr = unsafe {
+        fl.builder.build_in_bounds_gep(
+            entry_ty,
+            entries,
+            &[i],
+            "iim_entry",
+        )
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_gep_entry", scoop2_base::Span::default()))?
+    };
+    // entry.interface_id（第 0 字段）。
+    let iface_id_slot = unsafe {
+        fl.builder.build_struct_gep(entry_ty, entry_ptr, 0, "iim_iface_id_slot")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "iim_gep_iface_id", scoop2_base::Span::default()))?
+    };
+    let iface_id = fl
+        .builder
+        .build_load(i64, iface_id_slot, "iim_iface_id")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_load_iface_id", scoop2_base::Span::default()))?
+        .into_int_value();
+    let eq = fl
+        .builder
+        .build_int_compare(inkwell::IntPredicate::EQ, iface_id, i64.const_int(target_iface_id, false), "iim_eq")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_eq", scoop2_base::Span::default()))?;
+    // i++。
+    let i_next = fl
+        .builder
+        .build_int_add(i, i32_ty.const_int(1, false), "iim_i_next")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_i_next", scoop2_base::Span::default()))?;
+    fl.builder
+        .build_store(idx_slot, i_next)
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_store_i_next", scoop2_base::Span::default()))?;
+    fl.builder
+        .build_conditional_branch(eq, yes_bb, entry_bb)
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_br_eq", scoop2_base::Span::default()))?;
+
+    fl.builder.position_at_end(yes_bb);
+    let yes_val = i8.const_int(1, false);
+    let yes_bb_end = yes_bb;
+    fl.builder.position_at_end(no_bb);
+    let no_val = i8.const_int(0, false);
+
+    // 合并 yes/no 到一个结果（用 phi）。需要共同的 merge block。
+    let merge_bb = fl.cg.context.append_basic_block(fl.fv, "iim_merge");
+    fl.builder.position_at_end(yes_bb_end);
+    fl.builder
+        .build_unconditional_branch(merge_bb)
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_br_yes_merge", scoop2_base::Span::default()))?;
+    fl.builder.position_at_end(no_bb);
+    fl.builder
+        .build_unconditional_branch(merge_bb)
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_br_no_merge", scoop2_base::Span::default()))?;
+    fl.builder.position_at_end(merge_bb);
+    let phi = fl
+        .builder
+        .build_phi(i8, "iim_result")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "iim_phi", scoop2_base::Span::default()))?;
+    phi.add_incoming(&[(&yes_val, yes_bb_end), (&no_val, no_bb)]);
+    Ok(phi.as_basic_value())
 }
 
 /// `Cast { value, target_ty }` → `as T` 类型转换。
