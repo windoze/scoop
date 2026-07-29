@@ -45,6 +45,7 @@ fn try_lower_array_intrinsic<'a, 'ctx>(
     result_ty: TypeId,
 ) -> CodegenResult<Option<BasicValueEnum<'ctx>>> {
     let i64 = fl.cg.context.i64_type();
+    let i32_ty = fl.cg.context.i32_type();
     let i8 = fl.cg.context.i8_type();
     // 仅处理 Array / MutableArray 的已知方法。
     let is_array_owner = callee_fqn.starts_with("scoop.core.Array.")
@@ -122,15 +123,37 @@ fn try_lower_array_intrinsic<'a, 'ctx>(
                     .build_in_bounds_gep(i8, data_ptr, &[elem_off], "arr_elem_ptr")
                     .map_err(|e| CodegenError::llvm(e.to_string(), "arr_gep_elem", scoop2_base::Span::default()))?
             };
-            // 元素 LLVM 类型由 result_ty 决定。
-            let elem_llvm_ty = fl.cg.lower_type(result_ty, fl.layouts)?;
-            let loaded = fl
-                .builder
-                .build_load(elem_llvm_ty, elem_ptr, "arr_elem")
-                .map_err(|e| CodegenError::llvm(e.to_string(), "arr_load_elem", scoop2_base::Span::default()))?;
-            // 若元素是 GC ptr，转回 addrspace 1。
-            let result = native_to_gc_if_ptr(fl, loaded)?;
-            return Ok(Some(result));
+            // 元素加载类型由 result_ty 的布局决定（编译期已知）。
+            // result_ty 可能是 Int（值类型，WORD 元素）或 String/Any（引用类型，REF 元素）。
+            let result_layout = fl.layouts.get(result_ty);
+            let elem_is_ref = result_layout
+                .map(|l| matches!(&l.kind, scoop2_lir::TypeLayoutKind::Reference { gc_traceable: true, .. }))
+                .unwrap_or(false);
+            if elem_is_ref {
+                // REF 元素：load native ptr → GC ptr。
+                let raw = fl
+                    .builder
+                    .build_load(fl.cg.native_ptr_ty(), elem_ptr, "arr_elem_ptr")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_load_elem_ptr", scoop2_base::Span::default()))?
+                    .into_pointer_value();
+                let gc = fl
+                    .builder
+                    .build_ptr_to_int(raw, i64, "arr_ref_int")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_ref_int", scoop2_base::Span::default()))?;
+                let gc_ptr = fl
+                    .builder
+                    .build_int_to_ptr(gc, fl.cg.gc_ptr_ty(), "arr_elem_gc")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_elem_gc", scoop2_base::Span::default()))?;
+                return Ok(Some(gc_ptr.into()));
+            } else {
+                // WORD 元素：load i64。
+                let raw = fl
+                    .builder
+                    .build_load(i64, elem_ptr, "arr_elem_raw")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_load_elem_raw", scoop2_base::Span::default()))?
+                    .into_int_value();
+                return Ok(Some(raw.into()));
+            }
         }
         "set" => {
             // args[1] = index, args[2] = value。

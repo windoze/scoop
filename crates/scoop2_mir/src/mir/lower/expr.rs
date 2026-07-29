@@ -2549,7 +2549,7 @@ fn resolve_struct_fqn(builder: &FnLowering, sym: Symbol) -> Symbol {
     sym
 }
 
-fn resolve_typeref(builder: &mut FnLowering, t: &ast::TypeRef) -> scoop2_hir::ty::TypeId {
+pub(crate) fn resolve_typeref(builder: &mut FnLowering, t: &ast::TypeRef) -> scoop2_hir::ty::TypeId {
     // TypeRef 节点未类型化；从 expr_types 查（is/as 的目标类型有时记录）。
     if let Some(ty) = builder.hir.expr_type(builder.file_id, t.id) {
         return ty;

@@ -268,11 +268,24 @@ pub fn lower_assign(
 /// lower 局部 val/var（含解构）。
 pub fn lower_local_val(builder: &mut FnLowering, val: &ast::ValDecl) {
     use ast::ValBinding;
-    let init_ty = val
+    // 空数组字面量 `[]` 在 typecheck 中得到 Nothing 类型（让 check_assignable 通过）。
+    // 但 val 若有显式类型注解（如 `val x: Array<Int> = []`），local 应取注解类型，
+    // 否则 codegen 会把数组 local 当 Nothing 处理。这里检测空数组 + 注解类型，
+    // 用注解类型作为 local 类型。
+    let init_is_empty_array = val.init.as_ref().is_some_and(|e| {
+        matches!(&e.kind, ast::ExprKind::ArrayLit(els) if els.is_empty())
+    });
+    let declared_ty = val.ty.as_ref().map(|t| super::expr::resolve_typeref(builder, t));
+    let init_ty_raw = val
         .init
         .as_ref()
         .map(|e| builder.expr_ty(e.id))
         .unwrap_or_else(|| builder.types.nothing());
+    let init_ty = if init_is_empty_array {
+        declared_ty.unwrap_or(init_ty_raw)
+    } else {
+        init_ty_raw
+    };
     let init_operand = val
         .init
         .as_ref()

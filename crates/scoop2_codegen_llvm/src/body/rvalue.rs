@@ -1143,21 +1143,39 @@ fn lower_class_ctor<'a, 'ctx>(
 }
 
 /// `MakeArray { elements, ty }` → 构造不可变数组。
+///
+/// 元素种类由元素类型决定：GC 引用 → REF (push_ref)，标量 → WORD (push_word)。
 fn lower_make_array<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     elements: &[LirOperand],
-    _ty: scoop2_hir::ty::TypeId,
+    ty: scoop2_hir::ty::TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
-    // 使用 runtime scoop_mutable_array_new + push + freeze。
     let gc_ptr_ty = fl.cg.gc_ptr_ty();
     let native_ptr = fl.cg.native_ptr_ty();
-    // scoop_mutable_array_new(elem_kind=2(REF), elem_size=8, elem_align=8, desc=null, capacity=elements.len())
+    // 推断元素是否为 GC 引用：从首个元素的本地类型判断（数组类型 ty 本身总是
+    // Reference，无法区分元素种类）。空数组默认按 WORD（标量）处理。
+    let elem_is_ref = elements.first().is_some_and(|e| match e {
+        LirOperand::Local(id) => fl
+            .local_types
+            .get(id)
+            .and_then(|et| fl.layouts.get(*et))
+            .map(|l| matches!(&l.kind, scoop2_lir::TypeLayoutKind::Reference { gc_traceable: true, .. }))
+            .unwrap_or(false),
+        LirOperand::Const(c) => matches!(c, scoop2_lir::LirConstValue::String(_) | scoop2_lir::LirConstValue::Null),
+    });
+    let _ = ty;
+    let (elem_kind, push_fn) = if elem_is_ref {
+        (2u64, fl.rt.mutable_array_push_ref)
+    } else {
+        (1u64, fl.rt.mutable_array_push_word)
+    };
+    // scoop_mutable_array_new(elem_kind, elem_size=8, elem_align=8, desc=null, capacity)
     let arr = fl
         .builder
         .build_call(
             fl.rt.mutable_array_new,
             &[
-                fl.cg.context.i32_type().const_int(2, false).into(), // ELEM_KIND_REF
+                fl.cg.context.i32_type().const_int(elem_kind, false).into(),
                 fl.cg.context.i64_type().const_int(8, false).into(),  // elem_size
                 fl.cg.context.i64_type().const_int(8, false).into(),  // elem_align
                 native_ptr.const_null().into(),                        // desc
@@ -1176,23 +1194,44 @@ fn lower_make_array<'a, 'ctx>(
             LirOperand::Local(id) => fl.load_local(*id)?,
             LirOperand::Const(c) => fl.lower_const_value(c)?,
         };
-        let val_native = match val {
-            BasicValueEnum::PointerValue(p) => {
-                let pi = fl.builder.build_ptr_to_int(p, fl.cg.context.i64_type(), "elem_int")
-                    .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int elem", scoop2_base::Span::default()))?;
-                fl.builder.build_int_to_ptr(pi, native_ptr, "elem_native")
-                    .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr elem", scoop2_base::Span::default()))?
-            }
-            _ => {
-                let iv = val.into_int_value();
-                fl.builder.build_int_to_ptr(iv, native_ptr, "elem_int_as_ptr")
-                    .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr elem_int", scoop2_base::Span::default()))?
-            }
-        };
-        let _ = fl
-            .builder
-            .build_call(fl.rt.mutable_array_push_ref, &[mut_arr.into(), val_native.into()], "arr_push")
-            .map_err(|e| CodegenError::llvm(e.to_string(), "push_ref", scoop2_base::Span::default()))?;
+        if elem_is_ref {
+            // 引用元素：GC ptr → native ptr → push_ref(arr, native)。
+            let val_native = match val {
+                BasicValueEnum::PointerValue(p) => {
+                    if p.get_type().get_address_space() == crate::context::gc_address_space() {
+                        let pi = fl.builder.build_ptr_to_int(p, fl.cg.context.i64_type(), "elem_int")
+                            .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int elem", scoop2_base::Span::default()))?;
+                        fl.builder.build_int_to_ptr(pi, native_ptr, "elem_native")
+                            .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr elem", scoop2_base::Span::default()))?
+                    } else {
+                        p
+                    }
+                }
+                _ => return Err(CodegenError::llvm("REF array element expected pointer", "make_array", scoop2_base::Span::default())),
+            };
+            let _ = fl
+                .builder
+                .build_call(push_fn, &[mut_arr.into(), val_native.into()], "arr_push")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "push_ref", scoop2_base::Span::default()))?;
+        } else {
+            // 标量元素：转 i64 → push_word(arr, i64)。
+            let val_i64 = match val {
+                BasicValueEnum::IntValue(i) => {
+                    let bits = i.get_type().get_bit_width();
+                    if bits == 64 {
+                        i
+                    } else {
+                        fl.builder.build_int_z_extend(i, fl.cg.context.i64_type(), "elem_ext")
+                            .map_err(|e| CodegenError::llvm(e.to_string(), "zext elem", scoop2_base::Span::default()))?
+                    }
+                }
+                _ => return Err(CodegenError::llvm("WORD array element expected int", "make_array", scoop2_base::Span::default())),
+            };
+            let _ = fl
+                .builder
+                .build_call(push_fn, &[mut_arr.into(), val_i64.into()], "arr_push")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "push_word", scoop2_base::Span::default()))?;
+        }
     }
     // freeze → immutable Array。
     let frozen = fl
