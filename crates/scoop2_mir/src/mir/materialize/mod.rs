@@ -186,29 +186,11 @@ pub fn materialize(
         })
         .collect();
     for method_fqn in &itable_method_fqns {
-        let in_t = work.templates.contains_key(method_fqn);
-        if !in_t {
-
-            // 尝试不带 owner 的 FQN（成员函数模板可能用 package.method 而非 owner.method）。
-            let alt = method_fqn.rsplit_once('.').map(|(owner, m)| {
-                // owner = "scoop.core.String"，取 package = owner 去掉最后一段
-                let pkg = owner.rsplit_once('.').map(|(p, _)| p).unwrap_or(owner);
-                format!("{}.{}", pkg, m)
-            }).unwrap_or_else(|| method_fqn.clone());
-            let in_t2 = work.templates.contains_key(&alt);
-            eprintln!("DEBUG itable_method fqn={method_fqn} alt={alt} in_t={in_t} in_t2={in_t2}");
-            if in_t2 {
-                work.enqueue(InstanceKey { template_fqn: alt, overload_sig: String::new(), type_args: Vec::new() });
-                continue;
-            }
-        }
-        if in_t {
-            work.enqueue(InstanceKey {
-                template_fqn: method_fqn.clone(),
-                overload_sig: String::new(),
-                type_args: Vec::new(),
-            });
-        }
+        work.enqueue(InstanceKey {
+            template_fqn: method_fqn.clone(),
+            overload_sig: String::new(),
+            type_args: Vec::new(),
+        });
     }
     work.run()?;
     // 构造 materialized module。

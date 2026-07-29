@@ -338,11 +338,15 @@ fn call_fn_ptr<'a, 'ctx>(
     let native_ptr = fl.cg.native_ptr_ty();
 
     // 构造参数列表。
+    let gc_ptr_ty = fl.cg.gc_ptr_ty();
     let mut call_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::new();
     if prepend_receiver {
-        // receiver 作为 native ptr 首参。
-        let recv_native = get_native_ptr_from_operand(fl, receiver)?;
-        call_args.push(recv_native.into());
+        // receiver 作为 GC ptr（addrspace 1）首参——与成员函数 this 参数类型一致。
+        let recv_gc = match receiver {
+            LirOperand::Local(id) => fl.load_local(*id)?.into_pointer_value(),
+            LirOperand::Const(c) => fl.lower_const_value(c)?.into_pointer_value(),
+        };
+        call_args.push(recv_gc.into());
     }
     for operand in args {
         let arg_val = fl.lower_operand(operand, result_ty)?;
@@ -351,13 +355,13 @@ fn call_fn_ptr<'a, 'ctx>(
 
     // 函数类型：用返回类型 + 参数类型构造。
     let param_tys: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> = if prepend_receiver {
-        let mut v: Vec<_> = vec![native_ptr.into()];
+        let mut v: Vec<_> = vec![gc_ptr_ty.into()]; // receiver = GC ptr
         for _ in args {
-            v.push(ret_llvm.into()); // 近似类型（实际类型在运行时由 bitcast 保证兼容）
+            v.push(ret_llvm.into());
         }
         v
     } else {
-        let mut v: Vec<_> = vec![native_ptr.into()]; // env_ptr
+        let mut v: Vec<_> = vec![gc_ptr_ty.into()]; // env_ptr = GC ptr
         for _ in args {
             v.push(ret_llvm.into());
         }
