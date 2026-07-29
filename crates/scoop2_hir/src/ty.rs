@@ -588,7 +588,7 @@ impl TypeStore {
 /// 类型参数替换表（键为参数身份 [`TypeParamType`]）。
 #[derive(Clone, Default)]
 pub struct Subst {
-    entries: HashMap<TypeParamType, TypeId>,
+    entries: HashMap<Symbol, TypeId>,
 }
 
 impl Subst {
@@ -597,11 +597,11 @@ impl Subst {
     }
 
     pub fn insert(&mut self, param: TypeParamType, ty: TypeId) {
-        self.entries.insert(param, ty);
+        self.entries.insert(param.name, ty);
     }
 
     pub fn get(&self, param: &TypeParamType) -> Option<TypeId> {
-        self.entries.get(param).copied()
+        self.entries.get(&param.name).copied()
     }
 
     pub fn is_empty(&self) -> bool {

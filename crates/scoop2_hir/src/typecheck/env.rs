@@ -216,6 +216,14 @@ impl<'i> TypeEnv<'i> {
         &mut self,
         param_name: Symbol,
     ) -> Vec<crate::syntax::ast::TypeRef> {
+        self.find_type_param_bounds_immutable(param_name)
+    }
+
+    /// `find_type_param_bounds` 的不可变版本（供借用 `&self` 的调用方使用）。
+    pub fn find_type_param_bounds_immutable(
+        &self,
+        param_name: Symbol,
+    ) -> Vec<crate::syntax::ast::TypeRef> {
         let mut result = Vec::new();
         for (_, cons) in self.type_constraints.values() {
             for (cname, bound) in cons {
@@ -423,6 +431,12 @@ impl<'i> TypeEnv<'i> {
             .filter(|(_, c)| *c == crate::resolve::symbol::NominalCategory::Interface)
             .map(|(fqn, _)| fqn)
             .collect();
+        // 收集所有 class FQN（含 final/open/abstract），供 MIR lower 判定成员函数 receiver 是 ref。
+        let class_fqns: std::collections::HashSet<scoop2_base::Symbol> = index
+            .categories_iter()
+            .filter(|(_, c)| *c == crate::resolve::symbol::NominalCategory::Class)
+            .map(|(fqn, _)| fqn)
+            .collect();
         // 收集所有可继承的 class FQN（`open`/`abstract`），供 MIR 去虚化 pass 判断
         // ref 类型接收者是否 final。补集 = 具体 class（不可继承 → 方法不可 override）。
         let extensible_class_fqns: std::collections::HashSet<scoop2_base::Symbol> = index
@@ -490,6 +504,7 @@ impl<'i> TypeEnv<'i> {
             enum_variants: self.enum_variants,
             type_constraints,
             interface_fqns,
+            class_fqns,
             extensible_class_fqns,
             direct_subtypes,
             files,

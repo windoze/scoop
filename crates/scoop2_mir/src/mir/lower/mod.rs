@@ -97,6 +97,7 @@ fn lower_file(
             }
             ItemKind::Type(d) => {
                 let fqn = fqn_of(package_prefix, d.name.symbol, hir);
+                let owner_sym = hir.interner.get(&fqn).unwrap_or_default();
                 let kind = match d.kind {
                     scoop2_syntax::ast::TypeKind::Class => MetadataKind::Class,
                     scoop2_syntax::ast::TypeKind::Interface => MetadataKind::Interface,
@@ -113,7 +114,7 @@ fn lower_file(
                 // 类型体的成员函数也需 lower（method bodies）。
                 if let Some(body) = &d.body {
                     let base = module.types.clone();
-                    let member_items = builder::lower_type_member_funs_with_stores(file_id, &body.members, hir, package_prefix, &base, errors);
+                    let member_items = builder::lower_type_member_funs_with_stores(file_id, &body.members, hir, package_prefix, &base, errors, owner_sym);
                     for (it, st) in member_items {
                         let remap = module.types.extend_from(&st);
                         local_items.push(remap_item(&remap, it));
@@ -132,7 +133,11 @@ fn lower_file(
                 }
                 if let Some(body) = &d.body {
                     let base = module.types.clone();
-                    let member_items = builder::lower_type_member_funs_with_stores(file_id, &body.members, hir, package_prefix, &base, errors);
+                    let owner_sym = d.name.and_then(|n| {
+                        let fqn = fqn_of(package_prefix, n.symbol, hir);
+                        hir.interner.get(&fqn)
+                    }).unwrap_or_default();
+                    let member_items = builder::lower_type_member_funs_with_stores(file_id, &body.members, hir, package_prefix, &base, errors, owner_sym);
                     for (it, st) in member_items {
                         let remap = module.types.extend_from(&st);
                         local_items.push(remap_item(&remap, it));

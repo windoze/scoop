@@ -5445,6 +5445,33 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 解析成员查找的所有者 FQN：若是 typealias，展开到底层类型 FQN（递归）。
     fn resolve_member_owner_fqn(&self, receiver_ty: TypeId) -> Option<scoop2_base::Symbol> {
+        // 类型参数接收者：通过其 bound（interface 约束）解析 owner。
+        // 例如 `value: T where T: ToString` 调用 `value.toString()` → owner = ToString。
+        if let TypeKind::Param(p) = self.env.store.kind(receiver_ty) {
+            for tref in self.env.find_type_param_bounds_immutable(p.name) {
+                if let crate::syntax::ast::TypeRefKind::Path { path, .. } = &tref.kind {
+                    if let Some(last) = path.segments.last() {
+                        let name = self.env.interner.resolve(last.symbol);
+                        // 候选优先级：package-qualified（最可能命中）→ scoop.core → 裸名。
+                        // 必须验证候选是已注册的类型 FQN（避免命中非 FQN 的同名 intern）。
+                        let candidates = [
+                            format!("{}.{}", self.package_prefix, name),
+                            format!("scoop.core.{}", name),
+                            name.to_string(),
+                        ];
+                        for cand in &candidates {
+                            if let Some(f) = self.env.interner.get(cand) {
+                                // 仅当该 FQN 是已注册的 nominal 类型时才接受。
+                                if self.env.index.lookup_type(f).is_some() {
+                                    return Some(f);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return None;
+        }
         let mut fqn = nominal_fqn_of(self.env.store.kind(receiver_ty))?;
         // typealias 展开（最多 8 层防环）。
         for _ in 0..8 {

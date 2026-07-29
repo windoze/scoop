@@ -502,6 +502,20 @@ pub fn lower_fun_decl(
     base_types: &TypeStore,
     errors: &mut Vec<MirLowerError>,
 ) -> (Option<FunDecl>, Vec<FunDecl>, TypeStore) {
+    lower_fun_decl_inner(file_id, d, hir, package_prefix, base_types, errors, None)
+}
+
+/// 带 `member_owner` 的 lower_fun_decl：`Some(owner_sym)` 表示成员函数，
+/// 会把 receiver（`this`）作为隐式首参前置（与调用侧的 receiver prepend 对齐）。
+pub fn lower_fun_decl_inner(
+    file_id: FileId,
+    d: &scoop2_syntax::ast::FunDecl,
+    hir: &TypedHir,
+    package_prefix: &str,
+    base_types: &TypeStore,
+    errors: &mut Vec<MirLowerError>,
+    member_owner: Option<scoop2_base::Symbol>,
+) -> (Option<FunDecl>, Vec<FunDecl>, TypeStore) {
     let owner_fqn = super::fqn_of(package_prefix, d.name.symbol, hir);
     // builder 私有 store（从 base 克隆；TypeId 在 base 范围内一致）。
     let mut types = base_types.clone();
@@ -572,6 +586,22 @@ pub fn lower_fun_decl(
         return (Some(fd), Vec::new(), types);
     };
     let mut builder = FnLowering::new(hir, types, file_id, owner_fqn, return_ty, effect_row, errors);
+    // 成员函数：receiver（`this`）作为隐式首参前置（与调用侧 receiver prepend 对齐）。
+    if let Some(owner_sym) = member_owner {
+        let this_ty = resolve_member_receiver_ty(hir, &mut builder.types, owner_sym);
+        let this_lid = builder.alloc_named("<this>".to_string(), this_ty, d.name.span);
+        builder.this_local = Some(this_lid);
+        // 注册 `this` 名（成员函数体内裸 `this` 解析到此 local）。
+        if let Some(this_sym) = hir.interner.get("this") {
+            builder.symbol_locals.insert(this_sym, this_lid);
+        }
+        fd.params.insert(0, Param {
+            span: d.name.span,
+            name: "<this>".to_string(),
+            ty: this_ty,
+            local: this_lid,
+        });
+    }
     for (i, p) in d.params.iter().enumerate() {
         let pty = param_tys[i];
         let lid = builder.alloc_named(
@@ -721,12 +751,21 @@ pub fn lower_type_member_funs_with_stores(
     package_prefix: &str,
     base_types: &TypeStore,
     errors: &mut Vec<MirLowerError>,
+    owner_fqn_sym: scoop2_base::Symbol,
 ) -> Vec<(Item, TypeStore)> {
     use scoop2_syntax::ast::TypeMemberKind;
     let mut out: Vec<(Item, TypeStore)> = Vec::new();
     for m in members {
         if let TypeMemberKind::Fun(fd) = &m.kind {
-            let (fun_decl, nested, fn_store) = lower_fun_decl(file_id, fd, hir, package_prefix, base_types, errors);
+            let (fun_decl, nested, fn_store) = lower_fun_decl_inner(
+                file_id,
+                fd,
+                hir,
+                package_prefix,
+                base_types,
+                errors,
+                Some(owner_fqn_sym),
+            );
             if let Some(fun_decl) = fun_decl {
                 // 主函数用其 store；嵌套闭包函数共用同一 store（合并时统一 remap）。
                 let nest_store = fn_store.clone();
@@ -740,6 +779,7 @@ pub fn lower_type_member_funs_with_stores(
         if let TypeMemberKind::Type(td) = &m.kind
             && let Some(body) = &td.body
         {
+            let nested_owner = nested_owner_fqn(hir, owner_fqn_sym, td.name.symbol);
             out.extend(lower_type_member_funs_with_stores(
                 file_id,
                 &body.members,
@@ -747,20 +787,57 @@ pub fn lower_type_member_funs_with_stores(
                 package_prefix,
                 base_types,
                 errors,
+                nested_owner,
             ));
         }
         if let TypeMemberKind::Object(od) = &m.kind
             && let Some(body) = &od.body
         {
-            out.extend(lower_type_member_funs_with_stores(
-                file_id,
-                &body.members,
-                hir,
-                package_prefix,
-                base_types,
-                errors,
-            ));
+            if let Some(name) = od.name {
+                let nested_owner = nested_owner_fqn(hir, owner_fqn_sym, name.symbol);
+                out.extend(lower_type_member_funs_with_stores(
+                    file_id,
+                    &body.members,
+                    hir,
+                    package_prefix,
+                    base_types,
+                    errors,
+                    nested_owner,
+                ));
+            }
         }
     }
     out
+}
+
+/// 计算嵌套类型的 owner FQN symbol：`<outer>.<name>`。
+fn nested_owner_fqn(
+    hir: &TypedHir,
+    outer: scoop2_base::Symbol,
+    name: scoop2_base::Symbol,
+) -> scoop2_base::Symbol {
+    let outer_text = hir.interner.resolve(outer);
+    let name_text = hir.interner.resolve(name);
+    let fqn_text = format!("{outer_text}.{name_text}");
+    hir.interner.get(&fqn_text).unwrap_or(outer)
+}
+
+/// 解析成员函数 receiver（`this`）类型：class/interface → Ref(Nominal)；struct/enum → Value(Nominal)。
+fn resolve_member_receiver_ty(
+    hir: &TypedHir,
+    store: &mut TypeStore,
+    owner_sym: scoop2_base::Symbol,
+) -> scoop2_hir::ty::TypeId {
+    use scoop2_hir::ty::{NominalType, RefTypeKind, TypeKind, ValueTypeKind};
+    let is_ref = hir.class_fqns.contains(&owner_sym) || hir.interface_fqns.contains(&owner_sym);
+    let nominal = NominalType {
+        fqn: owner_sym,
+        args: Vec::new(),
+        eff: None,
+    };
+    if is_ref {
+        store.intern(TypeKind::Ref(RefTypeKind::Nominal(nominal)))
+    } else {
+        store.intern(TypeKind::Value(ValueTypeKind::Nominal(nominal)))
+    }
 }

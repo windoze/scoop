@@ -100,6 +100,8 @@ pub struct TypedHir {
     pub type_constraints: HashMap<Symbol, TypeConstraintsSnapshot>,
     /// 所有 interface 类型的 FQN 集合（MIR 用以区分 itable vs class vtable 分发）。
     pub interface_fqns: HashSet<Symbol>,
+    /// 所有 class FQN 集合（含 final/open/abstract）；用于 MIR lower 判定成员函数 receiver 是 ref。
+    pub class_fqns: HashSet<Symbol>,
     /// 所有可被继承的 class FQN 集合（`open` 或 `abstract`）。
     /// 取补集即得"具体 class"（不可继承 → 虚方法可安全退化为直接调用）。
     /// MIR 去虚化 pass 据此判断 ref 类型接收者是否 final。
@@ -202,6 +204,7 @@ impl TypedHir {
             enum_variants: HashMap::new(),
             type_constraints: HashMap::new(),
             interface_fqns: HashSet::new(),
+            class_fqns: HashSet::new(),
             extensible_class_fqns: HashSet::new(),
             direct_subtypes: HashMap::new(),
             files: Vec::new(),
