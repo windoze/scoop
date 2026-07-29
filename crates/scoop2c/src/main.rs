@@ -28,6 +28,7 @@ mod cli {
         DumpAst { input: PathBuf },
         DumpHir { input: PathBuf },
         DumpMir { input: PathBuf },
+        DumpLir { input: PathBuf },
     }
 
     #[derive(Debug)]
@@ -73,13 +74,14 @@ mod cli {
             "dump-ast" => parse_dump(rest).map(|input| Command::DumpAst { input }),
             "dump-hir" => parse_dump(rest).map(|input| Command::DumpHir { input }),
             "dump-mir" => parse_dump(rest).map(|input| Command::DumpMir { input }),
+            "dump-lir" => parse_dump(rest).map(|input| Command::DumpLir { input }),
             "-h" | "--help" => Err(usage()),
             other => Err(format!("未知子命令 `{other}`\n\n{}", usage())),
         }
     }
 
     fn usage() -> String {
-        "用法：\n  scoop2c check-source --phase <parse|resolve|typecheck|infer|lower> --input <path> [--source <file>] [--target-platform <p>]\n  scoop2c dump-ast <file.scoop>\n  scoop2c dump-hir <file.scoop>\n  scoop2c dump-mir <file.scoop>".to_string()
+        "用法：\n  scoop2c check-source --phase <parse|resolve|typecheck|infer|lower> --input <path> [--source <file>] [--target-platform <p>]\n  scoop2c dump-ast <file.scoop>\n  scoop2c dump-hir <file.scoop>\n  scoop2c dump-mir <file.scoop>\n  scoop2c dump-lir <file.scoop>".to_string()
     }
 
     fn parse_check_source(args: &[String]) -> Result<CheckSourceArgs, String> {
@@ -140,6 +142,7 @@ fn run(command: Command) -> ExitCode {
         Command::DumpAst { input } => run_dump_ast(&input),
         Command::DumpHir { input } => run_dump_hir(&input),
         Command::DumpMir { input } => run_dump_mir(&input),
+        Command::DumpLir { input } => run_dump_lir(&input),
     }
 }
 
@@ -636,6 +639,94 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
     }
     // dump（generic 模板模块）。
     let rendered = scoop2_mir::mir::dump::dump_module(&lower_result.module, &hir.interner);
+    print!("{rendered}");
+    ExitCode::SUCCESS
+}
+
+/// `dump-lir`：typecheck → MIR lowering → materialize → LIR lowering → 文本 dump。
+fn run_dump_lir(input: &std::path::Path) -> ExitCode {
+    // 复用 dump-mir 的管线到 materialize 阶段。
+    let source = match load_source(input) {
+        Ok(source) => source,
+        Err(code) => return code,
+    };
+    let BuiltProgram {
+        parsed,
+        sources,
+        user_indices,
+        mut interner,
+        mut diags,
+    } = build_program(&source);
+    let user_parse_ok = !parsed[0].diagnostics.has_errors();
+    for pf in &parsed {
+        diags.extend(pf.diagnostics.iter().cloned());
+    }
+    if !user_parse_ok {
+        return report_diagnostics(&source, &[], diags);
+    }
+    let inputs = make_inputs(&parsed, &user_indices);
+    let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
+    let hir = scoop2_hir::typecheck::run_typecheck(
+        &inputs,
+        &mut interner,
+        &mut diags,
+        None,
+        &declared_deps,
+    );
+    if diags.has_errors() {
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, diags);
+    }
+    // MIR lowering。
+    let mir_files: Vec<(scoop2_base::FileId, &scoop2_syntax::ast::File)> = parsed
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| user_indices.contains(i))
+        .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
+        .collect();
+    let lower_result = scoop2_mir::mir::lower::lower_module(
+        mir_files.into_iter(),
+        &hir,
+        &mut diags,
+    );
+    if diags.has_errors() {
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter().enumerate().skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, diags);
+    }
+    // 查找 entry。
+    let entry = lower_result.module.items.iter()
+        .find_map(|it| match it {
+            scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| "main".to_string());
+    // materialize。
+    let monomorph_result = scoop2_mir::mir::materialize::materialize(
+        lower_result.module.clone(),
+        Some(&entry),
+        &hir,
+    );
+    if let Err(merr) = monomorph_result {
+        diags.push(merr.to_diagnostic());
+        let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+            .iter().enumerate().skip(1)
+            .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+            .collect();
+        return report_diagnostics(&source, &extra_sources, diags);
+    }
+    let monomorph = monomorph_result.as_ref().expect("materialize 已成功");
+    // LIR lowering。
+    let lir_program = scoop2_lir::lower_to_lir(monomorph, &hir, &interner);
+    // dump。
+    let rendered = scoop2_lir::dump::dump_program(&lir_program);
     print!("{rendered}");
     ExitCode::SUCCESS
 }

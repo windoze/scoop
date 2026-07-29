@@ -264,52 +264,120 @@ ItableSlot {
 
 **文件**：`src/gc/`
 
-**5a. 类型描述符（TypeDescriptor）**
-为每个 GC-managed 类型生成运行时类型描述符：
+#### GC 安全模型：语义标记 + 后端自决
+
+**核心设计原则**：LIR 只产出**语义标记**（"哪些 local 在哪些点是 GC 可见的"），不规定实现机制。codegen 根据自己的能力和目标平台选择最合适的实现策略。
+
+**问题背景**：codegen 优化器（如 LLVM opt）可能把一个 GC-managed 引用 local 从 frame slot 提升到寄存器。如果该 local 在 safepoint 前被写入但未同步回 GC 可见位置，GC 移动对象后引用失效。不同后端对此有不同的解决能力：
+- 当前运行时 GC 不支持 register root（需要平台相关汇编代码）
+- 未来可能加上 register root 支持
+- 不同 codegen 后端（LLVM/C/WASM）有不同的约束和能力
+
+**LIR 的职责**：产出足够的语义信息，让 codegen 能自行做出正确的 root 管理决策：
+1. 哪些 local 是 GC-managed 引用（`gc_traceable` 标志）
+2. 每个函数中哪些点是 safepoint（调用点、effect 挂起点、GC intrinsic 调用）
+3. 每个 safepoint 处哪些 GC-managed local 是 live 的
+
+**LIR 不规定**：
+- root 存储在哪里（frame slot、寄存器、statepoint stack map）
+- 如何在 safepoint 前后同步 root
+- root frame 的具体布局（由 codegen 决定）
+
+#### 5a. GC 标记数据结构
+
+```rust
+/// 函数的 GC 语义信息（LIR 产出，codegen 消费）。
+GcInfo {
+    /// 此函数中所有 GC-managed local 的列表。
+    /// codegen 可据此决定 root 管理策略。
+    gc_locals: Vec<GcLocal>,
+    /// 此函数中的所有 safepoint。
+    safepoints: Vec<GcSafepoint>,
+}
+
+/// 一个 GC-managed local 的语义信息。
+GcLocal {
+    local_id: u32,
+    /// local 的引用类型（Class/String/Any/Interface 等）。
+    ty: TypeLayoutId,
+    /// 此 local 的基指针来源。
+    /// None = 此 local 本身就是基指针（指向对象起始）。当前 Scoop 总是如此。
+    /// Some(base_local_id) = 此 local 是 derived pointer（对象内部指针），
+    ///   GC 移动对象时需要通过 base_local 找到对象起始来更新。
+    /// 当前 Scoop 不产生 derived pointer，此字段总是 None。
+    /// 预留给未来（如数组内部指针遍历）。
+    base_local: Option<u32>,
+}
+
+/// 一个 safepoint 的语义信息。
+/// codegen 必须保证：在此点执行时，GC 能找到所有 live GC local 的当前值。
+GcSafepoint {
+    block_id: u32,
+    stmt_index: u32,
+    /// safepoint 的类型（决定 codegen 如何包装此点）。
+    kind: SafepointKind,
+    /// 在此 safepoint 存活的 GC-managed local 列表。
+    /// codegen 负责确保这些 local 的值在 GC 扫描时是最新的。
+    /// 对于 LLVM statepoint：每个 local 对应一个 gc.relocate，
+    ///   base/derived index 从 local_id 推导（当前 base==derived）。
+    live_gc_locals: Vec<u32>,
+}
+
+/// safepoint 的类型。
+enum SafepointKind {
+    /// 函数调用（codegen 用此信息包装 statepoint 或插入 store/load）。
+    /// callee_symbol 用于 LLVM statepoint 的 call target。
+    Call { callee_symbol: String },
+    /// 纯 GC safepoint（无实际调用，只是让 GC 有机会运行）。
+    /// codegen 生成一个 safepoint poll（如读取 GC 页面标志）。
+    Poll,
+    /// Effect 挂起点（Step 返回，控制权交给调用者）。
+    /// 对于 EffectStep 函数：函数返回时 frame 中的 GC 引用需要被 GC 可见。
+    EffectSuspend,
+}
+```
+
+#### 5b. Codegen 后端的实现选择
+
+LIR 产出 `GcInfo` 后，各 codegen 后端根据自身能力选择实现策略：
+
+| 后端 | 策略 | 机制 |
+|------|------|------|
+| **LLVM（无 register root）** | 显式 root frame | 分配 `{ScoopRootFrameHeader, [N x ptr]}` alloca；safepoint 前 store live GC local 到 frame slot；push/pop root frame 到 runtime TLS。LLVM 不会消除这些 store（frame 通过 runtime-visible 指针链访问）。 |
+| **LLVM（有 register root）** | statepoint intrinsic | 使用 `llvm.experimental.gc.statepoint`，LLVM 自动管理 root 在寄存器/栈中的同步，生成 stack map 供 GC 使用。 |
+| **C** | C 局部变量 + root frame | C ABI 保证函数调用边界 live 变量写回栈。safepoint（函数调用）天然保证 GC 引用在栈上。root frame 作为额外的 GC-visible 结构。 |
+| **WASM** | 引擎管理 | WASM 局部变量由引擎管理，不存在寄存器提升。直接用局部变量即可，引擎负责 GC root 追踪。 |
+| **未来后端（register root）** | 平台相关 root save/restore | safepoint 前用汇编保存寄存器中的 GC 引用到 GC-visible 位置；safepoint 后恢复。 |
+
+#### 5c. 类型描述符（TypeDescriptor）
+
+为每个 GC-managed 类型生成运行时类型描述符（这部分与后端无关，是类型布局的延伸）：
 ```rust
 TypeDescriptor {
     type_fqn: String,
     size: u64,
     align: u64,
-    trace_bitmap: Vec<u8>,  // 每个字节偏移是否是 GC 指针
-    trace_offsets: Vec<u64>,  // GC 指针偏移列表（更精确）
+    trace_offsets: Vec<u64>,  // GC 指针偏移列表（精确版）
     release_fn: Option<String>,  // @ReleaseHook 函数符号
     type_id: u64,  // RTTI 类型 ID
     parent_type_id: Option<u64>,  // 超类 type_id
-    vtable_ptr: Option<u64>,  // vtable 全局符号偏移
-    itable_ptr: Option<u64>,  // itable 全局符号偏移
 }
 ```
 
-trace_bitmap 计算方法：
-- 遍历类型的所有字段
-- 对每个字段，如果其类型是 GC-managed（`trace: bool` from MIR transport metadata），标记其偏移
-- 递归展开 struct/tuple（内嵌的 GC 指针也需要标记）
+trace_offsets 计算方法：
+- 遍历类型的所有字段（使用 LIR 步骤 2 的布局结果）
+- 对每个字段，如果其类型是 GC-managed（`trace: bool` from MIR transport metadata），记录其偏移
+- 递归展开 struct/tuple 内嵌的 GC 指针
 
-**5b. Safepoint root map**
-为每个函数的每个调用点/挂起点生成 root map：
-```rust
-GcRootMap {
-    callable_fqn: String,
-    safepoints: Vec<Safepoint>,
-}
-Safepoint {
-    block_id: u32,
-    stmt_index: u32,
-    roots: Vec<RootEntry>,  // 在此 safepoint 存活的 GC locals
-}
-RootEntry {
-    local_id: u32,
-    frame_offset: u64,  // 在 frame 中的偏移（对于 EffectStep 函数）
-}
-```
+#### 5d. Safepoint + liveness 计算
 
 计算方法：
 - 使用 MIR effect_lower 的 liveness 分析结果（`compute_live_out`）
-- 对每个调用点，找出在该点存活且 GC-traceable 的 locals
-- 对于 EffectStep 函数，还需要标记 frame tuple 中哪些 slot 是 GC-traceable 的
+- safepoint = 所有 `Rvalue::Call` 语句 + effect 挂起点（Step 返回）+ GC intrinsic 调用
+- 对每个 safepoint，找出在该点存活且 GC-traceable 的 locals（`live_gc_locals`）
+- 对于 EffectStep 函数，frame tuple 中 GC-traceable 的 slot 也要记录（作为特殊的 GcLocal）
 
-**验证**：为含 class 实例的函数生成 root map，验证 GC 指针偏移正确。
+**验证**：为含 class 实例的函数生成 GcInfo，验证 safepoint 覆盖完整、live GC local 列表正确。
 
 ### 步骤 6：Effect Step 准备
 
@@ -521,10 +589,12 @@ pub fn lower_to_lir(
 
 3. **vtable 继承**：子类的 vtable 需要包含超类的所有虚方法 slot。slot 分配顺序需要与超类一致（前 N 个 slot = 超类的 slot），追加自己的新方法。
 
-4. **GC root map 的精度**：liveness 分析需要精确——过多的 root 会降低性能，过少的 root 会导致 GC 错误。MIR 的 `compute_live_out` 已实现，LIR 可复用。
+4. **GC register promotion 与后端多样性**：codegen 优化器可能把 GC-managed 引用 local 提升到寄存器，导致 root 不一致。**解决方案**：LIR 只产出语义标记（哪些 local 是 GC-managed、哪些点是 safepoint、每个 safepoint 哪些 GC local 是 live 的），由各 codegen 后端根据自身能力选择实现策略（explicit root frame / statepoint / register root / 引擎管理）。当未来运行时加上 register root 支持时，无需修改 LIR——只需对应 codegen 后端切换到 register root 策略。
 
 5. **EffectStep frame 的 GC 信息**：frame tuple 中的 live locals 可能包含 GC 指针。frame schema 需要标记哪些 slot 是 GC-traceable 的，供 codegen 生成 safepoint root map。
 
 6. **闭包的逃逸分析**：当前 LIR 不做逃逸分析（所有闭包 env 堆分配）。后续可添加逃逸分析 pass，让栈上分配的闭包 env 不需要 GC root。
 
 7. **多后端兼容**：LIR 的布局计算应足够通用，使 LLVM/C/WASM codegen 都能消费。C codegen 可能需要额外的约束（如不支持 tagged union，需要展开为 struct + enum）。
+
+8. **GC root frame 的 slot 复用**：当前设计为每个 GC-managed local 分配一个 frame slot（不做 slot 复用）。后续优化可分析 non-overlapping live ranges，复用 frame slot 减少 frame 大小。

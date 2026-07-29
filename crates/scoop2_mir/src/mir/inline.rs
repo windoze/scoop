@@ -388,14 +388,8 @@ fn do_inline(
 
     // 2. 为 callee 的块分配新 block id（块 0 的入口语句会 splice 到当前块）。
     //    块 0 以外的块追加到 body.blocks 末尾。
-    let continuation_block = if callee_block_count == 1 {
-        // 单块：不需要新块，Return 后的语句直接接在 splice 序列后。
-        None
-    } else {
-        // 多块：创建续接块，存放调用点之后的语句。
-        let cont_id = BasicBlockId(body.blocks.len() as u32 + (callee_block_count - 1) as u32);
-        Some(cont_id)
-    };
+    // 先记录追加前的块数量。
+    let blocks_before_append = body.blocks.len();
 
     // 块 id 映射：callee 块 i → caller 侧新块 id。
     // 块 0 的语句 splice 到 bid，不占独立块。
@@ -412,6 +406,22 @@ fn do_inline(
             },
         });
     }
+
+    // 续接块：在追加 callee 块之后创建（需要实际 push 到 body.blocks）。
+    let continuation_block = if callee_block_count == 1 {
+        None
+    } else {
+        let cont_id = BasicBlockId(body.blocks.len() as u32);
+        // 续接块本身也需要被追加到 body.blocks（否则 cont_idx 会越界）。
+        body.blocks.push(BasicBlock {
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: scoop2_base::Span::default(),
+                kind: TerminatorKind::Unreachable,
+            },
+        });
+        Some(cont_id)
+    };
 
     // 3. 构造参数绑定语句（splice 序列的前缀）。
     let mut splice_stmts: Vec<Statement> = Vec::new();
