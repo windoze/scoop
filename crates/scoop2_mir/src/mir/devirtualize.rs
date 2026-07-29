@@ -113,6 +113,31 @@ fn exact_receiver_fqn(
             // 值类型 nominal（struct/enum）不可继承 → 总是精确。
             Some(n.fqn)
         }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Int) => {
+            // 内建标量 Int 映射到 nominal FQN scoop.core.Int。
+            ctx.interner.get("scoop.core.Int")
+        }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::UInt) => {
+            ctx.interner.get("scoop.core.UInt")
+        }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Bool) => {
+            ctx.interner.get("scoop.core.Bool")
+        }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Char) => {
+            ctx.interner.get("scoop.core.Char")
+        }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Float64) => {
+            ctx.interner.get("scoop.core.Float64")
+        }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Float32) => {
+            ctx.interner.get("scoop.core.Float32")
+        }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::IntN(_)) => {
+            ctx.interner.get("scoop.core.Int")
+        }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::UIntN(_)) => {
+            ctx.interner.get("scoop.core.UInt")
+        }
         _ => None,
     }
 }
