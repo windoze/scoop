@@ -534,17 +534,39 @@ fn member_call_target(
     builder: &FnLowering,
     member_expr: &Expr,
 ) -> (Symbol, Symbol) {
-    if let ExprKind::MemberAccess { member, .. } = &member_expr.kind
+    if let ExprKind::MemberAccess { member, receiver } = &member_expr.kind
         && let MemberName::Named(name) = member
-        && let Some(rm) = builder.hir.member_ref(builder.file_id, member_expr.id)
     {
-        let (owner, meth) = match rm {
-            scoop2_hir::hir::ResolvedMember::Method { owner_fqn, method_name, .. } => (*owner_fqn, *method_name),
-            _ => (Symbol::default(), name.symbol),
-        };
-        return (owner, meth);
+        // 优先从 member_ref 获取。
+        if let Some(rm) = builder.hir.member_ref(builder.file_id, member_expr.id)
+        {
+            let (owner, meth) = match rm {
+                scoop2_hir::hir::ResolvedMember::Method { owner_fqn, method_name, .. } => (*owner_fqn, *method_name),
+                _ => (Symbol::default(), name.symbol),
+            };
+            return (owner, meth);
+        }
+        // 回退：从 receiver 表达式推导 owner FQN（不 lower，避免 &mut borrow）。
+        let owner = resolve_owner_from_expr(builder, receiver);
+        return (owner, name.symbol);
     }
     (Symbol::default(), Symbol::default())
+}
+
+/// 从 receiver 表达式推导 owner FQN（不 lower 表达式，避免 &mut 借用冲突）。
+fn resolve_owner_from_expr(builder: &FnLowering, receiver: &Expr) -> scoop2_base::Symbol {
+    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+    // 从 HIR expr_type 获取 receiver 的类型。
+    let ty = builder.hir.expr_type(builder.file_id, receiver.id);
+    let ty = match ty {
+        Some(t) => t,
+        None => return scoop2_base::Symbol::default(),
+    };
+    match builder.types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
+        _ => scoop2_base::Symbol::default(),
+    }
 }
 
 /// 从 HIR member_funs 查找某 (owner, method) 首个重载的 overload signature
@@ -676,6 +698,7 @@ fn emit_call_resolution(
             });
             let owner_str = builder.hir.interner.resolve(*owner_fqn).to_string();
             let method_str = builder.hir.interner.resolve(*method_name).to_string();
+            eprintln!("DEBUG Method dispatch: owner_str={owner_str} method_str={method_str} is_virtual={is_virtual} is_interface={is_interface}");
             // 特殊检测：Continuation.resume → CallKind::Resume。
             // resume 是 continuation 对象上的方法，不是普通的 interface 分发。
             if method_str == "resume" && owner_str.ends_with("Continuation") {
