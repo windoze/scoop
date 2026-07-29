@@ -6706,10 +6706,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             sig.decl_span,
                             sig.decl_file,
                         ));
-                        return sig.return_ty;
+                        return self.subst_all_params(sig.return_ty, subst_arg);
                     }
+                    // 返回类型也需用 receiver 类型实参替换（如 Array<Int>.get(): T → Int）。
+                    let subst_return = self.subst_all_params(sig.return_ty, subst_arg);
                     self.record_callee_effects(sig, args, span);
-                    return sig.return_ty;
+                    return subst_return;
                 }
                 // eff-param 方法（`<eff E>`）：从 lambda 实参推断 E 的 effect 并传播到外层。
                 self.record_callee_effects(sig, args, span);
@@ -6778,7 +6780,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 return sig.return_ty;
             }
             self.record_callee_effects(sig, args, span);
-            return sig.return_ty;
+            // 返回类型若含类类型参数（如 Array<T>.get(): T），用 receiver 类型实参替换。
+            return self.subst_return_with_receiver_args(sig.return_ty, receiver_ty);
         }
         let applicable: Vec<(&Signature, Symbol)> = sigs_with_owners
             .iter()
@@ -6802,7 +6805,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let sig_refs: Vec<&Signature> = applicable.iter().map(|(s, _)| *s).collect();
                 if let Some(idx) = self.select_most_specific_with_receiver(&applicable) {
                     self.record_callee_effects(sig_refs[idx], args, span);
-                    sig_refs[idx].return_ty
+                    self.subst_return_with_receiver_args(sig_refs[idx].return_ty, receiver_ty)
                 } else {
                     // receiver-aware 选择无唯一胜者 → 报歧义（receiver 差异使其不可比较）。
                     let method_text = self.env.interner.resolve(method_name);
@@ -6855,6 +6858,36 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
         }
+    }
+
+    /// 用 receiver 的类型实参替换返回类型中的类类型参数。
+    ///
+    /// 例如 `Array<T>.get(): T`，receiver 为 `Array<Int>` → 返回类型 `T` 替换为 `Int`。
+    /// 若返回类型不含 Param 或 receiver 无类型实参，原样返回。
+    fn subst_return_with_receiver_args(&mut self, return_ty: TypeId, receiver_ty: TypeId) -> TypeId {
+        // 返回类型不含 Param → 无需替换。
+        let has_param = self.type_contains_eff_param(return_ty)
+            || matches!(self.env.store.kind(return_ty), TypeKind::Param(_));
+        if !has_param {
+            return return_ty;
+        }
+        // 提取 receiver 的类型实参。
+        let rargs = match self.env.store.kind(receiver_ty) {
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => Some(n.args.clone()),
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => Some(n.args.clone()),
+            _ => None,
+        };
+        let Some(rargs) = rargs else {
+            return return_ty;
+        };
+        if rargs.is_empty() {
+            return return_ty;
+        }
+        // 简化：用 receiver 的第一个类型实参替换所有 Param（覆盖单参数泛型容器如 Array<T>）。
+        // 多参数容器需按声明位置映射，但当前 typecheck 的类类型参数绑定是按位置，
+        // 且 subst_all_params 仅支持单一替换——多数场景（Array<T>、Option<T>）单参数足够。
+        let subst_arg = rargs.first().copied().unwrap_or_else(|| self.env.store.nothing());
+        self.subst_all_params(return_ty, subst_arg)
     }
 
     /// 从适用候选中选择最具体的（spec P3 §4.5）。
