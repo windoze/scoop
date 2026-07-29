@@ -1,5 +1,6 @@
 //! stmt lowering：`LirStmtKind` → LLVM 指令序列。
 
+use inkwell::values::{BasicValueEnum, BasicValue};
 use scoop2_lir::LirStmt;
 
 use crate::body::FunctionLowerer;
@@ -69,10 +70,13 @@ pub fn lower_stmt<'a, 'ctx>(
                         .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr store_member_val", scoop2_base::Span::default()))?
                 }
                 _ => {
-                    let field_ty = fl.cg.lower_type(*value_ty, fl.layouts)?;
+                    // For non-pointer values, store via inttoptr conversion.
+                    let val_int = val.into_int_value();
+                    let val_ptr = fl.builder.build_int_to_ptr(val_int, fl.cg.native_ptr_ty(), "sm_intval_ptr")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr store_member_intval", scoop2_base::Span::default()))?;
                     fl.builder
-                        .build_store(field_slot.cast_type(field_ty), val)
-                        .map_err(|e| CodegenError::llvm(e.to_string(), "store member non-ptr", scoop2_base::Span::default()))?;
+                        .build_store(field_slot, val_ptr)
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "store member intval", scoop2_base::Span::default()))?;
                     return Ok(());
                 }
             };
