@@ -516,7 +516,15 @@ pub fn lower_fun_decl_inner(
     errors: &mut Vec<MirLowerError>,
     member_owner: Option<scoop2_base::Symbol>,
 ) -> (Option<FunDecl>, Vec<FunDecl>, TypeStore) {
-    let owner_fqn = super::fqn_of(package_prefix, d.name.symbol, hir);
+    // 成员函数：使用 owner-qualified FQN（owner.method）以区分不同 owner 的同名方法。
+    // 非成员函数（顶层函数）：使用 package.method FQN。
+    let owner_fqn = if let Some(owner_sym) = member_owner {
+        let owner_text = hir.interner.resolve(owner_sym);
+        let method_text = hir.interner.resolve(d.name.symbol);
+        format!("{}.{}", owner_text, method_text)
+    } else {
+        super::fqn_of(package_prefix, d.name.symbol, hir)
+    };
     // builder 私有 store（从 base 克隆；TypeId 在 base 范围内一致）。
     let mut types = base_types.clone();
     // 函数类型：从签名构造（用 store.function）。

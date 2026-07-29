@@ -23,17 +23,18 @@ pub fn lower_direct<'a, 'ctx>(
     args: &[LirOperand],
     result_ty: TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
-    // 1. 已声明/定义的函数。
+    // 1. intrinsic 启发式（按 FQN）— 优先于函数声明，因为 @Intrinsic 方法
+    //    虽有声明（body=None）但应内联而非调用。
+    if let Some(v) = crate::intrinsics::try_lower_intrinsic_by_fqn(fl, callee_symbol, args, result_ty)? {
+        return Ok(v);
+    }
+    // 2. 已声明/定义的函数。
     if let Some(fv) = fl.cg.lookup_callable_fn(callee_symbol).or_else(|| fl.cg.module.get_function(callee_symbol)) {
         return lower_known_fn(fl, fv, args, result_ty);
     }
-    // 2. runtime 符号映射（println/print 等常用符号）。
+    // 3. runtime 符号映射（println/print 等常用符号）。
     if let Some(fv) = resolve_runtime_symbol(fl, callee_symbol) {
         return lower_known_fn(fl, fv, args, result_ty);
-    }
-    // 3. intrinsic 启发式（按 FQN）。
-    if let Some(v) = crate::intrinsics::try_lower_intrinsic_by_fqn(fl, callee_symbol, args, result_ty)? {
-        return Ok(v);
     }
     Err(CodegenError::undefined_symbol(
         callee_symbol,
@@ -104,14 +105,12 @@ fn lower_call_arg<'a, 'ctx>(
 /// 把已知的 runtime 符号名（Scoop FQN）映射到 `FunctionValue`。
 /// 当前覆盖：`scoop.core.println`/`scoop.core.print`（→ scoop_println/print）。
 fn resolve_runtime_symbol<'a, 'ctx>(
-    fl: &FunctionLowerer<'a, 'ctx>,
-    fqn: &str,
+    _fl: &FunctionLowerer<'a, 'ctx>,
+    _fqn: &str,
 ) -> Option<inkwell::values::FunctionValue<'ctx>> {
-    match fqn {
-        "scoop.core.println" | "scoop.core.__scoop_println" => Some(fl.rt.println),
-        "scoop.core.print" | "scoop.core.__scoop_print" => Some(fl.rt.print),
-        _ => None,
-    }
+    // println/print are now properly monomorphized user functions (println<String> etc.)
+    // that call __scoop_println internally. Do NOT short-circuit them to runtime symbols.
+    None
 }
 
 /// 按被调用函数参数类型转换实参（标量宽度扩展/收缩 + addrspace 转换）。

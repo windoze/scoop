@@ -307,24 +307,14 @@ impl<'ctx> CodegenContext<'ctx> {
                         if let Some(fv) = self.lookup_callable_fn(s).or_else(|| self.module.get_function(s)) {
                             return unsafe { PointerValue::new(fv.as_value_ref()) };
                         }
-                        // itable 符号格式：scoop_core_String_toString（含 class 名）。
-                        // 实际函数符号：scoop_core_toString_<hash>（不含 class 名，带 hash 后缀）。
-                        // 从 itable 符号提取 class_simple 和 method_name。
-                        let class_simple = class_fqn.rsplit('.').next().unwrap_or("");
-                        let method_name = s.rsplit('_').next().unwrap_or("");
-                        // 构造 method_prefix：去掉 class 名后的符号前缀。
-                        // "scoop_core_String_toString" -> "scoop_core_toString"
-                        let needle = format!("_{}_{}", class_simple, method_name);
-                        let method_prefix = s.replace(&needle, &format!("_{}", method_name));
-                        // 在所有函数中找前缀匹配的，选择第一个返回类型为 GC ptr 且
-                        // 参数数量 = 1（仅 receiver）的函数（toString 无额外参数）。
+                        // itable 符号 = mangle_target_symbol 的输出，如 "scoop_core_String_toString"。
+                        // 实际函数符号 = mangle_symbol 的输出，如 "scoop_core_String_toString_<hash>"。
+                        // 由于 owner-qualified FQN 后，itable 符号已是正确前缀。
+                        // 直接用 itable 符号做前缀匹配（后跟 _<hash>）。
                         for name in &all_fn_names {
-                            if name.starts_with(&method_prefix) && name.len() > method_prefix.len() {
+                            if name.starts_with(s) && name.len() > s.len() {
                                 if let Some(fv) = self.module.get_function(name) {
-                                    // 验证：参数数量 = 1（仅 receiver this 参数）。
-                                    if fv.count_params() == 1 {
-                                        return unsafe { PointerValue::new(fv.as_value_ref()) };
-                                    }
+                                    return unsafe { PointerValue::new(fv.as_value_ref()) };
                                 }
                             }
                         }

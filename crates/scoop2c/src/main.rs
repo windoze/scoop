@@ -929,13 +929,13 @@ fn locate_libscooprt() -> Option<PathBuf> {
                 }
             }
         }
-        // 取最新修改时间的一个。
+        // 取最新修改时间的一个（降序，最新在前）。
         found.sort_by_key(|p| {
             std::fs::metadata(p)
                 .and_then(|m| m.modified())
                 .ok()
         });
-        if let Some(latest) = found.into_iter().next() {
+        if let Some(latest) = found.into_iter().next_back() {
             return Some(latest);
         }
     }

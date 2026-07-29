@@ -173,11 +173,10 @@ pub fn materialize(
                         .get(iface_fqn)
                         .and_then(|sym| hir.member_funs.get(&sym))
                         .map(|methods| {
-                            // 成员函数模板 FQN = package.method（与 lower_fun_decl 的 fqn_of 一致）。
-                            let pkg = class.rsplit_once('.').map(|(p, _)| p).unwrap_or(class);
+                            // 成员函数模板 FQN = owner.method（与 lower_fun_decl_inner 的 owner-qualified FQN 一致）。
                             methods
                                 .keys()
-                                .map(move |m| format!("{}.{}", pkg, hir.interner.resolve(*m)))
+                                .map(move |m| format!("{}.{}", class, hir.interner.resolve(*m)))
                                 .collect::<Vec<_>>()
                         })
                         .unwrap_or_default()
@@ -186,17 +185,59 @@ pub fn materialize(
         })
         .collect();
     for method_fqn in &itable_method_fqns {
+        // 成员函数 FQN = owner.method。若该 class 没有自己的实现（继承自超类型），
+        // 沿超类型链查找拥有该方法的 owner。
+        let template_fqn = if work.templates.contains_key(method_fqn) {
+            method_fqn.clone()
+        } else {
+            // 沿超类型链查找：method_fqn = "scoop.core.String.hash"
+            // 拆为 class_fqn + method_name，沿 supertypes 查找。
+            let dot = method_fqn.rfind('.');
+            if let Some(dot) = dot {
+                let class_fqn_text = &method_fqn[..dot];
+                let method_name = &method_fqn[dot + 1..];
+                let class_sym = hir.interner.get(class_fqn_text);
+                if let Some(class_sym) = class_sym {
+                    let mut found = None;
+                    // Debug: list all hash-related templates
+                    for (k,_) in work.templates.iter() {
+                        if k.contains("hash") { eprintln!("DEBUG template_hash: {k}"); }
+                    }
+                    let mut queue = std::collections::VecDeque::new();
+                    queue.push_back(class_sym);
+                    let mut visited = std::collections::HashSet::new();
+                    while let Some(sym) = queue.pop_front() {
+                        if !visited.insert(sym) {
+                            continue;
+                        }
+                        let fqn_text = hir.interner.resolve(sym);
+                        let candidate = format!("{}.{}", fqn_text, method_name);
+                        if work.templates.contains_key(&candidate) {
+                            found = Some(candidate);
+                            break;
+                        }
+                        if let Some(supers) = hir.supertypes.get(&sym) {
+                            for &sup in supers {
+                                queue.push_back(sup);
+                            }
+                        }
+                    }
+                    found.unwrap_or_else(|| method_fqn.clone())
+                } else {
+                    method_fqn.clone()
+                }
+            } else {
+                method_fqn.clone()
+            }
+        };
         work.enqueue(InstanceKey {
-            template_fqn: method_fqn.clone(),
+            template_fqn,
             overload_sig: String::new(),
             type_args: Vec::new(),
         });
     }
     work.run()?;
-    for k in &work.order {
-        if k.template_fqn.contains("toString") || k.template_fqn.contains("hash") {
-        }
-    }
+
     // 构造 materialized module。
     let mut items: Vec<Item> = Vec::new();
     for key in &work.order {

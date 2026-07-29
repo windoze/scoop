@@ -142,18 +142,37 @@ fn lower_interface_dispatch<'a, 'ctx>(
         .map_err(|e| CodegenError::llvm(e.to_string(), "store i_next", scoop2_base::Span::default()))?;
     let _ = fl.builder.build_unconditional_branch(loop_bb);
 
-    // not_found: fn = null（防御性；运行时不该到这里）。
+    // not_found: 调用 scoop_runtime_error_fatal（不能返回 null，否则 LLVM 会把后续代码视为 UB）。
     fl.builder.position_at_end(not_found_bb);
-    let null_fn = native_ptr.const_null();
-    let _ = fl.builder.build_unconditional_branch(merge_bb);
-
-    // merge: phi(found_fn, null_fn).
+    let panic_msg = fl.cg.get_or_create_string_literal("interface dispatch failed: method not found")?;
+    let panic_native = fl
+        .builder
+        .build_ptr_to_int(panic_msg, fl.cg.context.i64_type(), "panic_msg_int")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int panic", scoop2_base::Span::default()))?;
+    let panic_native_ptr = fl
+        .builder
+        .build_int_to_ptr(panic_native, fl.cg.native_ptr_ty(), "panic_msg_ptr")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr panic", scoop2_base::Span::default()))?;
+    let _ = fl
+        .builder
+        .build_call(fl.rt.runtime_error_fatal, &[panic_native_ptr.into()], "fatal")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "call fatal", scoop2_base::Span::default()))?;
+    // fatal is noreturn; add unreachable to prevent LLVM from treating
+    // the not_found → merge edge as a valid path (which would make
+    // the phi have a null incoming and cause UB).
+    let _ = fl.builder.build_unreachable();
+    // not_found does NOT branch to merge_bb (it's unreachable after fatal).
     fl.builder.position_at_end(merge_bb);
     let phi = fl
         .builder
         .build_phi(native_ptr, "resolved_fn")
         .map_err(|e| CodegenError::llvm(e.to_string(), "build_phi", scoop2_base::Span::default()))?;
-    phi.add_incoming(&[(&fn_val, found_bb), (&null_fn, not_found_bb)]);
+    // not_found 分支调用了 fatal（noreturn），但 phi 仍需要一个 incoming value。
+    // 用 native_ptr.const_null() 作为占位（not_found 分支实际不会到达 merge_bb，
+    // 因为 fatal 是 noreturn；但 LLVM 需要 phi 的 incoming 类型一致）。
+    // not_found 分支以 unreachable 结束，不到达 merge_bb。
+    // phi 只有 found_bb 一个 incoming。
+    phi.add_incoming(&[(&fn_val, found_bb)]);
     let resolved_fn = phi.as_basic_value().into_pointer_value();
 
     // 5. 间接调用。
