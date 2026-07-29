@@ -31,4 +31,4 @@ pub use scoop2_syntax as syntax;
 pub mod diagnostics;
 pub mod mir;
 
-pub use mir::{dump, lower, materialize, verify, Module};
+pub use mir::{Module, dump, lower, materialize, verify};

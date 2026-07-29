@@ -13,7 +13,10 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
     pub fn lower_const_value(&self, c: &LirConstValue) -> CodegenResult<BasicValueEnum<'ctx>> {
         let ctx = self.cg.context;
         Ok(match c {
-            LirConstValue::Bool(b) => ctx.i8_type().const_int(if *b { 1 } else { 0 }, false).into(),
+            LirConstValue::Bool(b) => ctx
+                .i8_type()
+                .const_int(if *b { 1 } else { 0 }, false)
+                .into(),
             LirConstValue::Char(ch) => ctx.i32_type().const_int(*ch as u64, false).into(),
             LirConstValue::Unit => ctx.i8_type().const_zero().into(),
             LirConstValue::Int(v, suffix) => {

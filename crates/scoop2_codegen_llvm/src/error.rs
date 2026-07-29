@@ -79,7 +79,11 @@ impl CodegenError {
     }
 
     /// 构造 `UndefinedSymbol`。
-    pub fn undefined_symbol(symbol: impl Into<String>, context: impl Into<String>, span: Span) -> Self {
+    pub fn undefined_symbol(
+        symbol: impl Into<String>,
+        context: impl Into<String>,
+        span: Span,
+    ) -> Self {
         CodegenError::UndefinedSymbol {
             symbol: symbol.into(),
             context: context.into(),
@@ -97,7 +101,11 @@ impl CodegenError {
     }
 
     /// 构造 `UnknownIntrinsic`。
-    pub fn unknown_intrinsic(name: impl Into<String>, context: impl Into<String>, span: Span) -> Self {
+    pub fn unknown_intrinsic(
+        name: impl Into<String>,
+        context: impl Into<String>,
+        span: Span,
+    ) -> Self {
         CodegenError::UnknownIntrinsic {
             name: name.into(),
             context: context.into(),
@@ -126,10 +134,18 @@ impl CodegenError {
 
     fn span_and_code(&self) -> (Span, &'static str) {
         match self {
-            CodegenError::UnsupportedConstruct { span, .. } => (*span, "scoop::codegen::unsupported_construct"),
-            CodegenError::UndefinedSymbol { span, .. } => (*span, "scoop::codegen::undefined_symbol"),
-            CodegenError::MissingTypeLayout { span, .. } => (*span, "scoop::codegen::missing_type_layout"),
-            CodegenError::UnknownIntrinsic { span, .. } => (*span, "scoop::codegen::unknown_intrinsic"),
+            CodegenError::UnsupportedConstruct { span, .. } => {
+                (*span, "scoop::codegen::unsupported_construct")
+            }
+            CodegenError::UndefinedSymbol { span, .. } => {
+                (*span, "scoop::codegen::undefined_symbol")
+            }
+            CodegenError::MissingTypeLayout { span, .. } => {
+                (*span, "scoop::codegen::missing_type_layout")
+            }
+            CodegenError::UnknownIntrinsic { span, .. } => {
+                (*span, "scoop::codegen::unknown_intrinsic")
+            }
             CodegenError::Llvm { span, .. } => (*span, "scoop::codegen::llvm_error"),
             CodegenError::TargetOutput { .. } => (Span::default(), "scoop::codegen::target_output"),
             CodegenError::Verification { .. } => (Span::default(), "scoop::codegen::verification"),

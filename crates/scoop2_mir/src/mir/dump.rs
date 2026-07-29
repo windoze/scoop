@@ -49,10 +49,19 @@ fn dump_item(
             let _ = write!(out, "{pad}}})");
         }
         Item::ExternGlobal(g) => {
-            let _ = write!(out, "{pad}ExternGlobal {{ fqn: {:?}, ty: {} }}", g.fqn, render_type(types, interner, g.ty));
+            let _ = write!(
+                out,
+                "{pad}ExternGlobal {{ fqn: {:?}, ty: {} }}",
+                g.fqn,
+                render_type(types, interner, g.ty)
+            );
         }
         Item::Metadata(m) => {
-            let _ = write!(out, "{pad}Metadata {{ fqn: {:?}, kind: {:?} }}", m.fqn, m.kind);
+            let _ = write!(
+                out,
+                "{pad}Metadata {{ fqn: {:?}, kind: {:?} }}",
+                m.fqn, m.kind
+            );
         }
     }
 }
@@ -91,7 +100,11 @@ fn dump_fun_decl(
         "{pad2}return_ty: {},",
         render_type(types, interner, fd.return_ty)
     );
-    let _ = writeln!(out, "{pad2}effect_row: {},", render_effect_row(types, interner, &fd.effect_row));
+    let _ = writeln!(
+        out,
+        "{pad2}effect_row: {},",
+        render_effect_row(types, interner, &fd.effect_row)
+    );
     if let Some(body) = &fd.body {
         dump_body(body, types, interner, out, indent + 4);
         let _ = writeln!(out, "{pad2}body: Some(...),");
@@ -304,18 +317,27 @@ fn dump_rvalue(
             }
         ),
         Rvalue::UnresolvedName { name } => format!("UnresolvedName({:?})", name),
-        Rvalue::TypeTest { value, metadata, .. } => format!(
+        Rvalue::TypeTest {
+            value, metadata, ..
+        } => format!(
             "TypeTest({}, {})",
             dump_operand(value, labels),
             render_type(types, interner, metadata.target_ty)
         ),
-        Rvalue::Cast { value, op, metadata, .. } => format!(
+        Rvalue::Cast {
+            value,
+            op,
+            metadata,
+            ..
+        } => format!(
             "Cast({}, {:?}, {})",
             dump_operand(value, labels),
             op,
             render_type(types, interner, metadata.test.target_ty)
         ),
-        Rvalue::MemberAccess { receiver, member, .. } => format!(
+        Rvalue::MemberAccess {
+            receiver, member, ..
+        } => format!(
             "MemberAccess({}, {})",
             dump_operand(receiver, labels),
             member.name
@@ -393,9 +415,7 @@ fn dump_rvalue(
             render_type(types, interner, *result_ty)
         ),
         Rvalue::StructLit {
-            type_fqn,
-            fields,
-            ..
+            type_fqn, fields, ..
         } => format!(
             "StructLit({}, [{}])",
             interner.resolve(*type_fqn),
@@ -415,7 +435,8 @@ fn dump_rvalue(
                 .iter()
                 .map(|p| match p {
                     crate::mir::InterpolatedPart::Lit(s) => format!("Lit({:?})", s),
-                    crate::mir::InterpolatedPart::Expr(op) => format!("Expr({})", dump_operand(op, labels)),
+                    crate::mir::InterpolatedPart::Expr(op) =>
+                        format!("Expr({})", dump_operand(op, labels)),
                 })
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -448,21 +469,12 @@ fn dump_rvalue(
             render_type(types, interner, *result_ty)
         ),
         Rvalue::MakeClosure {
-            env,
-            invoke_fqn,
-            ..
-        } => format!(
-            "MakeClosure({}, {})",
-            dump_operand(env, labels),
-            invoke_fqn
-        ),
+            env, invoke_fqn, ..
+        } => format!("MakeClosure({}, {})", dump_operand(env, labels), invoke_fqn),
         Rvalue::ClassLit { type_fqn } => {
             format!("ClassLit({})", interner.resolve(*type_fqn))
         }
-        Rvalue::PerformResult {
-            op_fqn,
-            result_ty,
-        } => format!(
+        Rvalue::PerformResult { op_fqn, result_ty } => format!(
             "PerformResult({}, {})",
             op_fqn,
             render_type(types, interner, *result_ty)
@@ -472,7 +484,9 @@ fn dump_rvalue(
             dump_operand(subject, labels),
             pattern
         ),
-        Rvalue::PatternExtract { subject, result_ty, .. } => format!(
+        Rvalue::PatternExtract {
+            subject, result_ty, ..
+        } => format!(
             "PatternExtract({}, {})",
             dump_operand(subject, labels),
             render_type(types, interner, *result_ty)
@@ -542,10 +556,7 @@ fn dump_call_kind(
             dispatch.owner_fqn,
             dispatch.member_name
         ),
-        CallKind::Closure {
-            callee,
-            invoke_fqn,
-        } => format!(
+        CallKind::Closure { callee, invoke_fqn } => format!(
             "Closure {{ callee: {}, invoke: {:?} }}",
             dump_operand(callee, labels),
             invoke_fqn
@@ -553,7 +564,10 @@ fn dump_call_kind(
         CallKind::FunValue { callee } => {
             format!("FunValue {{ callee: {} }}", dump_operand(callee, labels))
         }
-        CallKind::Resume { continuation, resume_value } => {
+        CallKind::Resume {
+            continuation,
+            resume_value,
+        } => {
             format!(
                 "Resume {{ cont: {}, value: {} }}",
                 dump_operand(continuation, labels),

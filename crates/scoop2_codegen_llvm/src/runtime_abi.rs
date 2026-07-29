@@ -14,7 +14,7 @@ use inkwell::context::Context;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, FunctionType, IntType, PointerType};
 use inkwell::values::FunctionValue;
 
-use crate::context::{gc_address_space, native_address_space, CodegenContext};
+use crate::context::{CodegenContext, gc_address_space, native_address_space};
 
 /// 运行时符号名表（与 `runtime/c/scoop_runtime_api.h` allowlist 对齐）。
 pub mod sym {
@@ -182,9 +182,9 @@ impl<'ctx> CodegenContext<'ctx> {
             rt.void.fn_type(params, false)
         };
         // ret_fn: 返回 BasicTypeEnum
-        let ret_fn = |ret: BasicTypeEnum<'ctx>, params: &[BasicMetadataTypeEnum<'ctx>]| -> FunctionType<'ctx> {
-            basic_fn_type(ret, params, self.context)
-        };
+        let ret_fn = |ret: BasicTypeEnum<'ctx>,
+                      params: &[BasicMetadataTypeEnum<'ctx>]|
+         -> FunctionType<'ctx> { basic_fn_type(ret, params, self.context) };
 
         let gc_ptr_basic: BasicTypeEnum<'ctx> = rt.gc_ptr.into();
         let void_ptr_basic: BasicTypeEnum<'ctx> = rt.void_ptr.into();
@@ -194,8 +194,7 @@ impl<'ctx> CodegenContext<'ctx> {
         let i64m: BasicMetadataTypeEnum<'ctx> = rt.md_basic(rt.i64.into());
 
         // void scoop_runtime_init()
-        let runtime_init =
-            self.decl(sym::RUNTIME_INIT, void_fn(&[]));
+        let runtime_init = self.decl(sym::RUNTIME_INIT, void_fn(&[]));
         // void scoop_gc_thread_attach_current()
         let gc_thread_attach = self.decl(sym::GC_THREAD_ATTACH, void_fn(&[]));
         let gc_thread_detach = self.decl(sym::GC_THREAD_DETACH, void_fn(&[]));
@@ -203,19 +202,13 @@ impl<'ctx> CodegenContext<'ctx> {
         // void* scoop_alloc(u64)
         let alloc = self.decl(sym::ALLOC, ret_fn(rt.gc_ptr.into(), &[i64m]));
         // void* scoop_alloc_typed(ptr type_desc, u64 size)
-        let alloc_typed = self.decl(
-            sym::ALLOC_TYPED,
-            ret_fn(rt.gc_ptr.into(), &[vp, i64m]),
-        );
+        let alloc_typed = self.decl(sym::ALLOC_TYPED, ret_fn(rt.gc_ptr.into(), &[vp, i64m]));
         // ptr scoop_gc_write_barrier(ptr slot_addr, ptr value)
         //   value 是 GC 引用，但运行时签名用 native void*；slot_addr native。
-        let gc_write_barrier = self.decl(
-            sym::GC_WRITE_BARRIER,
-            ret_fn(rt.gc_ptr.into(), &[vp, vp]),
-        );
+        let gc_write_barrier =
+            self.decl(sym::GC_WRITE_BARRIER, ret_fn(rt.gc_ptr.into(), &[vp, vp]));
         // void scoop_gc_register_global_root(ptr base, ptr type_desc)
-        let gc_register_global_root =
-            self.decl(sym::GC_REGISTER_GLOBAL_ROOT, void_fn(&[vp, vp]));
+        let gc_register_global_root = self.decl(sym::GC_REGISTER_GLOBAL_ROOT, void_fn(&[vp, vp]));
         // void scoop_gc_safepoint_poll()
         let gc_safepoint_poll = self.decl(sym::GC_SAFEPOINT_POLL, void_fn(&[]));
         // void scoop_gc_collect()
@@ -233,34 +226,43 @@ impl<'ctx> CodegenContext<'ctx> {
             self.decl(sym::ENTRY_ARGV_ARRAY, ret_fn(rt.gc_ptr.into(), &[i32m, vp]));
 
         // string ops
-        let string_concat = self.decl(
-            sym::STRING_CONCAT,
-            ret_fn(rt.gc_ptr.into(), &[gc, gc]),
-        );
+        let string_concat = self.decl(sym::STRING_CONCAT, ret_fn(rt.gc_ptr.into(), &[gc, gc]));
         let string_equals = self.decl(sym::STRING_EQUALS, ret_fn(rt.i64.into(), &[gc, gc]));
         let string_byte_length = self.decl(sym::STRING_BYTE_LENGTH, ret_fn(rt.i64.into(), &[gc]));
-        let string_bytes = self.decl(
-            sym::STRING_BYTES,
-            ret_fn(rt.gc_ptr.into(), &[gc]),
-        );
+        let string_bytes = self.decl(sym::STRING_BYTES, ret_fn(rt.gc_ptr.into(), &[gc]));
         let int_to_string = self.decl(sym::INT_TO_STRING, ret_fn(rt.gc_ptr.into(), &[i64m]));
         let bool_to_string = self.decl(sym::BOOL_TO_STRING, ret_fn(rt.gc_ptr.into(), &[i64m]));
-        let char_to_string = self.decl(sym::CHAR_TO_STRING, ret_fn(rt.gc_ptr.into(), &[rt.md_basic(rt.i32.into())]));
+        let char_to_string = self.decl(
+            sym::CHAR_TO_STRING,
+            ret_fn(rt.gc_ptr.into(), &[rt.md_basic(rt.i32.into())]),
+        );
         let float32_to_string_ = self.decl(
             sym::FLOAT32_TO_STRING,
-            ret_fn(rt.gc_ptr.into(), &[rt.md_basic(self.context.f32_type().into())]),
+            ret_fn(
+                rt.gc_ptr.into(),
+                &[rt.md_basic(self.context.f32_type().into())],
+            ),
         );
         let float64_to_string = self.decl(
             sym::FLOAT64_TO_STRING,
-            ret_fn(rt.gc_ptr.into(), &[rt.md_basic(self.context.f64_type().into())]),
+            ret_fn(
+                rt.gc_ptr.into(),
+                &[rt.md_basic(self.context.f64_type().into())],
+            ),
         );
         let float32_to_int = self.decl(
             sym::FLOAT32_TO_INT,
-            ret_fn(rt.i64.into(), &[rt.md_basic(self.context.f32_type().into())]),
+            ret_fn(
+                rt.i64.into(),
+                &[rt.md_basic(self.context.f32_type().into())],
+            ),
         );
         let float64_to_int = self.decl(
             sym::FLOAT64_TO_INT,
-            ret_fn(rt.i64.into(), &[rt.md_basic(self.context.f64_type().into())]),
+            ret_fn(
+                rt.i64.into(),
+                &[rt.md_basic(self.context.f64_type().into())],
+            ),
         );
 
         // arrays — runtime C functions take/return native pointers (void*).
@@ -269,22 +271,12 @@ impl<'ctx> CodegenContext<'ctx> {
             ret_fn(void_ptr_basic, &[i32m, i64m, i64m, vp, i64m]),
         );
         let mutable_array_len = self.decl(sym::MUTABLE_ARRAY_LEN, ret_fn(rt.i64.into(), &[vp]));
-        let mutable_array_push_word = self.decl(
-            sym::MUTABLE_ARRAY_PUSH_WORD,
-            void_fn(&[vp, i64m]),
-        );
-        let mutable_array_push_ref = self.decl(
-            sym::MUTABLE_ARRAY_PUSH_REF,
-            void_fn(&[vp, vp]),
-        );
-        let mutable_array_push_composite = self.decl(
-            sym::MUTABLE_ARRAY_PUSH_COMPOSITE,
-            void_fn(&[vp, vp, i64m]),
-        );
-        let mutable_array_freeze = self.decl(
-            sym::MUTABLE_ARRAY_FREEZE,
-            ret_fn(void_ptr_basic, &[vp]),
-        );
+        let mutable_array_push_word = self.decl(sym::MUTABLE_ARRAY_PUSH_WORD, void_fn(&[vp, i64m]));
+        let mutable_array_push_ref = self.decl(sym::MUTABLE_ARRAY_PUSH_REF, void_fn(&[vp, vp]));
+        let mutable_array_push_composite =
+            self.decl(sym::MUTABLE_ARRAY_PUSH_COMPOSITE, void_fn(&[vp, vp, i64m]));
+        let mutable_array_freeze =
+            self.decl(sym::MUTABLE_ARRAY_FREEZE, ret_fn(void_ptr_basic, &[vp]));
 
         // pin/handle
         let pin = self.decl(sym::PIN, ret_fn(rt.i32.into(), &[vp]));

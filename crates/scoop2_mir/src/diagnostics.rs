@@ -4,8 +4,8 @@
 //! trait——本仓库的诊断是纯数据）。错误码形如 `scoop::mir::<name>`，供 fixture
 //! 的 `EXPECT-ERROR-CODE: scoop::mir::*` 匹配。
 
-use scoop2_base::diag::{Diagnostic, DiagnosticSink};
 use scoop2_base::Span;
+use scoop2_base::diag::{Diagnostic, DiagnosticSink};
 
 use crate::mir::{BasicBlockId, LocalId};
 
@@ -100,10 +100,7 @@ impl MonomorphError {
         Self {
             code: MONOMORPH_NO_TEMPLATE,
             span,
-            message: format!(
-                "单态化失败：找不到泛型模板 `{}`",
-                fqn.into()
-            ),
+            message: format!("单态化失败：找不到泛型模板 `{}`", fqn.into()),
         }
     }
 
@@ -116,8 +113,7 @@ impl MonomorphError {
     }
 
     pub fn to_diagnostic(&self) -> Diagnostic {
-        Diagnostic::error(self.code, self.message.clone())
-            .with_primary(self.span, "单态化在此失败")
+        Diagnostic::error(self.code, self.message.clone()).with_primary(self.span, "单态化在此失败")
     }
 }
 

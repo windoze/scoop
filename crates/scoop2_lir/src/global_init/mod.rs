@@ -2,8 +2,8 @@
 
 use scoop2_base::Interner;
 use scoop2_hir::hir::TypedHir;
-use scoop2_mir::mir::materialize::MaterializedMir;
 use scoop2_mir::mir::Item;
+use scoop2_mir::mir::materialize::MaterializedMir;
 
 use crate::*;
 
@@ -40,34 +40,37 @@ pub fn plan_global_init(
     // 遍历 BackendContracts.class_inits + HIR 类型声明构建 ClassInitPlan。
     for class_init in &mir.backend_contracts.class_inits {
         let class_fqn_text = &class_init.class_fqn;
-        // 查 HIR 获取 class 的字段列表。
+        // 查 HIR 获取 class 的字段列表（超类字段在前，自身字段按 member_order
+        // 声明序——与 LIR compute_field_offset / codegen class ctor 布局一致）。
         let fqn_sym = interner.get(class_fqn_text);
         let mut field_inits: Vec<FieldInit> = Vec::new();
         if let Some(sym) = fqn_sym {
-            if let Some(members) = hir.members.get(&sym) {
-                for (&member_name_sym, &member_ty) in members {
-                    let field_name = interner.resolve(member_name_sym).to_string();
-                    // InitKind 区分：理想情况下，主构造器参数对应的字段应为
-                    // PropertyParam，声明处带初始化器的属性应为 PropertyInitializer，
-                    // 其余为 DefaultValue。但当前 MIR BackendContracts 未暴露
-                    // 构造器参数名 / 属性初始化器来源，无法在此准确区分，故统一用
-                    // DefaultValue（零初始化）。待 ctor signatures 导出后可精确归类。
-                    field_inits.push(FieldInit {
-                        field_name,
-                        ty: member_ty,
-                        init_kind: InitKind::DefaultValue,
-                    });
-                }
+            for (member_name_sym, member_ty) in hir.ordered_class_fields(sym) {
+                let field_name = interner.resolve(member_name_sym).to_string();
+                // InitKind 区分：理想情况下，主构造器参数对应的字段应为
+                // PropertyParam，声明处带初始化器的属性应为 PropertyInitializer，
+                // 其余为 DefaultValue。但当前 MIR BackendContracts 未暴露
+                // 构造器参数名 / 属性初始化器来源，无法在此准确区分，故统一用
+                // DefaultValue（零初始化）。待 ctor signatures 导出后可精确归类。
+                field_inits.push(FieldInit {
+                    field_name,
+                    ty: member_ty,
+                    init_kind: InitKind::DefaultValue,
+                });
             }
         }
         // 查找超类：从 BackendContracts 的 vtable 推断。
         // 简化：如果 class 有超类，其 vtable 应包含 owner_fqn 不等于自身的方法
         // （继承自父类的方法 owner 指向父类）。该推断不依赖 HIR symbol，故不在此处
         // 用 fqn_sym gating。
-        let super_init = mir.backend_contracts.class_vtables.iter()
+        let super_init = mir
+            .backend_contracts
+            .class_vtables
+            .iter()
             .find(|vt| vt.class_fqn == *class_fqn_text)
             .and_then(|vt| {
-                vt.virtual_methods.iter()
+                vt.virtual_methods
+                    .iter()
                     .find(|(_, owner, _)| owner != class_fqn_text)
                     .map(|(_, owner, _)| owner.clone())
             });

@@ -3,7 +3,7 @@
 use scoop2_base::Interner;
 use scoop2_hir::hir::TypedHir;
 use scoop2_hir::ty::TypeId;
-use scoop2_mir::mir::{materialize::MaterializedMir, Body, Rvalue, StatementKind, TerminatorKind};
+use scoop2_mir::mir::{Body, Rvalue, StatementKind, TerminatorKind, materialize::MaterializedMir};
 
 use crate::*;
 
@@ -27,7 +27,8 @@ pub fn generate_gc_info(
     interner: &Interner,
 ) {
     let mut next_type_id: u64 = 1;
-    let mut class_type_ids: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut class_type_ids: std::collections::HashMap<String, u64> =
+        std::collections::HashMap::new();
 
     // 为每个 class 生成 TypeDescriptor，含 trace_offsets（GC 指针字段偏移）。
     for cv in &mir.backend_contracts.class_vtables {
@@ -36,9 +37,11 @@ pub fn generate_gc_info(
         class_type_ids.insert(cv.class_fqn.clone(), type_id);
 
         // 计算 trace_offsets：遍历 class 的字段，找出 GC 引用字段的偏移。
-        let trace_offsets = compute_class_trace_offsets(&cv.class_fqn, hir, interner, &program.type_layouts);
+        let trace_offsets =
+            compute_class_trace_offsets(&cv.class_fqn, hir, interner, &program.type_layouts);
         // 计算 class 布局大小。
-        let (size, align) = compute_class_layout_size(&cv.class_fqn, hir, interner, &program.type_layouts);
+        let (size, align) =
+            compute_class_layout_size(&cv.class_fqn, hir, interner, &program.type_layouts);
         // 查找父类 type_id：HIR 的 `direct_subtypes` 映射是「父类 → 子类列表」，
         // 无法直接反查「子类 → 父类」。要恢复父类需要在 typecheck 阶段额外导出
         // `supertypes`（当前 TypedHir 未暴露）。此处先填 None；后续若 HIR 暴露
@@ -61,7 +64,11 @@ pub fn generate_gc_info(
 
     // 为每个 interface 生成 TypeDescriptor。
     for ic in &mir.backend_contracts.interfaces {
-        if program.type_descriptors.iter().any(|td| td.type_fqn == ic.interface_fqn) {
+        if program
+            .type_descriptors
+            .iter()
+            .any(|td| td.type_fqn == ic.interface_fqn)
+        {
             continue;
         }
         let type_id = next_type_id;
@@ -93,7 +100,8 @@ fn compute_class_trace_offsets(
             // GC 对象头占 8 字节，字段从 offset 8 开始。
             let mut field_offset: u64 = 8;
             for (_, &member_ty) in members {
-                let (field_size, field_align) = layouts.get(member_ty)
+                let (field_size, field_align) = layouts
+                    .get(member_ty)
                     .map(|l| (l.size, l.align))
                     .unwrap_or((8, 8));
                 // 对齐到字段的对齐要求。
@@ -110,7 +118,9 @@ fn compute_class_trace_offsets(
 
 /// 把 offset 向上对齐到 align 的倍数。
 fn align_to(offset: u64, align: u64) -> u64 {
-    if align <= 1 { return offset; }
+    if align <= 1 {
+        return offset;
+    }
     let mask = align - 1;
     (offset + mask) & !mask
 }
@@ -171,7 +181,10 @@ pub fn compute_gc_info_for_body(
     frame_ty: Option<(scoop2_hir::ty::TypeId, scoop2_mir::mir::LocalId)>,
 ) -> GcInfo {
     // 1. GC local 列表。
-    let mut gc_locals: Vec<GcLocal> = body.locals.iter().enumerate()
+    let mut gc_locals: Vec<GcLocal> = body
+        .locals
+        .iter()
+        .enumerate()
         .filter(|(_, d)| is_gc_traceable_type(d.ty, layouts))
         .map(|(i, d)| GcLocal {
             local_id: i as u32,
@@ -209,7 +222,8 @@ pub fn compute_gc_info_for_body(
         }
     }
     // 仅真实 local 参与 per-block liveness（合成 interior id 不在 MIR LocalId 空间内）。
-    let gc_local_ids: std::collections::HashSet<u32> = gc_locals.iter()
+    let gc_local_ids: std::collections::HashSet<u32> = gc_locals
+        .iter()
         .map(|g| g.local_id)
         .filter(|&id| !frame_interior_ids.contains(&id))
         .collect();
@@ -229,7 +243,8 @@ pub fn compute_gc_info_for_body(
     for (bi, block) in body.blocks.iter().enumerate() {
         let block_live: std::collections::HashSet<scoop2_mir::mir::LocalId> =
             live_out.get(bi).cloned().unwrap_or_default();
-        let mut live_gc: Vec<u32> = gc_local_ids.iter()
+        let mut live_gc: Vec<u32> = gc_local_ids
+            .iter()
             .filter(|&&id| block_live.contains(&scoop2_mir::mir::LocalId(id)))
             .copied()
             .collect();
@@ -274,7 +289,10 @@ pub fn compute_gc_info_for_body(
         }
     }
 
-    GcInfo { gc_locals, safepoints }
+    GcInfo {
+        gc_locals,
+        safepoints,
+    }
 }
 
 fn extract_call_callee(rv: &Rvalue) -> Option<String> {
@@ -283,9 +301,10 @@ fn extract_call_callee(rv: &Rvalue) -> Option<String> {
         match kind {
             CallKind::Direct { callee_fqn, .. } => Some(callee_fqn.clone()),
             CallKind::Closure { invoke_fqn, .. } => Some(invoke_fqn.clone()),
-            CallKind::Virtual { dispatch, .. } => {
-                Some(format!("<virtual:{}.{}>", dispatch.owner_fqn, dispatch.member_name))
-            }
+            CallKind::Virtual { dispatch, .. } => Some(format!(
+                "<virtual:{}.{}>",
+                dispatch.owner_fqn, dispatch.member_name
+            )),
             CallKind::Interface { dispatch, .. } => Some(format!(
                 "<interface:{}.{}>",
                 dispatch.owner_fqn, dispatch.member_name

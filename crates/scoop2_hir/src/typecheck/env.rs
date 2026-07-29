@@ -60,6 +60,9 @@ pub struct TypeEnv<'i> {
     signatures: HashMap<Symbol, Vec<Signature>>,
     /// 类型 FQN → (成员名 → 成员类型)。属性 / 字段（含主构造 param-property）。
     members: HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    /// 类型 FQN → 成员名列表（按声明顺序；与 `members` 同步填充）。
+    /// 字段布局 / 偏移计算的确定性来源（`members` HashMap 迭代序不确定）。
+    member_order: HashMap<Symbol, Vec<Symbol>>,
     /// 类型 FQN → 不可变（`val`）属性名集合（赋值目标可变性检查用）。
     immutable_members: HashMap<Symbol, HashSet<Symbol>>,
     /// 类型 FQN → 主构造参数类型列表。
@@ -100,6 +103,7 @@ impl<'i> TypeEnv<'i> {
             interner,
             signatures: HashMap::new(),
             members: HashMap::new(),
+            member_order: HashMap::new(),
             immutable_members: HashMap::new(),
             ctors: HashMap::new(),
             ctor_signatures: HashMap::new(),
@@ -118,17 +122,6 @@ impl<'i> TypeEnv<'i> {
 
     /// nominal 子类型（传递超类型链）。
     pub fn fqn_is_subtype(&self, sub: Symbol, sup: Symbol) -> bool {
-        eprintln!(
-            "DEBUG fqn_is_subtype sub={} sup={} same_simple={} supertypes={:?}",
-            self.interner.resolve(sub),
-            self.interner.resolve(sup),
-            self.fqn_same_simple_name(sub, sup),
-            self.index
-                .supertypes_of(sub)
-                .iter()
-                .map(|s| self.interner.resolve(*s).to_string())
-                .collect::<Vec<_>>()
-        );
         if sub == sup || self.fqn_same_simple_name(sub, sup) {
             return true;
         }
@@ -417,7 +410,12 @@ impl<'i> TypeEnv<'i> {
                     type_param_count: s.type_param_count,
                     param_names: s.param_names,
                     has_defaults: s.has_defaults,
-                    effect_row: resolve_signature_effect_row(store, index_ref, interner_ref, s.effect.as_ref()),
+                    effect_row: resolve_signature_effect_row(
+                        store,
+                        index_ref,
+                        interner_ref,
+                        s.effect.as_ref(),
+                    ),
                     has_vararg: s.has_vararg,
                     decl_span: s.decl_span,
                     decl_file: s.decl_file,
@@ -453,10 +451,14 @@ impl<'i> TypeEnv<'i> {
             })
             .collect();
         // 收集超类型 → 直接子类型映射（反转 index.supertypes），供 MIR 去虚化 CHA。
-        let mut direct_subtypes: std::collections::HashMap<scoop2_base::Symbol, Vec<scoop2_base::Symbol>> =
-            std::collections::HashMap::new();
-        let mut supertypes: std::collections::HashMap<scoop2_base::Symbol, Vec<scoop2_base::Symbol>> =
-            std::collections::HashMap::new();
+        let mut direct_subtypes: std::collections::HashMap<
+            scoop2_base::Symbol,
+            Vec<scoop2_base::Symbol>,
+        > = std::collections::HashMap::new();
+        let mut supertypes: std::collections::HashMap<
+            scoop2_base::Symbol,
+            Vec<scoop2_base::Symbol>,
+        > = std::collections::HashMap::new();
         for (child, supers) in index.supertypes_iter() {
             for &sup in supers {
                 direct_subtypes.entry(sup).or_default().push(child);
@@ -474,7 +476,9 @@ impl<'i> TypeEnv<'i> {
             .map(|(k, m)| {
                 (
                     k,
-                    m.into_iter().map(|(mk, v)| (mk, convert_sigs(v, &mut store))).collect(),
+                    m.into_iter()
+                        .map(|(mk, v)| (mk, convert_sigs(v, &mut store)))
+                        .collect(),
                 )
             })
             .collect();
@@ -502,6 +506,7 @@ impl<'i> TypeEnv<'i> {
             top_level_funs,
             member_funs,
             members: self.members,
+            member_order: self.member_order,
             ctor_signatures,
             top_level_vals: self.top_level_vals,
             enum_variants: self.enum_variants,
@@ -563,7 +568,10 @@ fn resolve_signature_effect_row(
         if let Some(fqn) = interner.get(&fqn_text)
             && index.category(fqn).is_some()
         {
-            let is_ref = matches!(index.category(fqn), Some(NominalCategory::Class | NominalCategory::Interface | NominalCategory::Effect));
+            let is_ref = matches!(
+                index.category(fqn),
+                Some(NominalCategory::Class | NominalCategory::Interface | NominalCategory::Effect)
+            );
             let nominal = NominalType {
                 fqn,
                 args: vec![],
@@ -1039,10 +1047,20 @@ fn register_body_members(
                             diags,
                         );
                         let ft = lower.lower(&field.ty);
+                        let is_new = !env
+                            .members
+                            .get(&variant_fqn)
+                            .is_some_and(|m| m.contains_key(&field.name.symbol));
                         env.members
                             .entry(variant_fqn)
                             .or_default()
                             .insert(field.name.symbol, ft);
+                        if is_new {
+                            env.member_order
+                                .entry(variant_fqn)
+                                .or_default()
+                                .push(field.name.symbol);
+                        }
                     }
                 }
             }
@@ -1067,7 +1085,16 @@ fn lower_and_store_member(
         let mut lower = TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
         lower.lower(ty)
     };
+    let is_new = !env
+        .members
+        .get(&owner)
+        .is_some_and(|m| m.contains_key(&name));
     env.members.entry(owner).or_default().insert(name, lowered);
+    // 声明序侧表：同名成员重复登记（如主构造 param-property 与体内同名声明）
+    // 只保留首次出现的位置。
+    if is_new {
+        env.member_order.entry(owner).or_default().push(name);
+    }
 }
 
 pub(super) fn build_tp_map(tpl: Option<&TypeParamList>) -> HashMap<Symbol, TypeParamType> {

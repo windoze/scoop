@@ -367,10 +367,7 @@ pub enum StatementKind {
     /// 空操作（占位 / trailing）。
     Nop,
     /// `target = rvalue`（核心赋值）。
-    Assign {
-        target: LocalId,
-        value: Rvalue,
-    },
+    Assign { target: LocalId, value: Rvalue },
     /// 成员字段写：`receiver.member = value`。
     StoreMember {
         receiver: Operand,
@@ -393,9 +390,7 @@ pub enum StatementKind {
         value_ty: TypeId,
     },
     /// 运行期断言失败（`!!` / 不可达分支）：发出 panic（无值）。
-    Panic {
-        message: String,
-    },
+    Panic { message: String },
 }
 
 // ---------------------------------------------------------------------------
@@ -446,9 +441,7 @@ pub enum Rvalue {
     /// 顶层值引用（`value_ref` 命中 TopLevelValue）。
     TopLevelRef(TopLevelRef),
     /// 未解析的名字（resolve/typecheck 失败时的兜底；verify 会拒绝）。
-    UnresolvedName {
-        name: String,
-    },
+    UnresolvedName { name: String },
     /// `expr is T` / `expr !is T` 运行期类型测试。
     TypeTest {
         site_id: Option<SiteId>,
@@ -523,9 +516,7 @@ pub enum Rvalue {
         transport: AggregateTransportMetadata,
     },
     /// f-string 拼接（lowering 为 `String.concat(...)` 调用链的结果）。
-    InterpolatedString {
-        parts: Vec<InterpolatedPart>,
-    },
+    InterpolatedString { parts: Vec<InterpolatedPart> },
     /// `expr with { path: v, .. }`（不可变更新；构造副本）。
     WithUpdate {
         base: Operand,
@@ -539,21 +530,13 @@ pub enum Rvalue {
         env_contract: ClosureEnvTransportMetadata,
     },
     /// `T::class`（类型元数据字面量）。
-    ClassLit {
-        type_fqn: Symbol,
-    },
+    ClassLit { type_fqn: Symbol },
     /// effect 操作的结果占位（perform 终结符在 resume_target 续点产出此值）。
     /// 该 Rvalue 由 `Perform` 终结符写入对应的 resume local；本身不执行 effect。
-    PerformResult {
-        op_fqn: String,
-        result_ty: TypeId,
-    },
+    PerformResult { op_fqn: String, result_ty: TypeId },
     /// 模式匹配测试：`subject` 是否匹配 `pattern`，产出 Bool。
     /// 用于 `when` arm 的模式测试（variant tag / literal / type test）。
-    PatternMatch {
-        subject: Operand,
-        pattern: Pattern,
-    },
+    PatternMatch { subject: Operand, pattern: Pattern },
     /// 模式提取：从已匹配的 `subject` 中按 `path` 提取 binder 值。
     /// path 是投影序列（tuple index / variant field index）。
     PatternExtract {
@@ -563,10 +546,7 @@ pub enum Rvalue {
     },
     /// 整数相等比较：`lhs == rhs`，产出 Bool。
     /// 用于 effect lowering 的 state dispatch（检查 frame.state 值）。
-    IntEq {
-        lhs: Operand,
-        rhs: Operand,
-    },
+    IntEq { lhs: Operand, rhs: Operand },
 }
 
 /// 调用实参（可命名 / 可展开 `*expr`）。
@@ -636,14 +616,9 @@ pub enum CallKind {
         dispatch: DispatchMetadata,
     },
     /// 闭包调用（callable 值 + 已知 invoke 目标）。
-    Closure {
-        callee: Operand,
-        invoke_fqn: String,
-    },
+    Closure { callee: Operand, invoke_fqn: String },
     /// 函数值调用（未退化为 direct/closure 的函数类型值）。
-    FunValue {
-        callee: Operand,
-    },
+    FunValue { callee: Operand },
     /// continuation resume 调用（`k.resume(value)`）。
     /// continuation 是 Continuation<Resume, Answer, eff E> 接口的实例。
     Resume {
@@ -701,13 +676,9 @@ impl Terminator {
 #[derive(Clone, Debug)]
 pub enum TerminatorKind {
     /// 函数返回（`None` = Unit/隐式 return）。
-    Return {
-        value: Option<Operand>,
-    },
+    Return { value: Option<Operand> },
     /// 无条件跳转。
-    Goto {
-        target: BasicBlockId,
-    },
+    Goto { target: BasicBlockId },
     /// 条件分支。
     CondBr {
         cond: Operand,

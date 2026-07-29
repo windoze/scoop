@@ -121,15 +121,9 @@ fn exact_receiver_fqn(
             // 内建标量 Int 映射到 nominal FQN scoop.core.Int。
             ctx.interner.get("scoop.core.Int")
         }
-        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::UInt) => {
-            ctx.interner.get("scoop.core.UInt")
-        }
-        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Bool) => {
-            ctx.interner.get("scoop.core.Bool")
-        }
-        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Char) => {
-            ctx.interner.get("scoop.core.Char")
-        }
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::UInt) => ctx.interner.get("scoop.core.UInt"),
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Bool) => ctx.interner.get("scoop.core.Bool"),
+        TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Char) => ctx.interner.get("scoop.core.Char"),
         TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Float64) => {
             ctx.interner.get("scoop.core.Float64")
         }
@@ -147,11 +141,7 @@ fn exact_receiver_fqn(
 }
 
 /// 判断一个类型是否为 final（不可有子类 → 虚方法可安全退化为直接调用）。
-fn is_final_type(
-    store: &TypeStore,
-    ctx: &DevirtContext,
-    ty: scoop2_hir::ty::TypeId,
-) -> bool {
+fn is_final_type(store: &TypeStore, ctx: &DevirtContext, ty: scoop2_hir::ty::TypeId) -> bool {
     match store.kind(ty) {
         TypeKind::Value(_) | TypeKind::Nothing => true,
         TypeKind::Ref(RefTypeKind::String) => true, // String 是 final（无子类）。
@@ -190,20 +180,38 @@ fn devirtualize_call_kind(
     args: &mut Vec<crate::mir::CallArg>,
 ) {
     // Virtual（class vtable）和 Interface（itable）分发都可在满足条件时退化为 Direct。
-    let (is_interface_dispatch, receiver_ty, owner_fqn, member_name, receiver_operand) = match &kind {
-        CallKind::Virtual { dispatch, receiver } => (false, dispatch.receiver_ty, dispatch.owner_fqn.clone(), dispatch.member_name.clone(), Some(receiver.clone())),
-        CallKind::Interface { dispatch, receiver } => (true, dispatch.receiver_ty, dispatch.owner_fqn.clone(), dispatch.member_name.clone(), Some(receiver.clone())),
+    let (is_interface_dispatch, receiver_ty, owner_fqn, member_name, receiver_operand) = match &kind
+    {
+        CallKind::Virtual { dispatch, receiver } => (
+            false,
+            dispatch.receiver_ty,
+            dispatch.owner_fqn.clone(),
+            dispatch.member_name.clone(),
+            Some(receiver.clone()),
+        ),
+        CallKind::Interface { dispatch, receiver } => (
+            true,
+            dispatch.receiver_ty,
+            dispatch.owner_fqn.clone(),
+            dispatch.member_name.clone(),
+            Some(receiver.clone()),
+        ),
         _ => return,
     };
 
     // 提取 dispatch 的共享数据（在 clone 后操作，避免借用冲突）。
-    let dispatch_data: Option<(crate::mir::transport::DispatchMetadata, Option<crate::mir::StableTemplateKey>)> = match &kind {
+    let dispatch_data: Option<(
+        crate::mir::transport::DispatchMetadata,
+        Option<crate::mir::StableTemplateKey>,
+    )> = match &kind {
         CallKind::Virtual { dispatch, .. } | CallKind::Interface { dispatch, .. } => {
             Some((dispatch.clone(), dispatch.stable_template_key.clone()))
         }
         _ => None,
     };
-    let Some((dispatch, stk)) = dispatch_data else { return };
+    let Some((dispatch, stk)) = dispatch_data else {
+        return;
+    };
 
     // 条件 1：final 类型 → 直接去虚化（用 member_fqn 或 owner.member）。
     let callee_fqn = if is_final_type(store, ctx, receiver_ty) {
@@ -334,8 +342,9 @@ mod tests {
         std::sync::LazyLock::new(HashSet::new);
     static EMPTY_INTERFACE: std::sync::LazyLock<HashSet<scoop2_base::Symbol>> =
         std::sync::LazyLock::new(HashSet::new);
-    static EMPTY_SUBTYPES: std::sync::LazyLock<HashMap<scoop2_base::Symbol, Vec<scoop2_base::Symbol>>> =
-        std::sync::LazyLock::new(HashMap::new);
+    static EMPTY_SUBTYPES: std::sync::LazyLock<
+        HashMap<scoop2_base::Symbol, Vec<scoop2_base::Symbol>>,
+    > = std::sync::LazyLock::new(HashMap::new);
 
     /// 构造测试用 DevirtContext（空集合：无 interface、无可继承 class、无子类）。
     fn empty_ctx(interner: &Interner) -> DevirtContext<'_> {

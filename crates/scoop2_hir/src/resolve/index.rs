@@ -289,7 +289,9 @@ impl Index {
     /// 返回所有 (child FQN → 直接超类型 FQN 列表) 的迭代器。
     /// 供 typecheck 收集子类层次（去虚化 CHA 用）。
     pub fn supertypes_iter(&self) -> impl Iterator<Item = (Symbol, &[Symbol])> + '_ {
-        self.supertypes.iter().map(|(fqn, supers)| (*fqn, supers.as_slice()))
+        self.supertypes
+            .iter()
+            .map(|(fqn, supers)| (*fqn, supers.as_slice()))
     }
 
     /// 记录 typealias 目标（`typealias Name = Target`）。

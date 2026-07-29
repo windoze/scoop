@@ -39,7 +39,14 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             let ops: Vec<Operand> = els.iter().map(|e| lower_expr(builder, e)).collect();
             let tmp = builder.alloc_temp(ty, span);
             let transport = builder.aggregate_transport(ty, AggregateTransportKind::Tuple);
-            builder.assign(tmp, Rvalue::MakeTuple { elements: ops, transport }, span);
+            builder.assign(
+                tmp,
+                Rvalue::MakeTuple {
+                    elements: ops,
+                    transport,
+                },
+                span,
+            );
             Operand::Local(tmp)
         }
         ExprKind::ArrayLit(els) => {
@@ -53,7 +60,14 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
                 ty
             };
             let tmp = builder.alloc_temp(arr_ty, span);
-            builder.assign(tmp, Rvalue::MakeArray { elements: ops, result_ty: arr_ty }, span);
+            builder.assign(
+                tmp,
+                Rvalue::MakeArray {
+                    elements: ops,
+                    result_ty: arr_ty,
+                },
+                span,
+            );
             Operand::Local(tmp)
         }
         ExprKind::StructLit { name, fields } => {
@@ -82,16 +96,19 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             );
             Operand::Local(tmp)
         }
-        ExprKind::Block(b) | ExprKind::DoBlock(b) | ExprKind::UnsafeBlock(b) | ExprKind::SafeBlock(b) => {
-            super::stmt::lower_block(builder, b)
-        }
+        ExprKind::Block(b)
+        | ExprKind::DoBlock(b)
+        | ExprKind::UnsafeBlock(b)
+        | ExprKind::SafeBlock(b) => super::stmt::lower_block(builder, b),
         ExprKind::Lambda(l) => lower_lambda(builder, expr, l, span, ty),
         ExprKind::If {
             cond,
             then_branch,
             else_branch,
         } => lower_if(builder, cond, then_branch, else_branch.as_deref(), span, ty),
-        ExprKind::When { subject, arms } => super::expr::lower_when(builder, subject, arms, span, ty),
+        ExprKind::When { subject, arms } => {
+            super::expr::lower_when(builder, subject, arms, span, ty)
+        }
         ExprKind::Handle {
             body,
             arms,
@@ -103,7 +120,10 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
         ExprKind::SafeMemberAccess { receiver, member } => {
             lower_safe_member_access(builder, receiver, member, span, ty)
         }
-        ExprKind::SpliceField { receiver: _, field: _ } => {
+        ExprKind::SpliceField {
+            receiver: _,
+            field: _,
+        } => {
             // splice field `p.["x"]` / `p.[FieldMeta{...}]` 是 comptime 反射特性，
             // 已从语言移除（spec 演进）。MIR 阶段明确拒绝并引导用户改用具体字段访问 `p.x`。
             builder.error(
@@ -123,7 +143,10 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
         }
         ExprKind::Call { callee, args } => lower_call(builder, callee, args, span, ty),
         ExprKind::ClassLit { path } => {
-            let type_fqn = resolve_struct_fqn(builder, path.segments.last().map(|s| s.symbol).unwrap_or_default());
+            let type_fqn = resolve_struct_fqn(
+                builder,
+                path.segments.last().map(|s| s.symbol).unwrap_or_default(),
+            );
             let tmp = builder.alloc_temp(ty, span);
             builder.assign(tmp, Rvalue::ClassLit { type_fqn }, span);
             Operand::Local(tmp)
@@ -135,7 +158,11 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             name,
             arg,
         } => lower_infix_call(builder, receiver, name.symbol, arg, span, ty),
-        ExprKind::TypeCheck { expr: inner, op, ty: test_ty } => {
+        ExprKind::TypeCheck {
+            expr: inner,
+            op,
+            ty: test_ty,
+        } => {
             let v = lower_expr(builder, inner);
             let test_ty_id = resolve_typeref(builder, test_ty);
             let operand_ty_id = super::stmt::operand_ty(builder, &v);
@@ -168,7 +195,11 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             );
             Operand::Local(tmp)
         }
-        ExprKind::Cast { expr: inner, op, ty: target } => {
+        ExprKind::Cast {
+            expr: inner,
+            op,
+            ty: target,
+        } => {
             let v = lower_expr(builder, inner);
             let target_ty = resolve_typeref(builder, target);
             let operand_ty_id = super::stmt::operand_ty(builder, &v);
@@ -216,7 +247,12 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
 }
 
 /// lower ident 引用：局部 / 顶层值 / 顶层函数 / 内建字面量。
-fn lower_ident(builder: &mut FnLowering, sym: Symbol, span: Span, ty: scoop2_hir::ty::TypeId) -> Operand {
+fn lower_ident(
+    builder: &mut FnLowering,
+    sym: Symbol,
+    span: Span,
+    ty: scoop2_hir::ty::TypeId,
+) -> Operand {
     let name = builder.hir.interner.resolve(sym);
     // 局部。
     if let Some(&lid) = builder.symbol_locals.get(&sym) {
@@ -236,7 +272,10 @@ fn lower_ident(builder: &mut FnLowering, sym: Symbol, span: Span, ty: scoop2_hir
         _ => {}
     }
     // 顶层值。
-    if let Some(rv) = builder.hir.value_ref(builder.file_id, span_node(builder, sym, span)) {
+    if let Some(rv) = builder
+        .hir
+        .value_ref(builder.file_id, span_node(builder, sym, span))
+    {
         if let scoop2_hir::resolve::ResolvedValue::TopLevelValue { fqn } = rv {
             let fqn_str = builder.hir.interner.resolve(*fqn).to_string();
             let tmp = builder.alloc_temp(ty, span);
@@ -245,7 +284,12 @@ fn lower_ident(builder: &mut FnLowering, sym: Symbol, span: Span, ty: scoop2_hir
                 Rvalue::TopLevelRef(TopLevelRef {
                     fqn: fqn_str,
                     hidden_effects: EffectRow::pure(),
-                    stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &builder.hir.interner.resolve(*fqn).to_string(), &[], "")),
+                    stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(
+                        crate::mir::stable_id::StableHashScope::Dump,
+                        &builder.hir.interner.resolve(*fqn).to_string(),
+                        &[],
+                        "",
+                    )),
                     stable_instance_key: None,
                     generic_type_args: vec![],
                     generic_eff_args: vec![],
@@ -264,7 +308,12 @@ fn lower_ident(builder: &mut FnLowering, sym: Symbol, span: Span, ty: scoop2_hir
             Rvalue::TopLevelRef(TopLevelRef {
                 fqn: fqn_str,
                 hidden_effects: EffectRow::pure(),
-                stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(crate::mir::stable_id::StableHashScope::Dump, &builder.hir.interner.resolve(sym).to_string(), &[], "")),
+                stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(
+                    crate::mir::stable_id::StableHashScope::Dump,
+                    &builder.hir.interner.resolve(sym).to_string(),
+                    &[],
+                    "",
+                )),
                 stable_instance_key: None,
                 generic_type_args: vec![],
                 generic_eff_args: vec![],
@@ -398,7 +447,8 @@ fn lower_call(
             // 优先检测 enum variant 构造（`Color.Red(42)`）。
             if let ExprKind::Ident(recv_ident) = &receiver.kind
                 && let MemberName::Named(variant_ident) = member
-                && let Some(rc) = derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
+                && let Some(rc) =
+                    derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
             {
                 return emit_call_resolution(builder, &rc, mir_args, span, ty, None);
             }
@@ -422,7 +472,14 @@ fn lower_call(
                 member_fqn: member_fqn.clone(),
                 member_decl_span: None,
                 receiver_ty: recv_ty,
-                stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, stk.clone(), &builder.types, &builder.hir.interner, &[], &[])],
+                stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(
+                    crate::mir::stable_id::StableHashScope::Dump,
+                    stk.clone(),
+                    &builder.types,
+                    &builder.hir.interner,
+                    &[],
+                    &[],
+                )],
                 stable_template_key: Some(stk),
                 generic_type_args: vec![],
                 generic_eff_args: vec![],
@@ -430,9 +487,15 @@ fn lower_call(
             // 通过 interface_fqns 区分 itable vs class vtable 分发通道。
             let is_interface = builder.hir.interface_fqns.contains(&owner_sym);
             let kind = if is_interface {
-                crate::mir::CallKind::Interface { receiver: recv, dispatch }
+                crate::mir::CallKind::Interface {
+                    receiver: recv,
+                    dispatch,
+                }
             } else {
-                crate::mir::CallKind::Virtual { receiver: recv, dispatch }
+                crate::mir::CallKind::Virtual {
+                    receiver: recv,
+                    dispatch,
+                }
             };
             let site_id = Some(builder.next_site_id());
             let transport = builder.call_transport(ty);
@@ -451,7 +514,11 @@ fn lower_call(
         _ => {
             // TypeApply callee（如 `identity<Int>(42)`）：解包到内部 callee（Ident），
             // 提取显式类型实参。
-            if let ExprKind::TypeApply { callee: inner_callee, args: type_args } = &callee.kind {
+            if let ExprKind::TypeApply {
+                callee: inner_callee,
+                args: type_args,
+            } = &callee.kind
+            {
                 // 提取类型实参（TypeApply 的 args 是 TypeArg）。
                 let explicit_tys: Vec<scoop2_hir::ty::TypeId> = type_args
                     .iter()
@@ -467,14 +534,27 @@ fn lower_call(
                         ast::TypeArgKind::Effect(eff_expr) => {
                             // 把 AST effect row 解析为 EffectRow。
                             // 从 eff_expr.terms 解析每个 term 为 TypeId。
-                            let terms: Vec<scoop2_hir::ty::TypeId> = eff_expr.terms.iter()
+                            let terms: Vec<scoop2_hir::ty::TypeId> = eff_expr
+                                .terms
+                                .iter()
                                 .filter_map(|term| {
                                     let last = term.path.segments.last()?;
                                     let name = builder.hir.interner.resolve(last.symbol);
-                                    if name == "Pure" { return None; }
-                                    builder.hir.interner.get(name)
+                                    if name == "Pure" {
+                                        return None;
+                                    }
+                                    builder
+                                        .hir
+                                        .interner
+                                        .get(name)
                                         .filter(|f| builder.hir.enum_variants.contains_key(f))
-                                        .map(|fqn| builder.types.ref_nominal(scoop2_hir::ty::NominalType { fqn, args: vec![], eff: None }))
+                                        .map(|fqn| {
+                                            builder.types.ref_nominal(scoop2_hir::ty::NominalType {
+                                                fqn,
+                                                args: vec![],
+                                                eff: None,
+                                            })
+                                        })
                                 })
                                 .collect();
                             Some(scoop2_hir::ty::EffectRow::from_terms(terms))
@@ -486,22 +566,44 @@ fn lower_call(
                 if let ExprKind::Ident(ident) = &inner_callee.kind {
                     let callee_fqn = {
                         let name = builder.hir.interner.resolve(ident.symbol);
-                        let prefix = builder.hir.file(builder.file_id)
-                            .map(|f| f.package_prefix.as_str()).unwrap_or("");
-                        if prefix.is_empty() { name.to_string() } else { format!("{prefix}.{name}") }
+                        let prefix = builder
+                            .hir
+                            .file(builder.file_id)
+                            .map(|f| f.package_prefix.as_str())
+                            .unwrap_or("");
+                        if prefix.is_empty() {
+                            name.to_string()
+                        } else {
+                            format!("{prefix}.{name}")
+                        }
                     };
                     let tmp = builder.alloc_temp(ty, span);
                     let site_id = Some(builder.next_site_id());
                     let transport = builder.call_transport(ty);
-                    let direct_kind = builder.make_direct_call_kind(callee_fqn.clone(), explicit_tys.clone(), false);
+                    let direct_kind = builder.make_direct_call_kind(
+                        callee_fqn.clone(),
+                        explicit_tys.clone(),
+                        false,
+                    );
                     // 设置 generic_eff_args（从 TypeApply effect 实参）。
                     let direct_kind = match direct_kind {
-                        crate::mir::CallKind::Direct { callee_fqn, type_args, is_intrinsic, stable_template_key, stable_instance_key, generic_type_args, .. } => {
-                            crate::mir::CallKind::Direct {
-                                callee_fqn, type_args, is_intrinsic, stable_template_key, stable_instance_key,
-                                generic_type_args, generic_eff_args: explicit_eff_args,
-                            }
-                        }
+                        crate::mir::CallKind::Direct {
+                            callee_fqn,
+                            type_args,
+                            is_intrinsic,
+                            stable_template_key,
+                            stable_instance_key,
+                            generic_type_args,
+                            ..
+                        } => crate::mir::CallKind::Direct {
+                            callee_fqn,
+                            type_args,
+                            is_intrinsic,
+                            stable_template_key,
+                            stable_instance_key,
+                            generic_type_args,
+                            generic_eff_args: explicit_eff_args,
+                        },
                         other => other,
                     };
                     builder.assign(
@@ -538,18 +640,18 @@ fn lower_call(
 }
 
 /// 取 member-call 目标 (owner_fqn, method) 从 member_refs。
-fn member_call_target(
-    builder: &FnLowering,
-    member_expr: &Expr,
-) -> (Symbol, Symbol) {
+fn member_call_target(builder: &FnLowering, member_expr: &Expr) -> (Symbol, Symbol) {
     if let ExprKind::MemberAccess { member, receiver } = &member_expr.kind
         && let MemberName::Named(name) = member
     {
         // 优先从 member_ref 获取。
-        if let Some(rm) = builder.hir.member_ref(builder.file_id, member_expr.id)
-        {
+        if let Some(rm) = builder.hir.member_ref(builder.file_id, member_expr.id) {
             let (owner, meth) = match rm {
-                scoop2_hir::hir::ResolvedMember::Method { owner_fqn, method_name, .. } => (*owner_fqn, *method_name),
+                scoop2_hir::hir::ResolvedMember::Method {
+                    owner_fqn,
+                    method_name,
+                    ..
+                } => (*owner_fqn, *method_name),
                 _ => (Symbol::default(), name.symbol),
             };
             return (owner, meth);
@@ -574,11 +676,7 @@ fn resolve_owner_from_expr(builder: &FnLowering, receiver: &Expr) -> scoop2_base
 
 /// 从 HIR member_funs 查找某 (owner, method) 首个重载的 overload signature
 /// canonical 文本。找不到时返回空串（无法区分同名重载，但不阻断 lowering）。
-fn member_overload_sig(
-    builder: &FnLowering,
-    owner_sym: Symbol,
-    method_sym: Symbol,
-) -> String {
+fn member_overload_sig(builder: &FnLowering, owner_sym: Symbol, method_sym: Symbol) -> String {
     if let Some(methods) = builder.hir.member_funs.get(&owner_sym) {
         if let Some(sigs) = methods.get(&method_sym) {
             if let Some(first) = sigs.first() {
@@ -705,7 +803,11 @@ fn emit_call_resolution(
             // resume 是 continuation 对象上的方法，不是普通的 interface 分发。
             if method_str == "resume" && owner_str.ends_with("Continuation") {
                 // resume 的实参是 resume 值（第一个 arg）。
-                let resume_value = args.into_iter().next().map(|a| a.value).unwrap_or(Operand::Const(crate::mir::ConstValue::Unit));
+                let resume_value = args
+                    .into_iter()
+                    .next()
+                    .map(|a| a.value)
+                    .unwrap_or(Operand::Const(crate::mir::ConstValue::Unit));
                 let kind = crate::mir::CallKind::Resume {
                     continuation: recv,
                     resume_value,
@@ -741,7 +843,14 @@ fn emit_call_resolution(
                     member_fqn: member_fqn.clone(),
                     member_decl_span: None,
                     receiver_ty: *receiver_ty,
-                    stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, stk.clone(), &builder.types, &builder.hir.interner, &[], &[])],
+                    stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(
+                        crate::mir::stable_id::StableHashScope::Dump,
+                        stk.clone(),
+                        &builder.types,
+                        &builder.hir.interner,
+                        &[],
+                        &[],
+                    )],
                     stable_template_key: Some(stk),
                     generic_type_args: explicit_type_args.clone(),
                     generic_eff_args: vec![],
@@ -779,18 +888,72 @@ fn emit_call_resolution(
             }
         }
         ResolvedCall::Constructor { type_fqn, .. } => {
-            let type_fqn_str = builder.hir.interner.resolve(*type_fqn).to_string();
-            Rvalue::ClassCtor {
-                site_id: call_site_id,
-                type_fqn: *type_fqn,
-                ctor: ClassCtorCallMetadata {
-                    target_init_class_fqn: type_fqn_str,
-                    selected_ctor_span: None,
-                    ordered_param_count: args.len(),
-                    stable_template_key: None,
-                },
-                args,
-                hidden_effects: EffectRow::pure(),
+            // struct 是值类型：不走堆分配 ctor，发 StructLit（codegen insertvalue
+            // 值语义）。class 才走 ClassCtor（GC 堆对象）。
+            if !builder.hir.class_fqns.contains(type_fqn) {
+                let ordered_names: Vec<scoop2_base::Symbol> = builder
+                    .hir
+                    .member_order
+                    .get(type_fqn)
+                    .cloned()
+                    .unwrap_or_default();
+                let any_named = args.iter().any(|a| a.name.is_some());
+                let mut mir_fields: Vec<crate::mir::StructLitField> =
+                    Vec::with_capacity(args.len());
+                if any_named {
+                    // 命名实参：按 member_order 声明序重排（字段布局顺序）。
+                    for &mname in &ordered_names {
+                        if let Some(arg) = args.iter().find(|a| a.name == Some(mname)) {
+                            mir_fields.push(crate::mir::StructLitField {
+                                name: mname,
+                                value: arg.value.clone(),
+                                value_ty: arg.value_ty,
+                            });
+                        }
+                    }
+                    // member_order 未覆盖的命名实参（防御）：按原顺序追加。
+                    for arg in &args {
+                        if let Some(n) = arg.name
+                            && !ordered_names.contains(&n)
+                        {
+                            mir_fields.push(crate::mir::StructLitField {
+                                name: n,
+                                value: arg.value.clone(),
+                                value_ty: arg.value_ty,
+                            });
+                        }
+                    }
+                } else {
+                    // 位置实参：与 member_order 声明序一一对应。
+                    for (i, arg) in args.iter().enumerate() {
+                        let name = ordered_names.get(i).copied().unwrap_or_default();
+                        mir_fields.push(crate::mir::StructLitField {
+                            name,
+                            value: arg.value.clone(),
+                            value_ty: arg.value_ty,
+                        });
+                    }
+                }
+                let transport = builder.aggregate_transport(ty, AggregateTransportKind::Struct);
+                Rvalue::StructLit {
+                    type_fqn: *type_fqn,
+                    fields: mir_fields,
+                    transport,
+                }
+            } else {
+                let type_fqn_str = builder.hir.interner.resolve(*type_fqn).to_string();
+                Rvalue::ClassCtor {
+                    site_id: call_site_id,
+                    type_fqn: *type_fqn,
+                    ctor: ClassCtorCallMetadata {
+                        target_init_class_fqn: type_fqn_str,
+                        selected_ctor_span: None,
+                        ordered_param_count: args.len(),
+                        stable_template_key: None,
+                    },
+                    args,
+                    hidden_effects: EffectRow::pure(),
+                }
             }
         }
         ResolvedCall::EnumVariant {
@@ -837,18 +1000,19 @@ fn emit_call_resolution(
             let resume_local = builder.alloc_temp(ty, span);
             let resume_target = builder.new_block();
             // 从 args 构造 payload metadata。
-            let payload_component_tys: Vec<scoop2_hir::ty::TypeId> = args
-                .iter()
-                .map(|a| a.value_ty)
-                .collect();
-            let payload_transport: Vec<crate::mir::transport::ValueTransportMetadata> = payload_component_tys
-                .iter()
-                .map(|&t| crate::mir::transport::value_transport(
-                    &builder.types,
-                    &builder.enum_fqns,
-                    t,
-                ))
-                .collect();
+            let payload_component_tys: Vec<scoop2_hir::ty::TypeId> =
+                args.iter().map(|a| a.value_ty).collect();
+            let payload_transport: Vec<crate::mir::transport::ValueTransportMetadata> =
+                payload_component_tys
+                    .iter()
+                    .map(|&t| {
+                        crate::mir::transport::value_transport(
+                            &builder.types,
+                            &builder.enum_fqns,
+                            t,
+                        )
+                    })
+                    .collect();
             let payload_tuple_ty = if payload_component_tys.len() == 1 {
                 // 单参数：payload 类型 = 参数类型本身。
                 Some(payload_component_tys[0])
@@ -863,18 +1027,35 @@ fn emit_call_resolution(
                 effect_ty: {
                     // 解析 effect 类型：尝试从 effect_name 查找 nominal。
                     let eff_name = builder.hir.interner.resolve(*effect_name);
-                    let prefix = builder.hir.file(builder.file_id)
-                        .map(|f| f.package_prefix.as_str()).unwrap_or("");
+                    let prefix = builder
+                        .hir
+                        .file(builder.file_id)
+                        .map(|f| f.package_prefix.as_str())
+                        .unwrap_or("");
                     let candidates = if prefix.is_empty() {
                         vec![eff_name.to_string(), format!("scoop.core.{eff_name}")]
                     } else {
-                        vec![eff_name.to_string(), format!("{prefix}.{eff_name}"), format!("scoop.core.{eff_name}")]
+                        vec![
+                            eff_name.to_string(),
+                            format!("{prefix}.{eff_name}"),
+                            format!("scoop.core.{eff_name}"),
+                        ]
                     };
-                    candidates.iter()
+                    candidates
+                        .iter()
                         .filter_map(|c| builder.hir.interner.get(c))
-                        .filter(|f| builder.hir.enum_variants.contains_key(f) || builder.hir.member_funs.contains_key(f))
+                        .filter(|f| {
+                            builder.hir.enum_variants.contains_key(f)
+                                || builder.hir.member_funs.contains_key(f)
+                        })
                         .next()
-                        .map(|fqn| builder.types.ref_nominal(scoop2_hir::ty::NominalType { fqn, args: vec![], eff: None }))
+                        .map(|fqn| {
+                            builder.types.ref_nominal(scoop2_hir::ty::NominalType {
+                                fqn,
+                                args: vec![],
+                                eff: None,
+                            })
+                        })
                         .unwrap_or_else(|| builder.types.any())
                 },
                 op_type_args: vec![],
@@ -957,14 +1138,25 @@ fn lower_unary(
             member_fqn: member_fqn.clone(),
             member_decl_span: None,
             receiver_ty: inner_ty,
-            stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, stk.clone(), &builder.types, &builder.hir.interner, &[], &[])],
+            stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(
+                crate::mir::stable_id::StableHashScope::Dump,
+                stk.clone(),
+                &builder.types,
+                &builder.hir.interner,
+                &[],
+                &[],
+            )],
             stable_template_key: Some(stk),
             generic_type_args: vec![],
             generic_eff_args: vec![],
         };
         let site_id = Some(builder.next_site_id());
         let transport = builder.call_transport(bool_ty);
-        let kind = builder.make_dispatch_call_kind(super::stmt::resolve_owner_fqn_from_operand(builder, &v), v, dispatch);
+        let kind = builder.make_dispatch_call_kind(
+            super::stmt::resolve_owner_fqn_from_operand(builder, &v),
+            v,
+            dispatch,
+        );
         builder.assign(
             tmp,
             Rvalue::Call {
@@ -1350,14 +1542,25 @@ fn lower_infix_call(
         member_fqn: member_fqn.clone(),
         member_decl_span: None,
         receiver_ty: recv_ty,
-        stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(crate::mir::stable_id::StableHashScope::Dump, stk.clone(), &builder.types, &builder.hir.interner, &[], &[])],
+        stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(
+            crate::mir::stable_id::StableHashScope::Dump,
+            stk.clone(),
+            &builder.types,
+            &builder.hir.interner,
+            &[],
+            &[],
+        )],
         stable_template_key: Some(stk),
         generic_type_args: vec![],
         generic_eff_args: vec![],
     };
     let site_id = Some(builder.next_site_id());
     let transport = builder.call_transport(ty);
-    let kind = builder.make_dispatch_call_kind(super::stmt::resolve_owner_fqn_from_operand(builder, &recv), recv, dispatch);
+    let kind = builder.make_dispatch_call_kind(
+        super::stmt::resolve_owner_fqn_from_operand(builder, &recv),
+        recv,
+        dispatch,
+    );
     builder.assign(
         tmp,
         Rvalue::Call {
@@ -1425,7 +1628,9 @@ fn lower_member_access(
             let name_str = builder.hir.interner.resolve(name.symbol).to_string();
             let member_meta = builder.member_access_metadata(&name_str, recv_ty);
             // 查 member_refs（仅用于记录；metadata.resolved 暂留 None，后续 resolve 阶段填充）。
-            let _ = builder.hir.member_ref(builder.file_id, receiver.id.max(receiver.id));
+            let _ = builder
+                .hir
+                .member_ref(builder.file_id, receiver.id.max(receiver.id));
             let tmp = builder.alloc_temp(ty, span);
             let site_id = Some(builder.next_site_id());
             builder.assign(
@@ -1571,7 +1776,9 @@ fn lower_interpolated(
     let mut mir_parts = Vec::new();
     for part in parts {
         match part {
-            ast::StringPart::Text(s) => mir_parts.push(crate::mir::InterpolatedPart::Lit(s.clone())),
+            ast::StringPart::Text(s) => {
+                mir_parts.push(crate::mir::InterpolatedPart::Lit(s.clone()))
+            }
             ast::StringPart::Expr(e) => {
                 let v = lower_expr(builder, e);
                 mir_parts.push(crate::mir::InterpolatedPart::Expr(v));
@@ -1579,11 +1786,7 @@ fn lower_interpolated(
         }
     }
     let tmp = builder.alloc_temp(ty, span);
-    builder.assign(
-        tmp,
-        Rvalue::InterpolatedString { parts: mir_parts },
-        span,
-    );
+    builder.assign(tmp, Rvalue::InterpolatedString { parts: mir_parts }, span);
     Operand::Local(tmp)
 }
 
@@ -1664,12 +1867,18 @@ fn scan_stmt_idents(s: &ast::Stmt, syms: &mut std::collections::HashSet<scoop2_b
             }
             // 排除声明的绑定名（它是新的局部，不是自由变量）。
             match &d.binding {
-                ast::ValBinding::Name(n) => { syms.remove(&n.symbol); }
-                ast::ValBinding::Pattern(p) => { remove_pattern_binders(p, syms); }
+                ast::ValBinding::Name(n) => {
+                    syms.remove(&n.symbol);
+                }
+                ast::ValBinding::Pattern(p) => {
+                    remove_pattern_binders(p, syms);
+                }
             }
         }
         ast::StmtKind::Return { value } => {
-            if let Some(e) = value { scan_expr_idents(e, syms); }
+            if let Some(e) = value {
+                scan_expr_idents(e, syms);
+            }
         }
         ast::StmtKind::While { cond, body } => {
             scan_expr_idents(cond, syms);
@@ -1683,13 +1892,20 @@ fn scan_stmt_idents(s: &ast::Stmt, syms: &mut std::collections::HashSet<scoop2_b
     }
 }
 
-fn scan_assign_target_idents(t: &ast::AssignTarget, syms: &mut std::collections::HashSet<scoop2_base::Symbol>) {
+fn scan_assign_target_idents(
+    t: &ast::AssignTarget,
+    syms: &mut std::collections::HashSet<scoop2_base::Symbol>,
+) {
     match &t.kind {
-        ast::AssignTargetKind::Ident(id) => { syms.insert(id.symbol); }
+        ast::AssignTargetKind::Ident(id) => {
+            syms.insert(id.symbol);
+        }
         ast::AssignTargetKind::Member { receiver, .. } => scan_expr_idents(receiver, syms),
         ast::AssignTargetKind::Index { receiver, indices } => {
             scan_expr_idents(receiver, syms);
-            for i in indices { scan_expr_idents(i, syms); }
+            for i in indices {
+                scan_expr_idents(i, syms);
+            }
         }
     }
 }
@@ -1705,14 +1921,18 @@ fn scan_expr_idents(e: &Expr, syms: &mut std::collections::HashSet<scoop2_base::
         }
         ExprKind::Call { callee, args } => {
             scan_expr_idents(callee, syms);
-            for a in args { scan_expr_idents(&a.value, syms); }
+            for a in args {
+                scan_expr_idents(&a.value, syms);
+            }
         }
         ExprKind::MemberAccess { receiver, .. } | ExprKind::SafeMemberAccess { receiver, .. } => {
             scan_expr_idents(receiver, syms);
         }
         ExprKind::Index { receiver, indices } => {
             scan_expr_idents(receiver, syms);
-            for i in indices { scan_expr_idents(i, syms); }
+            for i in indices {
+                scan_expr_idents(i, syms);
+            }
         }
         ExprKind::Binary { lhs, rhs, .. } => {
             scan_expr_idents(lhs, syms);
@@ -1723,31 +1943,47 @@ fn scan_expr_idents(e: &Expr, syms: &mut std::collections::HashSet<scoop2_base::
             scan_expr_idents(receiver, syms);
             scan_expr_idents(arg, syms);
         }
-        ExprKind::If { cond, then_branch, else_branch } => {
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
             scan_expr_idents(cond, syms);
             scan_expr_idents(then_branch, syms);
-            if let Some(eb) = else_branch { scan_expr_idents(eb, syms); }
+            if let Some(eb) = else_branch {
+                scan_expr_idents(eb, syms);
+            }
         }
         ExprKind::When { subject, arms } => {
             scan_expr_idents(subject, syms);
             for arm in arms {
-                if let Some(g) = &arm.guard { scan_expr_idents(g, syms); }
+                if let Some(g) = &arm.guard {
+                    scan_expr_idents(g, syms);
+                }
                 scan_expr_idents(&arm.body, syms);
             }
         }
         ExprKind::TupleLit(els) | ExprKind::ArrayLit(els) => {
-            for e in els { scan_expr_idents(e, syms); }
+            for e in els {
+                scan_expr_idents(e, syms);
+            }
         }
         ExprKind::StructLit { fields, .. } => {
-            for f in fields { scan_expr_idents(&f.value, syms); }
+            for f in fields {
+                scan_expr_idents(&f.value, syms);
+            }
         }
         ExprKind::WithUpdate { base, updates } => {
             scan_expr_idents(base, syms);
-            for u in updates { scan_expr_idents(&u.value, syms); }
+            for u in updates {
+                scan_expr_idents(&u.value, syms);
+            }
         }
         ExprKind::InterpolatedString { parts, .. } => {
             for p in parts {
-                if let ast::StringPart::Expr(e) = p { scan_expr_idents(e, syms); }
+                if let ast::StringPart::Expr(e) = p {
+                    scan_expr_idents(e, syms);
+                }
             }
         }
         ExprKind::Lambda(l) => {
@@ -1757,19 +1993,28 @@ fn scan_expr_idents(e: &Expr, syms: &mut std::collections::HashSet<scoop2_base::
                 ast::LambdaBody::Block(b) => scan_block_idents(b, &mut nested),
                 ast::LambdaBody::Expr(e) => scan_expr_idents(e, &mut nested),
             }
-            for p in &l.params { nested.remove(&p.name.symbol); }
+            for p in &l.params {
+                nested.remove(&p.name.symbol);
+            }
             syms.extend(nested);
         }
-        ExprKind::Block(b) | ExprKind::DoBlock(b) | ExprKind::UnsafeBlock(b) | ExprKind::SafeBlock(b) => {
+        ExprKind::Block(b)
+        | ExprKind::DoBlock(b)
+        | ExprKind::UnsafeBlock(b)
+        | ExprKind::SafeBlock(b) => {
             scan_block_idents(b, syms);
         }
         ExprKind::NotNullAssert { expr } => scan_expr_idents(expr, syms),
         ExprKind::TypeApply { callee, .. } => scan_expr_idents(callee, syms),
-        ExprKind::TypeCheck { expr, .. } | ExprKind::Cast { expr, .. } => scan_expr_idents(expr, syms),
+        ExprKind::TypeCheck { expr, .. } | ExprKind::Cast { expr, .. } => {
+            scan_expr_idents(expr, syms)
+        }
         ExprKind::Annotated { expr, .. } => scan_expr_idents(expr, syms),
         ExprKind::Handle { body, finally, .. } => {
             scan_block_idents(body, syms);
-            if let Some(f) = finally { scan_block_idents(f, syms); }
+            if let Some(f) = finally {
+                scan_block_idents(f, syms);
+            }
         }
         ExprKind::SpliceField { receiver, field } => {
             scan_expr_idents(receiver, syms);
@@ -1779,18 +2024,34 @@ fn scan_expr_idents(e: &Expr, syms: &mut std::collections::HashSet<scoop2_base::
     }
 }
 
-fn remove_pattern_binders(p: &ast::Pattern, syms: &mut std::collections::HashSet<scoop2_base::Symbol>) {
+fn remove_pattern_binders(
+    p: &ast::Pattern,
+    syms: &mut std::collections::HashSet<scoop2_base::Symbol>,
+) {
     match &p.kind {
-        ast::PatternKind::Bind(n) => { syms.remove(&n.symbol); }
-        ast::PatternKind::Tuple(els) => { for e in els { remove_pattern_binders(e, syms); } }
-        ast::PatternKind::Struct { fields, .. } => {
-            for f in fields {
-                if let Some(p) = &f.pattern { remove_pattern_binders(p, syms); }
-                else { syms.remove(&f.name.symbol); }
+        ast::PatternKind::Bind(n) => {
+            syms.remove(&n.symbol);
+        }
+        ast::PatternKind::Tuple(els) => {
+            for e in els {
+                remove_pattern_binders(e, syms);
             }
         }
-        ast::PatternKind::Variant { args: Some(els), .. } => {
-            for e in els { remove_pattern_binders(e, syms); }
+        ast::PatternKind::Struct { fields, .. } => {
+            for f in fields {
+                if let Some(p) = &f.pattern {
+                    remove_pattern_binders(p, syms);
+                } else {
+                    syms.remove(&f.name.symbol);
+                }
+            }
+        }
+        ast::PatternKind::Variant {
+            args: Some(els), ..
+        } => {
+            for e in els {
+                remove_pattern_binders(e, syms);
+            }
         }
         _ => {}
     }
@@ -1833,7 +2094,9 @@ fn lower_lambda(
                 .unwrap_or(Operand::Const(ConstValue::Unit))
         })
         .collect();
-    let env_ty = builder.types.tuple(captured.iter().map(|(_, t)| *t).collect());
+    let env_ty = builder
+        .types
+        .tuple(captured.iter().map(|(_, t)| *t).collect());
     let env_tmp = builder.alloc_temp(env_ty, span);
     let env_transport = builder.aggregate_transport(env_ty, AggregateTransportKind::Tuple);
     builder.assign(
@@ -1850,24 +2113,36 @@ fn lower_lambda(
     // 预计算 captures metadata（避免在 builder.assign 内部 &mut 借用冲突）。
     let mut captures_meta = Vec::new();
     for (i, (cap_sym, cap_ty)) in captured.iter().enumerate() {
-        let cap_lid = builder.symbol_locals.get(cap_sym).copied().unwrap_or(crate::mir::LocalId(0));
+        let cap_lid = builder
+            .symbol_locals
+            .get(cap_sym)
+            .copied()
+            .unwrap_or(crate::mir::LocalId(0));
         let cap_name = builder.hir.interner.resolve(*cap_sym).to_string();
-        let mutable = builder.body.locals.get(cap_lid.0 as usize)
+        let mutable = builder
+            .body
+            .locals
+            .get(cap_lid.0 as usize)
             .map(|d| d.mutable)
             .unwrap_or(false);
         // 闭包捕获 transport：值类型被捕获到 Any 边界时标记 ClosureCapture boxing。
         let any_ty = builder.types.any();
         let cap_transport = if *cap_ty != any_ty
-            && matches!(builder.types.kind(*cap_ty), scoop2_hir::ty::TypeKind::Value(_))
-        {
+            && matches!(
+                builder.types.kind(*cap_ty),
+                scoop2_hir::ty::TypeKind::Value(_)
+            ) {
             // 值类型捕获到 ref/Any 边界：产生 boxing intent。
             crate::mir::transport::ValueTransportMetadata {
                 source_ty: *cap_ty,
                 kind: crate::mir::transport::mir_transport_kind_for_ty(
-                    &builder.types, *cap_ty, &builder.enum_fqns,
+                    &builder.types,
+                    *cap_ty,
+                    &builder.enum_fqns,
                 ),
                 requirements: crate::mir::transport::mir_transport_requirements(
-                    &builder.types, *cap_ty,
+                    &builder.types,
+                    *cap_ty,
                 ),
                 boxing: Some(crate::mir::transport::MirBoxingIntent {
                     source_ty: *cap_ty,
@@ -1876,9 +2151,7 @@ fn lower_lambda(
                 }),
             }
         } else {
-            crate::mir::transport::value_transport(
-                &builder.types, &builder.enum_fqns, *cap_ty,
-            )
+            crate::mir::transport::value_transport(&builder.types, &builder.enum_fqns, *cap_ty)
         };
         captures_meta.push(crate::mir::transport::ClosureCaptureTransportMetadata {
             name: cap_name,
@@ -1923,8 +2196,7 @@ fn lower_lambda(
             fn_param_tys[i]
         } else {
             // 回退：从 TypeRef 查（可能为 any）。
-            p.ty
-                .as_ref()
+            p.ty.as_ref()
                 .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
                 .unwrap_or_else(|| nested_store.any())
         };
@@ -2153,7 +2425,9 @@ fn lower_pattern_test(
         ast::PatternKind::Else | ast::PatternKind::Wildcard | ast::PatternKind::Rest => {
             Operand::Const(ConstValue::Bool(true))
         }
-        ast::PatternKind::Bind(_) | ast::PatternKind::Tuple(_) | ast::PatternKind::Struct { .. } => {
+        ast::PatternKind::Bind(_)
+        | ast::PatternKind::Tuple(_)
+        | ast::PatternKind::Struct { .. } => {
             // irrefutable 模式：类型已由 typecheck 保证匹配 → 总是命中。
             Operand::Const(ConstValue::Bool(true))
         }
@@ -2162,24 +2436,33 @@ fn lower_pattern_test(
             let variant_name_sym = path.segments.last().map(|s| s.symbol).unwrap_or_default();
             // 解析 enum FQN。
             let enum_fqn = {
-                let prefix = builder.hir.file(builder.file_id)
-                    .map(|f| f.package_prefix.as_str()).unwrap_or("");
+                let prefix = builder
+                    .hir
+                    .file(builder.file_id)
+                    .map(|f| f.package_prefix.as_str())
+                    .unwrap_or("");
                 let vname = builder.hir.interner.resolve(variant_name_sym);
                 let candidates = if prefix.is_empty() {
                     vec![vname.to_string()]
                 } else {
                     vec![vname.to_string(), format!("{prefix}.{vname}")]
                 };
-                candidates.iter()
+                candidates
+                    .iter()
                     .filter_map(|c| builder.hir.interner.get(c))
                     .filter(|f| builder.hir.enum_variants.contains_key(f))
                     .next()
                     .unwrap_or(variant_name_sym)
             };
             // 构造 MIR Pattern::Variant。
-            let mir_args: Vec<crate::mir::Pattern> = args.as_ref().map(|args| {
-                args.iter().map(|a| lower_pattern_to_mir(builder, a)).collect()
-            }).unwrap_or_default();
+            let mir_args: Vec<crate::mir::Pattern> = args
+                .as_ref()
+                .map(|args| {
+                    args.iter()
+                        .map(|a| lower_pattern_to_mir(builder, a))
+                        .collect()
+                })
+                .unwrap_or_default();
             let tmp = builder.alloc_temp(bool_ty, span);
             builder.assign(
                 tmp,
@@ -2257,12 +2540,20 @@ fn lower_pattern_test(
                 );
                 // 匹配成功：result = true，goto merge。
                 builder.current_bb = match_bb;
-                builder.assign(result, Rvalue::Use(Operand::Const(ConstValue::Bool(true))), span);
+                builder.assign(
+                    result,
+                    Rvalue::Use(Operand::Const(ConstValue::Bool(true))),
+                    span,
+                );
                 builder.goto(merge_bb, span);
                 builder.current_bb = next_bb;
             }
             // 所有子模式都不匹配：result = false。
-            builder.assign(result, Rvalue::Use(Operand::Const(ConstValue::Bool(false))), span);
+            builder.assign(
+                result,
+                Rvalue::Use(Operand::Const(ConstValue::Bool(false))),
+                span,
+            );
             builder.goto(merge_bb, span);
             builder.current_bb = merge_bb;
             Operand::Local(result)
@@ -2275,9 +2566,14 @@ fn lower_pattern_to_mir(builder: &mut FnLowering, pat: &ast::Pattern) -> crate::
     match &pat.kind {
         ast::PatternKind::Wildcard => crate::mir::Pattern::Wildcard,
         ast::PatternKind::Bind(name) => {
-            let ty = builder.hir.expr_type(builder.file_id, pat.id)
+            let ty = builder
+                .hir
+                .expr_type(builder.file_id, pat.id)
                 .unwrap_or_else(|| builder.types.any());
-            crate::mir::Pattern::Bind { name: name.symbol, ty }
+            crate::mir::Pattern::Bind {
+                name: name.symbol,
+                ty,
+            }
         }
         ast::PatternKind::Literal(lit) => match lit {
             ast::PatternLiteral::Int(il) => crate::mir::Pattern::IntLit(il.value as i128),
@@ -2287,9 +2583,14 @@ fn lower_pattern_to_mir(builder: &mut FnLowering, pat: &ast::Pattern) -> crate::
         },
         ast::PatternKind::Is(ty_ref) => {
             // TypeRef 未类型化；用 expr_type 或回退。
-            let target = builder.hir.expr_type(builder.file_id, ty_ref.id)
+            let target = builder
+                .hir
+                .expr_type(builder.file_id, ty_ref.id)
                 .unwrap_or_else(|| builder.types.any());
-            crate::mir::Pattern::Is { ty: target, negated: false }
+            crate::mir::Pattern::Is {
+                ty: target,
+                negated: false,
+            }
         }
         _ => crate::mir::Pattern::Wildcard,
     }
@@ -2313,7 +2614,9 @@ fn bind_pattern_arm(
             builder.symbol_locals.insert(name.symbol, lid);
             builder.assign(lid, Rvalue::Use(subj), name.span);
         }
-        ast::PatternKind::Variant { .. } | ast::PatternKind::Tuple(_) | ast::PatternKind::Struct { .. } => {
+        ast::PatternKind::Variant { .. }
+        | ast::PatternKind::Tuple(_)
+        | ast::PatternKind::Struct { .. } => {
             // 从 pattern_bindings 侧表引入 binder。
             if let Some(bindings) = builder.hir.pattern_bindings(builder.file_id, pat.id) {
                 for (i, b) in bindings.iter().enumerate() {
@@ -2323,21 +2626,24 @@ fn bind_pattern_arm(
                         b.span,
                     );
                     builder.symbol_locals.insert(b.name, lid);
-                    if matches!(b.source, scoop2_hir::hir::PatternBindingSource::VariantField) {
-                        if bindings.len() == 1 {
-                            builder.assign(lid, Rvalue::Use(subj.clone()), b.span);
-                        } else {
-                            // 多字段 variant：用 PatternExtract 从 payload 提取第 i 个字段。
-                            builder.assign(
-                                lid,
-                                Rvalue::PatternExtract {
-                                    subject: subj.clone(),
-                                    path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(i)],
-                                    result_ty: b.ty,
-                                },
-                                b.span,
-                            );
-                        }
+                    if matches!(
+                        b.source,
+                        scoop2_hir::hir::PatternBindingSource::VariantField
+                    ) {
+                        // variant 字段绑定：从 payload 提取第 i 个字段
+                        // （单字段 variant 也必须提取——`Some(x)` 的 x 是 payload，
+                        // 不是整个 Option 值）。
+                        builder.assign(
+                            lid,
+                            Rvalue::PatternExtract {
+                                subject: subj.clone(),
+                                path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(
+                                    i,
+                                )],
+                                result_ty: b.ty,
+                            },
+                            b.span,
+                        );
                     } else {
                         builder.assign(lid, Rvalue::Use(subj.clone()), b.span);
                     }
@@ -2403,11 +2709,10 @@ pub fn lower_handle(
         let mut binder_locals: Vec<crate::mir::LocalId> = Vec::new();
         let mut payload_component_tys: Vec<scoop2_hir::ty::TypeId> = Vec::new();
         for b in &arm.op.binders {
-            let bty = b
-                .ty
-                .as_ref()
-                .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
-                .unwrap_or_else(|| builder.types.any());
+            let bty =
+                b.ty.as_ref()
+                    .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
+                    .unwrap_or_else(|| builder.types.any());
             payload_component_tys.push(bty);
             let lid = builder.alloc_named(
                 builder.hir.interner.resolve(b.name.symbol).to_string(),
@@ -2429,7 +2734,10 @@ pub fn lower_handle(
                 k_ident.span,
             );
             builder.symbol_locals.insert(k_ident.symbol, lid);
-            (Some(lid), crate::mir::transport::HandlerArmKind::EscapeContinuation)
+            (
+                Some(lid),
+                crate::mir::transport::HandlerArmKind::EscapeContinuation,
+            )
         } else {
             (None, crate::mir::transport::HandlerArmKind::NonResuming)
         };
@@ -2560,7 +2868,10 @@ fn resolve_struct_fqn(builder: &FnLowering, sym: Symbol) -> Symbol {
     sym
 }
 
-pub(crate) fn resolve_typeref(builder: &mut FnLowering, t: &ast::TypeRef) -> scoop2_hir::ty::TypeId {
+pub(crate) fn resolve_typeref(
+    builder: &mut FnLowering,
+    t: &ast::TypeRef,
+) -> scoop2_hir::ty::TypeId {
     // TypeRef 节点未类型化；从 expr_types 查（is/as 的目标类型有时记录）。
     if let Some(ty) = builder.hir.expr_type(builder.file_id, t.id) {
         return ty;
@@ -2597,10 +2908,7 @@ pub(crate) fn resolve_typeref(builder: &mut FnLowering, t: &ast::TypeRef) -> sco
                         if is_known {
                             // 判断 ref vs value nominal：class/interface/object → ref；
                             // struct/enum → value。
-                            let is_value = builder
-                                .hir
-                                .enum_variants
-                                .contains_key(&f);
+                            let is_value = builder.hir.enum_variants.contains_key(&f);
                             let nominal = scoop2_hir::ty::NominalType {
                                 fqn: f,
                                 args: vec![],

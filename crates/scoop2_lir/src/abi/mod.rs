@@ -95,9 +95,18 @@ pub fn decide_abi(
                 for block in &body.blocks {
                     for stmt in &block.stmts {
                         if let scoop2_mir::mir::StatementKind::Assign { value, .. } = &stmt.kind {
-                            if let scoop2_mir::mir::Rvalue::MakeClosure { invoke_fqn, env_contract, .. } = value {
+                            if let scoop2_mir::mir::Rvalue::MakeClosure {
+                                invoke_fqn,
+                                env_contract,
+                                ..
+                            } = value
+                            {
                                 // 检查是否已为这个 invoke_fqn 添加过布局。
-                                if program.closure_layouts.iter().any(|cl| cl.invoke_fqn == *invoke_fqn) {
+                                if program
+                                    .closure_layouts
+                                    .iter()
+                                    .any(|cl| cl.invoke_fqn == *invoke_fqn)
+                                {
                                     continue;
                                 }
                                 // 构建 captures 布局。
@@ -106,11 +115,20 @@ pub fn decide_abi(
                                 let mut env_align: u64 = 1;
                                 for cap in &env_contract.captures {
                                     let cap_name = cap.name.clone();
-                                    let cap_size = program.type_layouts.get(cap.transport.source_ty)
-                                        .map(|l| l.size).unwrap_or(8);
-                                    let cap_align = program.type_layouts.get(cap.transport.source_ty)
-                                        .map(|l| l.align).unwrap_or(8);
-                                    let cap_gc = crate::gc::is_gc_traceable_type(cap.transport.source_ty, &program.type_layouts);
+                                    let cap_size = program
+                                        .type_layouts
+                                        .get(cap.transport.source_ty)
+                                        .map(|l| l.size)
+                                        .unwrap_or(8);
+                                    let cap_align = program
+                                        .type_layouts
+                                        .get(cap.transport.source_ty)
+                                        .map(|l| l.align)
+                                        .unwrap_or(8);
+                                    let cap_gc = crate::gc::is_gc_traceable_type(
+                                        cap.transport.source_ty,
+                                        &program.type_layouts,
+                                    );
                                     env_offset = align_to(env_offset, cap_align);
                                     captures.push(ClosureCaptureLayout {
                                         name: cap_name,

@@ -11,14 +11,14 @@
 //!
 //! 含 GC 指针的 local 的 slot 镜像：store 时同步写 frame slot；use 时优先从 frame slot load。
 
+use inkwell::AddressSpace;
 use inkwell::module::Linkage;
 use inkwell::values::PointerValue;
-use inkwell::AddressSpace;
 
 use scoop2_hir::ty::TypeId;
 use scoop2_lir::{LirBody, TypeLayoutKind, TypeLayoutTable};
 
-use crate::context::{native_address_space, CodegenContext};
+use crate::context::{CodegenContext, native_address_space};
 use crate::error::CodegenResult;
 
 /// `ScoopRootFrameHeader` 大小（字节）：{ ptr prev(8); ptr desc(8) }。
@@ -53,12 +53,17 @@ impl<'ctx> CodegenContext<'ctx> {
         let i32_ty = self.context.i32_type();
         let ptr = self.context.ptr_type(native_address_space());
         // 对齐 padding：i32 后跟 ptr 需要补 4 字节。用 packed=false 让 LLVM 自然对齐。
-        self.context.struct_type(&[i32_ty.into(), ptr.into()], false)
+        self.context
+            .struct_type(&[i32_ty.into(), ptr.into()], false)
     }
 
     /// 为一个函数创建 desc 全局（`ScoopRootFrameDesc` + offsets 数组）。
     /// 返回 desc 全局的指针。
-    pub fn create_root_frame_desc_global(&self, fn_symbol: &str, slot_count: u32) -> PointerValue<'ctx> {
+    pub fn create_root_frame_desc_global(
+        &self,
+        fn_symbol: &str,
+        slot_count: u32,
+    ) -> PointerValue<'ctx> {
         let desc_name = format!("__scoop_root_desc_{fn_symbol}");
         if let Some(gv) = self.module.get_global(&desc_name) {
             return gv.as_pointer_value();
@@ -71,9 +76,11 @@ impl<'ctx> CodegenContext<'ctx> {
             .map(|i| i32_ty.const_int((HEADER_SIZE_BYTES + i as u64 * ptr_size as u64), false))
             .collect();
         let offsets_arr_ty = i32_ty.array_type(slot_count.max(1));
-        let offsets_global =
-            self.module
-                .add_global(offsets_arr_ty, Some(AddressSpace::from(0u16)), &offsets_name);
+        let offsets_global = self.module.add_global(
+            offsets_arr_ty,
+            Some(AddressSpace::from(0u16)),
+            &offsets_name,
+        );
         offsets_global.set_linkage(Linkage::Internal);
         offsets_global.set_constant(true);
         let offsets_init = if offset_vals.is_empty() {

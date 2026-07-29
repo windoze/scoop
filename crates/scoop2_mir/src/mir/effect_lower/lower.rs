@@ -32,9 +32,12 @@ use scoop2_base::Interner;
 use scoop2_hir::ty::{TypeId, TypeStore};
 
 use crate::mir::{
-    BasicBlockId, Body, CallKind, Item, LocalDecl, LocalId, Module, Operand,
-    Rvalue, Statement, StatementKind, Terminator, TerminatorKind,
-    transport::{AggregateTransportKind, AggregateTransportMetadata, CallTransportMetadata, MirTransportKind, MemberAccessMetadata, StoredContinuationRoutePublication},
+    BasicBlockId, Body, CallKind, Item, LocalDecl, LocalId, Module, Operand, Rvalue, Statement,
+    StatementKind, Terminator, TerminatorKind,
+    transport::{
+        AggregateTransportKind, AggregateTransportMetadata, CallTransportMetadata,
+        MemberAccessMetadata, MirTransportKind, StoredContinuationRoutePublication,
+    },
 };
 
 use super::analyze;
@@ -54,7 +57,10 @@ pub fn lower_effects(module: &mut Module, interner: &Interner) {
             .enumerate()
             .filter_map(|(i, item)| {
                 let has_effects = match item {
-                    Item::Fun(fd) => fd.body.as_ref().map_or(false, analyze::has_effect_structures),
+                    Item::Fun(fd) => fd
+                        .body
+                        .as_ref()
+                        .map_or(false, analyze::has_effect_structures),
                     Item::Initializer(ir) => analyze::has_effect_structures(&ir.body),
                     _ => false,
                 };
@@ -175,11 +181,25 @@ fn adapt_calls(module: &mut Module, interner: &Interner) {
     for item in &mut module.items {
         if let Item::Fun(fd) = item {
             if let Some(body) = &mut fd.body {
-                adapt_calls_in_body(body, &effect_step_fqns, &effect_step_info, &mut module.types, interner, &fd.fqn);
+                adapt_calls_in_body(
+                    body,
+                    &effect_step_fqns,
+                    &effect_step_info,
+                    &mut module.types,
+                    interner,
+                    &fd.fqn,
+                );
             }
         }
         if let Item::Initializer(ir) = item {
-            adapt_calls_in_body(&mut ir.body, &effect_step_fqns, &effect_step_info, &mut module.types, interner, &ir.fqn);
+            adapt_calls_in_body(
+                &mut ir.body,
+                &effect_step_fqns,
+                &effect_step_info,
+                &mut module.types,
+                interner,
+                &ir.fqn,
+            );
         }
     }
 }
@@ -230,13 +250,17 @@ fn adapt_calls_in_body(
         let step_ty = callee_abi.step_ty;
         // 获取 Complete 变体的符号信息。
         let complete_variant = callee_abi
-            .step_variants.iter()
+            .step_variants
+            .iter()
             .find(|v| v.is_complete)
             .cloned();
         let step_fqn_sym = {
             let step_fqn_str = format!("{}$step", callee_fqn);
-            interner.get(&step_fqn_str).or_else(|| interner.get(&callee_fqn))
-        }.unwrap_or_else(|| {
+            interner
+                .get(&step_fqn_str)
+                .or_else(|| interner.get(&callee_fqn))
+        }
+        .unwrap_or_else(|| {
             // 使用 callee FQN 的 interner 符号作为合成 Step enum 的 FQN。
             interner.get(&callee_fqn).unwrap_or_default()
         });
@@ -380,7 +404,12 @@ struct HandleInfo {
 }
 
 /// 对单个函数体执行 effect lowering。
-fn lower_body(body: &mut Body, store: &mut TypeStore, interner: &Interner, fqn: &str) -> Option<crate::mir::EffectStepAbi> {
+fn lower_body(
+    body: &mut Body,
+    store: &mut TypeStore,
+    interner: &Interner,
+    fqn: &str,
+) -> Option<crate::mir::EffectStepAbi> {
     // 阶段 1：Handle dispatch 消除。
     let handles = collect_handle_info(body);
     if !handles.is_empty() {
@@ -389,9 +418,10 @@ fn lower_body(body: &mut Body, store: &mut TypeStore, interner: &Interner, fqn: 
         rewrite_handles(body);
     }
     // 阶段 2：检查是否还有未捕获的 Perform 或 Resume。
-    let has_uncaptured = body.blocks.iter().any(|b| {
-        matches!(&b.terminator.kind, TerminatorKind::Perform { .. })
-    });
+    let has_uncaptured = body
+        .blocks
+        .iter()
+        .any(|b| matches!(&b.terminator.kind, TerminatorKind::Perform { .. }));
     let has_resume = body_has_resume(body);
     if has_uncaptured || has_resume {
         lower_to_effect_step(body, store, interner, fqn)
@@ -404,7 +434,11 @@ fn body_has_resume(body: &Body) -> bool {
     for block in &body.blocks {
         for stmt in &block.stmts {
             if let StatementKind::Assign { value, .. } = &stmt.kind {
-                if let Rvalue::Call { kind: CallKind::Resume { .. }, .. } = value {
+                if let Rvalue::Call {
+                    kind: CallKind::Resume { .. },
+                    ..
+                } = value
+                {
                     return true;
                 }
             }
@@ -421,7 +455,11 @@ fn collect_handle_info(body: &Body) -> Vec<HandleInfo> {
     let mut handles = Vec::new();
     for block in &body.blocks {
         if let TerminatorKind::Handle {
-            arms, body_target, arm_targets, exit_target, ..
+            arms,
+            body_target,
+            arm_targets,
+            exit_target,
+            ..
         } = &block.terminator.kind
         {
             let mut arm_dispatch = HashMap::new();
@@ -449,7 +487,8 @@ fn build_perform_routing(body: &Body, handles: &[HandleInfo]) -> HashMap<usize, 
     for handle in handles {
         let body_region = find_handle_body_region(body, handle);
         for block_idx in body_region {
-            if let TerminatorKind::Perform { op_fqn, .. } = &body.blocks[block_idx].terminator.kind {
+            if let TerminatorKind::Perform { op_fqn, .. } = &body.blocks[block_idx].terminator.kind
+            {
                 if let Some(arm) = handle.arm_dispatch.get(op_fqn) {
                     routing.insert(
                         block_idx,
@@ -511,7 +550,9 @@ fn rewrite_captured_performs(body: &mut Body, routing: &HashMap<usize, PerformRo
         }
         block.terminator = Terminator {
             span,
-            kind: TerminatorKind::Goto { target: route.arm_target },
+            kind: TerminatorKind::Goto {
+                target: route.arm_target,
+            },
         };
     }
 }
@@ -524,7 +565,9 @@ fn rewrite_handles(body: &mut Body) {
         };
         block.terminator = Terminator {
             span: block.terminator.span,
-            kind: TerminatorKind::Goto { target: body_target },
+            kind: TerminatorKind::Goto {
+                target: body_target,
+            },
         };
     }
 }
@@ -545,7 +588,12 @@ struct PerformSite {
 
 /// 对含未捕获 Perform / Resume 的 body 执行 EffectStep 变换。
 /// 返回 EffectStepAbi 信息（含 frame 类型、outward cases、frame/state local IDs）。
-fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Interner, fqn: &str) -> Option<crate::mir::EffectStepAbi> {
+fn lower_to_effect_step(
+    body: &mut Body,
+    store: &mut TypeStore,
+    interner: &Interner,
+    fqn: &str,
+) -> Option<crate::mir::EffectStepAbi> {
     let live_out = analyze::compute_live_out(body);
     let perform_sites = collect_perform_sites(body, &live_out);
 
@@ -563,7 +611,11 @@ fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Inter
     // 构造 Frame tuple 类型：[state: Int, live_local_1: T1, live_local_2: T2, ...]
     let mut frame_field_tys: Vec<TypeId> = vec![store.int()];
     for &lid in &all_live_locals {
-        let ty = body.locals.get(lid.0 as usize).map(|d| d.ty).unwrap_or_else(|| store.any());
+        let ty = body
+            .locals
+            .get(lid.0 as usize)
+            .map(|d| d.ty)
+            .unwrap_or_else(|| store.any());
         frame_field_tys.push(ty);
     }
     let frame_ty = store.tuple(frame_field_tys);
@@ -589,7 +641,16 @@ fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Inter
     initialize_frame(body, frame_local, frame_ty, &all_live_locals, store);
 
     // 重写 Perform 站点。
-    rewrite_perform_sites(body, &perform_sites, &live_to_slot, frame_local, frame_ty, store, interner, fqn);
+    rewrite_perform_sites(
+        body,
+        &perform_sites,
+        &live_to_slot,
+        frame_local,
+        frame_ty,
+        store,
+        interner,
+        fqn,
+    );
 
     // Resume 调用保持 `CallKind::Resume` 原样流向 LIR/codegen：
     // resumed 标志检查 + step_fn 间接调用由 codegen 基于 canonical continuation
@@ -618,7 +679,8 @@ fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Inter
     // Step enum 的 FQN = "<fqn>$step"。
     // 变体：Complete（原始返回类型）+ 每个 outward case 的 effect 操作变体。
     let step_fqn_str = format!("{}$step", fqn);
-    let step_fqn_sym = interner.get(&step_fqn_str)
+    let step_fqn_sym = interner
+        .get(&step_fqn_str)
         .or_else(|| interner.get(fqn))
         .unwrap_or_default();
     let step_ty = store.value_nominal(scoop2_hir::ty::NominalType {
@@ -628,7 +690,9 @@ fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Inter
     });
 
     // 构造 Step 变体信息。
-    let return_ty = body.locals.first()
+    let return_ty = body
+        .locals
+        .first()
         .map(|_| store.any()) // 简化：Complete 变体的 payload 用 Any
         .unwrap_or_else(|| store.any());
     let mut step_variants: Vec<crate::mir::StepVariant> = Vec::new();
@@ -643,7 +707,8 @@ fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Inter
     // 各 effect 操作变体。
     for case in &outward_cases {
         let variant_name = case.replace('.', "_");
-        let variant_sym = interner.get(&variant_name)
+        let variant_sym = interner
+            .get(&variant_name)
             .or_else(|| interner.get(case))
             .unwrap_or_default();
         step_variants.push(crate::mir::StepVariant {
@@ -664,14 +729,15 @@ fn lower_to_effect_step(body: &mut Body, store: &mut TypeStore, interner: &Inter
 }
 
 /// 收集所有 Perform 站点。
-fn collect_perform_sites(
-    body: &Body,
-    live_out: &[HashSet<LocalId>],
-) -> Vec<PerformSite> {
+fn collect_perform_sites(body: &Body, live_out: &[HashSet<LocalId>]) -> Vec<PerformSite> {
     let mut sites = Vec::new();
     for (i, block) in body.blocks.iter().enumerate() {
         if let TerminatorKind::Perform {
-            op_fqn, args, resume_local, resume_target, ..
+            op_fqn,
+            args,
+            resume_local,
+            resume_target,
+            ..
         } = &block.terminator.kind
         {
             let resume_idx = resume_target.0 as usize;
@@ -748,11 +814,14 @@ fn rewrite_perform_sites(
         let state_num = (state_num + 1) as u128; // 1-based
         let span = body.blocks[site.block_idx].terminator.span;
         // 预计算 live locals 的类型（避免借用冲突）。
-        let live_local_tys: Vec<(LocalId, u128, TypeId)> = site.live_out_at_resume
+        let live_local_tys: Vec<(LocalId, u128, TypeId)> = site
+            .live_out_at_resume
             .iter()
             .filter_map(|&live_local| {
                 let slot_idx = *live_to_slot.get(&live_local)?;
-                let live_ty = body.locals.get(live_local.0 as usize)
+                let live_ty = body
+                    .locals
+                    .get(live_local.0 as usize)
                     .map(|d| d.ty)
                     .unwrap_or_else(|| store.any());
                 Some((live_local, slot_idx, live_ty))
@@ -938,7 +1007,9 @@ fn add_state_dispatch(
         });
         // 恢复 live locals。
         for (slot_idx, &live_local) in site.live_out_at_resume.iter().enumerate() {
-            let live_ty = body.locals.get(live_local.0 as usize)
+            let live_ty = body
+                .locals
+                .get(live_local.0 as usize)
                 .map(|d| d.ty)
                 .unwrap_or_else(|| store.any());
             let temp_local = LocalId(body.locals.len() as u32);
@@ -1150,7 +1221,10 @@ fn shift_block_ids(body: &mut Body, offset: u32) {
     for block in &mut body.blocks {
         match &mut block.terminator.kind {
             TerminatorKind::Goto { target }
-            | TerminatorKind::Perform { resume_target: target, .. } => {
+            | TerminatorKind::Perform {
+                resume_target: target,
+                ..
+            } => {
                 target.0 += offset;
             }
             TerminatorKind::CondBr {

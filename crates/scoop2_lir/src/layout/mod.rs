@@ -79,7 +79,9 @@ pub fn compute_type_layouts(
         if program.type_layouts.get(ty).is_some() {
             continue;
         }
-        let layout = compute_layout(ty, types, hir, interner, &mut |t| enqueue(t, &mut worklist, &mut seen));
+        let layout = compute_layout(ty, types, hir, interner, &mut |t| {
+            enqueue(t, &mut worklist, &mut seen)
+        });
         program.type_layouts.insert(ty, layout);
     }
 
@@ -98,7 +100,8 @@ pub fn compute_type_layouts(
                 while let Some(t) = pending.pop() {
                     if program.type_layouts.get(t).is_none() {
                         let mut sub_pending: Vec<TypeId> = Vec::new();
-                        let l = compute_layout(t, types, hir, interner, &mut |st| sub_pending.push(st));
+                        let l =
+                            compute_layout(t, types, hir, interner, &mut |st| sub_pending.push(st));
                         program.type_layouts.insert(t, l);
                         pending.extend(sub_pending);
                     }
@@ -242,12 +245,14 @@ fn compute_layout(
                 return scalar_layout(scalar);
             }
             // struct / enum 值类型。查询 HIR 获取字段列表。
-            // 尝试 struct 布局：查 HIR members。
-            if let Some(members) = hir.members.get(&n.fqn) {
+            // 尝试 struct 布局：查 HIR members（按 member_order 声明序迭代——
+            // HashMap 迭代序不确定，直接用会破坏字段布局确定性）。
+            if hir.members.contains_key(&n.fqn) {
+                let ordered = hir.ordered_members(&n.fqn);
                 let mut offset: u64 = 0;
                 let mut max_align: u64 = 1;
                 let mut fields: Vec<FieldLayout> = Vec::new();
-                for (&_member_name_sym, &member_ty) in members {
+                for (_member_name_sym, member_ty) in ordered {
                     enqueue(member_ty);
                     let (fsize, falign) = sub_size_align(member_ty, types);
                     offset = align_to(offset, falign);
@@ -289,7 +294,10 @@ fn compute_layout(
                 let tag_size: u64 = if variants.len() <= 256 { 1 } else { 4 };
                 let total = if max_payload_size > 0 {
                     let payload_offset = align_to(tag_size, max_payload_align);
-                    align_to(payload_offset + max_payload_size, max_payload_align.max(tag_size))
+                    align_to(
+                        payload_offset + max_payload_size,
+                        max_payload_align.max(tag_size),
+                    )
                 } else {
                     tag_size
                 };
@@ -319,7 +327,11 @@ fn compute_layout(
                     // class 走 vtable 分发。HIR 的 interface_fqns 集合记录所有 interface
                     // 类型的 FQN，据此选择 RefKind。
                     let is_interface = hir.interface_fqns.contains(&n.fqn);
-                    let rk = if is_interface { RefKind::Interface } else { RefKind::Class };
+                    let rk = if is_interface {
+                        RefKind::Interface
+                    } else {
+                        RefKind::Class
+                    };
                     (true, rk)
                 }
                 RefTypeKind::Function(_) => {
@@ -371,6 +383,7 @@ fn compute_option_layout(inner: TypeId, types: &TypeStore) -> TypeLayout {
             kind: TypeLayoutKind::Option {
                 storage: NicheStorage::Pointer,
                 payload_size: 8,
+                payload_ty: inner,
             },
         }
     } else {
@@ -387,6 +400,7 @@ fn compute_option_layout(inner: TypeId, types: &TypeStore) -> TypeLayout {
             kind: TypeLayoutKind::Option {
                 storage: NicheStorage::Tagged,
                 payload_size: psize,
+                payload_ty: inner,
             },
         }
     }
@@ -403,7 +417,8 @@ fn sub_size_align(ty: TypeId, types: &TypeStore) -> (u64, u64) {
         | TypeKind::Value(ValueTypeKind::UInt)
         | TypeKind::Value(ValueTypeKind::Float64) => (8, 8),
         TypeKind::Value(ValueTypeKind::Float32) => (4, 4),
-        TypeKind::Value(ValueTypeKind::IntN(bits)) | TypeKind::Value(ValueTypeKind::UIntN(bits)) => {
+        TypeKind::Value(ValueTypeKind::IntN(bits))
+        | TypeKind::Value(ValueTypeKind::UIntN(bits)) => {
             let b = *bits as u64;
             ((b + 7) / 8, align_up_pow2(b))
         }
@@ -444,7 +459,9 @@ fn find_scalar_type_in_program(
         .type_layouts
         .entries
         .iter()
-        .find(|(_, l)| matches!(&l.kind, TypeLayoutKind::Scalar { scalar_kind } if pred(scalar_kind)))
+        .find(
+            |(_, l)| matches!(&l.kind, TypeLayoutKind::Scalar { scalar_kind } if pred(scalar_kind)),
+        )
         .map(|(t, _)| *t)
 }
 
@@ -532,33 +549,52 @@ fn collect_body_type_ids(body: &scoop2_mir::mir::Body, emit: &mut impl FnMut(Typ
 fn collect_rvalue_type_ids(rv: &scoop2_mir::mir::Rvalue, emit: &mut impl FnMut(TypeId)) {
     use scoop2_mir::mir::Rvalue;
     match rv {
-        Rvalue::Call { kind, args, transport, .. } => {
+        Rvalue::Call {
+            kind,
+            args,
+            transport,
+            ..
+        } => {
             collect_call_kind_type_ids(kind, emit);
             for a in args {
                 emit(a.value_ty);
             }
             emit(transport.result.source_ty);
         }
-        Rvalue::MakeTuple { elements: _, transport } => {
+        Rvalue::MakeTuple {
+            elements: _,
+            transport,
+        } => {
             emit(transport.aggregate_ty);
             for f in &transport.fields {
                 emit(f.ty);
             }
         }
         Rvalue::MakeArray { result_ty, .. } => emit(*result_ty),
-        Rvalue::EnumVariant { enum_ty, args, payload, .. } => {
+        Rvalue::EnumVariant {
+            enum_ty,
+            args,
+            payload,
+            ..
+        } => {
             emit(*enum_ty);
             emit(payload.aggregate_ty);
             for a in args {
                 emit(a.value_ty);
             }
         }
-        Rvalue::ClassCtor { args, hidden_effects: _, .. } => {
+        Rvalue::ClassCtor {
+            args,
+            hidden_effects: _,
+            ..
+        } => {
             for a in args {
                 emit(a.value_ty);
             }
         }
-        Rvalue::StructLit { fields, transport, .. } => {
+        Rvalue::StructLit {
+            fields, transport, ..
+        } => {
             emit(transport.aggregate_ty);
             for f in fields {
                 emit(f.value_ty);
@@ -580,7 +616,11 @@ fn collect_rvalue_type_ids(rv: &scoop2_mir::mir::Rvalue, emit: &mut impl FnMut(T
 fn collect_call_kind_type_ids(kind: &scoop2_mir::mir::CallKind, emit: &mut impl FnMut(TypeId)) {
     use scoop2_mir::mir::CallKind;
     match kind {
-        CallKind::Direct { type_args, generic_type_args, .. } => {
+        CallKind::Direct {
+            type_args,
+            generic_type_args,
+            ..
+        } => {
             for t in type_args {
                 emit(*t);
             }
@@ -622,7 +662,11 @@ fn prepare_effect_synthetic_layouts(
     eff_abi: &scoop2_mir::mir::EffectStepAbi,
 ) {
     // Frame tuple：frame_ty（一个 value Tuple 类型）。
-    if program.synthetic_types.iter().all(|s| s.fqn != format!("{}$frame", fd.fqn)) {
+    if program
+        .synthetic_types
+        .iter()
+        .all(|s| s.fqn != format!("{}$frame", fd.fqn))
+    {
         let frame_layout = program
             .type_layouts
             .get(eff_abi.frame_ty)
@@ -642,7 +686,11 @@ fn prepare_effect_synthetic_layouts(
     }
 
     // Step enum：step_ty（一个 value Nominal 类型，但语义上是 tagged union）。
-    if program.synthetic_types.iter().all(|s| s.fqn != format!("{}$step", fd.fqn)) {
+    if program
+        .synthetic_types
+        .iter()
+        .all(|s| s.fqn != format!("{}$step", fd.fqn))
+    {
         // tag 字节 + payload union（按最大 payload 对齐）。
         let mut max_payload_size: u64 = 0;
         let mut max_payload_align: u64 = 1;
@@ -657,7 +705,10 @@ fn prepare_effect_synthetic_layouts(
         }
         let tag_size: u64 = 1;
         let payload_offset = align_to(tag_size, max_payload_align);
-        let total = align_to(payload_offset + max_payload_size, max_payload_align.max(tag_size));
+        let total = align_to(
+            payload_offset + max_payload_size,
+            max_payload_align.max(tag_size),
+        );
         let step_layout = TypeLayout {
             size: total,
             align: max_payload_align.max(tag_size),
@@ -690,27 +741,30 @@ fn prepare_effect_synthetic_layouts(
         .iter()
         .all(|s| s.fqn != format!("{}$continuation", fd.fqn))
     {
-        let bool_ty = find_scalar_type_in_program(program, |sk| matches!(sk, crate::ScalarKind::Bool))
-            .unwrap_or(eff_abi.frame_ty);
-        let int_ty = find_scalar_type_in_program(program, |sk| {
-            matches!(sk, crate::ScalarKind::Int { .. })
-        })
-        .unwrap_or(eff_abi.frame_ty);
-        let fields = crate::effect::canonical_continuation_fields(eff_abi.frame_ty, bool_ty, int_ty)
-            .into_iter()
-            .map(|f| {
-                let size = match f.kind {
-                    crate::ContinuationFieldKind::Header => crate::effect::OBJECT_HEADER_SIZE_BYTES,
-                    crate::ContinuationFieldKind::ResumedFlag => 1,
-                    _ => 8,
-                };
-                FieldLayout {
-                    offset: f.offset,
-                    size,
-                    ty: f.ty,
-                }
-            })
-            .collect();
+        let bool_ty =
+            find_scalar_type_in_program(program, |sk| matches!(sk, crate::ScalarKind::Bool))
+                .unwrap_or(eff_abi.frame_ty);
+        let int_ty =
+            find_scalar_type_in_program(program, |sk| matches!(sk, crate::ScalarKind::Int { .. }))
+                .unwrap_or(eff_abi.frame_ty);
+        let fields =
+            crate::effect::canonical_continuation_fields(eff_abi.frame_ty, bool_ty, int_ty)
+                .into_iter()
+                .map(|f| {
+                    let size = match f.kind {
+                        crate::ContinuationFieldKind::Header => {
+                            crate::effect::OBJECT_HEADER_SIZE_BYTES
+                        }
+                        crate::ContinuationFieldKind::ResumedFlag => 1,
+                        _ => 8,
+                    };
+                    FieldLayout {
+                        offset: f.offset,
+                        size,
+                        ty: f.ty,
+                    }
+                })
+                .collect();
         let cont_layout = TypeLayout {
             size: crate::effect::CONT_SIZE_BYTES,
             align: crate::effect::CONT_ALIGN_BYTES,
@@ -731,17 +785,50 @@ fn builtin_scalar_kind(simple: &str) -> Option<crate::ScalarKind> {
         "Unit" => ScalarKind::Unit,
         "Bool" => ScalarKind::Bool,
         "Char" => ScalarKind::Char,
-        "Int" => ScalarKind::Int { bits: 64, unsigned: false },
-        "UInt" => ScalarKind::Int { bits: 64, unsigned: true },
-        "Int8" => ScalarKind::Int { bits: 8, unsigned: false },
-        "Int16" => ScalarKind::Int { bits: 16, unsigned: false },
-        "Int32" => ScalarKind::Int { bits: 32, unsigned: false },
-        "Int64" | "Long" => ScalarKind::Int { bits: 64, unsigned: false },
-        "UInt8" | "Byte" => ScalarKind::Int { bits: 8, unsigned: true },
-        "UInt16" | "UShort" => ScalarKind::Int { bits: 16, unsigned: true },
-        "UInt32" => ScalarKind::Int { bits: 32, unsigned: true },
-        "UInt64" | "ULong" => ScalarKind::Int { bits: 64, unsigned: true },
-        "UIntPtr" => ScalarKind::Int { bits: 64, unsigned: true },
+        "Int" => ScalarKind::Int {
+            bits: 64,
+            unsigned: false,
+        },
+        "UInt" => ScalarKind::Int {
+            bits: 64,
+            unsigned: true,
+        },
+        "Int8" => ScalarKind::Int {
+            bits: 8,
+            unsigned: false,
+        },
+        "Int16" => ScalarKind::Int {
+            bits: 16,
+            unsigned: false,
+        },
+        "Int32" => ScalarKind::Int {
+            bits: 32,
+            unsigned: false,
+        },
+        "Int64" | "Long" => ScalarKind::Int {
+            bits: 64,
+            unsigned: false,
+        },
+        "UInt8" | "Byte" => ScalarKind::Int {
+            bits: 8,
+            unsigned: true,
+        },
+        "UInt16" | "UShort" => ScalarKind::Int {
+            bits: 16,
+            unsigned: true,
+        },
+        "UInt32" => ScalarKind::Int {
+            bits: 32,
+            unsigned: true,
+        },
+        "UInt64" | "ULong" => ScalarKind::Int {
+            bits: 64,
+            unsigned: true,
+        },
+        "UIntPtr" => ScalarKind::Int {
+            bits: 64,
+            unsigned: true,
+        },
         "Float64" | "Double" => ScalarKind::Float { bits: 64 },
         "Float32" => ScalarKind::Float { bits: 32 },
         _ => return None,

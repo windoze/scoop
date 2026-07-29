@@ -32,4 +32,4 @@ pub mod types;
 pub use error::{CodegenError, CodegenResult};
 
 #[cfg(feature = "llvm")]
-pub use emit::{emit_object_to_file, emit_program, EmitOptions, EmittedModule};
+pub use emit::{EmitOptions, EmittedModule, emit_object_to_file, emit_program};

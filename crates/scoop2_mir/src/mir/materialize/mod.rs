@@ -199,10 +199,6 @@ pub fn materialize(
                 let class_sym = hir.interner.get(class_fqn_text);
                 if let Some(class_sym) = class_sym {
                     let mut found = None;
-                    // Debug: list all hash-related templates
-                    for (k,_) in work.templates.iter() {
-                        if k.contains("hash") { eprintln!("DEBUG template_hash: {k}"); }
-                    }
                     let mut queue = std::collections::VecDeque::new();
                     queue.push_back(class_sym);
                     let mut visited = std::collections::HashSet::new();
@@ -274,27 +270,35 @@ pub fn materialize(
                         let owner_fqn_text = m.fqn.clone();
                         let store_ref = &generic_types;
                         let interner_ref = &hir.interner;
-                        let virtual_methods: Vec<(String, String, String)> = hir_fqn_for_metadata(hir, &m.fqn)
-                            .and_then(|fqn_sym| hir.member_funs.get(&fqn_sym))
-                            .map(|methods| {
-                                methods.iter()
-                                    .flat_map(|(method_name, sigs)| {
-                                        let mname = hir.interner.resolve(*method_name).to_string();
-                                        let owner = owner_fqn_text.clone();
-                                        sigs.iter().map(move |sig| {
-                                            let sig_canonical = crate::mir::stable_id::build_overload_sig(
-                                                store_ref, interner_ref, &sig.param_types,
-                                            );
-                                            (mname.clone(), owner.clone(), sig_canonical)
+                        let virtual_methods: Vec<(String, String, String)> =
+                            hir_fqn_for_metadata(hir, &m.fqn)
+                                .and_then(|fqn_sym| hir.member_funs.get(&fqn_sym))
+                                .map(|methods| {
+                                    methods
+                                        .iter()
+                                        .flat_map(|(method_name, sigs)| {
+                                            let mname =
+                                                hir.interner.resolve(*method_name).to_string();
+                                            let owner = owner_fqn_text.clone();
+                                            sigs.iter().map(move |sig| {
+                                                let sig_canonical =
+                                                    crate::mir::stable_id::build_overload_sig(
+                                                        store_ref,
+                                                        interner_ref,
+                                                        &sig.param_types,
+                                                    );
+                                                (mname.clone(), owner.clone(), sig_canonical)
+                                            })
                                         })
-                                    })
-                                    .collect()
-                            })
-                            .unwrap_or_default();
-                        work.backend_contracts.class_vtables.push(ClassVtableContract {
-                            class_fqn: m.fqn.clone(),
-                            virtual_methods,
-                        });
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+                        work.backend_contracts
+                            .class_vtables
+                            .push(ClassVtableContract {
+                                class_fqn: m.fqn.clone(),
+                                virtual_methods,
+                            });
                         work.backend_contracts.class_inits.push(ClassInitContract {
                             class_fqn: m.fqn.clone(),
                         });
@@ -306,7 +310,8 @@ pub fn materialize(
                                     .iter()
                                     .map(|&s| hir.interner.resolve(s).to_string())
                                     .filter(|fqn| {
-                                        hir.interner.get(fqn)
+                                        hir.interner
+                                            .get(fqn)
                                             .is_some_and(|sym| hir.interface_fqns.contains(&sym))
                                     })
                                     .collect()
@@ -314,14 +319,18 @@ pub fn materialize(
                             .unwrap_or_default();
                         if !interface_fqns.is_empty() {
                             // 避免重复（已在 collect_metadata_contracts 中收集）。
-                            let already = work.backend_contracts.class_itables
+                            let already = work
+                                .backend_contracts
+                                .class_itables
                                 .iter()
                                 .any(|ci| ci.class_fqn == m.fqn);
                             if !already {
-                                work.backend_contracts.class_itables.push(ClassItableContract {
-                                    class_fqn: m.fqn.clone(),
-                                    interface_fqns,
-                                });
+                                work.backend_contracts
+                                    .class_itables
+                                    .push(ClassItableContract {
+                                        class_fqn: m.fqn.clone(),
+                                        interface_fqns,
+                                    });
                             }
                         }
                     }
@@ -335,9 +344,12 @@ pub fn materialize(
                                     .flat_map(|(method_name, sigs)| {
                                         let mname = hir.interner.resolve(*method_name).to_string();
                                         sigs.iter().map(move |sig| {
-                                            let sig_canonical = crate::mir::stable_id::build_overload_sig(
-                                                store_ref, interner_ref, &sig.param_types,
-                                            );
+                                            let sig_canonical =
+                                                crate::mir::stable_id::build_overload_sig(
+                                                    store_ref,
+                                                    interner_ref,
+                                                    &sig.param_types,
+                                                );
                                             (mname.clone(), sig_canonical)
                                         })
                                     })
@@ -352,29 +364,41 @@ pub fn materialize(
                     crate::mir::MetadataKind::Enum => {
                         let variants: Vec<String> = hir_fqn_for_metadata(hir, &m.fqn)
                             .and_then(|fqn_sym| hir.enum_variants.get(&fqn_sym))
-                            .map(|vs| vs.iter().map(|v| hir.interner.resolve(*v).to_string()).collect())
+                            .map(|vs| {
+                                vs.iter()
+                                    .map(|v| hir.interner.resolve(*v).to_string())
+                                    .collect()
+                            })
                             .unwrap_or_default();
-                        work.backend_contracts.enum_layouts.push(EnumLayoutContract {
-                            enum_fqn: m.fqn.clone(),
-                            variants,
-                        });
+                        work.backend_contracts
+                            .enum_layouts
+                            .push(EnumLayoutContract {
+                                enum_fqn: m.fqn.clone(),
+                                variants,
+                            });
                     }
                     crate::mir::MetadataKind::Struct => {
                         let fields: Vec<(String, String)> = hir_fqn_for_metadata(hir, &m.fqn)
                             .and_then(|fqn_sym| hir.members.get(&fqn_sym))
-                            .map(|ms| ms.iter()
-                                .map(|(name, ty)| {
-                                    let ty_text = crate::mir::stable_id::canonical_type_text(
-                                        &generic_types, &hir.interner, *ty,
-                                    );
-                                    (hir.interner.resolve(*name).to_string(), ty_text)
-                                })
-                                .collect())
+                            .map(|ms| {
+                                ms.iter()
+                                    .map(|(name, ty)| {
+                                        let ty_text = crate::mir::stable_id::canonical_type_text(
+                                            &generic_types,
+                                            &hir.interner,
+                                            *ty,
+                                        );
+                                        (hir.interner.resolve(*name).to_string(), ty_text)
+                                    })
+                                    .collect()
+                            })
                             .unwrap_or_default();
-                        work.backend_contracts.struct_layouts.push(StructLayoutContract {
-                            struct_fqn: m.fqn.clone(),
-                            fields,
-                        });
+                        work.backend_contracts
+                            .struct_layouts
+                            .push(StructLayoutContract {
+                                struct_fqn: m.fqn.clone(),
+                                fields,
+                            });
                     }
                     _ => {}
                 }
@@ -422,7 +446,10 @@ fn collect_metadata_contracts(
 ) {
     for it in items {
         if let Item::Metadata(m) = it {
-            if matches!(m.kind, crate::mir::MetadataKind::Class | crate::mir::MetadataKind::Struct) {
+            if matches!(
+                m.kind,
+                crate::mir::MetadataKind::Class | crate::mir::MetadataKind::Struct
+            ) {
                 let interface_fqns: Vec<String> = hir_fqn_for_metadata(hir, &m.fqn)
                     .and_then(|fqn_sym| hir.supertypes.get(&fqn_sym))
                     .map(|supers| {
@@ -430,17 +457,20 @@ fn collect_metadata_contracts(
                             .iter()
                             .map(|&s| hir.interner.resolve(s).to_string())
                             .filter(|fqn| {
-                                hir.interner.get(fqn)
+                                hir.interner
+                                    .get(fqn)
                                     .is_some_and(|sym| hir.interface_fqns.contains(&sym))
                             })
                             .collect()
                     })
                     .unwrap_or_default();
                 if !interface_fqns.is_empty() {
-                    work.backend_contracts.class_itables.push(ClassItableContract {
-                        class_fqn: m.fqn.clone(),
-                        interface_fqns,
-                    });
+                    work.backend_contracts
+                        .class_itables
+                        .push(ClassItableContract {
+                            class_fqn: m.fqn.clone(),
+                            interface_fqns,
+                        });
                 }
             }
         }
@@ -530,7 +560,7 @@ pub fn compute_instance_symbol(
     store: &TypeStore,
     interner: &scoop2_base::Interner,
 ) -> String {
-    use crate::mir::stable_id::{canonical_type_text, stable_hash, StableHashScope};
+    use crate::mir::stable_id::{StableHashScope, canonical_type_text, stable_hash};
     let base = fqn.replace('.', "_");
     let args_canonical: Vec<String> = type_args
         .iter()
@@ -632,7 +662,9 @@ fn subst_body(mut body: Body, subst: &Subst, store: &mut TypeStore) -> Body {
 fn subst_statement(stmt: &mut crate::mir::Statement, subst: &Subst, store: &mut TypeStore) {
     match &mut stmt.kind {
         StatementKind::Assign { value, .. } => subst_rvalue(value, subst, store),
-        StatementKind::StoreMember { member, value_ty, .. } => {
+        StatementKind::StoreMember {
+            member, value_ty, ..
+        } => {
             subst_member_access_metadata(member, subst, store);
             *value_ty = store.apply_subst(*value_ty, subst);
         }
@@ -665,14 +697,23 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
         Rvalue::TupleIndex { element_ty, .. } | Rvalue::IndexAccess { element_ty, .. } => {
             *element_ty = store.apply_subst(*element_ty, subst);
         }
-        Rvalue::EnumVariant { enum_ty, payload, args, .. } => {
+        Rvalue::EnumVariant {
+            enum_ty,
+            payload,
+            args,
+            ..
+        } => {
             *enum_ty = store.apply_subst(*enum_ty, subst);
             subst_aggregate_transport(payload, subst, store);
             for a in args.iter_mut() {
                 a.value_ty = store.apply_subst(a.value_ty, subst);
             }
         }
-        Rvalue::ClassCtor { hidden_effects, args, .. } => {
+        Rvalue::ClassCtor {
+            hidden_effects,
+            args,
+            ..
+        } => {
             for a in args.iter_mut() {
                 a.value_ty = store.apply_subst(a.value_ty, subst);
             }
@@ -702,17 +743,27 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
         Rvalue::MakeTuple { transport, .. } => {
             subst_aggregate_transport(transport, subst, store);
         }
-        Rvalue::StructLit { transport, fields, .. } => {
+        Rvalue::StructLit {
+            transport, fields, ..
+        } => {
             subst_aggregate_transport(transport, subst, store);
             for f in fields.iter_mut() {
                 f.value_ty = store.apply_subst(f.value_ty, subst);
             }
         }
-        Rvalue::MakeArray { result_ty, elements, .. } => {
+        Rvalue::MakeArray {
+            result_ty,
+            elements,
+            ..
+        } => {
             *result_ty = store.apply_subst(*result_ty, subst);
             let _ = elements; // elements 是 Operand（无 TypeId）
         }
-        Rvalue::WithUpdate { base: _, updates, result_ty } => {
+        Rvalue::WithUpdate {
+            base: _,
+            updates,
+            result_ty,
+        } => {
             *result_ty = store.apply_subst(*result_ty, subst);
             for u in updates.iter_mut() {
                 u.value_ty = store.apply_subst(u.value_ty, subst);
@@ -728,10 +779,17 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
         Rvalue::PerformResult { result_ty, .. } => {
             *result_ty = store.apply_subst(*result_ty, subst);
         }
-        Rvalue::PatternMatch { subject: _, pattern } => {
+        Rvalue::PatternMatch {
+            subject: _,
+            pattern,
+        } => {
             subst_pattern(pattern, subst, store);
         }
-        Rvalue::PatternExtract { subject: _, result_ty, .. } => {
+        Rvalue::PatternExtract {
+            subject: _,
+            result_ty,
+            ..
+        } => {
             *result_ty = store.apply_subst(*result_ty, subst);
         }
         Rvalue::IntEq { .. } => {}
@@ -765,9 +823,7 @@ fn subst_terminator(term: &mut crate::mir::Terminator, subst: &Subst, store: &mu
             // Operand 不含 TypeId；无需替换（local 的类型已替换）。
             let _ = op;
         }
-        TerminatorKind::Perform {
-            metadata, args, ..
-        } => {
+        TerminatorKind::Perform { metadata, args, .. } => {
             metadata.effect_ty = store.apply_subst(metadata.effect_ty, subst);
             metadata.result_ty = store.apply_subst(metadata.result_ty, subst);
             subst_type_ids(store, &mut metadata.op_type_args, subst);
@@ -816,19 +872,31 @@ fn subst_type_ids(store: &mut TypeStore, tys: &mut Vec<scoop2_hir::ty::TypeId>, 
     }
 }
 
-fn subst_effect_rows(store: &mut TypeStore, rows: &mut Vec<scoop2_hir::ty::EffectRow>, subst: &Subst) {
+fn subst_effect_rows(
+    store: &mut TypeStore,
+    rows: &mut Vec<scoop2_hir::ty::EffectRow>,
+    subst: &Subst,
+) {
     for r in rows.iter_mut() {
         *r = store.apply_subst_row(r.clone(), subst);
     }
 }
 
-fn subst_optional_type_id(store: &mut TypeStore, ty: &mut Option<scoop2_hir::ty::TypeId>, subst: &Subst) {
+fn subst_optional_type_id(
+    store: &mut TypeStore,
+    ty: &mut Option<scoop2_hir::ty::TypeId>,
+    subst: &Subst,
+) {
     if let Some(t) = ty {
         *t = store.apply_subst(*t, subst);
     }
 }
 
-fn subst_value_transport(vt: &mut crate::mir::ValueTransportMetadata, subst: &Subst, store: &mut TypeStore) {
+fn subst_value_transport(
+    vt: &mut crate::mir::ValueTransportMetadata,
+    subst: &Subst,
+    store: &mut TypeStore,
+) {
     vt.source_ty = store.apply_subst(vt.source_ty, subst);
     if let Some(b) = &mut vt.boxing {
         b.source_ty = store.apply_subst(b.source_ty, subst);
@@ -838,7 +906,11 @@ fn subst_value_transport(vt: &mut crate::mir::ValueTransportMetadata, subst: &Su
     }
 }
 
-fn subst_aggregate_transport(at: &mut crate::mir::AggregateTransportMetadata, subst: &Subst, store: &mut TypeStore) {
+fn subst_aggregate_transport(
+    at: &mut crate::mir::AggregateTransportMetadata,
+    subst: &Subst,
+    store: &mut TypeStore,
+) {
     at.aggregate_ty = store.apply_subst(at.aggregate_ty, subst);
     for f in &mut at.fields {
         f.ty = store.apply_subst(f.ty, subst);
@@ -846,13 +918,21 @@ fn subst_aggregate_transport(at: &mut crate::mir::AggregateTransportMetadata, su
     }
 }
 
-fn subst_array_element_transport(aet: &mut crate::mir::ArrayElementTransportMetadata, subst: &Subst, store: &mut TypeStore) {
+fn subst_array_element_transport(
+    aet: &mut crate::mir::ArrayElementTransportMetadata,
+    subst: &Subst,
+    store: &mut TypeStore,
+) {
     aet.array_ty = store.apply_subst(aet.array_ty, subst);
     aet.element_ty = store.apply_subst(aet.element_ty, subst);
     subst_value_transport(&mut aet.element, subst, store);
 }
 
-fn subst_gc_intrinsic_transport(gc: &mut crate::mir::GcIntrinsicTransportMetadata, subst: &Subst, store: &mut TypeStore) {
+fn subst_gc_intrinsic_transport(
+    gc: &mut crate::mir::GcIntrinsicTransportMetadata,
+    subst: &Subst,
+    store: &mut TypeStore,
+) {
     gc.subject_ty = store.apply_subst(gc.subject_ty, subst);
     if let Some(t) = gc.token_ty {
         gc.token_ty = Some(store.apply_subst(t, subst));
@@ -860,7 +940,11 @@ fn subst_gc_intrinsic_transport(gc: &mut crate::mir::GcIntrinsicTransportMetadat
     subst_value_transport(&mut gc.subject, subst, store);
 }
 
-fn subst_type_test_metadata(m: &mut crate::mir::RuntimeTypeTestMetadata, subst: &Subst, store: &mut TypeStore) {
+fn subst_type_test_metadata(
+    m: &mut crate::mir::RuntimeTypeTestMetadata,
+    subst: &Subst,
+    store: &mut TypeStore,
+) {
     m.source_ty = store.apply_subst(m.source_ty, subst);
     m.target_ty = store.apply_subst(m.target_ty, subst);
     m.descriptor.ty = store.apply_subst(m.descriptor.ty, subst);
@@ -875,13 +959,22 @@ fn subst_runtime_type_parameterized(
     use crate::mir::transport::RuntimeTypeParameterizedMatch as P;
     match p {
         P::None => {}
-        P::Nominal { type_args, effect_arg } => {
+        P::Nominal {
+            type_args,
+            effect_arg,
+        } => {
             subst_type_ids(store, type_args, subst);
             if let Some(ea) = effect_arg {
                 *ea = store.apply_subst_row(ea.clone(), subst);
             }
         }
-        P::Function { receiver, params, return_ty, effects, .. } => {
+        P::Function {
+            receiver,
+            params,
+            return_ty,
+            effects,
+            ..
+        } => {
             if let Some(r) = receiver {
                 *r = store.apply_subst(*r, subst);
             }
@@ -904,7 +997,11 @@ fn subst_runtime_type_parameterized(
     }
 }
 
-fn subst_cast_metadata(m: &mut crate::mir::RuntimeCastMetadata, subst: &Subst, store: &mut TypeStore) {
+fn subst_cast_metadata(
+    m: &mut crate::mir::RuntimeCastMetadata,
+    subst: &Subst,
+    store: &mut TypeStore,
+) {
     subst_type_test_metadata(&mut m.test, subst, store);
     use crate::mir::transport::RuntimeCastResult as R;
     match &mut m.result {
@@ -918,7 +1015,11 @@ fn subst_cast_metadata(m: &mut crate::mir::RuntimeCastMetadata, subst: &Subst, s
     }
 }
 
-fn subst_member_access_metadata(m: &mut crate::mir::MemberAccessMetadata, subst: &Subst, store: &mut TypeStore) {
+fn subst_member_access_metadata(
+    m: &mut crate::mir::MemberAccessMetadata,
+    subst: &Subst,
+    store: &mut TypeStore,
+) {
     m.receiver_ty = store.apply_subst(m.receiver_ty, subst);
     m.hidden_effects = store.apply_subst_row(m.hidden_effects.clone(), subst);
 }
@@ -927,7 +1028,11 @@ fn subst_member_access_metadata(m: &mut crate::mir::MemberAccessMetadata, subst:
 fn subst_pattern(pat: &mut crate::mir::Pattern, subst: &Subst, store: &mut TypeStore) {
     use crate::mir::Pattern;
     match pat {
-        Pattern::Wildcard | Pattern::IntLit(_) | Pattern::CharLit(_) | Pattern::StringLit(_) | Pattern::BoolLit(_) => {}
+        Pattern::Wildcard
+        | Pattern::IntLit(_)
+        | Pattern::CharLit(_)
+        | Pattern::StringLit(_)
+        | Pattern::BoolLit(_) => {}
         Pattern::Bind { ty, .. } => {
             *ty = store.apply_subst(*ty, subst);
         }

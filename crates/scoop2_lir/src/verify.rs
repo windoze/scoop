@@ -62,7 +62,11 @@ pub fn verify_lir(program: &LirProgram) {
                             ));
                         }
                     }
-                    LirTerminator::CondBr { then_target, else_target, .. } => {
+                    LirTerminator::CondBr {
+                        then_target,
+                        else_target,
+                        ..
+                    } => {
                         if *then_target >= num_blocks {
                             warnings.push(format!(
                                 "callable[{}] {} block[{}]: CondBr then_target {} 超出范围",
@@ -84,19 +88,22 @@ pub fn verify_lir(program: &LirProgram) {
         if matches!(c.abi, LirCallableAbi::EffectStep) {
             if c.frame_schema.is_none() {
                 warnings.push(format!(
-                    "callable[{}] {}: EffectStep 但 frame_schema 为 None", i, c.fqn
+                    "callable[{}] {}: EffectStep 但 frame_schema 为 None",
+                    i, c.fqn
                 ));
             }
             if c.step_layout.is_none() {
                 warnings.push(format!(
-                    "callable[{}] {}: EffectStep 但 step_layout 为 None", i, c.fqn
+                    "callable[{}] {}: EffectStep 但 step_layout 为 None",
+                    i, c.fqn
                 ));
             }
         }
         // GC info 检查（非 EffectStep 的有 body 的函数应有 gc_info）
         if c.body.is_some() && c.gc_info.is_none() {
             warnings.push(format!(
-                "callable[{}] {}: 有 body 但 gc_info 为 None", i, c.fqn
+                "callable[{}] {}: 有 body 但 gc_info 为 None",
+                i, c.fqn
             ));
         }
     }

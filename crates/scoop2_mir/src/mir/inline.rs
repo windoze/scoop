@@ -99,10 +99,7 @@ fn collect_inlineable_callees(
                 // lookup_key 优先用 instance_symbol（泛型实例唯一），
                 // 否则用 fqn。这样同 FQN 不同实参的实例（println<Int>/println<String>）
                 // 不会互相覆盖。
-                callee.lookup_key = fd
-                    .instance_symbol
-                    .clone()
-                    .unwrap_or_else(|| fd.fqn.clone());
+                callee.lookup_key = fd.instance_symbol.clone().unwrap_or_else(|| fd.fqn.clone());
                 result.insert(callee.lookup_key.clone(), callee);
             }
         }
@@ -119,7 +116,9 @@ fn collect_inlineable_closures(module: &Module) -> HashMap<String, InlineableCal
         if let Item::Fun(fd) = item {
             // 闭包 invoke 函数的 name 以 $closure 开头。
             if fd.name.starts_with("$closure") {
-                if let Some(callee) = try_make_inlineable_with_store(fd, store, &InlineConfig::default()) {
+                if let Some(callee) =
+                    try_make_inlineable_with_store(fd, store, &InlineConfig::default())
+                {
                     result.insert(fd.fqn.clone(), callee);
                 }
             }
@@ -157,7 +156,8 @@ fn is_effect_transparent(fd: &FunDecl, store: &scoop2_hir::ty::TypeStore) -> boo
         return true;
     }
     // 收集所有函数类型参数的 effect row 中的 term TypeId。
-    let mut forwarded: std::collections::HashSet<scoop2_hir::ty::TypeId> = std::collections::HashSet::new();
+    let mut forwarded: std::collections::HashSet<scoop2_hir::ty::TypeId> =
+        std::collections::HashSet::new();
     for p in &fd.params {
         if let TypeKind::Ref(RefTypeKind::Function(ft)) = store.kind(p.ty) {
             for &term in &ft.effects.terms {
@@ -216,7 +216,11 @@ fn try_make_inlineable_with_store(
         return None;
     }
     // 条件 3：语句数限制（HOF 放宽）。
-    let max_stmts = if hof { config.max_stmts_hof } else { config.max_stmts };
+    let max_stmts = if hof {
+        config.max_stmts_hof
+    } else {
+        config.max_stmts
+    };
     let total_stmts: usize = body.blocks.iter().map(|b| b.stmts.len()).sum();
     if total_stmts > max_stmts {
         return None;
@@ -272,10 +276,14 @@ fn is_safe_terminator(kind: &TerminatorKind) -> bool {
 fn clone_body(body: &Body) -> Body {
     Body {
         locals: body.locals.clone(),
-        blocks: body.blocks.iter().map(|b| BasicBlock {
-            stmts: b.stmts.clone(),
-            terminator: b.terminator.clone(),
-        }).collect(),
+        blocks: body
+            .blocks
+            .iter()
+            .map(|b| BasicBlock {
+                stmts: b.stmts.clone(),
+                terminator: b.terminator.clone(),
+            })
+            .collect(),
         start: body.start,
     }
 }
@@ -376,9 +384,11 @@ fn extract_inline_site(
         return None;
     };
     let (callee_fqn, generic_type_args) = match kind {
-        CallKind::Direct { callee_fqn, generic_type_args, .. } => {
-            (callee_fqn.clone(), generic_type_args.clone())
-        }
+        CallKind::Direct {
+            callee_fqn,
+            generic_type_args,
+            ..
+        } => (callee_fqn.clone(), generic_type_args.clone()),
         _ => return None,
     };
     // 与 collect_inlineable_callees 的 lookup_key 同公式：泛型实例按符号查找，
@@ -386,7 +396,12 @@ fn extract_inline_site(
     let lookup_key = if generic_type_args.is_empty() {
         callee_fqn
     } else {
-        crate::mir::materialize::compute_instance_symbol(&callee_fqn, &generic_type_args, store, interner)
+        crate::mir::materialize::compute_instance_symbol(
+            &callee_fqn,
+            &generic_type_args,
+            store,
+            interner,
+        )
     };
     let arg_operands: Vec<Operand> = args.iter().map(|a| a.value.clone()).collect();
     Some((lookup_key, arg_operands, *target))
@@ -518,7 +533,13 @@ fn do_inline(
             // 这里的块 0 终结符不是 Return，说明是多块函数，
             // splice 序列后需要一个终结符跳到 callee 块 1（或续接块）。
             let mut renamed_term = block0_term.clone();
-            let _ = rename_terminator(&mut renamed_term, &local_map, &block_map, continuation_block, target_local);
+            let _ = rename_terminator(
+                &mut renamed_term,
+                &local_map,
+                &block_map,
+                continuation_block,
+                target_local,
+            );
             // 把终结符放到 splice 序列之后（它将成为 bid 的新终结符）。
             // 但 splice 是语句，终结符需要单独处理——见下方块重写。
             // 简化：把非 Return 终结符转为一个临时块。
@@ -549,7 +570,13 @@ fn do_inline(
             // 多块：当前块需要一个终结符跳到 callee 块 1。
             // 剩余语句移到续接块。
             let mut renamed_term = block0_term.clone();
-            let _ = rename_terminator(&mut renamed_term, &local_map, &block_map, continuation_block, target_local);
+            let _ = rename_terminator(
+                &mut renamed_term,
+                &local_map,
+                &block_map,
+                continuation_block,
+                target_local,
+            );
             block.terminator = renamed_term;
             // 续接块持有剩余语句 + 原 terminator。
             if let Some(cont_id) = continuation_block {
@@ -575,7 +602,13 @@ fn do_inline(
         }
         // 处理终结符。rename_terminator 可能返回一条赋值语句（Return 改写时）。
         let mut renamed_term = src_block.terminator.clone();
-        let extra_assign = rename_terminator(&mut renamed_term, &local_map, &block_map, continuation_block, target_local);
+        let extra_assign = rename_terminator(
+            &mut renamed_term,
+            &local_map,
+            &block_map,
+            continuation_block,
+            target_local,
+        );
         // 若 Return 被改写为 Goto，需把返回值赋给 target_local（追加到块末尾）。
         if let Some(assign) = extra_assign {
             renamed_stmts.push(assign);
@@ -673,7 +706,9 @@ fn rename_statement(stmt: &mut Statement, map: &HashMap<LocalId, LocalId>) {
             }
             rename_rvalue(value, map);
         }
-        StatementKind::StoreMember { receiver, value, .. } => {
+        StatementKind::StoreMember {
+            receiver, value, ..
+        } => {
             rename_operand(receiver, map);
             rename_operand(value, map);
         }
@@ -693,7 +728,9 @@ fn rename_statement(stmt: &mut Statement, map: &HashMap<LocalId, LocalId>) {
 fn rename_rvalue(rv: &mut Rvalue, map: &HashMap<LocalId, LocalId>) {
     match rv {
         Rvalue::Use(op) => *op = rename_operand(op, map),
-        Rvalue::TopLevelRef(_) | Rvalue::UnresolvedName { .. } | Rvalue::ClassLit { .. }
+        Rvalue::TopLevelRef(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::ClassLit { .. }
         | Rvalue::PerformResult { .. } => {}
         Rvalue::TypeTest { value, .. } => {
             *value = rename_operand(value, map);
@@ -707,7 +744,9 @@ fn rename_rvalue(rv: &mut Rvalue, map: &HashMap<LocalId, LocalId>) {
         Rvalue::TupleIndex { receiver, .. } => {
             *receiver = rename_operand(receiver, map);
         }
-        Rvalue::IndexAccess { receiver, indices, .. } => {
+        Rvalue::IndexAccess {
+            receiver, indices, ..
+        } => {
             *receiver = rename_operand(receiver, map);
             for i in indices.iter_mut() {
                 *i = rename_operand(i, map);
@@ -781,7 +820,10 @@ fn rename_call_kind(kind: &mut CallKind, map: &HashMap<LocalId, LocalId>) {
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
             *receiver = rename_operand(receiver, map);
         }
-        CallKind::Resume { continuation, resume_value } => {
+        CallKind::Resume {
+            continuation,
+            resume_value,
+        } => {
             *continuation = rename_operand(continuation, map);
             *resume_value = rename_operand(resume_value, map);
         }
@@ -826,7 +868,9 @@ mod tests {
     fn is_safe_terminator_allows_perform_rejects_handle() {
         // Return / Goto / CondBr / Unreachable / Perform 都是安全的。
         assert!(is_safe_terminator(&TerminatorKind::Return { value: None }));
-        assert!(is_safe_terminator(&TerminatorKind::Goto { target: BasicBlockId(0) }));
+        assert!(is_safe_terminator(&TerminatorKind::Goto {
+            target: BasicBlockId(0)
+        }));
         assert!(is_safe_terminator(&TerminatorKind::Unreachable));
         // Handle 不安全（dispatch 路由复杂），但 Handle 的构造需要完整 metadata，
         // 这里只验证 is_safe_terminator 对非 Handle 终结符返回 true。

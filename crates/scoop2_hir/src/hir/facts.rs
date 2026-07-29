@@ -13,7 +13,7 @@
 //! - 携带的类型句柄（`TypeId`）来自 typecheck 的 `TypeStore`，move 进 `TypedHir`
 //!   后保持有效（store 是 TypeId 的唯一来源）。
 
-use scoop2_base::{NodeId, Symbol, Span};
+use scoop2_base::{NodeId, Span, Symbol};
 
 use crate::resolve::output::{NodeIdTable, ResolvedValue};
 use crate::ty::{EffectRow, TypeId};

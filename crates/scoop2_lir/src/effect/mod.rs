@@ -5,11 +5,11 @@
 
 use scoop2_base::Interner;
 use scoop2_hir::hir::TypedHir;
-use scoop2_mir::mir::{materialize::MaterializedMir, EffectStepAbi};
 use scoop2_hir::ty::TypeId;
+use scoop2_mir::mir::{EffectStepAbi, materialize::MaterializedMir};
 
-use crate::*;
 use crate::gc::is_gc_traceable_type;
+use crate::*;
 
 // ---------------------------------------------------------------------------
 // Canonical continuation 对象布局（唯一权威来源）
@@ -112,7 +112,12 @@ pub fn prepare_effect_abi(
     layouts: &TypeLayoutTable,
     _hir: &TypedHir,
     _interner: &Interner,
-) -> (Option<FrameSchema>, Option<StepLayout>, Option<StateDispatch>, Option<ContinuationLayout>) {
+) -> (
+    Option<FrameSchema>,
+    Option<StepLayout>,
+    Option<StateDispatch>,
+    Option<ContinuationLayout>,
+) {
     // Frame schema：从 frame_ty 的 tuple 布局提取 slot 列表。
     // 第一个 slot 固定为 State（Int state tag）；其余为 frame tuple 的元素。
     let frame = build_frame_schema(abi, layouts);
@@ -150,8 +155,8 @@ pub fn prepare_effect_abi(
     // - FramePtr：指向 frame 的指针（与指针同 size）。
     // - StepFnPtr：函数指针（与指针同 size）。
     // - ResumeValue：8 字节 word（标量 zext / GC 指针原样）。
-    let bool_ty = find_scalar_type(layouts, |sk| matches!(sk, ScalarKind::Bool))
-        .unwrap_or(abi.frame_ty);
+    let bool_ty =
+        find_scalar_type(layouts, |sk| matches!(sk, ScalarKind::Bool)).unwrap_or(abi.frame_ty);
     let int_ty = state_local_ty_from_layouts(layouts);
     let cont = ContinuationLayout {
         cont_fqn: format!("{}$continuation", fqn),
@@ -191,9 +196,7 @@ fn build_frame_schema(abi: &EffectStepAbi, layouts: &TypeLayoutTable) -> FrameSc
             for (i, f) in elements.iter().enumerate() {
                 slots.push(FrameSlot {
                     slot_index: (i + 1) as u32,
-                    kind: FrameSlotKind::SourceLocal {
-                        local_id: i as u32,
-                    },
+                    kind: FrameSlotKind::SourceLocal { local_id: i as u32 },
                     ty: f.ty,
                     gc_traceable: is_gc_traceable_type(f.ty, layouts),
                 });
@@ -216,7 +219,11 @@ fn find_scalar_type(
     layouts: &TypeLayoutTable,
     pred: impl Fn(&ScalarKind) -> bool,
 ) -> Option<TypeId> {
-    layouts.entries.iter()
-        .find(|(_, l)| matches!(&l.kind, TypeLayoutKind::Scalar { scalar_kind } if pred(scalar_kind)))
+    layouts
+        .entries
+        .iter()
+        .find(
+            |(_, l)| matches!(&l.kind, TypeLayoutKind::Scalar { scalar_kind } if pred(scalar_kind)),
+        )
         .map(|(t, _)| *t)
 }

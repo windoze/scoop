@@ -25,8 +25,7 @@ pub fn generate_dispatch_tables(
             .iter()
             .enumerate()
             .map(|(i, (method_name, owner_fqn, overload_sig))| {
-                let target_symbol =
-                    mangle_target_symbol(owner_fqn, method_name, overload_sig);
+                let target_symbol = mangle_target_symbol(owner_fqn, method_name, overload_sig);
                 VtableSlot {
                     slot_index: i as u32,
                     method_name: method_name.clone(),
@@ -126,7 +125,8 @@ pub fn backfill_call_sites(program: &mut LirProgram) {
     // 早期实现只按 method_name 索引，会在多个 class 含同名方法时互相覆盖、
     // 导致 vtable_slot 错位。现在 LirCallKind::Virtual 携带 owner_fqn，可按
     // 声明该虚方法的类精确查找 slot。
-    let mut vtable_slots: std::collections::HashMap<(String, String), u32> = std::collections::HashMap::new();
+    let mut vtable_slots: std::collections::HashMap<(String, String), u32> =
+        std::collections::HashMap::new();
     for vt in &program.vtables {
         for slot in &vt.slots {
             vtable_slots.insert(
@@ -135,7 +135,8 @@ pub fn backfill_call_sites(program: &mut LirProgram) {
             );
         }
     }
-    let mut itable_slots: std::collections::HashMap<(String, String), (u64, u32)> = std::collections::HashMap::new();
+    let mut itable_slots: std::collections::HashMap<(String, String), (u64, u32)> =
+        std::collections::HashMap::new();
     for il in &program.itables {
         for slot in &il.slots {
             itable_slots.insert(
@@ -153,13 +154,28 @@ pub fn backfill_call_sites(program: &mut LirProgram) {
                     if let LirStmtKind::Assign { value, .. } = &mut stmt.kind {
                         if let LirRvalue::Call(call) = value {
                             match &mut call.kind {
-                                LirCallKind::Virtual { owner_fqn, method_name, vtable_slot, .. } => {
-                                    if let Some(&slot) = vtable_slots.get(&(owner_fqn.clone(), method_name.clone())) {
+                                LirCallKind::Virtual {
+                                    owner_fqn,
+                                    method_name,
+                                    vtable_slot,
+                                    ..
+                                } => {
+                                    if let Some(&slot) =
+                                        vtable_slots.get(&(owner_fqn.clone(), method_name.clone()))
+                                    {
                                         *vtable_slot = slot;
                                     }
                                 }
-                                LirCallKind::Interface { interface_fqn, method_name, interface_id, itable_slot, .. } => {
-                                    if let Some(&(iid, slot)) = itable_slots.get(&(interface_fqn.clone(), method_name.clone())) {
+                                LirCallKind::Interface {
+                                    interface_fqn,
+                                    method_name,
+                                    interface_id,
+                                    itable_slot,
+                                    ..
+                                } => {
+                                    if let Some(&(iid, slot)) = itable_slots
+                                        .get(&(interface_fqn.clone(), method_name.clone()))
+                                    {
                                         *interface_id = iid;
                                         *itable_slot = slot;
                                     }

@@ -41,9 +41,7 @@ fn verify_minimal_body() {
 fn verify_detects_dangling_successor() {
     use crate::diagnostics::VerifyError;
     use crate::mir::verify::verify_body;
-    use crate::mir::{
-        BasicBlock, BasicBlockId, Body, Terminator, TerminatorKind,
-    };
+    use crate::mir::{BasicBlock, BasicBlockId, Body, Terminator, TerminatorKind};
     let mut body = Body::new();
     // push 入口块，Goto 一个不存在的基本块。
     let _ = body.push_block(BasicBlock::new(Terminator {
@@ -55,7 +53,9 @@ fn verify_detects_dangling_successor() {
     let mut errors = Vec::new();
     verify_body(&body, &mut errors);
     assert!(
-        errors.iter().any(|e| matches!(e, VerifyError { code, .. } if *code == crate::diagnostics::VERIFY_CFG)),
+        errors.iter().any(
+            |e| matches!(e, VerifyError { code, .. } if *code == crate::diagnostics::VERIFY_CFG)
+        ),
         "悬空后继应报 verify_cfg: {:?}",
         errors
     );
@@ -64,7 +64,7 @@ fn verify_detects_dangling_successor() {
 /// production 语义验证：空 callee_fqn 的 Direct 调用应报 verify_semantic。
 #[test]
 fn verify_semantic_detects_empty_callee() {
-    use crate::diagnostics::{VerifyError, VERIFY_SEMANTIC};
+    use crate::diagnostics::{VERIFY_SEMANTIC, VerifyError};
     use crate::mir::verify::verify_semantic;
     use crate::mir::{
         BasicBlock, Body, CallArg, CallKind, FunDecl, LocalDecl, LocalId, LocalSource, Operand,
@@ -141,4 +141,3 @@ fn verify_semantic_detects_empty_callee() {
         errors
     );
 }
-

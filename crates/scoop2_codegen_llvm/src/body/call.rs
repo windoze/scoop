@@ -3,8 +3,8 @@
 //! 覆盖：Direct 调用、Interface 分发（itable lookup）、Virtual 分发（vtable slot）、
 //! Closure 调用、FunValue 调用。
 
-use inkwell::values::{BasicValueEnum, BasicMetadataValueEnum};
 use inkwell::IntPredicate;
+use inkwell::values::{BasicMetadataValueEnum, BasicValueEnum};
 
 use scoop2_lir::{LirCall, LirCallKind, LirOperand};
 
@@ -25,7 +25,14 @@ pub fn lower_call<'a, 'ctx>(
             interface_id,
             itable_slot,
             ..
-        } => lower_interface_dispatch(fl, receiver_local, *interface_id, *itable_slot, &call.args, call.result_ty),
+        } => lower_interface_dispatch(
+            fl,
+            receiver_local,
+            *interface_id,
+            *itable_slot,
+            &call.args,
+            call.result_ty,
+        ),
         LirCallKind::Virtual {
             receiver_local,
             vtable_slot,
@@ -37,9 +44,10 @@ pub fn lower_call<'a, 'ctx>(
         LirCallKind::FunValue { callee_local } => {
             lower_funvalue_call(fl, callee_local, &call.args, call.result_ty)
         }
-        LirCallKind::Resume { continuation, resume_value } => {
-            lower_resume(fl, continuation, resume_value, call.result_ty)
-        }
+        LirCallKind::Resume {
+            continuation,
+            resume_value,
+        } => lower_resume(fl, continuation, resume_value, call.result_ty),
     }
 }
 
@@ -109,14 +117,19 @@ fn lower_resume<'a, 'ctx>(
                 "resume: continuation must be a pointer",
                 "lower_resume",
                 scoop2_base::Span::default(),
-            ))
+            ));
         }
     };
 
     // 1. 读 resumed_flag → 若 true，panic。
     let resumed_slot = unsafe {
         fl.builder
-            .build_in_bounds_gep(i8, cont_native, &[i64.const_int(CONT_OFFSET_RESUMED, false)], "res_resumed_slot")
+            .build_in_bounds_gep(
+                i8,
+                cont_native,
+                &[i64.const_int(CONT_OFFSET_RESUMED, false)],
+                "res_resumed_slot",
+            )
             .map_err(|e| llvm(e, "res_gep_resumed"))?
     };
     let resumed = fl
@@ -126,7 +139,12 @@ fn lower_resume<'a, 'ctx>(
         .into_int_value();
     let already = fl
         .builder
-        .build_int_compare(inkwell::IntPredicate::NE, resumed, i8.const_zero(), "res_already")
+        .build_int_compare(
+            inkwell::IntPredicate::NE,
+            resumed,
+            i8.const_zero(),
+            "res_already",
+        )
         .map_err(|e| llvm(e, "res_already"))?;
     let ok_bb = fl.cg.context.append_basic_block(fl.fv, "resume_ok");
     let panic_bb = fl.cg.context.append_basic_block(fl.fv, "resume_panic");
@@ -134,7 +152,9 @@ fn lower_resume<'a, 'ctx>(
         .build_conditional_branch(already, panic_bb, ok_bb)
         .map_err(|e| llvm(e, "res_br"))?;
     fl.builder.position_at_end(panic_bb);
-    let msg = fl.cg.get_or_create_string_literal("ContinuationAlreadyResumed")?;
+    let msg = fl
+        .cg
+        .get_or_create_string_literal("ContinuationAlreadyResumed")?;
     let msg_native = fl
         .builder
         .build_bit_cast(msg, native_ptr, "res_panic_msg")
@@ -184,17 +204,25 @@ fn lower_resume<'a, 'ctx>(
         }
         other => {
             return Err(CodegenError::unsupported(
-                format!("resume value 类型不支持按 word 传递：{:?}（复合值需装箱）", other.get_type()),
+                format!(
+                    "resume value 类型不支持按 word 传递：{:?}（复合值需装箱）",
+                    other.get_type()
+                ),
                 &fl.fqn,
                 scoop2_base::Span::default(),
-            ))
+            ));
         }
     };
 
     // 4. 写 resume_value word 到 continuation 的 resume_value 字段。
     let rv_slot = unsafe {
         fl.builder
-            .build_in_bounds_gep(i8, cont_native, &[i64.const_int(CONT_OFFSET_RESUME_VALUE, false)], "res_rv_slot")
+            .build_in_bounds_gep(
+                i8,
+                cont_native,
+                &[i64.const_int(CONT_OFFSET_RESUME_VALUE, false)],
+                "res_rv_slot",
+            )
             .map_err(|e| llvm(e, "res_gep_rv"))?
     };
     fl.builder
@@ -204,7 +232,12 @@ fn lower_resume<'a, 'ctx>(
     // 5. 读 step_fn_ptr + frame_ptr，间接调用 step_fn(frame, resume_word)。
     let step_fn_slot = unsafe {
         fl.builder
-            .build_in_bounds_gep(i8, cont_native, &[i64.const_int(CONT_OFFSET_STEP_FN, false)], "res_stepfn_slot")
+            .build_in_bounds_gep(
+                i8,
+                cont_native,
+                &[i64.const_int(CONT_OFFSET_STEP_FN, false)],
+                "res_stepfn_slot",
+            )
             .map_err(|e| llvm(e, "res_gep_stepfn"))?
     };
     let step_fn = fl
@@ -214,7 +247,12 @@ fn lower_resume<'a, 'ctx>(
         .into_pointer_value();
     let frame_slot = unsafe {
         fl.builder
-            .build_in_bounds_gep(i8, cont_native, &[i64.const_int(CONT_OFFSET_FRAME, false)], "res_frame_slot")
+            .build_in_bounds_gep(
+                i8,
+                cont_native,
+                &[i64.const_int(CONT_OFFSET_FRAME, false)],
+                "res_frame_slot",
+            )
             .map_err(|e| llvm(e, "res_gep_frame"))?
     };
     let frame_ptr = fl
@@ -226,7 +264,12 @@ fn lower_resume<'a, 'ctx>(
     let step_fn_ty = native_ptr.fn_type(&[native_ptr.into(), i64.into()], false);
     let call = fl
         .builder
-        .build_indirect_call(step_fn_ty, step_fn, &[frame_ptr.into(), rv_word.into()], "res_step_call")
+        .build_indirect_call(
+            step_fn_ty,
+            step_fn,
+            &[frame_ptr.into(), rv_word.into()],
+            "res_step_call",
+        )
         .map_err(|e| llvm(e, "res_step_call"))?;
     match call.try_as_basic_value() {
         inkwell::values::ValueKind::Basic(v) => Ok(v),
@@ -253,7 +296,8 @@ fn lower_interface_dispatch<'a, 'ctx>(
     let recv_native = get_type_desc_ptr(fl, receiver)?;
 
     // 2. type_desc.itable（field index 12）。
-    let itable = load_struct_field_ptr(fl, recv_native, fl.cg.type_descriptor_type(), 12, "itable")?;
+    let itable =
+        load_struct_field_ptr(fl, recv_native, fl.cg.type_descriptor_type(), 12, "itable")?;
 
     // 3. itable 容器: { i32 count; i32 _pad; ptr entries }。count=field 0, entries=field 2。
     let container_ty = fl.cg.itable_container_type_pub();
@@ -288,14 +332,19 @@ fn lower_interface_dispatch<'a, 'ctx>(
     let cond = fl
         .builder
         .build_int_compare(IntPredicate::SLT, i_val, count, "loop_cond")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "icmp loop", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "icmp loop", scoop2_base::Span::default())
+        })?;
     let body_bb = fl.cg.context.append_basic_block(fl.fv, "itable_body");
-    let _ = fl.builder.build_conditional_branch(cond, body_bb, not_found_bb);
+    let _ = fl
+        .builder
+        .build_conditional_branch(cond, body_bb, not_found_bb);
 
     // body: load entry[i].interface_id, compare.
     fl.builder.position_at_end(body_bb);
     let entry_ptr = unsafe {
-        fl.builder.build_in_bounds_gep(entry_ty, entries_ptr, &[i_val], "entry_ptr")
+        fl.builder
+            .build_in_bounds_gep(entry_ty, entries_ptr, &[i_val], "entry_ptr")
     }
     .map_err(|e| CodegenError::llvm(e.to_string(), "gep entry", scoop2_base::Span::default()))?;
     let entry_iface_id = load_struct_field_int_raw(fl, entry_ptr, entry_ty, 0, "entry_iface_id")?;
@@ -307,8 +356,12 @@ fn lower_interface_dispatch<'a, 'ctx>(
             i64_ty.const_int(interface_id, false),
             "iface_match",
         )
-        .map_err(|e| CodegenError::llvm(e.to_string(), "icmp iface", scoop2_base::Span::default()))?;
-    let _ = fl.builder.build_conditional_branch(match_cond, found_bb, inc_bb);
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "icmp iface", scoop2_base::Span::default())
+        })?;
+    let _ = fl
+        .builder
+        .build_conditional_branch(match_cond, found_bb, inc_bb);
 
     // found: load entry.methods → methods[slot] → fn ptr.
     fl.builder.position_at_end(found_bb);
@@ -317,7 +370,10 @@ fn lower_interface_dispatch<'a, 'ctx>(
         fl.builder.build_in_bounds_gep(
             native_ptr,
             methods_arr,
-            &[fl.cg.context.i32_type().const_int(itable_slot as u64, false)],
+            &[fl.cg
+                .context
+                .i32_type()
+                .const_int(itable_slot as u64, false)],
             "fn_ptr_slot",
         )
     }
@@ -333,28 +389,52 @@ fn lower_interface_dispatch<'a, 'ctx>(
     fl.builder.position_at_end(inc_bb);
     let i_next = fl
         .builder
-        .build_int_add(i_val, fl.cg.context.i32_type().const_int(1, false), "i_next")
+        .build_int_add(
+            i_val,
+            fl.cg.context.i32_type().const_int(1, false),
+            "i_next",
+        )
         .map_err(|e| CodegenError::llvm(e.to_string(), "add i", scoop2_base::Span::default()))?;
-    fl.builder
-        .build_store(i_slot, i_next)
-        .map_err(|e| CodegenError::llvm(e.to_string(), "store i_next", scoop2_base::Span::default()))?;
+    fl.builder.build_store(i_slot, i_next).map_err(|e| {
+        CodegenError::llvm(e.to_string(), "store i_next", scoop2_base::Span::default())
+    })?;
     let _ = fl.builder.build_unconditional_branch(loop_bb);
 
     // not_found: 调用 scoop_runtime_error_fatal（不能返回 null，否则 LLVM 会把后续代码视为 UB）。
     fl.builder.position_at_end(not_found_bb);
-    let panic_msg = fl.cg.get_or_create_string_literal("interface dispatch failed: method not found")?;
+    let panic_msg = fl
+        .cg
+        .get_or_create_string_literal("interface dispatch failed: method not found")?;
     let panic_native = fl
         .builder
         .build_ptr_to_int(panic_msg, fl.cg.context.i64_type(), "panic_msg_int")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int panic", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "ptr_to_int panic",
+                scoop2_base::Span::default(),
+            )
+        })?;
     let panic_native_ptr = fl
         .builder
         .build_int_to_ptr(panic_native, fl.cg.native_ptr_ty(), "panic_msg_ptr")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr panic", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "int_to_ptr panic",
+                scoop2_base::Span::default(),
+            )
+        })?;
     let _ = fl
         .builder
-        .build_call(fl.rt.runtime_error_fatal, &[panic_native_ptr.into()], "fatal")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "call fatal", scoop2_base::Span::default()))?;
+        .build_call(
+            fl.rt.runtime_error_fatal,
+            &[panic_native_ptr.into()],
+            "fatal",
+        )
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "call fatal", scoop2_base::Span::default())
+        })?;
     // fatal is noreturn; add unreachable to prevent LLVM from treating
     // the not_found → merge edge as a valid path (which would make
     // the phi have a null incoming and cause UB).
@@ -364,7 +444,9 @@ fn lower_interface_dispatch<'a, 'ctx>(
     let phi = fl
         .builder
         .build_phi(native_ptr, "resolved_fn")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "build_phi", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "build_phi", scoop2_base::Span::default())
+        })?;
     // not_found 分支调用了 fatal（noreturn），但 phi 仍需要一个 incoming value。
     // 用 native_ptr.const_null() 作为占位（not_found 分支实际不会到达 merge_bb，
     // 因为 fatal 是 noreturn；但 LLVM 需要 phi 的 incoming 类型一致）。
@@ -374,7 +456,7 @@ fn lower_interface_dispatch<'a, 'ctx>(
     let resolved_fn = phi.as_basic_value().into_pointer_value();
 
     // 5. 间接调用。
-    call_fn_ptr(fl, resolved_fn, receiver, args, result_ty, true)
+    call_fn_ptr(fl, resolved_fn, receiver, args, result_ty, true, None)
 }
 
 /// Virtual 分发：receiver → type_desc → vtable → slot → call。
@@ -393,7 +475,10 @@ fn lower_virtual_dispatch<'a, 'ctx>(
         fl.builder.build_in_bounds_gep(
             native_ptr,
             vtable,
-            &[fl.cg.context.i32_type().const_int(vtable_slot as u64, false)],
+            &[fl.cg
+                .context
+                .i32_type()
+                .const_int(vtable_slot as u64, false)],
             "vfn_ptr_slot",
         )
     }
@@ -403,7 +488,7 @@ fn lower_virtual_dispatch<'a, 'ctx>(
         .build_load(native_ptr, fn_ptr_slot, "vfn_val")
         .map_err(|e| CodegenError::llvm(e.to_string(), "load vfn", scoop2_base::Span::default()))?
         .into_pointer_value();
-    call_fn_ptr(fl, resolved_fn, receiver, args, result_ty, true)
+    call_fn_ptr(fl, resolved_fn, receiver, args, result_ty, true, None)
 }
 
 /// Closure 调用：closure 对象 = { header; env_ptr; invoke_fn_ptr }。
@@ -415,7 +500,10 @@ fn lower_closure_call<'a, 'ctx>(
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let native_ptr = fl.cg.native_ptr_ty();
     let closure_native = get_native_ptr_from_operand(fl, callee)?;
-    let header_size = fl.cg.target_data.get_store_size(&fl.cg.object_header_type());
+    let header_size = fl
+        .cg
+        .target_data
+        .get_store_size(&fl.cg.object_header_type());
     let fn_offset = header_size + fl.cg.pointer_byte_size;
     let fn_ptr_i8 = unsafe {
         fl.builder.build_in_bounds_gep(
@@ -431,7 +519,44 @@ fn lower_closure_call<'a, 'ctx>(
         .build_load(native_ptr, fn_ptr_i8, "cl_invoke_fn")
         .map_err(|e| CodegenError::llvm(e.to_string(), "load cl_fn", scoop2_base::Span::default()))?
         .into_pointer_value();
-    call_fn_ptr(fl, invoke_fn, callee, args, result_ty, false)
+    // 统一闭包 ABI：首参传 env blob 指针（从 closure 对象的 env_ptr 槽加载）。
+    let env_slot = unsafe {
+        fl.builder.build_in_bounds_gep(
+            fl.cg.context.i8_type(),
+            closure_native,
+            &[fl.cg.context.i64_type().const_int(header_size, false)],
+            "cl_env_i8",
+        )
+    }
+    .map_err(|e| CodegenError::llvm(e.to_string(), "gep cl_env", scoop2_base::Span::default()))?;
+    let env_native = fl
+        .builder
+        .build_load(native_ptr, env_slot, "cl_env")
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "load cl_env", scoop2_base::Span::default())
+        })?
+        .into_pointer_value();
+    let env_int = fl
+        .builder
+        .build_ptr_to_int(env_native, fl.cg.context.i64_type(), "cl_env_int")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "ptr_to_int cl_env",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    let env_gc = fl
+        .builder
+        .build_int_to_ptr(env_int, fl.cg.gc_ptr_ty(), "cl_env_gc")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "int_to_ptr cl_env",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    call_fn_ptr(fl, invoke_fn, callee, args, result_ty, false, Some(env_gc))
 }
 
 /// FunValue 调用：与 Closure 相同。
@@ -462,18 +587,26 @@ fn get_native_ptr_from_operand<'a, 'ctx>(
     operand: &LirOperand,
 ) -> CodegenResult<inkwell::values::PointerValue<'ctx>> {
     let gc_ptr = match operand {
-        LirOperand::Local(id) => fl.load_local(*id)?.into_pointer_value(),
-        LirOperand::Const(c) => fl.lower_const_value(c)?.into_pointer_value(),
+        LirOperand::Local(id) => {
+            super::expect_ptr_val(fl.load_local(*id)?, "call receiver/closure", &fl.fqn)?
+        }
+        LirOperand::Const(c) => {
+            super::expect_ptr_val(fl.lower_const_value(c)?, "call receiver/closure", &fl.fqn)?
+        }
     };
     let native_ptr = fl.cg.native_ptr_ty();
     let as_int = fl
         .builder
         .build_ptr_to_int(gc_ptr, fl.cg.context.i64_type(), "gc2int")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "ptr_to_int", scoop2_base::Span::default())
+        })?;
     let native = fl
         .builder
         .build_int_to_ptr(as_int, native_ptr, "int2native")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "int_to_ptr", scoop2_base::Span::default())
+        })?;
     Ok(native)
 }
 
@@ -490,11 +623,23 @@ fn load_struct_field_ptr<'a, 'ctx>(
         fl.builder
             .build_struct_gep(struct_ty, struct_ptr, field_index, name)
     }
-    .map_err(|e| CodegenError::llvm(e.to_string(), format!("gep {name}"), scoop2_base::Span::default()))?;
+    .map_err(|e| {
+        CodegenError::llvm(
+            e.to_string(),
+            format!("gep {name}"),
+            scoop2_base::Span::default(),
+        )
+    })?;
     let val = fl
         .builder
         .build_load(native_ptr, slot, name)
-        .map_err(|e| CodegenError::llvm(e.to_string(), format!("load {name}"), scoop2_base::Span::default()))?
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                format!("load {name}"),
+                scoop2_base::Span::default(),
+            )
+        })?
         .into_pointer_value();
     Ok(val)
 }
@@ -511,11 +656,23 @@ fn load_struct_field_int<'a, 'ctx>(
         fl.builder
             .build_struct_gep(struct_ty, struct_ptr, field_index, name)
     }
-    .map_err(|e| CodegenError::llvm(e.to_string(), format!("gep {name}"), scoop2_base::Span::default()))?;
+    .map_err(|e| {
+        CodegenError::llvm(
+            e.to_string(),
+            format!("gep {name}"),
+            scoop2_base::Span::default(),
+        )
+    })?;
     let val = fl
         .builder
         .build_load(fl.cg.context.i32_type(), slot, name)
-        .map_err(|e| CodegenError::llvm(e.to_string(), format!("load {name}"), scoop2_base::Span::default()))?
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                format!("load {name}"),
+                scoop2_base::Span::default(),
+            )
+        })?
         .into_int_value();
     Ok(val)
 }
@@ -532,11 +689,23 @@ fn load_struct_field_int_raw<'a, 'ctx>(
         fl.builder
             .build_struct_gep(struct_ty, struct_ptr, field_index, name)
     }
-    .map_err(|e| CodegenError::llvm(e.to_string(), format!("gep {name}"), scoop2_base::Span::default()))?;
+    .map_err(|e| {
+        CodegenError::llvm(
+            e.to_string(),
+            format!("gep {name}"),
+            scoop2_base::Span::default(),
+        )
+    })?;
     let val = fl
         .builder
         .build_load(fl.cg.context.i64_type(), slot, name)
-        .map_err(|e| CodegenError::llvm(e.to_string(), format!("load {name}"), scoop2_base::Span::default()))?
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                format!("load {name}"),
+                scoop2_base::Span::default(),
+            )
+        })?
         .into_int_value();
     Ok(val)
 }
@@ -550,40 +719,40 @@ fn call_fn_ptr<'a, 'ctx>(
     args: &[LirOperand],
     result_ty: scoop2_hir::ty::TypeId,
     prepend_receiver: bool,
+    closure_env: Option<inkwell::values::PointerValue<'ctx>>,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let ret_llvm = fl.cg.lower_type(result_ty, fl.layouts)?;
-    let native_ptr = fl.cg.native_ptr_ty();
 
-    // 构造参数列表。
-    let gc_ptr_ty = fl.cg.gc_ptr_ty();
-    let mut call_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::new();
+    // 构造参数列表（先收集为 BasicValueEnum，参数类型随后从实际值推导）。
+    let mut call_arg_vals: Vec<BasicValueEnum<'ctx>> = Vec::new();
     if prepend_receiver {
         // receiver 作为 GC ptr（addrspace 1）首参——与成员函数 this 参数类型一致。
         let recv_gc = match receiver {
-            LirOperand::Local(id) => fl.load_local(*id)?.into_pointer_value(),
-            LirOperand::Const(c) => fl.lower_const_value(c)?.into_pointer_value(),
+            LirOperand::Local(id) => {
+                super::expect_ptr_val(fl.load_local(*id)?, "call receiver", &fl.fqn)?
+            }
+            LirOperand::Const(c) => {
+                super::expect_ptr_val(fl.lower_const_value(c)?, "call receiver", &fl.fqn)?
+            }
         };
-        call_args.push(recv_gc.into());
+        call_arg_vals.push(recv_gc.into());
+    }
+    if let Some(env_gc) = closure_env {
+        // 统一闭包 ABI：env blob 指针作为首参（invoke 函数的 `$env` 形参为 GC ptr）。
+        call_arg_vals.push(env_gc.into());
     }
     for operand in args {
         let arg_val = fl.lower_operand(operand, result_ty)?;
-        call_args.push(arg_val.into());
+        call_arg_vals.push(arg_val);
     }
+    let call_args: Vec<BasicMetadataValueEnum<'ctx>> =
+        call_arg_vals.iter().map(|&v| v.into()).collect();
 
-    // 函数类型：用返回类型 + 参数类型构造。
-    let param_tys: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> = if prepend_receiver {
-        let mut v: Vec<_> = vec![gc_ptr_ty.into()]; // receiver = GC ptr
-        for _ in args {
-            v.push(ret_llvm.into());
-        }
-        v
-    } else {
-        let mut v: Vec<_> = vec![gc_ptr_ty.into()]; // env_ptr = GC ptr
-        for _ in args {
-            v.push(ret_llvm.into());
-        }
-        v
-    };
+    // 函数类型：返回类型 + 从实际参数值推导的参数类型（保证 call site 与 fn_ty 一致；
+    // 被调方的声明签名由静态类型一致性保证——receiver/env 均为 GC ptr，
+    // 其余参数按各自静态类型 lower，与 invoke/成员函数的形参 lower 结果相同）。
+    let param_tys: Vec<inkwell::types::BasicMetadataTypeEnum<'ctx>> =
+        call_arg_vals.iter().map(|v| v.get_type().into()).collect();
     let fn_ty = match ret_llvm {
         inkwell::types::BasicTypeEnum::IntType(t) => t.fn_type(&param_tys, false),
         inkwell::types::BasicTypeEnum::FloatType(t) => t.fn_type(&param_tys, false),
@@ -600,7 +769,13 @@ fn call_fn_ptr<'a, 'ctx>(
     let call_site = fl
         .builder
         .build_indirect_call(fn_ty, fn_ptr, &call_args, "dispatch")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "build_indirect_call", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "build_indirect_call",
+                scoop2_base::Span::default(),
+            )
+        })?;
 
     if fn_ty.get_return_type().is_some() {
         match call_site.try_as_basic_value() {

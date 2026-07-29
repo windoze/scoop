@@ -17,23 +17,20 @@ pub fn dump_program(program: &LirProgram) -> String {
     for (ty, layout) in &ids {
         out.push_str(&format!(
             "  {:?}: size={} align={} kind={}\n",
-            ty, layout.size, layout.align, format_layout_kind(&layout.kind)
+            ty,
+            layout.size,
+            layout.align,
+            format_layout_kind(&layout.kind)
         ));
     }
 
     // Callable。
     out.push_str(&format!("-- callables ({} ) --\n", program.callables.len()));
     for c in &program.callables {
-        out.push_str(&format!(
-            "  {} -> {}\n",
-            c.fqn, c.symbol_name
-        ));
+        out.push_str(&format!("  {} -> {}\n", c.fqn, c.symbol_name));
         out.push_str(&format!("    abi: {:?}\n", c.abi));
         for p in &c.params {
-            out.push_str(&format!(
-                "    param {}: {:?} ({:?})\n",
-                p.name, p.ty, p.abi
-            ));
+            out.push_str(&format!("    param {}: {:?} ({:?})\n", p.name, p.ty, p.abi));
         }
         out.push_str(&format!(
             "    return: {:?} ({:?})\n",
@@ -57,21 +54,14 @@ pub fn dump_program(program: &LirProgram) -> String {
     for d in &program.declarations {
         out.push_str(&format!(
             "  {} -> {} (extern={}, sym={:?})\n",
-            d.fqn,
-            d.symbol_name,
-            d.is_extern,
-            d.extern_symbol
+            d.fqn, d.symbol_name, d.is_extern, d.extern_symbol
         ));
     }
 
     // vtable / itable。
     out.push_str(&format!("-- vtables ({}) --\n", program.vtables.len()));
     for v in &program.vtables {
-        out.push_str(&format!(
-            "  {}: {} slots\n",
-            v.class_fqn,
-            v.slots.len()
-        ));
+        out.push_str(&format!("  {}: {} slots\n", v.class_fqn, v.slots.len()));
         for s in &v.slots {
             out.push_str(&format!(
                 "    [{}] {} (owner={}) -> {}\n",
@@ -165,7 +155,10 @@ pub fn dump_program(program: &LirProgram) -> String {
     for cl in &program.closure_layouts {
         out.push_str(&format!(
             "  {}: env_size={} env_align={} captures={}\n",
-            cl.invoke_fqn, cl.env_size, cl.env_align, cl.captures.len()
+            cl.invoke_fqn,
+            cl.env_size,
+            cl.env_align,
+            cl.captures.len()
         ));
     }
 
@@ -177,7 +170,9 @@ pub fn dump_program(program: &LirProgram) -> String {
     for ci in &program.class_inits {
         out.push_str(&format!(
             "  {}: fields={} super={:?}\n",
-            ci.class_fqn, ci.field_inits.len(), ci.super_init
+            ci.class_fqn,
+            ci.field_inits.len(),
+            ci.super_init
         ));
     }
 
@@ -186,25 +181,32 @@ pub fn dump_program(program: &LirProgram) -> String {
         if let Some(gc) = &c.gc_info {
             out.push_str(&format!(
                 "-- gc_info for {} ({} gc_locals, {} safepoints) --\n",
-                c.fqn, gc.gc_locals.len(), gc.safepoints.len()
+                c.fqn,
+                gc.gc_locals.len(),
+                gc.safepoints.len()
             ));
             for sp in &gc.safepoints {
                 out.push_str(&format!(
                     "  safepoint bb{} stmt{} {:?}: {} live roots\n",
-                    sp.block_id, sp.stmt_index, sp.kind, sp.live_gc_locals.len()
+                    sp.block_id,
+                    sp.stmt_index,
+                    sp.kind,
+                    sp.live_gc_locals.len()
                 ));
             }
         }
         if let Some(fs) = &c.frame_schema {
             out.push_str(&format!(
                 "-- frame_schema for {} ({} slots) --\n",
-                c.fqn, fs.slots.len()
+                c.fqn,
+                fs.slots.len()
             ));
         }
         if let Some(sl) = &c.step_layout {
             out.push_str(&format!(
                 "-- step_layout for {} ({} variants) --\n",
-                c.fqn, sl.effect_variants.len() + 1
+                c.fqn,
+                sl.effect_variants.len() + 1
             ));
         }
         if let Some(cl) = &c.continuation_layout {
@@ -231,7 +233,11 @@ fn format_layout_kind(kind: &TypeLayoutKind) -> String {
         TypeLayoutKind::Scalar { scalar_kind } => format!("Scalar({:?})", scalar_kind),
         TypeLayoutKind::Struct { fields } => format!("Struct({} fields)", fields.len()),
         TypeLayoutKind::Tuple { elements } => format!("Tuple({} elements)", elements.len()),
-        TypeLayoutKind::Option { storage, payload_size } => {
+        TypeLayoutKind::Option {
+            storage,
+            payload_size,
+            ..
+        } => {
             format!("Option({:?}, payload={})", storage, payload_size)
         }
         TypeLayoutKind::Enum {

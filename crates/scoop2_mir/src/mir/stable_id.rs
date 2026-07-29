@@ -104,7 +104,10 @@ fn encode_type(
         TypeKind::Value(ValueTypeKind::IntN(bits)) => format!("V(Int{bits})"),
         TypeKind::Value(ValueTypeKind::UIntN(bits)) => format!("V(UInt{bits})"),
         TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            format!("V(Option<{}>)", encode_type(types, interner, *inner, depth + 1, cache))
+            format!(
+                "V(Option<{}>)",
+                encode_type(types, interner, *inner, depth + 1, cache)
+            )
         }
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
             let elems: Vec<String> = elements
@@ -321,11 +324,7 @@ pub fn compute_public_stable_keys(module: &mut crate::mir::Module, interner: &In
 }
 
 /// 为 body 中所有 ClassCtor / EnumVariant 的 stable key 字段填充值。
-fn compute_rvalue_stable_keys(
-    body: &mut crate::mir::Body,
-    store: &TypeStore,
-    interner: &Interner,
-) {
+fn compute_rvalue_stable_keys(body: &mut crate::mir::Body, store: &TypeStore, interner: &Interner) {
     for block in &mut body.blocks {
         for stmt in &mut block.stmts {
             if let crate::mir::StatementKind::Assign { value, .. } = &mut stmt.kind {
@@ -336,13 +335,14 @@ fn compute_rvalue_stable_keys(
 }
 
 /// 为单个 Rvalue 的 ClassCtor / EnumVariant stable key 填充（若为 None）。
-fn fill_rvalue_stable_key(
-    rv: &mut crate::mir::Rvalue,
-    store: &TypeStore,
-    interner: &Interner,
-) {
+fn fill_rvalue_stable_key(rv: &mut crate::mir::Rvalue, store: &TypeStore, interner: &Interner) {
     match rv {
-        crate::mir::Rvalue::ClassCtor { ctor, args, type_fqn, .. } => {
+        crate::mir::Rvalue::ClassCtor {
+            ctor,
+            args,
+            type_fqn,
+            ..
+        } => {
             if ctor.stable_template_key.is_none() {
                 let fqn_text = interner.resolve(*type_fqn).to_string();
                 let param_types: Vec<TypeId> = args.iter().map(|a| a.value_ty).collect();
@@ -355,7 +355,13 @@ fn fill_rvalue_stable_key(
                 ));
             }
         }
-        crate::mir::Rvalue::EnumVariant { enum_fqn, variant_name, args, stable_key, .. } => {
+        crate::mir::Rvalue::EnumVariant {
+            enum_fqn,
+            variant_name,
+            args,
+            stable_key,
+            ..
+        } => {
             if stable_key.is_none() {
                 let enum_text = interner.resolve(*enum_fqn);
                 let variant_text = interner.resolve(*variant_name);
@@ -424,30 +430,15 @@ mod tests {
 
     #[test]
     fn template_key_includes_fqn() {
-        let key = make_stable_template_key(
-            StableHashScope::Dump,
-            "pkg.main",
-            &[],
-            "",
-        );
+        let key = make_stable_template_key(StableHashScope::Dump, "pkg.main", &[], "");
         assert!(key.canonical.contains("pkg.main"));
         assert!(!key.hash.is_empty());
     }
 
     #[test]
     fn template_key_with_overload_sig() {
-        let key_no_sig = make_stable_template_key(
-            StableHashScope::Dump,
-            "pkg.f",
-            &[],
-            "",
-        );
-        let key_with_sig = make_stable_template_key(
-            StableHashScope::Dump,
-            "pkg.f",
-            &[],
-            "V(Int)",
-        );
+        let key_no_sig = make_stable_template_key(StableHashScope::Dump, "pkg.f", &[], "");
+        let key_with_sig = make_stable_template_key(StableHashScope::Dump, "pkg.f", &[], "V(Int)");
         assert_ne!(key_no_sig.canonical, key_with_sig.canonical);
         assert_ne!(key_no_sig.hash, key_with_sig.hash);
     }

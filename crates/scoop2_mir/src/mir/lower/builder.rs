@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 
 use scoop2_base::{FileId, NodeId, Span, Symbol};
-use scoop2_hir::ty::{EffectRow, TypeId, TypeStore};
 use scoop2_hir::hir::TypedHir;
+use scoop2_hir::ty::{EffectRow, TypeId, TypeStore};
 
 use crate::diagnostics::MirLowerError;
 use crate::mir::{
@@ -69,7 +69,8 @@ impl<'hir> FnLowering<'hir> {
         // 入口块 bb0（占位终结符，后续替换）。
         let start = body.push_block(BasicBlock::new(unreachable_term()));
         // 从 HIR 收集所有 enum FQN，供 transport kind 分类使用。
-        let enum_fqns: std::collections::HashSet<scoop2_base::Symbol> = hir.enum_variants.keys().copied().collect();
+        let enum_fqns: std::collections::HashSet<scoop2_base::Symbol> =
+            hir.enum_variants.keys().copied().collect();
         Self {
             hir,
             types,
@@ -103,7 +104,7 @@ impl<'hir> FnLowering<'hir> {
             name: None,
             ty,
             source: LocalSource::Temp,
-        mutable: false,
+            mutable: false,
         })
     }
 
@@ -113,7 +114,13 @@ impl<'hir> FnLowering<'hir> {
     }
 
     /// 申明一个命名 local，指定可变性。
-    pub fn alloc_named_mutable(&mut self, name: String, ty: TypeId, span: Span, mutable: bool) -> LocalId {
+    pub fn alloc_named_mutable(
+        &mut self,
+        name: String,
+        ty: TypeId,
+        span: Span,
+        mutable: bool,
+    ) -> LocalId {
         self.alloc_local(LocalDecl {
             span,
             name: Some(name),
@@ -158,7 +165,11 @@ impl<'hir> FnLowering<'hir> {
     /// Array 引用类型（`Ref(scoop.core.Array)`，无类型实参）。
     /// 用于空数组字面量 `[]` 的 MakeArray 临时（表达式类型为 Nothing 时回退）。
     pub fn array_ref_ty(&mut self) -> scoop2_hir::ty::TypeId {
-        let array_fqn = self.hir.interner.get("scoop.core.Array").unwrap_or_default();
+        let array_fqn = self
+            .hir
+            .interner
+            .get("scoop.core.Array")
+            .unwrap_or_default();
         self.types.ref_nominal(scoop2_hir::ty::NominalType {
             fqn: array_fqn,
             args: Vec::new(),
@@ -209,7 +220,10 @@ impl<'hir> FnLowering<'hir> {
     }
 
     /// 为某 callee FQN 计算 StableTemplateKey。
-    pub fn stable_template_key_for(&self, callee_fqn: &str) -> Option<crate::mir::StableTemplateKey> {
+    pub fn stable_template_key_for(
+        &self,
+        callee_fqn: &str,
+    ) -> Option<crate::mir::StableTemplateKey> {
         // 从 HIR type_constraints 查找该 FQN 的真实类型参数名序列。
         let fqn_sym = self.hir.interner.get(callee_fqn);
         let type_params: Vec<String> = if let Some(fqn) = fqn_sym {
@@ -341,7 +355,11 @@ impl<'hir> FnLowering<'hir> {
 
     /// 计算某类型的 ValueTransportMetadata（带 boxing：当 source_ty 是值类型且需要擦除到 target_ty 时）。
     /// target_ty 通常是 Any 或 Ref；若 source_ty == target_ty 或 source 不是值类型则无 boxing。
-    pub fn value_transport_boxed(&mut self, source_ty: TypeId, target_ty: TypeId) -> crate::mir::ValueTransportMetadata {
+    pub fn value_transport_boxed(
+        &mut self,
+        source_ty: TypeId,
+        target_ty: TypeId,
+    ) -> crate::mir::ValueTransportMetadata {
         let any_ty = self.types.any();
         match crate::mir::transport::value_erasure_transport(
             &self.types,
@@ -362,8 +380,10 @@ impl<'hir> FnLowering<'hir> {
         let any_ty = self.types.any();
         // 检测值类型擦除到 Any：若 result_ty 是值类型且 any_ty 存在，标记 boxing。
         let result = if result_ty != any_ty
-            && matches!(self.types.kind(result_ty), scoop2_hir::ty::TypeKind::Value(_))
-        {
+            && matches!(
+                self.types.kind(result_ty),
+                scoop2_hir::ty::TypeKind::Value(_)
+            ) {
             // 值类型结果：可能需要 boxing 到 Any（取决于调用点期望类型，
             // 当前无目标类型信息，保守不 box——但 boxing intent 仍从类型结构精确计算）。
             crate::mir::transport::value_transport(&self.types, &self.enum_fqns, result_ty)
@@ -371,11 +391,12 @@ impl<'hir> FnLowering<'hir> {
             crate::mir::transport::value_transport(&self.types, &self.enum_fqns, result_ty)
         };
         // aggregate_return：若返回类型是聚合（tuple/struct/enum），标记。
-        let aggregate_return = if crate::mir::transport::mir_is_aggregate_transport_ty(&self.types, result_ty) {
-            Some(result.clone())
-        } else {
-            None
-        };
+        let aggregate_return =
+            if crate::mir::transport::mir_is_aggregate_transport_ty(&self.types, result_ty) {
+                Some(result.clone())
+            } else {
+                None
+            };
         crate::mir::CallTransportMetadata {
             result,
             aggregate_return,
@@ -391,7 +412,7 @@ impl<'hir> FnLowering<'hir> {
         aggregate_ty: TypeId,
         kind: crate::mir::AggregateTransportKind,
     ) -> crate::mir::AggregateTransportMetadata {
-        use scoop2_hir::ty::{TypeKind, ValueTypeKind, RefTypeKind};
+        use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
         let element_tys: Vec<TypeId> = match self.types.kind(aggregate_ty) {
             TypeKind::Value(ValueTypeKind::Tuple(els)) => els.clone(),
             TypeKind::Value(ValueTypeKind::Option(inner)) => vec![*inner],
@@ -447,15 +468,29 @@ impl<'hir> FnLowering<'hir> {
             // 从 receiver_ty 的 nominal FQN 查 owner。
             let owner_fqn = match self.types.kind(receiver_ty) {
                 scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Nominal(n))
-                | scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => Some(n.fqn),
+                | scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => {
+                    Some(n.fqn)
+                }
                 _ => None,
             };
             if let Some(fqn) = owner_fqn {
-                if self.hir.members.get(&fqn).and_then(|m| m.get(&sym)).is_some() {
+                if self
+                    .hir
+                    .members
+                    .get(&fqn)
+                    .and_then(|m| m.get(&sym))
+                    .is_some()
+                {
                     Some(crate::mir::transport::MemberTarget::Value {
                         fqn: format!("{}.{}", self.hir.interner.resolve(fqn), name),
                     })
-                } else if self.hir.member_funs.get(&fqn).and_then(|m| m.get(&sym)).is_some() {
+                } else if self
+                    .hir
+                    .member_funs
+                    .get(&fqn)
+                    .and_then(|m| m.get(&sym))
+                    .is_some()
+                {
                     Some(crate::mir::transport::MemberTarget::Fun {
                         fqn: format!("{}.{}", self.hir.interner.resolve(fqn), name),
                     })
@@ -511,7 +546,9 @@ fn lookup_member_sig<'h>(
     arity: usize,
 ) -> Option<&'h scoop2_hir::hir::TypedSignature> {
     let pick = |sigs: &'h [scoop2_hir::hir::TypedSignature]| {
-        sigs.iter().find(|s| s.param_types.len() == arity).or(sigs.first())
+        sigs.iter()
+            .find(|s| s.param_types.len() == arity)
+            .or(sigs.first())
     };
     if let Some(owner) = member_owner {
         if let Some(sig) = hir
@@ -527,7 +564,11 @@ fn lookup_member_sig<'h>(
     owners.sort_by(|a, b| hir.interner.resolve(**a).cmp(hir.interner.resolve(**b)));
     owners
         .into_iter()
-        .filter_map(|o| hir.member_funs.get(o).and_then(|methods| methods.get(&method_sym)))
+        .filter_map(|o| {
+            hir.member_funs
+                .get(o)
+                .and_then(|methods| methods.get(&method_sym))
+        })
         .find_map(|sigs| pick(sigs))
 }
 
@@ -617,14 +658,15 @@ pub fn lower_fun_decl_inner(
         } else {
             None
         };
-        from_top
-            .or(from_member)
-            .unwrap_or_else(|| {
-                d.return_ty
-                    .as_ref()
-                    .and_then(|t| hir.expr_type(file_id, t.id).or_else(|| hir_type_ref(t, hir)))
-                    .unwrap_or_else(|| types.unit())
-            })
+        from_top.or(from_member).unwrap_or_else(|| {
+            d.return_ty
+                .as_ref()
+                .and_then(|t| {
+                    hir.expr_type(file_id, t.id)
+                        .or_else(|| hir_type_ref(t, hir))
+                })
+                .unwrap_or_else(|| types.unit())
+        })
     };
     // effect 行：尝试从 TypedSignature 表查（顶层函数）。
     let effect_row = lookup_effect_row(hir, d.name.symbol, package_prefix);
@@ -668,7 +710,9 @@ pub fn lower_fun_decl_inner(
         return (Some(fd), Vec::new(), types);
     }
     let body = d.body.as_ref().expect("已处理无 body 的情况");
-    let mut builder = FnLowering::new(hir, types, file_id, owner_fqn, return_ty, effect_row, errors);
+    let mut builder = FnLowering::new(
+        hir, types, file_id, owner_fqn, return_ty, effect_row, errors,
+    );
     // 成员函数：receiver（`this`）作为隐式首参前置（与调用侧 receiver prepend 对齐）。
     if let Some(owner_sym) = member_owner {
         let this_ty = resolve_member_receiver_ty(hir, &mut builder.types, owner_sym);
@@ -678,12 +722,15 @@ pub fn lower_fun_decl_inner(
         if let Some(this_sym) = hir.interner.get("this") {
             builder.symbol_locals.insert(this_sym, this_lid);
         }
-        fd.params.insert(0, Param {
-            span: d.name.span,
-            name: "<this>".to_string(),
-            ty: this_ty,
-            local: this_lid,
-        });
+        fd.params.insert(
+            0,
+            Param {
+                span: d.name.span,
+                name: "<this>".to_string(),
+                ty: this_ty,
+                local: this_lid,
+            },
+        );
     }
     for (i, p) in d.params.iter().enumerate() {
         let pty = param_tys[i];
@@ -787,11 +834,7 @@ pub fn lower_top_level_val(
         // @Extern 顶层 var：建模为 ExternGlobal。
         return (
             Some(Item::ExternGlobal(crate::mir::ExternGlobal {
-                span: d
-                    .ty
-                    .as_ref()
-                    .map(|t| t.span)
-                    .unwrap_or_else(Span::default),
+                span: d.ty.as_ref().map(|t| t.span).unwrap_or_else(Span::default),
                 fqn,
                 ty,
                 file: file_id,
@@ -801,7 +844,15 @@ pub fn lower_top_level_val(
     };
     let effect_row = EffectRow::pure();
     let owner_fqn = format!("{}#init", fqn);
-    let mut builder = FnLowering::new(hir, probe_store, file_id, owner_fqn, ty, effect_row.clone(), errors);
+    let mut builder = FnLowering::new(
+        hir,
+        probe_store,
+        file_id,
+        owner_fqn,
+        ty,
+        effect_row.clone(),
+        errors,
+    );
     let val = crate::mir::lower::expr::lower_expr(&mut builder, init);
     let cur_bb = builder.current_bb;
     builder.terminate(

@@ -9,12 +9,12 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use inkwell::AddressSpace;
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module};
 use inkwell::targets::{InitializationConfig, Target, TargetData, TargetMachine};
 use inkwell::types::{AnyTypeEnum, BasicMetadataTypeEnum, BasicTypeEnum, FunctionType};
 use inkwell::values::{FunctionValue, PointerValue};
-use inkwell::AddressSpace;
 
 use scoop2_hir::ty::TypeId;
 use scoop2_lir::LirProgram;
@@ -68,6 +68,8 @@ pub struct CodegenContext<'ctx> {
     type_desc_cache: RefCell<HashMap<String, PointerValue<'ctx>>>,
     /// class_itables 数据（从 LirProgram 注入，供 globals 层构建 itable 全局）。
     pub class_itables_data: RefCell<Vec<scoop2_lir::ClassItableLayout>>,
+    /// class vtables 数据（从 LirProgram 注入，供 globals 层构建 vtable 全局）。
+    pub vtables_data: RefCell<Vec<scoop2_lir::VtableLayout>>,
     /// 类型布局表（从 LirProgram 注入，供 type descriptor 构建 trace_bitmap）。
     pub type_layouts: scoop2_lir::TypeLayoutTable,
     /// 类初始化计划（从 LirProgram 注入，提供 class 字段布局）。
@@ -92,10 +94,11 @@ impl<'ctx> CodegenContext<'ctx> {
             .map(|il| (il.interface_fqn.clone(), il.interface_id))
             .collect();
         // 初始化 native target（幂等）。
-        Target::initialize_native(&InitializationConfig::default())
-            .map_err(|e| CodegenError::TargetOutput {
+        Target::initialize_native(&InitializationConfig::default()).map_err(|e| {
+            CodegenError::TargetOutput {
                 message: format!("LLVM native target 初始化失败：{e}"),
-            })?;
+            }
+        })?;
 
         let triple = inkwell::targets::TargetMachine::get_default_triple();
         let target = Target::from_triple(&triple).map_err(|e| CodegenError::TargetOutput {
@@ -137,6 +140,7 @@ impl<'ctx> CodegenContext<'ctx> {
             string_literal_cache: RefCell::new(HashMap::new()),
             type_desc_cache: RefCell::new(HashMap::new()),
             class_itables_data: RefCell::new(Vec::new()),
+            vtables_data: RefCell::new(Vec::new()),
             type_layouts,
             class_inits,
             interface_id_map,
@@ -200,7 +204,9 @@ impl<'ctx> CodegenContext<'ctx> {
         if let Some(fv) = self.module.get_function(name) {
             return fv;
         }
-        let fv = self.module.add_function(name, fn_ty, Some(Linkage::External));
+        let fv = self
+            .module
+            .add_function(name, fn_ty, Some(Linkage::External));
         fv
     }
 }
@@ -219,7 +225,9 @@ pub fn as_basic(ty: AnyTypeEnum<'_>) -> Option<BasicTypeEnum<'_>> {
         AnyTypeEnum::StructType(s) => Some(s.into()),
         AnyTypeEnum::ArrayType(a) => Some(a.into()),
         AnyTypeEnum::VectorType(v) => Some(v.into()),
-        AnyTypeEnum::ScalableVectorType(_) | AnyTypeEnum::FunctionType(_) | AnyTypeEnum::VoidType(_) => None,
+        AnyTypeEnum::ScalableVectorType(_)
+        | AnyTypeEnum::FunctionType(_)
+        | AnyTypeEnum::VoidType(_) => None,
     }
 }
 

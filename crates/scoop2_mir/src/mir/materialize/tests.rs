@@ -4,7 +4,7 @@
 
 use scoop2_hir::ty::TypeStore;
 
-use crate::mir::materialize::{materialize, InstanceKey};
+use crate::mir::materialize::{InstanceKey, materialize};
 use crate::mir::{FunDecl, Module};
 
 /// 构造一个最小可单态化 Module（单个非泛型 main 函数）。
@@ -43,7 +43,12 @@ fn minimal_module() -> Module {
 #[test]
 fn materializes_main_entry() {
     let module = minimal_module();
-    let result = materialize(module, Some("main"), &scoop2_hir::hir::TypedHir::empty(scoop2_base::Interner::new())).expect("单态化不应失败");
+    let result = materialize(
+        module,
+        Some("main"),
+        &scoop2_hir::hir::TypedHir::empty(scoop2_base::Interner::new()),
+    )
+    .expect("单态化不应失败");
     assert!(
         result
             .instance_keys
@@ -80,11 +85,12 @@ fn instance_key_equality() {
 fn materialize_missing_template_errors() {
     let module = minimal_module();
     // entry = "nonexistent"：模板集合中无此 fqn → 单态化报 monomorph_no_template。
-    let result = materialize(module, Some("nonexistent"), &scoop2_hir::hir::TypedHir::empty(scoop2_base::Interner::new()));
-    assert!(
-        result.is_err(),
-        "缺模板的 entry 应触发单态化错误"
+    let result = materialize(
+        module,
+        Some("nonexistent"),
+        &scoop2_hir::hir::TypedHir::empty(scoop2_base::Interner::new()),
     );
+    assert!(result.is_err(), "缺模板的 entry 应触发单态化错误");
     let err = result.unwrap_err();
     assert_eq!(
         err.code,
@@ -98,20 +104,38 @@ fn materialize_missing_template_errors() {
 #[test]
 fn materializes_all_when_no_entry() {
     let module = minimal_module();
-    let result = materialize(module, None, &scoop2_hir::hir::TypedHir::empty(scoop2_base::Interner::new())).expect("单态化不应失败");
-    assert!(!result.instance_keys.is_empty(), "无 entry 时仍应单态化非泛型函数");
+    let result = materialize(
+        module,
+        None,
+        &scoop2_hir::hir::TypedHir::empty(scoop2_base::Interner::new()),
+    )
+    .expect("单态化不应失败");
+    assert!(
+        !result.instance_keys.is_empty(),
+        "无 entry 时仍应单态化非泛型函数"
+    );
 }
 
 /// 单态化后 materialized MIR 不应含 TypeKind::Param 残留（verify_no_generic_residue 通过）。
 #[test]
 fn materialized_has_no_generic_residue() {
     let module = minimal_module();
-    let result = materialize(module, Some("main"), &scoop2_hir::hir::TypedHir::empty(scoop2_base::Interner::new())).expect("单态化不应失败");
+    let result = materialize(
+        module,
+        Some("main"),
+        &scoop2_hir::hir::TypedHir::empty(scoop2_base::Interner::new()),
+    )
+    .expect("单态化不应失败");
     let errors = crate::mir::verify::verify_materialized(&result.module);
     assert!(
-        errors.iter().all(|e| !e.message.contains("TypeKind::Param")),
+        errors
+            .iter()
+            .all(|e| !e.message.contains("TypeKind::Param")),
         "单态化后不应有泛型参数残留，实际发现: {:?}",
-        errors.iter().filter(|e| e.message.contains("TypeKind::Param")).collect::<Vec<_>>()
+        errors
+            .iter()
+            .filter(|e| e.message.contains("TypeKind::Param"))
+            .collect::<Vec<_>>()
     );
 }
 

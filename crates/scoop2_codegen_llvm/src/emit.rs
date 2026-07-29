@@ -47,6 +47,7 @@ pub fn emit_object_to_file(
     let target_info = TargetInfo::host();
     let cg = CodegenContext::new(&context, program, target_info.clone())?;
     *cg.class_itables_data.borrow_mut() = program.class_itables.clone();
+    *cg.vtables_data.borrow_mut() = program.vtables.clone();
     let rt = cg.declare_runtime();
     cg.declare_gc_globals()?;
     // 1. 先声明所有 callable（建立函数符号；不含函数体）。
@@ -167,11 +168,23 @@ fn lower_entry_main<'ctx>(
     // 1. scoop_runtime_init()。
     let _ = builder
         .build_call(rt.runtime_init, &[], "rt_init")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "call runtime_init", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "call runtime_init",
+                scoop2_base::Span::default(),
+            )
+        })?;
     // 2. 调用用户 main。
     let user_call = builder
         .build_call(user_main_fv, &[], "user_main")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "call user main", scoop2_base::Span::default()))?;
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "call user main",
+                scoop2_base::Span::default(),
+            )
+        })?;
     // 3. 退出码：Unit main → 0；Int main → 用户返回值。
     let exit_code = if returns_int {
         match user_call.try_as_basic_value() {
@@ -180,16 +193,26 @@ fn lower_entry_main<'ctx>(
                 let i64_val = v.into_int_value();
                 builder
                     .build_int_truncate(i64_val, i32_ty, "exit_i32")
-                    .map_err(|e| CodegenError::llvm(e.to_string(), "trunc exit", scoop2_base::Span::default()))?
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "trunc exit",
+                            scoop2_base::Span::default(),
+                        )
+                    })?
             }
             inkwell::values::ValueKind::Instruction(_) => i32_ty.const_zero(),
         }
     } else {
         i32_ty.const_zero()
     };
-    let _ = builder
-        .build_return(Some(&exit_code))
-        .map_err(|e| CodegenError::llvm(e.to_string(), "build_return exit", scoop2_base::Span::default()))?;
+    let _ = builder.build_return(Some(&exit_code)).map_err(|e| {
+        CodegenError::llvm(
+            e.to_string(),
+            "build_return exit",
+            scoop2_base::Span::default(),
+        )
+    })?;
     Ok(())
 }
 
@@ -283,7 +306,16 @@ fn build_callable_fn_type<'ctx>(
     let params: Vec<BasicMetadataTypeEnum<'ctx>> = callable
         .params
         .iter()
-        .map(|p| Ok::<_, CodegenError>(cg.lower_type(p.ty, &program.type_layouts)?.into()))
+        .enumerate()
+        .map(|(i, p)| {
+            // 闭包 invoke 函数的统一 ABI：首参 `$env` 一律按 GC 指针传递
+            //（指向堆上的 env blob；间接调用点不知道 env 的具体 tuple 类型）。
+            // 函数入口再把 blob 解包成 env tuple 值（见 unpack_closure_env）。
+            if i == 0 && p.name == "$env" {
+                return Ok::<_, CodegenError>(cg.gc_ptr_ty().into());
+            }
+            Ok(cg.lower_type(p.ty, &program.type_layouts)?.into())
+        })
         .collect::<CodegenResult<_>>()?;
     Ok(fn_type_from_basic(return_llvm, &params))
 }

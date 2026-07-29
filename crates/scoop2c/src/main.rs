@@ -114,7 +114,7 @@ mod cli {
                 "-o" | "--output" => output = Some(PathBuf::from(take(&mut i)?)),
                 "--emit-ir" => emit_ir = Some(PathBuf::from(take(&mut i)?)),
                 other if other.starts_with('-') => {
-                    return Err(format!("build: 未知选项 `{other}`"))
+                    return Err(format!("build: 未知选项 `{other}`"));
                 }
                 other => {
                     if input.is_none() {
@@ -625,11 +625,8 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
             _ => None,
         })
         .unwrap_or_else(|| "main".to_string());
-    let monomorph_result = scoop2_mir::mir::materialize::materialize(
-        lower_result.module.clone(),
-        Some(&entry),
-        &hir,
-    );
+    let monomorph_result =
+        scoop2_mir::mir::materialize::materialize(lower_result.module.clone(), Some(&entry), &hir);
     if let Err(merr) = monomorph_result {
         lower_diags.push(merr.to_diagnostic());
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
@@ -685,8 +682,13 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
     }
     // materialized MIR 验证：transport 契约一致性 + 泛型参数残留检查。
     // 对单态化后的模块运行，确保无 TypeKind::Param 残留存活到后端。
-    let monomorph = monomorph_result.as_ref().expect("materialize 已成功（错误路径已 return）");
-    let mat_errors = scoop2_mir::mir::verify::verify_materialized_with_external(&monomorph.module, &external_symbols);
+    let monomorph = monomorph_result
+        .as_ref()
+        .expect("materialize 已成功（错误路径已 return）");
+    let mat_errors = scoop2_mir::mir::verify::verify_materialized_with_external(
+        &monomorph.module,
+        &external_symbols,
+    );
     if !mat_errors.is_empty() {
         for ve in &mat_errors {
             lower_diags.push(scoop2_base::diag::Diagnostic::error(
@@ -754,42 +756,49 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
         .filter(|(i, _)| user_indices.contains(i))
         .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
         .collect();
-    let lower_result = scoop2_mir::mir::lower::lower_module(
-        mir_files.into_iter(),
-        &hir,
-        &mut diags,
-    );
+    let lower_result =
+        scoop2_mir::mir::lower::lower_module(mir_files.into_iter(), &hir, &mut diags);
     if diags.has_errors() {
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
-            .iter().enumerate().skip(1)
+            .iter()
+            .enumerate()
+            .skip(1)
             .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
             .collect();
         return report_diagnostics(&source, &extra_sources, diags);
     }
     // 查找 entry。
-    let entry = lower_result.module.items.iter()
+    let entry = lower_result
+        .module
+        .items
+        .iter()
         .find_map(|it| match it {
             scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
             _ => None,
         })
         .unwrap_or_else(|| "main".to_string());
     // materialize。
-    let monomorph_result = scoop2_mir::mir::materialize::materialize(
-        lower_result.module.clone(),
-        Some(&entry),
-        &hir,
-    );
+    let monomorph_result =
+        scoop2_mir::mir::materialize::materialize(lower_result.module.clone(), Some(&entry), &hir);
     if let Err(merr) = monomorph_result {
         diags.push(merr.to_diagnostic());
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
-            .iter().enumerate().skip(1)
+            .iter()
+            .enumerate()
+            .skip(1)
             .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
             .collect();
         return report_diagnostics(&source, &extra_sources, diags);
     }
     let monomorph = monomorph_result.as_ref().expect("materialize 已成功");
     // LIR lowering。
-    let lir_program = scoop2_lir::lower_to_lir(monomorph, &hir, &interner);
+    let lir_program = match scoop2_lir::lower_to_lir(monomorph, &hir, &interner) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
     // dump。
     let rendered = scoop2_lir::dump::dump_program(&lir_program);
     print!("{rendered}");
@@ -846,11 +855,8 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
         .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
         .collect();
     let mut lower_diags = scoop2_base::diag::DiagnosticSink::new();
-    let lower_result = scoop2_mir::mir::lower::lower_module(
-        mir_files.into_iter(),
-        &hir,
-        &mut lower_diags,
-    );
+    let lower_result =
+        scoop2_mir::mir::lower::lower_module(mir_files.into_iter(), &hir, &mut lower_diags);
     if lower_diags.has_errors() {
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
             .iter()
@@ -871,11 +877,8 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
             _ => None,
         })
         .unwrap_or_else(|| "main".to_string());
-    let monomorph_result = scoop2_mir::mir::materialize::materialize(
-        lower_result.module.clone(),
-        Some(&entry),
-        &hir,
-    );
+    let monomorph_result =
+        scoop2_mir::mir::materialize::materialize(lower_result.module.clone(), Some(&entry), &hir);
     if let Err(merr) = monomorph_result {
         lower_diags.push(merr.to_diagnostic());
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
@@ -888,8 +891,13 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
         return None;
     }
     let monomorph = monomorph_result.as_ref().expect("materialize 已成功");
-    let lir_program = scoop2_lir::lower_to_lir(monomorph, &hir, &interner);
-    { let _ = std::fs::write("/tmp/cit2.txt", format!("{:#?}", lir_program.class_itables.iter().map(|ci| &ci.class_fqn).collect::<Vec<_>>())); }
+    let lir_program = match scoop2_lir::lower_to_lir(monomorph, &hir, &interner) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return None;
+        }
+    };
     let _ = sources;
     Some(lir_program)
 }
@@ -931,11 +939,7 @@ fn locate_libscooprt() -> Option<PathBuf> {
             }
         }
         // 取最新修改时间的一个（降序，最新在前）。
-        found.sort_by_key(|p| {
-            std::fs::metadata(p)
-                .and_then(|m| m.modified())
-                .ok()
-        });
+        found.sort_by_key(|p| std::fs::metadata(p).and_then(|m| m.modified()).ok());
         if let Some(latest) = found.into_iter().next_back() {
             return Some(latest);
         }
@@ -954,10 +958,7 @@ fn run_build(args: &cli::BuildArgs) -> ExitCode {
     };
     // codegen → object。
     let options = scoop2_codegen_llvm::EmitOptions::default();
-    let tmp_obj = std::env::temp_dir().join(format!(
-        "scoop2c_build_{}.o",
-        std::process::id()
-    ));
+    let tmp_obj = std::env::temp_dir().join(format!("scoop2c_build_{}.o", std::process::id()));
     if let Err(e) = scoop2_codegen_llvm::emit_object_to_file(&lir_program, &tmp_obj, &options) {
         eprintln!("error: codegen 失败：{e}");
         return ExitCode::from(1);

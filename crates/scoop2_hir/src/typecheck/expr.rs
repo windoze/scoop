@@ -587,7 +587,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // 结构等价回退：标量值类型（Bool/Char/Unit/Float/Int 变体）按 TypeKind 比较，
         // 规避跨 type store 的 TypeId 不稳定（如泛型实例化产出的副本 Bool 与规范 Bool 不同 TypeId），
         // 以及 sysroot 中 nominal 声明（struct Bool）与内建 Value(Bool) 的等价性。
-        if scalar_kinds_equal(self.env.store.kind(found), self.env.store.kind(expected), self.env.interner) {
+        if scalar_kinds_equal(
+            self.env.store.kind(found),
+            self.env.store.kind(expected),
+            self.env.interner,
+        ) {
             return true;
         }
         if absorb {
@@ -1778,7 +1782,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let pure = EffectRow::pure();
         // helper: 取子表达式的 effect row（已记录则返回，否则 Pure）。
         let child_row = |e: &Expr| -> EffectRow {
-            self.facts.expr_effect_rows.get(e.id).cloned().unwrap_or(pure.clone())
+            self.facts
+                .expr_effect_rows
+                .get(e.id)
+                .cloned()
+                .unwrap_or(pure.clone())
         };
         // helper: 多个子表达式的并集。
         let union_all = |exprs: &[&Expr]| -> EffectRow {
@@ -1830,7 +1838,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
 
             // Block：所有子表达式的并集。
-            ExprKind::Block(b) | ExprKind::DoBlock(b) | ExprKind::UnsafeBlock(b) | ExprKind::SafeBlock(b) => {
+            ExprKind::Block(b)
+            | ExprKind::DoBlock(b)
+            | ExprKind::UnsafeBlock(b)
+            | ExprKind::SafeBlock(b) => {
                 let mut row = pure.clone();
                 for s in &b.stmts {
                     if let ast::StmtKind::Expr(e) = &s.kind {
@@ -1841,7 +1852,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
 
             // If：cond ∪ then ∪ else。
-            ExprKind::If { cond, then_branch, else_branch } => {
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
                 let mut row = child_row(cond).union(&child_row(then_branch));
                 if let Some(eb) = else_branch {
                     row = row.union(&child_row(eb));
@@ -1862,7 +1877,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
 
             // Handle：(body − handled) ∪ ⋃(arm body) ∪ finally。
-            ExprKind::Handle { body, arms, finally } => {
+            ExprKind::Handle {
+                body,
+                arms,
+                finally,
+            } => {
                 // body 的 effect row（Block 是嵌套的，取 block id）。
                 let body_row = {
                     let mut r = pure.clone();
@@ -1874,22 +1893,24 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     r
                 };
                 // 收集 arm 截获的 effect 类型。
-                let handled_terms: Vec<TypeId> = arms.iter()
+                let handled_terms: Vec<TypeId> = arms
+                    .iter()
                     .filter_map(|arm| {
                         let last_seg = arm.op.effect_path.segments.last()?;
                         let name = self.env.interner.resolve(last_seg.symbol);
                         // 解析 effect 类型为 TypeId。
-                        let candidates = [
-                            name.to_string(),
-                            format!("scoop.core.{}", name),
-                        ];
+                        let candidates = [name.to_string(), format!("scoop.core.{}", name)];
                         for cand in &candidates {
                             if let Some(fqn) = self.env.interner.get(cand)
                                 && self.env.index.category(fqn).is_some_and(|c| {
                                     matches!(c, crate::resolve::symbol::NominalCategory::Effect)
                                 })
                             {
-                                let nominal = crate::ty::NominalType { fqn, args: vec![], eff: None };
+                                let nominal = crate::ty::NominalType {
+                                    fqn,
+                                    args: vec![],
+                                    eff: None,
+                                };
                                 return Some(self.env.store.ref_nominal(nominal));
                             }
                         }
@@ -1938,15 +1959,26 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 && let Some(first) = sigs.first()
                                 && first.effect.is_some()
                             {
-                                let eff_names = extract_effect_row_names(first.effect.as_ref(), self.env.interner);
-                                let terms: Vec<TypeId> = eff_names.iter()
+                                let eff_names = extract_effect_row_names(
+                                    first.effect.as_ref(),
+                                    self.env.interner,
+                                );
+                                let terms: Vec<TypeId> = eff_names
+                                    .iter()
                                     .filter_map(|name| {
                                         if self.is_effect_type_name(name) {
-                                            let candidates = [name.as_str(), &format!("scoop.core.{}", name)];
+                                            let candidates =
+                                                [name.as_str(), &format!("scoop.core.{}", name)];
                                             for cand in candidates {
                                                 if let Some(fqn) = self.env.interner.get(cand) {
-                                                    let nominal = crate::ty::NominalType { fqn, args: vec![], eff: None };
-                                                    return Some(self.env.store.ref_nominal(nominal));
+                                                    let nominal = crate::ty::NominalType {
+                                                        fqn,
+                                                        args: vec![],
+                                                        eff: None,
+                                                    };
+                                                    return Some(
+                                                        self.env.store.ref_nominal(nominal),
+                                                    );
                                                 }
                                             }
                                         }
@@ -1968,8 +2000,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::InfixCall { receiver, arg, .. } => child_row(receiver).union(&child_row(arg)),
 
             // 透传 receiver 的 effect。
-            ExprKind::MemberAccess { receiver, .. } | ExprKind::SafeMemberAccess { receiver, .. } => child_row(receiver),
-            ExprKind::SpliceField { receiver, field } => child_row(receiver).union(&child_row(field)),
+            ExprKind::MemberAccess { receiver, .. }
+            | ExprKind::SafeMemberAccess { receiver, .. } => child_row(receiver),
+            ExprKind::SpliceField { receiver, field } => {
+                child_row(receiver).union(&child_row(field))
+            }
             ExprKind::Index { receiver, indices } => {
                 let mut row = child_row(receiver);
                 for i in indices {
@@ -1979,7 +2014,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ExprKind::NotNullAssert { expr: inner } => child_row(inner),
             ExprKind::TypeApply { callee, .. } => child_row(callee),
-            ExprKind::TypeCheck { expr: inner, .. } | ExprKind::Cast { expr: inner, .. } => child_row(inner),
+            ExprKind::TypeCheck { expr: inner, .. } | ExprKind::Cast { expr: inner, .. } => {
+                child_row(inner)
+            }
             ExprKind::Annotated { expr: inner, .. } => child_row(inner),
         }
     }
@@ -2000,7 +2037,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         for child in &all {
             if !self.expr_types.contains(child.id) {
                 let t = if let ExprKind::Ident(ident) = &child.kind {
-                    self.derive_ident_type(ident.symbol, child.id).unwrap_or(nothing)
+                    self.derive_ident_type(ident.symbol, child.id)
+                        .unwrap_or(nothing)
                 } else {
                     nothing
                 };
@@ -2033,15 +2071,24 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             effects: {
                                 let mut eff_row = crate::ty::EffectRow::pure();
                                 if let Some(ref eff) = first.effect {
-                                    let names = extract_effect_row_names(Some(eff), self.env.interner);
-                                    let terms: Vec<TypeId> = names.iter()
+                                    let names =
+                                        extract_effect_row_names(Some(eff), self.env.interner);
+                                    let terms: Vec<TypeId> = names
+                                        .iter()
                                         .filter_map(|n| {
-                                            if !self.is_effect_type_name(n) { return None; }
-                                            let candidates = [n.as_str(), &format!("scoop.core.{}", n)];
+                                            if !self.is_effect_type_name(n) {
+                                                return None;
+                                            }
+                                            let candidates =
+                                                [n.as_str(), &format!("scoop.core.{}", n)];
                                             for cand in candidates {
                                                 if let Some(f) = self.env.interner.get(cand) {
                                                     return Some(self.env.store.ref_nominal(
-                                                        crate::ty::NominalType { fqn: f, args: vec![], eff: None }
+                                                        crate::ty::NominalType {
+                                                            fqn: f,
+                                                            args: vec![],
+                                                            eff: None,
+                                                        },
                                                     ));
                                                 }
                                             }
@@ -2089,11 +2136,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.record_operator_call(expr, inner, ty);
             }
             ExprKind::InfixCall {
-                receiver, name, arg: _,
+                receiver,
+                name,
+                arg: _,
             } => {
                 self.record_infix_call(expr, receiver, name.symbol, ty);
             }
-            ExprKind::Index { receiver, indices: _ } => {
+            ExprKind::Index {
+                receiver,
+                indices: _,
+            } => {
                 self.record_index_call(expr, receiver, ty);
             }
             // 调用 → 调用决议（顶层函数 / 方法 / 构造器 / 局部值 / effect-op）。
@@ -2134,10 +2186,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn effect_row_for_op(&mut self, effect_name: Symbol) -> crate::ty::EffectRow {
         let name = self.env.interner.resolve(effect_name);
         // 候选 FQN：裸名 / package prefix / scoop.core。
-        for cand in [
-            name.to_string(),
-            format!("scoop.core.{}", name),
-        ] {
+        for cand in [name.to_string(), format!("scoop.core.{}", name)] {
             if let Some(fqn) = self.env.interner.get(&cand)
                 && self
                     .env
@@ -2170,7 +2219,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let receiver_ty = self.expr_ty(receiver)?;
         match member {
             MemberName::TupleIndex { value, .. } => {
-                let element_ty = tuple_element_ty(self.env, receiver_ty, *value).unwrap_or(access_ty);
+                let element_ty =
+                    tuple_element_ty(self.env, receiver_ty, *value).unwrap_or(access_ty);
                 Some(crate::hir::ResolvedMember::TupleIndex {
                     receiver_ty,
                     index: *value,
@@ -2305,7 +2355,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
                 let owner_fqn = self.resolve_member_owner_fqn(receiver_ty)?;
-                let (decl_span, decl_file) = self.first_member_overload_decl(owner_fqn, name.symbol);
+                let (decl_span, decl_file) =
+                    self.first_member_overload_decl(owner_fqn, name.symbol);
                 let is_virtual = self.member_is_virtual(owner_fqn, name.symbol);
                 let is_interface = self.owner_is_interface(owner_fqn);
                 Some(crate::hir::ResolvedCall::Method {
@@ -2472,7 +2523,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     /// 取某 owner 方法名首个重载声明 span/file。
-    fn first_member_overload_decl(&self, owner_fqn: Symbol, method: Symbol) -> (Span, scoop2_base::FileId) {
+    fn first_member_overload_decl(
+        &self,
+        owner_fqn: Symbol,
+        method: Symbol,
+    ) -> (Span, scoop2_base::FileId) {
         if let Some(sigs) = self.env.member_signatures(owner_fqn, method)
             && let Some(first) = sigs.first()
         {
@@ -3146,10 +3201,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                     None => {
                         // prelude 未定义 `Array` / `scoop.core.Array`——编译环境错误。
-                        self.diags.push(diagnostics::prelude_symbol_missing(
-                            "Array",
-                            expr.span,
-                        ));
+                        self.diags
+                            .push(diagnostics::prelude_symbol_missing("Array", expr.span));
                         self.env.store.nothing()
                     }
                 }
@@ -3172,11 +3225,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         }
                         // 未知字段（spec §6.5：unknown field is a compile error）。
                         let type_name = self.env.interner.resolve(fqn).to_string();
-                        self.diags.push(diagnostics::unknown_field(
-                            &type_name,
-                            &s.value,
-                            field.span,
-                        ));
+                        self.diags
+                            .push(diagnostics::unknown_field(&type_name, &s.value, field.span));
                     }
                     // 未知接收者类型 → lenient。
                     return self.env.store.nothing();
@@ -3448,7 +3498,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         {
             return self.ctor_call(fqn, args, span, explicit_type_args);
         }
-        // 其他调用形式（嵌套调用、lambda 调用等）：walk args。
+        // 其他调用形式（嵌套调用、lambda 调用、索引结果调用等）：先类型化 callee。
+        // callee 是函数类型（如 `fns[0](1)` 中 `fns[0]: (Int) -> Int`）时，
+        // 按函数类型检查实参并返回其返回类型；否则 walk args 后返回 Nothing。
+        let callee_ty = self.walk_expr(callee);
+        if let Some(f) = self.function_type_of(callee_ty) {
+            return self.check_call_args(f.params, f.return_ty, args, span);
+        }
         for a in args {
             self.walk_expr(&a.value);
         }
@@ -3463,18 +3519,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let is_type = self.callee_type_fqn(ident.symbol).is_some();
                 // 同包 extern 函数（如 `@Extern fun __scoop_print`）在 resolve 阶段被刻意跳过
                 // （body.rs:__scoop_ 前缀不写入 value_refs），故此处按 FQN 在 index 中查证可调用性。
-                let is_indexed_fun = (!is_fun && !is_type).then(|| {
-                    let fqn_text = if self.package_prefix.is_empty() {
-                        name.to_string()
-                    } else {
-                        format!("{}.{}", self.package_prefix, name)
-                    };
-                    self.env
-                        .interner
-                        .get(&fqn_text)
-                        .map(|fqn_sym| !self.env.index.lookup_funs(fqn_sym).is_empty())
-                        .unwrap_or(false)
-                }).unwrap_or(false);
+                let is_indexed_fun = (!is_fun && !is_type)
+                    .then(|| {
+                        let fqn_text = if self.package_prefix.is_empty() {
+                            name.to_string()
+                        } else {
+                            format!("{}.{}", self.package_prefix, name)
+                        };
+                        self.env
+                            .interner
+                            .get(&fqn_text)
+                            .map(|fqn_sym| !self.env.index.lookup_funs(fqn_sym).is_empty())
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(false);
                 if !is_fun && !is_type && !is_indexed_fun {
                     self.diags
                         .push(diagnostics::callee_not_callable(name, span));
@@ -4641,11 +4699,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 对泛型函数 `fun foo<T>(x: T): T` 调用 `foo(42)`：
     /// - 从 sig.params[0] = Param(T) 和 arg_types[0] = Int 推断 T = Int
     /// - 把 sig.return_ty 中的 Param 替换为 Int
-    fn subst_return_with_inferred_args(
-        &mut self,
-        sig: &Signature,
-        arg_types: &[TypeId],
-    ) -> TypeId {
+    fn subst_return_with_inferred_args(&mut self, sig: &Signature, arg_types: &[TypeId]) -> TypeId {
         if sig.type_param_count == 0 {
             return sig.return_ty;
         }
@@ -6112,7 +6166,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.locals.insert(name, nothing_ty);
         }
         // 补写 pattern_bindings：未类型化绑定的回退（Nothing 类型）。
-        self.record_pattern_bindings(pat, nothing_ty, crate::hir::PatternBindingSource::Destructure);
+        self.record_pattern_bindings(
+            pat,
+            nothing_ty,
+            crate::hir::PatternBindingSource::Destructure,
+        );
     }
 
     /// 把 when 分支模式中的绑定名按 variant payload 字段类型登记。
@@ -6166,8 +6224,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             // 用 subject 的类型实参替换（Option<Int> → T 替换为 Int）。
                             let raw_field_tys: Vec<TypeId> = fields.values().copied().collect();
                             let subst_arg = match self.env.store.kind(subject_ty) {
-                                TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => n.args.first().copied(),
-                                TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => n.args.first().copied(),
+                                TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                                    n.args.first().copied()
+                                }
+                                TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                                    n.args.first().copied()
+                                }
                                 _ => None,
                             };
                             let field_tys: Vec<TypeId> = raw_field_tys
@@ -6842,12 +6904,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 // 特异性选择（含 receiver FQN）+ effect 传播。
                 // 去重：相同 (owner, params, type_param_count) 的候选视为同一重载
                 //（扩展方法注册可能产生重复）。
-                let mut seen: std::collections::HashSet<(scoop2_base::Symbol, usize, usize)> = std::collections::HashSet::new();
+                let mut seen: std::collections::HashSet<(scoop2_base::Symbol, usize, usize)> =
+                    std::collections::HashSet::new();
                 let deduped: Vec<(&Signature, scoop2_base::Symbol)> = applicable
                     .iter()
-                    .filter(|(s, owner)| {
-                        seen.insert((*owner, s.params.len(), s.type_param_count))
-                    })
+                    .filter(|(s, owner)| seen.insert((*owner, s.params.len(), s.type_param_count)))
                     .copied()
                     .collect();
                 let sig_refs: Vec<&Signature> = deduped.iter().map(|(s, _)| *s).collect();
@@ -6912,7 +6973,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     ///
     /// 例如 `Array<T>.get(): T`，receiver 为 `Array<Int>` → 返回类型 `T` 替换为 `Int`。
     /// 若返回类型不含 Param 或 receiver 无类型实参，原样返回。
-    fn subst_return_with_receiver_args(&mut self, return_ty: TypeId, receiver_ty: TypeId) -> TypeId {
+    fn subst_return_with_receiver_args(
+        &mut self,
+        return_ty: TypeId,
+        receiver_ty: TypeId,
+    ) -> TypeId {
         // 返回类型不含 Param → 无需替换。
         let has_param = self.type_contains_eff_param(return_ty)
             || matches!(self.env.store.kind(return_ty), TypeKind::Param(_));
@@ -6934,7 +6999,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // 简化：用 receiver 的第一个类型实参替换所有 Param（覆盖单参数泛型容器如 Array<T>）。
         // 多参数容器需按声明位置映射，但当前 typecheck 的类类型参数绑定是按位置，
         // 且 subst_all_params 仅支持单一替换——多数场景（Array<T>、Option<T>）单参数足够。
-        let subst_arg = rargs.first().copied().unwrap_or_else(|| self.env.store.nothing());
+        let subst_arg = rargs
+            .first()
+            .copied()
+            .unwrap_or_else(|| self.env.store.nothing());
         self.subst_all_params(return_ty, subst_arg)
     }
 
@@ -7144,8 +7212,9 @@ fn collect_direct_expr_children(kind: &ExprKind, out: &mut Vec<Expr>) {
                 }
             }
         }
-        ExprKind::MemberAccess { receiver, .. }
-        | ExprKind::SafeMemberAccess { receiver, .. } => out.push((**receiver).clone()),
+        ExprKind::MemberAccess { receiver, .. } | ExprKind::SafeMemberAccess { receiver, .. } => {
+            out.push((**receiver).clone())
+        }
         ExprKind::SpliceField { receiver, field } => {
             out.push((**receiver).clone());
             out.push((**field).clone());
@@ -7629,7 +7698,7 @@ fn builtin_scalar_tag(k: &TypeKind) -> Option<ScalarTag> {
 
 /// 若 TypeKind 是指向内建标量类型名（scoop.core.Bool 等）的 nominal，返回对应 ScalarTag。
 fn nominal_fqn_scalar_tag(k: &TypeKind, interner: &scoop2_base::Interner) -> Option<ScalarTag> {
-    use crate::ty::{TypeKind, RefTypeKind, ValueTypeKind};
+    use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
     let fqn_sym = match k {
         TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
         TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,

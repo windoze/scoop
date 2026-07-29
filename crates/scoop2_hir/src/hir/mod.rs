@@ -90,6 +90,11 @@ pub struct TypedHir {
     pub member_funs: HashMap<Symbol, HashMap<Symbol, Vec<TypedSignature>>>,
     /// 类型 FQN → (成员名 → 成员类型)。属性 / 字段。
     pub members: HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    /// 类型 FQN → 成员名列表（按声明顺序）。
+    ///
+    /// `members` 是 HashMap（迭代序不确定），字段布局 / 偏移计算必须以此表
+    /// 为准：主构造器 val/var 参数按参数序在前，类型体内属性按声明序在后。
+    pub member_order: HashMap<Symbol, Vec<Symbol>>,
     /// 类型 FQN → 次构造器签名重载集。
     pub ctor_signatures: HashMap<Symbol, Vec<TypedSignature>>,
     /// 顶层 val/var 简单名 → 类型。
@@ -162,21 +167,13 @@ impl TypedHir {
     }
 
     /// 查询某模式节点引入的全部绑定（when arm / 解构 val）。
-    pub fn pattern_bindings(
-        &self,
-        file_id: FileId,
-        node: NodeId,
-    ) -> Option<&[PatternBinding]> {
+    pub fn pattern_bindings(&self, file_id: FileId, node: NodeId) -> Option<&[PatternBinding]> {
         self.file(file_id)
             .and_then(|f| f.facts.pattern_bindings.get(node).map(|v| v.as_slice()))
     }
 
     /// 查询某表达式的 actual effect row。
-    pub fn expr_effect_row(
-        &self,
-        file_id: FileId,
-        node: NodeId,
-    ) -> Option<&crate::ty::EffectRow> {
+    pub fn expr_effect_row(&self, file_id: FileId, node: NodeId) -> Option<&crate::ty::EffectRow> {
         self.file(file_id)
             .and_then(|f| f.facts.expr_effect_rows.get(node))
     }
@@ -191,6 +188,59 @@ impl TypedHir {
     ) -> String {
         render::render_hir(self, files)
     }
+
+    /// 按声明序返回类型 `fqn` 的成员 `(name, ty)` 列表。
+    ///
+    /// 字段布局 / 偏移计算必须走这里（`members` HashMap 迭代序不确定）。
+    /// `member_order` 缺失时回退为按成员名排序——仍然确定，只是不一定等于声明序。
+    pub fn ordered_members(&self, fqn: &Symbol) -> Vec<(Symbol, TypeId)> {
+        let Some(members) = self.members.get(fqn) else {
+            return Vec::new();
+        };
+        match self.member_order.get(fqn) {
+            Some(order) => order
+                .iter()
+                .filter_map(|&name| members.get(&name).map(|&ty| (name, ty)))
+                .collect(),
+            None => {
+                let mut sorted: Vec<(Symbol, TypeId)> =
+                    members.iter().map(|(&n, &t)| (n, t)).collect();
+                sorted.sort_by(|a, b| self.interner.resolve(a.0).cmp(self.interner.resolve(b.0)));
+                sorted
+            }
+        }
+    }
+
+    /// class 的完整字段列表（`(name, ty)`）：超类字段在前（沿 `supertypes` 链
+    /// 自顶向下），自身字段按声明序在后。同名遮蔽字段去重（子类优先……此处
+    /// 保留首次出现 = 最顶层超类的声明，与单继承布局一致）。
+    ///
+    /// 非 class 类型（struct / enum variant）等价于 [`Self::ordered_members`]。
+    pub fn ordered_class_fields(&self, fqn: Symbol) -> Vec<(Symbol, TypeId)> {
+        let mut out: Vec<(Symbol, TypeId)> = Vec::new();
+        let mut visited: HashSet<Symbol> = HashSet::new();
+        // 先收集超类链（直接超类型中为 class 的第一个），自顶向下追加字段。
+        let mut chain: Vec<Symbol> = Vec::new();
+        let mut cur = fqn;
+        while visited.insert(cur) {
+            let next = self
+                .supertypes
+                .get(&cur)
+                .and_then(|supers| supers.iter().find(|s| self.class_fqns.contains(s)).copied());
+            match next {
+                Some(sup) => {
+                    chain.push(sup);
+                    cur = sup;
+                }
+                None => break,
+            }
+        }
+        for sup in chain.iter().rev() {
+            out.extend(self.ordered_members(sup));
+        }
+        out.extend(self.ordered_members(&fqn));
+        out
+    }
 }
 
 impl TypedHir {
@@ -202,6 +252,7 @@ impl TypedHir {
             top_level_funs: HashMap::new(),
             member_funs: HashMap::new(),
             members: HashMap::new(),
+            member_order: HashMap::new(),
             ctor_signatures: HashMap::new(),
             top_level_vals: HashMap::new(),
             enum_variants: HashMap::new(),

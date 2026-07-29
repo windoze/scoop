@@ -10,11 +10,11 @@
 
 use std::collections::HashSet;
 
-use scoop2_hir::ty::{RefTypeKind, TypeKind, TypeId, TypeStore};
+use scoop2_hir::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use crate::diagnostics::VerifyError;
+use crate::mir::transport::{AggregateTransportMetadata, ValueTransportMetadata};
 use crate::mir::{BasicBlockId, Body, CallKind, Module, Rvalue, TerminatorKind};
-use crate::mir::transport::{ValueTransportMetadata, AggregateTransportMetadata};
 
 /// 从 Module 中收集所有已声明的函数 FQN（用于解析性 callee 检查）。
 fn collect_known_fqns(module: &Module) -> HashSet<String> {
@@ -63,7 +63,14 @@ pub fn verify_module_with_external(
             // 模板级预验证：CFG + direct-style + 解析性语义（不含 transport/residue——
             // 模板允许 TypeKind::Param；transport 一致性需单态化后才精确）。
             verify_body(body, &mut errors);
-            verify_semantic(fd, body, &known_fqns, &known_types, &all_known_symbols, &mut errors);
+            verify_semantic(
+                fd,
+                body,
+                &known_fqns,
+                &known_types,
+                &all_known_symbols,
+                &mut errors,
+            );
         }
         if let crate::mir::Item::Initializer(ir) = item {
             verify_body(&ir.body, &mut errors);
@@ -185,7 +192,14 @@ pub fn verify_semantic(
         let bid = BasicBlockId(i as u32);
         for stmt in &block.stmts {
             if let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind {
-                verify_rvalue_semantic_resolved(value, bid, known_fqns, known_types, all_known_symbols, errors);
+                verify_rvalue_semantic_resolved(
+                    value,
+                    bid,
+                    known_fqns,
+                    known_types,
+                    all_known_symbols,
+                    errors,
+                );
             }
         }
         verify_terminator_semantic(&block.terminator.kind, bid, errors);
@@ -203,7 +217,14 @@ fn verify_rvalue_semantic_resolved(
 ) {
     match rv {
         Rvalue::Call { kind, .. } => {
-            verify_call_kind_resolved(kind, block, known_fqns, known_types, all_known_symbols, errors);
+            verify_call_kind_resolved(
+                kind,
+                block,
+                known_fqns,
+                known_types,
+                all_known_symbols,
+                errors,
+            );
         }
         Rvalue::MemberAccess { member, .. } => {
             if member.name.is_empty() {
@@ -325,9 +346,7 @@ fn verify_terminator_semantic(
     errors: &mut Vec<VerifyError>,
 ) {
     if let TerminatorKind::Perform {
-        op_fqn,
-        metadata,
-        ..
+        op_fqn, metadata, ..
     } = kind
     {
         // effect site 元数据完整：op_fqn 非空。
@@ -343,9 +362,7 @@ fn verify_terminator_semantic(
 
 /// CFG 结构验证。
 pub fn verify_cfg(body: &Body, errors: &mut Vec<VerifyError>) {
-    let valid = |id: BasicBlockId| -> bool {
-        (id.0 as usize) < body.blocks.len()
-    };
+    let valid = |id: BasicBlockId| -> bool { (id.0 as usize) < body.blocks.len() };
     // 入口块必须存在。
     if !valid(body.start) {
         errors.push(VerifyError::cfg(Some(body.start), "入口基本块不存在"));
@@ -397,7 +414,9 @@ fn check_operals_in_body(
             }
             check_rvalue_operands(value, check_op, errors);
         }
-        StatementKind::StoreMember { receiver, value, .. }
+        StatementKind::StoreMember {
+            receiver, value, ..
+        }
         | StatementKind::StoreTupleIndex {
             receiver, value, ..
         } => {
@@ -418,22 +437,30 @@ where
         Rvalue::Use(op) => vec![op],
         Rvalue::TypeTest { value, .. }
         | Rvalue::Cast { value, .. }
-        | Rvalue::MemberAccess { receiver: value, .. }
-        | Rvalue::TupleIndex { receiver: value, .. }
-        | Rvalue::MakeClosure { env: value, .. } | Rvalue::PatternMatch { subject: value, .. } | Rvalue::PatternExtract { subject: value, .. } => vec![value],
+        | Rvalue::MemberAccess {
+            receiver: value, ..
+        }
+        | Rvalue::TupleIndex {
+            receiver: value, ..
+        }
+        | Rvalue::MakeClosure { env: value, .. }
+        | Rvalue::PatternMatch { subject: value, .. }
+        | Rvalue::PatternExtract { subject: value, .. } => vec![value],
         Rvalue::IntEq { lhs, rhs } => vec![lhs, rhs],
         Rvalue::PerformResult { .. }
         | Rvalue::ClassLit { .. }
         | Rvalue::TopLevelRef { .. }
         | Rvalue::UnresolvedName { .. } => vec![],
-        Rvalue::IndexAccess { receiver, indices, .. } => {
+        Rvalue::IndexAccess {
+            receiver, indices, ..
+        } => {
             let mut v = vec![receiver];
             v.extend(indices.iter());
             v
         }
-        Rvalue::EnumVariant { args, .. } | Rvalue::ClassCtor { args, .. } | Rvalue::Call { args, .. } => {
-            args.iter().map(|a| &a.value).collect()
-        }
+        Rvalue::EnumVariant { args, .. }
+        | Rvalue::ClassCtor { args, .. }
+        | Rvalue::Call { args, .. } => args.iter().map(|a| &a.value).collect(),
         Rvalue::MakeTuple { elements, .. } | Rvalue::MakeArray { elements, .. } => {
             elements.iter().collect()
         }
@@ -566,7 +593,8 @@ fn verify_value_transport(
     errors: &mut Vec<VerifyError>,
 ) {
     // trace 要求与类型结构一致性：引用类型 / Param / StarProjection 必须 trace=true。
-    let expected_trace = crate::mir::transport::mir_transport_trace_requirement_for_type(store, vt.source_ty);
+    let expected_trace =
+        crate::mir::transport::mir_transport_trace_requirement_for_type(store, vt.source_ty);
     if vt.requirements.trace != expected_trace {
         errors.push(VerifyError::semantic(format!(
             "transport 契约不一致：source_ty={:?} 的 trace={} 但 requirements.trace={}（block {}）",
@@ -593,11 +621,7 @@ fn verify_aggregate_transport(
 /// 拒绝任何存活到 materialized MIR 的 TypeKind::Param。
 ///
 /// 检查 locals、statements 中的 TypeId、terminators 中的 TypeId。
-pub fn verify_no_generic_residue(
-    body: &Body,
-    store: &TypeStore,
-    errors: &mut Vec<VerifyError>,
-) {
+pub fn verify_no_generic_residue(body: &Body, store: &TypeStore, errors: &mut Vec<VerifyError>) {
     // locals
     for decl in &body.locals {
         check_type_for_param(store, decl.ty, &format!("local {:?}", decl.name), errors);
@@ -618,7 +642,8 @@ fn check_type_for_param(store: &TypeStore, ty: TypeId, ctx: &str, errors: &mut V
     match store.kind(ty) {
         TypeKind::Param(_) => {
             errors.push(VerifyError::semantic(format!(
-                "泛型参数残留：{ctx} 的类型 {:?} 仍是 TypeKind::Param", ty
+                "泛型参数残留：{ctx} 的类型 {:?} 仍是 TypeKind::Param",
+                ty
             )));
         }
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
@@ -710,14 +735,36 @@ fn verify_no_residue_statement(
         crate::mir::StatementKind::Assign { value, .. } => {
             verify_no_residue_rvalue(value, store, block, errors);
         }
-        crate::mir::StatementKind::StoreMember { member, value_ty, .. } => {
-            check_type_for_param(store, member.receiver_ty, &format!("StoreMember.receiver_ty (block {block})"), errors);
-            check_effect_row_for_param(store, &member.hidden_effects, &format!("StoreMember.hidden_effects (block {block})"), errors);
-            check_type_for_param(store, *value_ty, &format!("StoreMember value_ty (block {block})"), errors);
+        crate::mir::StatementKind::StoreMember {
+            member, value_ty, ..
+        } => {
+            check_type_for_param(
+                store,
+                member.receiver_ty,
+                &format!("StoreMember.receiver_ty (block {block})"),
+                errors,
+            );
+            check_effect_row_for_param(
+                store,
+                &member.hidden_effects,
+                &format!("StoreMember.hidden_effects (block {block})"),
+                errors,
+            );
+            check_type_for_param(
+                store,
+                *value_ty,
+                &format!("StoreMember value_ty (block {block})"),
+                errors,
+            );
         }
         crate::mir::StatementKind::StoreTupleIndex { value_ty, .. }
         | crate::mir::StatementKind::StoreTopLevelVar { value_ty, .. } => {
-            check_type_for_param(store, *value_ty, &format!("StoreXxx value_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *value_ty,
+                &format!("StoreXxx value_ty (block {block})"),
+                errors,
+            );
         }
         _ => {}
     }
@@ -731,94 +778,263 @@ fn verify_no_residue_rvalue(
 ) {
     use crate::mir::transport::*;
     match rv {
-        Rvalue::Call { kind, args, transport, .. } => {
+        Rvalue::Call {
+            kind,
+            args,
+            transport,
+            ..
+        } => {
             // 检查 CallKind 中的类型参数残留。
             match kind {
-                crate::mir::CallKind::Direct { type_args, generic_type_args, generic_eff_args, .. } => {
-                    check_type_ids_for_param(store, type_args, &format!("Direct.type_args (block {block})"), errors);
-                    check_type_ids_for_param(store, generic_type_args, &format!("Direct.generic_type_args (block {block})"), errors);
+                crate::mir::CallKind::Direct {
+                    type_args,
+                    generic_type_args,
+                    generic_eff_args,
+                    ..
+                } => {
+                    check_type_ids_for_param(
+                        store,
+                        type_args,
+                        &format!("Direct.type_args (block {block})"),
+                        errors,
+                    );
+                    check_type_ids_for_param(
+                        store,
+                        generic_type_args,
+                        &format!("Direct.generic_type_args (block {block})"),
+                        errors,
+                    );
                     for r in generic_eff_args {
-                        check_effect_row_for_param(store, r, &format!("Direct.generic_eff_args (block {block})"), errors);
+                        check_effect_row_for_param(
+                            store,
+                            r,
+                            &format!("Direct.generic_eff_args (block {block})"),
+                            errors,
+                        );
                     }
                 }
                 crate::mir::CallKind::Virtual { dispatch, .. }
                 | crate::mir::CallKind::Interface { dispatch, .. } => {
-                    check_type_for_param(store, dispatch.receiver_ty, &format!("dispatch.receiver_ty (block {block})"), errors);
-                    check_type_ids_for_param(store, &dispatch.generic_type_args, &format!("dispatch.generic_type_args (block {block})"), errors);
+                    check_type_for_param(
+                        store,
+                        dispatch.receiver_ty,
+                        &format!("dispatch.receiver_ty (block {block})"),
+                        errors,
+                    );
+                    check_type_ids_for_param(
+                        store,
+                        &dispatch.generic_type_args,
+                        &format!("dispatch.generic_type_args (block {block})"),
+                        errors,
+                    );
                     for r in &dispatch.generic_eff_args {
-                        check_effect_row_for_param(store, r, &format!("dispatch.generic_eff_args (block {block})"), errors);
+                        check_effect_row_for_param(
+                            store,
+                            r,
+                            &format!("dispatch.generic_eff_args (block {block})"),
+                            errors,
+                        );
                     }
                 }
                 _ => {}
             }
             // 检查 args 的 value_ty。
             for a in args {
-                check_type_for_param(store, a.value_ty, &format!("CallArg.value_ty (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    a.value_ty,
+                    &format!("CallArg.value_ty (block {block})"),
+                    errors,
+                );
             }
             // 检查 transport。
-            check_type_for_param(store, transport.result.source_ty, &format!("Call.transport.result (block {block})"), errors);
+            check_type_for_param(
+                store,
+                transport.result.source_ty,
+                &format!("Call.transport.result (block {block})"),
+                errors,
+            );
             if let Some(ar) = &transport.aggregate_return {
-                check_type_for_param(store, ar.source_ty, &format!("Call.transport.aggregate_return (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    ar.source_ty,
+                    &format!("Call.transport.aggregate_return (block {block})"),
+                    errors,
+                );
             }
             if let Some(arr) = &transport.array {
-                check_type_for_param(store, arr.array_ty, &format!("Call.transport.array.array_ty (block {block})"), errors);
-                check_type_for_param(store, arr.element_ty, &format!("Call.transport.array.element_ty (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    arr.array_ty,
+                    &format!("Call.transport.array.array_ty (block {block})"),
+                    errors,
+                );
+                check_type_for_param(
+                    store,
+                    arr.element_ty,
+                    &format!("Call.transport.array.element_ty (block {block})"),
+                    errors,
+                );
             }
             if let Some(gc) = &transport.gc {
-                check_type_for_param(store, gc.subject_ty, &format!("Call.transport.gc.subject_ty (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    gc.subject_ty,
+                    &format!("Call.transport.gc.subject_ty (block {block})"),
+                    errors,
+                );
             }
         }
         Rvalue::TopLevelRef(tl) => {
-            check_type_ids_for_param(store, &tl.generic_type_args, &format!("TopLevelRef.generic_type_args (block {block})"), errors);
-            check_effect_row_for_param(store, &tl.hidden_effects, &format!("TopLevelRef.hidden_effects (block {block})"), errors);
+            check_type_ids_for_param(
+                store,
+                &tl.generic_type_args,
+                &format!("TopLevelRef.generic_type_args (block {block})"),
+                errors,
+            );
+            check_effect_row_for_param(
+                store,
+                &tl.hidden_effects,
+                &format!("TopLevelRef.hidden_effects (block {block})"),
+                errors,
+            );
             for r in &tl.generic_eff_args {
-                check_effect_row_for_param(store, r, &format!("TopLevelRef.generic_eff_args (block {block})"), errors);
+                check_effect_row_for_param(
+                    store,
+                    r,
+                    &format!("TopLevelRef.generic_eff_args (block {block})"),
+                    errors,
+                );
             }
         }
         Rvalue::MemberAccess { member, .. } => {
-            check_type_for_param(store, member.receiver_ty, &format!("MemberAccess.receiver_ty (block {block})"), errors);
-            check_effect_row_for_param(store, &member.hidden_effects, &format!("MemberAccess.hidden_effects (block {block})"), errors);
+            check_type_for_param(
+                store,
+                member.receiver_ty,
+                &format!("MemberAccess.receiver_ty (block {block})"),
+                errors,
+            );
+            check_effect_row_for_param(
+                store,
+                &member.hidden_effects,
+                &format!("MemberAccess.hidden_effects (block {block})"),
+                errors,
+            );
         }
         Rvalue::TupleIndex { element_ty, .. } | Rvalue::IndexAccess { element_ty, .. } => {
-            check_type_for_param(store, *element_ty, &format!("element_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *element_ty,
+                &format!("element_ty (block {block})"),
+                errors,
+            );
         }
-        Rvalue::EnumVariant { enum_ty, payload, args, .. } => {
-            check_type_for_param(store, *enum_ty, &format!("EnumVariant.enum_ty (block {block})"), errors);
-            check_type_for_param(store, payload.aggregate_ty, &format!("EnumVariant.payload.aggregate_ty (block {block})"), errors);
+        Rvalue::EnumVariant {
+            enum_ty,
+            payload,
+            args,
+            ..
+        } => {
+            check_type_for_param(
+                store,
+                *enum_ty,
+                &format!("EnumVariant.enum_ty (block {block})"),
+                errors,
+            );
+            check_type_for_param(
+                store,
+                payload.aggregate_ty,
+                &format!("EnumVariant.payload.aggregate_ty (block {block})"),
+                errors,
+            );
             for a in args {
-                check_type_for_param(store, a.value_ty, &format!("EnumVariant.arg.value_ty (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    a.value_ty,
+                    &format!("EnumVariant.arg.value_ty (block {block})"),
+                    errors,
+                );
             }
         }
-        Rvalue::ClassCtor { hidden_effects, args, .. } => {
+        Rvalue::ClassCtor {
+            hidden_effects,
+            args,
+            ..
+        } => {
             for a in args {
-                check_type_for_param(store, a.value_ty, &format!("ClassCtor.arg.value_ty (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    a.value_ty,
+                    &format!("ClassCtor.arg.value_ty (block {block})"),
+                    errors,
+                );
             }
-            check_effect_row_for_param(store, hidden_effects, &format!("ClassCtor.hidden_effects (block {block})"), errors);
+            check_effect_row_for_param(
+                store,
+                hidden_effects,
+                &format!("ClassCtor.hidden_effects (block {block})"),
+                errors,
+            );
         }
         Rvalue::MakeTuple { transport, .. } | Rvalue::StructLit { transport, .. } => {
-            check_type_for_param(store, transport.aggregate_ty, &format!("aggregate_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                transport.aggregate_ty,
+                &format!("aggregate_ty (block {block})"),
+                errors,
+            );
         }
         Rvalue::StructLit { fields, .. } => {
             for f in fields {
-                check_type_for_param(store, f.value_ty, &format!("StructLitField.value_ty (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    f.value_ty,
+                    &format!("StructLitField.value_ty (block {block})"),
+                    errors,
+                );
             }
         }
         Rvalue::MakeArray { result_ty, .. } | Rvalue::WithUpdate { result_ty, .. } => {
-            check_type_for_param(store, *result_ty, &format!("result_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *result_ty,
+                &format!("result_ty (block {block})"),
+                errors,
+            );
         }
         Rvalue::WithUpdate { updates, .. } => {
             for u in updates {
-                check_type_for_param(store, u.value_ty, &format!("WithUpdateField.value_ty (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    u.value_ty,
+                    &format!("WithUpdateField.value_ty (block {block})"),
+                    errors,
+                );
             }
         }
         Rvalue::MakeClosure { env_contract, .. } => {
-            check_type_for_param(store, env_contract.env_ty, &format!("MakeClosure.env_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                env_contract.env_ty,
+                &format!("MakeClosure.env_ty (block {block})"),
+                errors,
+            );
         }
         Rvalue::PerformResult { result_ty, .. } => {
-            check_type_for_param(store, *result_ty, &format!("PerformResult.result_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *result_ty,
+                &format!("PerformResult.result_ty (block {block})"),
+                errors,
+            );
         }
         Rvalue::PatternExtract { result_ty, .. } => {
-            check_type_for_param(store, *result_ty, &format!("PatternExtract.result_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *result_ty,
+                &format!("PatternExtract.result_ty (block {block})"),
+                errors,
+            );
         }
         Rvalue::IntEq { .. } => {}
         Rvalue::PatternMatch { pattern, .. } => {
@@ -831,10 +1047,25 @@ fn verify_no_residue_rvalue(
             verify_no_residue_type_test(&metadata.test, store, block, errors);
             use crate::mir::transport::RuntimeCastResult as R;
             match &metadata.result {
-                R::Target { ty } => check_type_for_param(store, *ty, &format!("Cast.result.Target (block {block})"), errors),
+                R::Target { ty } => check_type_for_param(
+                    store,
+                    *ty,
+                    &format!("Cast.result.Target (block {block})"),
+                    errors,
+                ),
                 R::Option { option_ty, some_ty } => {
-                    check_type_for_param(store, *option_ty, &format!("Cast.result.Option.option_ty (block {block})"), errors);
-                    check_type_for_param(store, *some_ty, &format!("Cast.result.Option.some_ty (block {block})"), errors);
+                    check_type_for_param(
+                        store,
+                        *option_ty,
+                        &format!("Cast.result.Option.option_ty (block {block})"),
+                        errors,
+                    );
+                    check_type_for_param(
+                        store,
+                        *some_ty,
+                        &format!("Cast.result.Option.some_ty (block {block})"),
+                        errors,
+                    );
                 }
             }
         }
@@ -849,34 +1080,108 @@ fn verify_no_residue_type_test(
     errors: &mut Vec<VerifyError>,
 ) {
     use crate::mir::transport::RuntimeTypeParameterizedMatch as P;
-    check_type_for_param(store, m.source_ty, &format!("TypeTest.source_ty (block {block})"), errors);
-    check_type_for_param(store, m.target_ty, &format!("TypeTest.target_ty (block {block})"), errors);
-    check_type_for_param(store, m.descriptor.ty, &format!("TypeTest.descriptor.ty (block {block})"), errors);
+    check_type_for_param(
+        store,
+        m.source_ty,
+        &format!("TypeTest.source_ty (block {block})"),
+        errors,
+    );
+    check_type_for_param(
+        store,
+        m.target_ty,
+        &format!("TypeTest.target_ty (block {block})"),
+        errors,
+    );
+    check_type_for_param(
+        store,
+        m.descriptor.ty,
+        &format!("TypeTest.descriptor.ty (block {block})"),
+        errors,
+    );
     match &m.parameterized {
         P::None => {}
-        P::Nominal { type_args, effect_arg } => {
-            check_type_ids_for_param(store, type_args, &format!("TypeTest.parameterized.Nominal.type_args (block {block})"), errors);
+        P::Nominal {
+            type_args,
+            effect_arg,
+        } => {
+            check_type_ids_for_param(
+                store,
+                type_args,
+                &format!("TypeTest.parameterized.Nominal.type_args (block {block})"),
+                errors,
+            );
             if let Some(ea) = effect_arg {
-                check_effect_row_for_param(store, ea, &format!("TypeTest.parameterized.Nominal.effect_arg (block {block})"), errors);
+                check_effect_row_for_param(
+                    store,
+                    ea,
+                    &format!("TypeTest.parameterized.Nominal.effect_arg (block {block})"),
+                    errors,
+                );
             }
         }
-        P::Function { receiver, params, return_ty, effects, .. } => {
-            check_optional_type_for_param(store, *receiver, &format!("TypeTest.parameterized.Function.receiver (block {block})"), errors);
-            check_type_ids_for_param(store, params, &format!("TypeTest.parameterized.Function.params (block {block})"), errors);
-            check_type_for_param(store, *return_ty, &format!("TypeTest.parameterized.Function.return_ty (block {block})"), errors);
-            check_effect_row_for_param(store, effects, &format!("TypeTest.parameterized.Function.effects (block {block})"), errors);
+        P::Function {
+            receiver,
+            params,
+            return_ty,
+            effects,
+            ..
+        } => {
+            check_optional_type_for_param(
+                store,
+                *receiver,
+                &format!("TypeTest.parameterized.Function.receiver (block {block})"),
+                errors,
+            );
+            check_type_ids_for_param(
+                store,
+                params,
+                &format!("TypeTest.parameterized.Function.params (block {block})"),
+                errors,
+            );
+            check_type_for_param(
+                store,
+                *return_ty,
+                &format!("TypeTest.parameterized.Function.return_ty (block {block})"),
+                errors,
+            );
+            check_effect_row_for_param(
+                store,
+                effects,
+                &format!("TypeTest.parameterized.Function.effects (block {block})"),
+                errors,
+            );
         }
         P::Option { payload_ty } => {
-            check_type_for_param(store, *payload_ty, &format!("TypeTest.parameterized.Option.payload_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *payload_ty,
+                &format!("TypeTest.parameterized.Option.payload_ty (block {block})"),
+                errors,
+            );
         }
         P::Tuple { element_tys } => {
-            check_type_ids_for_param(store, element_tys, &format!("TypeTest.parameterized.Tuple.element_tys (block {block})"), errors);
+            check_type_ids_for_param(
+                store,
+                element_tys,
+                &format!("TypeTest.parameterized.Tuple.element_tys (block {block})"),
+                errors,
+            );
         }
         P::Union { variants } => {
-            check_type_ids_for_param(store, variants, &format!("TypeTest.parameterized.Union.variants (block {block})"), errors);
+            check_type_ids_for_param(
+                store,
+                variants,
+                &format!("TypeTest.parameterized.Union.variants (block {block})"),
+                errors,
+            );
         }
         P::StarProjection { read_ty } => {
-            check_type_for_param(store, *read_ty, &format!("TypeTest.parameterized.StarProjection.read_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *read_ty,
+                &format!("TypeTest.parameterized.StarProjection.read_ty (block {block})"),
+                errors,
+            );
         }
     }
 }
@@ -889,12 +1194,26 @@ fn verify_no_residue_pattern(
 ) {
     use crate::mir::Pattern;
     match pat {
-        Pattern::Wildcard | Pattern::IntLit(_) | Pattern::CharLit(_) | Pattern::StringLit(_) | Pattern::BoolLit(_) => {}
+        Pattern::Wildcard
+        | Pattern::IntLit(_)
+        | Pattern::CharLit(_)
+        | Pattern::StringLit(_)
+        | Pattern::BoolLit(_) => {}
         Pattern::Bind { ty, .. } => {
-            check_type_for_param(store, *ty, &format!("Pattern.Bind.ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *ty,
+                &format!("Pattern.Bind.ty (block {block})"),
+                errors,
+            );
         }
         Pattern::Is { ty, .. } => {
-            check_type_for_param(store, *ty, &format!("Pattern.Is.ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                *ty,
+                &format!("Pattern.Is.ty (block {block})"),
+                errors,
+            );
         }
         Pattern::Tuple { elements } => {
             for e in elements {
@@ -927,25 +1246,95 @@ fn verify_no_residue_terminator(
 ) {
     match &term.kind {
         TerminatorKind::Perform { metadata, args, .. } => {
-            check_type_for_param(store, metadata.effect_ty, &format!("Perform.effect_ty (block {block})"), errors);
-            check_type_for_param(store, metadata.result_ty, &format!("Perform.result_ty (block {block})"), errors);
-            check_type_ids_for_param(store, &metadata.op_type_args, &format!("Perform.op_type_args (block {block})"), errors);
-            check_optional_type_for_param(store, metadata.payload_tuple_ty, &format!("Perform.payload_tuple_ty (block {block})"), errors);
-            check_type_ids_for_param(store, &metadata.payload_component_tys, &format!("Perform.payload_component_tys (block {block})"), errors);
+            check_type_for_param(
+                store,
+                metadata.effect_ty,
+                &format!("Perform.effect_ty (block {block})"),
+                errors,
+            );
+            check_type_for_param(
+                store,
+                metadata.result_ty,
+                &format!("Perform.result_ty (block {block})"),
+                errors,
+            );
+            check_type_ids_for_param(
+                store,
+                &metadata.op_type_args,
+                &format!("Perform.op_type_args (block {block})"),
+                errors,
+            );
+            check_optional_type_for_param(
+                store,
+                metadata.payload_tuple_ty,
+                &format!("Perform.payload_tuple_ty (block {block})"),
+                errors,
+            );
+            check_type_ids_for_param(
+                store,
+                &metadata.payload_component_tys,
+                &format!("Perform.payload_component_tys (block {block})"),
+                errors,
+            );
             for a in args {
-                check_type_for_param(store, a.value_ty, &format!("Perform.arg.value_ty (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    a.value_ty,
+                    &format!("Perform.arg.value_ty (block {block})"),
+                    errors,
+                );
             }
         }
         TerminatorKind::Handle { metadata, arms, .. } => {
-            check_type_for_param(store, metadata.result_ty, &format!("Handle.result_ty (block {block})"), errors);
-            check_type_for_param(store, metadata.body_result_ty, &format!("Handle.body_result_ty (block {block})"), errors);
-            check_optional_type_for_param(store, metadata.finally_result_ty, &format!("Handle.finally_result_ty (block {block})"), errors);
+            check_type_for_param(
+                store,
+                metadata.result_ty,
+                &format!("Handle.result_ty (block {block})"),
+                errors,
+            );
+            check_type_for_param(
+                store,
+                metadata.body_result_ty,
+                &format!("Handle.body_result_ty (block {block})"),
+                errors,
+            );
+            check_optional_type_for_param(
+                store,
+                metadata.finally_result_ty,
+                &format!("Handle.finally_result_ty (block {block})"),
+                errors,
+            );
             for arm in arms {
-                check_type_for_param(store, arm.handled_effect_ty, &format!("HandleArm.handled_effect_ty (block {block})"), errors);
-                check_type_for_param(store, arm.body_ty, &format!("HandleArm.body_ty (block {block})"), errors);
-                check_type_ids_for_param(store, &arm.op_type_args, &format!("HandleArm.op_type_args (block {block})"), errors);
-                check_optional_type_for_param(store, arm.payload_tuple_ty, &format!("HandleArm.payload_tuple_ty (block {block})"), errors);
-                check_type_ids_for_param(store, &arm.payload_component_tys, &format!("HandleArm.payload_component_tys (block {block})"), errors);
+                check_type_for_param(
+                    store,
+                    arm.handled_effect_ty,
+                    &format!("HandleArm.handled_effect_ty (block {block})"),
+                    errors,
+                );
+                check_type_for_param(
+                    store,
+                    arm.body_ty,
+                    &format!("HandleArm.body_ty (block {block})"),
+                    errors,
+                );
+                check_type_ids_for_param(
+                    store,
+                    &arm.op_type_args,
+                    &format!("HandleArm.op_type_args (block {block})"),
+                    errors,
+                );
+                check_optional_type_for_param(
+                    store,
+                    arm.payload_tuple_ty,
+                    &format!("HandleArm.payload_tuple_ty (block {block})"),
+                    errors,
+                );
+                check_type_ids_for_param(
+                    store,
+                    &arm.payload_component_tys,
+                    &format!("HandleArm.payload_component_tys (block {block})"),
+                    errors,
+                );
             }
         }
         _ => {}

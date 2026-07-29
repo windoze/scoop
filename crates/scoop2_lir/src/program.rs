@@ -116,7 +116,9 @@ impl LirProgram {
             itables: Vec::new(),
             class_itables: Vec::new(),
             type_descriptors: Vec::new(),
-            global_init: GlobalInitPlan { entries: Vec::new() },
+            global_init: GlobalInitPlan {
+                entries: Vec::new(),
+            },
             class_inits: Vec::new(),
             synthetic_types: Vec::new(),
             closure_layouts: Vec::new(),
@@ -219,6 +221,8 @@ pub enum TypeLayoutKind {
         storage: NicheStorage,
         /// payload 类型布局。
         payload_size: u64,
+        /// payload 的 HIR TypeId（codegen 需要它降级 payload 字段的 LLVM 类型）。
+        payload_ty: TypeId,
     },
     /// Enum 值类型（tagged union）。
     Enum {
@@ -370,6 +374,9 @@ pub struct LirParam {
     pub ty: TypeId,
     /// 参数 ABI。
     pub abi: ParamAbi,
+    /// 参数对应的 body local id（codegen 把第 i 个 LLVM 参数存入该 local，
+    /// 不能假设参数总是占据 locals 0..n——闭包的捕获变量可能插在参数之间）。
+    pub local_id: u32,
 }
 
 /// 参数 ABI（每个参数的传递方式）。
@@ -433,10 +440,7 @@ pub enum LirStmtKind {
     /// 空操作。
     Nop,
     /// `target = rvalue`。
-    Assign {
-        target: u32,
-        value: LirRvalue,
-    },
+    Assign { target: u32, value: LirRvalue },
     /// 成员字段写：`receiver.member = value`。
     StoreMember {
         receiver_local: LirOperand,
@@ -460,9 +464,7 @@ pub enum LirStmtKind {
         value_ty: TypeId,
     },
     /// 运行期 panic。
-    Panic {
-        message: String,
-    },
+    Panic { message: String },
 }
 
 /// LIR Rvalue（从 MIR Rvalue 映射，简化为 local-only 操作数 + 布局信息）。
@@ -562,14 +564,9 @@ pub enum LirRvalue {
         rhs_local: LirOperand,
     },
     /// 顶层值引用。
-    TopLevelRef {
-        fqn: String,
-        ty: TypeId,
-    },
+    TopLevelRef { fqn: String, ty: TypeId },
     /// f-string 拼接。
-    InterpolatedString {
-        parts: Vec<LirInterpolatedPart>,
-    },
+    InterpolatedString { parts: Vec<LirInterpolatedPart> },
     /// with 更新。
     WithUpdate {
         base_local: LirOperand,
@@ -577,9 +574,7 @@ pub enum LirRvalue {
         result_ty: TypeId,
     },
     /// class 元数据字面量 `T::class`。
-    ClassLit {
-        type_fqn: String,
-    },
+    ClassLit { type_fqn: String },
 }
 
 /// LIR 调用信息。
@@ -627,13 +622,9 @@ pub enum LirCallKind {
         itable_slot: u32,
     },
     /// 闭包调用。
-    Closure {
-        callee_local: LirOperand,
-    },
+    Closure { callee_local: LirOperand },
     /// 函数值调用。
-    FunValue {
-        callee_local: LirOperand,
-    },
+    FunValue { callee_local: LirOperand },
     /// Continuation resume（`k.resume(value)`）。
     /// continuation 是 Continuation 对象引用；resume_value 是 resume 的实参。
     /// codegen 从 continuation 读取 step_fn 函数指针并间接调用。
@@ -647,16 +638,34 @@ pub enum LirCallKind {
 #[derive(Clone, Debug)]
 pub enum LirPattern {
     Wildcard,
-    Bind { ty: TypeId },
+    Bind {
+        ty: TypeId,
+    },
     IntLit(i128),
     CharLit(char),
     StringLit(String),
     BoolLit(bool),
-    Is { ty: TypeId, negated: bool, target_fqn: Option<String> },
-    Tuple { elements: Vec<LirPattern> },
-    Struct { type_fqn: String, fields: Vec<(String, LirPattern)> },
-    Variant { variant_name: String, args: Vec<LirPattern> },
-    Or { patterns: Vec<LirPattern> },
+    Is {
+        ty: TypeId,
+        negated: bool,
+        target_fqn: Option<String>,
+    },
+    Tuple {
+        elements: Vec<LirPattern>,
+    },
+    Struct {
+        type_fqn: String,
+        fields: Vec<(String, LirPattern)>,
+    },
+    Variant {
+        variant_name: String,
+        /// 变体判别值（enum_variants 声明序下标；None = 未知 / 外部 enum）。
+        tag_value: Option<u64>,
+        args: Vec<LirPattern>,
+    },
+    Or {
+        patterns: Vec<LirPattern>,
+    },
 }
 
 /// with 更新字段。
@@ -681,13 +690,9 @@ pub enum LirInterpolatedPart {
 #[derive(Clone, Debug)]
 pub enum LirTerminator {
     /// 函数返回。
-    Return {
-        value: Option<LirOperand>,
-    },
+    Return { value: Option<LirOperand> },
     /// 无条件跳转。
-    Goto {
-        target: u32,
-    },
+    Goto { target: u32 },
     /// 条件分支。
     CondBr {
         cond: LirOperand,

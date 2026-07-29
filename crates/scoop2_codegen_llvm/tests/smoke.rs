@@ -4,12 +4,12 @@
 
 #![cfg(feature = "llvm")]
 
-use scoop2_codegen_llvm::{emit_program, EmitOptions};
+use scoop2_codegen_llvm::{EmitOptions, emit_program};
 use scoop2_hir::ty::TypeId;
 use scoop2_lir::{
-    LirBlock, LirBody, LirCallable, LirConstValue, LirLocalDecl, LirOperand, LirProgram,
-    LirRvalue, LirStmt, LirStmtKind, LirTerminator, ParamAbi, ScalarKind, TypeLayout,
-    TypeLayoutKind, TypeLayoutTable,
+    LirBlock, LirBody, LirCallable, LirConstValue, LirLocalDecl, LirOperand, LirProgram, LirRvalue,
+    LirStmt, LirStmtKind, LirTerminator, ParamAbi, ScalarKind, TypeLayout, TypeLayoutKind,
+    TypeLayoutTable,
 };
 
 /// 构造一个最小 LirProgram：一个函数 `f`，无参，返回 Int 常量 42。
@@ -22,7 +22,10 @@ fn program_return_const() -> LirProgram {
             size: 8,
             align: 8,
             kind: TypeLayoutKind::Scalar {
-                scalar_kind: ScalarKind::Int { bits: 64, unsigned: false },
+                scalar_kind: ScalarKind::Int {
+                    bits: 64,
+                    unsigned: false,
+                },
             },
         },
     );
@@ -107,15 +110,36 @@ fn program_arithmetic() -> LirProgram {
             size: 8,
             align: 8,
             kind: TypeLayoutKind::Scalar {
-                scalar_kind: ScalarKind::Int { bits: 64, unsigned: false },
+                scalar_kind: ScalarKind::Int {
+                    bits: 64,
+                    unsigned: false,
+                },
             },
         },
     );
     let body = LirBody {
         locals: vec![
-            LirLocalDecl { id: 0, name: Some("a".into()), ty: TypeId(2), mutable: false, gc_traceable: false },
-            LirLocalDecl { id: 1, name: Some("b".into()), ty: TypeId(2), mutable: false, gc_traceable: false },
-            LirLocalDecl { id: 2, name: None, ty: TypeId(2), mutable: false, gc_traceable: false },
+            LirLocalDecl {
+                id: 0,
+                name: Some("a".into()),
+                ty: TypeId(2),
+                mutable: false,
+                gc_traceable: false,
+            },
+            LirLocalDecl {
+                id: 1,
+                name: Some("b".into()),
+                ty: TypeId(2),
+                mutable: false,
+                gc_traceable: false,
+            },
+            LirLocalDecl {
+                id: 2,
+                name: None,
+                ty: TypeId(2),
+                mutable: false,
+                gc_traceable: false,
+            },
         ],
         blocks: vec![LirBlock {
             id: 0,
@@ -145,8 +169,18 @@ fn program_arithmetic() -> LirProgram {
         symbol_name: "f".to_string(),
         abi: scoop2_lir::LirCallableAbi::Plain,
         params: vec![
-            LirParam { name: "a".into(), ty: TypeId(2), abi: ParamAbi::Direct },
-            LirParam { name: "b".into(), ty: TypeId(2), abi: ParamAbi::Direct },
+            LirParam {
+                name: "a".into(),
+                ty: TypeId(2),
+                abi: ParamAbi::Direct,
+                local_id: 0,
+            },
+            LirParam {
+                name: "b".into(),
+                ty: TypeId(2),
+                abi: ParamAbi::Direct,
+                local_id: 1,
+            },
         ],
         return_ty: TypeId(2),
         return_abi: ParamAbi::Direct,
@@ -163,7 +197,8 @@ fn program_arithmetic() -> LirProgram {
 #[test]
 fn arithmetic_intrinsic_lowers_to_add() {
     let prog = program_arithmetic();
-    let emitted = emit_program(&prog, &EmitOptions::default()).unwrap_or_else(|e| panic!("emit: {e:?}"));
+    let emitted =
+        emit_program(&prog, &EmitOptions::default()).unwrap_or_else(|e| panic!("emit: {e:?}"));
     let ir = &emitted.ir_text;
     // intrinsic int_plus 应 lower 为 add 指令，而非对 scoop.core.Int.plus 的调用。
     assert!(
@@ -186,7 +221,10 @@ fn program_condbr() -> LirProgram {
             size: 8,
             align: 8,
             kind: TypeLayoutKind::Scalar {
-                scalar_kind: ScalarKind::Int { bits: 64, unsigned: false },
+                scalar_kind: ScalarKind::Int {
+                    bits: 64,
+                    unsigned: false,
+                },
             },
         },
     );
@@ -203,9 +241,27 @@ fn program_condbr() -> LirProgram {
     );
     let body = LirBody {
         locals: vec![
-            LirLocalDecl { id: 0, name: Some("x".into()), ty: TypeId(2), mutable: false, gc_traceable: false },
-            LirLocalDecl { id: 1, name: Some("c".into()), ty: TypeId(3), mutable: false, gc_traceable: false },
-            LirLocalDecl { id: 2, name: None, ty: TypeId(2), mutable: false, gc_traceable: false },
+            LirLocalDecl {
+                id: 0,
+                name: Some("x".into()),
+                ty: TypeId(2),
+                mutable: false,
+                gc_traceable: false,
+            },
+            LirLocalDecl {
+                id: 1,
+                name: Some("c".into()),
+                ty: TypeId(3),
+                mutable: false,
+                gc_traceable: false,
+            },
+            LirLocalDecl {
+                id: 2,
+                name: None,
+                ty: TypeId(2),
+                mutable: false,
+                gc_traceable: false,
+            },
         ],
         blocks: vec![
             LirBlock {
@@ -260,7 +316,12 @@ fn program_condbr() -> LirProgram {
         fqn: "f".to_string(),
         symbol_name: "f".to_string(),
         abi: scoop2_lir::LirCallableAbi::Plain,
-        params: vec![LirParam { name: "x".into(), ty: TypeId(2), abi: ParamAbi::Direct }],
+        params: vec![LirParam {
+            name: "x".into(),
+            ty: TypeId(2),
+            abi: ParamAbi::Direct,
+            local_id: 0,
+        }],
         return_ty: TypeId(2),
         return_abi: ParamAbi::Direct,
         body: Some(body),
@@ -276,15 +337,12 @@ fn program_condbr() -> LirProgram {
 #[test]
 fn condbr_lowers_to_conditional_branch() {
     let prog = program_condbr();
-    let emitted = emit_program(&prog, &EmitOptions::default()).unwrap_or_else(|e| panic!("emit failed: {e:?}"));
+    let emitted = emit_program(&prog, &EmitOptions::default())
+        .unwrap_or_else(|e| panic!("emit failed: {e:?}"));
     let ir = &emitted.ir_text;
-    assert!(
-        ir.contains("br i1"),
-        "IR 应含 br i1（条件分支）：\n{ir}"
-    );
+    assert!(ir.contains("br i1"), "IR 应含 br i1（条件分支）：\n{ir}");
     assert!(ir.contains("ret i64"), "IR 应含 ret i64");
 }
-
 
 /// 构造：`f(): Int { val t = (10, 20); return t.1 }`（MakeTuple + TupleIndex）。
 fn program_tuple() -> LirProgram {
@@ -295,7 +353,10 @@ fn program_tuple() -> LirProgram {
             size: 8,
             align: 8,
             kind: TypeLayoutKind::Scalar {
-                scalar_kind: ScalarKind::Int { bits: 64, unsigned: false },
+                scalar_kind: ScalarKind::Int {
+                    bits: 64,
+                    unsigned: false,
+                },
             },
         },
     );
@@ -307,16 +368,36 @@ fn program_tuple() -> LirProgram {
             align: 8,
             kind: TypeLayoutKind::Tuple {
                 elements: vec![
-                    scoop2_lir::FieldLayout { offset: 0, size: 8, ty: TypeId(2) },
-                    scoop2_lir::FieldLayout { offset: 8, size: 8, ty: TypeId(2) },
+                    scoop2_lir::FieldLayout {
+                        offset: 0,
+                        size: 8,
+                        ty: TypeId(2),
+                    },
+                    scoop2_lir::FieldLayout {
+                        offset: 8,
+                        size: 8,
+                        ty: TypeId(2),
+                    },
                 ],
             },
         },
     );
     let body = LirBody {
         locals: vec![
-            LirLocalDecl { id: 0, name: Some("t".into()), ty: TypeId(5), mutable: false, gc_traceable: false },
-            LirLocalDecl { id: 1, name: None, ty: TypeId(2), mutable: false, gc_traceable: false },
+            LirLocalDecl {
+                id: 0,
+                name: Some("t".into()),
+                ty: TypeId(5),
+                mutable: false,
+                gc_traceable: false,
+            },
+            LirLocalDecl {
+                id: 1,
+                name: None,
+                ty: TypeId(2),
+                mutable: false,
+                gc_traceable: false,
+            },
         ],
         blocks: vec![LirBlock {
             id: 0,
@@ -372,7 +453,8 @@ fn program_tuple() -> LirProgram {
 #[test]
 fn tuple_make_and_index_lowers_correctly() {
     let prog = program_tuple();
-    let emitted = emit_program(&prog, &EmitOptions::default()).unwrap_or_else(|e| panic!("emit: {e:?}"));
+    let emitted =
+        emit_program(&prog, &EmitOptions::default()).unwrap_or_else(|e| panic!("emit: {e:?}"));
     let ir = &emitted.ir_text;
     // MakeTuple 的元素是常量时，LLVM 会常量折叠为 struct 常量（无显式 insertvalue）；
     // 故只断言 tuple 类型 + extractvalue。
@@ -397,14 +479,19 @@ fn object_output_produces_valid_object_file() {
     let ir = emit_object_to_file(&prog, &tmp, &EmitOptions::default())
         .unwrap_or_else(|e| panic!("object 输出失败：{e:?}"));
     assert!(tmp.exists(), "object 文件应存在");
-    assert!(tmp.metadata().map(|m| m.len() > 0).unwrap_or(false), "object 文件应非空");
+    assert!(
+        tmp.metadata().map(|m| m.len() > 0).unwrap_or(false),
+        "object 文件应非空"
+    );
     // 验证 object 文件是 ELF/Mach-O（用 file 命令或 magic）。
     let magic = std::fs::read(&tmp).unwrap_or_default();
-    let is_obj = magic.len() >= 4 && (
-        magic.starts_with(&[0x7f, b'E', b'L', b'F']) // ELF
+    let is_obj = magic.len() >= 4
+        && (
+            magic.starts_with(&[0x7f, b'E', b'L', b'F']) // ELF
         || (magic.len() >= 4 && magic[0] == 0xfe && magic[1] == 0xed && magic[2] == 0xfa) // Mach-O
-        || magic.starts_with(&[0xCF, 0xFA, 0xED, 0xFE]) // Mach-O 64 LE
-    );
+        || magic.starts_with(&[0xCF, 0xFA, 0xED, 0xFE])
+            // Mach-O 64 LE
+        );
     assert!(is_obj, "应为合法 object 文件（ELF/Mach-O magic）");
     let _ = ir;
     let _ = std::fs::remove_file(&tmp);
@@ -447,7 +534,12 @@ fn program_gc_local() -> LirProgram {
         fqn: "f".to_string(),
         symbol_name: "f".to_string(),
         abi: scoop2_lir::LirCallableAbi::Plain,
-        params: vec![LirParam { name: "s".into(), ty: TypeId(16), abi: ParamAbi::Direct }],
+        params: vec![LirParam {
+            name: "s".into(),
+            ty: TypeId(16),
+            abi: ParamAbi::Direct,
+            local_id: 0,
+        }],
         return_ty: TypeId(16),
         return_abi: ParamAbi::Direct,
         body: Some(body),

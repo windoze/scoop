@@ -7,8 +7,8 @@
 //!
 //! 未解析的符号返回 `UndefinedSymbol` 错误。
 
-use inkwell::values::BasicValueEnum;
 use inkwell::values::BasicMetadataValueEnum;
+use inkwell::values::BasicValueEnum;
 
 use scoop2_hir::ty::TypeId;
 use scoop2_lir::LirOperand;
@@ -26,17 +26,29 @@ pub fn lower_direct<'a, 'ctx>(
     // 0. Continuation.resume（effect_lower 重写的 resume 调用）。
     //    args = [continuation, resume_value]；调用 continuation 的 step_fn。
     if callee_symbol == "scoop.core.Continuation.resume" {
-        let cont = args.get(0).cloned().unwrap_or(LirOperand::Const(scoop2_lir::LirConstValue::Null));
-        let rv = args.get(1).cloned().unwrap_or(LirOperand::Const(scoop2_lir::LirConstValue::Null));
+        let cont = args
+            .get(0)
+            .cloned()
+            .unwrap_or(LirOperand::Const(scoop2_lir::LirConstValue::Null));
+        let rv = args
+            .get(1)
+            .cloned()
+            .unwrap_or(LirOperand::Const(scoop2_lir::LirConstValue::Null));
         return super::call::lower_resume_direct(fl, &cont, &rv, result_ty);
     }
     // 1. intrinsic 启发式（按 FQN）— 优先于函数声明，因为 @Intrinsic 方法
     //    虽有声明（body=None）但应内联而非调用。
-    if let Some(v) = crate::intrinsics::try_lower_intrinsic_by_fqn(fl, callee_symbol, args, result_ty)? {
+    if let Some(v) =
+        crate::intrinsics::try_lower_intrinsic_by_fqn(fl, callee_symbol, args, result_ty)?
+    {
         return Ok(v);
     }
     // 2. 已声明/定义的函数。
-    if let Some(fv) = fl.cg.lookup_callable_fn(callee_symbol).or_else(|| fl.cg.module.get_function(callee_symbol)) {
+    if let Some(fv) = fl
+        .cg
+        .lookup_callable_fn(callee_symbol)
+        .or_else(|| fl.cg.module.get_function(callee_symbol))
+    {
         return lower_known_fn(fl, fv, args, result_ty);
     }
     // 3. runtime 符号映射（println/print 等常用符号）。
@@ -71,19 +83,20 @@ fn lower_known_fn<'a, 'ctx>(
         };
         arg_vals.push(val.into());
     }
-    let call = fl
-        .builder
-        .build_call(fv, &arg_vals, "call")
-        .map_err(|e| CodegenError::llvm(e.to_string(), "build_call", scoop2_base::Span::default()))?;
+    let call = fl.builder.build_call(fv, &arg_vals, "call").map_err(|e| {
+        CodegenError::llvm(e.to_string(), "build_call", scoop2_base::Span::default())
+    })?;
     // 返回值：void 函数返回 unit（i8 zero）。
     if fv.get_type().get_return_type().is_some() {
         let result = match call.try_as_basic_value() {
             inkwell::values::ValueKind::Basic(v) => v,
-            inkwell::values::ValueKind::Instruction(_) => return Err(CodegenError::llvm(
-                "call 返回 InstructionValue 而非 BasicValue",
-                "lower_known_fn",
-                scoop2_base::Span::default(),
-            )),
+            inkwell::values::ValueKind::Instruction(_) => {
+                return Err(CodegenError::llvm(
+                    "call 返回 InstructionValue 而非 BasicValue",
+                    "lower_known_fn",
+                    scoop2_base::Span::default(),
+                ));
+            }
         };
         // 若返回 native ptr，转换为 GC ptr（addrspace 1），与 Scoop 类型系统一致。
         let result = match result {

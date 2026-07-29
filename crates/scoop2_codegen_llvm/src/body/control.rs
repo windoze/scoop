@@ -1,7 +1,7 @@
 //! terminator lowering：`LirTerminator` → LLVM terminator 指令。
 
 use inkwell::values::BasicValueEnum;
-use scoop2_lir::LirTerminator;
+use scoop2_lir::{LirOperand, LirTerminator};
 
 use crate::body::FunctionLowerer;
 use crate::error::{CodegenError, CodegenResult};
@@ -16,36 +16,80 @@ pub fn lower_terminator<'a, 'ctx>(
             // 先 load 返回值（GC local 从 frame slot 读取），再 pop root frame。
             // 若先 pop，frame slot 被清零，GC local 读取得到 NULL。
             let ret_val = match value {
-                Some(operand) => Some(fl.lower_operand(operand, fl.return_ty)?),
+                Some(operand) => {
+                    let v = fl.lower_operand(operand, fl.return_ty)?;
+                    // Option 表示归一：`return None()` 的静态类型是 Option(Nothing)
+                    // （Pointer niche），与声明返回类型 Option<T>（可能 Tagged）表示
+                    // 不同，需要显式转换，否则函数签名与返回值类型不一致。
+                    let from_ty = match operand {
+                        LirOperand::Local(id) => fl.local_types.get(id).copied(),
+                        LirOperand::Const(_) => None,
+                    };
+                    let coerced = match from_ty {
+                        Some(ft) if ft != fl.return_ty => {
+                            let both_option = [ft, fl.return_ty].iter().all(|t| {
+                                matches!(
+                                    fl.layouts.get(*t).map(|l| &l.kind),
+                                    Some(scoop2_lir::TypeLayoutKind::Option { .. })
+                                )
+                            });
+                            if both_option {
+                                super::rvalue::coerce_option_value(fl, v, ft, fl.return_ty)?
+                            } else {
+                                v
+                            }
+                        }
+                        _ => v,
+                    };
+                    Some(coerced)
+                }
                 None => None,
             };
             fl.emit_root_frame_pop()?;
             match ret_val {
                 Some(v) => {
-                    fl.builder
-                        .build_return(Some(&v))
-                        .map_err(|e| CodegenError::llvm(e.to_string(), "build_return", scoop2_base::Span::default()))?;
+                    fl.builder.build_return(Some(&v)).map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "build_return",
+                            scoop2_base::Span::default(),
+                        )
+                    })?;
                 }
                 None => {
                     // 隐式 Unit return。若函数返回类型非 Unit（通常出现在不可达的冗余 block，
                     // 如 MIR 产生的尾部 Return(Unit) 块），返回该类型的零值以满足 LLVM 返回类型约束。
                     let unit_zero = fl.cg.context.i8_type().const_zero();
-                    let is_unit = fl
-                        .layouts
-                        .get(fl.return_ty)
-                        .is_some_and(|l| matches!(l.kind, scoop2_lir::TypeLayoutKind::Scalar { scalar_kind: scoop2_lir::ScalarKind::Unit }));
+                    let is_unit = fl.layouts.get(fl.return_ty).is_some_and(|l| {
+                        matches!(
+                            l.kind,
+                            scoop2_lir::TypeLayoutKind::Scalar {
+                                scalar_kind: scoop2_lir::ScalarKind::Unit
+                            }
+                        )
+                    });
                     if is_unit {
                         // Unit 返回类型降级为 i8；返回 i8 zero（与函数 i8 返回类型一致）。
                         fl.builder
                             .build_return(Some(&fl.cg.context.i8_type().const_zero()))
-                            .map_err(|e| CodegenError::llvm(e.to_string(), "build_return(unit)", scoop2_base::Span::default()))?;
+                            .map_err(|e| {
+                                CodegenError::llvm(
+                                    e.to_string(),
+                                    "build_return(unit)",
+                                    scoop2_base::Span::default(),
+                                )
+                            })?;
                     } else {
                         // 不可达冗余 block：返回零值（实际不会执行到）。
                         let ret_llvm = fl.cg.lower_type(fl.return_ty, fl.layouts)?;
                         let zero = ret_llvm.const_zero();
-                        fl.builder
-                            .build_return(Some(&zero))
-                            .map_err(|e| CodegenError::llvm(e.to_string(), "build_return(zero fallback)", scoop2_base::Span::default()))?;
+                        fl.builder.build_return(Some(&zero)).map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "build_return(zero fallback)",
+                                scoop2_base::Span::default(),
+                            )
+                        })?;
                     }
                     let _ = unit_zero;
                 }
@@ -53,9 +97,9 @@ pub fn lower_terminator<'a, 'ctx>(
         }
         LirTerminator::Goto { target } => {
             let bb = lookup_block(fl, *target)?;
-            fl.builder
-                .build_unconditional_branch(bb)
-                .map_err(|e| CodegenError::llvm(e.to_string(), "build_br", scoop2_base::Span::default()))?;
+            fl.builder.build_unconditional_branch(bb).map_err(|e| {
+                CodegenError::llvm(e.to_string(), "build_br", scoop2_base::Span::default())
+            })?;
         }
         LirTerminator::CondBr {
             cond,
@@ -67,33 +111,42 @@ pub fn lower_terminator<'a, 'ctx>(
             // 若 cond 是指针（GC ref，effect/continuation 路径可能产生），转 i64 后比较。
             let cond_i = match cond_val {
                 BasicValueEnum::IntValue(i) => i,
-                BasicValueEnum::PointerValue(p) => {
-                    fl.builder.build_ptr_to_int(p, fl.cg.context.i64_type(), "cond_ptr2int")
-                        .map_err(|e| CodegenError::llvm(e.to_string(), "cond_ptr2int", scoop2_base::Span::default()))?
-                }
+                BasicValueEnum::PointerValue(p) => fl
+                    .builder
+                    .build_ptr_to_int(p, fl.cg.context.i64_type(), "cond_ptr2int")
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "cond_ptr2int",
+                            scoop2_base::Span::default(),
+                        )
+                    })?,
                 _ => fl.cg.context.i8_type().const_zero(),
             };
             // 与同类型的 zero 比较（cond_i 可能是 i8 或 i64）。
             let zero = cond_i.get_type().const_zero();
             let i1 = fl
                 .builder
-                .build_int_compare(
-                    inkwell::IntPredicate::NE,
-                    cond_i,
-                    zero,
-                    "condbr",
-                )
-                .map_err(|e| CodegenError::llvm(e.to_string(), "build_icmp", scoop2_base::Span::default()))?;
+                .build_int_compare(inkwell::IntPredicate::NE, cond_i, zero, "condbr")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), "build_icmp", scoop2_base::Span::default())
+                })?;
             let then_bb = lookup_block(fl, *then_target)?;
             let else_bb = lookup_block(fl, *else_target)?;
             fl.builder
                 .build_conditional_branch(i1, then_bb, else_bb)
-                .map_err(|e| CodegenError::llvm(e.to_string(), "build_condbr", scoop2_base::Span::default()))?;
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), "build_condbr", scoop2_base::Span::default())
+                })?;
         }
         LirTerminator::Unreachable => {
             fl.emit_root_frame_pop()?;
             fl.builder.build_unreachable().map_err(|e| {
-                CodegenError::llvm(e.to_string(), "build_unreachable", scoop2_base::Span::default())
+                CodegenError::llvm(
+                    e.to_string(),
+                    "build_unreachable",
+                    scoop2_base::Span::default(),
+                )
             })?;
         }
     }

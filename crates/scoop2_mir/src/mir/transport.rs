@@ -438,10 +438,18 @@ pub enum RuntimeTypeParameterizedMatch {
         effects: EffectRow,
         effects_closed: bool,
     },
-    Option { payload_ty: TypeId },
-    Tuple { element_tys: Vec<TypeId> },
-    Union { variants: Vec<TypeId> },
-    StarProjection { read_ty: TypeId },
+    Option {
+        payload_ty: TypeId,
+    },
+    Tuple {
+        element_tys: Vec<TypeId>,
+    },
+    Union {
+        variants: Vec<TypeId>,
+    },
+    StarProjection {
+        read_ty: TypeId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

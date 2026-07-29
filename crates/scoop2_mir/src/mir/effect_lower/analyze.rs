@@ -126,11 +126,12 @@ fn collect_rvalue_uses(rv: &Rvalue, uses: &mut HashSet<LocalId>, defs: &HashSet<
                 collect_operand_uses(e, uses, defs);
             }
         }
-        Rvalue::MemberAccess { receiver, .. }
-        | Rvalue::TupleIndex { receiver, .. } => {
+        Rvalue::MemberAccess { receiver, .. } | Rvalue::TupleIndex { receiver, .. } => {
             collect_operand_uses(receiver, uses, defs);
         }
-        Rvalue::IndexAccess { receiver, indices, .. } => {
+        Rvalue::IndexAccess {
+            receiver, indices, ..
+        } => {
             collect_operand_uses(receiver, uses, defs);
             for i in indices {
                 collect_operand_uses(i, uses, defs);
@@ -184,7 +185,10 @@ fn collect_call_kind_uses(kind: &CallKind, uses: &mut HashSet<LocalId>, defs: &H
         CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
             collect_operand_uses(receiver, uses, defs);
         }
-        CallKind::Resume { continuation, resume_value } => {
+        CallKind::Resume {
+            continuation,
+            resume_value,
+        } => {
             collect_operand_uses(continuation, uses, defs);
             collect_operand_uses(resume_value, uses, defs);
         }
@@ -213,7 +217,11 @@ fn collect_terminator_uses(
     }
 }
 
-fn collect_operand_uses(op: &crate::mir::Operand, uses: &mut HashSet<LocalId>, defs: &HashSet<LocalId>) {
+fn collect_operand_uses(
+    op: &crate::mir::Operand,
+    uses: &mut HashSet<LocalId>,
+    defs: &HashSet<LocalId>,
+) {
     if let crate::mir::Operand::Local(lid) = op {
         if !defs.contains(lid) {
             uses.insert(*lid);

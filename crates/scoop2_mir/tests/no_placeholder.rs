@@ -41,13 +41,15 @@ fn scan_file(path: &Path, out: &mut Vec<(String, usize, String)>) {
         if trimmed.starts_with("//") {
             continue;
         }
-        for forbidden in ["todo!()", "unimplemented!()", "unreachable!()", "Todo(", "panic!("] {
+        for forbidden in [
+            "todo!()",
+            "unimplemented!()",
+            "unreachable!()",
+            "Todo(",
+            "panic!(",
+        ] {
             if line.contains(forbidden) {
-                out.push((
-                    path.display().to_string(),
-                    i + 1,
-                    forbidden.to_string(),
-                ));
+                out.push((path.display().to_string(), i + 1, forbidden.to_string()));
             }
         }
     }

@@ -38,7 +38,14 @@ pub fn run_typecheck(
     target_platform: Option<&str>,
     declared_deps: &[String],
 ) -> crate::hir::TypedHir {
-    run_typecheck_with_options(inputs, interner, diags, target_platform, declared_deps, false)
+    run_typecheck_with_options(
+        inputs,
+        interner,
+        diags,
+        target_platform,
+        declared_deps,
+        false,
+    )
 }
 
 /// 带 `lower_sysroot_bodies` 选项的 typecheck。
@@ -201,10 +208,8 @@ pub fn run_typecheck_with_options(
     // 顶层表达式有类型时递归验证）。这使 558 个 typecheck fixture 无回归，同时
     // 为 MIR lowering 提供完整性保证：任何未类型化的可 lower 表达式都会在此报
     // `scoop::typecheck::untyped_node`。
-    let user_file_refs: Vec<(scoop2_base::FileId, &File)> = user_files
-        .iter()
-        .map(|uf| (uf.file_id, uf.file))
-        .collect();
+    let user_file_refs: Vec<(scoop2_base::FileId, &File)> =
+        user_files.iter().map(|uf| (uf.file_id, uf.file)).collect();
     crate::completeness::verify(&hir, &user_file_refs, diags);
     hir
 }

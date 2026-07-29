@@ -24,7 +24,7 @@ use scoop2_base::diag::DiagnosticSink;
 use scoop2_hir::hir::TypedHir;
 
 use crate::diagnostics::MirLowerError;
-use crate::mir::{Module, Item, MetadataKind, MetadataRoot};
+use crate::mir::{Item, MetadataKind, MetadataRoot, Module};
 
 /// lowering 结果：Module + 错误列表（错误已 push 进 sink）。
 pub struct LowerResult {
@@ -76,7 +76,8 @@ fn lower_file(
         match &item.kind {
             ItemKind::Fun(d) => {
                 let base = module.types.clone();
-                let (fd, nested, fn_store) = builder::lower_fun_decl(file_id, d, hir, package_prefix, &base, errors);
+                let (fd, nested, fn_store) =
+                    builder::lower_fun_decl(file_id, d, hir, package_prefix, &base, errors);
                 if let Some(fd) = fd {
                     // 合并 per-function store 到 module.types，remap TypeId。
                     let remap = module.types.extend_from(&fn_store);
@@ -89,7 +90,8 @@ fn lower_file(
             }
             ItemKind::Val(d) => {
                 let base = module.types.clone();
-                let (ir_opt, val_store) = builder::lower_top_level_val(file_id, d, hir, package_prefix, &base, errors);
+                let (ir_opt, val_store) =
+                    builder::lower_top_level_val(file_id, d, hir, package_prefix, &base, errors);
                 if let Some(ir) = ir_opt {
                     let remap = module.types.extend_from(&val_store);
                     local_items.push(remap_item(&remap, ir));
@@ -114,7 +116,15 @@ fn lower_file(
                 // 类型体的成员函数也需 lower（method bodies）。
                 if let Some(body) = &d.body {
                     let base = module.types.clone();
-                    let member_items = builder::lower_type_member_funs_with_stores(file_id, &body.members, hir, package_prefix, &base, errors, owner_sym);
+                    let member_items = builder::lower_type_member_funs_with_stores(
+                        file_id,
+                        &body.members,
+                        hir,
+                        package_prefix,
+                        &base,
+                        errors,
+                        owner_sym,
+                    );
                     for (it, st) in member_items {
                         let remap = module.types.extend_from(&st);
                         local_items.push(remap_item(&remap, it));
@@ -133,11 +143,22 @@ fn lower_file(
                 }
                 if let Some(body) = &d.body {
                     let base = module.types.clone();
-                    let owner_sym = d.name.and_then(|n| {
-                        let fqn = fqn_of(package_prefix, n.symbol, hir);
-                        hir.interner.get(&fqn)
-                    }).unwrap_or_default();
-                    let member_items = builder::lower_type_member_funs_with_stores(file_id, &body.members, hir, package_prefix, &base, errors, owner_sym);
+                    let owner_sym = d
+                        .name
+                        .and_then(|n| {
+                            let fqn = fqn_of(package_prefix, n.symbol, hir);
+                            hir.interner.get(&fqn)
+                        })
+                        .unwrap_or_default();
+                    let member_items = builder::lower_type_member_funs_with_stores(
+                        file_id,
+                        &body.members,
+                        hir,
+                        package_prefix,
+                        &base,
+                        errors,
+                        owner_sym,
+                    );
                     for (it, st) in member_items {
                         let remap = module.types.extend_from(&st);
                         local_items.push(remap_item(&remap, it));
@@ -157,7 +178,7 @@ fn remap_fun_decl(
     remap: &std::collections::HashMap<scoop2_hir::ty::TypeId, scoop2_hir::ty::TypeId>,
     mut fd: crate::mir::FunDecl,
 ) -> crate::mir::FunDecl {
-    use scoop2_hir::ty::{TypeStore, TypeId};
+    use scoop2_hir::ty::{TypeId, TypeStore};
     fd.ty = TypeStore::remap_id(remap, fd.ty);
     fd.return_ty = TypeStore::remap_id(remap, fd.return_ty);
     for p in &mut fd.params {
@@ -195,7 +216,7 @@ fn remap_body(
     remap: &std::collections::HashMap<scoop2_hir::ty::TypeId, scoop2_hir::ty::TypeId>,
     mut body: crate::mir::Body,
 ) -> crate::mir::Body {
-    use scoop2_hir::ty::{TypeStore, TypeId};
+    use scoop2_hir::ty::{TypeId, TypeStore};
     for decl in &mut body.locals {
         decl.ty = TypeStore::remap_id(remap, decl.ty);
     }
@@ -237,7 +258,9 @@ fn remap_rvalue(
         Rvalue::Use(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::InterpolatedString { .. }
-        | Rvalue::ClassLit { .. } | Rvalue::PatternMatch { .. } | Rvalue::PatternExtract { .. }
+        | Rvalue::ClassLit { .. }
+        | Rvalue::PatternMatch { .. }
+        | Rvalue::PatternExtract { .. }
         | Rvalue::IntEq { .. } => {}
         Rvalue::TopLevelRef(tl) => {
             for t in &mut tl.generic_type_args {
@@ -256,16 +279,19 @@ fn remap_rvalue(
         Rvalue::MemberAccess { member, .. } => {
             member.receiver_ty = TypeStore::remap_id(remap, member.receiver_ty);
         }
-        Rvalue::TupleIndex { element_ty, .. }
-        | Rvalue::IndexAccess { element_ty, .. } => {
+        Rvalue::TupleIndex { element_ty, .. } | Rvalue::IndexAccess { element_ty, .. } => {
             *element_ty = TypeStore::remap_id(remap, *element_ty);
         }
-        Rvalue::EnumVariant { enum_ty, payload, .. } => {
+        Rvalue::EnumVariant {
+            enum_ty, payload, ..
+        } => {
             *enum_ty = TypeStore::remap_id(remap, *enum_ty);
             payload.aggregate_ty = TypeStore::remap_id(remap, payload.aggregate_ty);
         }
         Rvalue::ClassCtor { .. } => {}
-        Rvalue::Call { kind, transport, .. } => {
+        Rvalue::Call {
+            kind, transport, ..
+        } => {
             remap_call_kind(remap, kind);
             transport.result.source_ty = TypeStore::remap_id(remap, transport.result.source_ty);
         }
@@ -291,7 +317,9 @@ fn remap_call_kind(
     use crate::mir::CallKind;
     use scoop2_hir::ty::TypeStore;
     match kind {
-        CallKind::Direct { generic_type_args, .. } => {
+        CallKind::Direct {
+            generic_type_args, ..
+        } => {
             for t in generic_type_args {
                 *t = TypeStore::remap_id(remap, *t);
             }

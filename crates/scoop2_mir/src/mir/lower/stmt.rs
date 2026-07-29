@@ -48,11 +48,7 @@ pub fn lower_block(builder: &mut FnLowering, block: &Block) -> Operand {
             StmtKind::While { cond, body } => {
                 super::stmt::lower_while(builder, cond, body, stmt.span);
             }
-            StmtKind::For {
-                binder,
-                iter,
-                body,
-            } => {
+            StmtKind::For { binder, iter, body } => {
                 super::stmt::lower_for(builder, binder, iter, body, stmt.span);
             }
             StmtKind::Break => {
@@ -61,7 +57,11 @@ pub fn lower_block(builder: &mut FnLowering, block: &Block) -> Operand {
                     let dead = builder.new_block();
                     builder.current_bb = dead;
                 } else {
-                    builder.error(crate::diagnostics::BREAK_OUTSIDE_LOOP, stmt.span, "`break` 只能出现在循环体内");
+                    builder.error(
+                        crate::diagnostics::BREAK_OUTSIDE_LOOP,
+                        stmt.span,
+                        "`break` 只能出现在循环体内",
+                    );
                 }
             }
             StmtKind::Continue => {
@@ -70,7 +70,11 @@ pub fn lower_block(builder: &mut FnLowering, block: &Block) -> Operand {
                     let dead = builder.new_block();
                     builder.current_bb = dead;
                 } else {
-                    builder.error(crate::diagnostics::CONTINUE_OUTSIDE_LOOP, stmt.span, "`continue` 只能出现在循环体内");
+                    builder.error(
+                        crate::diagnostics::CONTINUE_OUTSIDE_LOOP,
+                        stmt.span,
+                        "`continue` 只能出现在循环体内",
+                    );
                 }
             }
         }
@@ -96,10 +100,7 @@ pub fn lower_assign(
                 return;
             }
             // assign_places 侧表：TopLevelVar？
-            if let Some(place) = builder
-                .hir
-                .assign_place(builder.file_id, target.id)
-            {
+            if let Some(place) = builder.hir.assign_place(builder.file_id, target.id) {
                 match place {
                     scoop2_hir::hir::ResolvedPlace::TopLevelVar { fqn, .. } => {
                         builder.push_stmt(crate::mir::Statement {
@@ -125,8 +126,7 @@ pub fn lower_assign(
                             builder.this_local = Some(lid);
                             lid
                         });
-                        let name_str =
-                            builder.hir.interner.resolve(*member_name).to_string();
+                        let name_str = builder.hir.interner.resolve(*member_name).to_string();
                         builder.push_stmt(crate::mir::Statement {
                             span,
                             kind: crate::mir::StatementKind::StoreMember {
@@ -161,7 +161,8 @@ pub fn lower_assign(
                 ast::MemberName::Named(name) => {
                     let name_str = builder.hir.interner.resolve(name.symbol).to_string();
                     if let Some(place) = builder.hir.assign_place(builder.file_id, target.id)
-                        && let scoop2_hir::hir::ResolvedPlace::MemberField { receiver_ty, .. } = place
+                        && let scoop2_hir::hir::ResolvedPlace::MemberField { receiver_ty, .. } =
+                            place
                     {
                         builder.push_stmt(crate::mir::Statement {
                             span,
@@ -259,7 +260,11 @@ pub fn lower_assign(
                     span,
                 );
             } else {
-                builder.error(crate::diagnostics::PRELUDE_SYMBOL_MISSING, span, "prelude 必需符号未注册：operator set（检查 sysroot / prelude 加载）");
+                builder.error(
+                    crate::diagnostics::PRELUDE_SYMBOL_MISSING,
+                    span,
+                    "prelude 必需符号未注册：operator set（检查 sysroot / prelude 加载）",
+                );
             }
         }
     }
@@ -272,10 +277,14 @@ pub fn lower_local_val(builder: &mut FnLowering, val: &ast::ValDecl) {
     // 但 val 若有显式类型注解（如 `val x: Array<Int> = []`），local 应取注解类型，
     // 否则 codegen 会把数组 local 当 Nothing 处理。这里检测空数组 + 注解类型，
     // 用注解类型作为 local 类型。
-    let init_is_empty_array = val.init.as_ref().is_some_and(|e| {
-        matches!(&e.kind, ast::ExprKind::ArrayLit(els) if els.is_empty())
-    });
-    let declared_ty = val.ty.as_ref().map(|t| super::expr::resolve_typeref(builder, t));
+    let init_is_empty_array = val
+        .init
+        .as_ref()
+        .is_some_and(|e| matches!(&e.kind, ast::ExprKind::ArrayLit(els) if els.is_empty()));
+    let declared_ty = val
+        .ty
+        .as_ref()
+        .map(|t| super::expr::resolve_typeref(builder, t));
     let init_ty_raw = val
         .init
         .as_ref()
@@ -338,7 +347,8 @@ pub fn bind_pattern(
         }
         PatternKind::Tuple(els) => {
             for (i, sub) in els.iter().enumerate() {
-                let elem_ty = tuple_elem_ty(builder, src_ty, i).unwrap_or_else(|| builder.types.nothing());
+                let elem_ty =
+                    tuple_elem_ty(builder, src_ty, i).unwrap_or_else(|| builder.types.nothing());
                 let tmp = builder.alloc_temp(elem_ty, sub.span);
                 builder.assign(
                     tmp,
@@ -357,22 +367,23 @@ pub fn bind_pattern(
             // variant 解构 `val Result.Ok(v) = r`：spec §3420 允许。
             // 从 pattern_bindings 侧表取绑定的字段类型；variant 的 payload 通常是单字段，
             // subject 即 payload（单字段）或 tuple（多字段）。
-            let binders: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId, scoop2_base::Span)> =
-                if let Some(bs) = builder.hir.pattern_bindings(builder.file_id, pat.id) {
-                    bs.iter()
-                        .map(|b| (b.name, b.ty, b.span))
-                        .collect()
-                } else if let Some(args) = args {
-                    // 回退：pattern_bindings 未记录时，按位置用 src_ty。
-                    args.iter()
-                        .filter_map(|a| match &a.kind {
-                            PatternKind::Bind(n) => Some((n.symbol, src_ty, n.span)),
-                            _ => None,
-                        })
-                        .collect()
-                } else {
-                    Vec::new()
-                };
+            let binders: Vec<(
+                scoop2_base::Symbol,
+                scoop2_hir::ty::TypeId,
+                scoop2_base::Span,
+            )> = if let Some(bs) = builder.hir.pattern_bindings(builder.file_id, pat.id) {
+                bs.iter().map(|b| (b.name, b.ty, b.span)).collect()
+            } else if let Some(args) = args {
+                // 回退：pattern_bindings 未记录时，按位置用 src_ty。
+                args.iter()
+                    .filter_map(|a| match &a.kind {
+                        PatternKind::Bind(n) => Some((n.symbol, src_ty, n.span)),
+                        _ => None,
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
             let _ = path;
             for (i, (bname, bty, bspan)) in binders.iter().enumerate() {
                 let lid = builder.alloc_named_mutable(
@@ -454,7 +465,12 @@ pub fn lower_while(builder: &mut FnLowering, cond: &ast::Expr, body: &Block, spa
         body_bb,
     );
     // body 块。
-    builder.loop_stack.push(crate::mir::lower::builder::LoopContext { break_target: exit_bb, continue_target: body_bb });
+    builder
+        .loop_stack
+        .push(crate::mir::lower::builder::LoopContext {
+            break_target: exit_bb,
+            continue_target: body_bb,
+        });
     super::stmt::lower_block(builder, body);
     builder.loop_stack.pop();
     // body 末尾回到 cond。
@@ -495,9 +511,17 @@ pub fn lower_for(
             generic_type_args: Vec::new(),
             generic_eff_args: Vec::new(),
         };
-        builder.make_dispatch_call_kind(resolve_owner_fqn_from_operand(builder, &iter_val), iter_val, it_dispatch)
+        builder.make_dispatch_call_kind(
+            resolve_owner_fqn_from_operand(builder, &iter_val),
+            iter_val,
+            it_dispatch,
+        )
     } else {
-        builder.error(crate::diagnostics::PRELUDE_SYMBOL_MISSING, span, "prelude 必需符号未注册：iterator（检查 sysroot / prelude 加载）");
+        builder.error(
+            crate::diagnostics::PRELUDE_SYMBOL_MISSING,
+            span,
+            "prelude 必需符号未注册：iterator（检查 sysroot / prelude 加载）",
+        );
         return;
     };
     let it_site_id = builder.next_site_id();
@@ -524,7 +548,11 @@ pub fn lower_for(
     let (has_next_sym, next_sym) = match (has_next_sym, next_sym) {
         (Some(h), Some(n)) => (h, n),
         _ => {
-            builder.error(crate::diagnostics::PRELUDE_SYMBOL_MISSING, span, "prelude 必需符号未注册：hasNext / next（检查 sysroot / prelude 加载）");
+            builder.error(
+                crate::diagnostics::PRELUDE_SYMBOL_MISSING,
+                span,
+                "prelude 必需符号未注册：hasNext / next（检查 sysroot / prelude 加载）",
+            );
             return;
         }
     };
@@ -573,7 +601,12 @@ pub fn lower_for(
         body_bb,
     );
     // body: binder = iter.next(); <body>。
-    builder.loop_stack.push(crate::mir::lower::builder::LoopContext { break_target: exit_bb, continue_target: body_bb });
+    builder
+        .loop_stack
+        .push(crate::mir::lower::builder::LoopContext {
+            break_target: exit_bb,
+            continue_target: body_bb,
+        });
     let elem_ty = iter_obj_ty; // for 循环 binder 类型 = iterator 元素类型（精确保留）。
     let elem = builder.alloc_named_mutable(
         builder.hir.interner.resolve(binder.symbol).to_string(),
@@ -698,11 +731,7 @@ pub fn owner_fqn_of_type(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> sc
 /// 无法解析时返回 `Symbol::default()`。
 pub fn resolve_owner_fqn_from_operand(builder: &FnLowering, op: &Operand) -> scoop2_base::Symbol {
     let ty = match op {
-        Operand::Local(l) => builder
-            .body
-            .locals
-            .get(l.0 as usize)
-            .map(|d| d.ty),
+        Operand::Local(l) => builder.body.locals.get(l.0 as usize).map(|d| d.ty),
         // 常量 operand：按常量种类映射到内建 owner 类型 FQN。
         Operand::Const(c) => {
             let fqn = match c {
@@ -744,7 +773,7 @@ fn for_loop_element_type(
     builder: &mut FnLowering,
     iterable_ty: scoop2_hir::ty::TypeId,
 ) -> scoop2_hir::ty::TypeId {
-    use scoop2_hir::ty::{TypeKind, ValueTypeKind, RefTypeKind};
+    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
     match builder.types.kind(iterable_ty) {
         // Array<T> / Iterator<T> as reference nominal.
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {

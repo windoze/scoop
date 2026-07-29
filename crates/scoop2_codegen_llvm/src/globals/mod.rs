@@ -1,13 +1,13 @@
 //! 全局层：type descriptor / itable / vtable / string literal / closure 全局。
 
+use inkwell::AddressSpace;
 use inkwell::module::Linkage;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::{AsValueRef, PointerValue};
-use inkwell::AddressSpace;
 
 use sha2::{Digest, Sha256};
 
-use crate::context::{native_address_space, CodegenContext, GC_ADDRSPACE};
+use crate::context::{CodegenContext, GC_ADDRSPACE, native_address_space};
 use crate::error::CodegenResult;
 
 /// `SCOOP_GC_FLAG_IMMORTAL`
@@ -26,15 +26,20 @@ impl<'ctx> CodegenContext<'ctx> {
         let i8_ty = ctx.i8_type();
         let bytes = s.as_bytes();
         let arr_ty = i8_ty.array_type(bytes.len().max(1) as u32);
-        let data_global = self
-            .module
-            .add_global(arr_ty, Some(AddressSpace::from(0u16)), &format!("__scoop_str_data_{key}"));
+        let data_global = self.module.add_global(
+            arr_ty,
+            Some(AddressSpace::from(0u16)),
+            &format!("__scoop_str_data_{key}"),
+        );
         data_global.set_linkage(Linkage::Internal);
         data_global.set_constant(true);
         let arr_const = if bytes.is_empty() {
             arr_ty.const_zero()
         } else {
-            let vals: Vec<_> = bytes.iter().map(|b| i8_ty.const_int(*b as u64, false)).collect();
+            let vals: Vec<_> = bytes
+                .iter()
+                .map(|b| i8_ty.const_int(*b as u64, false))
+                .collect();
             i8_ty.const_array(&vals)
         };
         data_global.set_initializer(&arr_const);
@@ -42,13 +47,13 @@ impl<'ctx> CodegenContext<'ctx> {
         let native_ptr = ctx.ptr_type(native_address_space());
         let header_ty = ctx.struct_type(
             &[
-                native_ptr.into(),        // next
-                native_ptr.into(),        // type_desc
-                ctx.i64_type().into(),    // size_bytes
-                ctx.i32_type().into(),    // flags
-                ctx.i32_type().into(),    // mark
-                ctx.i64_type().into(),    // byte_len
-                native_ptr.into(),        // data
+                native_ptr.into(),     // next
+                native_ptr.into(),     // type_desc
+                ctx.i64_type().into(), // size_bytes
+                ctx.i32_type().into(), // flags
+                ctx.i32_type().into(), // mark
+                ctx.i64_type().into(), // byte_len
+                native_ptr.into(),     // data
             ],
             false,
         );
@@ -67,7 +72,9 @@ impl<'ctx> CodegenContext<'ctx> {
             native_ptr.const_null().into(),
             type_desc.into(),
             ctx.i64_type().const_int(0, false).into(),
-            ctx.i32_type().const_int(GC_FLAG_IMMORTAL as u64, false).into(),
+            ctx.i32_type()
+                .const_int(GC_FLAG_IMMORTAL as u64, false)
+                .into(),
             ctx.i32_type().const_int(GC_MARK_IMMORTAL, false).into(),
             ctx.i64_type().const_int(bytes.len() as u64, false).into(),
             data_global.as_pointer_value().into(),
@@ -80,7 +87,10 @@ impl<'ctx> CodegenContext<'ctx> {
 
     /// 声明（或取得）运行时 extern `__scoop_type_desc_runtime__ScoopString`。
     pub fn get_or_declare_string_type_desc(&self) -> PointerValue<'ctx> {
-        if let Some(gv) = self.module.get_global(crate::runtime_abi::sym::STRING_TYPE_DESC) {
+        if let Some(gv) = self
+            .module
+            .get_global(crate::runtime_abi::sym::STRING_TYPE_DESC)
+        {
             return gv.as_pointer_value();
         }
         let gv = self.module.add_global(
@@ -130,7 +140,10 @@ impl<'ctx> CodegenContext<'ctx> {
     fn itable_container_type(&self) -> inkwell::types::StructType<'ctx> {
         let ctx = self.context;
         let ptr = ctx.ptr_type(native_address_space());
-        ctx.struct_type(&[ctx.i32_type().into(), ctx.i32_type().into(), ptr.into()], false)
+        ctx.struct_type(
+            &[ctx.i32_type().into(), ctx.i32_type().into(), ptr.into()],
+            false,
+        )
     }
 
     /// itable entry 类型（public，供 call.rs 使用）。
@@ -226,9 +239,9 @@ impl<'ctx> CodegenContext<'ctx> {
             let bm_len = trace_bitmap_words.len() as u32;
             let bm_arr_ty = ctx.i64_type().array_type(bm_len);
             let bm_name = format!("__scoop_trace_bitmap_{class_fqn}").replace('.', "_");
-            let bm_global = self
-                .module
-                .add_global(bm_arr_ty, Some(AddressSpace::from(0u16)), &bm_name);
+            let bm_global =
+                self.module
+                    .add_global(bm_arr_ty, Some(AddressSpace::from(0u16)), &bm_name);
             bm_global.set_linkage(Linkage::Internal);
             bm_global.set_constant(true);
             let bm_vals: Vec<_> = trace_bitmap_words
@@ -240,21 +253,26 @@ impl<'ctx> CodegenContext<'ctx> {
             (bm_global.as_pointer_value(), bm_len)
         };
 
+        // class vtable（虚方法分发；无虚方法的 class 为 null）。
+        let vtable_ptr = self.build_class_vtable(class_fqn);
+
         let init = td_ty.const_named_struct(&[
             ctx.i32_type().const_int(0, false).into(), // abi_version
             ctx.i32_type().const_int(0, false).into(), // flags
             ctx.i64_type().const_int(size_bytes, false).into(), // size_bytes
             ctx.i64_type().const_int(ptr_size, false).into(), // align_bytes
             ctx.i64_type().const_int(trace_start, false).into(), // trace_start_offset_bytes
-            ctx.i32_type().const_int(trace_bitmap_len as u64, false).into(), // trace_bitmap_u64_len
+            ctx.i32_type()
+                .const_int(trace_bitmap_len as u64, false)
+                .into(), // trace_bitmap_u64_len
             ctx.i32_type().const_int(0, false).into(), // _reserved_u32
-            trace_bitmap_ptr.into(),                  // trace_bitmap
+            trace_bitmap_ptr.into(),                   // trace_bitmap
             native_ptr.const_null().into(),            // trace_fn
             native_ptr.const_null().into(),            // release_fn
             ctx.i64_type().const_int(type_id, false).into(), // type_id
             native_ptr.const_null().into(),            // parent_type_desc
             itable_ptr.into(),                         // itable
-            native_ptr.const_null().into(),            // vtable（class vtable 暂未生成；Interface dispatch 走 itable）
+            vtable_ptr.into(),                         // vtable
         ]);
         gv.set_initializer(&init);
         gv.as_pointer_value()
@@ -268,8 +286,7 @@ impl<'ctx> CodegenContext<'ctx> {
         let native_ptr = ctx.ptr_type(native_address_space());
 
         // 收集该 class 的 class_itables 条目。
-        let entries: Vec<(u64, Vec<PointerValue>)> = self
-            .program_itables_for_class(class_fqn);
+        let entries: Vec<(u64, Vec<PointerValue>)> = self.program_itables_for_class(class_fqn);
 
         if entries.is_empty() {
             // 无 interface 实现：返回 null itable。
@@ -290,9 +307,11 @@ impl<'ctx> CodegenContext<'ctx> {
                 class_fqn.replace('.', "_"),
                 iface_id
             );
-            let methods_gv = self
-                .module
-                .add_global(methods_arr_ty, Some(AddressSpace::from(0u16)), &methods_name);
+            let methods_gv = self.module.add_global(
+                methods_arr_ty,
+                Some(AddressSpace::from(0u16)),
+                &methods_name,
+            );
             methods_gv.set_linkage(Linkage::Internal);
             methods_gv.set_constant(true);
             let methods_init = if method_ptrs.is_empty() {
@@ -312,9 +331,9 @@ impl<'ctx> CodegenContext<'ctx> {
 
         // entries 数组全局。
         let entries_name = format!("__scoop_itable_entries_{}", class_fqn.replace('.', "_"));
-        let entries_gv = self
-            .module
-            .add_global(entry_arr_ty, Some(AddressSpace::from(0u16)), &entries_name);
+        let entries_gv =
+            self.module
+                .add_global(entry_arr_ty, Some(AddressSpace::from(0u16)), &entries_name);
         entries_gv.set_linkage(Linkage::Internal);
         entries_gv.set_constant(true);
         let entries_init = entry_ty.const_array(
@@ -344,6 +363,65 @@ impl<'ctx> CodegenContext<'ctx> {
         container_gv.as_pointer_value()
     }
 
+    /// 为一个 class 构建 vtable 全局（`[N x ptr]`，按 slot_index 排列的虚方法函数指针）。
+    /// 无 vtable 布局（非 open class / 无虚方法）→ null。
+    fn build_class_vtable(&self, class_fqn: &str) -> PointerValue<'ctx> {
+        let native_ptr = self.context.ptr_type(native_address_space());
+        let vtables = self.vtables_data.borrow();
+        let Some(vt) = vtables.iter().find(|vt| vt.class_fqn == class_fqn) else {
+            return native_ptr.const_null();
+        };
+        // 收集所有已定义的函数符号（用于前缀匹配，同 itable 解析逻辑）。
+        let all_fn_names: Vec<String> = self
+            .module
+            .get_functions()
+            .map(|fv| fv.get_name().to_string_lossy().into_owned())
+            .collect();
+        let resolve = |sym: &str| -> PointerValue<'ctx> {
+            // 先精确匹配。
+            if let Some(fv) = self
+                .lookup_callable_fn(sym)
+                .or_else(|| self.module.get_function(sym))
+            {
+                return unsafe { PointerValue::new(fv.as_value_ref()) };
+            }
+            // vtable 符号 = mangle_target_symbol 输出（无 hash 后缀）；
+            // 实际函数符号可能带 `_<hash>` 后缀 → 前缀匹配。
+            for name in &all_fn_names {
+                if name.starts_with(sym) && name.len() > sym.len() {
+                    if let Some(fv) = self.module.get_function(name) {
+                        return unsafe { PointerValue::new(fv.as_value_ref()) };
+                    }
+                }
+            }
+            native_ptr.const_null()
+        };
+        let slot_count = vt
+            .slots
+            .iter()
+            .map(|s| s.slot_index)
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(0);
+        if slot_count == 0 {
+            return native_ptr.const_null();
+        }
+        let mut vals: Vec<PointerValue<'ctx>> = vec![native_ptr.const_null(); slot_count as usize];
+        for slot in &vt.slots {
+            vals[slot.slot_index as usize] = resolve(&slot.target_symbol);
+        }
+        let arr_ty = native_ptr.array_type(slot_count);
+        let name = format!("__scoop_vtable_{}", class_fqn.replace('.', "_"));
+        let gv = self
+            .module
+            .add_global(arr_ty, Some(AddressSpace::from(0u16)), &name);
+        gv.set_linkage(Linkage::Internal);
+        gv.set_constant(true);
+        let init = native_ptr.const_array(&vals.iter().map(|p| (*p).into()).collect::<Vec<_>>());
+        gv.set_initializer(&init);
+        gv.as_pointer_value()
+    }
+
     /// 从 class_itables_data 获取某 class 实现的所有 interface → 方法指针列表。
     fn program_itables_for_class(&self, class_fqn: &str) -> Vec<(u64, Vec<PointerValue<'ctx>>)> {
         let itables = self.class_itables_data.borrow();
@@ -362,7 +440,10 @@ impl<'ctx> CodegenContext<'ctx> {
                 .map(|sym| match sym {
                     Some(s) => {
                         // 先精确匹配。
-                        if let Some(fv) = self.lookup_callable_fn(s).or_else(|| self.module.get_function(s)) {
+                        if let Some(fv) = self
+                            .lookup_callable_fn(s)
+                            .or_else(|| self.module.get_function(s))
+                        {
                             return unsafe { PointerValue::new(fv.as_value_ref()) };
                         }
                         // itable 符号 = mangle_target_symbol 的输出，如 "scoop_core_String_toString"。
