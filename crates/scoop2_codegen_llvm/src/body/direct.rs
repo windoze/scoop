@@ -70,14 +70,40 @@ fn lower_known_fn<'a, 'ctx>(
         .map_err(|e| CodegenError::llvm(e.to_string(), "build_call", scoop2_base::Span::default()))?;
     // 返回值：void 函数返回 unit（i8 zero）。
     if fv.get_type().get_return_type().is_some() {
-        match call.try_as_basic_value() {
-            inkwell::values::ValueKind::Basic(v) => Ok(v),
-            inkwell::values::ValueKind::Instruction(_) => Err(CodegenError::llvm(
+        let result = match call.try_as_basic_value() {
+            inkwell::values::ValueKind::Basic(v) => v,
+            inkwell::values::ValueKind::Instruction(_) => return Err(CodegenError::llvm(
                 "call 返回 InstructionValue 而非 BasicValue",
                 "lower_known_fn",
                 scoop2_base::Span::default(),
             )),
-        }
+        };
+        // 若返回 native ptr，转换为 GC ptr（addrspace 1），与 Scoop 类型系统一致。
+        let result = match result {
+            BasicValueEnum::PointerValue(p) => {
+                if p.get_type().get_address_space() != crate::context::gc_address_space() {
+                    // native ptr → GC ptr via inttoptr.
+                    let as_int = fl
+                        .builder
+                        .build_ptr_to_int(p, fl.cg.context.i64_type(), "ret2int")
+                        .ok();
+                    if let Some(int_val) = as_int {
+                        let gc_ptr = fl
+                            .builder
+                            .build_int_to_ptr(int_val, fl.cg.gc_ptr_ty(), "ret2gc")
+                            .ok();
+                        if let Some(g) = gc_ptr {
+                            return Ok(g.into());
+                        }
+                    }
+                    result
+                } else {
+                    result
+                }
+            }
+            _ => result,
+        };
+        Ok(result)
     } else {
         Ok(fl.cg.context.i8_type().const_zero().into())
     }

@@ -254,7 +254,7 @@ pub fn materialize(
             Item::Metadata(m) => {
                 // 按 kind 收集 backend contracts（携带真实数据）。
                 match m.kind {
-                    crate::mir::MetadataKind::Class => {
+                    crate::mir::MetadataKind::Class | crate::mir::MetadataKind::Struct => {
                         // class vtable 契约：从 HIR member_funs 收集虚方法（含 overload signature）。
                         let owner_fqn_text = m.fqn.clone();
                         let store_ref = &generic_types;
@@ -408,7 +408,7 @@ fn collect_metadata_contracts(
 ) {
     for it in items {
         if let Item::Metadata(m) = it {
-            if matches!(m.kind, crate::mir::MetadataKind::Class) {
+            if matches!(m.kind, crate::mir::MetadataKind::Class | crate::mir::MetadataKind::Struct) {
                 let interface_fqns: Vec<String> = hir_fqn_for_metadata(hir, &m.fqn)
                     .and_then(|fqn_sym| hir.supertypes.get(&fqn_sym))
                     .map(|supers| {

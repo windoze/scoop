@@ -66,7 +66,6 @@ pub fn emit_object_to_file(
         }
     }
     lower_entry_main(&cg, program, &rt)?;
-    { let _ = std::fs::write("/tmp/hello.ll", cg.module.to_string()); }
     // 验证 module。
     if let Err(e) = cg.module.verify() {
         return Err(CodegenError::Verification {
@@ -317,7 +316,8 @@ fn lower_extern_type<'ctx>(
                 return Ok(cg.context.i64_type().into());
             }
             scoop2_lir::TypeLayoutKind::Reference { .. } | scoop2_lir::TypeLayoutKind::Function => {
-                return Ok(cg.gc_ptr_ty().into());
+                // extern C 函数返回 native ptr（ScoopString* 等），非 GC ptr。
+                return Ok(cg.native_ptr_ty().into());
             }
             _ => {}
         }

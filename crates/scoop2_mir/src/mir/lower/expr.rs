@@ -698,7 +698,6 @@ fn emit_call_resolution(
             });
             let owner_str = builder.hir.interner.resolve(*owner_fqn).to_string();
             let method_str = builder.hir.interner.resolve(*method_name).to_string();
-            eprintln!("DEBUG Method dispatch: owner_str={owner_str} method_str={method_str} is_virtual={is_virtual} is_interface={is_interface}");
             // 特殊检测：Continuation.resume → CallKind::Resume。
             // resume 是 continuation 对象上的方法，不是普通的 interface 分发。
             if method_str == "resume" && owner_str.ends_with("Continuation") {

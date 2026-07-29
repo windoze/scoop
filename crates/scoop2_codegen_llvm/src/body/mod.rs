@@ -371,20 +371,27 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
         self.builder
             .build_store(slot, val)
             .map_err(|e| CodegenError::llvm(e.to_string(), "build_store", scoop2_base::Span::default()))?;
-        // GC local：镜像到 frame slot。
+        // GC local：镜像到 frame slot（仅对指针类型值）。
         if let Some(frame_slot) = self.frame_slot_ptr(id)? {
-            // GC 指针（addrspace 1）cast 到 native ptr 后存入 frame slot。
-            let native = self
-                .builder
-                .build_ptr_to_int(val.into_pointer_value(), self.cg.context.i64_type(), &format!("sf_cast{}", id))
-                .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int frame mirror", scoop2_base::Span::default()))?;
-            let native_ptr = self
-                .builder
-                .build_int_to_ptr(native, self.cg.native_ptr_ty(), &format!("sf_ptr{}", id))
-                .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr frame mirror", scoop2_base::Span::default()))?;
-            self.builder
-                .build_store(frame_slot, native_ptr)
-                .map_err(|e| CodegenError::llvm(e.to_string(), "store frame mirror", scoop2_base::Span::default()))?;
+            match val {
+                BasicValueEnum::PointerValue(ptr_val) => {
+                    // GC 指针（addrspace 1）cast 到 native ptr 后存入 frame slot。
+                    let native = self
+                        .builder
+                        .build_ptr_to_int(ptr_val, self.cg.context.i64_type(), &format!("sf_cast{}", id))
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "ptr_to_int frame mirror", scoop2_base::Span::default()))?;
+                    let native_ptr = self
+                        .builder
+                        .build_int_to_ptr(native, self.cg.native_ptr_ty(), &format!("sf_ptr{}", id))
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_ptr frame mirror", scoop2_base::Span::default()))?;
+                    self.builder
+                        .build_store(frame_slot, native_ptr)
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "store frame mirror", scoop2_base::Span::default()))?;
+                }
+                // 非指针值（Int/Float/Struct）的 GC local：当前不镜像到 frame slot
+                //（immix 非移动式 GC 下 alloca 值在 safepoint 后仍有效）。
+                _ => {}
+            }
         }
         Ok(())
     }

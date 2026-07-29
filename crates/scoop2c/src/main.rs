@@ -889,6 +889,7 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
     }
     let monomorph = monomorph_result.as_ref().expect("materialize 已成功");
     let lir_program = scoop2_lir::lower_to_lir(monomorph, &hir, &interner);
+    { let _ = std::fs::write("/tmp/cit2.txt", format!("{:#?}", lir_program.class_itables.iter().map(|ci| &ci.class_fqn).collect::<Vec<_>>())); }
     let _ = sources;
     Some(lir_program)
 }

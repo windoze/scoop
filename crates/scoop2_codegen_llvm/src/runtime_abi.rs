@@ -230,12 +230,12 @@ impl<'ctx> CodegenContext<'ctx> {
         let runtime_error_fatal = self.decl(sym::RUNTIME_ERROR_FATAL, void_fn(&[vp]));
         // ptr scoop_entry_argv_array(i32 argc, ptr argv)
         let entry_argv_array =
-            self.decl(sym::ENTRY_ARGV_ARRAY, ret_fn(rt.gc_ptr.into(), &[i32m, vp]));
+            self.decl(sym::ENTRY_ARGV_ARRAY, ret_fn(rt.void_ptr.into(), &[i32m, vp]));
 
         // string ops
         let string_concat = self.decl(
             sym::STRING_CONCAT,
-            ret_fn(rt.gc_ptr.into(), &[gc, gc]),
+            ret_fn(rt.void_ptr.into(), &[gc, gc]),
         );
         let string_equals = self.decl(sym::STRING_EQUALS, ret_fn(rt.i64.into(), &[gc, gc]));
         let string_byte_length = self.decl(sym::STRING_BYTE_LENGTH, ret_fn(rt.i64.into(), &[gc]));
@@ -243,16 +243,16 @@ impl<'ctx> CodegenContext<'ctx> {
             sym::STRING_BYTES,
             ret_fn(rt.void_ptr.into(), &[gc]),
         );
-        let int_to_string = self.decl(sym::INT_TO_STRING, ret_fn(rt.gc_ptr.into(), &[i64m]));
-        let bool_to_string = self.decl(sym::BOOL_TO_STRING, ret_fn(rt.gc_ptr.into(), &[i64m]));
-        let char_to_string = self.decl(sym::CHAR_TO_STRING, ret_fn(rt.gc_ptr.into(), &[rt.md_basic(rt.i32.into())]));
+        let int_to_string = self.decl(sym::INT_TO_STRING, ret_fn(rt.void_ptr.into(), &[i64m]));
+        let bool_to_string = self.decl(sym::BOOL_TO_STRING, ret_fn(rt.void_ptr.into(), &[i64m]));
+        let char_to_string = self.decl(sym::CHAR_TO_STRING, ret_fn(rt.void_ptr.into(), &[rt.md_basic(rt.i32.into())]));
         let float32_to_string_ = self.decl(
             sym::FLOAT32_TO_STRING,
-            ret_fn(rt.gc_ptr.into(), &[rt.md_basic(self.context.f32_type().into())]),
+            ret_fn(rt.void_ptr.into(), &[rt.md_basic(self.context.f32_type().into())]),
         );
         let float64_to_string = self.decl(
             sym::FLOAT64_TO_STRING,
-            ret_fn(rt.gc_ptr.into(), &[rt.md_basic(self.context.f64_type().into())]),
+            ret_fn(rt.void_ptr.into(), &[rt.md_basic(self.context.f64_type().into())]),
         );
         let float32_to_int = self.decl(
             sym::FLOAT32_TO_INT,
@@ -266,7 +266,7 @@ impl<'ctx> CodegenContext<'ctx> {
         // arrays
         let mutable_array_new = self.decl(
             sym::MUTABLE_ARRAY_NEW,
-            ret_fn(rt.gc_ptr.into(), &[i32m, i64m, i64m, vp, i64m]),
+            ret_fn(rt.void_ptr.into(), &[i32m, i64m, i64m, vp, i64m]),
         );
         let mutable_array_len = self.decl(sym::MUTABLE_ARRAY_LEN, ret_fn(rt.i64.into(), &[gc]));
         let mutable_array_push_word = self.decl(
@@ -283,7 +283,7 @@ impl<'ctx> CodegenContext<'ctx> {
         );
         let mutable_array_freeze = self.decl(
             sym::MUTABLE_ARRAY_FREEZE,
-            ret_fn(rt.gc_ptr.into(), &[gc]),
+            ret_fn(rt.void_ptr.into(), &[gc]),
         );
 
         // pin/handle
