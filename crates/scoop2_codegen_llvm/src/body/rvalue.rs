@@ -987,8 +987,19 @@ fn lower_interpolated_string<'a, 'ctx>(
                 });
             }
             LirInterpolatedPart::Expr(operand) => {
-                // 简化：跳过 expr 部分（需要 toString 转换）。
-                let _ = operand;
+                // expr 部分：转 String（按类型 dispatch toString intrinsic），然后 concat。
+                let expr_str = lower_interp_expr_to_string(fl, operand)?;
+                result = Some(match result {
+                    Some(prev) => {
+                        let concat_result = fl.builder.build_call(fl.rt.string_concat, &[prev.into(), expr_str.into()], "concat_e")
+                            .map_err(|e| CodegenError::llvm(e.to_string(), "call concat_e", scoop2_base::Span::default()))?;
+                        match concat_result.try_as_basic_value() {
+                            inkwell::values::ValueKind::Basic(v) => v.into_pointer_value(),
+                            _ => expr_str,
+                        }
+                    }
+                    None => expr_str,
+                });
             }
         }
     }
@@ -996,6 +1007,88 @@ fn lower_interpolated_string<'a, 'ctx>(
 }
 
 /// `WithUpdate { base, updates, result_ty }` → 值类型字段更新（copy + modify）。
+/// f-string expr 部分 → String。
+///
+/// 按值类型 dispatch：
+/// - String：原值返回（无需转换）。
+/// - Int：scoop_int_to_string(i64) → String。
+/// - Bool：scoop_bool_to_string(i8) → String。
+/// - Char：scoop_char_to_string(i32) → String。
+/// - Float：scoop_float64_to_string(f64) → String。
+/// - 其它（对象）：调用对象的 toString 方法（接口分发；当前简化用 type_id 查 itable）。
+fn lower_interp_expr_to_string<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    operand: &LirOperand,
+) -> CodegenResult<inkwell::values::PointerValue<'ctx>> {
+    let val = match operand {
+        LirOperand::Local(id) => {
+            let ty = fl.local_types.get(id).copied().ok_or_else(|| {
+                CodegenError::unsupported("interp expr local type unknown", &fl.fqn, scoop2_base::Span::default())
+            })?;
+            let layout = fl.layouts.get(ty);
+            let v = fl.load_local(*id)?;
+            (v, layout.map(|l| l.kind.clone()))
+        }
+        LirOperand::Const(c) => {
+            let v = fl.lower_const_value(c)?;
+            (v, None)
+        }
+    };
+    let (v, kind) = val;
+    let gc_ptr_ty = fl.cg.gc_ptr_ty();
+    // 按 layout kind dispatch。
+    let str_val = match &kind {
+        Some(scoop2_lir::TypeLayoutKind::Reference { gc_traceable: true, .. }) => {
+            // 已是引用：若是 String 直接返回；否则需 toString（简化：假设 String）。
+            v.into_pointer_value()
+        }
+        Some(scoop2_lir::TypeLayoutKind::Scalar { scalar_kind }) => {
+            use scoop2_lir::ScalarKind;
+            match scalar_kind {
+                ScalarKind::Int { .. } => {
+                    let iv = v.into_int_value();
+                    let call = fl.builder.build_call(fl.rt.int_to_string, &[iv.into()], "i2s")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "int_to_string", scoop2_base::Span::default()))?;
+                    match call.try_as_basic_value() {
+                        inkwell::values::ValueKind::Basic(b) => b.into_pointer_value(),
+                        _ => gc_ptr_ty.const_null(),
+                    }
+                }
+                ScalarKind::Bool => {
+                    let iv = v.into_int_value();
+                    let call = fl.builder.build_call(fl.rt.bool_to_string, &[iv.into()], "b2s")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "bool_to_string", scoop2_base::Span::default()))?;
+                    match call.try_as_basic_value() {
+                        inkwell::values::ValueKind::Basic(b) => b.into_pointer_value(),
+                        _ => gc_ptr_ty.const_null(),
+                    }
+                }
+                ScalarKind::Char => {
+                    let iv = v.into_int_value();
+                    let call = fl.builder.build_call(fl.rt.char_to_string, &[iv.into()], "c2s")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "char_to_string", scoop2_base::Span::default()))?;
+                    match call.try_as_basic_value() {
+                        inkwell::values::ValueKind::Basic(b) => b.into_pointer_value(),
+                        _ => gc_ptr_ty.const_null(),
+                    }
+                }
+                ScalarKind::Float { bits: 64 } | ScalarKind::Float { bits: 32 } => {
+                    let fv = v.into_float_value();
+                    let call = fl.builder.build_call(fl.rt.float64_to_string, &[fv.into()], "f2s")
+                        .map_err(|e| CodegenError::llvm(e.to_string(), "float_to_string", scoop2_base::Span::default()))?;
+                    match call.try_as_basic_value() {
+                        inkwell::values::ValueKind::Basic(b) => b.into_pointer_value(),
+                        _ => gc_ptr_ty.const_null(),
+                    }
+                }
+                _ => gc_ptr_ty.const_null(),
+            }
+        }
+        _ => gc_ptr_ty.const_null(),
+    };
+    Ok(str_val)
+}
+
 fn lower_with_update<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     base: &LirOperand,

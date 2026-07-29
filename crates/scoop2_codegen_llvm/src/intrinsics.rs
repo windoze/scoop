@@ -323,6 +323,7 @@ fn intrinsic_name_from_fqn(fqn: &str) -> Option<String> {
         "ge" => "ge",
         "hashCode" | "hash" => "hash",
         "toInt" => "to_int",
+        "toString" => "to_string",
         _ => return None,
     };
     Some(format!("{type_prefix}_{mapped}"))
@@ -335,6 +336,32 @@ fn lower_named_intrinsic<'a, 'ctx>(
     args: &[LirOperand],
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let ctx = fl.cg.context;
+    // to_string：按类型 dispatch 到 runtime scoop_*_to_string。
+    if name.ends_with("_to_string") {
+        let gc_ptr_ty = fl.cg.gc_ptr_ty();
+        let arg0 = one_arg(fl, args, 0)?;
+        let call = if name.starts_with("int") {
+            fl.builder.build_call(fl.rt.int_to_string, &[arg0.into_int_value().into()], "i2s")
+        } else if name.starts_with("bool") {
+            fl.builder.build_call(fl.rt.bool_to_string, &[arg0.into_int_value().into()], "b2s")
+        } else if name.starts_with("char") {
+            fl.builder.build_call(fl.rt.char_to_string, &[arg0.into_int_value().into()], "c2s")
+        } else if name.starts_with("float") {
+            fl.builder.build_call(fl.rt.float64_to_string, &[arg0.into_float_value().into()], "f2s")
+        } else {
+            return Err(CodegenError::unsupported(
+                format!("unsupported to_string intrinsic: {name}"),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ));
+        }
+        .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
+        let ptr = match call.try_as_basic_value() {
+            inkwell::values::ValueKind::Basic(v) => v.into_pointer_value(),
+            _ => gc_ptr_ty.const_null(),
+        };
+        return Ok(ptr.into());
+    }
     // 整数二元运算（plus/minus/times/div/rem/and/or/xor/shl/shr）。
     if let Some(op) = int_binary_op(name) {
         let lhs = one_arg(fl, args, 0)?;
