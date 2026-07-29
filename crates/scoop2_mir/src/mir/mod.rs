@@ -136,6 +136,23 @@ pub struct EffectStepAbi {
     pub frame_local: LocalId,
     /// state local 的 LocalId（用于 state dispatch）。
     pub state_local: LocalId,
+    /// resume 续点表（escape continuation 捕获点）：state 值 → 续点块 +
+    /// resume 值投递目标 local 及其类型。codegen 的 step 函数在这些块首把
+    /// resume word 转为 resume_ty 存入 resume_local。
+    pub resume_points: Vec<ResumePoint>,
+}
+
+/// 一个 resume 续点（escape continuation 捕获点对应的续行位置）。
+#[derive(Clone, Debug)]
+pub struct ResumePoint {
+    /// state 编号（1-based，与 continuation 的 state 字段对应）。
+    pub state: u128,
+    /// 续点块（边界克隆后的块 id，即 state dispatch 的跳转目标）。
+    pub block: BasicBlockId,
+    /// resume 值投递目标 local。
+    pub resume_local: LocalId,
+    /// resume 值类型（word → 该类型的转换在 step 函数块首完成）。
+    pub resume_ty: TypeId,
 }
 
 /// Step enum 的一个变体。
@@ -549,6 +566,10 @@ pub enum Rvalue {
     /// 整数相等比较：`lhs == rhs`，产出 Bool。
     /// 用于 effect lowering 的 state dispatch（检查 frame.state 值）。
     IntEq { lhs: Operand, rhs: Operand },
+    /// 构造 escape continuation 对象（canonical 72B 布局，见 scoop2_lir::effect）。
+    /// codegen 用当前函数的 frame 指针 + `sym$step` 函数指针填充；
+    /// `state` 是捕获点的 resume 续点编号（1-based）。
+    MakeContinuation { state: u128 },
 }
 
 /// 调用实参（可命名 / 可展开 `*expr`）。

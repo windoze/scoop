@@ -49,7 +49,37 @@ pub struct FunctionLowerer<'a, 'ctx> {
     pub rt: &'a crate::runtime_abi::RuntimeFns<'ctx>,
     /// GC root frame 状态（None = 无 GC local，不建 frame）。
     pub root_frame: Option<crate::gc::RootFrameState<'ctx>>,
+    /// EffectStep 模式：frame 堆化上下文（`sym$step(frame, word)` 编译模式）。
+    pub effect: Option<EffectStepCtx<'ctx>>,
     pending_entry_br: Option<(BasicBlock<'ctx>, u32)>,
+}
+
+/// EffectStep `sym$step` 函数的 lowering 上下文。
+///
+/// step 函数签名为 `(ptr frame, i64 word) -> Step`：frame 是堆分配的 GC
+/// 对象（布局 = object header + frame tuple payload），word 是 resume 值
+/// （初始调用为 0）。body 内对 frame local 的 TupleIndex/StoreTupleIndex
+/// 全部走堆 GEP（见 rvalue.rs / stmt.rs 的 frame 特例）。
+pub struct EffectStepCtx<'ctx> {
+    /// body 内持有 frame 堆指针的 local id（GC root slot 重载协议）。
+    pub frame_local: u32,
+    /// frame tuple 类型（算槽位字节偏移）。
+    pub frame_ty: TypeId,
+    /// 参数槽表：`(参数 local id, frame slot 下标)`。
+    pub param_slots: Vec<(u32, u64)>,
+    /// resume 续点表（块 id → 投递目标）。
+    pub resume_points: Vec<scoop2_lir::LirResumePoint>,
+    /// resume word 的 alloca（入口存 param1，续点块首读出转换）。
+    pub resume_word_alloca: Option<PointerValue<'ctx>>,
+    /// `sym$step` 的符号名（MakeContinuation 写 step_fn 字段用）。
+    pub step_fn_sym: String,
+}
+
+impl<'ctx> EffectStepCtx<'ctx> {
+    /// 该块是否是 resume 续点。
+    pub fn resume_point_for(&self, block_id: u32) -> Option<&scoop2_lir::LirResumePoint> {
+        self.resume_points.iter().find(|rp| rp.block_id == block_id)
+    }
 }
 
 impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
@@ -80,6 +110,7 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
             param_local_ids: callable.params.iter().map(|p| p.local_id).collect(),
             rt,
             root_frame: None,
+            effect: None,
             pending_entry_br: None,
         };
 
@@ -105,6 +136,225 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
             fl.lower_block(blk)?;
         }
         Ok(())
+    }
+
+    /// 为 EffectStep callable 生成 `sym$step(frame, word)` 函数定义。
+    ///
+    /// step 函数签名固定为 `(ptr frame, i64 word) -> Step`：frame 是堆分配的
+    /// GC 对象（wrapper `sym` 负责分配/清零/写参数槽），word 是 resume 值
+    /// （初始调用 = 0）。入口把 frame 存入 frame local（GC root slot 协议）、
+    /// word 存入 alloca（续点块首取用），并从 frame 参数槽恢复各参数 local。
+    pub fn lower_effect_step(
+        cg: &'a CodegenContext<'ctx>,
+        layouts: &'a TypeLayoutTable,
+        rt: &'a crate::runtime_abi::RuntimeFns<'ctx>,
+        callable: &'a LirCallable,
+        fv: FunctionValue<'ctx>,
+        step_fn_sym: String,
+    ) -> CodegenResult<()> {
+        let ei = callable.effect_info.as_ref().ok_or_else(|| {
+            CodegenError::unsupported(
+                "EffectStep callable 缺 effect_info",
+                &callable.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+        let builder = cg.context.create_builder();
+        let mut fl = FunctionLowerer {
+            cg,
+            layouts,
+            builder,
+            fv,
+            locals: HashMap::new(),
+            local_types: HashMap::new(),
+            blocks: HashMap::new(),
+            fqn: callable.fqn.clone(),
+            return_ty: callable.return_ty,
+            closure_env_ty: None,
+            param_local_ids: Vec::new(),
+            rt,
+            root_frame: None,
+            effect: Some(EffectStepCtx {
+                frame_local: ei.frame_local,
+                frame_ty: ei.frame_ty,
+                param_slots: ei.param_slots.clone(),
+                resume_points: ei.resume_points.clone(),
+                resume_word_alloca: None,
+                step_fn_sym,
+            }),
+            pending_entry_br: None,
+        };
+
+        let body = callable.body.as_ref().ok_or_else(|| {
+            CodegenError::unsupported(
+                "callable 无 body",
+                &callable.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+
+        let mut rf = crate::gc::RootFrameState::compute(body, layouts);
+        fl.alloc_locals(body, &mut rf)?;
+        fl.emit_root_frame_push(&mut rf)?;
+        fl.root_frame = Some(rf);
+        // resume word alloca（entry 内、entry→start br 之前）。
+        let i64_ty = cg.context.i64_type();
+        let word_alloca = fl
+            .builder
+            .build_alloca(i64_ty, "resume_word")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "alloca resume_word", scoop2_base::Span::default())
+            })?;
+        // param0 = frame（native ptr）→ frame local（GC 协议：store_local 镜像
+        // 到 root slot；之后所有 frame 访问从 root slot 重载）。
+        let frame_param = fv.get_nth_param(0).ok_or_else(|| {
+            CodegenError::llvm(
+                "step 函数缺 frame 参数".to_string(),
+                &callable.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+        fl.store_local(ei.frame_local, frame_param)?;
+        // param1 = resume word → alloca。
+        let word_param = fv.get_nth_param(1).ok_or_else(|| {
+            CodegenError::llvm(
+                "step 函数缺 word 参数".to_string(),
+                &callable.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+        fl.builder.build_store(word_alloca, word_param).map_err(|e| {
+            CodegenError::llvm(e.to_string(), "store resume_word", scoop2_base::Span::default())
+        })?;
+        if let Some(effect) = fl.effect.as_mut() {
+            effect.resume_word_alloca = Some(word_alloca);
+        }
+        // 从 frame 参数槽恢复各参数 local（resume 重入时参数只能经 frame 传入）。
+        let param_slots = ei.param_slots.clone();
+        for (local_id, slot) in param_slots {
+            let local_ty = fl.local_types.get(&local_id).copied().ok_or_else(|| {
+                CodegenError::unsupported(
+                    format!("参数 local {} 类型未知", local_id),
+                    &callable.fqn,
+                    scoop2_base::Span::default(),
+                )
+            })?;
+            let slot_ptr = fl.frame_slot_ptr_at(slot)?;
+            let slot_llvm_ty = fl.cg.lower_type(local_ty, fl.layouts)?;
+            let v = fl
+                .builder
+                .build_load(slot_llvm_ty, slot_ptr, &format!("param_slot{}", local_id))
+                .map_err(|e| {
+                    CodegenError::llvm(
+                        e.to_string(),
+                        "load frame param slot",
+                        scoop2_base::Span::default(),
+                    )
+                })?;
+            fl.store_local(local_id, v)?;
+        }
+        fl.create_blocks(body);
+        for blk in &body.blocks {
+            fl.lower_block(blk)?;
+        }
+        Ok(())
+    }
+
+    /// frame local 的当前堆指针（root slot 重载 → native ptr）。
+    pub fn effect_frame_ptr(&self) -> CodegenResult<PointerValue<'ctx>> {
+        let (frame_local, frame_ty) = match &self.effect {
+            Some(e) => (e.frame_local, e.frame_ty),
+            None => {
+                return Err(CodegenError::llvm(
+                    "非 EffectStep 函数无 frame".to_string(),
+                    &self.fqn,
+                    scoop2_base::Span::default(),
+                ))
+            }
+        };
+        let v = self.load_local_typed(frame_local, frame_ty)?;
+        let p = expect_ptr_val(v, "effect frame local", &self.fqn)?;
+        if p.get_type().get_address_space() == crate::context::gc_address_space() {
+            let as_int = self
+                .builder
+                .build_ptr_to_int(p, self.cg.context.i64_type(), "frame_int")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), "frame ptrtoint", scoop2_base::Span::default())
+                })?;
+            Ok(self
+                .builder
+                .build_int_to_ptr(as_int, self.cg.native_ptr_ty(), "frame_native")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), "frame inttoptr", scoop2_base::Span::default())
+                })?)
+        } else {
+            Ok(p)
+        }
+    }
+
+    /// frame slot 下标 → frame tuple payload 内字节偏移（不含 object header）。
+    pub fn frame_slot_byte_offset(&self, slot: u64) -> CodegenResult<u64> {
+        let frame_ty = match &self.effect {
+            Some(e) => e.frame_ty,
+            None => {
+                return Err(CodegenError::llvm(
+                    "非 EffectStep 函数无 frame".to_string(),
+                    &self.fqn,
+                    scoop2_base::Span::default(),
+                ))
+            }
+        };
+        let layout = self.layouts.get(frame_ty).ok_or_else(|| {
+            CodegenError::llvm(
+                "frame tuple 布局缺失".to_string(),
+                &self.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+        let elements = match &layout.kind {
+            scoop2_lir::TypeLayoutKind::Tuple { elements } => elements,
+            _ => {
+                return Err(CodegenError::llvm(
+                    "frame 类型不是 tuple".to_string(),
+                    &self.fqn,
+                    scoop2_base::Span::default(),
+                ))
+            }
+        };
+        elements
+            .get(slot as usize)
+            .map(|f| f.offset)
+            .ok_or_else(|| {
+                CodegenError::llvm(
+                    format!("frame slot {} 越界", slot),
+                    &self.fqn,
+                    scoop2_base::Span::default(),
+                )
+            })
+    }
+
+    /// frame slot 的堆内地址（`frame_ptr + object_header + slot_offset`）。
+    pub fn frame_slot_ptr_at(&self, slot: u64) -> CodegenResult<PointerValue<'ctx>> {
+        let base = self.effect_frame_ptr()?;
+        let off = self.frame_slot_byte_offset(slot)?;
+        let header = self
+            .cg
+            .target_data
+            .get_store_size(&self.cg.object_header_type());
+        unsafe {
+            self.builder.build_in_bounds_gep(
+                self.cg.context.i8_type(),
+                base,
+                &[self.cg.context.i64_type().const_int(header + off, false)],
+                &format!("frame_slot{}", slot),
+            )
+        }
+        .map_err(|e| CodegenError::llvm(e.to_string(), "gep frame slot", scoop2_base::Span::default()))
+    }
+
+    /// 该 local 是否是 EffectStep frame local。
+    pub fn is_effect_frame_local(&self, id: u32) -> bool {
+        self.effect.as_ref().is_some_and(|e| e.frame_local == id)
     }
 
     fn alloc_locals(
@@ -384,11 +634,106 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
             }
         };
         self.builder.position_at_end(bb);
+        self.emit_resume_delivery(blk.id)?;
         for stmt in &blk.stmts {
             stmt::lower_stmt(self, stmt)?;
         }
         control::lower_terminator(self, &blk.terminator)?;
         Ok(())
+    }
+
+    /// resume 续点块首的 resume 值投递：把 step 函数的 word 参数（入口已存
+    /// alloca）转换成续点的 resume_ty 后写入 resume_local。
+    fn emit_resume_delivery(&mut self, block_id: u32) -> CodegenResult<()> {
+        let (rp, word_alloca) = match &self.effect {
+            Some(e) => match e.resume_point_for(block_id) {
+                Some(rp) => match e.resume_word_alloca {
+                    Some(w) => (rp.clone(), w),
+                    None => return Ok(()),
+                },
+                None => return Ok(()),
+            },
+            None => return Ok(()),
+        };
+        let i64_ty = self.cg.context.i64_type();
+        let word = self
+            .builder
+            .build_load(i64_ty, word_alloca, "resume_word_ld")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "load resume_word", scoop2_base::Span::default())
+            })?
+            .into_int_value();
+        let target_llvm = self.cg.lower_type(rp.resume_ty, self.layouts)?;
+        let val: BasicValueEnum<'ctx> = match target_llvm {
+            inkwell::types::BasicTypeEnum::IntType(it) => {
+                if it.get_bit_width() == 64 {
+                    word.into()
+                } else {
+                    self.builder
+                        .build_int_truncate(word, it, "resume_trunc")
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "resume word trunc",
+                                scoop2_base::Span::default(),
+                            )
+                        })?
+                        .into()
+                }
+            }
+            inkwell::types::BasicTypeEnum::FloatType(ft) => {
+                if ft == self.cg.context.f32_type() {
+                    let b32 = self
+                        .builder
+                        .build_int_truncate(word, self.cg.context.i32_type(), "resume_trunc32")
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "resume word trunc32",
+                                scoop2_base::Span::default(),
+                            )
+                        })?;
+                    self.builder
+                        .build_bit_cast(b32, ft, "resume_f32")
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "resume word bitcast f32",
+                                scoop2_base::Span::default(),
+                            )
+                        })?
+                } else {
+                    self.builder
+                        .build_bit_cast(word, ft, "resume_f64")
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "resume word bitcast f64",
+                                scoop2_base::Span::default(),
+                            )
+                        })?
+                }
+            }
+            inkwell::types::BasicTypeEnum::PointerType(pt) => self
+                .builder
+                .build_int_to_ptr(word, pt, "resume_inttoptr")
+                .map_err(|e| {
+                    CodegenError::llvm(
+                        e.to_string(),
+                        "resume word inttoptr",
+                        scoop2_base::Span::default(),
+                    )
+                })?
+                .into(),
+            other => {
+                return Err(CodegenError::unsupported(
+                    format!("resume 值类型不支持按 word 投递：{:?}（复合值装箱未实现）", other),
+                    &self.fqn,
+                    scoop2_base::Span::default(),
+                ));
+            }
+        };
+        self.store_local(rp.resume_local, val)
     }
 
     /// 读取一个 local 的值（按其声明类型 load）。

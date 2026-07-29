@@ -97,6 +97,7 @@ pub fn lower_rvalue<'a, 'ctx>(
             invoke_fqn,
         } => lower_make_closure(fl, env_local, invoke_fqn),
         LirRvalue::ClassLit { type_fqn } => lower_class_lit(fl, type_fqn),
+        LirRvalue::MakeContinuation { state } => lower_make_continuation(fl, *state),
     }
 }
 
@@ -217,6 +218,21 @@ fn lower_tuple_index<'a, 'ctx>(
     index: u32,
     element_ty: TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
+    // EffectStep frame 特例：receiver 是 frame local 时，frame 在堆上
+    //（GC 对象，header + tuple payload），按字节偏移具类型 load，
+    // 不走 extractvalue（frame local 的 alloca 里不是 tuple 值）。
+    if let LirOperand::Local(id) = receiver
+        && fl.is_effect_frame_local(*id)
+    {
+        let slot_ptr = fl.frame_slot_ptr_at(index as u64)?;
+        let elem_llvm = fl.cg.lower_type(element_ty, fl.layouts)?;
+        return fl
+            .builder
+            .build_load(elem_llvm, slot_ptr, &format!("frame_ld{}", index))
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "frame slot load", scoop2_base::Span::default())
+            });
+    }
     // receiver 的 tuple 值（StructValue），或指向 tuple 的引用（GC ptr → deref）。
     let agg = load_struct_or_deref(fl, receiver)?;
     let _ = element_ty;
@@ -231,6 +247,113 @@ fn lower_tuple_index<'a, 'ctx>(
             )
         })?;
     Ok(v)
+}
+
+/// `MakeContinuation { state }` → canonical continuation 堆对象（GC ptr）。
+///
+/// 布局（`scoop2_lir::effect::CONT_OFFSET_*`）：
+///   header(0..32) | resumed(32, i8) | state(40, i64) | frame(48) | step_fn(56) | resume_value(64)
+/// descriptor bitmap = 0b100（只 trace frame 指针）。
+/// 只能出现在 EffectStep 函数体内（frame 指针 / step_fn 从 effect ctx 推导）。
+fn lower_make_continuation<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    state: u64,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    use scoop2_lir::effect::{
+        CONT_OFFSET_FRAME, CONT_OFFSET_RESUME_VALUE, CONT_OFFSET_RESUMED, CONT_OFFSET_STATE,
+        CONT_OFFSET_STEP_FN, CONT_SIZE_BYTES,
+    };
+    let llvm = |e: inkwell::builder::BuilderError, what: &str| {
+        CodegenError::llvm(e.to_string(), what, scoop2_base::Span::default())
+    };
+    let step_fn_sym = match &fl.effect {
+        Some(e) => e.step_fn_sym.clone(),
+        None => {
+            return Err(CodegenError::llvm(
+                "MakeContinuation 出现在非 EffectStep 函数".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    let i64_ty = fl.cg.context.i64_type();
+    let i8_ty = fl.cg.context.i8_type();
+    let native_ptr = fl.cg.native_ptr_ty();
+    // 1. 堆分配（descriptor bitmap = 0b100）。
+    let desc = fl.cg.get_or_create_continuation_type_descriptor();
+    let cont = fl
+        .builder
+        .build_call(
+            fl.rt.alloc_typed,
+            &[desc.into(), i64_ty.const_int(CONT_SIZE_BYTES, false).into()],
+            "cont_alloc",
+        )
+        .map_err(|e| llvm(e, "alloc continuation"))?;
+    let cont_gc = match cont.try_as_basic_value() {
+        inkwell::values::ValueKind::Basic(v) => {
+            super::expect_ptr_val(v, "continuation alloc", &fl.fqn)?
+        }
+        inkwell::values::ValueKind::Instruction(_) => {
+            return Err(CodegenError::llvm(
+                "scoop_alloc_typed 未返回值".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    let cont_int = fl
+        .builder
+        .build_ptr_to_int(cont_gc, i64_ty, "cont_int")
+        .map_err(|e| llvm(e, "cont ptrtoint"))?;
+    let cont_native = fl
+        .builder
+        .build_int_to_ptr(cont_int, native_ptr, "cont_native")
+        .map_err(|e| llvm(e, "cont inttoptr"))?;
+    let field = |off: u64, name: &str| -> CodegenResult<inkwell::values::PointerValue<'ctx>> {
+        unsafe {
+            fl.builder
+                .build_in_bounds_gep(i8_ty, cont_native, &[i64_ty.const_int(off, false)], name)
+        }
+        .map_err(|e| llvm(e, "gep continuation field"))
+    };
+    // 2. resumed = 0（i8）。
+    fl.builder
+        .build_store(field(CONT_OFFSET_RESUMED, "cont_resumed")?, i8_ty.const_zero())
+        .map_err(|e| llvm(e, "store cont resumed"))?;
+    // 3. state。
+    fl.builder
+        .build_store(
+            field(CONT_OFFSET_STATE, "cont_state")?,
+            i64_ty.const_int(state, false),
+        )
+        .map_err(|e| llvm(e, "store cont state"))?;
+    // 4. frame 指针（当前函数的 frame，root slot 重载）。
+    let frame = fl.effect_frame_ptr()?;
+    fl.builder
+        .build_store(field(CONT_OFFSET_FRAME, "cont_frame")?, frame)
+        .map_err(|e| llvm(e, "store cont frame"))?;
+    // 5. step_fn 地址（`sym$step` 函数）。
+    let step_fv = fl.cg.module.get_function(&step_fn_sym).ok_or_else(|| {
+        CodegenError::llvm(
+            format!("step 函数 {} 未声明", step_fn_sym),
+            &fl.fqn,
+            scoop2_base::Span::default(),
+        )
+    })?;
+    fl.builder
+        .build_store(
+            field(CONT_OFFSET_STEP_FN, "cont_stepfn")?,
+            step_fv.as_global_value().as_pointer_value(),
+        )
+        .map_err(|e| llvm(e, "store cont step_fn"))?;
+    // 6. resume_value = 0。
+    fl.builder
+        .build_store(
+            field(CONT_OFFSET_RESUME_VALUE, "cont_rv")?,
+            i64_ty.const_zero(),
+        )
+        .map_err(|e| llvm(e, "store cont resume_value"))?;
+    Ok(cont_gc.into())
 }
 
 /// 加载一个聚合值（Struct/Tuple）。
@@ -537,6 +660,7 @@ fn discriminant(rv: &LirRvalue) -> &'static str {
         LirRvalue::MakeTuple { .. } => "MakeTuple",
         LirRvalue::MakeArray { .. } => "MakeArray",
         LirRvalue::StructLit { .. } => "StructLit",
+        LirRvalue::MakeContinuation { .. } => "MakeContinuation",
         LirRvalue::MakeClosure { .. } => "MakeClosure",
         LirRvalue::ClassLit { .. } => "ClassLit",
     }
@@ -2444,7 +2568,7 @@ fn lower_enum_variant<'a, 'ctx>(
 
 /// enum 值（`{ iN tag; [payload_bytes x i8] }`）中 payload 区域的起始字节偏移。
 /// 与 `scoop2_lir::layout` 的布局计算一致：`align_to(tag_size, max_payload_align)`。
-fn enum_payload_offset(
+pub(crate) fn enum_payload_offset(
     layout: &scoop2_lir::TypeLayout,
     layouts: &scoop2_lir::TypeLayoutTable,
 ) -> u64 {

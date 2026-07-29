@@ -497,6 +497,7 @@ fn dump_rvalue(
             dump_operand(lhs, labels),
             dump_operand(rhs, labels)
         ),
+        Rvalue::MakeContinuation { state } => format!("MakeContinuation(state={})", state),
     }
 }
 

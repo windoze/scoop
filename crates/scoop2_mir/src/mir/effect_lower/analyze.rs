@@ -93,6 +93,26 @@ pub fn compute_live_out(body: &Body) -> Vec<HashSet<LocalId>> {
     live_out
 }
 
+/// 计算每个块的 live_in 集合（块入口处的活跃 local）。
+/// live_in[i] = (live_out[i] - defs[i]) ∪ uses[i]（uses 为块内 def 前的向上暴露使用）。
+pub fn compute_live_in(body: &Body) -> Vec<HashSet<LocalId>> {
+    let live_out = compute_live_out(body);
+    body.blocks
+        .iter()
+        .enumerate()
+        .map(|(i, block)| {
+            let (uses, defs) = compute_use_def(block);
+            live_out[i]
+                .difference(&defs)
+                .cloned()
+                .collect::<HashSet<_>>()
+                .union(&uses)
+                .cloned()
+                .collect()
+        })
+        .collect()
+}
+
 /// 计算一个 basic block 的 use/def 集合。
 fn compute_use_def(block: &crate::mir::BasicBlock) -> (HashSet<LocalId>, HashSet<LocalId>) {
     let mut uses = HashSet::new();

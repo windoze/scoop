@@ -261,6 +261,7 @@ fn remap_rvalue(
         | Rvalue::ClassLit { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. }
+        | Rvalue::MakeContinuation { .. }
         | Rvalue::IntEq { .. } => {}
         Rvalue::TopLevelRef(tl) => {
             for t in &mut tl.generic_type_args {

@@ -331,6 +331,9 @@ pub struct HandleMetadata {
     pub result_ty: TypeId,
     pub body_result_ty: TypeId,
     pub finally_result_ty: Option<TypeId>,
+    /// handle 结果 local（body/arm 都写入它；escape continuation 的边界克隆
+    /// 用它构造 `Return(Step::Complete(result_local))`）。
+    pub result_local: crate::mir::LocalId,
 }
 
 /// Continuation.resume 的语义 metadata。

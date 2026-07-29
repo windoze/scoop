@@ -330,6 +330,58 @@ impl<'ctx> CodegenContext<'ctx> {
         )
     }
 
+    /// EffectStep frame 对象的 type descriptor（按函数一物一 descriptor）。
+    ///
+    /// frame 布局 = object header 之后按 frame tuple 布局存放 state/参数槽/live 槽。
+    /// trace bitmap 通过 `collect_gc_word_offsets` 枚举 tuple 布局中的 GC 指针
+    /// 叶子得到（与 env blob descriptor 同一机制）。
+    pub fn get_or_create_frame_type_descriptor(
+        &self,
+        fn_symbol: &str,
+        frame_ty: scoop2_hir::ty::TypeId,
+        payload_size: u64,
+    ) -> PointerValue<'ctx> {
+        let header_size = self.target_data.get_store_size(&self.object_header_type());
+        let mut word_offsets: Vec<u64> = Vec::new();
+        collect_gc_word_offsets(&self.type_layouts, frame_ty, 0, &mut word_offsets);
+        let mut bitmap_words: Vec<u64> = Vec::new();
+        for w in word_offsets {
+            let word_idx = (w / 64) as usize;
+            while bitmap_words.len() <= word_idx {
+                bitmap_words.push(0);
+            }
+            bitmap_words[word_idx] |= 1u64 << (w % 64);
+        }
+        if bitmap_words.iter().all(|&w| w == 0) {
+            bitmap_words.clear();
+        }
+        let name = format!("__scoop_type_desc_frame_{}", fn_symbol.replace('.', "_"));
+        self.emit_simple_type_descriptor(
+            &name,
+            stable_hash_u64(&name),
+            header_size + payload_size,
+            header_size,
+            bitmap_words,
+        )
+    }
+
+    /// canonical continuation 对象的 type descriptor（全程序共享一个）。
+    ///
+    /// 布局见 `scoop2_lir::effect`（header 32B | resumed@32 | state@40 |
+    /// frame@48 | step_fn@56 | resume_value@64，共 72B）。trace bitmap = 0b100：
+    /// 只 trace frame 指针（word 2）；resume_value 写入后立即调 step_fn、
+    /// 中间无 safepoint，不需要 trace。
+    pub fn get_or_create_continuation_type_descriptor(&self) -> PointerValue<'ctx> {
+        let header_size = self.target_data.get_store_size(&self.object_header_type());
+        self.emit_simple_type_descriptor(
+            "__scoop_type_desc_continuation",
+            stable_hash_u64("__scoop_type_desc_continuation"),
+            scoop2_lir::effect::CONT_SIZE_BYTES,
+            header_size,
+            vec![0b100],
+        )
+    }
+
     /// 构建一个无 itable/vtable/parent 的 type descriptor 全局（内部链接）。
     /// `bitmap_words` 为空时 trace_bitmap = null（无引用字段）。
     fn emit_simple_type_descriptor(

@@ -63,7 +63,7 @@ pub fn emit_object_to_file(
     // 3. lowering 函数体。
     for (callable, fv) in program.callables.iter().zip(callable_fns.iter().copied()) {
         if callable.body.is_some() {
-            crate::body::FunctionLowerer::lower(&cg, &program.type_layouts, &rt, callable, fv)?;
+            lower_callable_body(&cg, program, &rt, callable, fv)?;
         }
     }
     lower_entry_main(&cg, program, &rt)?;
@@ -114,9 +114,197 @@ fn lower_all_callables<'ctx>(
     // 2. lowering 每个 callable 的函数体。
     for (callable, fv) in program.callables.iter().zip(callable_fns.iter().copied()) {
         if callable.body.is_some() {
-            FunctionLowerer::lower(cg, &program.type_layouts, rt, callable, fv)?;
+            lower_callable_body(cg, program, rt, callable, fv)?;
         }
     }
+    Ok(())
+}
+
+/// lowering 一个 callable 的函数体。
+///
+/// EffectStep callable（带 `effect_info`）编译为**两个 LLVM 函数**：
+/// - `sym`（原始签名 wrapper）：堆分配 frame（`scoop_alloc_typed` + frame
+///   descriptor）、清零 payload、写参数槽，然后调 `sym$step(frame, 0)` 并
+///   原样返回其 Step 值。调用方看到的就是普通调用语义。
+/// - `sym$step(ptr frame, i64 word) -> Step`：LIR body 的编译目标
+///   （`FunctionLowerer::lower_effect_step`）。
+fn lower_callable_body<'ctx>(
+    cg: &CodegenContext<'ctx>,
+    program: &LirProgram,
+    rt: &crate::runtime_abi::RuntimeFns<'ctx>,
+    callable: &scoop2_lir::LirCallable,
+    fv: FunctionValue<'ctx>,
+) -> CodegenResult<()> {
+    if let Some(ei) = &callable.effect_info {
+        let step_sym = format!("{}$step", callable.symbol_name);
+        let step_ret = cg.lower_type(ei.step_ty, &program.type_layouts)?;
+        let i64_ty = cg.context.i64_type();
+        let native_ptr = cg.native_ptr_ty();
+        let step_fn_ty = fn_type_from_basic(
+            step_ret,
+            &[native_ptr.into(), i64_ty.into()],
+        );
+        let step_fv = cg
+            .module
+            .add_function(&step_sym, step_fn_ty, Some(Linkage::Internal));
+        build_effect_wrapper(cg, program, rt, callable, fv, step_fv, ei)?;
+        FunctionLowerer::lower_effect_step(
+            cg,
+            &program.type_layouts,
+            rt,
+            callable,
+            step_fv,
+            step_sym,
+        )
+    } else {
+        FunctionLowerer::lower(cg, &program.type_layouts, rt, callable, fv)
+    }
+}
+
+/// 生成 EffectStep wrapper（`sym`）的函数体：
+/// `frame = scoop_alloc_typed(frame_desc, header + payload); memset(payload, 0);
+/// 写参数槽; return sym$step(frame, 0)`。
+fn build_effect_wrapper<'ctx>(
+    cg: &CodegenContext<'ctx>,
+    program: &LirProgram,
+    rt: &crate::runtime_abi::RuntimeFns<'ctx>,
+    callable: &scoop2_lir::LirCallable,
+    wrapper_fv: FunctionValue<'ctx>,
+    step_fv: FunctionValue<'ctx>,
+    ei: &scoop2_lir::LirEffectInfo,
+) -> CodegenResult<()> {
+    let llvm = |e: inkwell::builder::BuilderError, what: &str| {
+        CodegenError::llvm(e.to_string(), what, scoop2_base::Span::default())
+    };
+    let builder = cg.context.create_builder();
+    let entry = cg.context.append_basic_block(wrapper_fv, "entry");
+    builder.position_at_end(entry);
+    let i64_ty = cg.context.i64_type();
+    let i8_ty = cg.context.i8_type();
+    let native_ptr = cg.native_ptr_ty();
+    // frame 尺寸：object header + frame tuple payload。
+    let frame_layout = program.type_layouts.get(ei.frame_ty).ok_or_else(|| {
+        CodegenError::llvm(
+            "frame tuple 布局缺失".to_string(),
+            &callable.fqn,
+            scoop2_base::Span::default(),
+        )
+    })?;
+    let tuple_elements: Vec<scoop2_lir::FieldLayout> = match &frame_layout.kind {
+        scoop2_lir::TypeLayoutKind::Tuple { elements } => elements.clone(),
+        _ => {
+            return Err(CodegenError::llvm(
+                "frame 类型不是 tuple".to_string(),
+                &callable.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    let payload_size = frame_layout.size;
+    let header_size = cg.target_data.get_store_size(&cg.object_header_type());
+    let total_size = header_size + payload_size;
+    // 1. 堆分配 frame（frame descriptor：trace bitmap 覆盖 tuple 内 GC 指针叶子）。
+    let desc =
+        cg.get_or_create_frame_type_descriptor(&callable.symbol_name, ei.frame_ty, payload_size);
+    let alloc_call = builder
+        .build_call(
+            rt.alloc_typed,
+            &[desc.into(), i64_ty.const_int(total_size, false).into()],
+            "frame_alloc",
+        )
+        .map_err(|e| llvm(e, "alloc effect frame"))?;
+    let frame_gc = match alloc_call.try_as_basic_value() {
+        inkwell::values::ValueKind::Basic(v) => v.into_pointer_value(),
+        inkwell::values::ValueKind::Instruction(_) => {
+            return Err(CodegenError::llvm(
+                "scoop_alloc_typed 未返回值".to_string(),
+                &callable.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    let frame_int = builder
+        .build_ptr_to_int(frame_gc, i64_ty, "frame_int")
+        .map_err(|e| llvm(e, "frame ptrtoint"))?;
+    let frame_native = builder
+        .build_int_to_ptr(frame_int, native_ptr, "frame_native")
+        .map_err(|e| llvm(e, "frame inttoptr"))?;
+    // 2. 清零 payload（GC 安全：descriptor 会 trace 指针字段；state 也归零）。
+    let payload_ptr = unsafe {
+        builder.build_in_bounds_gep(
+            i8_ty,
+            frame_native,
+            &[i64_ty.const_int(header_size, false)],
+            "frame_payload",
+        )
+    }
+    .map_err(|e| llvm(e, "gep frame payload"))?;
+    if payload_size > 0 {
+        builder
+            .build_memset(
+                payload_ptr,
+                frame_layout.align.max(1) as u32,
+                i8_ty.const_zero(),
+                i64_ty.const_int(payload_size, false),
+            )
+            .map_err(|e| llvm(e, "memset frame payload"))?;
+    }
+    // 3. 写参数槽：第 i 个 LLVM 参数 → frame slot（param_slots 给出槽下标）。
+    //    注：wrapper 内参数只在 memset/store 间使用，无额外 safepoint，
+    //    不需要 root frame（与 immix 非移动 GC 的既有假设一致）。
+    for (i, (param_local, slot)) in ei.param_slots.iter().enumerate() {
+        let _ = param_local;
+        let param = wrapper_fv.get_nth_param(i as u32).ok_or_else(|| {
+            CodegenError::llvm(
+                format!("wrapper 缺第 {} 个参数", i),
+                &callable.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+        let off = tuple_elements
+            .get(*slot as usize)
+            .map(|f| f.offset)
+            .ok_or_else(|| {
+                CodegenError::llvm(
+                    format!("frame 参数槽 {} 越界", slot),
+                    &callable.fqn,
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        let slot_ptr = unsafe {
+            builder.build_in_bounds_gep(
+                i8_ty,
+                frame_native,
+                &[i64_ty.const_int(header_size + off, false)],
+                "frame_param_slot",
+            )
+        }
+        .map_err(|e| llvm(e, "gep frame param slot"))?;
+        builder
+            .build_store(slot_ptr, param)
+            .map_err(|e| llvm(e, "store frame param slot"))?;
+    }
+    // 4. 调 step 并原样返回 Step。
+    let step_call = builder
+        .build_call(
+            step_fv,
+            &[frame_native.into(), i64_ty.const_zero().into()],
+            "step_call",
+        )
+        .map_err(|e| llvm(e, "call step fn"))?;
+    let step_val = match step_call.try_as_basic_value() {
+        inkwell::values::ValueKind::Basic(v) => v,
+        inkwell::values::ValueKind::Instruction(_) => {
+            return Err(CodegenError::llvm(
+                "step 函数未返回值".to_string(),
+                &callable.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    builder
+        .build_return(Some(&step_val))
+        .map_err(|e| llvm(e, "wrapper return"))?;
     Ok(())
 }
 
@@ -189,6 +377,113 @@ fn lower_entry_main<'ctx>(
             )
         })?;
     // 3. 退出码：Unit main → 0；Int main → 用户返回值。
+    // EffectStep main：wrapper 返回 Step——tag != 0 表示有未捕获的 effect
+    // 传播到顶层（panic "unhandled effect"）；tag == 0 提取 Complete payload
+    // （原始返回类型）作为退出码。
+    if user_main.effect_info.is_some() {
+        let step_val = match user_call.try_as_basic_value() {
+            inkwell::values::ValueKind::Basic(v) => v,
+            inkwell::values::ValueKind::Instruction(_) => {
+                return Err(CodegenError::llvm(
+                    "EffectStep main 未返回 Step".to_string(),
+                    "lower_entry_main",
+                    scoop2_base::Span::default(),
+                ))
+            }
+        };
+        let step_llvm_ty = cg.lower_type(user_main.return_ty, &program.type_layouts)?;
+        let step_struct = crate::body::expect_struct_val(
+            step_val,
+            "EffectStep main Step 值",
+            "lower_entry_main",
+        )?;
+        let tag = builder
+            .build_extract_value(step_struct, 0, "main_step_tag")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "main step tag", scoop2_base::Span::default()))?
+            .into_int_value();
+        let is_complete = builder
+            .build_int_compare(
+                inkwell::IntPredicate::EQ,
+                tag,
+                tag.get_type().const_zero(),
+                "main_step_complete",
+            )
+            .map_err(|e| CodegenError::llvm(e.to_string(), "main step cmp", scoop2_base::Span::default()))?;
+        let complete_bb = cg.context.append_basic_block(c_main, "main_step_complete");
+        let unhandled_bb = cg.context.append_basic_block(c_main, "main_step_unhandled");
+        builder
+            .build_conditional_branch(is_complete, complete_bb, unhandled_bb)
+            .map_err(|e| CodegenError::llvm(e.to_string(), "main step br", scoop2_base::Span::default()))?;
+        // 未捕获 effect → panic。
+        builder.position_at_end(unhandled_bb);
+        let msg = cg.get_or_create_string_literal("unhandled effect")?;
+        let msg_int = builder
+            .build_ptr_to_int(msg, cg.context.i64_type(), "main_panic_msg_int")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "main panic msg int", scoop2_base::Span::default()))?;
+        let msg_native = builder
+            .build_int_to_ptr(msg_int, cg.native_ptr_ty(), "main_panic_msg")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "main panic msg", scoop2_base::Span::default()))?;
+        builder
+            .build_call(rt.panic, &[msg_native.into()], "main_unhandled_panic")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "main panic call", scoop2_base::Span::default()))?;
+        builder
+            .build_unreachable()
+            .map_err(|e| CodegenError::llvm(e.to_string(), "main panic unreachable", scoop2_base::Span::default()))?;
+        // Complete → 提取 payload（内存 round-trip）作为退出码。
+        builder.position_at_end(complete_bb);
+        let complete_payload_ty = user_main
+            .step_layout
+            .as_ref()
+            .and_then(|sl| sl.complete_variant.payload);
+        let mut exit_code: inkwell::values::IntValue = i32_ty.const_zero();
+        if let Some(pty) = complete_payload_ty {
+            let payload_is_int = program.type_layouts.get(pty).is_some_and(|l| {
+                matches!(
+                    l.kind,
+                    scoop2_lir::TypeLayoutKind::Scalar {
+                        scalar_kind: scoop2_lir::ScalarKind::Int { .. }
+                    }
+                )
+            });
+            if payload_is_int {
+                let step_layout = program.type_layouts.get(user_main.return_ty).ok_or_else(|| {
+                    CodegenError::llvm(
+                        "Step 布局缺失".to_string(),
+                        "lower_entry_main",
+                        scoop2_base::Span::default(),
+                    )
+                })?;
+                let offset =
+                    crate::body::rvalue::enum_payload_offset(step_layout, &program.type_layouts);
+                let scratch = builder
+                    .build_alloca(step_llvm_ty, "main_step_scratch")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "main step alloca", scoop2_base::Span::default()))?;
+                builder
+                    .build_store(scratch, step_val)
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "main step store", scoop2_base::Span::default()))?;
+                let payload_ptr = unsafe {
+                    builder.build_gep(
+                        cg.context.i8_type(),
+                        scratch,
+                        &[cg.context.i64_type().const_int(offset, false)],
+                        "main_step_payload_ptr",
+                    )
+                }
+                .map_err(|e| CodegenError::llvm(e.to_string(), "main step gep", scoop2_base::Span::default()))?;
+                let payload = builder
+                    .build_load(cg.context.i64_type(), payload_ptr, "main_step_payload")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "main step load", scoop2_base::Span::default()))?
+                    .into_int_value();
+                exit_code = builder
+                    .build_int_truncate(payload, i32_ty, "main_exit_i32")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "main exit trunc", scoop2_base::Span::default()))?;
+            }
+        }
+        let _ = builder.build_return(Some(&exit_code)).map_err(|e| {
+            CodegenError::llvm(e.to_string(), "build_return exit", scoop2_base::Span::default())
+        })?;
+        return Ok(());
+    }
     let exit_code = if returns_int {
         match user_call.try_as_basic_value() {
             inkwell::values::ValueKind::Basic(v) => {

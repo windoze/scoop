@@ -1,7 +1,7 @@
 //! stmt lowering：`LirStmtKind` → LLVM 指令序列。
 
 use inkwell::values::{BasicValue, BasicValueEnum};
-use scoop2_lir::LirStmt;
+use scoop2_lir::{LirOperand, LirStmt};
 
 use crate::body::FunctionLowerer;
 use crate::error::{CodegenError, CodegenResult};
@@ -214,6 +214,18 @@ pub fn lower_stmt<'a, 'ctx>(
             value_local,
             value_ty,
         } => {
+            // EffectStep frame 特例：frame 在堆上，按字节偏移具类型 store。
+            //（通用路径的 insertvalue 结果不落内存，对 frame 无效。）
+            if let LirOperand::Local(id) = receiver_local
+                && fl.is_effect_frame_local(*id)
+            {
+                let val = fl.lower_operand(value_local, *value_ty)?;
+                let slot_ptr = fl.frame_slot_ptr_at(*index as u64)?;
+                fl.builder.build_store(slot_ptr, val).map_err(|e| {
+                    CodegenError::llvm(e.to_string(), "frame slot store", scoop2_base::Span::default())
+                })?;
+                return Ok(());
+            }
             let recv_val = fl.lower_operand(receiver_local, *value_ty)?;
             let val = fl.lower_operand(value_local, *value_ty)?;
             let agg = super::expect_struct_val(recv_val, "StoreTupleIndex receiver", &fl.fqn)?;

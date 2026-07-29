@@ -2824,6 +2824,7 @@ pub fn lower_handle(
         result_ty: ty,
         body_result_ty: ty,
         finally_result_ty: None,
+        result_local: result,
     };
     let handle_site_id = Some(builder.next_site_id());
     builder.terminate(

@@ -66,6 +66,7 @@ fn program_return_const() -> LirProgram {
         step_layout: None,
         state_dispatch: None,
         continuation_layout: None,
+        effect_info: None,
     });
     prog
 }
@@ -190,6 +191,7 @@ fn program_arithmetic() -> LirProgram {
         step_layout: None,
         state_dispatch: None,
         continuation_layout: None,
+        effect_info: None,
     });
     prog
 }
@@ -330,6 +332,7 @@ fn program_condbr() -> LirProgram {
         step_layout: None,
         state_dispatch: None,
         continuation_layout: None,
+        effect_info: None,
     });
     prog
 }
@@ -446,6 +449,7 @@ fn program_tuple() -> LirProgram {
         step_layout: None,
         state_dispatch: None,
         continuation_layout: None,
+        effect_info: None,
     });
     prog
 }
@@ -548,6 +552,7 @@ fn program_gc_local() -> LirProgram {
         step_layout: None,
         state_dispatch: None,
         continuation_layout: None,
+        effect_info: None,
     });
     prog
 }

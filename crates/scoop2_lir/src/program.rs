@@ -335,6 +335,40 @@ pub struct LirCallable {
     pub state_dispatch: Option<StateDispatch>,
     /// EffectStep 专用：continuation layout。
     pub continuation_layout: Option<ContinuationLayout>,
+    /// EffectStep 专用：codegen 元数据（frame local、参数槽、resume 续点）。
+    pub effect_info: Option<LirEffectInfo>,
+}
+
+/// EffectStep 函数的 codegen 元数据。
+///
+/// EffectStep 函数 codegen 为两个 LLVM 函数：`sym`（原始签名 wrapper：
+/// 堆分配 frame + 清零 + 写参数槽 + 调 `sym$step(frame, 0)` 并返回其 Step）
+/// 和 `sym$step(ptr frame, i64 word) -> Step`（LIR body 的编译目标）。
+#[derive(Clone, Debug)]
+pub struct LirEffectInfo {
+    /// body 内持有 frame 堆指针的 local id。
+    pub frame_local: u32,
+    /// frame tuple 类型（codegen 用其布局计算参数槽/续点槽字节偏移）。
+    pub frame_ty: TypeId,
+    /// 参数槽表：`(参数 local id, frame slot 下标)`（slot 0 = state，参数从 1 起）。
+    pub param_slots: Vec<(u32, u64)>,
+    /// resume 续点表（仅 escape 捕获站点）。
+    pub resume_points: Vec<LirResumePoint>,
+    /// Step enum 类型（`sym$step` 的返回类型）。
+    pub step_ty: TypeId,
+}
+
+/// resume 续点：state 值 → 目标块 + resume 值投递 local。
+#[derive(Clone, Debug)]
+pub struct LirResumePoint {
+    /// frame.state 中的 state 值。
+    pub state: u64,
+    /// 目标基本块 id（LIR body 内的块 id）。
+    pub block_id: u32,
+    /// resume 值投递目标 local。
+    pub resume_local: u32,
+    /// resume 值类型（word → 该类型的转换在块首完成）。
+    pub resume_ty: TypeId,
 }
 
 /// 无函数体的声明。
@@ -580,6 +614,13 @@ pub enum LirRvalue {
     },
     /// class 元数据字面量 `T::class`。
     ClassLit { type_fqn: String },
+    /// escape 捕获点构造 continuation 对象（canonical 布局，见 effect/mod.rs）。
+    ///
+    /// codegen 负责：堆分配 72B 对象（descriptor bitmap = 0b100，只 trace
+    /// frame 指针）、写 resumed=0 / state / frame 指针 / step_fn 地址 /
+    /// resume_value=0，返回 GC 指针。frame 指针与 step_fn 从所在函数的
+    /// `LirEffectInfo` 推导（MakeContinuation 只可能出现在 EffectStep 函数体内）。
+    MakeContinuation { state: u64 },
 }
 
 /// LIR 调用信息。

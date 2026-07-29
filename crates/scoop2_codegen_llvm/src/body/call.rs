@@ -82,7 +82,7 @@ fn lower_resume<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     continuation: &LirOperand,
     resume_value: &LirOperand,
-    _result_ty: scoop2_hir::ty::TypeId,
+    result_ty: scoop2_hir::ty::TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     use scoop2_lir::effect::{
         CONT_OFFSET_FRAME, CONT_OFFSET_RESUME_VALUE, CONT_OFFSET_RESUMED, CONT_OFFSET_STEP_FN,
@@ -266,8 +266,34 @@ fn lower_resume<'a, 'ctx>(
         .build_load(native_ptr, frame_slot, "res_frame")
         .map_err(|e| llvm(e, "res_load_frame"))?
         .into_pointer_value();
-    // step_fn 签名：ptr step_fn(ptr frame, i64 resume_word) → 返回 Step。
-    let step_fn_ty = native_ptr.fn_type(&[native_ptr.into(), i64.into()], false);
+    // step_fn 签名：`Step step_fn(ptr frame, i64 resume_word)`。
+    // Resume 只出现在 EffectStep body 内，当前函数的返回类型即 Step 类型。
+    let step_ret_llvm = fl.cg.lower_type(fl.return_ty, fl.layouts)?;
+    let step_fn_ty = match step_ret_llvm {
+        inkwell::types::BasicTypeEnum::IntType(t) => t.fn_type(&[native_ptr.into(), i64.into()], false),
+        inkwell::types::BasicTypeEnum::FloatType(t) => {
+            t.fn_type(&[native_ptr.into(), i64.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::PointerType(t) => {
+            t.fn_type(&[native_ptr.into(), i64.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::StructType(t) => {
+            t.fn_type(&[native_ptr.into(), i64.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::ArrayType(t) => {
+            t.fn_type(&[native_ptr.into(), i64.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::VectorType(t) => {
+            t.fn_type(&[native_ptr.into(), i64.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::ScalableVectorType(_) => {
+            return Err(CodegenError::llvm(
+                "Step 类型不合法".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
     let call = fl
         .builder
         .build_indirect_call(
@@ -277,14 +303,93 @@ fn lower_resume<'a, 'ctx>(
             "res_step_call",
         )
         .map_err(|e| llvm(e, "res_step_call"))?;
-    match call.try_as_basic_value() {
-        inkwell::values::ValueKind::Basic(v) => Ok(v),
-        inkwell::values::ValueKind::Instruction(_) => Err(CodegenError::llvm(
-            "resume: step_fn 未返回值",
-            "lower_resume",
-            scoop2_base::Span::default(),
-        )),
+    let step_val = match call.try_as_basic_value() {
+        inkwell::values::ValueKind::Basic(v) => v,
+        inkwell::values::ValueKind::Instruction(_) => {
+            return Err(CodegenError::llvm(
+                "resume: step_fn 未返回值",
+                "lower_resume",
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+
+    // 6. 检查 Step tag：Complete(tag 0) → 提取 payload 作为 resume 结果；
+    //    非 Complete → effect 向外传播：当前函数（必为 EffectStep）直接
+    //    return 该 Step（先 pop root frame）。
+    let step_struct = crate::body::expect_struct_val(step_val, "resume Step 值", &fl.fqn)?;
+    let tag = fl
+        .builder
+        .build_extract_value(step_struct, 0, "step_tag")
+        .map_err(|e| llvm(e, "step tag extract"))?
+        .into_int_value();
+    let is_complete = fl
+        .builder
+        .build_int_compare(
+            IntPredicate::EQ,
+            tag,
+            tag.get_type().const_zero(),
+            "step_is_complete",
+        )
+        .map_err(|e| llvm(e, "step complete cmp"))?;
+    let complete_bb = fl.cg.context.append_basic_block(fl.fv, "resume_complete");
+    let propagate_bb = fl.cg.context.append_basic_block(fl.fv, "resume_propagate");
+    fl.builder
+        .build_conditional_branch(is_complete, complete_bb, propagate_bb)
+        .map_err(|e| llvm(e, "resume step br"))?;
+    // 传播路径：root frame pop + return Step。
+    fl.builder.position_at_end(propagate_bb);
+    fl.emit_root_frame_pop()?;
+    fl.builder
+        .build_return(Some(&step_val))
+        .map_err(|e| llvm(e, "resume propagate return"))?;
+    // Complete 路径：内存 round-trip 提取 payload（与 lower_enum_variant 的
+    // 写入对称），作为 resume 表达式的结果值。
+    fl.builder.position_at_end(complete_bb);
+    let result_size = fl.layouts.get(result_ty).map(|l| l.size).unwrap_or(0);
+    if result_size == 0 {
+        // Unit payload（或无 payload）：返回 result_ty 的零值。
+        let unit_llvm = fl.cg.lower_type(result_ty, fl.layouts)?;
+        return Ok(match unit_llvm {
+            inkwell::types::BasicTypeEnum::IntType(t) => t.const_zero().into(),
+            inkwell::types::BasicTypeEnum::FloatType(t) => t.const_zero().into(),
+            inkwell::types::BasicTypeEnum::PointerType(t) => t.const_null().into(),
+            inkwell::types::BasicTypeEnum::StructType(t) => t.const_zero().into(),
+            inkwell::types::BasicTypeEnum::ArrayType(t) => t.const_zero().into(),
+            inkwell::types::BasicTypeEnum::VectorType(t) => t.const_zero().into(),
+            inkwell::types::BasicTypeEnum::ScalableVectorType(t) => t.const_zero().into(),
+        });
     }
+    let step_layout = fl.layouts.get(fl.return_ty).ok_or_else(|| {
+        CodegenError::llvm(
+            "Step 布局缺失".to_string(),
+            &fl.fqn,
+            scoop2_base::Span::default(),
+        )
+    })?;
+    let offset = super::rvalue::enum_payload_offset(step_layout, fl.layouts);
+    let scratch = fl
+        .builder
+        .build_alloca(step_ret_llvm, "resume_step_scratch")
+        .map_err(|e| llvm(e, "resume step alloca"))?;
+    fl.builder
+        .build_store(scratch, step_val)
+        .map_err(|e| llvm(e, "resume step store"))?;
+    let payload_ptr = unsafe {
+        fl.builder.build_gep(
+            i8,
+            scratch,
+            &[i64.const_int(offset, false)],
+            "resume_payload_ptr",
+        )
+    }
+    .map_err(|e| llvm(e, "resume payload gep"))?;
+    let result_llvm = fl.cg.lower_type(result_ty, fl.layouts)?;
+    let v = fl
+        .builder
+        .build_load(result_llvm, payload_ptr, "resume_payload")
+        .map_err(|e| llvm(e, "resume payload load"))?;
+    Ok(v)
 }
 
 /// Interface 分发：receiver → header.type_desc → itable → 按 interface_id 查找 → methods[slot] → call。

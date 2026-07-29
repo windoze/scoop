@@ -213,9 +213,18 @@ fn map_callable(
     let return_abi = abi::param_abi_for_type(fd.return_ty, layouts);
 
     // 计算函数体的 GC info 和 effect schema。
-    let (body, gc_info, frame_schema, step_layout, state_dispatch, continuation_layout) =
+    let (body, gc_info, frame_schema, step_layout, state_dispatch, continuation_layout, effect_info) =
         if let Some(mir_body) = &fd.body {
-            let lir_body = map_body(mir_body, layouts, &mir.module.types, hir, interner, step_tags)?;
+            let frame_local = fd.effect_abi.as_ref().map(|ea| ea.frame_local);
+            let lir_body = map_body(
+                mir_body,
+                layouts,
+                &mir.module.types,
+                hir,
+                interner,
+                step_tags,
+                frame_local,
+            )?;
             let frame_for_gc = fd
                 .effect_abi
                 .as_ref()
@@ -226,9 +235,30 @@ fn map_callable(
             } else {
                 (None, None, None, None)
             };
-            (Some(lir_body), Some(gc), fs, sl, sd, cl)
+            let ei = fd.effect_abi.as_ref().map(|ea| LirEffectInfo {
+                frame_local: ea.frame_local.0,
+                frame_ty: ea.frame_ty,
+                param_slots: fd
+                    .params
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| (p.local.0, (i + 1) as u64))
+                    .collect(),
+                resume_points: ea
+                    .resume_points
+                    .iter()
+                    .map(|rp| LirResumePoint {
+                        state: rp.state as u64,
+                        block_id: rp.block.0,
+                        resume_local: rp.resume_local.0,
+                        resume_ty: rp.resume_ty,
+                    })
+                    .collect(),
+                step_ty: ea.step_ty,
+            });
+            (Some(lir_body), Some(gc), fs, sl, sd, cl, ei)
         } else {
-            (None, None, None, None, None, None)
+            (None, None, None, None, None, None, None)
         };
 
     Ok(LirCallable {
@@ -244,6 +274,7 @@ fn map_callable(
         step_layout,
         state_dispatch,
         continuation_layout,
+        effect_info,
     })
 }
 
@@ -256,7 +287,7 @@ fn map_initializer(
     step_tags: &StepTagTables,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = abi::mangle_symbol(&ir.fqn, &None);
-    let body = map_body(&ir.body, layouts, types, hir, interner, step_tags)?;
+    let body = map_body(&ir.body, layouts, types, hir, interner, step_tags, None)?;
     Ok(LirCallable {
         fqn: ir.fqn.clone(),
         symbol_name,
@@ -270,6 +301,7 @@ fn map_initializer(
         step_layout: None,
         state_dispatch: None,
         continuation_layout: None,
+        effect_info: None,
     })
 }
 
@@ -280,6 +312,7 @@ fn map_body(
     hir: &TypedHir,
     interner: &Interner,
     step_tags: &StepTagTables,
+    frame_local: Option<scoop2_mir::mir::LocalId>,
 ) -> Result<LirBody, LirError> {
     let locals = body
         .locals
@@ -290,7 +323,11 @@ fn map_body(
             name: d.name.clone(),
             ty: d.ty,
             mutable: d.mutable,
-            gc_traceable: gc::is_gc_traceable_type(d.ty, layouts),
+            // EffectStep 的 frame local 持有堆分配的 GC 对象指针（声明类型是
+            // frame tuple 值类型，is_gc_traceable_type 判不出），强制标记为
+            // GC root，使其进入 root frame slot（load/store 走 slot 重载协议）。
+            gc_traceable: gc::is_gc_traceable_type(d.ty, layouts)
+                || frame_local.is_some_and(|fl| fl.0 as usize == i),
         })
         .collect();
     let mut blocks = Vec::with_capacity(body.blocks.len());
@@ -719,6 +756,9 @@ fn map_rvalue(
         Rvalue::IntEq { lhs, rhs } => LirRvalue::IntEq {
             lhs_local: map_operand(lhs),
             rhs_local: map_operand(rhs),
+        },
+        Rvalue::MakeContinuation { state } => LirRvalue::MakeContinuation {
+            state: *state as u64,
         },
     };
     Ok(out)

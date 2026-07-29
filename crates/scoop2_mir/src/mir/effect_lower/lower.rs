@@ -98,6 +98,10 @@ pub fn lower_effects(module: &mut Module, interner: &Interner) {
                     .collect()
             })
             .unwrap_or_default();
+        let params: Vec<(LocalId, TypeId)> = match &module.items[idx] {
+            Item::Fun(fd) => fd.params.iter().map(|p| (p.local, p.ty)).collect(),
+            _ => Vec::new(),
+        };
         let body = match &mut module.items[idx] {
             Item::Fun(fd) => fd.body.as_mut(),
             Item::Initializer(ir) => Some(&mut ir.body),
@@ -106,7 +110,8 @@ pub fn lower_effects(module: &mut Module, interner: &Interner) {
         if let Some(body) = body {
             let is_effect_step = classes.get(&fqn).map_or(false, |c| c.is_effect_step);
             if analyze::has_effect_structures(body) || is_effect_step {
-                let effect_abi = lower_body(body, &mut module.types, interner, &fqn, &outward);
+                let effect_abi =
+                    lower_body(body, &mut module.types, interner, &fqn, &outward, &params);
                 // 如果 body 变换为 EffectStep，设置 FunDecl 的 effect_abi + 更新 return_ty。
                 if let Some(abi) = effect_abi.clone() {
                     if let Item::Fun(fd) = &mut module.items[idx] {
@@ -839,12 +844,16 @@ fn adapt_calls_in_body(
 struct ArmRoute {
     target: BasicBlockId,
     binder_locals: Vec<LocalId>,
+    /// resuming arm 的 continuation binder（Some = escape continuation arm）。
+    continuation_local: Option<LocalId>,
 }
 
 struct HandleInfo {
     body_target: BasicBlockId,
     arm_dispatch: HashMap<String, ArmRoute>,
     exit_target: BasicBlockId,
+    /// handle 结果 local（escape 边界克隆的 Complete payload 来源）。
+    result_local: LocalId,
 }
 
 /// 对单个函数体执行 effect lowering。
@@ -858,18 +867,32 @@ fn lower_body(
     interner: &Interner,
     fqn: &str,
     outward_ops: &[(String, TypeId)],
+    params: &[(LocalId, TypeId)],
 ) -> Option<crate::mir::EffectStepAbi> {
     // 阶段 1：被本地 handle 捕获的 Perform → 绑定实参 + goto arm。
     // Handle 终结符本身保留（阶段 B 消除）。
+    // escape continuation（resuming）arm 捕获的 Perform 不在此重写——它们需要
+    // frame + MakeContinuation + 边界克隆，留给阶段 2 的 EffectStep 变换。
     let handles = collect_handle_info(body);
+    let mut escape_routing: HashMap<usize, PerformRoute> = HashMap::new();
     if !handles.is_empty() {
         let routing = build_perform_routing(body, &handles);
-        rewrite_captured_performs(body, &routing);
+        let mut plain_routing = HashMap::new();
+        for (bi, route) in routing {
+            if route.escape.is_some() {
+                escape_routing.insert(bi, route);
+            } else {
+                plain_routing.insert(bi, route);
+            }
+        }
+        rewrite_captured_performs(body, &plain_routing);
     }
-    // 阶段 2：是否变换为 EffectStep。
-    let is_effect_step = !outward_ops.is_empty() || body_has_resume(body);
+    // 阶段 2：是否变换为 EffectStep。有 escape 捕获时必须变换（continuation
+    // 需要本函数的 frame + step 函数指针）。
+    let is_effect_step =
+        !outward_ops.is_empty() || body_has_resume(body) || !escape_routing.is_empty();
     if is_effect_step {
-        lower_to_effect_step(body, store, interner, fqn, outward_ops)
+        lower_to_effect_step(body, store, interner, fqn, outward_ops, params, escape_routing)
     } else {
         None
     }
@@ -904,6 +927,7 @@ fn collect_handle_info(body: &Body) -> Vec<HandleInfo> {
             body_target,
             arm_targets,
             exit_target,
+            metadata,
             ..
         } = &block.terminator.kind
         {
@@ -914,6 +938,7 @@ fn collect_handle_info(body: &Body) -> Vec<HandleInfo> {
                     ArmRoute {
                         target,
                         binder_locals: arm.binder_locals.clone(),
+                        continuation_local: arm.continuation_local,
                     },
                 );
             }
@@ -921,6 +946,7 @@ fn collect_handle_info(body: &Body) -> Vec<HandleInfo> {
                 body_target: *body_target,
                 arm_dispatch,
                 exit_target: *exit_target,
+                result_local: metadata.result_local,
             });
         }
     }
@@ -940,6 +966,11 @@ fn build_perform_routing(body: &Body, handles: &[HandleInfo]) -> HashMap<usize, 
                         PerformRoute {
                             arm_target: arm.target,
                             binder_locals: arm.binder_locals.clone(),
+                            escape: arm.continuation_local.map(|k| EscapeCapture {
+                                continuation_local: k,
+                                result_local: handle.result_local,
+                                exit_target: handle.exit_target,
+                            }),
                         },
                     );
                 }
@@ -952,6 +983,20 @@ fn build_perform_routing(body: &Body, handles: &[HandleInfo]) -> HashMap<usize, 
 struct PerformRoute {
     arm_target: BasicBlockId,
     binder_locals: Vec<LocalId>,
+    /// Some = escape continuation（resuming）arm 捕获：交给 EffectStep 变换
+    /// 构造 MakeContinuation + 边界克隆，而非阶段 1 的简单 bind+goto。
+    escape: Option<EscapeCapture>,
+}
+
+/// escape continuation 捕获点的上下文（构造 continuation 与边界克隆用）。
+#[derive(Clone)]
+struct EscapeCapture {
+    /// arm 的 continuation binder local（k）。
+    continuation_local: LocalId,
+    /// handle 结果 local（克隆后缀的 Complete payload）。
+    result_local: LocalId,
+    /// handle 出口块（边界：克隆中指向它的边改为 Return(Complete)）。
+    exit_target: BasicBlockId,
 }
 
 fn find_handle_body_region(body: &Body, handle: &HandleInfo) -> HashSet<usize> {
@@ -1042,9 +1087,11 @@ fn lower_to_effect_step(
     interner: &Interner,
     fqn: &str,
     outward_ops: &[(String, TypeId)],
+    params: &[(LocalId, TypeId)],
+    escape_routing: HashMap<usize, PerformRoute>,
 ) -> Option<crate::mir::EffectStepAbi> {
-    let live_out = analyze::compute_live_out(body);
-    let perform_sites = collect_perform_sites(body, &live_out);
+    let live_in = analyze::compute_live_in(body);
+    let mut perform_sites = collect_perform_sites(body, &live_in);
 
     // 收集所有需要保存的 live locals（跨所有 Perform 站点的并集）。
     let mut all_live_locals: Vec<LocalId> = Vec::new();
@@ -1057,8 +1104,13 @@ fn lower_to_effect_step(
         }
     }
 
-    // 构造 Frame tuple 类型：[state: Int, live_local_1: T1, live_local_2: T2, ...]
+    // 构造 Frame tuple 类型：[state: Int, param_1: P1, ..., live_local_1: T1, ...]。
+    // 参数槽必须包含全部参数：resume 时 step 函数只拿到 (frame, word)，
+    // 参数值只能经 frame 传入（wrapper 在初始调用时写入，step 入口恢复）。
     let mut frame_field_tys: Vec<TypeId> = vec![store.int()];
+    for (_, ty) in params {
+        frame_field_tys.push(*ty);
+    }
     for &lid in &all_live_locals {
         let ty = body
             .locals
@@ -1079,15 +1131,15 @@ fn lower_to_effect_step(
         mutable: true,
     });
 
-    // 构建 live_local → frame slot index 映射。
+    // 构建 live_local → frame slot index 映射（slot 0 = state，随后是参数槽）。
     let live_to_slot: HashMap<LocalId, u128> = all_live_locals
         .iter()
         .enumerate()
-        .map(|(i, &lid)| (lid, (i + 1) as u128))
+        .map(|(i, &lid)| (lid, (i + 1 + params.len()) as u128))
         .collect();
 
-    // 初始化 frame。
-    initialize_frame(body, frame_local, frame_ty, &all_live_locals, store);
+    // frame 不再在 body 内初始化：codegen 的 `sym` wrapper 负责堆分配
+    // （scoop_alloc_typed）+ 清零 + 写参数槽，body 编译为 `sym$step(frame, word)`。
 
     // 构造 Step 合成 enum 类型。
     // Step enum 用函数自身 FQN（已 intern）作为 nominal FQN/标识 Symbol，
@@ -1123,7 +1175,8 @@ fn lower_to_effect_step(
         });
     }
 
-    // 重写 Perform 站点。
+    // 重写 Perform 站点（outward → Return(Step 变体)；escape 捕获 →
+    // 保存 frame + MakeContinuation + 绑定实参 + goto arm）。
     rewrite_perform_sites(
         body,
         &perform_sites,
@@ -1135,15 +1188,29 @@ fn lower_to_effect_step(
         outward_ops,
         store,
         interner,
+        &escape_routing,
     );
+
+    // escape 捕获的边界后缀克隆：把 resume_target 起、到 handle 出口为止的
+    // 后缀克隆一份，指向出口的边改指到新块 `Return(result_local)`（随后由
+    // wrap_returns_as_complete 包装为 Step::Complete）。resume 路径只走克隆，
+    // 不会顺着出口继续执行调用方的剩余代码（初始路径走 arm → 出口）。
+    clone_escape_suffixes(body, &mut perform_sites, &escape_routing);
 
     // Resume 调用保持 `CallKind::Resume` 原样流向 LIR/codegen：
     // resumed 标志检查 + step_fn 间接调用由 codegen 基于 canonical continuation
     // 布局（scoop2_lir::effect）统一 lowering，MIR 不做字段级重写。
 
     // 添加 state dispatch 入口。
-    let state_local = if !perform_sites.is_empty() {
-        add_state_dispatch(body, &perform_sites, frame_local, store)
+    let (state_local, resume_points) = if !perform_sites.is_empty() {
+        add_state_dispatch(
+            body,
+            &perform_sites,
+            frame_local,
+            &live_to_slot,
+            &escape_routing,
+            store,
+        )
     } else {
         // 无 Perform 但有 Resume：分配一个占位 state local。
         let sl = LocalId(body.locals.len() as u32);
@@ -1154,13 +1221,19 @@ fn lower_to_effect_step(
             source: crate::mir::LocalSource::Temp,
             mutable: false,
         });
-        sl
+        (sl, Vec::new())
     };
 
     // 把所有"原始返回"（返回原始返回类型值的 Return）包装为
     // `Return(Step::Complete(value))`——EffectStep 函数的每个返回路径都必须
     // 产出 Step 值，不只是 Perform 站点产生的挂起返回。
-    let step_val_locals: HashSet<LocalId> = perform_sites.iter().map(|s| s.resume_local).collect();
+    // escape 站点的 resume_local 不持有 Step 值（它是 resume 投递目标），
+    // 不进入跳过集合。
+    let step_val_locals: HashSet<LocalId> = perform_sites
+        .iter()
+        .filter(|s| !escape_routing.contains_key(&s.block_idx))
+        .map(|s| s.resume_local)
+        .collect();
     wrap_returns_as_complete(
         body,
         store,
@@ -1176,6 +1249,7 @@ fn lower_to_effect_step(
         step_variants,
         frame_local,
         state_local,
+        resume_points,
     })
 }
 
@@ -1246,7 +1320,11 @@ fn wrap_returns_as_complete(
 }
 
 /// 收集所有 Perform 站点。
-fn collect_perform_sites(body: &Body, live_out: &[HashSet<LocalId>]) -> Vec<PerformSite> {
+/// 收集所有 Perform 终结符站点。
+/// `live_in`：每个块入口处的活跃 local（`analyze::compute_live_in`）。
+/// 保存/恢复集取 resume_target 的 **live_in**（不是 live_out——resume_target
+/// 块内 def 前使用的 local 也必须恢复，例如 resume 后立即读取前次结果的场景）。
+fn collect_perform_sites(body: &Body, live_in: &[HashSet<LocalId>]) -> Vec<PerformSite> {
     let mut sites = Vec::new();
     for (i, block) in body.blocks.iter().enumerate() {
         if let TerminatorKind::Perform {
@@ -1258,8 +1336,8 @@ fn collect_perform_sites(body: &Body, live_out: &[HashSet<LocalId>]) -> Vec<Perf
         } = &block.terminator.kind
         {
             let resume_idx = resume_target.0 as usize;
-            let live_set = if resume_idx < live_out.len() {
-                live_out[resume_idx].clone()
+            let live_set = if resume_idx < live_in.len() {
+                live_in[resume_idx].clone()
             } else {
                 HashSet::new()
             };
@@ -1279,43 +1357,6 @@ fn collect_perform_sites(body: &Body, live_out: &[HashSet<LocalId>]) -> Vec<Perf
     sites
 }
 
-/// 在入口块开头初始化 frame tuple（state=0, 所有 live locals 为默认值）。
-fn initialize_frame(
-    body: &mut Body,
-    frame_local: LocalId,
-    frame_ty: TypeId,
-    all_live_locals: &[LocalId],
-    store: &mut TypeStore,
-) {
-    let start_idx = body.start.0 as usize;
-    let span = body.blocks[start_idx]
-        .stmts
-        .first()
-        .map(|s| s.span)
-        .unwrap_or_default();
-    // 构造 frame tuple 的元素：state=0（Int）+ 所有 live locals 的当前值。
-    let mut elements: Vec<Operand> = vec![Operand::Const(crate::mir::ConstValue::Int(0, None))];
-    for &lid in all_live_locals {
-        elements.push(Operand::Local(lid));
-    }
-    let init_stmt = Statement {
-        span,
-        kind: StatementKind::Assign {
-            target: frame_local,
-            value: Rvalue::MakeTuple {
-                elements,
-                transport: AggregateTransportMetadata {
-                    aggregate_ty: frame_ty,
-                    kind: AggregateTransportKind::Tuple,
-                    fields: Vec::new(),
-                },
-            },
-        },
-    };
-    body.blocks[start_idx].stmts.insert(0, init_stmt);
-    let _ = store;
-}
-
 /// 重写 Perform 站点：保存 live locals 到 frame + 返回 Step case。
 ///
 /// `outward_ops`：规范化 op 列表（下标 + 1 = 变体 tag）。站点构造的 Step 变体
@@ -1332,10 +1373,12 @@ fn rewrite_perform_sites(
     outward_ops: &[(String, TypeId)],
     store: &mut TypeStore,
     interner: &Interner,
+    escape_routing: &HashMap<usize, PerformRoute>,
 ) {
     for (state_num, site) in sites.iter().enumerate() {
         let state_num = (state_num + 1) as u128; // 1-based
         let span = body.blocks[site.block_idx].terminator.span;
+        let escape_route = escape_routing.get(&site.block_idx);
         // 预计算 live locals 的类型（避免借用冲突）。
         let live_local_tys: Vec<(LocalId, u128, TypeId)> = site
             .live_out_at_resume
@@ -1350,8 +1393,10 @@ fn rewrite_perform_sites(
                 Some((live_local, slot_idx, live_ty))
             })
             .collect();
-        // 预计算 payload。
-        let (payload, payload_ty) = if site.args.len() == 1 {
+        // 预计算 payload（escape 站点不需要——实参直接绑到 arm binder）。
+        let (payload, payload_ty) = if escape_route.is_some() {
+            (Operand::Const(crate::mir::ConstValue::Unit), store.unit())
+        } else if site.args.len() == 1 {
             let ty = operand_type(&site.args[0], body);
             (site.args[0].clone(), ty)
         } else if site.args.is_empty() {
@@ -1401,6 +1446,37 @@ fn rewrite_perform_sites(
                 value_ty: store.int(),
             },
         });
+
+        // escape 捕获：构造 continuation → k，绑定实参 → arm binder，goto arm。
+        // resume_local 保持原类型（它是 resume 值投递目标，不是 Step 载体）。
+        if let Some(route) = escape_route {
+            let esc = route.escape.as_ref().expect("escape 路由必有 EscapeCapture");
+            block.stmts.push(Statement {
+                span,
+                kind: StatementKind::Assign {
+                    target: esc.continuation_local,
+                    value: Rvalue::MakeContinuation { state: state_num },
+                },
+            });
+            for (i, binder) in route.binder_locals.iter().enumerate() {
+                if let Some(arg) = site.args.get(i) {
+                    block.stmts.push(Statement {
+                        span,
+                        kind: StatementKind::Assign {
+                            target: *binder,
+                            value: Rvalue::Use(arg.clone()),
+                        },
+                    });
+                }
+            }
+            block.terminator = Terminator {
+                span,
+                kind: TerminatorKind::Goto {
+                    target: route.arm_target,
+                },
+            };
+            continue;
+        }
 
         // 3. 如果 payload 是 tuple，需要先构造 tuple。
         if let Operand::Local(tuple_local) = &payload {
@@ -1466,6 +1542,156 @@ fn rewrite_perform_sites(
     let _ = frame_ty;
 }
 
+/// escape continuation 捕获的边界后缀克隆。
+///
+/// 对每个 escape 站点：从 resume_target 起 BFS（不越过 handle 出口 exit_target），
+/// 把可达块整体克隆一份；克隆中指向 exit_target 的边改指到新建的
+/// `Return(result_local)` 块（随后由 wrap_returns_as_complete 包装为
+/// `Return(Step::Complete(result_local))`）。site.resume_target 更新为克隆块 id，
+/// 供 state dispatch 把 resume 路径导向克隆后缀——初始路径（perform → arm →
+/// 出口）与 resume 路径（克隆后缀 → Complete 返回）由此分离。
+///
+/// BFS 还纳入**同 handle 的嵌套 escape 站点的 arm**：resume 路径上再次 perform
+/// 时控制流会 `Goto arm`（rewrite_perform_sites 的产物），该 arm 流向同一
+/// exit_target——若不克隆 arm，resume 路径会顺着原始出口重放调用方剩余代码。
+/// 逸出到**外层** handle 的 perform（exit_target 不同）不克隆其 arm（case b
+/// 暂不支持，边保持指向原始 arm）。
+fn clone_escape_suffixes(
+    body: &mut Body,
+    sites: &mut [PerformSite],
+    escape_routing: &HashMap<usize, PerformRoute>,
+) {
+    for site in sites.iter_mut() {
+        let Some(route) = escape_routing.get(&site.block_idx) else {
+            continue;
+        };
+        let Some(esc) = &route.escape else { continue };
+        let exit_idx = esc.exit_target.0 as usize;
+        // BFS 收集区域（不越过 exit_target；同 handle 的嵌套 escape 站点的
+        // arm 一并纳入）。
+        let mut region: Vec<usize> = Vec::new();
+        let mut seen: HashSet<usize> = HashSet::new();
+        let mut queue: std::collections::VecDeque<usize> =
+            std::collections::VecDeque::from([site.resume_target.0 as usize]);
+        while let Some(b) = queue.pop_front() {
+            if b == exit_idx || b >= body.blocks.len() || !seen.insert(b) {
+                continue;
+            }
+            region.push(b);
+            for t in terminator_targets(&body.blocks[b].terminator.kind) {
+                queue.push_back(t.0 as usize);
+            }
+            // 块 b 是同 handle 的嵌套 escape 站点 → 其 arm 也在边界内。
+            if let Some(nested) = escape_routing.get(&b) {
+                if nested
+                    .escape
+                    .as_ref()
+                    .is_some_and(|e2| e2.exit_target.0 as usize == exit_idx)
+                {
+                    queue.push_back(nested.arm_target.0 as usize);
+                }
+            }
+        }
+        if region.is_empty() {
+            continue;
+        }
+        // 克隆块 id 映射；complete 块在克隆块之后。
+        let base = body.blocks.len();
+        let id_map: HashMap<usize, usize> = region
+            .iter()
+            .enumerate()
+            .map(|(i, &b)| (b, base + i))
+            .collect();
+        let complete_bid = base + region.len();
+        let span = body.blocks[site.resume_target.0 as usize].terminator.span;
+        for &b in &region {
+            let mut nb = body.blocks[b].clone();
+            remap_terminator_targets(&mut nb.terminator.kind, &mut |t| {
+                if t.0 as usize == exit_idx {
+                    BasicBlockId(complete_bid as u32)
+                } else if let Some(&mapped) = id_map.get(&(t.0 as usize)) {
+                    BasicBlockId(mapped as u32)
+                } else {
+                    t
+                }
+            });
+            body.blocks.push(nb);
+        }
+        body.blocks.push(crate::mir::BasicBlock {
+            stmts: vec![],
+            terminator: Terminator {
+                span,
+                kind: TerminatorKind::Return {
+                    value: Some(Operand::Local(esc.result_local)),
+                },
+            },
+        });
+        site.resume_target =
+            BasicBlockId(id_map[&(site.resume_target.0 as usize)] as u32);
+    }
+}
+
+/// 收集终结符的所有跳转目标块 id。
+fn terminator_targets(kind: &TerminatorKind) -> Vec<BasicBlockId> {
+    match kind {
+        TerminatorKind::Goto { target } => vec![*target],
+        TerminatorKind::CondBr {
+            then_target,
+            else_target,
+            ..
+        } => vec![*then_target, *else_target],
+        TerminatorKind::Handle {
+            body_target,
+            arm_targets,
+            finally_target,
+            exit_target,
+            ..
+        } => {
+            let mut v = vec![*body_target, *exit_target];
+            v.extend(arm_targets.iter().copied());
+            if let Some(f) = finally_target {
+                v.push(*f);
+            }
+            v
+        }
+        TerminatorKind::Perform { resume_target, .. } => vec![*resume_target],
+        _ => Vec::new(),
+    }
+}
+
+/// 对终结符的所有跳转目标应用映射函数。
+fn remap_terminator_targets(kind: &mut TerminatorKind, map: &mut impl FnMut(BasicBlockId) -> BasicBlockId) {
+    match kind {
+        TerminatorKind::Goto { target } => *target = map(*target),
+        TerminatorKind::CondBr {
+            then_target,
+            else_target,
+            ..
+        } => {
+            *then_target = map(*then_target);
+            *else_target = map(*else_target);
+        }
+        TerminatorKind::Handle {
+            body_target,
+            arm_targets,
+            finally_target,
+            exit_target,
+            ..
+        } => {
+            *body_target = map(*body_target);
+            for t in arm_targets.iter_mut() {
+                *t = map(*t);
+            }
+            if let Some(f) = finally_target {
+                *f = map(*f);
+            }
+            *exit_target = map(*exit_target);
+        }
+        TerminatorKind::Perform { resume_target, .. } => *resume_target = map(*resume_target),
+        _ => {}
+    }
+}
+
 /// 添加 state dispatch 入口块。
 ///
 /// 在 body 的所有块前插入一个 dispatch 块链，检查 frame.state 的值：
@@ -1479,8 +1705,10 @@ fn add_state_dispatch(
     body: &mut Body,
     sites: &[PerformSite],
     frame_local: LocalId,
+    live_to_slot: &HashMap<LocalId, u128>,
+    escape_routing: &HashMap<usize, PerformRoute>,
     store: &mut TypeStore,
-) -> LocalId {
+) -> (LocalId, Vec<crate::mir::ResumePoint>) {
     let original_start = body.start;
     // 分配 state local（用于读取 frame.state 字段）。
     let state_local = LocalId(body.locals.len() as u32);
@@ -1529,8 +1757,16 @@ fn add_state_dispatch(
                 },
             },
         });
-        // 恢复 live locals。
-        for (slot_idx, &live_local) in site.live_out_at_resume.iter().enumerate() {
+        // 恢复 live locals（slot 下标取 live_to_slot——slot 0 之后是参数槽）。
+        // resume_local 跳过：它的值由 codegen 的 resume 值投递（块首、restore
+        // 语句之前）写入，restore 会用 frame 里的旧值覆盖投递值。
+        for &live_local in &site.live_out_at_resume {
+            if live_local == site.resume_local {
+                continue;
+            }
+            let Some(&slot_idx) = live_to_slot.get(&live_local) else {
+                continue;
+            };
             let live_ty = body
                 .locals
                 .get(live_local.0 as usize)
@@ -1550,7 +1786,7 @@ fn add_state_dispatch(
                     target: temp_local,
                     value: Rvalue::TupleIndex {
                         receiver: Operand::Local(frame_local),
-                        index: (slot_idx + 1) as u128,
+                        index: slot_idx,
                         element_ty: live_ty,
                     },
                 },
@@ -1674,25 +1910,14 @@ fn add_state_dispatch(
     // dispatch_N: state == N → resume_N, else → unreachable
 
     for i in 0..total_dispatch {
-        // dispatch_0（入口）：切片 1 不做 resuming——函数只可能以初始调用进入，
-        // 此刻 frame local 尚未初始化（MakeTuple 在 original_start 块内），
-        // 读 frame.state 是未定义行为。入口直接 Goto original_start；
-        // state≥1 的 resume dispatch 块保留结构（切片 2 frame 堆化后由
-        // step 函数参数提供已初始化 frame，再恢复读 state 的入口 dispatch）。
-        if i == 0 {
-            chain.push(crate::mir::BasicBlock {
-                stmts: vec![],
-                terminator: Terminator {
-                    span: scoop2_base::Span::default(),
-                    kind: TerminatorKind::Goto {
-                        target: shifted_original_start,
-                    },
-                },
-            });
-            continue;
-        }
-        let entry = &shifted_resume_entries[i - 1];
-        let (check_state, then_target) = (entry.0, entry.1);
+        // dispatch_0（入口）：state == 0 → original_start。frame 由 codegen 的
+        // step 函数参数提供（堆分配、已初始化），读 frame.state 是良定义的。
+        let (check_state, then_target) = if i == 0 {
+            (0u128, shifted_original_start)
+        } else {
+            let entry = &shifted_resume_entries[i - 1];
+            (entry.0, entry.1)
+        };
         let else_target = if i + 1 < total_dispatch {
             BasicBlockId((i + 1) as u32)
         } else {
@@ -1750,7 +1975,31 @@ fn add_state_dispatch(
     body.blocks = new_blocks;
     // 更新 start 指向 dispatch_0。
     body.start = BasicBlockId(0);
-    state_local
+
+    // 收集 resume points（仅 escape 捕获站点——只有它们产生可被 resume 的
+    // continuation）。block 用偏移后的 resume_target；resume_local 的声明类型
+    // 在 escape 路径未被改写（非 escape 站点会被改成 step_ty，不记录）。
+    let resume_points: Vec<crate::mir::ResumePoint> = shifted_resume_entries
+        .iter()
+        .zip(sites.iter())
+        .filter_map(|((state, target), site)| {
+            if !escape_routing.contains_key(&site.block_idx) {
+                return None;
+            }
+            let resume_ty = body
+                .locals
+                .get(site.resume_local.0 as usize)
+                .map(|d| d.ty)
+                .unwrap_or_else(|| store.any());
+            Some(crate::mir::ResumePoint {
+                state: *state,
+                block: *target,
+                resume_local: site.resume_local,
+                resume_ty,
+            })
+        })
+        .collect();
+    (state_local, resume_points)
 }
 
 /// 偏移 body 中所有块的 BasicBlockId 引用（Goto/CondBr/Handle/Perform 目标）。
@@ -1771,6 +2020,22 @@ fn shift_block_ids(body: &mut Body, offset: u32) {
             } => {
                 then_target.0 += offset;
                 else_target.0 += offset;
+            }
+            TerminatorKind::Handle {
+                body_target,
+                arm_targets,
+                finally_target,
+                exit_target,
+                ..
+            } => {
+                body_target.0 += offset;
+                for t in arm_targets.iter_mut() {
+                    t.0 += offset;
+                }
+                if let Some(f) = finally_target {
+                    f.0 += offset;
+                }
+                exit_target.0 += offset;
             }
             _ => {}
         }

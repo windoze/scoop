@@ -679,7 +679,10 @@ fn subst_statement(stmt: &mut crate::mir::Statement, subst: &Subst, store: &mut 
 fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
     use crate::mir::transport::*;
     match rv {
-        Rvalue::Use(_) | Rvalue::UnresolvedName { .. } | Rvalue::ClassLit { .. } => {}
+        Rvalue::Use(_)
+        | Rvalue::UnresolvedName { .. }
+        | Rvalue::ClassLit { .. }
+        | Rvalue::MakeContinuation { .. } => {}
         Rvalue::TopLevelRef(tl) => {
             subst_type_ids(store, &mut tl.generic_type_args, subst);
             tl.hidden_effects = store.apply_subst_row(tl.hidden_effects.clone(), subst);

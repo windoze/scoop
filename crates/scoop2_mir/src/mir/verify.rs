@@ -449,6 +449,7 @@ where
         Rvalue::IntEq { lhs, rhs } => vec![lhs, rhs],
         Rvalue::PerformResult { .. }
         | Rvalue::ClassLit { .. }
+        | Rvalue::MakeContinuation { .. }
         | Rvalue::TopLevelRef { .. }
         | Rvalue::UnresolvedName { .. } => vec![],
         Rvalue::IndexAccess {
