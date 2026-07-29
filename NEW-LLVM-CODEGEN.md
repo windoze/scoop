@@ -400,3 +400,11 @@ codegen 是 pipeline 末端，绝大多数非法程序在 parse/typecheck/MIR/LI
 - **resume 语义归属 codegen**：MIR `rewrite_resume_sites`（把 resume 重写为对不存在字段 `resumed` 的 MemberAccess，offset 静默为 0）已移除，`CallKind::Resume` 原样流向 LIR `LirCallKind::Resume` → codegen `lower_resume`（resumed 检查 + 真实 panic 消息 + resume_value 归一为 word + `step_fn(frame, word)` 间接调用）。
 - 顺带修复既有破坏：`scoop2_mir` 测试缺 `instance_symbol` 字段（编译失败）；devirtualize 陈旧测试 `ref_types_are_not_final`（String 自 5a984827 起为 final，测试未更新）。
 - 注意：continuation 对象的构造（perform 捕获续体）尚未实现，effect e2e 仍属 W1-10 待办。
+
+### 进展更新（String 方法链路 + 确定性修复）
+
+- **sysroot String 算法层恢复**：`string.scoop` 恢复全部 helper（length/toInt/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent，基于 byteLength/getByte substrate），`core.scoop` 的 String 加回对应方法（旧管线 p7 `receiver_effect_op` 恢复通过）。
+- **MIR owner 解析**：新增 `owner_fqn_of_type`（覆盖 Bool/Char/Int*/UInt*/Float*/String 内建类型 + nominal + 常量 operand），修复 `"a".concat` 等字面量 receiver 方法调用 owner 解析为 `Symbol::default()`（resolve 出 "main" 等无关字符串）的问题。
+- **成员签名查找确定性**：`lookup_member_sig` 按声明 owner 精确查 `member_funs`（修复原实现全表 `.values()` 首命中——HashMap 迭代序导致 `String.compareTo` 随机拿到 Int/Char/Float32.compareTo 签名、参数类型每次编译随机）。
+- **codegen**：`String.byteLength`/`getByte` intrinsic（runtime `scoop_string_byte_length`/`scoop_string_bytes`+索引 load）；修复 `_not_equals` 被 `_equals` 前缀匹配吞掉（`!=` 曾 lowering 成 EQ）；旧管线 intrinsic 表补 `float_equals`/`float32_to_int`/`float64_to_int`/`int_to_int`/`string_byte_length`/`string_get_byte` 校验条目。
+- 已知遗留（旧管线，sysroot 精简预期内）：`scoopc_hir` 7 个依赖已移除包（lang_string/sync/delegates/atomic/RefCell）的测试失败；p7 5 个旧 effect codegen 测试依赖旧 sysroot RuntimeError 形状/GC debug helper，待新 effect 管线（W1-10）取代。

@@ -563,18 +563,13 @@ fn member_call_target(
 
 /// 从 receiver 表达式推导 owner FQN（不 lower 表达式，避免 &mut 借用冲突）。
 fn resolve_owner_from_expr(builder: &FnLowering, receiver: &Expr) -> scoop2_base::Symbol {
-    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
     // 从 HIR expr_type 获取 receiver 的类型。
     let ty = builder.hir.expr_type(builder.file_id, receiver.id);
     let ty = match ty {
         Some(t) => t,
         None => return scoop2_base::Symbol::default(),
     };
-    match builder.types.kind(ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,
-        TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
-        _ => scoop2_base::Symbol::default(),
-    }
+    super::stmt::owner_fqn_of_type(builder, ty)
 }
 
 /// 从 HIR member_funs 查找某 (owner, method) 首个重载的 overload signature

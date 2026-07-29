@@ -632,28 +632,96 @@ pub fn operand_ty(builder: &mut FnLowering, op: &Operand) -> scoop2_hir::ty::Typ
     }
 }
 
+/// 类型 → 其方法分发的 owner FQN Symbol。
+///
+/// 覆盖内建类型（Bool/Char/Int*/UInt*/Float*/String）与 nominal class/struct/interface。
+/// 无法静态确定 owner（Any/Function/Union/类型参数等）时返回 `Symbol::default()`。
+/// 注意：`Symbol::default()` 可能 resolve 出无关字符串（它是真实 Symbol(0)），
+/// 调用方不得把它当作有效 owner 使用。
+pub fn owner_fqn_of_type(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> scoop2_base::Symbol {
+    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+    match builder.types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
+        TypeKind::Ref(RefTypeKind::String) => builder
+            .hir
+            .interner
+            .get("scoop.core.String")
+            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::Bool) => builder
+            .hir
+            .interner
+            .get("scoop.core.Bool")
+            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::Char) => builder
+            .hir
+            .interner
+            .get("scoop.core.Char")
+            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::Int) => builder
+            .hir
+            .interner
+            .get("scoop.core.Int")
+            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::UInt) => builder
+            .hir
+            .interner
+            .get("scoop.core.UInt")
+            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::IntN(bits)) => builder
+            .hir
+            .interner
+            .get(&format!("scoop.core.Int{bits}"))
+            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::UIntN(bits)) => builder
+            .hir
+            .interner
+            .get(&format!("scoop.core.UInt{bits}"))
+            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::Float32) => builder
+            .hir
+            .interner
+            .get("scoop.core.Float32")
+            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::Float64) => builder
+            .hir
+            .interner
+            .get("scoop.core.Float64")
+            .unwrap_or_default(),
+        _ => scoop2_base::Symbol::default(),
+    }
+}
+
 /// 从 operand 的类型解析 owner FQN Symbol（用于区分 interface vs class 分发）。
 ///
-/// 取 operand 的类型 → 若是 `Ref(Nominal)` 或 `Value(Nominal)`，返回 nominal fqn。
-/// 否则返回 `Symbol::default()`（无法解析时退回原行为）。
+/// 取 operand 的类型 → `owner_fqn_of_type`（含内建类型与常量 operand）。
+/// 无法解析时返回 `Symbol::default()`。
 pub fn resolve_owner_fqn_from_operand(builder: &FnLowering, op: &Operand) -> scoop2_base::Symbol {
-    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
     let ty = match op {
         Operand::Local(l) => builder
             .body
             .locals
             .get(l.0 as usize)
             .map(|d| d.ty),
-        Operand::Const(_) => return scoop2_base::Symbol::default(),
+        // 常量 operand：按常量种类映射到内建 owner 类型 FQN。
+        Operand::Const(c) => {
+            let fqn = match c {
+                crate::mir::ConstValue::String(_) => Some("scoop.core.String"),
+                crate::mir::ConstValue::Bool(_) => Some("scoop.core.Bool"),
+                crate::mir::ConstValue::Char(_) => Some("scoop.core.Char"),
+                crate::mir::ConstValue::Int(_, _) => Some("scoop.core.Int"),
+                crate::mir::ConstValue::Float(_, _) => Some("scoop.core.Float64"),
+                crate::mir::ConstValue::Unit | crate::mir::ConstValue::Null => None,
+            };
+            return fqn
+                .and_then(|f| builder.hir.interner.get(f))
+                .unwrap_or_default();
+        }
     };
     let Some(ty) = ty else {
         return scoop2_base::Symbol::default();
     };
-    match builder.types.kind(ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,
-        TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
-        _ => scoop2_base::Symbol::default(),
-    }
+    owner_fqn_of_type(builder, ty)
 }
 
 fn const_ty(builder: &mut FnLowering, c: &crate::mir::ConstValue) -> scoop2_hir::ty::TypeId {

@@ -200,6 +200,44 @@ public class String : Hashable, ToString {
 
     @Intrinsic("string_get_byte")
     public fun getByte(index: Int): Int
+
+    // ---- 算法层（实现在 string.scoop，基于 byteLength/getByte substrate）----
+
+    public fun length(): Int {
+        return __scoop_string_length(this)
+    }
+
+    public fun toInt(): Int {
+        return __scoop_string_to_int(this)
+    }
+
+    public override fun hash(): Int {
+        return __scoop_string_hash(this)
+    }
+
+    public fun isEmpty(): Bool {
+        return __scoop_string_is_empty(this)
+    }
+
+    public fun replace(old: String, new: String): String {
+        return __scoop_string_replace(this, old, new)
+    }
+
+    public fun charAt(index: Int): Int {
+        return __scoop_string_char_at(this, index)
+    }
+
+    public fun repeat(n: Int): String {
+        return __scoop_string_repeat(this, n)
+    }
+
+    public operator fun compareTo(other: String): Int {
+        return __scoop_string_compare_to(this, other)
+    }
+
+    public fun trimIndent(): String {
+        return __scoop_string_trim_indent(this)
+    }
 }
 
 @Extern(name = "scoop_string_concat", abi = "scoop")

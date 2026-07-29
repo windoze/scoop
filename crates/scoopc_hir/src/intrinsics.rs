@@ -249,6 +249,13 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
     ir_emission_entry("int_ne"),
     ir_emission_entry("int_compare_to"),
     ir_emission_entry("int_hash"),
+    // sysroot 的整型恒等/ widening 转换注解（Int.toInt 等）使用 "int_to_int" 字面量；
+    // 校验按注解字面量命中本表，实际 lowering 走 (owner, method) 映射。
+    ir_emission_entry("int_to_int"),
+    // sysroot 的 String.byteLength/getByte 注解字面量；旧 codegen 按 FQN
+    // （scoop.core.byteLength/getByte）IR 内联实现。
+    ir_emission_entry("string_byte_length"),
+    ir_emission_entry("string_get_byte"),
     ir_emission_entry("float_plus"),
     ir_emission_entry("float_minus"),
     ir_emission_entry("float_times"),
@@ -261,9 +268,16 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
     ir_emission_entry("float_gt"),
     ir_emission_entry("float_ge"),
     ir_emission_entry("float_eq"),
+    // sysroot 的 Float64/Float32.equals 注解使用 "float_equals" 字面量；
+    // 校验按注解字面量命中本表，实际 lowering 走 (owner, method) 映射（"float_eq"）。
+    ir_emission_entry("float_equals"),
     ir_emission_entry("float_ne"),
     ir_emission_entry("float_compare_to"),
     ir_emission_entry("float_to_int"),
+    // sysroot 的 Float32/Float64.toInt 注解使用按宽度的字面量；
+    // 校验按注解字面量命中本表，实际 lowering 走 (owner, method) 映射。
+    ir_emission_entry("float32_to_int"),
+    ir_emission_entry("float64_to_int"),
     ir_emission_entry("float_abs"),
     ir_emission_entry("float_is_nan"),
     ir_emission_entry("float_is_infinite"),

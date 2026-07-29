@@ -27,10 +27,117 @@ pub fn try_lower_intrinsic_by_fqn<'a, 'ctx>(
     if let Some(v) = try_lower_array_intrinsic(fl, callee_fqn, args, result_ty)? {
         return Ok(Some(v));
     }
+    // String 字节级 substrate：byteLength / getByte（@Intrinsic("string_byte_length"/"string_get_byte")）。
+    if let Some(v) = try_lower_string_intrinsic(fl, callee_fqn, args)? {
+        return Ok(Some(v));
+    }
     let Some(name) = intrinsic_name_from_fqn(callee_fqn) else {
         return Ok(None);
     };
     lower_named_intrinsic(fl, &name, args).map(Some)
+}
+
+/// String 字节级 substrate intrinsic。
+///
+/// - `String.byteLength()` → `scoop_string_byte_length(this)`（i64）。
+/// - `String.getByte(i)` → `scoop_string_bytes(this)` 得字节数据指针，GEP i 后 load i8 → zext i64。
+fn try_lower_string_intrinsic<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    callee_fqn: &str,
+    args: &[LirOperand],
+) -> CodegenResult<Option<BasicValueEnum<'ctx>>> {
+    let method = match callee_fqn.strip_prefix("scoop.core.String.") {
+        Some(m) => m,
+        None => return Ok(None),
+    };
+    if method != "byteLength" && method != "getByte" {
+        return Ok(None);
+    }
+    let i64 = fl.cg.context.i64_type();
+    let i8 = fl.cg.context.i8_type();
+    let receiver = match args.first() {
+        Some(LirOperand::Local(id)) => fl.load_local(*id)?,
+        Some(LirOperand::Const(c)) => fl.lower_const_value(c)?,
+        None => return Ok(None),
+    };
+    // receiver 是 GC ptr（String 引用）；runtime 的 extern(abi="scoop") 接受 GC ptr。
+    let recv_gc = match receiver {
+        BasicValueEnum::PointerValue(p) => {
+            if p.get_type().get_address_space() == crate::context::gc_address_space() {
+                p
+            } else {
+                let as_int = fl
+                    .builder
+                    .build_ptr_to_int(p, i64, "str_recv_int")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "str_recv_int", scoop2_base::Span::default()))?;
+                fl.builder
+                    .build_int_to_ptr(as_int, fl.cg.gc_ptr_ty(), "str_recv_gc")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "str_recv_gc", scoop2_base::Span::default()))?
+            }
+        }
+        _ => {
+            return Err(CodegenError::llvm(
+                "String receiver must be a pointer",
+                "try_lower_string_intrinsic",
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    match method {
+        "byteLength" => {
+            let call = fl
+                .builder
+                .build_call(fl.rt.string_byte_length, &[recv_gc.into()], "str_byte_len")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "str_byte_len", scoop2_base::Span::default()))?;
+            match call.try_as_basic_value() {
+                inkwell::values::ValueKind::Basic(v) => Ok(Some(v)),
+                inkwell::values::ValueKind::Instruction(_) => Err(CodegenError::llvm(
+                    "scoop_string_byte_length 未返回值",
+                    "byteLength",
+                    scoop2_base::Span::default(),
+                )),
+            }
+        }
+        _ => {
+            // getByte：bytes = scoop_string_bytes(this)（native const uint8_t*）。
+            let index = match args.get(1) {
+                Some(LirOperand::Local(id)) => fl.load_local(*id)?,
+                Some(LirOperand::Const(c)) => fl.lower_const_value(c)?,
+                None => return Ok(None),
+            };
+            let idx_i = crate::intrinsics::zext_to_i64(fl, index.into_int_value());
+            let call = fl
+                .builder
+                .build_call(fl.rt.string_bytes, &[recv_gc.into()], "str_bytes")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "str_bytes", scoop2_base::Span::default()))?;
+            let bytes = match call.try_as_basic_value() {
+                inkwell::values::ValueKind::Basic(v) => v,
+                inkwell::values::ValueKind::Instruction(_) => {
+                    return Err(CodegenError::llvm(
+                        "scoop_string_bytes 未返回值",
+                        "getByte",
+                        scoop2_base::Span::default(),
+                    ))
+                }
+            };
+            let bytes_native = gc_to_native(fl, bytes)?;
+            let slot = unsafe {
+                fl.builder
+                    .build_in_bounds_gep(i8, bytes_native, &[idx_i], "str_byte_slot")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "str_byte_slot", scoop2_base::Span::default()))?
+            };
+            let byte = fl
+                .builder
+                .build_load(i8, slot, "str_byte")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "str_byte", scoop2_base::Span::default()))?
+                .into_int_value();
+            let widened = fl
+                .builder
+                .build_int_z_extend(byte, i64, "str_byte_i64")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "str_byte_i64", scoop2_base::Span::default()))?;
+            Ok(Some(widened.into()))
+        }
+    }
 }
 
 /// Array / MutableArray intrinsic：size / get / set / __dataPtr。
@@ -477,21 +584,23 @@ fn lower_named_intrinsic<'a, 'ctx>(
                 .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
             return Ok(r.into());
         }
-        n if n.ends_with("_equals") => {
-            let lhs = one_arg(fl, args, 0)?.into_int_value();
-            let rhs = one_arg(fl, args, 1)?.into_int_value();
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::EQ, lhs, rhs, "eq")
-                .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
-            return Ok(zext_bool(fl, r, name)?);
-        }
+        // 注意：`_not_equals` 必须先于 `_equals`——"int_not_equals" 同时以 "_equals" 结尾，
+        // 顺序颠倒会把 `!=` 错误地 lowering 成 EQ。
         n if n.ends_with("_not_equals") => {
             let lhs = one_arg(fl, args, 0)?.into_int_value();
             let rhs = one_arg(fl, args, 1)?.into_int_value();
             let r = fl
                 .builder
                 .build_int_compare(IntPredicate::NE, lhs, rhs, "ne")
+                .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
+            return Ok(zext_bool(fl, r, name)?);
+        }
+        n if n.ends_with("_equals") => {
+            let lhs = one_arg(fl, args, 0)?.into_int_value();
+            let rhs = one_arg(fl, args, 1)?.into_int_value();
+            let r = fl
+                .builder
+                .build_int_compare(IntPredicate::EQ, lhs, rhs, "eq")
                 .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
             return Ok(zext_bool(fl, r, name)?);
         }

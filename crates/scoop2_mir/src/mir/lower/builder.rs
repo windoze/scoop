@@ -498,6 +498,39 @@ fn unreachable_term() -> Terminator {
     }
 }
 
+/// 查成员函数的 TypedSignature。
+///
+/// 优先按声明 owner 精确查找；未命中时回退到全表搜索（按 owner FQN 文本排序，
+/// 保证确定性——不得直接依赖 HashMap 迭代序，否则跨 owner 同名方法
+/// （String.compareTo / Int.compareTo / Char.compareTo …）会随机选错签名）。
+/// 同一 (owner, method) 可能有重载：优先选参数个数与 AST 声明一致的签名。
+fn lookup_member_sig<'h>(
+    hir: &'h TypedHir,
+    member_owner: Option<scoop2_base::Symbol>,
+    method_sym: scoop2_base::Symbol,
+    arity: usize,
+) -> Option<&'h scoop2_hir::hir::TypedSignature> {
+    let pick = |sigs: &'h [scoop2_hir::hir::TypedSignature]| {
+        sigs.iter().find(|s| s.param_types.len() == arity).or(sigs.first())
+    };
+    if let Some(owner) = member_owner {
+        if let Some(sig) = hir
+            .member_funs
+            .get(&owner)
+            .and_then(|methods| methods.get(&method_sym))
+            .and_then(|sigs| pick(sigs))
+        {
+            return Some(sig);
+        }
+    }
+    let mut owners: Vec<&scoop2_base::Symbol> = hir.member_funs.keys().collect();
+    owners.sort_by(|a, b| hir.interner.resolve(**a).cmp(hir.interner.resolve(**b)));
+    owners
+        .into_iter()
+        .filter_map(|o| hir.member_funs.get(o).and_then(|methods| methods.get(&method_sym)))
+        .find_map(|sigs| pick(sigs))
+}
+
 // ---------------------------------------------------------------------------
 // 顶层 lowering 入口（FunDecl / InitializerRoot）
 // ---------------------------------------------------------------------------
@@ -549,13 +582,10 @@ pub fn lower_fun_decl_inner(
         if from_top.is_some() {
             from_top
         } else {
-            // 成员函数：搜索 member_funs。
-            hir.member_funs
-                .values()
-                .flat_map(|methods| methods.get(&d.name.symbol))
-                .flat_map(|sigs| sigs.first())
+            // 成员函数：按声明 owner 精确查 member_funs（跨 owner 同名方法
+            // 如 String.compareTo/Int.compareTo 签名不同，不得混用）。
+            lookup_member_sig(hir, member_owner, d.name.symbol, d.params.len())
                 .map(|sig| sig.param_types.clone())
-                .next()
         }
     };
     let param_tys: Vec<TypeId> = if let Some(sig_tys) = sig_param_tys {
@@ -580,19 +610,10 @@ pub fn lower_fun_decl_inner(
             .and_then(|s| hir.top_level_funs.get(&s))
             .and_then(|sigs| sigs.first())
             .map(|sig| sig.return_ty);
-        // 2. 成员函数签名：owner_fqn = "pkg.method" → 拆 owner + method，查 member_funs。
+        // 2. 成员函数签名：按声明 owner 精确查 member_funs（同参数类型的查找）。
         let from_member = if from_top.is_none() {
-            // owner_fqn 格式：package.method（不含 class）。需要找声明此方法的 class。
-            // 拆分最后一段为 method name，其余为 package prefix。
-            let fqn_text = hir.interner.resolve(hir.interner.get(&owner_fqn).unwrap_or_default());
-            let method_name_sym = d.name.symbol;
-            // 搜索所有 member_funs 条目，找 method name 匹配的签名。
-            hir.member_funs
-                .values()
-                .flat_map(|methods| methods.get(&method_name_sym))
-                .flat_map(|sigs| sigs.first())
+            lookup_member_sig(hir, member_owner, d.name.symbol, d.params.len())
                 .map(|sig| sig.return_ty)
-                .next()
         } else {
             None
         };
