@@ -21,12 +21,231 @@ pub fn try_lower_intrinsic_by_fqn<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     callee_fqn: &str,
     args: &[LirOperand],
-    _result_ty: TypeId,
+    result_ty: TypeId,
 ) -> CodegenResult<Option<BasicValueEnum<'ctx>>> {
+    // Array / MutableArray 方法：直接按 FQN 分派到数组 intrinsic。
+    if let Some(v) = try_lower_array_intrinsic(fl, callee_fqn, args, result_ty)? {
+        return Ok(Some(v));
+    }
     let Some(name) = intrinsic_name_from_fqn(callee_fqn) else {
         return Ok(None);
     };
     lower_named_intrinsic(fl, &name, args).map(Some)
+}
+
+/// Array / MutableArray intrinsic：size / get / set / __dataPtr。
+///
+/// 对象布局（ScoopArray / ScoopMutableArray 共享前缀）：
+///   header(32) | len(u64@32) | elem_size_bytes(u64@40) | data_offset_bytes(u64@48) | ...
+///   data 从 data_offset_bytes 起算。
+fn try_lower_array_intrinsic<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    callee_fqn: &str,
+    args: &[LirOperand],
+    result_ty: TypeId,
+) -> CodegenResult<Option<BasicValueEnum<'ctx>>> {
+    let i64 = fl.cg.context.i64_type();
+    let i8 = fl.cg.context.i8_type();
+    // 仅处理 Array / MutableArray 的已知方法。
+    let is_array_owner = callee_fqn.starts_with("scoop.core.Array.")
+        || callee_fqn.starts_with("scoop.core.MutableArray.");
+    if !is_array_owner {
+        return Ok(None);
+    }
+    let method = callee_fqn.rsplit('.').next().unwrap_or("");
+    // 第一个参数是 receiver（this），已由 member_call prepend。
+    let receiver = match args.get(0) {
+        Some(LirOperand::Local(id)) => fl.load_local(*id)?,
+        Some(LirOperand::Const(c)) => fl.lower_const_value(c)?,
+        None => return Ok(None),
+    };
+    // receiver 是 GC ptr（Array 引用）→ native ptr。
+    let arr_native = gc_to_native(fl, receiver)?;
+    // len 在偏移 32（header 之后第 1 个字段）。
+    let len_slot = unsafe {
+        fl.builder
+            .build_in_bounds_gep(i8, arr_native, &[i64.const_int(32, false)], "arr_len_slot")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "arr_gep_len", scoop2_base::Span::default()))?
+    };
+    let len_val = fl
+        .builder
+        .build_load(i64, len_slot, "arr_len")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "arr_load_len", scoop2_base::Span::default()))?
+        .into_int_value();
+    // data_offset_bytes 在偏移 48。
+    let doff_slot = unsafe {
+        fl.builder
+            .build_in_bounds_gep(i8, arr_native, &[i64.const_int(48, false)], "arr_doff_slot")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "arr_gep_doff", scoop2_base::Span::default()))?
+    };
+    let data_off = fl
+        .builder
+        .build_load(i64, doff_slot, "arr_doff")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "arr_load_doff", scoop2_base::Span::default()))?
+        .into_int_value();
+    // elem_size_bytes 在偏移 40。
+    let esz_slot = unsafe {
+        fl.builder
+            .build_in_bounds_gep(i8, arr_native, &[i64.const_int(40, false)], "arr_esz_slot")
+            .map_err(|e| CodegenError::llvm(e.to_string(), "arr_gep_esz", scoop2_base::Span::default()))?
+    };
+    let elem_size = fl
+        .builder
+        .build_load(i64, esz_slot, "arr_esz")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "arr_load_esz", scoop2_base::Span::default()))?
+        .into_int_value();
+
+    match method {
+        "size" => {
+            return Ok(Some(len_val.into()));
+        }
+        "get" => {
+            // args[1] = index。
+            let index = match args.get(1) {
+                Some(LirOperand::Local(id)) => fl.load_local(*id)?.into_int_value(),
+                Some(LirOperand::Const(c)) => fl.lower_const_value(c)?.into_int_value(),
+                None => return Ok(None),
+            };
+            // data_ptr = (i8*)arr + data_off
+            let data_ptr = unsafe {
+                fl.builder
+                    .build_in_bounds_gep(i8, arr_native, &[data_off], "arr_data")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_gep_data", scoop2_base::Span::default()))?
+            };
+            // elem_offset = index * elem_size
+            let elem_off = fl
+                .builder
+                .build_int_mul(index, elem_size, "arr_elem_off")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "arr_elem_off", scoop2_base::Span::default()))?;
+            let elem_ptr = unsafe {
+                fl.builder
+                    .build_in_bounds_gep(i8, data_ptr, &[elem_off], "arr_elem_ptr")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_gep_elem", scoop2_base::Span::default()))?
+            };
+            // 元素 LLVM 类型由 result_ty 决定。
+            let elem_llvm_ty = fl.cg.lower_type(result_ty, fl.layouts)?;
+            let loaded = fl
+                .builder
+                .build_load(elem_llvm_ty, elem_ptr, "arr_elem")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "arr_load_elem", scoop2_base::Span::default()))?;
+            // 若元素是 GC ptr，转回 addrspace 1。
+            let result = native_to_gc_if_ptr(fl, loaded)?;
+            return Ok(Some(result));
+        }
+        "set" => {
+            // args[1] = index, args[2] = value。
+            let index = match args.get(1) {
+                Some(LirOperand::Local(id)) => fl.load_local(*id)?.into_int_value(),
+                Some(LirOperand::Const(c)) => fl.lower_const_value(c)?.into_int_value(),
+                None => return Ok(None),
+            };
+            let value = match args.get(2) {
+                Some(LirOperand::Local(id)) => fl.load_local(*id)?,
+                Some(LirOperand::Const(c)) => fl.lower_const_value(c)?,
+                None => return Ok(None),
+            };
+            let data_ptr = unsafe {
+                fl.builder
+                    .build_in_bounds_gep(i8, arr_native, &[data_off], "arr_set_data")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_set_gep_data", scoop2_base::Span::default()))?
+            };
+            let elem_off = fl
+                .builder
+                .build_int_mul(index, elem_size, "arr_set_off")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "arr_set_off", scoop2_base::Span::default()))?;
+            let elem_ptr = unsafe {
+                fl.builder
+                    .build_in_bounds_gep(i8, data_ptr, &[elem_off], "arr_set_ptr")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_set_gep_elem", scoop2_base::Span::default()))?
+            };
+            // value 若为 GC ptr → native ptr for store。
+            let val_native = gc_to_native_basic(fl, value)?;
+            fl.builder
+                .build_store(elem_ptr, val_native)
+                .map_err(|e| CodegenError::llvm(e.to_string(), "arr_store", scoop2_base::Span::default()))?;
+            // 返回 Unit（i8 zero）。
+            return Ok(Some(i8.const_zero().into()));
+        }
+        "__dataPtr" => {
+            // 返回 data_ptr 作为 UIntPtr（native ptr → i64）。
+            let data_ptr = unsafe {
+                fl.builder
+                    .build_in_bounds_gep(i8, arr_native, &[data_off], "arr_dptr")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "arr_dptr_gep", scoop2_base::Span::default()))?
+            };
+            let as_int = fl
+                .builder
+                .build_ptr_to_int(data_ptr, i64, "arr_dptr_int")
+                .map_err(|e| CodegenError::llvm(e.to_string(), "arr_dptr_int", scoop2_base::Span::default()))?;
+            return Ok(Some(as_int.into()));
+        }
+        _ => return Ok(None),
+    }
+}
+
+/// GC ptr (addrspace 1) → native ptr (addrspace 0)。
+fn gc_to_native<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    val: BasicValueEnum<'ctx>,
+) -> CodegenResult<inkwell::values::PointerValue<'ctx>> {
+    let i64 = fl.cg.context.i64_type();
+    match val {
+        BasicValueEnum::PointerValue(p) => {
+            if p.get_type().get_address_space() == crate::context::gc_address_space() {
+                let as_int = fl
+                    .builder
+                    .build_ptr_to_int(p, i64, "a2n_int")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "a2n_int", scoop2_base::Span::default()))?;
+                fl.builder
+                    .build_int_to_ptr(as_int, fl.cg.native_ptr_ty(), "a2n_ptr")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "a2n_ptr", scoop2_base::Span::default()))
+            } else {
+                Ok(p)
+            }
+        }
+        _ => Err(CodegenError::llvm(
+            &format!("expected pointer for array receiver, got {:?}", val),
+            "gc_to_native",
+            scoop2_base::Span::default(),
+        )),
+    }
+}
+
+/// 同 gc_to_native 但返回 BasicValueEnum（用于 store value）。
+fn gc_to_native_basic<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    val: BasicValueEnum<'ctx>,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    match val {
+        BasicValueEnum::PointerValue(_) => Ok(gc_to_native(fl, val)?.into()),
+        _ => Ok(val),
+    }
+}
+
+/// 若值是 native ptr 但目标期望 GC ptr（引用类型元素），转回 GC ptr。
+fn native_to_gc_if_ptr<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    val: BasicValueEnum<'ctx>,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    let i64 = fl.cg.context.i64_type();
+    match val {
+        BasicValueEnum::PointerValue(p) => {
+            if p.get_type().get_address_space() != crate::context::gc_address_space() {
+                let as_int = fl
+                    .builder
+                    .build_ptr_to_int(p, i64, "n2g_int")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "n2g_int", scoop2_base::Span::default()))?;
+                let gc = fl
+                    .builder
+                    .build_int_to_ptr(as_int, fl.cg.gc_ptr_ty(), "n2g_ptr")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "n2g_ptr", scoop2_base::Span::default()))?;
+                Ok(gc.into())
+            } else {
+                Ok(val)
+            }
+        }
+        _ => Ok(val),
+    }
 }
 
 /// 从 Scoop FQN 推导 intrinsic name（启发式）。
