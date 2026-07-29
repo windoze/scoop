@@ -81,8 +81,11 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
         fl.alloc_locals(body, &mut rf)?;
         // entry push（在 create_blocks 的 entry→start br 之前；builder 此时位于 entry 末尾）。
         fl.emit_root_frame_push(&mut rf)?;
-        fl.create_blocks(body);
         fl.root_frame = Some(rf);
+        // 在 root frame push 之后重新存储函数参数（GC 参数需镜像到 frame slot；
+        // frame push 会清零 slots，所以参数必须在 push 之后存储）。
+        fl.store_params_to_locals()?;
+        fl.create_blocks(body);
         for blk in &body.blocks {
             fl.lower_block(blk)?;
         }
@@ -100,19 +103,6 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
                 .map_err(|e| CodegenError::llvm(e.to_string(), "build_alloca", scoop2_base::Span::default()))?;
             self.locals.insert(d.id, slot);
             self.local_types.insert(d.id, d.ty);
-        }
-        // 将函数参数值存储到对应的 local slot。
-        // LIR callable 的 params 与 body.locals 的前 N 个一一对应（按 MIR lower 顺序）。
-        let param_count = self.fv.count_params();
-        for i in 0..param_count {
-            let local_id = i as u32;
-            if let Some(&slot) = self.locals.get(&local_id) {
-                if let Some(param) = self.fv.get_nth_param(i) {
-                    self.builder
-                        .build_store(slot, param)
-                        .map_err(|e| CodegenError::llvm(e.to_string(), "store param", scoop2_base::Span::default()))?;
-                }
-            }
         }
         // 若需要 root frame，在此分配（entry 中）。
         if rf.needs_frame() {
@@ -357,6 +347,19 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
             .as_ref()
             .and_then(|rf| rf.local_to_slot.get(&id))
             .is_some()
+    }
+
+    /// 将函数参数值存储到对应的 local slot（在 root frame push 之后调用，
+    /// 以确保 GC 参数被正确镜像到 frame slot）。
+    pub fn store_params_to_locals(&self) -> CodegenResult<()> {
+        let param_count = self.fv.count_params();
+        for i in 0..param_count {
+            let local_id = i as u32;
+            if let Some(param) = self.fv.get_nth_param(i) {
+                self.store_local(local_id, param)?;
+            }
+        }
+        Ok(())
     }
 
     /// 把一个值存入 local。
