@@ -256,14 +256,20 @@ fn declare_declaration<'ctx>(
 }
 
 /// 把 extern FQN 映射到运行时符号名。
-/// `scoop.core.__scoop_println` → `scoop_println`；`scoop.core.__scoop_int_to_string` → `scoop_int_to_string`。
+///
+/// sysroot 的 `@Extern(name="scoop_X")` 声明遵循 `scoop_<simple_name>` 命名约定：
+/// - `scoop.core.__scoop_println` → `scoop_println`（`__scoop_` 前缀替换）
+/// - `scoop.core.panic` → `scoop_panic`（无前缀时按 `scoop_<simple>` 推断）
+///
+/// 完整实现应从 `@Extern(name=...)` 注解透传符号名；此处按 sysroot 约定推断。
 fn resolve_extern_runtime_symbol(fqn: &str) -> String {
     // 取最后一段（simple name），把 `__scoop_` 前缀替换为 `scoop_`。
     let simple = fqn.rsplit('.').next().unwrap_or(fqn);
     if let Some(stripped) = simple.strip_prefix("__scoop_") {
         format!("scoop_{stripped}")
     } else {
-        fqn.to_string()
+        // 无 `__scoop_` 前缀的 extern（如 panic/print）：按 `scoop_<simple>` 推断符号。
+        format!("scoop_{simple}")
     }
 }
 
