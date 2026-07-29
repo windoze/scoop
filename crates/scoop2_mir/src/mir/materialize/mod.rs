@@ -380,12 +380,13 @@ pub fn materialize(
         direct_subtypes: &hir.direct_subtypes,
     };
     crate::mir::devirtualize::devirtualize_module(&mut result_module, &devirt_ctx);
-    // 内联 pass：把小型 direct callee（含 HOF 如 apply/map/filter）内联到调用点。
-    // 在 devirtualize 之后运行：devirt 产生的 Direct 调用可成为内联候选。
-    crate::mir::inline::inline_module(
-        &mut result_module,
-        crate::mir::inline::InlineConfig::default(),
-    );
+    // 内联 pass 暂时禁用（optimization，非 correctness 必需）。
+    // inline pass 的 callee 查找在 owner-qualified FQN 后可能选中错误重载。
+    // codegen lower_direct 能正确解析 Direct 调用。
+    // crate::mir::inline::inline_module(
+    //     &mut result_module,
+    //     crate::mir::inline::InlineConfig::default(),
+    // );
     // effect lowering pass：把 Perform/Handle/Resume 消除为本地 dispatch / 状态机。
     // 在 inline 之后运行：inline 消除 effect-transparent HOF 后，effect 边界更少。
     crate::mir::effect_lower::lower_effects(&mut result_module, &hir.interner);

@@ -316,8 +316,7 @@ fn lower_extern_type<'ctx>(
                 return Ok(cg.context.i64_type().into());
             }
             scoop2_lir::TypeLayoutKind::Reference { .. } | scoop2_lir::TypeLayoutKind::Function => {
-                // extern C 函数返回 native ptr（ScoopString* 等），非 GC ptr。
-                return Ok(cg.native_ptr_ty().into());
+                return Ok(cg.gc_ptr_ty().into());
             }
             _ => {}
         }
