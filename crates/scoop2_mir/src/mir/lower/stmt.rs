@@ -290,15 +290,41 @@ pub fn lower_local_val(builder: &mut FnLowering, val: &ast::ValDecl) {
         .as_ref()
         .map(|e| builder.expr_ty(e.id))
         .unwrap_or_else(|| builder.types.nothing());
-    let init_ty = if init_is_empty_array {
+    // `val ys: MutableArray<T> = [a, b]`：typecheck 允许 Array 字面量赋给
+    // MutableArray 声明（上下文相关转换），但字面量标注类型仍是 Array<T>。
+    // 这里用声明类型作为字面量结果类型，使 MakeArray 不 freeze（构造可变数组），
+    // local 类型也与后续 `ys.set(...)` 的 MutableArray 布局分派一致。
+    let init_is_array_lit = val
+        .init
+        .as_ref()
+        .is_some_and(|e| matches!(&e.kind, ast::ExprKind::ArrayLit(_)));
+    let declared_is_mutable_array = declared_ty.is_some_and(|t| {
+        let fqn = match builder.types.kind(t) {
+            scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => {
+                builder.hir.interner.resolve(n.fqn)
+            }
+            _ => "",
+        };
+        fqn.ends_with(".MutableArray")
+    });
+    let use_declared_for_lit = declared_ty.is_some()
+        && (init_is_empty_array || (init_is_array_lit && declared_is_mutable_array));
+    let init_ty = if use_declared_for_lit {
         declared_ty.unwrap_or(init_ty_raw)
     } else {
         init_ty_raw
     };
-    let init_operand = val
-        .init
-        .as_ref()
-        .map(|e| super::expr::lower_expr(builder, e));
+    let init_operand = match &val.init {
+        Some(e) if init_is_array_lit && declared_is_mutable_array => {
+            let els = match &e.kind {
+                ast::ExprKind::ArrayLit(els) => els,
+                _ => unreachable!("init_is_array_lit 已判定为 ArrayLit"),
+            };
+            Some(super::expr::lower_array_lit(builder, els, e.span, init_ty))
+        }
+        Some(e) => Some(super::expr::lower_expr(builder, e)),
+        None => None,
+    };
     match &val.binding {
         ValBinding::Name(name) => {
             let is_var = val.kind == ast::ValKind::Var;

@@ -356,6 +356,7 @@ fn dump_rvalue(
             receiver,
             indices,
             element_ty,
+            ..
         } => format!(
             "IndexAccess({}, [{}], {})",
             dump_operand(receiver, labels),

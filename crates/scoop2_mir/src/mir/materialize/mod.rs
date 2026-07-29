@@ -694,8 +694,16 @@ fn subst_rvalue(rv: &mut Rvalue, subst: &Subst, store: &mut TypeStore) {
         Rvalue::MemberAccess { member, .. } => {
             subst_member_access_metadata(member, subst, store);
         }
-        Rvalue::TupleIndex { element_ty, .. } | Rvalue::IndexAccess { element_ty, .. } => {
+        Rvalue::TupleIndex { element_ty, .. } => {
             *element_ty = store.apply_subst(*element_ty, subst);
+        }
+        Rvalue::IndexAccess {
+            element_ty,
+            receiver_ty,
+            ..
+        } => {
+            *element_ty = store.apply_subst(*element_ty, subst);
+            *receiver_ty = store.apply_subst(*receiver_ty, subst);
         }
         Rvalue::EnumVariant {
             enum_ty,

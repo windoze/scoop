@@ -435,10 +435,12 @@ fn map_rvalue(
             receiver,
             indices,
             element_ty,
+            receiver_ty,
         } => LirRvalue::IndexAccess {
             receiver_local: map_operand(receiver),
             index_locals: indices.iter().map(map_operand).collect(),
             element_ty: *element_ty,
+            receiver_mutable: is_mutable_array_ty(*receiver_ty, types, interner),
         },
         Rvalue::EnumVariant {
             enum_ty,
@@ -588,6 +590,7 @@ fn map_rvalue(
         } => LirRvalue::MakeArray {
             elements: elements.iter().map(map_operand).collect(),
             ty: *result_ty,
+            mutable: is_mutable_array_ty(*result_ty, types, interner),
         },
         Rvalue::StructLit {
             type_fqn,
@@ -623,25 +626,16 @@ fn map_rvalue(
             updates: updates
                 .iter()
                 .map(|u| {
-                    let field_name = u
-                        .path
-                        .first()
-                        .map(|seg| match seg {
-                            scoop2_mir::mir::WithUpdateSegment::Named(sym) => {
-                                interner.resolve(*sym).to_string()
-                            }
-                            scoop2_mir::mir::WithUpdateSegment::TupleIndex(idx) => {
-                                format!("_{}", idx)
-                            }
-                        })
-                        .unwrap_or_default();
-                    LirWithUpdateField {
-                        field_name,
+                    let path = resolve_with_update_path(
+                        *result_ty, &u.path, layouts, types, hir, interner,
+                    )?;
+                    Ok(LirWithUpdateField {
+                        path,
                         value: map_operand(&u.value),
                         value_ty: u.value_ty,
-                    }
+                    })
                 })
-                .collect(),
+                .collect::<Result<Vec<_>, LirError>>()?,
             result_ty: *result_ty,
         },
         Rvalue::MakeClosure {
@@ -916,6 +910,97 @@ fn align_up_u64(val: u64, align: u64) -> u64 {
     }
     let rem = val % align;
     if rem == 0 { val } else { val + (align - rem) }
+}
+
+/// 类型是否为 `scoop.core.MutableArray<T>` 引用（决定数组布局分派与 MakeArray 是否 freeze）。
+fn is_mutable_array_ty(
+    ty: scoop2_hir::ty::TypeId,
+    types: &scoop2_hir::ty::TypeStore,
+    interner: &Interner,
+) -> bool {
+    use scoop2_hir::ty::{RefTypeKind, TypeKind};
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => {
+            interner.resolve(n.fqn) == "scoop.core.MutableArray"
+        }
+        _ => false,
+    }
+}
+
+/// 解析 nominal receiver 的命名字段类型（与 compute_field_offset 的字段定位同源：
+/// value struct 用 `ordered_members`，class 用 `ordered_class_fields`，均按声明序）。
+fn resolve_named_field_ty(
+    receiver_ty: scoop2_hir::ty::TypeId,
+    member_name: &str,
+    types: &scoop2_hir::ty::TypeStore,
+    hir: &TypedHir,
+    interner: &Interner,
+) -> Result<scoop2_hir::ty::TypeId, LirError> {
+    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+    let ordered = match types.kind(receiver_ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => hir.ordered_class_fields(n.fqn),
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => hir.ordered_members(&n.fqn),
+        _ => {
+            return Err(LirError::new(format!(
+                "with 更新的 receiver 不是 nominal 类型（字段 {member_name}）"
+            )));
+        }
+    };
+    ordered
+        .iter()
+        .find(|(name_sym, _)| interner.resolve(*name_sym) == member_name)
+        .map(|(_, member_ty)| *member_ty)
+        .ok_or_else(|| LirError::new(format!("with 更新找不到字段 {member_name}")))
+}
+
+/// 把 MIR with 更新路径逐段解析为 LIR 段（字段名 + 布局偏移 + 字段类型）。
+///
+/// 偏移用 [`compute_field_offset`]（与 MemberAccess 同源）；tuple 段直接读
+/// TypeLayoutTable 的 Tuple elements。解析失败（非 nominal receiver / 字段缺失 /
+/// tuple 布局缺失或索引越界）返回 [`LirError`]——绝不静默落到字段 0。
+fn resolve_with_update_path(
+    result_ty: scoop2_hir::ty::TypeId,
+    segments: &[scoop2_mir::mir::WithUpdateSegment],
+    layouts: &TypeLayoutTable,
+    types: &scoop2_hir::ty::TypeStore,
+    hir: &TypedHir,
+    interner: &Interner,
+) -> Result<Vec<crate::LirWithUpdateSegment>, LirError> {
+    let mut out = Vec::with_capacity(segments.len());
+    let mut cur_ty = result_ty;
+    for seg in segments {
+        match seg {
+            scoop2_mir::mir::WithUpdateSegment::Named(sym) => {
+                let name = interner.resolve(*sym).to_string();
+                let offset = compute_field_offset(cur_ty, &name, layouts, types, hir, interner)?;
+                let field_ty = resolve_named_field_ty(cur_ty, &name, types, hir, interner)?;
+                out.push(crate::LirWithUpdateSegment {
+                    name,
+                    offset,
+                    ty: field_ty,
+                });
+                cur_ty = field_ty;
+            }
+            scoop2_mir::mir::WithUpdateSegment::TupleIndex(idx) => {
+                let fields = layouts.get(cur_ty).and_then(|l| match &l.kind {
+                    TypeLayoutKind::Tuple { elements } => Some(elements),
+                    _ => None,
+                });
+                let field = fields.and_then(|fs| fs.get(*idx as usize)).ok_or_else(|| {
+                    LirError::new(format!(
+                        "with 更新路径段 _{idx} 的 receiver 不是含该索引的 tuple 布局"
+                    ))
+                })?;
+                out.push(crate::LirWithUpdateSegment {
+                    name: format!("_{idx}"),
+                    offset: field.offset,
+                    ty: field.ty,
+                });
+                cur_ty = field.ty;
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// 在 TypeStore 中查找 Any 引用类型的 TypeId（不修改 store）。

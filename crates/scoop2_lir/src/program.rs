@@ -498,6 +498,8 @@ pub enum LirRvalue {
     MakeArray {
         elements: Vec<LirOperand>,
         ty: TypeId,
+        /// 结果是否为 `MutableArray<T>`（true：不 freeze，返回可变数组本体）。
+        mutable: bool,
     },
     /// struct 字面量。
     StructLit {
@@ -529,6 +531,9 @@ pub enum LirRvalue {
         receiver_local: LirOperand,
         index_locals: Vec<LirOperand>,
         element_ty: TypeId,
+        /// receiver 是否为 `MutableArray<T>`（外置 data 指针布局；
+        /// false = `Array<T>` 内联 data 布局或其他按 Array 布局处理的类型）。
+        receiver_mutable: bool,
     },
     /// 类型测试 `is T`。
     TypeTest {
@@ -671,12 +676,24 @@ pub enum LirPattern {
 /// with 更新字段。
 #[derive(Clone, Debug)]
 pub struct LirWithUpdateField {
-    /// 字段名。
-    pub field_name: String,
+    /// 更新路径（已逐段解析：字段名 + 在该层布局中的字节偏移 + 字段类型）。
+    /// 单段 = 扁平更新；多段 = 嵌套更新（`line with { start.x: 99 }`）。
+    pub path: Vec<LirWithUpdateSegment>,
     /// 新值。
     pub value: LirOperand,
     /// 值类型。
     pub value_ty: TypeId,
+}
+
+/// with 更新路径的一段。
+#[derive(Clone, Debug)]
+pub struct LirWithUpdateSegment {
+    /// 字段名（tuple 段为 `_N`；仅用于诊断）。
+    pub name: String,
+    /// 字段在该层 struct/tuple 布局中的字节偏移（与 TypeLayoutTable 同源）。
+    pub offset: u64,
+    /// 字段类型（下一层的 receiver 类型）。
+    pub ty: TypeId,
 }
 
 /// f-string 片段。

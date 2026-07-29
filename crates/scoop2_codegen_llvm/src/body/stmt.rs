@@ -70,14 +70,25 @@ pub fn lower_stmt<'a, 'ctx>(
         LirStmtKind::Panic { message } => {
             // 调用 scoop_panic(string)。
             let s = fl.cg.get_or_create_string_literal(message)?;
-            // scoop_panic 是 native void*；把 GC 指针 cast 到 native。
-            let native = fl
+            // scoop_panic 是 native void*；string literal 是 GC ptr（addrspace 1），
+            // 跨地址空间不能 bitcast，走 ptrtoint/inttoptr。
+            let msg_int = fl
                 .builder
-                .build_bit_cast(s, fl.cg.native_ptr_ty(), "panic_msg")
+                .build_ptr_to_int(s, fl.cg.context.i64_type(), "panic_msg_int")
                 .map_err(|e| {
                     CodegenError::llvm(
                         e.to_string(),
-                        "build_bit_cast panic",
+                        "ptr_to_int panic",
+                        scoop2_base::Span::default(),
+                    )
+                })?;
+            let native = fl
+                .builder
+                .build_int_to_ptr(msg_int, fl.cg.native_ptr_ty(), "panic_msg")
+                .map_err(|e| {
+                    CodegenError::llvm(
+                        e.to_string(),
+                        "int_to_ptr panic",
                         scoop2_base::Span::default(),
                     )
                 })?;

@@ -472,6 +472,8 @@ pub enum Rvalue {
         receiver: Operand,
         indices: Vec<Operand>,
         element_ty: TypeId,
+        /// receiver 的静态类型（Array / MutableArray 布局分派依据）。
+        receiver_ty: TypeId,
     },
     /// enum variant 构造 `Variant(args...)`。
     EnumVariant {

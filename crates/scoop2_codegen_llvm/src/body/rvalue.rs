@@ -45,7 +45,14 @@ pub fn lower_rvalue<'a, 'ctx>(
             receiver_local,
             index_locals,
             element_ty,
-        } => lower_index_access(fl, receiver_local, index_locals, *element_ty),
+            receiver_mutable,
+        } => lower_index_access(
+            fl,
+            receiver_local,
+            index_locals,
+            *element_ty,
+            *receiver_mutable,
+        ),
         LirRvalue::TypeTest {
             value_local,
             target_ty,
@@ -80,7 +87,11 @@ pub fn lower_rvalue<'a, 'ctx>(
             ..
         } => lower_enum_variant(fl, *enum_ty, *tag_value, args, *payload_ty),
         LirRvalue::ClassCtor { class_fqn, args } => lower_class_ctor(fl, class_fqn, args),
-        LirRvalue::MakeArray { elements, ty } => lower_make_array(fl, elements, *ty),
+        LirRvalue::MakeArray {
+            elements,
+            ty,
+            mutable,
+        } => lower_make_array(fl, elements, *ty, *mutable),
         LirRvalue::MakeClosure {
             env_local,
             invoke_fqn,
@@ -574,19 +585,24 @@ fn lower_top_level_ref<'a, 'ctx>(
 }
 
 /// `IndexAccess { receiver, indices, element_ty }` → 数组索引访问。
-/// 不可变 `Array<T>` 布局（runtime/c/scoop_array_internal.h `ScoopArray`）：
-/// `{ header; u64 len; u64 elem_size_bytes; u64 data_offset_bytes; ptr elem_desc;
-///    u32 elem_kind; u32 _reserved; u8 data[] }`。
-/// 元素 data 内联在对象中；`data_offset_bytes`（header+16）保存 data 的绝对偏移。
-/// scoop2 的 MakeArray 一律以 8 字节槽存储元素（WORD zext 到 i64 / REF 指针），
-/// 故 stride 恒为 8，读取时按静态元素类型截断/转换。
+///
+/// 两种布局（由 LIR `receiver_mutable` 分派，见 runtime/c/scoop_array_internal.h）：
+/// - 不可变 `Array<T>`（ScoopArray）：`{ header; u64 len; u64 elem_size_bytes;
+///   u64 data_offset_bytes; ptr elem_desc; u32 elem_kind; u32 _reserved; u8 data[] }`，
+///   元素 data 内联在对象中，元素地址 = arr + data_offset_bytes + idx * elem_size。
+/// - `MutableArray<T>`（ScoopMutableArray）：`{ header; u64 len; u64 cap;
+///   u64 elem_size_bytes; u64 elem_align_bytes; ptr elem_desc; ptr data; ... }`，
+///   data 是外置指针，元素地址 = data + idx * elem_size。
+///
+/// 越界（含负 index，按无符号比较统一捕获）调用 scoop_panic，与 Panic stmt 同路径。
 fn lower_index_access<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     receiver: &LirOperand,
     indices: &[LirOperand],
     element_ty: scoop2_hir::ty::TypeId,
+    receiver_mutable: bool,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
-    // 当前简化：仅支持一维索引。receiver 是 Array<T> (GC ptr)。
+    // 当前简化：仅支持一维索引。receiver 是 Array/MutableArray<T> (GC ptr)。
     let recv_gc = match receiver {
         LirOperand::Local(id) => {
             super::expect_ptr_val(fl.load_local(*id)?, "IndexAccess receiver", &fl.fqn)?
@@ -595,7 +611,7 @@ fn lower_index_access<'a, 'ctx>(
             super::expect_ptr_val(fl.lower_const_value(c)?, "IndexAccess receiver", &fl.fqn)?
         }
     };
-    let idx = match indices.first() {
+    let idx_raw = match indices.first() {
         Some(LirOperand::Local(id)) => {
             super::expect_int_val(fl.load_local(*id)?, "IndexAccess 索引", &fl.fqn)?
         }
@@ -611,6 +627,8 @@ fn lower_index_access<'a, 'ctx>(
         }
     };
     let i64_ty = fl.cg.context.i64_type();
+    // 索引统一为 i64（有符号语义：小宽度 sext，负值保持负值，交由无符号比较捕获）。
+    let idx = normalize_int_to_i64(fl, idx_raw, "arr_idx")?;
     let native = fl
         .builder
         .build_ptr_to_int(recv_gc, i64_ty, "arr2int")
@@ -635,55 +653,90 @@ fn lower_index_access<'a, 'ctx>(
         .cg
         .target_data
         .get_store_size(&fl.cg.object_header_type());
-    // data_offset_bytes 字段在 header + 8(len) + 8(elem_size) = header+16。
-    let data_offset_slot = unsafe {
+    // len 在两种布局里都在 header + 0。
+    let len_slot = unsafe {
         fl.builder.build_in_bounds_gep(
             fl.cg.context.i8_type(),
             native_ptr,
-            &[i64_ty.const_int(header_size + 16, false)],
-            "arr_data_off_slot",
+            &[i64_ty.const_int(header_size, false)],
+            "arr_len_slot",
         )
     }
-    .map_err(|e| {
-        CodegenError::llvm(
-            e.to_string(),
-            "gep arr_data_off",
-            scoop2_base::Span::default(),
-        )
-    })?;
-    let data_offset = fl
+    .map_err(|e| CodegenError::llvm(e.to_string(), "gep arr_len", scoop2_base::Span::default()))?;
+    let len = fl
         .builder
-        .build_load(i64_ty, data_offset_slot, "arr_data_off")
+        .build_load(i64_ty, len_slot, "arr_len")
         .map_err(|e| {
-            CodegenError::llvm(
-                e.to_string(),
-                "load arr_data_off",
-                scoop2_base::Span::default(),
-            )
+            CodegenError::llvm(e.to_string(), "load arr_len", scoop2_base::Span::default())
         })?
         .into_int_value();
-    // 元素地址 = arr + data_offset + idx * 8（槽恒为 8 字节）。
-    let byte_offset = fl
-        .builder
-        .build_int_mul(idx, i64_ty.const_int(8, false), "arr_elem_off")
-        .map_err(|e| {
-            CodegenError::llvm(e.to_string(), "mul elem off", scoop2_base::Span::default())
-        })?;
-    let elem_offset = fl
-        .builder
-        .build_int_add(data_offset, byte_offset, "arr_elem_abs_off")
-        .map_err(|e| {
-            CodegenError::llvm(e.to_string(), "add elem off", scoop2_base::Span::default())
-        })?;
-    let elem_addr = unsafe {
-        fl.builder.build_in_bounds_gep(
-            fl.cg.context.i8_type(),
-            native_ptr,
-            &[elem_offset],
-            "arr_elem_i8",
-        )
-    }
-    .map_err(|e| CodegenError::llvm(e.to_string(), "gep elem", scoop2_base::Span::default()))?;
+    build_array_bounds_check(fl, idx, len)?;
+    let elem_addr = if receiver_mutable {
+        // MutableArray：elem_size_bytes @ header+16，data 外置指针 @ header+40。
+        let stride = load_i64_field(fl, native_ptr, header_size + 16, "arr_esz")?;
+        let data_ptr = fl
+            .builder
+            .build_load(
+                fl.cg.native_ptr_ty(),
+                unsafe {
+                    fl.builder.build_in_bounds_gep(
+                        fl.cg.context.i8_type(),
+                        native_ptr,
+                        &[i64_ty.const_int(header_size + 40, false)],
+                        "arr_data_slot",
+                    )
+                }
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), "gep arr_data", scoop2_base::Span::default())
+                })?,
+                "arr_data",
+            )
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "load arr_data", scoop2_base::Span::default())
+            })?
+            .into_pointer_value();
+        let byte_offset = fl
+            .builder
+            .build_int_mul(idx, stride, "arr_elem_off")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "mul elem off", scoop2_base::Span::default())
+            })?;
+        unsafe {
+            fl.builder.build_in_bounds_gep(
+                fl.cg.context.i8_type(),
+                data_ptr,
+                &[byte_offset],
+                "arr_elem_i8",
+            )
+        }
+        .map_err(|e| CodegenError::llvm(e.to_string(), "gep elem", scoop2_base::Span::default()))?
+    } else {
+        // Array：elem_size_bytes @ header+8，data_offset_bytes @ header+16。
+        let stride = load_i64_field(fl, native_ptr, header_size + 8, "arr_esz")?;
+        let data_offset = load_i64_field(fl, native_ptr, header_size + 16, "arr_data_off")?;
+        // 元素地址 = arr + data_offset + idx * stride。
+        let byte_offset = fl
+            .builder
+            .build_int_mul(idx, stride, "arr_elem_off")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "mul elem off", scoop2_base::Span::default())
+            })?;
+        let elem_offset = fl
+            .builder
+            .build_int_add(data_offset, byte_offset, "arr_elem_abs_off")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "add elem off", scoop2_base::Span::default())
+            })?;
+        unsafe {
+            fl.builder.build_in_bounds_gep(
+                fl.cg.context.i8_type(),
+                native_ptr,
+                &[elem_offset],
+                "arr_elem_i8",
+            )
+        }
+        .map_err(|e| CodegenError::llvm(e.to_string(), "gep elem", scoop2_base::Span::default()))?
+    };
     // 按静态元素类型读取。
     let elem_is_ref = fl
         .layouts
@@ -757,7 +810,8 @@ fn lower_index_access<'a, 'ctx>(
             }
         }
         inkwell::types::BasicTypeEnum::FloatType(t) => {
-            // Float 位模式存在 i64 槽中（make_array 尚不支持 Float 元素，防御性处理）。
+            // Float 元素按位模式存在 8 字节槽中（f64 原样，f32 存低 32 位），
+            // 读取时截断到位宽后 bitcast 回浮点（与 lower_make_array 的写入对称）。
             let bits = if t == fl.cg.context.f64_type() {
                 word
             } else {
@@ -786,6 +840,131 @@ fn lower_index_access<'a, 'ctx>(
         }
     };
     Ok(val)
+}
+
+/// 把任意宽度整型规范化为 i64（小宽度按有符号 sext，保持索引的负值语义）。
+pub fn normalize_int_to_i64<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    v: inkwell::values::IntValue<'ctx>,
+    name: &str,
+) -> CodegenResult<inkwell::values::IntValue<'ctx>> {
+    let i64_ty = fl.cg.context.i64_type();
+    let bits = v.get_type().get_bit_width();
+    if bits == 64 {
+        return Ok(v);
+    }
+    if bits < 64 {
+        return fl.builder.build_int_s_extend(v, i64_ty, name).map_err(|e| {
+            CodegenError::llvm(e.to_string(), "sext idx", scoop2_base::Span::default())
+        });
+    }
+    fl.builder
+        .build_int_truncate(v, i64_ty, name)
+        .map_err(|e| CodegenError::llvm(e.to_string(), "trunc idx", scoop2_base::Span::default()))
+}
+
+/// 从对象 native 指针按绝对字节偏移加载一个 u64 字段。
+fn load_i64_field<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    obj_native: inkwell::values::PointerValue<'ctx>,
+    byte_offset: u64,
+    name: &str,
+) -> CodegenResult<inkwell::values::IntValue<'ctx>> {
+    let i64_ty = fl.cg.context.i64_type();
+    let slot = unsafe {
+        fl.builder.build_in_bounds_gep(
+            fl.cg.context.i8_type(),
+            obj_native,
+            &[i64_ty.const_int(byte_offset, false)],
+            &format!("{name}_slot"),
+        )
+    }
+    .map_err(|e| CodegenError::llvm(e.to_string(), "gep field", scoop2_base::Span::default()))?;
+    Ok(fl
+        .builder
+        .build_load(i64_ty, slot, name)
+        .map_err(|e| CodegenError::llvm(e.to_string(), "load field", scoop2_base::Span::default()))?
+        .into_int_value())
+}
+
+/// 数组边界检查：`idx >=u len`（无符号比较同时捕获负 index——负值按无符号解释
+/// 为巨大正数）时分叉到 panic 块：调用 scoop_panic（与 Panic stmt 同一路径）后
+/// unreachable；否则继续落在当前插入点之后的 ok 块。
+pub fn build_array_bounds_check<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    idx: inkwell::values::IntValue<'ctx>,
+    len: inkwell::values::IntValue<'ctx>,
+) -> CodegenResult<()> {
+    let oob = fl
+        .builder
+        .build_int_compare(inkwell::IntPredicate::UGE, idx, len, "arr_oob")
+        .map_err(|e| CodegenError::llvm(e.to_string(), "cmp oob", scoop2_base::Span::default()))?;
+    let cur_bb = fl.builder.get_insert_block().ok_or_else(|| {
+        CodegenError::llvm(
+            "bounds check 无插入点",
+            "bounds_check",
+            scoop2_base::Span::default(),
+        )
+    })?;
+    let parent_fn = cur_bb.get_parent().ok_or_else(|| {
+        CodegenError::llvm(
+            "bounds check 所在块无父函数",
+            "bounds_check",
+            scoop2_base::Span::default(),
+        )
+    })?;
+    let panic_bb = fl.cg.context.append_basic_block(parent_fn, "arr_oob_panic");
+    let ok_bb = fl.cg.context.append_basic_block(parent_fn, "arr_inbounds");
+    fl.builder
+        .build_conditional_branch(oob, panic_bb, ok_bb)
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "condbr oob", scoop2_base::Span::default())
+        })?;
+    fl.builder.position_at_end(panic_bb);
+    let msg = fl
+        .cg
+        .get_or_create_string_literal("array index out of bounds")?;
+    // scoop_panic 是 native void*；string literal 是 GC ptr（addrspace 1），
+    // 跨地址空间不能 bitcast，走 ptrtoint/inttoptr。
+    let msg_int = fl
+        .builder
+        .build_ptr_to_int(msg, fl.cg.context.i64_type(), "oob_msg_int")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "ptr_to_int oob msg",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    let native = fl
+        .builder
+        .build_int_to_ptr(msg_int, fl.cg.native_ptr_ty(), "oob_msg")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "int_to_ptr oob msg",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    let _ = fl
+        .builder
+        .build_call(fl.rt.panic, &[native.into()], "oob_panic")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "call oob panic",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    fl.builder.build_unreachable().map_err(|e| {
+        CodegenError::llvm(
+            e.to_string(),
+            "unreachable oob",
+            scoop2_base::Span::default(),
+        )
+    })?;
+    fl.builder.position_at_end(ok_bb);
+    Ok(())
 }
 
 /// `TypeTest { value, target_ty }` → `is T` 类型检查。
@@ -2002,48 +2181,97 @@ fn lower_with_update<'a, 'ctx>(
     updates: &[LirWithUpdateField],
     result_ty: scoop2_hir::ty::TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
-    // copy base value, then apply updates via insertvalue.
+    // 值语义：拷贝 base 聚合值，再按 LIR 解析好的字段路径逐条 insertvalue。
     let mut agg = match base {
         LirOperand::Local(id) => fl.load_local(*id)?,
         LirOperand::Const(c) => fl.lower_const_value(c)?,
     };
-    let layout = fl.layouts.get(result_ty);
-    let fields = match layout {
-        Some(l) => match &l.kind {
-            scoop2_lir::TypeLayoutKind::Struct { fields } => fields,
-            scoop2_lir::TypeLayoutKind::Tuple { elements } => elements,
-            _ => return Ok(agg),
-        },
-        None => return Ok(agg),
-    };
     for update in updates {
-        // 查找字段索引。
-        let field_idx = fields.iter().position(|f| {
-            // field_offset 匹配（简化：按声明顺序查找）。
-            // LIR WithUpdate 的 field_name 对应 struct/tuple 的字段名。
-            // tuple 没有 field_name，用 _N 格式。
-            true
-        });
-        if let Some(idx) = field_idx {
-            let val = match &update.value {
-                LirOperand::Local(id) => fl.load_local(*id)?,
-                LirOperand::Const(c) => fl.lower_const_value(c)?,
-            };
-            let agg_s = super::expect_struct_val(agg, "WithUpdate base", &fl.fqn)?;
-            let inserted = fl
-                .builder
-                .build_insert_value(agg_s, val, idx as u32, "update")
-                .map_err(|e| {
-                    CodegenError::llvm(
-                        e.to_string(),
-                        "insert_with_update",
-                        scoop2_base::Span::default(),
-                    )
-                })?;
-            agg = inserted.into_struct_value().into();
-        }
+        let val = match &update.value {
+            LirOperand::Local(id) => fl.load_local(*id)?,
+            LirOperand::Const(c) => fl.lower_const_value(c)?,
+        };
+        agg = apply_with_update_path(fl, agg, result_ty, &update.path, val)?;
     }
     Ok(agg)
+}
+
+/// 递归应用一条 with 更新路径：定位当前层字段（与 lower_member_access 同一套
+/// (offset, ty) 定位逻辑），单段直接 insert，嵌套先 extract 内层聚合、递归更新后
+/// 再插回。找不到字段或非 struct/tuple 布局报 CodegenError（绝不静默落到字段 0）。
+fn apply_with_update_path<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    agg: BasicValueEnum<'ctx>,
+    agg_ty: scoop2_hir::ty::TypeId,
+    path: &[scoop2_lir::LirWithUpdateSegment],
+    val: BasicValueEnum<'ctx>,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    let seg = path.first().ok_or_else(|| {
+        CodegenError::llvm(
+            "with 更新路径为空",
+            "with_update",
+            scoop2_base::Span::default(),
+        )
+    })?;
+    let layout = fl.layouts.get(agg_ty).ok_or_else(|| {
+        CodegenError::missing_layout(
+            agg_ty.0,
+            "WithUpdate receiver",
+            scoop2_base::Span::default(),
+        )
+    })?;
+    let fields = match &layout.kind {
+        scoop2_lir::TypeLayoutKind::Struct { fields } => fields,
+        scoop2_lir::TypeLayoutKind::Tuple { elements } => elements,
+        other => {
+            return Err(CodegenError::unsupported(
+                format!("with 更新仅支持 struct/tuple 值类型，收到 {:?}", other),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ));
+        }
+    };
+    let field_idx = fields
+        .iter()
+        .position(|f| f.offset == seg.offset && f.ty == seg.ty)
+        .or_else(|| fields.iter().position(|f| f.offset == seg.offset))
+        .ok_or_else(|| {
+            CodegenError::llvm(
+                format!(
+                    "with 更新 {}: 布局中找不到 offset={} 的字段",
+                    seg.name, seg.offset
+                ),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+    let agg_s = super::expect_struct_val(agg, "WithUpdate base", &fl.fqn)?;
+    let new_val = if path.len() == 1 {
+        val
+    } else {
+        let inner = fl
+            .builder
+            .build_extract_value(agg_s, field_idx as u32, "wu_inner")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "extract with_update inner",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        apply_with_update_path(fl, inner, seg.ty, &path[1..], val)?
+    };
+    let inserted = fl
+        .builder
+        .build_insert_value(agg_s, new_val, field_idx as u32, "wu_set")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "insert_with_update",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    Ok(inserted.into_struct_value().into())
 }
 
 /// `EnumVariant { enum_ty, tag_value, args, payload_ty }` → 构造 enum / Option 值。
@@ -2646,6 +2874,7 @@ fn lower_make_array<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     elements: &[LirOperand],
     ty: scoop2_hir::ty::TypeId,
+    mutable: bool,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let gc_ptr_ty = fl.cg.gc_ptr_ty();
     let native_ptr = fl.cg.native_ptr_ty();
@@ -2764,7 +2993,7 @@ fn lower_make_array<'a, 'ctx>(
                     CodegenError::llvm(e.to_string(), "push_ref", scoop2_base::Span::default())
                 })?;
         } else {
-            // 标量元素：转 i64 → push_word(arr, i64)。
+            // 标量元素：转 i64 字（整型 zext / 浮点按位模式 bitcast）→ push_word(arr, i64)。
             let val_i64 = match val {
                 BasicValueEnum::IntValue(i) => {
                     let bits = i.get_type().get_bit_width();
@@ -2782,9 +3011,47 @@ fn lower_make_array<'a, 'ctx>(
                             })?
                     }
                 }
+                BasicValueEnum::FloatValue(f) => {
+                    // 浮点按位模式存入 8 字节槽：f64 bitcast 到 i64；
+                    // f32 先 bitcast 到 i32 再 zext（与 IndexAccess 读取对称）。
+                    let fty = f.get_type();
+                    if fty == fl.cg.context.f64_type() {
+                        fl.builder
+                            .build_bit_cast(f, fl.cg.context.i64_type(), "elem_fbits")
+                            .map_err(|e| {
+                                CodegenError::llvm(
+                                    e.to_string(),
+                                    "bitcast f64 elem",
+                                    scoop2_base::Span::default(),
+                                )
+                            })?
+                            .into_int_value()
+                    } else {
+                        let as_i32 = fl
+                            .builder
+                            .build_bit_cast(f, fl.cg.context.i32_type(), "elem_fbits")
+                            .map_err(|e| {
+                                CodegenError::llvm(
+                                    e.to_string(),
+                                    "bitcast f32 elem",
+                                    scoop2_base::Span::default(),
+                                )
+                            })?
+                            .into_int_value();
+                        fl.builder
+                            .build_int_z_extend(as_i32, fl.cg.context.i64_type(), "elem_ext")
+                            .map_err(|e| {
+                                CodegenError::llvm(
+                                    e.to_string(),
+                                    "zext f32 elem",
+                                    scoop2_base::Span::default(),
+                                )
+                            })?
+                    }
+                }
                 _ => {
                     return Err(CodegenError::llvm(
-                        "WORD array element expected int",
+                        "WORD array element expected int/float",
                         "make_array",
                         scoop2_base::Span::default(),
                     ));
@@ -2798,7 +3065,30 @@ fn lower_make_array<'a, 'ctx>(
                 })?;
         }
     }
-    // freeze → immutable Array。
+    // freeze → immutable Array（期望类型为 MutableArray<T> 时保留可变数组本体）。
+    if mutable {
+        let arr_int = fl
+            .builder
+            .build_ptr_to_int(mut_arr, fl.cg.context.i64_type(), "mut_arr_int")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "ptr_to_int arr",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        let arr_gc = fl
+            .builder
+            .build_int_to_ptr(arr_int, fl.cg.gc_ptr_ty(), "mut_arr_gc")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "int_to_ptr arr",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        return Ok(arr_gc.into());
+    }
     let frozen = fl
         .builder
         .build_call(fl.rt.mutable_array_freeze, &[mut_arr.into()], "arr_freeze")
@@ -2820,7 +3110,7 @@ fn lower_make_closure<'a, 'ctx>(
     let header_size = fl.cg.target_data.get_store_size(&header_ty);
     let total_size = header_size + 2 * fl.cg.pointer_byte_size;
     // 分配。
-    let type_desc = fl.cg.get_or_create_type_descriptor("scoop.core.Closure");
+    let type_desc = fl.cg.get_or_create_closure_type_descriptor();
     let alloc = fl
         .builder
         .build_call(
@@ -2847,6 +3137,61 @@ fn lower_make_closure<'a, 'ctx>(
         }
     };
     // env_ptr at offset header_size。
+    //
+    // 构造窗口保护：env 计算（pack_closure_env）内部有 GC 分配，而此刻
+    // 闭包对象尚未链接进任何 root（本 rvalue 的结果还没写入目标 local 的
+    // root frame slot）。若 GC 在该分配点运行，闭包对象会被误判为不可达
+    // 而回收。因此先把 env slot 清零（避免 GC trace 到未初始化的垃圾
+    // word），再 pin 住闭包对象；env 写入后 unpin。
+    let env_slot = unsafe {
+        fl.builder.build_in_bounds_gep(
+            fl.cg.context.i8_type(),
+            obj_native,
+            &[fl.cg.context.i64_type().const_int(header_size, false)],
+            "closure_env_slot",
+        )
+    }
+    .map_err(|e| {
+        CodegenError::llvm(
+            e.to_string(),
+            "gep closure_env",
+            scoop2_base::Span::default(),
+        )
+    })?;
+    fl.builder
+        .build_store(env_slot, fl.cg.native_ptr_ty().const_null())
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "store closure_env null",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    let obj_pin_int = fl
+        .builder
+        .build_ptr_to_int(obj_native, fl.cg.context.i64_type(), "closure_pin_int")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "ptr_to_int closure",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    let obj_pin_arg = fl
+        .builder
+        .build_int_to_ptr(obj_pin_int, fl.cg.native_ptr_ty(), "closure_pin_arg")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "int_to_ptr closure",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    fl.builder
+        .build_call(fl.rt.pin, &[obj_pin_arg.into()], "pin_closure")
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "pin closure", scoop2_base::Span::default())
+        })?;
     let env = match env_local {
         LirOperand::Local(id) => fl.load_local(*id)?,
         LirOperand::Const(c) => fl.lower_const_value(c)?,
@@ -2882,21 +3227,6 @@ fn lower_make_closure<'a, 'ctx>(
         }
         _ => fl.cg.native_ptr_ty().const_null(),
     };
-    let env_slot = unsafe {
-        fl.builder.build_in_bounds_gep(
-            fl.cg.context.i8_type(),
-            obj_native,
-            &[fl.cg.context.i64_type().const_int(header_size, false)],
-            "closure_env_slot",
-        )
-    }
-    .map_err(|e| {
-        CodegenError::llvm(
-            e.to_string(),
-            "gep closure_env",
-            scoop2_base::Span::default(),
-        )
-    })?;
     fl.builder.build_store(env_slot, env_native).map_err(|e| {
         CodegenError::llvm(
             e.to_string(),
@@ -2904,6 +3234,11 @@ fn lower_make_closure<'a, 'ctx>(
             scoop2_base::Span::default(),
         )
     })?;
+    fl.builder
+        .build_call(fl.rt.unpin, &[obj_pin_arg.into()], "unpin_closure")
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "unpin closure", scoop2_base::Span::default())
+        })?;
     // invoke_fn_ptr at offset header_size + ptr_size。
     let fn_slot = unsafe {
         fl.builder.build_in_bounds_gep(
@@ -2997,7 +3332,7 @@ fn pack_closure_env<'a, 'ctx>(
         .target_data
         .get_store_size(&fl.cg.object_header_type());
     let total_size = header_size + size;
-    let type_desc = fl.cg.get_or_create_type_descriptor("scoop.core.Closure");
+    let type_desc = fl.cg.get_or_create_env_blob_type_descriptor(env_ty, size);
     let alloc = fl
         .builder
         .build_call(

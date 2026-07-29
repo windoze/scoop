@@ -279,8 +279,16 @@ fn remap_rvalue(
         Rvalue::MemberAccess { member, .. } => {
             member.receiver_ty = TypeStore::remap_id(remap, member.receiver_ty);
         }
-        Rvalue::TupleIndex { element_ty, .. } | Rvalue::IndexAccess { element_ty, .. } => {
+        Rvalue::TupleIndex { element_ty, .. } => {
             *element_ty = TypeStore::remap_id(remap, *element_ty);
+        }
+        Rvalue::IndexAccess {
+            element_ty,
+            receiver_ty,
+            ..
+        } => {
+            *element_ty = TypeStore::remap_id(remap, *element_ty);
+            *receiver_ty = TypeStore::remap_id(remap, *receiver_ty);
         }
         Rvalue::EnumVariant {
             enum_ty, payload, ..

@@ -278,6 +278,122 @@ impl<'ctx> CodegenContext<'ctx> {
         gv.as_pointer_value()
     }
 
+    /// 闭包对象的 type descriptor：布局 `{ header; env_ptr; invoke_fn_ptr }`。
+    /// env_ptr 是 GC 引用（指向 env blob），fn_ptr 是代码地址——trace bitmap = 0b01，
+    /// 使 GC 能经闭包对象 trace 到 env blob（env blob 的 descriptor 见
+    /// [`CodegenContext::get_or_create_env_blob_type_descriptor`]）。
+    pub fn get_or_create_closure_type_descriptor(&self) -> PointerValue<'ctx> {
+        let header_size = self.target_data.get_store_size(&self.object_header_type());
+        let ptr_size = self.pointer_byte_size;
+        self.emit_simple_type_descriptor(
+            "__scoop_type_desc_scoop_core_Closure",
+            stable_hash_u64("scoop.core.Closure"),
+            header_size + 2 * ptr_size,
+            header_size,
+            vec![0b01],
+        )
+    }
+
+    /// 闭包 env blob 的 type descriptor（按 env 类型一物一 descriptor）。
+    ///
+    /// blob 布局 = object header 之后按 env struct/tuple 布局存放字段值。
+    /// trace bitmap 通过递归枚举 env 布局中的 GC 指针叶子（Reference/Function
+    /// 字段、Option niche 指针、嵌套 struct/tuple 内的指针字段）得到——
+    /// 只标记确定为指针对齐 word 的槽位，非指针 word 不会被误 trace。
+    pub fn get_or_create_env_blob_type_descriptor(
+        &self,
+        env_ty: scoop2_hir::ty::TypeId,
+        payload_size: u64,
+    ) -> PointerValue<'ctx> {
+        let header_size = self.target_data.get_store_size(&self.object_header_type());
+        let mut word_offsets: Vec<u64> = Vec::new();
+        collect_gc_word_offsets(&self.type_layouts, env_ty, 0, &mut word_offsets);
+        let mut bitmap_words: Vec<u64> = Vec::new();
+        for w in word_offsets {
+            let word_idx = (w / 64) as usize;
+            while bitmap_words.len() <= word_idx {
+                bitmap_words.push(0);
+            }
+            bitmap_words[word_idx] |= 1u64 << (w % 64);
+        }
+        // bitmap 全零时传空（trace_bitmap = null，表示无引用字段）。
+        if bitmap_words.iter().all(|&w| w == 0) {
+            bitmap_words.clear();
+        }
+        let name = format!("__scoop_type_desc_closure_env_{}", env_ty.0);
+        self.emit_simple_type_descriptor(
+            &name,
+            stable_hash_u64(&name),
+            header_size + payload_size,
+            header_size,
+            bitmap_words,
+        )
+    }
+
+    /// 构建一个无 itable/vtable/parent 的 type descriptor 全局（内部链接）。
+    /// `bitmap_words` 为空时 trace_bitmap = null（无引用字段）。
+    fn emit_simple_type_descriptor(
+        &self,
+        global_name: &str,
+        type_id: u64,
+        size_bytes: u64,
+        trace_start: u64,
+        bitmap_words: Vec<u64>,
+    ) -> PointerValue<'ctx> {
+        if let Some(gv) = self.module.get_global(global_name) {
+            return gv.as_pointer_value();
+        }
+        let ctx = self.context;
+        let native_ptr = ctx.ptr_type(native_address_space());
+        let td_ty = self.type_descriptor_type();
+        let gv = self
+            .module
+            .add_global(td_ty, Some(AddressSpace::from(0u16)), global_name);
+        gv.set_linkage(Linkage::Internal);
+
+        let (trace_bitmap_ptr, trace_bitmap_len) = if bitmap_words.is_empty() {
+            (native_ptr.const_null(), 0u32)
+        } else {
+            let bm_len = bitmap_words.len() as u32;
+            let bm_arr_ty = ctx.i64_type().array_type(bm_len);
+            let bm_name = format!("{global_name}_trace_bitmap");
+            let bm_global =
+                self.module
+                    .add_global(bm_arr_ty, Some(AddressSpace::from(0u16)), &bm_name);
+            bm_global.set_linkage(Linkage::Internal);
+            bm_global.set_constant(true);
+            let bm_vals: Vec<_> = bitmap_words
+                .iter()
+                .map(|&w| ctx.i64_type().const_int(w, false))
+                .collect();
+            bm_global.set_initializer(&ctx.i64_type().const_array(&bm_vals));
+            (bm_global.as_pointer_value(), bm_len)
+        };
+
+        let init = td_ty.const_named_struct(&[
+            ctx.i32_type().const_int(0, false).into(), // abi_version
+            ctx.i32_type().const_int(0, false).into(), // flags
+            ctx.i64_type().const_int(size_bytes, false).into(), // size_bytes
+            ctx.i64_type()
+                .const_int(self.pointer_byte_size, false)
+                .into(), // align_bytes
+            ctx.i64_type().const_int(trace_start, false).into(), // trace_start_offset_bytes
+            ctx.i32_type()
+                .const_int(trace_bitmap_len as u64, false)
+                .into(), // trace_bitmap_u64_len
+            ctx.i32_type().const_int(0, false).into(), // _reserved_u32
+            trace_bitmap_ptr.into(),                   // trace_bitmap
+            native_ptr.const_null().into(),            // trace_fn
+            native_ptr.const_null().into(),            // release_fn
+            ctx.i64_type().const_int(type_id, false).into(), // type_id
+            native_ptr.const_null().into(),            // parent_type_desc
+            native_ptr.const_null().into(),            // itable
+            native_ptr.const_null().into(),            // vtable
+        ]);
+        gv.set_initializer(&init);
+        gv.as_pointer_value()
+    }
+
     /// 为一个 class 构建 itable 容器全局。
     /// 从 LirProgram.class_itables 收集该 class 实现的所有 interface，
     /// 每个 interface 一个 entry `{ interface_id; methods[] }`。
@@ -499,6 +615,62 @@ fn stable_hash_u64(s: &str) -> u64 {
         hash = hash.wrapping_mul(0x100000001b3);
     }
     hash
+}
+
+/// 递归枚举某值类型布局中所有 GC 指针对齐 word 的偏移（单位：word，相对 base）。
+///
+/// 用于闭包 env blob 的 trace bitmap：
+/// - Reference(gc_traceable) / Function：整个值就是一个指针 word；
+/// - Struct / Tuple：按字段偏移递归（只收集指针对齐 word，非指针对齐的引用
+///   不可能出现——指针字段恒 8 字节对齐）；
+/// - Option：Pointer niche 整体即指针；Tagged 的 payload 若含指针按 payload
+///   偏移递归；U8 niche 纯标量；
+/// - 其他（标量 / Enum / Nothing）：无指针叶子。
+fn collect_gc_word_offsets(
+    layouts: &scoop2_lir::TypeLayoutTable,
+    ty: scoop2_hir::ty::TypeId,
+    base_bytes: u64,
+    out: &mut Vec<u64>,
+) {
+    use scoop2_lir::{NicheStorage, TypeLayoutKind};
+    let Some(layout) = layouts.get(ty) else {
+        return;
+    };
+    let word = 8u64;
+    match &layout.kind {
+        TypeLayoutKind::Reference {
+            gc_traceable: true, ..
+        }
+        | TypeLayoutKind::Function => {
+            if base_bytes % word == 0 {
+                out.push(base_bytes / word);
+            }
+        }
+        TypeLayoutKind::Struct { fields } | TypeLayoutKind::Tuple { elements: fields } => {
+            for f in fields {
+                collect_gc_word_offsets(layouts, f.ty, base_bytes + f.offset, out);
+            }
+        }
+        TypeLayoutKind::Option {
+            storage,
+            payload_ty,
+            ..
+        } => match storage {
+            NicheStorage::Pointer => {
+                if base_bytes % word == 0 {
+                    out.push(base_bytes / word);
+                }
+            }
+            NicheStorage::Tagged => {
+                // Tagged 布局 `{ i8 tag; payload }`：payload 偏移 = align_up(1, payload_align)。
+                let payload_align = layouts.get(*payload_ty).map(|l| l.align).unwrap_or(1);
+                let payload_off = if payload_align <= 1 { 1 } else { payload_align };
+                collect_gc_word_offsets(layouts, *payload_ty, base_bytes + payload_off, out);
+            }
+            NicheStorage::U8 { .. } => {}
+        },
+        _ => {}
+    }
 }
 
 /// 为所有 class 生成 type descriptor 全局。

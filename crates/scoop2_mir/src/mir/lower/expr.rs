@@ -49,27 +49,7 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             );
             Operand::Local(tmp)
         }
-        ExprKind::ArrayLit(els) => {
-            let ops: Vec<Operand> = els.iter().map(|e| lower_expr(builder, e)).collect();
-            // 空数组字面量 `[]` 的表达式类型为 Nothing（typecheck 让 check_assignable 通过），
-            // 但 MakeArray 结果总是 Array 引用（GC ptr）。用 Array 引用类型创建临时，
-            // 避免 Nothing 临时在 codegen 中被错误地以 i8 load（破坏指针）。
-            let arr_ty = if builder.types.is_nothing(ty) {
-                builder.array_ref_ty()
-            } else {
-                ty
-            };
-            let tmp = builder.alloc_temp(arr_ty, span);
-            builder.assign(
-                tmp,
-                Rvalue::MakeArray {
-                    elements: ops,
-                    result_ty: arr_ty,
-                },
-                span,
-            );
-            Operand::Local(tmp)
-        }
+        ExprKind::ArrayLit(els) => lower_array_lit(builder, els, span, ty),
         ExprKind::StructLit { name, fields } => {
             let mut mir_fields = Vec::new();
             for f in fields {
@@ -1583,6 +1563,7 @@ fn lower_index(
     ty: scoop2_hir::ty::TypeId,
 ) -> Operand {
     let recv = lower_expr(builder, receiver);
+    let recv_ty = super::stmt::operand_ty(builder, &recv);
     let mut idx_ops = Vec::new();
     for idx in indices {
         idx_ops.push(lower_expr(builder, idx));
@@ -1594,6 +1575,38 @@ fn lower_index(
             receiver: recv,
             indices: idx_ops,
             element_ty: ty,
+            receiver_ty: recv_ty,
+        },
+        span,
+    );
+    Operand::Local(tmp)
+}
+
+/// lower 数组字面量（`[a, b, c]`）。`ty` 为结果类型：
+/// 通常是表达式的标注类型（`Array<T>`），但在期望类型为 `MutableArray<T>`
+/// 的声明语境下由调用方传入 MutableArray（MakeArray 结果不 freeze——见
+/// `lower_local_val` 的 MutableArray 特判）。
+pub fn lower_array_lit(
+    builder: &mut FnLowering,
+    els: &[Expr],
+    span: Span,
+    ty: scoop2_hir::ty::TypeId,
+) -> Operand {
+    let ops: Vec<Operand> = els.iter().map(|e| lower_expr(builder, e)).collect();
+    // 空数组字面量 `[]` 的表达式类型为 Nothing（typecheck 让 check_assignable 通过），
+    // 但 MakeArray 结果总是 Array 引用（GC ptr）。用 Array 引用类型创建临时，
+    // 避免 Nothing 临时在 codegen 中被错误地以 i8 load（破坏指针）。
+    let arr_ty = if builder.types.is_nothing(ty) {
+        builder.array_ref_ty()
+    } else {
+        ty
+    };
+    let tmp = builder.alloc_temp(arr_ty, span);
+    builder.assign(
+        tmp,
+        Rvalue::MakeArray {
+            elements: ops,
+            result_ty: arr_ty,
         },
         span,
     );
