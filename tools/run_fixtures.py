@@ -1531,6 +1531,11 @@ def parse_expectations(path: Path) -> Expectation:
     expect_exit = None
     timeout_ms = None
     ignore_until_fix = None
+    # 全局兜底超时：fixture 自身 TIMEOUT: 指令优先；否则用
+    # SCOOP_FIXTURE_TIMEOUT_MS（默认 120s），防止个别 fixture 挂死拖住整轮回归。
+    default_timeout_ms = parse_optional_int(
+        os.environ.get("SCOOP_FIXTURE_TIMEOUT_MS", "120000")
+    )
 
     for directive in fixture_directives(text):
         if directive.startswith("EXPECT:"):
@@ -1626,7 +1631,7 @@ def parse_expectations(path: Path) -> Expectation:
         run_stderr_contains=run_stderr_contains,
         run_stackmaps_records_gt=run_stackmaps_records_gt,
         expect_exit=expect_exit,
-        timeout_ms=timeout_ms,
+        timeout_ms=timeout_ms if timeout_ms is not None else default_timeout_ms,
         ignore_until_fix=ignore_until_fix,
     )
 
