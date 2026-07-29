@@ -1350,7 +1350,8 @@ fn lower_class_ctor<'a, 'ctx>(
             }
             BasicValueEnum::StructValue(sv) => {
                 // 聚合字段：按聚合类型 GEP 到 field_slot 后 store。
-                let struct_ty = field_llvm_ty.into_struct_type();
+                // 用值的实际 struct 类型（field_llvm_ty 可能与值不匹配）。
+                let struct_ty = sv.get_type();
                 let typed_slot = unsafe {
                     fl.builder.build_in_bounds_gep(
                         struct_ty,
