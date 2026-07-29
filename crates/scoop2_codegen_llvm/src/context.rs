@@ -68,6 +68,10 @@ pub struct CodegenContext<'ctx> {
     type_desc_cache: RefCell<HashMap<String, PointerValue<'ctx>>>,
     /// class_itables 数据（从 LirProgram 注入，供 globals 层构建 itable 全局）。
     pub class_itables_data: RefCell<Vec<scoop2_lir::ClassItableLayout>>,
+    /// 类型布局表（从 LirProgram 注入，供 type descriptor 构建 trace_bitmap）。
+    pub type_layouts: scoop2_lir::TypeLayoutTable,
+    /// 类初始化计划（从 LirProgram 注入，提供 class 字段布局）。
+    pub class_inits: Vec<scoop2_lir::ClassInitPlan>,
 }
 
 impl<'ctx> CodegenContext<'ctx> {
@@ -77,7 +81,8 @@ impl<'ctx> CodegenContext<'ctx> {
         program: &LirProgram,
         target_info: TargetInfo,
     ) -> CodegenResult<Self> {
-        let _ = program;
+        let type_layouts = program.type_layouts.clone();
+        let class_inits = program.class_inits.clone();
         // 初始化 native target（幂等）。
         Target::initialize_native(&InitializationConfig::default())
             .map_err(|e| CodegenError::TargetOutput {
@@ -124,6 +129,8 @@ impl<'ctx> CodegenContext<'ctx> {
             string_literal_cache: RefCell::new(HashMap::new()),
             type_desc_cache: RefCell::new(HashMap::new()),
             class_itables_data: RefCell::new(Vec::new()),
+            type_layouts,
+            class_inits,
         })
     }
 

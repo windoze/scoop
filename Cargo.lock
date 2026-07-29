@@ -669,6 +669,7 @@ dependencies = [
  "scoop2_base",
  "scoop2_hir",
  "scoop2_lir",
+ "scoop2_mir",
  "sha2",
  "thiserror",
 ]

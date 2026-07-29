@@ -532,11 +532,19 @@ pub enum LirRvalue {
     TypeTest {
         value_local: LirOperand,
         target_ty: TypeId,
+        /// 静态折叠结果（编译期已知 true/false 时直接折叠）。
+        static_fold: scoop2_mir::mir::transport::RuntimeTypeStaticFold,
+        /// 目标类型的运行时描述符键（含 FQN，供 codegen 计算 type_id）。
+        descriptor: scoop2_mir::mir::transport::RuntimeTypeDescriptorKey,
     },
     /// 类型转换 `as T`。
     Cast {
         value_local: LirOperand,
         target_ty: TypeId,
+        /// 目标类型的运行时描述符键（含 FQN，供 codegen 计算 type_id）。
+        descriptor: scoop2_mir::mir::transport::RuntimeTypeDescriptorKey,
+        /// 转换失败行为。
+        failure: scoop2_mir::mir::transport::RuntimeCastFailure,
     },
     /// 模式匹配测试。
     PatternMatch {
@@ -637,7 +645,7 @@ pub enum LirPattern {
     CharLit(char),
     StringLit(String),
     BoolLit(bool),
-    Is { ty: TypeId, negated: bool },
+    Is { ty: TypeId, negated: bool, target_fqn: Option<String> },
     Tuple { elements: Vec<LirPattern> },
     Struct { type_fqn: String, fields: Vec<(String, LirPattern)> },
     Variant { variant_name: String, args: Vec<LirPattern> },

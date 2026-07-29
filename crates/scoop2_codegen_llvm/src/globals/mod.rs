@@ -159,8 +159,11 @@ impl<'ctx> CodegenContext<'ctx> {
         )
     }
 
-    /// 为一个 class 生成 type descriptor 全局（含 itable 引用）。
+    /// 为一个 class 生成 type descriptor 全局（含 itable 引用 + 正确的 GC 元数据）。
     /// 返回 type descriptor 的 native 指针。
+    ///
+    /// size_bytes / trace_start_offset_bytes / trace_bitmap 从 class 字段布局
+    /// （class_inits + type_layouts）计算，使 GC 能正确扫描引用字段。
     pub fn get_or_create_type_descriptor(&self, class_fqn: &str) -> PointerValue<'ctx> {
         let name = format!("__scoop_type_desc_{class_fqn}");
         let name = name.replace('.', "_");
@@ -182,21 +185,76 @@ impl<'ctx> CodegenContext<'ctx> {
 
         let ctx = self.context;
         let native_ptr = ctx.ptr_type(native_address_space());
+
+        // 计算 GC trace 元数据：对象布局 = { header; field0; field1; ... }。
+        // 字段按 ptr-sized slot 打包（与 class_ctor codegen 对齐）。
+        // trace_bitmap 每位对应一个 word slot；该 slot 为 GC 引用则置 1。
+        let header_ty = self.object_header_type();
+        let header_size = self.target_data.get_store_size(&header_ty);
+        let ptr_size = self.pointer_byte_size;
+
+        // 从 class_inits 查找字段列表。
+        let class_init = self.class_inits.iter().find(|ci| ci.class_fqn == class_fqn);
+        let (size_bytes, trace_start, trace_bitmap_words) = if let Some(ci) = class_init {
+            // 字段数（含超类字段——超类字段在 class_init.field_inits 中是否包含取决于 LIR；
+            // 当前 LIR 只列本类声明的属性初始化，超类字段由 super_init 单独处理）。
+            let field_count = ci.field_inits.len();
+            let total_size = header_size + (field_count as u64) * ptr_size;
+            // 构造 bitmap：第 i 个 slot = field_inits[i].ty 是否 GC-traceable。
+            let mut bitmap_words: Vec<u64> = Vec::new();
+            for i in 0..field_count {
+                let word_idx = i / 64;
+                while bitmap_words.len() <= word_idx {
+                    bitmap_words.push(0);
+                }
+                let field_ty = ci.field_inits[i].ty;
+                if scoop2_lir::gc::is_gc_traceable_type(field_ty, &self.type_layouts) {
+                    bitmap_words[word_idx] |= 1u64 << (i % 64);
+                }
+            }
+            (total_size, header_size, bitmap_words)
+        } else {
+            // 无 class_init（如 String 等 runtime 内建类型，或无字段的 class）：
+            // size = header_size（无 payload），无 trace bitmap。
+            (header_size, header_size, Vec::new())
+        };
+
+        // trace_bitmap 全局数组（仅当有非零位时创建；否则留 null）。
+        let (trace_bitmap_ptr, trace_bitmap_len) = if trace_bitmap_words.is_empty() {
+            (native_ptr.const_null(), 0u32)
+        } else {
+            let bm_len = trace_bitmap_words.len() as u32;
+            let bm_arr_ty = ctx.i64_type().array_type(bm_len);
+            let bm_name = format!("__scoop_trace_bitmap_{class_fqn}").replace('.', "_");
+            let bm_global = self
+                .module
+                .add_global(bm_arr_ty, Some(AddressSpace::from(0u16)), &bm_name);
+            bm_global.set_linkage(Linkage::Internal);
+            bm_global.set_constant(true);
+            let bm_vals: Vec<_> = trace_bitmap_words
+                .iter()
+                .map(|&w| ctx.i64_type().const_int(w, false))
+                .collect();
+            let bm_init = ctx.i64_type().const_array(&bm_vals);
+            bm_global.set_initializer(&bm_init);
+            (bm_global.as_pointer_value(), bm_len)
+        };
+
         let init = td_ty.const_named_struct(&[
             ctx.i32_type().const_int(0, false).into(), // abi_version
             ctx.i32_type().const_int(0, false).into(), // flags
-            ctx.i64_type().const_int(0, false).into(), // size_bytes（后续完善）
-            ctx.i64_type().const_int(8, false).into(), // align_bytes
-            ctx.i64_type().const_int(0, false).into(), // trace_start_offset_bytes
-            ctx.i32_type().const_int(0, false).into(), // trace_bitmap_u64_len
+            ctx.i64_type().const_int(size_bytes, false).into(), // size_bytes
+            ctx.i64_type().const_int(ptr_size, false).into(), // align_bytes
+            ctx.i64_type().const_int(trace_start, false).into(), // trace_start_offset_bytes
+            ctx.i32_type().const_int(trace_bitmap_len as u64, false).into(), // trace_bitmap_u64_len
             ctx.i32_type().const_int(0, false).into(), // _reserved_u32
-            native_ptr.const_null().into(),            // trace_bitmap
+            trace_bitmap_ptr.into(),                  // trace_bitmap
             native_ptr.const_null().into(),            // trace_fn
             native_ptr.const_null().into(),            // release_fn
             ctx.i64_type().const_int(type_id, false).into(), // type_id
             native_ptr.const_null().into(),            // parent_type_desc
             itable_ptr.into(),                         // itable
-            native_ptr.const_null().into(),            // vtable
+            native_ptr.const_null().into(),            // vtable（class vtable 暂未生成；Interface dispatch 走 itable）
         ]);
         gv.set_initializer(&init);
         gv.as_pointer_value()
@@ -347,6 +405,12 @@ fn string_literal_key(s: &str) -> String {
 }
 
 /// 用 FNV-1a 计算 64 位 hash（用于 type_id / interface_id）。
+/// FNV-1a 64 位哈希（与 type_desc.type_id 同公式）。
+/// 公开供 TypeTest/Cast 计算 target type_id。
+pub fn stable_hash_u64_pub(s: &str) -> u64 {
+    stable_hash_u64(s)
+}
+
 fn stable_hash_u64(s: &str) -> u64 {
     let mut hash: u64 = 0xcbf29ce484222325;
     for b in s.as_bytes() {

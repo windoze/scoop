@@ -202,14 +202,23 @@ fn map_rvalue(rv: &scoop2_mir::mir::Rvalue, types: &scoop2_hir::ty::TypeStore, h
             ty: find_any_type(types),
         },
         Rvalue::TypeTest { value, metadata, .. } => LirRvalue::TypeTest {
-            value_local: map_operand(value), target_ty: metadata.target_ty,
+            value_local: map_operand(value),
+            target_ty: metadata.target_ty,
+            static_fold: metadata.static_fold,
+            descriptor: metadata.descriptor.clone(),
         },
         Rvalue::Cast { value, metadata, .. } => match &metadata.result {
             scoop2_mir::mir::transport::RuntimeCastResult::Target { ty } => LirRvalue::Cast {
-                value_local: map_operand(value), target_ty: *ty,
+                value_local: map_operand(value),
+                target_ty: *ty,
+                descriptor: metadata.test.descriptor.clone(),
+                failure: metadata.failure.clone(),
             },
             scoop2_mir::mir::transport::RuntimeCastResult::Option { option_ty, .. } => LirRvalue::Cast {
-                value_local: map_operand(value), target_ty: *option_ty,
+                value_local: map_operand(value),
+                target_ty: *option_ty,
+                descriptor: metadata.test.descriptor.clone(),
+                failure: metadata.failure.clone(),
             },
         },
         Rvalue::MemberAccess { receiver, member, .. } => {
@@ -367,7 +376,7 @@ fn map_rvalue(rv: &scoop2_mir::mir::Rvalue, types: &scoop2_hir::ty::TypeStore, h
             LirRvalue::Const(LirConstValue::Unit)
         },
         Rvalue::PatternMatch { subject, pattern } => LirRvalue::PatternMatch {
-            subject_local: map_operand(subject), pattern: map_pattern(pattern, interner),
+            subject_local: map_operand(subject), pattern: map_pattern(pattern, types, interner),
         },
         Rvalue::PatternExtract { subject, result_ty, .. } => LirRvalue::PatternExtract {
             subject_local: map_operand(subject), result_ty: *result_ty,
@@ -378,7 +387,7 @@ fn map_rvalue(rv: &scoop2_mir::mir::Rvalue, types: &scoop2_hir::ty::TypeStore, h
     }
 }
 
-fn map_pattern(p: &scoop2_mir::mir::Pattern, interner: &Interner) -> LirPattern {
+fn map_pattern(p: &scoop2_mir::mir::Pattern, types: &scoop2_hir::ty::TypeStore, interner: &Interner) -> LirPattern {
     use scoop2_mir::mir::Pattern;
     match p {
         Pattern::Wildcard => LirPattern::Wildcard,
@@ -387,22 +396,34 @@ fn map_pattern(p: &scoop2_mir::mir::Pattern, interner: &Interner) -> LirPattern 
         Pattern::CharLit(c) => LirPattern::CharLit(*c),
         Pattern::StringLit(s) => LirPattern::StringLit(s.clone()),
         Pattern::BoolLit(b) => LirPattern::BoolLit(*b),
-        Pattern::Is { ty, negated } => LirPattern::Is { ty: *ty, negated: *negated },
+        Pattern::Is { ty, negated } => {
+            // 解析目标类型的 FQN（供 codegen 计算 type_id）。
+            let target_fqn = match types.kind(*ty) {
+                scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => {
+                    Some(interner.resolve(n.fqn).to_string())
+                }
+                scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Nominal(n)) => {
+                    Some(interner.resolve(n.fqn).to_string())
+                }
+                _ => None,
+            };
+            LirPattern::Is { ty: *ty, negated: *negated, target_fqn }
+        }
         Pattern::Tuple { elements } => LirPattern::Tuple {
-            elements: elements.iter().map(|p| map_pattern(p, interner)).collect(),
+            elements: elements.iter().map(|p| map_pattern(p, types, interner)).collect(),
         },
         Pattern::Struct { type_fqn, fields } => LirPattern::Struct {
             type_fqn: interner.resolve(*type_fqn).to_string(),
             fields: fields.iter().map(|f| {
-                (interner.resolve(f.name).to_string(), map_pattern(&f.pattern, interner))
+                (interner.resolve(f.name).to_string(), map_pattern(&f.pattern, types, interner))
             }).collect(),
         },
         Pattern::Variant { variant_name, args, .. } => LirPattern::Variant {
             variant_name: interner.resolve(*variant_name).to_string(),
-            args: args.iter().map(|p| map_pattern(p, interner)).collect(),
+            args: args.iter().map(|p| map_pattern(p, types, interner)).collect(),
         },
         Pattern::Or { patterns } => LirPattern::Or {
-            patterns: patterns.iter().map(|p| map_pattern(p, interner)).collect(),
+            patterns: patterns.iter().map(|p| map_pattern(p, types, interner)).collect(),
         },
     }
 }
