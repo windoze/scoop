@@ -109,6 +109,14 @@ pub struct FunDecl {
     /// 由 `compute_public_stable_keys` pass 填充；含 FQN + type params + overload sig。
     /// None = 尚未计算（lowering 产出时为 None）。
     pub stable_template_key: Option<crate::mir::transport::StableTemplateKey>,
+    /// 单态化实例的唯一符号名（含具体类型/eff 实参哈希）。
+    ///
+    /// - 非单态化产物（源模板 / 非泛型顶层函数）：None → codegen 用
+    ///   `mangle_symbol(fqn, stable_template_key)` 计算。
+    /// - 单态化产物（generic 实例化结果）：Some(unique_sym)，由 materialize
+    ///   按 `InstanceKey` 计算并写入，确保同 FQN 不同实参的实例（如
+    ///   `println<Int>` / `println<String>`）符号不冲突。
+    pub instance_symbol: Option<String>,
     /// Effect step ABI 信息。None = Plain 函数（普通 ABI）。
     /// Some = EffectStep 函数（经过 effect lowering，含未捕获 Perform，
     /// 函数体已变换为状态机，返回 Step tagged union）。

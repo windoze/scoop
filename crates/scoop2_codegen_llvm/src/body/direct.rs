@@ -169,9 +169,9 @@ fn coerce_call_arg<'a, 'ctx>(
                     .unwrap_or_else(|| dst_ty.const_zero().into())
             }
         }
-        // 指针：addrspace 转换。
-        (BasicValueEnum::PointerValue(ptr_val), _) => {
-            coerce_arg_addrspace(fl, ptr_val.into())
+        // 指针：按目标 addrspace 转换（目标 GC ptr → 保留/转 GC；目标 native → 转 native）。
+        (BasicValueEnum::PointerValue(ptr_val), target) => {
+            coerce_ptr_to_target_addrspace(fl, ptr_val, target)
         }
         // 浮点：bitcast 若宽度不同。
         (BasicValueEnum::FloatValue(fv), inkwell::types::BasicTypeEnum::FloatType(dst_ty)) => {
@@ -186,6 +186,50 @@ fn coerce_call_arg<'a, 'ctx>(
             }
         }
         (v, _) => v,
+    }
+}
+
+/// 按目标类型对指针做 addrspace 转换。
+///
+/// - 目标是 GC ptr（addrspace 1）：源 GC ptr 直接保留；源 native ptr 经 inttoptr 转 GC。
+/// - 目标是 native ptr（addrspace 0）或未知：源 GC ptr 经 ptrtoint→inttoptr 转 native；其它保留。
+fn coerce_ptr_to_target_addrspace<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    ptr_val: inkwell::values::PointerValue<'ctx>,
+    target: inkwell::types::BasicTypeEnum<'ctx>,
+) -> BasicValueEnum<'ctx> {
+    let src_as = ptr_val.get_type().get_address_space();
+    let gc_as = crate::context::gc_address_space();
+    let target_is_gc_ptr = match target {
+        inkwell::types::BasicTypeEnum::PointerType(pt) => pt.get_address_space() == gc_as,
+        _ => false,
+    };
+    if target_is_gc_ptr {
+        if src_as == gc_as {
+            // 源、目标都是 GC ptr：直接保留。
+            return ptr_val.into();
+        }
+        // 源 native → 目标 GC：经整数中转。
+        if let Some(int_val) = fl
+            .builder
+            .build_ptr_to_int(ptr_val, fl.cg.context.i64_type(), "arg2int")
+            .ok()
+        {
+            if let Some(g) = fl
+                .builder
+                .build_int_to_ptr(int_val, fl.cg.gc_ptr_ty(), "arg2gc")
+                .ok()
+            {
+                return g.into();
+            }
+        }
+        return ptr_val.into();
+    }
+    // 目标是 native ptr（或非指针：理论上不该发生，回退保留原值）。
+    if src_as == gc_as {
+        coerce_arg_addrspace(fl, ptr_val.into())
+    } else {
+        ptr_val.into()
     }
 }
 

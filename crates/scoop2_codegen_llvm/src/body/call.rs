@@ -17,7 +17,7 @@ pub fn lower_call<'a, 'ctx>(
     call: &LirCall,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     match &call.kind {
-        LirCallKind::Direct { callee_symbol } => {
+        LirCallKind::Direct { callee_symbol, .. } => {
             super::direct::lower_direct(fl, callee_symbol, &call.args, call.result_ty)
         }
         LirCallKind::Interface {

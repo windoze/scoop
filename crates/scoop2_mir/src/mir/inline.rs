@@ -54,7 +54,7 @@ impl Default for InlineConfig {
 /// 对整个 Module 执行内联 pass。
 ///
 /// 反复迭代直到没有可内联的调用点，或达到单函数内联上限。
-pub fn inline_module(module: &mut Module, config: InlineConfig) {
+pub fn inline_module(module: &mut Module, config: InlineConfig, interner: &scoop2_base::Interner) {
     let store = &module.types;
     // 多轮迭代：每轮可能暴露新的可内联机会（HOF 内联后暴露闭包调用）。
     for _ in 0..config.max_inline_per_fn {
@@ -69,13 +69,13 @@ pub fn inline_module(module: &mut Module, config: InlineConfig) {
         for item in &mut module.items {
             if let Item::Fun(fd) = item {
                 if let Some(body) = &mut fd.body {
-                    if inline_body_once(body, &callees, &closures, &config) {
+                    if inline_body_once(body, &callees, &closures, &config, store, interner) {
                         changed = true;
                     }
                 }
             }
             if let Item::Initializer(ir) = item {
-                if inline_body_once(&mut ir.body, &callees, &closures, &config) {
+                if inline_body_once(&mut ir.body, &callees, &closures, &config, store, interner) {
                     changed = true;
                 }
             }
@@ -95,8 +95,15 @@ fn collect_inlineable_callees(
     let mut result = HashMap::new();
     for item in &module.items {
         if let Item::Fun(fd) = item {
-            if let Some(callee) = try_make_inlineable_with_store(fd, store, config) {
-                result.insert(fd.fqn.clone(), callee);
+            if let Some(mut callee) = try_make_inlineable_with_store(fd, store, config) {
+                // lookup_key 优先用 instance_symbol（泛型实例唯一），
+                // 否则用 fqn。这样同 FQN 不同实参的实例（println<Int>/println<String>）
+                // 不会互相覆盖。
+                callee.lookup_key = fd
+                    .instance_symbol
+                    .clone()
+                    .unwrap_or_else(|| fd.fqn.clone());
+                result.insert(callee.lookup_key.clone(), callee);
             }
         }
     }
@@ -125,6 +132,9 @@ fn collect_inlineable_closures(module: &Module) -> HashMap<String, InlineableCal
 #[derive(Clone)]
 struct InlineableCallee {
     fqn: String,
+    /// 该实例的查找 key：优先 instance_symbol（泛型实例唯一），
+    /// 否则 fqn（非泛型 / 模板）。确保同 FQN 不同实参的实例不互相覆盖。
+    lookup_key: String,
     /// 参数 local id → 类型（用于创建调用者侧的新 local）。
     params: Vec<(LocalId, LocalDecl)>,
     /// 函数体的全部 local（参数 + 局部 + 临时），已克隆。
@@ -172,8 +182,27 @@ fn try_make_inlineable_with_store(
 ) -> Option<InlineableCallee> {
     let body = fd.body.as_ref()?;
     // 排除有 receiver 参数的成员函数（owner-qualified FQN 后多个重载可能冲突）。
-    // 成员函数有隐式 <this> 参数（param name = "<this>"）。
     if fd.params.iter().any(|p| p.name == "<this>") {
+        return None;
+    }
+    // 排除含 Interface/Virtual dispatch 的函数（inline 后 GC root frame
+    // slot 冲突导致 crash；codegen 能正确处理非 inline 的 dispatch）。
+    let has_dispatch = body.blocks.iter().any(|b| {
+        b.stmts.iter().any(|s| {
+            matches!(
+                &s.kind,
+                crate::mir::StatementKind::Assign {
+                    value: crate::mir::Rvalue::Call {
+                        kind: crate::mir::CallKind::Interface { .. }
+                            | crate::mir::CallKind::Virtual { .. },
+                        ..
+                    },
+                    ..
+                }
+            )
+        })
+    });
+    if has_dispatch {
         return None;
     }
     let hof = is_effect_transparent(fd, store);
@@ -220,6 +249,8 @@ fn try_make_inlineable_with_store(
         .collect();
     Some(InlineableCallee {
         fqn: fd.fqn.clone(),
+        // 占位：实际 lookup_key 由 collect_inlineable_callees 按实例设置。
+        lookup_key: String::new(),
         params,
         locals: body.locals.clone(),
         body: clone_body(body),
@@ -275,6 +306,8 @@ fn inline_body_once(
     callees: &HashMap<String, InlineableCallee>,
     closures: &HashMap<String, InlineableCallee>,
     config: &InlineConfig,
+    store: &scoop2_hir::ty::TypeStore,
+    interner: &scoop2_base::Interner,
 ) -> bool {
     let mut inlined_count = 0usize;
     let mut changed = false;
@@ -288,10 +321,10 @@ fn inline_body_once(
             let stmts_len = body.blocks[bid].stmts.len();
             for sidx in 0..stmts_len {
                 // 尝试 direct callee 内联。
-                if let Some((callee_fqn, arg_operands, target_local)) =
-                    extract_inline_site(&body.blocks[bid].stmts[sidx])
+                if let Some((lookup_key, arg_operands, target_local)) =
+                    extract_inline_site(&body.blocks[bid].stmts[sidx], store, interner)
                 {
-                    if let Some(callee) = callees.get(&callee_fqn).cloned() {
+                    if let Some(callee) = callees.get(&lookup_key).cloned() {
                         if arg_operands.len() == callee.params.len() {
                             do_inline(body, &callee, &arg_operands, target_local, bid, sidx);
                             inlined_count += 1;
@@ -328,19 +361,35 @@ fn inline_body_once(
 }
 
 /// 从一条 Assign{Call} 语句中提取 direct callee 内联所需信息。
-fn extract_inline_site(stmt: &Statement) -> Option<(String, Vec<Operand>, LocalId)> {
+///
+/// 返回的 lookup_key 与 callee 快照的 lookup_key 对齐：泛型实例用
+/// `compute_instance_symbol(fqn, type_args)`，非泛型用 fqn。
+fn extract_inline_site(
+    stmt: &Statement,
+    store: &scoop2_hir::ty::TypeStore,
+    interner: &scoop2_base::Interner,
+) -> Option<(String, Vec<Operand>, LocalId)> {
     let StatementKind::Assign { target, value } = &stmt.kind else {
         return None;
     };
     let Rvalue::Call { kind, args, .. } = value else {
         return None;
     };
-    let callee_fqn = match kind {
-        CallKind::Direct { callee_fqn, .. } => callee_fqn.clone(),
+    let (callee_fqn, generic_type_args) = match kind {
+        CallKind::Direct { callee_fqn, generic_type_args, .. } => {
+            (callee_fqn.clone(), generic_type_args.clone())
+        }
         _ => return None,
     };
+    // 与 collect_inlineable_callees 的 lookup_key 同公式：泛型实例按符号查找，
+    // 非泛型按 fqn 查找。
+    let lookup_key = if generic_type_args.is_empty() {
+        callee_fqn
+    } else {
+        crate::mir::materialize::compute_instance_symbol(&callee_fqn, &generic_type_args, store, interner)
+    };
     let arg_operands: Vec<Operand> = args.iter().map(|a| a.value.clone()).collect();
-    Some((callee_fqn, arg_operands, *target))
+    Some((lookup_key, arg_operands, *target))
 }
 
 /// 从一条 Assign{Call} 语句中提取闭包内联所需信息。

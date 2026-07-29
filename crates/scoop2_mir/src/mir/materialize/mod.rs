@@ -242,8 +242,23 @@ pub fn materialize(
     let mut items: Vec<Item> = Vec::new();
     for key in &work.order {
         if let Some(fds) = work.instances.get(key) {
+            // 对带类型实参的实例，计算唯一符号名（含 type args 哈希），
+            // 确保同 FQN 不同实参的实例（如 println<Int> / println<String>）
+            // 符号不冲突。非泛型实例（type_args 空）不设置（走默认 mangle）。
+            let instance_symbol = if key.type_args.is_empty() {
+                None
+            } else {
+                Some(compute_instance_symbol(
+                    &key.template_fqn,
+                    &key.type_args,
+                    &work.store,
+                    &hir.interner,
+                ))
+            };
             for fd in fds {
-                items.push(Item::Fun(fd.clone()));
+                let mut fd = fd.clone();
+                fd.instance_symbol = instance_symbol.clone();
+                items.push(Item::Fun(fd));
             }
         }
     }
@@ -383,6 +398,7 @@ pub fn materialize(
     crate::mir::inline::inline_module(
         &mut result_module,
         crate::mir::inline::InlineConfig::default(),
+        &hir.interner,
     );
     // effect lowering pass：把 Perform/Handle/Resume 消除为本地 dispatch / 状态机。
     // 在 inline 之后运行：inline 消除 effect-transparent HOF 后，effect 边界更少。
@@ -499,6 +515,30 @@ impl Materializer {
         }
         reqs
     }
+}
+
+/// 计算单态化实例的唯一符号名。
+///
+/// 格式：`mangle(fqn) + "_" + hash(canonical(type_args))`。
+/// 与 `mangle_symbol(fqn, stable_template_key)`（只含模板信息）互补：
+/// 本函数额外编码具体类型实参，确保同模板不同实参的实例符号唯一。
+///
+/// 公开供 LIR 调用点（`map_rvalue`）按相同公式解析目标实例符号。
+pub fn compute_instance_symbol(
+    fqn: &str,
+    type_args: &[TypeId],
+    store: &TypeStore,
+    interner: &scoop2_base::Interner,
+) -> String {
+    use crate::mir::stable_id::{canonical_type_text, stable_hash, StableHashScope};
+    let base = fqn.replace('.', "_");
+    let args_canonical: Vec<String> = type_args
+        .iter()
+        .map(|&ty| canonical_type_text(store, interner, ty))
+        .collect();
+    let instance_text = format!("inst({fqn};T[{}])", args_canonical.join(","));
+    let hash = stable_hash(StableHashScope::Abi, &instance_text);
+    format!("{base}_I{hash}")
 }
 
 // ---------------------------------------------------------------------------

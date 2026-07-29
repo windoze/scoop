@@ -982,7 +982,58 @@ fn lower_unary(
     let un_node = builder.current_expr_id;
     let method_hint = unop_to_method_name_str(op);
     let inner_op = lower_expr(builder, inner);
-    lower_via_call_resolution(builder, un_node, method_hint, inner_op, Operand::Const(ConstValue::Unit), span, ty)
+    lower_unary_via_call_resolution(builder, un_node, method_hint, inner_op, span, ty)
+}
+
+/// 通过 call_resolutions 派生一元运算符调用。
+///
+/// 与 binary 不同：unary 没有 rhs operand，receiver（lhs）即唯一的真参数。
+/// 不能复用 `lower_via_call_resolution`，否则会把占位 `Const(Unit)` 当成第二个参数。
+fn lower_unary_via_call_resolution(
+    builder: &mut FnLowering,
+    op_node: scoop2_base::NodeId,
+    method_hint: &str,
+    receiver: Operand,
+    span: Span,
+    ty: scoop2_hir::ty::TypeId,
+) -> Operand {
+    if let Some(rc) = builder.hir.call_resolution(builder.file_id, op_node) {
+        // Unary 决议同样是 ResolvedCall::Method（运算符 → 方法），但参数列表为空。
+        return emit_call_resolution(builder, rc, Vec::new(), span, ty, Some(receiver));
+    }
+    // 回退（标量内建 / 未解析方法）：emit Direct 调用到 `<owner>.<method_hint>`。
+    let receiver_ty = super::stmt::operand_ty(builder, &receiver);
+    let owner_fqn = owner_fqn_of(builder, receiver_ty);
+    let callee_fqn = if owner_fqn == Symbol::default() {
+        method_hint.to_string()
+    } else {
+        format!(
+            "{}.{}",
+            builder.hir.interner.resolve(owner_fqn),
+            method_hint
+        )
+    };
+    // 标量内建一元运算符：receiver 既是隐式首参，也是唯一参数（如 `-x` → Int.unaryMinus(x)）。
+    let args = vec![CallArg {
+        name: None,
+        is_spread: false,
+        value: receiver,
+        value_ty: receiver_ty,
+    }];
+    let tmp = builder.alloc_temp(ty, span);
+    let site_id = Some(builder.next_site_id());
+    let transport = builder.call_transport(ty);
+    builder.assign(
+        tmp,
+        Rvalue::Call {
+            site_id,
+            kind: builder.make_direct_call_kind(callee_fqn, Vec::new(), false),
+            args,
+            transport,
+        },
+        span,
+    );
+    Operand::Local(tmp)
 }
 
 /// BinaryOp → 方法名（与 typecheck binop_to_method_name 对齐）。
@@ -2000,6 +2051,7 @@ fn lower_lambda(
         body: Some(body),
         file: builder.file_id,
         stable_template_key: None,
+        instance_symbol: None,
         effect_abi: None,
     };
     builder.nested_funs.push(nested);

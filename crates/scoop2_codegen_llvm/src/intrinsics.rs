@@ -283,6 +283,7 @@ enum IntBin {
 
 fn int_binary_op(name: &str) -> Option<IntBin> {
     match name {
+        n if n.ends_with("_unary_minus") || n.ends_with("_unary_plus") => None,
         n if n.ends_with("_plus") => Some(IntBin::Add),
         n if n.ends_with("_minus") => Some(IntBin::Sub),
         n if n.ends_with("_times") => Some(IntBin::Mul),

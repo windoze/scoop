@@ -589,8 +589,17 @@ pub struct LirCall {
 #[derive(Clone, Debug)]
 pub enum LirCallKind {
     /// 直接调用（已知 callee 符号名）。
+    ///
+    /// `callee_symbol` 在 `backfill_call_sites` 中被回填为 mangled 符号名
+    /// （按 callee_fqn + stable_instance_key 解析），以支持同 FQN 多重载（如
+    /// `println<Int>` / `println<String>`）。
     Direct {
         callee_symbol: String,
+        /// 原始 callee FQN（回填前保留；回填后 callee_symbol 为 mangled 名）。
+        callee_fqn: String,
+        /// 实例键（携带泛型实参/eff 实参的稳定哈希），用于在同 FQN 重载中
+        /// 精确定位目标符号；非泛型时为 None。
+        stable_instance_key: Option<scoop2_mir::mir::StableInstanceKey>,
     },
     /// class 虚方法分发（vtable）。
     Virtual {

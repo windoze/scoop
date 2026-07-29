@@ -619,6 +619,7 @@ pub fn lower_fun_decl_inner(
         body: None,
         file: file_id,
         stable_template_key: None,
+        instance_symbol: None,
         effect_abi: None,
     };
     // 无函数体的声明（extern / abstract / intrinsic）：仍需填充签名参数。

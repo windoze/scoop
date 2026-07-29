@@ -98,7 +98,8 @@ fn map_callable(
     layouts: &TypeLayoutTable,
     interner: &Interner,
 ) -> LirCallable {
-    let symbol_name = abi::mangle_symbol(&fd.fqn, &fd.stable_template_key);
+    let symbol_name = fd.instance_symbol.clone()
+        .unwrap_or_else(|| abi::mangle_symbol(&fd.fqn, &fd.stable_template_key));
     let abi_kind = if fd.effect_abi.is_some() { LirCallableAbi::EffectStep } else { LirCallableAbi::Plain };
     let params: Vec<LirParam> = fd.params.iter().map(|p| LirParam {
         name: p.name.clone(), ty: p.ty, abi: abi::param_abi_for_type(p.ty, layouts),
@@ -270,8 +271,23 @@ fn map_rvalue(rv: &scoop2_mir::mir::Rvalue, types: &scoop2_hir::ty::TypeStore, h
         },
         Rvalue::Call { kind, args, transport, .. } => {
             let ck = match kind {
-                CallKind::Direct { callee_fqn, .. } => LirCallKind::Direct {
-                    callee_symbol: callee_fqn.clone(),
+                CallKind::Direct { callee_fqn, stable_instance_key, generic_type_args, .. } => {
+                    // 对带类型实参的 Direct 调用，解析到目标实例的唯一符号名
+                    // （与 materialize 的 compute_instance_symbol 同公式），确保
+                    // 同 FQN 不同实参的重载（println<Int>/println<String>）指向
+                    // 正确实例。无类型实参时保留 FQN（由 backfill/codegen 解析）。
+                    let callee_symbol = if generic_type_args.is_empty() {
+                        callee_fqn.clone()
+                    } else {
+                        scoop2_mir::mir::materialize::compute_instance_symbol(
+                            callee_fqn, generic_type_args, types, interner,
+                        )
+                    };
+                    LirCallKind::Direct {
+                        callee_symbol,
+                        callee_fqn: callee_fqn.clone(),
+                        stable_instance_key: stable_instance_key.clone(),
+                    }
                 },
                 CallKind::Virtual { receiver, dispatch, .. } => LirCallKind::Virtual {
                     receiver_local: map_operand(receiver),
@@ -293,6 +309,8 @@ fn map_rvalue(rv: &scoop2_mir::mir::Rvalue, types: &scoop2_hir::ty::TypeStore, h
                 },
                 CallKind::Resume { .. } => LirCallKind::Direct {
                     callee_symbol: "scoop.core.Continuation.resume".to_string(),
+                    callee_fqn: "scoop.core.Continuation.resume".to_string(),
+                    stable_instance_key: None,
                 },
             };
             LirRvalue::Call(LirCall {
