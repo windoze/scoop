@@ -443,10 +443,13 @@ fn lower_call(
         };
         return emit_call_resolution(builder, rc, mir_args, span, ty, recv_op, call_node);
     }
-    // 回退：按 callee 形态直接构造。
+    // MIR 不再做 call resolution——所有合法 call site 应在 HIR resolve。
+    // call_resolution 为 None 意味着 HIR 未解析（错误程序或 HIR 缺口）。
+    // 对 MemberAccess callee 的 enum variant 构造做最后检测（HIR 的 derive_call_resolution
+    // 可能因 value_refs 缺失而未产出——这是已知的 HIR 覆盖缺口）。
     match &callee.kind {
         ExprKind::MemberAccess { receiver, member } => {
-            // 优先检测 enum variant 构造（`Color.Red(42)`）。
+            // enum variant 构造（`Color.Red(42)`）：HIR 可能未 resolve。
             if let ExprKind::Ident(recv_ident) = &receiver.kind
                 && let MemberName::Named(variant_ident) = member
                 && let Some(rc) =
@@ -1694,8 +1697,11 @@ fn lower_infix_call(
     span: Span,
     ty: scoop2_hir::ty::TypeId,
 ) -> Operand {
+    // InfixCall 是 MemberAccess callee 的语法糖——消费 HIR call_resolution。
+    // 构造虚拟 MemberAccess 表达式来查 call_resolution。
+    // 实际上 InfixCall 的 NodeId 就是 expr.id（lower_expr 入口设置的 current_expr_id）。
+    let call_node = builder.current_expr_id;
     let recv = lower_expr(builder, receiver);
-    let recv_ty = super::stmt::operand_ty(builder, &recv);
     let av = lower_expr(builder, arg);
     let arg_ty = super::stmt::operand_ty(builder, &av);
     let args = vec![CallArg {
@@ -1704,11 +1710,18 @@ fn lower_infix_call(
         value: av,
         value_ty: arg_ty,
     }];
+    // 查 HIR call_resolution（record_infix_call 在 HIR 写入）。
+    if let Some(rc) = builder.hir.call_resolution(builder.file_id, call_node) {
+        return emit_call_resolution(builder, rc, args, span, ty, Some(recv), call_node);
+    }
+    // HIR 未 resolve（错误程序或覆盖缺口）：回退到手工构建。
+    let recv_ty = super::stmt::operand_ty(builder, &recv);
     let tmp = builder.alloc_temp(ty, span);
-    let owner_str = builder.hir.interner.resolve(Symbol::default()).to_string();
+    let owner = super::stmt::resolve_owner_fqn_from_operand(builder, &recv);
+    let owner_str = builder.hir.interner.resolve(owner).to_string();
     let method_str = builder.hir.interner.resolve(name).to_string();
     let member_fqn = format!("{}.{}", owner_str, method_str);
-    let overload_sig = member_overload_sig(builder, Symbol::default(), name);
+    let overload_sig = member_overload_sig(builder, owner, name);
     let stk = crate::mir::stable_id::make_stable_template_key(
         crate::mir::stable_id::StableHashScope::Dump,
         &member_fqn,
@@ -1735,11 +1748,7 @@ fn lower_infix_call(
     };
     let site_id = Some(builder.next_site_id());
     let transport = builder.call_transport(ty);
-    let kind = builder.make_dispatch_call_kind(
-        super::stmt::resolve_owner_fqn_from_operand(builder, &recv),
-        recv,
-        dispatch,
-    );
+    let kind = builder.make_dispatch_call_kind(owner, recv, dispatch);
     builder.assign(
         tmp,
         Rvalue::Call {
@@ -1754,6 +1763,9 @@ fn lower_infix_call(
 }
 
 /// lower index（`a[i]` → operator get）。
+///
+/// 消费 HIR call_resolution（record_index_call 在 HIR 写入 `get` 方法决议）。
+/// HIR 未 resolve 时回退到 IndexAccess rvalue（codegen 有专门处理）。
 fn lower_index(
     builder: &mut FnLowering,
     receiver: &Expr,
@@ -1761,12 +1773,27 @@ fn lower_index(
     span: Span,
     ty: scoop2_hir::ty::TypeId,
 ) -> Operand {
+    let call_node = builder.current_expr_id;
     let recv = lower_expr(builder, receiver);
-    let recv_ty = super::stmt::operand_ty(builder, &recv);
     let mut idx_ops = Vec::new();
     for idx in indices {
         idx_ops.push(lower_expr(builder, idx));
     }
+    // 查 HIR call_resolution（record_index_call 写入 `get` 方法决议）。
+    if let Some(rc) = builder.hir.call_resolution(builder.file_id, call_node) {
+        let args: Vec<CallArg> = idx_ops
+            .iter()
+            .map(|op| CallArg {
+                name: None,
+                is_spread: false,
+                value: op.clone(),
+                value_ty: super::stmt::operand_ty(builder, op),
+            })
+            .collect();
+        return emit_call_resolution(builder, rc, args, span, ty, Some(recv), call_node);
+    }
+    // HIR 未 resolve：回退到 IndexAccess rvalue。
+    let recv_ty = super::stmt::operand_ty(builder, &recv);
     let tmp = builder.alloc_temp(ty, span);
     builder.assign(
         tmp,
