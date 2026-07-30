@@ -1179,7 +1179,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 .push(diagnostics::local_val_missing_initializer(span));
             return;
         }
-        let declared = val.ty.as_ref().map(|t| self.lower_type(t));
+        let declared = val.ty.as_ref().map(|t| {
+            let ty = self.lower_type(t);
+            // 记录 TypeRef 解析结果，供 MIR 直接消费（不再自行 resolve_typeref）。
+            self.facts.type_ref_resolutions.set(t.id, ty);
+            ty
+        });
         let saved_typed = self.in_typed_val_init;
         let saved_typed_ty = self.typed_val_init_ty;
         self.in_typed_val_init = declared.is_some();
@@ -7152,6 +7157,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 // 且函数类型即使闭合也不支持（effect row 只存在于编译期）。
                 // value 类型（struct/enum/标量）无运行期 tag，前端拒绝。
                 let ty = self.lower_type(ty_ref);
+                // 记录 TypeRef 解析结果，供 MIR 直接消费（不再自行 resolve_typeref）。
+                self.facts.type_ref_resolutions.set(ty_ref.id, ty);
                 match self.env.store.kind(ty) {
                     TypeKind::Value(_) => {
                         self.diags

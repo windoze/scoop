@@ -284,7 +284,12 @@ pub fn lower_local_val(builder: &mut FnLowering, val: &ast::ValDecl) {
     let declared_ty = val
         .ty
         .as_ref()
-        .map(|t| super::expr::resolve_typeref(builder, t));
+        .map(|t| {
+            builder
+                .hir
+                .type_ref_resolution(builder.file_id, t.id)
+                .unwrap_or_else(|| builder.types.unit())
+        });
     let init_ty_raw = val
         .init
         .as_ref()

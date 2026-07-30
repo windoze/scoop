@@ -472,7 +472,8 @@ fn vararg_overlap(ia: &OverloadInfo, ib: &OverloadInfo, fqn_text: &str) -> Optio
         return None;
     }
     let var_min = var_params.len() - 1;
-    let element = var_params.last().unwrap();
+    // var_params 非空（上方 early-return 保证），var_min = len-1 即末元素下标。
+    let element = &var_params[var_min];
     let fix_n = fix_info.effective_params.len();
     if fix_n < var_min {
         return None;

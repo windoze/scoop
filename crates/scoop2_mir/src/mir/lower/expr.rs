@@ -157,7 +157,7 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             let test_ty_id = builder
                 .hir
                 .type_ref_resolution(builder.file_id, test_ty.id)
-                .unwrap_or_else(|| resolve_typeref(builder, test_ty));
+                .unwrap_or_else(|| builder.types.unit());
             let operand_ty_id = super::stmt::operand_ty(builder, &v);
             let bool_ty = builder.types.bool();
             let tmp = builder.alloc_temp(bool_ty, span);
@@ -197,7 +197,7 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             let target_ty = builder
                 .hir
                 .type_ref_resolution(builder.file_id, target.id)
-                .unwrap_or_else(|| resolve_typeref(builder, target));
+                .unwrap_or_else(|| builder.types.unit());
             let operand_ty_id = super::stmt::operand_ty(builder, &v);
             let result = match op {
                 ast::CastOp::As => ty,
@@ -1048,39 +1048,12 @@ fn lower_unary_via_call_resolution(
         // Unary 决议同样是 ResolvedCall::Method（运算符 → 方法），但参数列表为空。
         return emit_call_resolution(builder, rc, Vec::new(), span, ty, Some(receiver), op_node);
     }
-    // 回退（标量内建 / 未解析方法）：emit Direct 调用到 `<owner>.<method_hint>`。
-    let receiver_ty = super::stmt::operand_ty(builder, &receiver);
-    let owner_fqn = owner_fqn_of(builder, receiver_ty);
-    let callee_fqn = if owner_fqn == Symbol::default() {
-        method_hint.to_string()
-    } else {
-        format!(
-            "{}.{}",
-            builder.hir.interner.resolve(owner_fqn),
-            method_hint
-        )
-    };
-    // 标量内建一元运算符：receiver 既是隐式首参，也是唯一参数（如 `-x` → Int.unaryMinus(x)）。
-    let args = vec![CallArg {
-        name: None,
-        is_spread: false,
-        value: receiver,
-        value_ty: receiver_ty,
-    }];
-    let tmp = builder.alloc_temp(ty, span);
-    let site_id = Some(builder.next_site_id());
-    let transport = builder.call_transport(ty);
-    builder.assign(
-        tmp,
-        Rvalue::Call {
-            site_id,
-            kind: builder.make_direct_call_kind(callee_fqn, Vec::new(), false),
-            args,
-            transport,
-        },
-        span,
-    );
-    Operand::Local(tmp)
+    // HIR 未产出 call_resolution：对合法程序不应发生（typecheck 已对所有一元运算符
+    // 调用记录 call_resolutions）。此处为错误程序——不自行构建 owner/callee FQN
+    //（违反「MIR 不做 resolve」），仅 lower receiver 并返回 Unit 临时值。
+    let _ = (super::stmt::operand_ty(builder, &receiver), method_hint);
+    let unit = builder.types.unit();
+    Operand::Local(builder.alloc_temp(unit, span))
 }
 
 /// BinaryOp → 方法名（与 typecheck binop_to_method_name 对齐）。
@@ -1262,79 +1235,13 @@ fn lower_via_call_resolution(
         // 运算符方法调用的 receiver 是 lhs operand。
         return emit_call_resolution(builder, rc, args, span, ty, Some(lhs), op_node);
     }
-    // 回退（标量内建 / 未解析方法）：emit Direct 调用到 `<owner>.<method_hint>`，
-    // owner 取 lhs 类型的 nominal FQN（标量 → scoop.core.<T>），使 callee 可解析。
-    // 若 lhs 类型无法解析（Nothing，如解构绑定未注册类型），尝试用 rhs 类型回退。
-    let lhs_ty = super::stmt::operand_ty(builder, &lhs);
-    let rhs_ty = super::stmt::operand_ty(builder, &rhs);
-    let owner_fqn = {
-        let o = owner_fqn_of(builder, lhs_ty);
-        if o == Symbol::default() {
-            owner_fqn_of(builder, rhs_ty)
-        } else {
-            o
-        }
-    };
-    let method_sym = builder.hir.interner.get(method_hint).unwrap_or_default();
-    let callee_fqn = if owner_fqn == Symbol::default() {
-        method_hint.to_string()
-    } else {
-        format!(
-            "{}.{}",
-            builder.hir.interner.resolve(owner_fqn),
-            method_hint
-        )
-    };
-    // 标量内建运算符：receiver（lhs）是隐式首参，需前置（如 `a * b` → Int.times(a, b)）。
-    let args = vec![
-        CallArg {
-            name: None,
-            is_spread: false,
-            value: lhs,
-            value_ty: lhs_ty,
-        },
-        CallArg {
-            name: None,
-            is_spread: false,
-            value: rhs,
-            value_ty: rhs_ty,
-        },
-    ];
-    let tmp = builder.alloc_temp(ty, span);
-    let site_id = Some(builder.next_site_id());
-    let transport = builder.call_transport(ty);
-    builder.assign(
-        tmp,
-        Rvalue::Call {
-            site_id,
-            kind: builder.make_direct_call_kind(callee_fqn, Vec::new(), false),
-            args,
-            transport,
-        },
-        span,
-    );
-    let _ = method_sym;
-    Operand::Local(tmp)
-}
-
-/// 取某类型的 nominal/标量 owner FQN（标量 → scoop.core.<T>；nominal → 其 fqn）。
-fn owner_fqn_of(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> Symbol {
-    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
-    let name: Option<&str> = match builder.types.kind(ty) {
-        TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int"),
-        TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt"),
-        TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool"),
-        TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char"),
-        TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64"),
-        TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32"),
-        TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String"),
-        TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
-            return n.fqn;
-        }
-        _ => None,
-    };
-    name.and_then(|n| builder.hir.interner.get(n))
-        .unwrap_or_default()
+    // HIR 未产出 call_resolution：对合法程序不应发生（typecheck 已对所有运算符
+    // 调用记录 call_resolutions）。此处为错误程序——不再自行构建 owner/callee FQN
+    //（违反「MIR 不做 resolve」），仅 lower operands 并返回 Unit 临时值，让既有
+    // 诊断使编译失败。
+    let _ = (super::stmt::operand_ty(builder, &lhs), super::stmt::operand_ty(builder, &rhs));
+    let unit = builder.types.unit();
+    Operand::Local(builder.alloc_temp(unit, span))
 }
 
 /// 取某类型的 nominal FQN 字符串（用于 RuntimeTypeDescriptorKind::Nominal { fqn }）。
@@ -2683,7 +2590,7 @@ fn lower_pattern_test(
             let target_ty = builder
                 .hir
                 .type_ref_resolution(builder.file_id, ty_ref.id)
-                .unwrap_or_else(|| resolve_typeref(builder, ty_ref));
+                .unwrap_or_else(|| builder.types.unit());
             let mir_pat = crate::mir::Pattern::Is {
                 ty: target_ty,
                 negated: false,
@@ -3339,124 +3246,3 @@ fn resolve_struct_fqn(builder: &FnLowering, sym: Symbol) -> Symbol {
     sym
 }
 
-/// ⚠ 架构注解：此函数是**仅供错误程序使用**的 fallback。
-///
-/// 对合法程序，HIR 的 `type_ref_resolutions` 表已预计算所有 TypeRef→TypeId，
-/// MIR 应只调 `builder.hir.type_ref_resolution()`。此函数仅在 HIR 未覆盖时触发：
-/// - 错误程序（typecheck 已报诊断，pipeline 继续 lowering）
-/// - val 声明的类型注解（非表达式节点，未走 walk_expr 的 TypeCheck/Cast 分支）
-///
-/// 此 fallback 不查 HIR resolution 表（hir.members / hir.enum_variants 等）。
-/// 仅使用 hir.interner（字符串池）+ hir.is_reference_nominal（类型分类）。
-pub(crate) fn resolve_typeref(
-    builder: &mut FnLowering,
-    ty_ref: &ast::TypeRef,
-) -> scoop2_hir::ty::TypeId {
-    // 优先用 HIR 预计算的 type_ref_resolutions。
-    if let Some(pre) = builder.hir.type_ref_resolution(builder.file_id, ty_ref.id) {
-        return pre;
-    }
-    // 回退：用 MIR 自己的 TypeStore 构造类型（不查 HIR resolution 表）。
-    // 仅使用 hir.interner（字符串池）和 builder.types（类型存储）。
-    resolve_typeref_fallback(builder, ty_ref)
-}
-
-fn resolve_typeref_fallback(
-    builder: &mut FnLowering,
-    ty_ref: &ast::TypeRef,
-) -> scoop2_hir::ty::TypeId {
-    use scoop2_hir::ty::{FunctionType, NominalType, RefTypeKind, TypeKind, ValueTypeKind};
-    match &ty_ref.kind {
-        ast::TypeRefKind::Path { path, .. } => {
-            // 构建候选 FQN 列表（与 HIR TypeLowering 同逻辑）。
-            let prefix = builder
-                .hir
-                .file(builder.file_id)
-                .map(|f| f.package_prefix.as_str())
-                .unwrap_or("");
-            if let Some(last) = path.segments.last() {
-                let name = builder.hir.interner.resolve(last.symbol);
-                let candidates: Vec<String> = if path.segments.len() == 1 {
-                    if prefix.is_empty() {
-                        vec![name.to_string(), format!("scoop.core.{}", name)]
-                    } else {
-                        vec![
-                            format!("{}.{}", prefix, name),
-                            name.to_string(),
-                            format!("scoop.core.{}", name),
-                        ]
-                    }
-                } else {
-                    vec![name.to_string()]
-                };
-                for cand in &candidates {
-                    if let Some(f) = builder.hir.interner.get(cand) {
-                        // 判断 ref vs value nominal：用 hir.is_reference_nominal
-                        // （查询 index.category，不是 resolution 表）。
-                        let is_ref = builder.hir.is_reference_nominal(f);
-                        let nominal = NominalType {
-                            fqn: f,
-                            args: vec![],
-                            eff: None,
-                        };
-                        if is_ref {
-                            return builder.types.ref_nominal(nominal);
-                        } else {
-                            return builder.types.value_nominal(nominal);
-                        }
-                    }
-                }
-            }
-            builder.types.unit()
-        }
-        ast::TypeRefKind::Unit => builder.types.unit(),
-        ast::TypeRefKind::Tuple(els) => {
-            let elem_tys: Vec<scoop2_hir::ty::TypeId> =
-                els.iter().map(|e| resolve_typeref(builder, e)).collect();
-            builder.types.tuple(elem_tys)
-        }
-        ast::TypeRefKind::Nullable(inner) => {
-            let inner_ty = resolve_typeref(builder, inner);
-            builder.types.option(inner_ty)
-        }
-        ast::TypeRefKind::Function {
-            params,
-            ret,
-            effect: _,
-            ..
-        } => {
-            let param_tys: Vec<scoop2_hir::ty::TypeId> =
-                params.iter().map(|p| resolve_typeref(builder, p)).collect();
-            let return_ty = resolve_typeref(builder, ret);
-            let ft = FunctionType {
-                receiver: None,
-                params: param_tys,
-                return_ty,
-                effects: scoop2_hir::ty::EffectRow::pure(),
-                closed: false,
-            };
-            builder.types.function(ft)
-        }
-        ast::TypeRefKind::ReceiverFunction {
-            receiver,
-            params,
-            ret,
-            ..
-        } => {
-            let recv_ty = resolve_typeref(builder, receiver);
-            let param_tys: Vec<scoop2_hir::ty::TypeId> =
-                params.iter().map(|p| resolve_typeref(builder, p)).collect();
-            let return_ty = resolve_typeref(builder, ret);
-            let ft = FunctionType {
-                receiver: Some(recv_ty),
-                params: param_tys,
-                return_ty,
-                effects: scoop2_hir::ty::EffectRow::pure(),
-                closed: false,
-            };
-            builder.types.function(ft)
-        }
-
-        _ => builder.types.unit(),
-    }
-}
