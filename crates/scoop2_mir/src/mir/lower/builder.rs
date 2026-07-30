@@ -135,16 +135,17 @@ impl<'hir> FnLowering<'hir> {
         self.hir.expr_type(self.file_id, expr_id)
     }
 
-    /// 取某表达式的推断类型，缺失时回退到 Nothing。
+    /// 取某表达式的推断类型，缺失时回退到 Unit（非 Nothing）。
+    /// 对合法程序不应触发（completeness gate 保证 expr_types 完整）。
     pub fn expr_ty(&mut self, expr_id: NodeId) -> TypeId {
         self.hir
             .expr_type(self.file_id, expr_id)
-            .unwrap_or_else(|| self.types.nothing())
+            .unwrap_or_else(|| self.types.unit())
     }
 
-    /// Nothing 类型。
+    /// Unit 类型。
     pub fn nothing_ty(&mut self) -> TypeId {
-        self.types.nothing()
+        self.types.unit()
     }
 
     /// Any 类型。
@@ -695,7 +696,7 @@ pub fn lower_fun_decl_inner(
             .map(|p| {
                 p.ty.as_ref()
                     .and_then(|t| hir_param_type(hir, file_id, t.id))
-                    .unwrap_or_else(|| types.nothing())
+                    .unwrap_or_else(|| types.unit())
             })
             .collect()
     };
@@ -756,7 +757,7 @@ pub fn lower_fun_decl_inner(
     // 无函数体的声明（extern / abstract / intrinsic）：仍需填充签名参数。
     if d.body.is_none() {
         for (i, p) in d.params.iter().enumerate() {
-            let pty = param_tys.get(i).copied().unwrap_or_else(|| types.nothing());
+            let pty = param_tys.get(i).copied().unwrap_or_else(|| types.unit());
             fd.params.push(Param {
                 span: p.name.span,
                 name: hir.interner.resolve(p.name.symbol).to_string(),
@@ -1253,7 +1254,7 @@ pub fn lower_class_init_callable(
                         .get(&owner_fqn_sym)
                         .and_then(|mm| mm.get(&p.name.symbol))
                         .copied()
-                        .unwrap_or_else(|| builder.types.nothing());
+                        .unwrap_or_else(|| builder.types.unit());
                     builder.push_stmt(crate::mir::Statement {
                         span: p.name.span,
                         kind: crate::mir::StatementKind::StoreMember {
@@ -1447,7 +1448,7 @@ pub fn lower_secondary_ctor_callable(
 
     // 分配 secondary ctor 参数 local。
     for (i, p) in sc.params.iter().enumerate() {
-        let pty = sig_params.get(i).copied().unwrap_or_else(|| builder.types.nothing());
+        let pty = sig_params.get(i).copied().unwrap_or_else(|| builder.types.unit());
         let name_text = builder.hir.interner.resolve(p.name.symbol).to_string();
         let lid = builder.alloc_named(name_text.clone(), pty, p.name.span);
         builder.symbol_locals.insert(p.name.symbol, lid);
@@ -1644,7 +1645,7 @@ fn emit_class_init_steps(
                         .get(&owner_fqn_sym)
                         .and_then(|mm| mm.get(&p.name.symbol))
                         .copied()
-                        .unwrap_or_else(|| builder.types.nothing());
+                        .unwrap_or_else(|| builder.types.unit());
                     builder.push_stmt(crate::mir::Statement {
                         span: p.name.span,
                         kind: crate::mir::StatementKind::StoreMember {

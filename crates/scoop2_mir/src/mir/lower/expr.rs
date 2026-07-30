@@ -913,7 +913,7 @@ fn lower_resolved_call_args(
                 let (v, ty, spread) = provided_vals.remove(&pos).unwrap_or_else(|| {
                     (
                         Operand::Const(ConstValue::Unit),
-                        builder.types.nothing(),
+                        builder.types.unit(),
                         false,
                     )
                 });
@@ -3404,7 +3404,7 @@ fn resolve_typeref_fallback(
                     }
                 }
             }
-            builder.types.nothing()
+            builder.types.unit()
         }
         ast::TypeRefKind::Unit => builder.types.unit(),
         ast::TypeRefKind::Tuple(els) => {
@@ -3454,6 +3454,6 @@ fn resolve_typeref_fallback(
             builder.types.function(ft)
         }
 
-        _ => builder.types.nothing(),
+        _ => builder.types.unit(),
     }
 }

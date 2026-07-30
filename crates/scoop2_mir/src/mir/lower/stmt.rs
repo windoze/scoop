@@ -289,7 +289,7 @@ pub fn lower_local_val(builder: &mut FnLowering, val: &ast::ValDecl) {
         .init
         .as_ref()
         .map(|e| builder.expr_ty(e.id))
-        .unwrap_or_else(|| builder.types.nothing());
+        .unwrap_or_else(|| builder.types.unit());
     // `val ys: MutableArray<T> = [a, b]`：typecheck 允许 Array 字面量赋给
     // MutableArray 声明（上下文相关转换），但字面量标注类型仍是 Array<T>。
     // 这里用声明类型作为字面量结果类型，使 MakeArray 不 freeze（构造可变数组），
@@ -374,7 +374,7 @@ pub fn bind_pattern(
         PatternKind::Tuple(els) => {
             for (i, sub) in els.iter().enumerate() {
                 let elem_ty =
-                    tuple_elem_ty(builder, src_ty, i).unwrap_or_else(|| builder.types.nothing());
+                    tuple_elem_ty(builder, src_ty, i).unwrap_or_else(|| builder.types.unit());
                 let tmp = builder.alloc_temp(elem_ty, sub.span);
                 builder.assign(
                     tmp,
@@ -738,7 +738,7 @@ pub fn operand_ty(builder: &mut FnLowering, op: &Operand) -> scoop2_hir::ty::Typ
             .locals
             .get(l.0 as usize)
             .map(|d| d.ty)
-            .unwrap_or_else(|| builder.types.nothing()),
+            .unwrap_or_else(|| builder.types.unit()),
         Operand::Const(c) => const_ty(builder, c),
     }
 }
