@@ -479,23 +479,6 @@ fn lower_call(
 
 /// 取 member-call 目标 (owner_fqn, method) 从 member_refs。
 
-/// 从 HIR member_funs 查找某 (owner, method) 首个重载的 overload signature
-/// canonical 文本。找不到时返回空串（无法区分同名重载，但不阻断 lowering）。
-fn member_overload_sig(builder: &FnLowering, owner_sym: Symbol, method_sym: Symbol) -> String {
-    if let Some(methods) = builder.hir.member_funs.get(&owner_sym) {
-        if let Some(sigs) = methods.get(&method_sym) {
-            if let Some(first) = sigs.first() {
-                return crate::mir::stable_id::build_overload_sig(
-                    &builder.types,
-                    &builder.hir.interner,
-                    &first.param_types,
-                );
-            }
-        }
-    }
-    String::new()
-}
-
 /// 检测 `<EnumType>.<Variant>(args)` 形态的 enum variant 构造调用。
 /// 若 `enum_sym` 是一个 enum 类型 FQN 且 `variant_sym` 是其 variant，返回 EnumVariant 决议。
 fn derive_enum_variant_call(
@@ -1040,7 +1023,7 @@ fn lower_unary(
         let owner_str = builder.hir.interner.resolve(Symbol::default()).to_string();
         let method_str = builder.hir.interner.resolve(equals_sym).to_string();
         let member_fqn = format!("{}.{}", owner_str, method_str);
-        let overload_sig = member_overload_sig(builder, Symbol::default(), equals_sym);
+        let overload_sig = String::new(); // fallback-only: no hir query
         let stk = crate::mir::stable_id::make_stable_template_key(
             crate::mir::stable_id::StableHashScope::Dump,
             &member_fqn,
@@ -1528,7 +1511,7 @@ fn lower_infix_call(
     let owner_str = builder.hir.interner.resolve(owner).to_string();
     let method_str = builder.hir.interner.resolve(name).to_string();
     let member_fqn = format!("{}.{}", owner_str, method_str);
-    let overload_sig = member_overload_sig(builder, owner, name);
+    let overload_sig = String::new(); // fallback-only: no hir query
     let stk = crate::mir::stable_id::make_stable_template_key(
         crate::mir::stable_id::StableHashScope::Dump,
         &member_fqn,
