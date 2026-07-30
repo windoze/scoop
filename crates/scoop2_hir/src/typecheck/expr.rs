@@ -3211,7 +3211,38 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.diags
                         .push(diagnostics::generic_type_arg_not_inferred(expr.span));
                 }
-                // 顶层值 / 函数引用 / 类型名 → 推迟精确类型（返回 Nothing，避免假错误）。
+                // enum variant 裸名（如 `None`、`Some`）：解析为所属 enum 的 nominal。
+                // 有期望类型（return / val init）时从期望类型取类型实参，使 `return None`
+                // 定型为函数返回的 Option<T>。无期望类型时退化为无实参 nominal。
+                if let Some(ResolvedValue::TopLevelValue { fqn }) =
+                    self.resolution.value_refs.get(expr.id).copied()
+                    && let Some((enum_fqn, _variant_name)) = self.enum_variant_of_callee(fqn)
+                {
+                    let args: Vec<TypeId> = if let Some(expected) = self.typed_val_init_ty
+                        && self.env.store.is_nominal_with_fqn(expected, enum_fqn)
+                    {
+                        match self.env.store.kind(expected) {
+                            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+                            | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                                n.args.clone()
+                            }
+                            _ => Vec::new(),
+                        }
+                    } else {
+                        Vec::new()
+                    };
+                    let nominal = NominalType {
+                        fqn: enum_fqn,
+                        args,
+                        eff: None,
+                    };
+                    return if self.env.is_reference_nominal(enum_fqn) {
+                        self.env.store.ref_nominal(nominal)
+                    } else {
+                        self.env.store.value_nominal(nominal)
+                    };
+                }
+                // 顶层值 / 函数引用 / 类型名 → 推迟精确类型（返回 Unit，避免假错误）。
                 self.env.store.unit()
             }
             ExprKind::IntLit(_) => self.env.store.int(),
