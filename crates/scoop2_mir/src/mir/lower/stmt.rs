@@ -213,11 +213,21 @@ pub fn lower_assign(
         AssignTargetKind::Index { receiver, indices } => {
             let recv = super::expr::lower_expr(builder, receiver);
             let recv_ty = operand_ty(builder, &recv);
+            // operator set：从 HIR assign_place 读 owner_fqn（typecheck 已解析），
+            // 不再自行 resolve_owner_fqn_from_operand。
+            let owner_fqn = builder
+                .hir
+                .assign_place(builder.file_id, target.id)
+                .and_then(|p| match p {
+                    scoop2_hir::hir::ResolvedPlace::Index { owner_fqn, .. } => Some(*owner_fqn),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            let owner_str = builder.hir.interner.resolve(owner_fqn).to_string();
             // operator set：lower 为 method call。
             let set_sym = builder.hir.interner.get("set");
             if let Some(set_sym) = set_sym {
                 let set_name = builder.hir.interner.resolve(set_sym).to_string();
-                let owner_str = "";
                 let mut args: Vec<crate::mir::CallArg> = Vec::new();
                 for idx in indices {
                     let iv = super::expr::lower_expr(builder, idx);
@@ -240,7 +250,7 @@ pub fn lower_assign(
                 let set_site_id = builder.next_site_id();
                 let set_transport = builder.call_transport(result_ty);
                 let set_dispatch = crate::mir::transport::DispatchMetadata {
-                    owner_fqn: owner_str.to_string(),
+                    owner_fqn: owner_str.clone(),
                     member_name: set_name.clone(),
                     member_fqn: format!("{}.{}", owner_str, set_name),
                     member_decl_span: None,
@@ -250,11 +260,7 @@ pub fn lower_assign(
                     generic_type_args: Vec::new(),
                     generic_eff_args: Vec::new(),
                 };
-                let set_kind = builder.make_dispatch_call_kind(
-                    resolve_owner_fqn_from_operand(builder, &recv),
-                    recv,
-                    set_dispatch,
-                );
+                let set_kind = builder.make_dispatch_call_kind(owner_fqn, recv, set_dispatch);
                 builder.assign(
                     tmp,
                     crate::mir::Rvalue::Call {
