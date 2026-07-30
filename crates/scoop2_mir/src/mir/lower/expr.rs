@@ -429,7 +429,7 @@ fn lower_call(
                 }
             }
         };
-        return emit_call_resolution(builder, rc, mir_args, span, ty, recv_op);
+        return emit_call_resolution(builder, rc, mir_args, span, ty, recv_op, call_node);
     }
     // 回退：按 callee 形态直接构造。
     match &callee.kind {
@@ -440,7 +440,7 @@ fn lower_call(
                 && let Some(rc) =
                     derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
             {
-                return emit_call_resolution(builder, &rc, mir_args, span, ty, None);
+                return emit_call_resolution(builder, &rc, mir_args, span, ty, None, call_node);
             }
             let recv = lower_expr(builder, receiver);
             let recv_ty = super::stmt::operand_ty(builder, &recv);
@@ -730,6 +730,7 @@ fn emit_call_resolution(
     span: Span,
     ty: scoop2_hir::ty::TypeId,
     receiver_operand: Option<Operand>,
+    call_node: scoop2_base::NodeId,
 ) -> Operand {
     let tmp = builder.alloc_temp(ty, span);
     let call_site_id = Some(builder.next_site_id());
@@ -935,12 +936,16 @@ fn emit_call_resolution(
                 // 继承构造链：有 `: Super(args)` 委托的 class，把超类字段实参
                 // 展开到 args 前部，使 args 与字段布局（超类字段在前）对齐。
                 let args = expand_super_ctor_chain(builder, type_fqn, args);
+                // 选中 ctor 的 span（区分 primary/secondary；secondary 时指向 constructor 关键字）。
+                let selected_ctor_span = builder
+                    .hir
+                    .ctor_selection(builder.file_id, call_node);
                 Rvalue::ClassCtor {
                     site_id: call_site_id,
                     type_fqn: *type_fqn,
                     ctor: ClassCtorCallMetadata {
                         target_init_class_fqn: type_fqn_str,
-                        selected_ctor_span: None,
+                        selected_ctor_span,
                         ordered_param_count: args.len(),
                         stable_template_key: None,
                     },
@@ -1187,7 +1192,7 @@ fn lower_unary_via_call_resolution(
 ) -> Operand {
     if let Some(rc) = builder.hir.call_resolution(builder.file_id, op_node) {
         // Unary 决议同样是 ResolvedCall::Method（运算符 → 方法），但参数列表为空。
-        return emit_call_resolution(builder, rc, Vec::new(), span, ty, Some(receiver));
+        return emit_call_resolution(builder, rc, Vec::new(), span, ty, Some(receiver), op_node);
     }
     // 回退（标量内建 / 未解析方法）：emit Direct 调用到 `<owner>.<method_hint>`。
     let receiver_ty = super::stmt::operand_ty(builder, &receiver);
@@ -1401,7 +1406,7 @@ fn lower_via_call_resolution(
             value_ty: rhs_ty,
         }];
         // 运算符方法调用的 receiver 是 lhs operand。
-        return emit_call_resolution(builder, rc, args, span, ty, Some(lhs));
+        return emit_call_resolution(builder, rc, args, span, ty, Some(lhs), op_node);
     }
     // 回退（标量内建 / 未解析方法）：emit Direct 调用到 `<owner>.<method_hint>`，
     // owner 取 lhs 类型的 nominal FQN（标量 → scoop.core.<T>），使 callee 可解析。
@@ -1715,7 +1720,7 @@ fn lower_member_access(
         && let Some(rc) =
             derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
     {
-        return emit_call_resolution(builder, &rc, vec![], span, ty, None);
+        return emit_call_resolution(builder, &rc, vec![], span, ty, None, builder.current_expr_id);
     }
     let recv = lower_expr(builder, receiver);
     let recv_ty = super::stmt::operand_ty(builder, &recv);

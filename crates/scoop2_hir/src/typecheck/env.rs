@@ -1751,6 +1751,10 @@ pub fn register_constructors(
                 }];
                 all.extend(secondary);
                 env.ctor_signatures.insert(owner, all);
+            } else if !secondary.is_empty() {
+                // 无 primary_ctor 但有 secondary ctor：只收集 secondary
+                //（无 primary_ctor 的类仍可通过 secondary ctor 构造）。
+                env.ctor_signatures.insert(owner, secondary);
             }
         }
     }

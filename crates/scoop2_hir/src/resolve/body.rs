@@ -205,7 +205,24 @@ impl<'a> BodyResolver<'a> {
                         self.resolve_member_bodies(fqn, &b.members, inner_ctor, &[]);
                     }
                 }
-                TypeMemberKind::SecondaryCtor(_) | TypeMemberKind::EnumVariant(_) => {}
+                TypeMemberKind::SecondaryCtor(sc) => {
+                    // secondary ctor 的 delegation 实参 + body：walk 表达式（记录 value_refs，
+                    // 供 typecheck 的 call_resolution 消费）。ctor 参数在作用域内可见。
+                    for cp in &sc.params {
+                        self.define_synthetic(cp.name.symbol, cp.name.span);
+                    }
+                    self.scopes.enter();
+                    if let Some(del) = &sc.delegation {
+                        for a in &del.args {
+                            self.walk_expr(&a.value);
+                        }
+                    }
+                    for s in &sc.body.stmts {
+                        self.walk_stmt(s);
+                    }
+                    self.scopes.leave();
+                }
+                TypeMemberKind::EnumVariant(_) => {}
             }
         }
         self.scopes.leave();

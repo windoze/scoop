@@ -216,6 +216,11 @@ pub struct SemanticFacts {
     /// 每个表达式的 actual effect row（执行该表达式引入的 effect 集合）。
     /// Pure = 空行。Handle 表达式的 row 已减去被 arm 截获的 effect。
     pub expr_effect_rows: NodeIdTable<crate::ty::EffectRow>,
+    /// 构造器调用点（Call 节点）选中的 ctor 声明 span。
+    /// primary ctor 的 span = 类名 span；secondary ctor 的 span = `constructor` 关键字 span。
+    /// 区分 primary/secondary，供 MIR/codegen 选择正确的 ctor callable。
+    /// 缺省（无 secondary ctor 时）不写入——调用点按 primary 处理。
+    pub ctor_selections: NodeIdTable<scoop2_base::Span>,
 }
 
 impl SemanticFacts {

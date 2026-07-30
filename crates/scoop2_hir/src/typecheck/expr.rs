@@ -2302,7 +2302,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             // 调用 → 调用决议（顶层函数 / 方法 / 构造器 / 局部值 / effect-op）。
             ExprKind::Call { callee, args: _ } => {
-                if let Some(rc) = self.derive_call_resolution(callee, ty) {
+                if let Some(rc) = self.derive_call_resolution(callee, ty, expr.id) {
                     // effect-op 调用同时记录 effect site 元数据。
                     if let crate::hir::ResolvedCall::EffectOp {
                         effect_name,
@@ -2417,6 +2417,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         &self,
         callee: &Expr,
         return_ty: TypeId,
+        call_node_id: scoop2_base::NodeId,
     ) -> Option<crate::hir::ResolvedCall> {
         match &callee.kind {
             ExprKind::Ident(ident) => {
@@ -2482,7 +2483,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
                 // 构造器调用：ident 命中类型名（如 `Point(...)`）。
                 if let Some(type_fqn) = self.callee_type_fqn_symbol(ident.symbol) {
-                    let (decl_span, decl_file) = self.first_ctor_decl(type_fqn);
+                    // 优先用 ctor_selections 记录的选中 ctor span（区分 primary/secondary）；
+                    // 回退到 first_ctor_decl（primary）。
+                    let (decl_span, decl_file) = self
+                        .facts
+                        .ctor_selections
+                        .get(call_node_id)
+                        .map(|s| {
+                            // 按 span 找声明文件（secondary ctor 的 span 在类所在文件）。
+                            let (_, file) = self.first_ctor_decl(type_fqn);
+                            (*s, file)
+                        })
+                        .unwrap_or_else(|| self.first_ctor_decl(type_fqn));
                     return Some(crate::hir::ResolvedCall::Constructor {
                         type_fqn,
                         decl_span,
@@ -3084,7 +3096,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             | ExprKind::DoBlock(b)
             | ExprKind::UnsafeBlock(b)
             | ExprKind::SafeBlock(b) => self.walk_block(b),
-            ExprKind::Call { callee, args } => self.type_call(callee, args, expr.span),
+            ExprKind::Call { callee, args } => self.type_call(callee, args, expr.span, expr.id),
             ExprKind::MemberAccess { receiver, member } => {
                 // enum variant 值（`Color.Red`，无构造调用）：receiver 是类型名、
                 // member 是其 variant → 类型为该 enum 的 nominal。必须在 walk
@@ -3450,7 +3462,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     // ---- 调用（M2 单候选 + M3 多候选重载解析） ----
 
-    fn type_call(&mut self, callee: &Expr, args: &[CallArg], span: Span) -> TypeId {
+    fn type_call(&mut self, callee: &Expr, args: &[CallArg], span: Span, call_id: scoop2_base::NodeId) -> TypeId {
         // Unwrap explicit type args `f<T>(x)` / `obj.m<T>(x)`，保留类型实参供构造器调用。
         let (callee, explicit_type_args): (&Expr, &[crate::syntax::ast::TypeArg]) =
             match &callee.kind {
@@ -3539,7 +3551,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             .any(|s| self.ctor_sig_applicable(s, args, &arg_types))
                     });
                     if ctor_applicable {
-                        return self.ctor_call(ctor_fqn, args, span, explicit_type_args);
+                        return self.ctor_call(ctor_fqn, args, span, explicit_type_args, call_id);
                     }
                 }
                 return self.resolve_top_level_call(fqn, args, span, explicit_type_args);
@@ -3733,7 +3745,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let ExprKind::Ident(ident) = &callee.kind
             && let Some(fqn) = self.callee_type_fqn(ident.symbol)
         {
-            return self.ctor_call(fqn, args, span, explicit_type_args);
+            return self.ctor_call(fqn, args, span, explicit_type_args, call_id);
         }
         // 其他调用形式（嵌套调用、lambda 调用、索引结果调用等）：先类型化 callee。
         // callee 是函数类型（如 `fns[0](1)` 中 `fns[0]: (Int) -> Int`）时，
@@ -3780,12 +3792,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     /// 构造器调用 `Type(args)`：按主构造参数类型检查实参，返回该 nominal 类型。
+    /// `call_id` 是 Call 表达式 NodeId（记录 ctor 选择用）。
     fn ctor_call(
         &mut self,
         fqn: Symbol,
         args: &[CallArg],
         span: Span,
         explicit_type_args: &[crate::syntax::ast::TypeArg],
+        call_id: scoop2_base::NodeId,
     ) -> TypeId {
         // `Continuation` 是 compiler-owned interface，用户代码不能直接构造。
         let name = self.env.interner.resolve(fqn);
@@ -3815,7 +3829,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let Some(ctors) = self.env.ctor_signatures(fqn).map(|c| c.to_vec())
             && !ctors.is_empty()
         {
-            return self.resolve_ctor_overloads(fqn, &ctors, args, span, explicit_type_args);
+            let (ty, selected_ctor_span) =
+                self.resolve_ctor_overloads(fqn, &ctors, args, span, explicit_type_args);
+            // 记录选中的 ctor decl_span（区分 primary/secondary）。
+            if let Some(decl_span) = selected_ctor_span {
+                self.facts.ctor_selections.set(call_id, decl_span);
+            }
+            return ty;
         }
         // enum variant ctor：查找 enum FQN 对应的 variant 字段数。
         let params: Vec<TypeId> = self.env.ctor_params(fqn).unwrap_or(&[]).to_vec();
@@ -4765,7 +4785,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         args: &[CallArg],
         span: Span,
         explicit_type_args: &[crate::syntax::ast::TypeArg],
-    ) -> TypeId {
+    ) -> (TypeId, Option<Span>) {
         // 显式类型实参降级（`Container<String>()`）。
         let explicit_arg_types: Vec<TypeId> = explicit_type_args
             .iter()
@@ -4803,7 +4823,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             let n = self.env.interner.resolve(arg_name.symbol);
                             self.diags
                                 .push(diagnostics::unknown_call_arg_name(n, a.span));
-                            return result;
+                            return (result, None);
                         }
                     }
                 }
@@ -4853,7 +4873,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     diag.with_related(sig.decl_span, format!("{fun_name}({})", params.join(", ")));
             }
             self.diags.push(diag);
-            return result;
+            return (result, None);
         }
         // 特异性：a 比 b 更具体（a.params ⊆ b.params 严格，或并列时 type_param_count 更少）。
         let more_specific = |a: &Signature, b: &Signature| -> bool {
@@ -4904,7 +4924,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .map(|(i, _)| i)
             .collect();
         if winners.len() == 1 {
-            return result;
+            // 选中 ctor 的 decl_span：仅 secondary 时记录（primary 的 span = 类名 span，
+            // 不记录——codegen 按 None=primary 处理）。primary 是 ctors[0]（当有 primary 时）。
+            let selected = applicable[winners[0]];
+            let is_primary = ctors
+                .first()
+                .is_some_and(|primary| primary.decl_span == selected.decl_span);
+            let selected_span = if is_primary { None } else { Some(selected.decl_span) };
+            return (result, selected_span);
         }
         // 歧义（含 incomparable bounds）。
         let mut msg = "重载决议歧义：构造器不可区分".to_string();
@@ -4944,7 +4971,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         let _ = &mut diag; // quiet
         self.diags.push(diag);
-        result
+        (result, None)
     }
 
     /// 查找 enum variant FQN 的 enum owner FQN（`pkg.Enum.Variant` → `pkg.Enum`）。

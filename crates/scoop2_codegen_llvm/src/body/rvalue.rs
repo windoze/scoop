@@ -88,7 +88,9 @@ pub fn lower_rvalue<'a, 'ctx>(
             payload_ty,
             ..
         } => lower_enum_variant(fl, *enum_ty, *tag_value, args, *payload_ty),
-        LirRvalue::ClassCtor { class_fqn, args } => lower_class_ctor(fl, class_fqn, args),
+        LirRvalue::ClassCtor { class_fqn, args, selected_ctor_span_start } => {
+            lower_class_ctor(fl, class_fqn, args, selected_ctor_span_start.as_ref())
+        }
         LirRvalue::MakeArray {
             elements,
             ty,
@@ -3546,6 +3548,7 @@ fn lower_class_ctor<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     class_fqn: &str,
     args: &[LirOperand],
+    selected_ctor_span_start: Option<&usize>,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     // 1. 获取 type descriptor。
     let type_desc = fl.cg.get_or_create_type_descriptor(class_fqn);
@@ -3782,7 +3785,11 @@ fn lower_class_ctor<'a, 'ctx>(
     //    属性初始化器 / init 块（Kotlin 顺序）。仅当类有 init 体时该 callable 存在。
     //    init callable 签名：(this: GC ptr, ctor_param0, ctor_param1, ...) -> Unit。
     //    实参 = [obj_gc, ...原 ctor args]。
-    let init_fqn = format!("{}.$init", class_fqn);
+    //    primary ctor → `<Class>.$init`；secondary ctor → `<Class>.$ctor.s<span_start>`。
+    let init_fqn = match selected_ctor_span_start {
+        Some(span_start) => format!("{}.$ctor.s{}", class_fqn, span_start),
+        None => format!("{}.$init", class_fqn),
+    };
     if let Some(init_fv) = fl
         .cg
         .lookup_callable_fn(&init_fqn)

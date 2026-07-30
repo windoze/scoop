@@ -1105,12 +1105,20 @@ fn scan_rvalue_calls(
                 type_args: Vec::new(),
             });
         }
-        // class 构造：强制实例化该类的 `<Class>.$init` 初始化 callable
-        //（codegen 在 alloc 后调用它执行 super 委托 / 属性初始化器 / init 块）。
-        // 仅当类合成了 $init（有 init 体）时 templates 里才有该条目；
-        // 无 init 体的类此处 push 一个不存在的 template，scan_calls 会过滤掉。
-        Rvalue::ClassCtor { type_fqn, .. } => {
+        // class 构造：强制实例化该类的初始化 callable。
+        // primary ctor → `<Class>.$init`；secondary ctor → `<Class>.$ctor.s<span_start>`。
+        // 两者都 push（$ctor 存在时实例化，不存在则 scan_calls 过滤）。
+        Rvalue::ClassCtor { type_fqn, ctor, .. } => {
             let class_fqn = interner.resolve(*type_fqn);
+            // secondary ctor callable（若选中 secondary）。
+            if let Some(span) = ctor.selected_ctor_span {
+                reqs.push(InstanceKey {
+                    template_fqn: format!("{}.$ctor.s{}", class_fqn, span.start),
+                    overload_sig: String::new(),
+                    type_args: Vec::new(),
+                });
+            }
+            // primary $init（secondary ctor 内部也会调它，需实例化）。
             reqs.push(InstanceKey {
                 template_fqn: format!("{}.$init", class_fqn),
                 overload_sig: String::new(),

@@ -538,6 +538,9 @@ pub enum LirRvalue {
     ClassCtor {
         class_fqn: String,
         args: Vec<LirOperand>,
+        /// 选中的 ctor 声明 span.start（secondary ctor 时指向 `constructor` 关键字；
+        /// None = primary ctor）。供 codegen 选择 `<Class>.$init` vs `<Class>.$ctor.s<start>`。
+        selected_ctor_span_start: Option<usize>,
     },
     /// tuple 构造。
     MakeTuple {

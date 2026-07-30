@@ -660,9 +660,10 @@ fn map_rvalue(
                 payload_ty,
             }
         }
-        Rvalue::ClassCtor { type_fqn, args, .. } => LirRvalue::ClassCtor {
+        Rvalue::ClassCtor { type_fqn, args, ctor, .. } => LirRvalue::ClassCtor {
             class_fqn: interner.resolve(*type_fqn).to_string(),
             args: args.iter().map(|a| map_operand(&a.value)).collect(),
+            selected_ctor_span_start: ctor.selected_ctor_span.map(|s| s.start),
         },
         Rvalue::Call {
             kind,

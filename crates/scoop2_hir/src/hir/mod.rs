@@ -214,6 +214,12 @@ impl TypedHir {
             .and_then(|f| f.facts.call_resolutions.get(node))
     }
 
+    /// 查询某构造器调用点选中的 ctor 声明 span（区分 primary/secondary）。
+    pub fn ctor_selection(&self, file_id: FileId, node: NodeId) -> Option<scoop2_base::Span> {
+        self.file(file_id)
+            .and_then(|f| f.facts.ctor_selections.get(node).copied())
+    }
+
     /// 查询某成员访问的决议结果。
     pub fn member_ref(&self, file_id: FileId, node: NodeId) -> Option<&ResolvedMember> {
         self.file(file_id)

@@ -896,6 +896,61 @@ fn check_file_bodies(
                                         );
                                     }
                                 }
+                                TypeMemberKind::SecondaryCtor(sc) => {
+                                    // secondary ctor body + delegation 实参 typecheck
+                                    //（写回语义事实，供 MIR 合成 secondary ctor callable 消费）。
+                                    // ctor 参数类型：从 ctor_signatures 按 span 匹配（已 typecheck）。
+                                    let sc_params: Vec<(scoop2_base::Symbol, crate::ty::TypeId)> = {
+                                        let sigs = env.ctor_signatures(class_fqn_sym.unwrap_or_default());
+                                        let matched = sigs
+                                            .and_then(|ss| {
+                                                ss.iter().find(|s| s.decl_span == sc.span)
+                                            });
+                                        matched
+                                            .map(|s| {
+                                                s.param_names
+                                                    .iter()
+                                                    .zip(&s.params)
+                                                    .map(|(n, t)| (*n, *t))
+                                                    .collect()
+                                            })
+                                            .unwrap_or_default()
+                                    };
+                                    // delegation 实参（this(...)/super(...)）。
+                                    if let Some(del) = &sc.delegation {
+                                        expr::check_super_delegation_args(
+                                            env,
+                                            imports,
+                                            resolution,
+                                            diags,
+                                            package_prefix,
+                                            this_ty,
+                                            &del.args,
+                                            expr_types,
+                                            facts,
+                                            &sc_params,
+                                        );
+                                    }
+                                    // secondary ctor body（强制 Pure）。
+                                    let what = format!(
+                                        "class `{}` secondary constructor",
+                                        env.interner.resolve(d.name.symbol)
+                                    );
+                                    expr::check_init_body(
+                                        env,
+                                        imports,
+                                        resolution,
+                                        diags,
+                                        package_prefix,
+                                        this_ty,
+                                        what,
+                                        expr::PureInitSite::Block(&sc.body),
+                                        expr_types,
+                                        facts,
+                                        /* require_pure */ true,
+                                        &sc_params,
+                                    );
+                                }
                                 _ => {}
                             }
                         }
