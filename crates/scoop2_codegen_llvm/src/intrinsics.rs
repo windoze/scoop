@@ -33,7 +33,7 @@ pub fn try_lower_intrinsic_by_fqn<'a, 'ctx>(
     }
     // 优先用 `@Intrinsic("name")` 注解透传的真实 intrinsic 名（权威来源，
     // 覆盖 `ushr` 等启发式推导遗漏的运算符）。
-    let name = if let Some(ann_name) = fl.cg.lookup_intrinsic_name(callee_fqn) {
+    let mut name = if let Some(ann_name) = fl.cg.lookup_intrinsic_name(callee_fqn) {
         ann_name.to_string()
     } else {
         // 回退：从 FQN 启发式推导（旧路径，覆盖无注解的内建方法调用）。
@@ -42,7 +42,49 @@ pub fn try_lower_intrinsic_by_fqn<'a, 'ctx>(
             None => return Ok(None),
         }
     };
+    // 重载歧义修正：同名方法（如 `Char.minus`）有多个 @Intrinsic 注解
+    // （char_minus_int / char_minus_char），intrinsic_map 只保留其一。
+    // 按 result_ty / 实参类型精确选名，避免把 `Char - Int` 当成 `Char - Char`。
+    name = disambiguate_overloaded_intrinsic(fl, callee_fqn, &name, args, result_ty);
     lower_named_intrinsic(fl, &name, args).map(Some)
+}
+
+/// 修正同名重载 intrinsic 的注解名歧义。
+///
+/// `intrinsic_map` 以 FQN 为键，重载方法（不同参数类型、不同 @Intrinsic 名）只保留
+/// 最后注册的一个。这里按调用点的 result_ty / 实参类型重新精确选名。
+fn disambiguate_overloaded_intrinsic(
+    fl: &FunctionLowerer,
+    callee_fqn: &str,
+    name: &str,
+    args: &[LirOperand],
+    result_ty: TypeId,
+) -> String {
+    // Char.minus：result_ty=Char → char_minus_int；result_ty=Int → char_minus_char。
+    if callee_fqn.ends_with(".Char.minus") && (name == "char_minus_int" || name == "char_minus_char")
+    {
+        let is_char_result = fl
+            .layouts
+            .get(result_ty)
+            .map(|l| {
+                matches!(
+                    &l.kind,
+                    scoop2_lir::TypeLayoutKind::Scalar {
+                        scalar_kind: scoop2_lir::ScalarKind::Char,
+                        ..
+                    }
+                )
+            })
+            .unwrap_or(false);
+        return if is_char_result {
+            "char_minus_int".to_string()
+        } else {
+            "char_minus_char".to_string()
+        };
+    }
+    // 同理 Char.plus 只有 char_plus_int（无歧义），略。
+    let _ = args;
+    name.to_string()
 }
 
 /// String 字节级 substrate intrinsic。
@@ -779,6 +821,88 @@ fn lower_named_intrinsic<'a, 'ctx>(
             })?;
             return Ok(r.into());
         }
+        // Char 算术（Char 在 LLVM 中是 i32）：
+        //   char_plus_int  : Char + Int  -> Char（i32 + i64 trunc 回 i32）
+        //   char_minus_int : Char - Int  -> Char
+        //   char_minus_char: Char - Char -> Int（i32 - i32，结果 zext 到 i64）
+        "char_plus_int" | "char_minus_int" => {
+            let lhs = crate::body::expect_int_val(
+                one_arg(fl, args, 0)?,
+                "char 算术参数",
+                &fl.fqn,
+            )?;
+            let rhs = crate::body::expect_int_val(
+                one_arg(fl, args, 1)?,
+                "char 算术参数",
+                &fl.fqn,
+            )?;
+            // rhs (Int/i64) 截到 Char 的 i32 宽度后运算，结果保持 i32（Char 类型）。
+            let i32_ty = ctx.i32_type();
+            let rhs32 = if rhs.get_type().get_bit_width() == 32 {
+                rhs
+            } else {
+                fl.builder
+                    .build_int_truncate(rhs, i32_ty, "char_rhs_trunc")
+                    .map_err(|e| {
+                        CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                    })?
+            };
+            let r = if name == "char_plus_int" {
+                fl.builder.build_int_add(lhs, rhs32, "char_add")
+            } else {
+                fl.builder.build_int_sub(lhs, rhs32, "char_sub")
+            }
+            .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
+            return Ok(r.into());
+        }
+        "char_minus_char" => {
+            let lhs = crate::body::expect_int_val(
+                one_arg(fl, args, 0)?,
+                "char_minus_char 参数",
+                &fl.fqn,
+            )?;
+            let rhs = crate::body::expect_int_val(
+                one_arg(fl, args, 1)?,
+                "char_minus_char 参数",
+                &fl.fqn,
+            )?;
+            // 两 Char (i32) 相减得 i32，结果 zext 到 Int (i64)。
+            let diff = fl
+                .builder
+                .build_int_sub(lhs, rhs, "char_diff")
+                .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
+            let i64 = if diff.get_type().get_bit_width() == 64 {
+                diff
+            } else {
+                fl.builder
+                    .build_int_z_extend(diff, ctx.i64_type(), "char_diff_zext")
+                    .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?
+            };
+            return Ok(i64.into());
+        }
+        // 整数 hash（sysroot int_hash/char_hash via toInt；运行时无对应符号，
+        // 简单返回值本身作为 hash——一致性满足，分布非最优但语义正确）。
+        n if n.ends_with("_hash") => {
+            let v = one_arg(fl, args, 0)?;
+            // 数值类型的 hash 就是其整数值（zext 到 i64）。
+            if let BasicValueEnum::IntValue(iv) = v {
+                let i64 = if iv.get_type().get_bit_width() == 64 {
+                    iv
+                } else {
+                    fl.builder
+                        .build_int_z_extend(iv, ctx.i64_type(), "hash_zext")
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                        })?
+                };
+                return Ok(i64.into());
+            }
+            return Err(CodegenError::unknown_intrinsic(
+                name,
+                &format!("hash 不支持的类型 in {}", fl.fqn),
+                scoop2_base::Span::default(),
+            ));
+        }
         n if n.ends_with("_unary_minus") => {
             let v =
                 crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
@@ -905,6 +1029,22 @@ fn lower_named_intrinsic<'a, 'ctx>(
         n if n.ends_with("_ge") => {
             let r = lower_int_cmp(fl, name, args, IntCmp::Ge)?;
             return Ok(zext_bool(fl, r, name)?);
+        }
+        // `bool_ne` 双重含义（sysroot）：作为 `Bool.not()`（一元，1 实参）时是逻辑非；
+        // 作为二元 NE（2 实参）时走下方 `_ne` 分支。这里先处理一元情形。
+        "bool_ne" if args.len() == 1 => {
+            let v = crate::body::expect_int_val(
+                one_arg(fl, args, 0)?,
+                "bool_ne(not) 参数",
+                &fl.fqn,
+            )?;
+            // Bool 在 LLVM 是 i8；与 1 异或 = 逻辑取反（0→1, 1→0）。
+            let one = v.get_type().const_int(1, false);
+            let r = fl
+                .builder
+                .build_xor(v, one, "bool_not")
+                .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
+            return Ok(r.into());
         }
         // 短形式 `_eq` / `_ne`（sysroot `@Intrinsic("int_eq"/"int_ne")` / `bool_eq`/`bool_ne`）。
         // 注意顺序：必须晚于 `_ge`/`_le`（它们不以 `_eq`/`_ne` 结尾，故无冲突），
@@ -1226,7 +1366,7 @@ fn one_arg<'a, 'ctx>(
         Some(LirOperand::Local(id)) => fl.load_local(*id),
         Some(LirOperand::Const(c)) => fl.lower_const_value(c),
         None => Err(CodegenError::unsupported(
-            format!("intrinsic 实参不足（需第 {} 个）", i),
+            format!("intrinsic 实参不足（需第 {} 个，实有 {}）", i, args.len()),
             &fl.fqn,
             scoop2_base::Span::default(),
         )),
