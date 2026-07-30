@@ -2542,7 +2542,71 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     return_ty,
                 })
             }
+            // TypeApply callee（`f<T>(args)`）→ 解包到内部 callee。
+            ExprKind::TypeApply { callee: inner, .. } => {
+                self.derive_typeapply_call_resolution(callee, return_ty, call_node_id)
+            }
             _ => None,
+        }
+    }
+
+    /// 解析 TypeApply callee（`f<T, U>(args)`）→ 解包到内部 callee（Ident），
+    /// 提取显式类型实参，复用 Ident/MemberAccess 路径解析。
+    /// 消除 MIR 层对 TypeApply callee 的 fallback 重解析。
+    fn derive_typeapply_call_resolution(
+        &self,
+        callee: &Expr,
+        return_ty: TypeId,
+        call_node_id: scoop2_base::NodeId,
+    ) -> Option<crate::hir::ResolvedCall> {
+        use crate::syntax::ast::{ExprKind, TypeArgKind};
+        let ExprKind::TypeApply { callee: inner, args: type_args } = &callee.kind else {
+            return None;
+        };
+        // 降级显式类型实参为 TypeId 列表（从 expr_types 查——walk 时已定型）。
+        let explicit_type_args: Vec<TypeId> = type_args
+            .iter()
+            .filter_map(|a| match &a.kind {
+                TypeArgKind::Type(t) => self.expr_types.get(t.id).copied(),
+                _ => None,
+            })
+            .collect();
+        // 复用内部 callee 的解析（Ident / MemberAccess）。
+        let rc = self.derive_call_resolution(inner, return_ty, call_node_id)?;
+        // 注入显式类型实参。
+        match rc {
+            crate::hir::ResolvedCall::TopLevelFun { fqn, decl_span, decl_file, .. } => {
+                Some(crate::hir::ResolvedCall::TopLevelFun {
+                    fqn,
+                    decl_span,
+                    decl_file,
+                    explicit_type_args: explicit_type_args.clone(),
+                    inferred_type_args: explicit_type_args,
+                    return_ty,
+                })
+            }
+            crate::hir::ResolvedCall::Method {
+                receiver_ty,
+                owner_fqn,
+                method_name,
+                decl_span,
+                decl_file,
+                is_virtual,
+                is_interface,
+                ..
+            } => Some(crate::hir::ResolvedCall::Method {
+                receiver_ty,
+                owner_fqn,
+                method_name,
+                decl_span,
+                decl_file,
+                is_virtual,
+                is_interface,
+                explicit_type_args: explicit_type_args.clone(),
+                inferred_type_args: explicit_type_args,
+                return_ty,
+            }),
+            other => Some(other),
         }
     }
 
