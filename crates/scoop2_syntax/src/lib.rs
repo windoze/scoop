@@ -6,6 +6,7 @@
 //! - [`lexer`]：手写词法分析器，产出完整 token 流并附带字面量校验诊断；
 //! - [`ast`]：完整 AST 定义（`NodeId` + `Symbol` + `Span`）；
 //! - [`parser`]：手写递归下降 + Pratt 表达式解析器，带 item/stmt 级错误恢复；
+//! - [`desugar`]：AST desugar（reshape）pass——把语法糖改写成基础结构（parse 后运行）；
 //! - [`dump`]：稳定 AST 文本渲染（`dump-ast` 的 golden 格式）。
 //!
 //! 语法事实来源是 `docs/spec/grammar.md`；parser 逐条对应文法产生式。
@@ -13,6 +14,7 @@
 #![forbid(unsafe_code)]
 
 pub mod ast;
+pub mod desugar;
 pub mod dump;
 pub mod lexer;
 pub mod parser;

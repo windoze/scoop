@@ -47,6 +47,14 @@ impl NodeIdAllocator {
         Self::default()
     }
 
+    /// 从指定起点（已分配数量）接着编号。用于 parse 之后的 AST reshape：
+    /// 合成节点从 parse 产物之后继续分配，避免与既有 NodeId 冲突。
+    pub fn new_starting_at(allocated: usize) -> Self {
+        NodeIdAllocator {
+            next: allocated as u32,
+        }
+    }
+
     pub fn alloc(&mut self) -> NodeId {
         let id = NodeId(self.next);
         self.next += 1;

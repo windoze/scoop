@@ -441,6 +441,11 @@ fn build_program(source: &scoop2_base::SourceFile) -> BuiltProgram {
             sources.push(src);
         }
     }
+    // AST desugar（reshape）pass：parse 后、typecheck 前。
+    // 把语法糖改写成基础结构（T? → Option<T> 等），合成节点从 node_count 之后编号。
+    for pf in &mut parsed {
+        scoop2_syntax::desugar::reshape_file(&mut pf.file, &mut interner, pf.node_count);
+    }
     BuiltProgram {
         parsed,
         sources,
