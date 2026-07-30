@@ -2758,6 +2758,49 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         );
     }
 
+    /// Option 上的方法调用决议（`a!!` → Option.unwrap 等）。
+    /// 在 typecheck 内完成 desugar：把对 Option 的糖操作记录为对 sysroot
+    /// `scoop.core.Option` 的 `unwrap`（等）方法调用，使 MIR 按普通方法调用消费。
+    fn record_option_method_call(
+        &mut self,
+        expr: &Expr,
+        receiver: &Expr,
+        method_name_str: &str,
+        return_ty: TypeId,
+    ) {
+        let Some(method_sym) = self.env.interner.get(method_name_str) else {
+            return;
+        };
+        let Some(receiver_ty) = self.expr_ty(receiver) else {
+            return;
+        };
+        let Some(owner_fqn) = self
+            .resolve_member_owner_fqn(receiver_ty)
+            .or_else(|| scalar_fqn(self.env.store.kind(receiver_ty), self.env.interner))
+        else {
+            return;
+        };
+        let (decl_span, decl_file) = self.first_member_overload_decl(owner_fqn, method_sym);
+        let is_virtual = self.member_is_virtual(owner_fqn, method_sym);
+        let is_interface = self.owner_is_interface(owner_fqn);
+        self.facts.call_resolutions.set(
+            expr.id,
+            crate::hir::ResolvedCall::Method {
+                receiver_ty,
+                owner_fqn,
+                method_name: method_sym,
+                decl_span,
+                decl_file,
+                is_virtual,
+                is_interface,
+                explicit_type_args: Vec::new(),
+                inferred_type_args: Vec::new(),
+                param_types: self.first_member_param_types(owner_fqn, method_sym),
+                return_ty,
+            },
+        );
+    }
+
     /// infix 调用（`a until b`）→ 方法调用决议。
     fn record_infix_call(
         &mut self,
@@ -3427,7 +3470,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if let TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) =
                     self.env.store.kind(t)
                 {
-                    *inner
+                    let inner = *inner;
+                    // a!! 等价于 Option.unwrap（None 则 panic）。
+                    // 记录 call_resolution 供 MIR 作为普通方法调用消费（不再特判节点）。
+                    self.record_option_method_call(expr, e, "unwrap", inner);
+                    inner
                 } else if self.env.store.is_nothing(t) {
                     // Nothing = 不可解析，放行。
                     t
