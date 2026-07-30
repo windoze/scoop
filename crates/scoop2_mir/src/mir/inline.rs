@@ -709,17 +709,17 @@ fn rename_statement(stmt: &mut Statement, map: &HashMap<LocalId, LocalId>) {
         StatementKind::StoreMember {
             receiver, value, ..
         } => {
-            rename_operand(receiver, map);
-            rename_operand(value, map);
+            *receiver = rename_operand(receiver, map);
+            *value = rename_operand(value, map);
         }
         StatementKind::StoreTupleIndex {
             receiver, value, ..
         } => {
-            rename_operand(receiver, map);
-            rename_operand(value, map);
+            *receiver = rename_operand(receiver, map);
+            *value = rename_operand(value, map);
         }
         StatementKind::StoreTopLevelVar { value, .. } => {
-            rename_operand(value, map);
+            *value = rename_operand(value, map);
         }
         StatementKind::Nop | StatementKind::Panic { .. } => {}
     }
