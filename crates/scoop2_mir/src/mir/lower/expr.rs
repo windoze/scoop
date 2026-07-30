@@ -1104,27 +1104,59 @@ fn emit_call_resolution(
 ///
 /// 每个 ResolvedCallArg：
 /// - Provided { original_index } → lower 原始调用点第 original_index 个实参。
-/// - Default { expr_node_id } → 按 NodeId 找到 AST Expr 并 lower（默认值表达式）。
+/// - Default { expr } → lower 默认值表达式。
+///
+/// **求值顺序**：Provided 实参按源码顺序（original_index 升序）lower，
+/// Default 实参在它们所在的位置 lower。这保证命名实参的求值顺序与源码一致
+/// （Scoop 语义：实参按书写顺序求值，无论命名还是位置）。
 fn lower_resolved_call_args(
     builder: &mut FnLowering,
     original_args: &[ast::CallArg],
     resolved: &[scoop2_hir::hir::ResolvedCallArg],
 ) -> Vec<CallArg> {
+    // 第一遍：按源码顺序 lower 所有 Provided 实参（保留求值顺序）。
+    // 收集 (param_position, value, value_ty, is_spread) 到临时 local。
+    let mut provided_vals: std::collections::HashMap<usize, (Operand, scoop2_hir::ty::TypeId, bool)> =
+        std::collections::HashMap::new();
+    // 按源码序（original_index 升序）lower。
+    let mut provided_indices: Vec<(usize, usize)> = resolved
+        .iter()
+        .enumerate()
+        .filter_map(|(pos, r)| match r {
+            scoop2_hir::hir::ResolvedCallArg::Provided { original_index } => {
+                Some((*original_index, pos))
+            }
+            _ => None,
+        })
+        .collect();
+    provided_indices.sort_by_key(|(orig_idx, _)| *orig_idx);
+    for (orig_idx, pos) in provided_indices {
+        let a = &original_args[orig_idx];
+        let v = lower_expr(builder, &a.value);
+        let ty = super::stmt::operand_ty(builder, &v);
+        provided_vals.insert(pos, (v, ty, a.is_spread));
+    }
+    // 第二遍：按参数位置序构建 CallArg（Default 实参在此 lower）。
     resolved
         .iter()
-        .map(|r| match r {
-            scoop2_hir::hir::ResolvedCallArg::Provided { original_index } => {
-                let a = &original_args[*original_index];
-                let v = lower_expr(builder, &a.value);
+        .enumerate()
+        .map(|(pos, r)| match r {
+            scoop2_hir::hir::ResolvedCallArg::Provided { .. } => {
+                let (v, ty, spread) = provided_vals.remove(&pos).unwrap_or_else(|| {
+                    (
+                        Operand::Const(ConstValue::Unit),
+                        builder.types.nothing(),
+                        false,
+                    )
+                });
                 CallArg {
-                    name: None, // 已按位置排序，丢弃原始命名
-                    is_spread: a.is_spread,
-                    value_ty: super::stmt::operand_ty(builder, &v),
+                    name: None,
+                    is_spread: spread,
+                    value_ty: ty,
                     value: v,
                 }
             }
             scoop2_hir::hir::ResolvedCallArg::Default { expr } => {
-                // 默认值表达式（已克隆的 Expr，直接 lower——MIR 无 AST 查找）。
                 let v = lower_expr(builder, expr);
                 CallArg {
                     name: None,
