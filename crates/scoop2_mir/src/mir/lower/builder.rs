@@ -906,6 +906,7 @@ pub fn lower_top_level_val(
 pub fn lower_type_member_funs_with_stores(
     file_id: FileId,
     members: &[scoop2_syntax::ast::TypeMember],
+    type_decl: Option<&scoop2_syntax::ast::TypeDecl>,
     hir: &TypedHir,
     package_prefix: &str,
     base_types: &TypeStore,
@@ -936,9 +937,11 @@ pub fn lower_type_member_funs_with_stores(
         }
         // secondary ctor：合成 `<Class>.$ctor.<key>` callable（执行 delegation + body）。
         if let TypeMemberKind::SecondaryCtor(sc) = &m.kind
+            && let Some(td) = type_decl
             && let Some((ctor_fd, nested, ctor_store)) = lower_secondary_ctor_callable(
                 file_id,
                 sc,
+                td,
                 hir,
                 base_types,
                 errors,
@@ -958,6 +961,7 @@ pub fn lower_type_member_funs_with_stores(
             out.extend(lower_type_member_funs_with_stores(
                 file_id,
                 &body.members,
+                Some(td),
                 hir,
                 package_prefix,
                 base_types,
@@ -973,6 +977,7 @@ pub fn lower_type_member_funs_with_stores(
                 out.extend(lower_type_member_funs_with_stores(
                     file_id,
                     &body.members,
+                    None,
                     hir,
                     package_prefix,
                     base_types,
@@ -1298,6 +1303,7 @@ fn emit_super_init_call(
 pub fn lower_secondary_ctor_callable(
     file_id: FileId,
     sc: &scoop2_syntax::ast::SecondaryCtorDecl,
+    d: &scoop2_syntax::ast::TypeDecl,
     hir: &TypedHir,
     base_types: &TypeStore,
     errors: &mut Vec<MirLowerError>,
@@ -1386,6 +1392,18 @@ pub fn lower_secondary_ctor_callable(
         });
     }
 
+    // primary ctor 参数布局 + 名字（供 emit_class_init_steps 发射 property-param 赋值）。
+    let ctor_params: Vec<ClassCtorParamInfo> = hir
+        .class_ctor_params
+        .get(&owner_fqn_sym)
+        .cloned()
+        .unwrap_or_default();
+    let primary_param_names: Vec<scoop2_base::Symbol> = d
+        .primary_ctor
+        .as_ref()
+        .map(|pc| pc.params.iter().map(|p| p.name.symbol).collect())
+        .unwrap_or_default();
+
     // ---- 执行 delegation + body ----
     let primary_init_fqn = format!("{}.$init", owner_fqn);
     match &sc.delegation {
@@ -1410,26 +1428,23 @@ pub fn lower_secondary_ctor_callable(
             }
             match del.kind {
                 CtorDelegationKind::This => {
-                    // this(args)：调 primary $init（传 this + delegation 实参）。
-                    // property-param/initializer/init-block 由 $init 负责，此处不重复。
-                    emit_plain_init_call(&mut builder, &primary_init_fqn, del_ops, sc.span);
+                    // this(args)：委托给同类另一个 ctor。按 delegation 实参数解析目标 ctor
+                    // （primary = ctors[0] → $init；secondary = ctors[i] → $ctor.s<span>）。
+                    let n_args = del.args.len();
+                    let target_fqn = resolve_this_delegation_target(hir, owner_fqn_sym, &owner_fqn, n_args);
+                    emit_plain_init_call(&mut builder, &target_fqn, del_ops, sc.span);
                 }
                 CtorDelegationKind::Super => {
-                    // super(args)：先 super $init（递归超类初始化），再 property-param
-                    // 赋值 + initializer + init-block（本类 primary 初始化体），最后 body。
-                    let super_del = hir.super_ctor_delegations.get(&owner_fqn_sym);
-                    if let Some(sd) = super_del {
-                        let base_args: &[scoop2_syntax::ast::CallArg] = builder
-                            .hir
-                            .interner
-                            .resolve(owner_fqn_sym)
-                            .split('.')
-                            .last()
-                            .and_then(|_| Some(&[] as &[_]))
-                            .unwrap_or(&[]);
-                        let _ = base_args;
+                    // super(args)：直接调超类 $init（传 super 实参），然后跑本类
+                    // property-param 赋值 + initializer + init-block（不含 super 委托——
+                    // 已在上面直接调超类）。
+                    if let Some(sd) = hir.super_ctor_delegations.get(&owner_fqn_sym) {
+                        let super_fqn_text = hir.interner.resolve(sd.super_fqn).to_string();
+                        let super_init_fqn = format!("{}.$init", super_fqn_text);
+                        emit_plain_init_call(&mut builder, &super_init_fqn, del_ops, sc.span);
                     }
-                    emit_plain_init_call(&mut builder, &primary_init_fqn, del_ops, sc.span);
+                    // 本类 property-param + initializer + init-block（从 d.body.members 发射）。
+                    emit_class_init_steps(&mut builder, d, hir, owner_fqn_sym, this_lid, this_ty, &ctor_params, &primary_param_names, &owner_fqn, sc.span);
                 }
             }
         }
@@ -1451,6 +1466,129 @@ pub fn lower_secondary_ctor_callable(
     let (mir_body, nested, types_out) = builder.finish();
     fd.body = Some(mir_body);
     Some((fd, nested, types_out))
+}
+
+/// 解析 `this(args)` 委托的目标 ctor callable FQN。
+///
+/// 按 delegation 实参数在 ctor_signatures 中找参数数匹配的 ctor：
+/// - primary（ctors[0]，有 primary_ctor 时）→ `<Class>.$init`；
+/// - secondary（ctors[i]，decl_span = constructor 关键字 span）→ `<Class>.$ctor.s<span.start>`。
+fn resolve_this_delegation_target(
+    hir: &TypedHir,
+    owner_fqn_sym: scoop2_base::Symbol,
+    owner_fqn: &str,
+    n_args: usize,
+) -> String {
+    let primary_init_fqn = format!("{}.$init", owner_fqn);
+    let Some(sigs) = hir.ctor_signatures.get(&owner_fqn_sym) else {
+        return primary_init_fqn;
+    };
+    // 找参数数匹配（考虑默认值：args <= params）的 ctor。
+    let has_primary = hir.class_ctor_params.contains_key(&owner_fqn_sym);
+    for (i, sig) in sigs.iter().enumerate() {
+        let applicable = n_args <= sig.param_types.len()
+            && sig.param_types.len() - n_args <= sig.has_defaults.iter().skip(n_args).filter(|d| **d).count();
+        if !applicable {
+            continue;
+        }
+        if i == 0 && has_primary {
+            // primary（ctors[0] 且类有 primary_ctor）。
+            return primary_init_fqn;
+        }
+        // secondary：用 decl_span.start 构造 callable FQN。
+        return format!("{}.$ctor.s{}", owner_fqn, sig.decl_span.start);
+    }
+    primary_init_fqn
+}
+
+/// 发射本类的 property-param 赋值 + property initializer + init block（不含 super 委托）。
+/// 供 primary `$init`（在 super 之后）和 secondary `super(args)` 路径复用。
+fn emit_class_init_steps(
+    builder: &mut FnLowering,
+    d: &scoop2_syntax::ast::TypeDecl,
+    hir: &TypedHir,
+    owner_fqn_sym: scoop2_base::Symbol,
+    this_lid: LocalId,
+    this_ty: TypeId,
+    ctor_params: &[ClassCtorParamInfo],
+    primary_param_names: &[scoop2_base::Symbol],
+    owner_fqn: &str,
+    span: scoop2_base::Span,
+) {
+    use scoop2_syntax::ast::TypeMemberKind;
+    let body = match &d.body {
+        Some(b) => b,
+        None => return,
+    };
+    let mut emitted_param_props = false;
+    let param_prop_assigns: Vec<(String, LocalId, TypeId)> = ctor_params
+        .iter()
+        .enumerate()
+        .filter(|(_, cp)| cp.is_property)
+        .filter_map(|(i, cp)| {
+            let param_lid = primary_param_names
+                .get(i)
+                .and_then(|s| builder.symbol_locals.get(s).copied())
+                .unwrap_or(this_lid);
+            let field_name = builder.hir.interner.resolve(cp.name).to_string();
+            Some((field_name, param_lid, cp.ty))
+        })
+        .collect();
+    let mut emit_param_props = |builder: &mut FnLowering| {
+        if emitted_param_props {
+            return;
+        }
+        emitted_param_props = true;
+        for (field_name, param_lid, field_ty) in &param_prop_assigns {
+            builder.push_stmt(crate::mir::Statement {
+                span,
+                kind: crate::mir::StatementKind::StoreMember {
+                    receiver: crate::mir::Operand::Local(this_lid),
+                    member: builder.member_access_metadata(field_name, this_ty),
+                    value: crate::mir::Operand::Local(*param_lid),
+                    value_ty: *field_ty,
+                    continuation_route:
+                        crate::mir::transport::StoredContinuationRoutePublication::None,
+                },
+            });
+        }
+    };
+    for m in &body.members {
+        match &m.kind {
+            TypeMemberKind::Property(p) => {
+                if let Some(init_expr) = &p.init {
+                    emit_param_props(builder);
+                    let field_name = builder.hir.interner.resolve(p.name.symbol).to_string();
+                    let val = crate::mir::lower::expr::lower_expr(builder, init_expr);
+                    let field_ty = builder
+                        .hir
+                        .members
+                        .get(&owner_fqn_sym)
+                        .and_then(|mm| mm.get(&p.name.symbol))
+                        .copied()
+                        .unwrap_or_else(|| builder.types.nothing());
+                    builder.push_stmt(crate::mir::Statement {
+                        span: p.name.span,
+                        kind: crate::mir::StatementKind::StoreMember {
+                            receiver: crate::mir::Operand::Local(this_lid),
+                            member: builder.member_access_metadata(&field_name, this_ty),
+                            value: val,
+                            value_ty: field_ty,
+                            continuation_route:
+                                crate::mir::transport::StoredContinuationRoutePublication::None,
+                        },
+                    });
+                }
+            }
+            TypeMemberKind::InitBlock(ib) => {
+                emit_param_props(builder);
+                let _ = crate::mir::lower::stmt::lower_block(builder, &ib.body);
+            }
+            _ => {}
+        }
+    }
+    emit_param_props(builder);
+    let _ = owner_fqn;
 }
 
 /// 发出一个对 `<Class>.$init` 的普通调用（this + 实参）。

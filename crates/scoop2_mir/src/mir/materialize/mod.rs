@@ -569,6 +569,8 @@ fn collect_templates(module: &Module) -> HashMap<String, Vec<FunDecl>> {
     let mut map: HashMap<String, Vec<FunDecl>> = HashMap::new();
     for item in &module.items {
         if let Item::Fun(fd) = item {
+            if fd.fqn.contains("$ctor") {
+            }
             map.entry(fd.fqn.clone()).or_default().push(fd.clone());
         }
     }

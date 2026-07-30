@@ -3256,34 +3256,34 @@ fn record_class_ctor_layout(
     let Some(fqn) = env.interner.get(&fqn_text) else {
         return;
     };
-    let Some(ctor) = &d.primary_ctor else {
-        return;
-    };
-    // 主构造器参数布局（含非属性参数）。
-    let tp_map = env::build_tp_map(d.type_params.as_ref());
-    let mut infos: Vec<crate::hir::ClassCtorParamInfo> = Vec::with_capacity(ctor.params.len());
-    for cp in &ctor.params {
-        let ty = match &cp.ty {
-            Some(t) => {
-                let mut lower = crate::typecheck::lower::TypeLowering::new(
-                    env,
-                    imports,
-                    tp_map.clone(),
-                    package_prefix.to_string(),
-                    diags,
-                );
-                lower.lower(t)
-            }
-            None => env.store.nothing(),
-        };
-        infos.push(crate::hir::ClassCtorParamInfo {
-            name: cp.name.symbol,
-            ty,
-            is_property: cp.property.is_some(),
-        });
+    // 主构造器参数布局（含非属性参数）。无 primary_ctor 时跳过（class_ctor_params 无条目）。
+    if let Some(ctor) = &d.primary_ctor {
+        let tp_map = env::build_tp_map(d.type_params.as_ref());
+        let mut infos: Vec<crate::hir::ClassCtorParamInfo> = Vec::with_capacity(ctor.params.len());
+        for cp in &ctor.params {
+            let ty = match &cp.ty {
+                Some(t) => {
+                    let mut lower = crate::typecheck::lower::TypeLowering::new(
+                        env,
+                        imports,
+                        tp_map.clone(),
+                        package_prefix.to_string(),
+                        diags,
+                    );
+                    lower.lower(t)
+                }
+                None => env.store.nothing(),
+            };
+            infos.push(crate::hir::ClassCtorParamInfo {
+                name: cp.name.symbol,
+                ty,
+                is_property: cp.property.is_some(),
+            });
+        }
+        env.class_ctor_params.insert(fqn, infos);
     }
-    env.class_ctor_params.insert(fqn, infos);
-    // super 委托：supertypes 中第一个 class 类别项。
+    // super 委托收集（不依赖 primary_ctor——无 primary_ctor 的类如 `class D : A(f())`
+    // 也有 super 委托）：supertypes 中第一个 class 类别项。
     let bases: Vec<scoop2_base::Symbol> = env.index.supertypes_of(fqn).to_vec();
     for (i, st) in d.supertypes.iter().enumerate() {
         let Some(&base_fqn) = bases.get(i) else {

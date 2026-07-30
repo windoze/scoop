@@ -119,6 +119,7 @@ fn lower_file(
                     let member_items = builder::lower_type_member_funs_with_stores(
                         file_id,
                         &body.members,
+                        Some(d),
                         hir,
                         package_prefix,
                         &base,
@@ -171,6 +172,7 @@ fn lower_file(
                     let member_items = builder::lower_type_member_funs_with_stores(
                         file_id,
                         &body.members,
+                        None,
                         hir,
                         package_prefix,
                         &base,
