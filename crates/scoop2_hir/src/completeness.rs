@@ -171,14 +171,13 @@ impl<'a> Walker<'a> {
     fn expr(&mut self, expr: &Expr) {
         match self.expr_types.get(expr.id) {
             None => {
+                // 节点完全未被 typecheck 赋类型——真正的缺口。
                 self.report(expr.span);
             }
-            Some(ty) => {
-                // Nothing 类型 = typecheck 无法确定精确类型（兜底）。
-                // 对合法程序不应出现——表示类型推断有缺口。
-                if matches!(self.store.kind(*ty), crate::ty::TypeKind::Nothing) {
-                    self.report(expr.span);
-                }
+            Some(_ty) => {
+                // Nothing 是合法的 bottom type（Raise.raise / panic 等返回 Nothing），
+                // 不再视为缺口。typecheck 已不再为不可解析节点写 Nothing 兜底
+                //（改为不写或写 Unit），故存在的条目都是合法定型。
             }
         }
         self.expr_children(expr);
