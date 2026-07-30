@@ -236,10 +236,6 @@ fn compute_layout(
                 kind: TypeLayoutKind::Tuple { elements: fields },
             }
         }
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            enqueue(*inner);
-            compute_option_layout(*inner, types, hir, interner, depth)
-        }
         TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             // 内建标量别名（@Intrinsic struct Bool/Char/Int/UInt/Int8../Float64/Float32/Unit）：
             // FQN 尾段匹配内建标量名时，使用标量布局而非 struct 布局。
@@ -247,6 +243,13 @@ fn compute_layout(
             let simple = fqn_text.rsplit('.').next().unwrap_or("");
             if let Some(scalar) = builtin_scalar_kind(simple) {
                 return scalar_layout(scalar);
+            }
+            // Option<T>：走 Option 专属布局（Option 现为 value nominal，按 FQN 判定）。
+            if n.fqn == types.option_fqn()
+                && let Some(inner) = n.args.first().copied()
+            {
+                enqueue(inner);
+                return compute_option_layout(inner, types, hir, interner, depth);
             }
             // struct / enum 值类型。查询 HIR 获取字段列表。
             // 尝试 struct 布局：查 HIR members（按 member_order 声明序迭代——
@@ -529,14 +532,17 @@ fn type_contains_ref(
         TypeKind::Value(ValueTypeKind::Tuple(elems)) => elems
             .iter()
             .any(|&e| type_contains_ref(e, types, hir, interner, seen)),
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            type_contains_ref(*inner, types, hir, interner, seen)
-        }
         TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             let fqn_text = interner.resolve(n.fqn);
             let simple = fqn_text.rsplit('.').next().unwrap_or("");
             if builtin_scalar_kind(simple).is_some() {
                 return false;
+            }
+            // Option<T>：按 inner 递归判定（Option 现为 value nominal，按 FQN 判定）。
+            if n.fqn == types.option_fqn()
+                && let Some(inner) = n.args.first().copied()
+            {
+                return type_contains_ref(inner, types, hir, interner, seen);
             }
             // struct 值类型：任一成员深层含 ref 即含 ref。
             if hir.members.contains_key(&n.fqn) {
@@ -602,11 +608,14 @@ fn sub_size_align(
             }
             (align_to(offset, max_align), max_align)
         }
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            let l = compute_option_layout(*inner, types, hir, interner, depth);
-            (l.size, l.align)
-        }
-        TypeKind::Value(ValueTypeKind::Nominal(_)) => {
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+            // Option<T>：直接走 Option 专属布局（Option 现为 value nominal，按 FQN 判定）。
+            if n.fqn == types.option_fqn()
+                && let Some(inner) = n.args.first().copied()
+            {
+                let l = compute_option_layout(inner, types, hir, interner, depth);
+                return (l.size, l.align);
+            }
             // Nominal value struct/enum：就地递归计算真实布局取 (size, align)。
             // 嵌套深度达上限（值类型自引用）时退回保守值；enqueue 传 no-op——
             // 子类型的入队由外层 compute_layout 的 struct/enum 分支负责。

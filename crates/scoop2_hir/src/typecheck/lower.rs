@@ -706,14 +706,15 @@ mod tests {
     fn lowers_nullable_and_option_consistently() {
         let (q, store, _) = lower_of("fun __t(): Int? {}");
         let (o, store2, _) = lower_of("fun __t(): Option<Int> {}");
-        let inner_q = match store.kind(q) {
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(i)) => *i,
-            _ => panic!("Int? should be Option(Int)"),
-        };
-        let inner_o = match store2.kind(o) {
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(i)) => *i,
-            _ => panic!("Option<Int> should be Option(Int)"),
-        };
+        // Option<T> 现为 value nominal（FQN 为 store.option_fqn()，args=[T]）。
+        let inner_q = store
+            .nominal_args_of_fqn(q, store.option_fqn())
+            .and_then(|a| a.first().copied())
+            .expect("Int? should be Option(Int) nominal");
+        let inner_o = store2
+            .nominal_args_of_fqn(o, store2.option_fqn())
+            .and_then(|a| a.first().copied())
+            .expect("Option<Int> should be Option(Int) nominal");
         assert_eq!(
             inner_q, inner_o,
             "Int? and Option<Int> inner types must match"

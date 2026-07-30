@@ -304,11 +304,19 @@ fn is_gc_free_value_type_inner(env: &TypeEnv, id: TypeId, visiting: &mut HashSet
             | ValueTypeKind::UInt
             | ValueTypeKind::IntN(_)
             | ValueTypeKind::UIntN(_) => true,
-            ValueTypeKind::Option(inner) => is_gc_free_value_type_inner(env, *inner, visiting),
             ValueTypeKind::Tuple(els) => els
                 .iter()
                 .all(|e| is_gc_free_value_type_inner(env, *e, visiting)),
-            ValueTypeKind::Nominal(n) => is_gc_free_nominal(env, n.fqn, visiting),
+            ValueTypeKind::Nominal(n) => {
+                // Option<T>：按 inner 判定 GC-free（与其它 nominal 的声明级判定不同）。
+                if n.fqn == env.store.option_fqn()
+                    && let Some(inner) = n.args.first()
+                {
+                    is_gc_free_value_type_inner(env, *inner, visiting)
+                } else {
+                    is_gc_free_nominal(env, n.fqn, visiting)
+                }
+            }
         },
     };
     visiting.remove(&id);

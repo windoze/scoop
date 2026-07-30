@@ -673,9 +673,6 @@ fn check_type_for_param(store: &TypeStore, ty: TypeId, ctx: &str, errors: &mut V
                 check_type_for_param(store, v, ctx, errors);
             }
         }
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            check_type_for_param(store, *inner, ctx, errors);
-        }
         TypeKind::Value(ValueTypeKind::Tuple(elems)) => {
             for &e in elems {
                 check_type_for_param(store, e, ctx, errors);

@@ -2663,11 +2663,15 @@ pub(crate) fn variant_payload_field_ty(
     index: usize,
 ) -> Option<scoop2_hir::ty::TypeId> {
     use scoop2_hir::ty::{TypeKind, ValueTypeKind};
+    // Option<T>：Some 的 payload = inner（index 0）；Option 现为 value nominal，走 FQN 判定。
+    if let Some(inner) = builder
+        .types
+        .nominal_args_of_fqn(subj_ty, builder.types.option_fqn())
+        .and_then(|args| args.first().copied())
+    {
+        return if index == 0 { Some(inner) } else { None };
+    }
     match builder.types.kind(subj_ty) {
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            let inner = *inner;
-            if index == 0 { Some(inner) } else { None }
-        }
         TypeKind::Value(ValueTypeKind::Nominal(n))
         | TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => {
             let variant_sym = path.segments.last().map(|s| s.symbol)?;

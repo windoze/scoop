@@ -552,6 +552,14 @@ fn prefixes_equal(a: &[String], b: &[String], k: usize) -> bool {
 
 /// 有效类型字符串：类型参数擦除为**其有效约束**（无约束为 `Any`）；其余按类别短名。
 fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, String>) -> String {
+    // Option<T> → `T?`（Option 现为 value nominal，按 FQN 判定后特殊渲染）。
+    if let Some(inner) = env
+        .store
+        .nominal_args_of_fqn(id, env.store.option_fqn())
+        .and_then(|args| args.first().copied())
+    {
+        return format!("{}?", effective_type_str(env, inner, tp_bounds));
+    }
     match env.store.kind(id) {
         TypeKind::Param(p) => tp_bounds
             .get(&env.store.param_decl(*p).name)
@@ -596,9 +604,6 @@ fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, Str
         TypeKind::Value(crate::ty::ValueTypeKind::UInt) => "UInt".to_string(),
         TypeKind::Value(crate::ty::ValueTypeKind::IntN(n)) => format!("Int{n}"),
         TypeKind::Value(crate::ty::ValueTypeKind::UIntN(n)) => format!("UInt{n}"),
-        TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
-            format!("{}?", effective_type_str(env, *inner, tp_bounds))
-        }
         TypeKind::Value(crate::ty::ValueTypeKind::Tuple(els)) => {
             let inner: Vec<String> = els
                 .iter()

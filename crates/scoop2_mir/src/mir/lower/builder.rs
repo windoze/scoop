@@ -470,10 +470,17 @@ impl<'hir> FnLowering<'hir> {
         kind: crate::mir::AggregateTransportKind,
     ) -> crate::mir::AggregateTransportMetadata {
         use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
-        let element_tys: Vec<TypeId> = match self.types.kind(aggregate_ty) {
-            TypeKind::Value(ValueTypeKind::Tuple(els)) => els.clone(),
-            TypeKind::Value(ValueTypeKind::Option(inner)) => vec![*inner],
-            TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+        // Option<T>：payload 为单个 inner 类型（走 FQN 判定）。
+        let element_tys: Vec<TypeId> =
+            if let Some(args) = self
+                .types
+                .nominal_args_of_fqn(aggregate_ty, self.types.option_fqn())
+            {
+                args.to_vec()
+            } else {
+                match self.types.kind(aggregate_ty) {
+                    TypeKind::Value(ValueTypeKind::Tuple(els)) => els.clone(),
+                    TypeKind::Value(ValueTypeKind::Nominal(n)) => {
                 // struct/enum 的字段类型：从 HIR members 查询。
                 let fqn = n.fqn;
                 if let Some(members) = self.hir.members.get(&fqn) {
@@ -491,6 +498,7 @@ impl<'hir> FnLowering<'hir> {
                 }
             }
             _ => Vec::new(),
+        }
         };
         let fields: Vec<crate::mir::AggregateTransportField> = element_tys
             .iter()

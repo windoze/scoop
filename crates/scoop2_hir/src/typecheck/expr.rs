@@ -758,11 +758,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ) => Some((ff.clone(), ef.clone())),
             _ => None,
         };
-        let opt = match (fk, ek) {
-            (
-                TypeKind::Value(crate::ty::ValueTypeKind::Option(fi)),
-                TypeKind::Value(crate::ty::ValueTypeKind::Option(ei)),
-            ) => Some((*fi, *ei)),
+        let opt = match (self.option_inner_of(found), self.option_inner_of(expected)) {
+            (Some(fi), Some(ei)) => Some((fi, ei)),
             _ => None,
         };
         let tup = match (fk, ek) {
@@ -1397,10 +1394,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return;
         };
         // next() 返回必须是 Option<T>。
-        if !matches!(
-            self.env.store.kind(next_sig.return_ty),
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
-        ) {
+        if !self.is_option_ty(next_sig.return_ty) {
             self.diags.push(diagnostics::for_next_not_option(span));
         }
     }
@@ -1574,6 +1568,53 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if pats.iter().any(|p| self.pattern_covers_all(p)) {
             return None;
         }
+        // Option<T>：按 Some/None 简写模式做穷尽性检查（Option 现为 value nominal，
+        // 走 FQN 判定而非内建分支）。
+        if let Some(inner) = self.option_inner_of(ty) {
+            let mut has_none = false;
+            let mut some_inner_wild = false;
+            let mut some_inner_pats: Vec<&ast::Pattern> = Vec::new();
+            for p in pats {
+                if let PatternKind::Variant { path, args } = &p.kind
+                    && let Some(seg) = path.segments.last()
+                {
+                    let name = self.env.interner.resolve(seg.symbol);
+                    if name == "None" {
+                        has_none = true;
+                    } else if name == "Some" {
+                        match args {
+                            // bare Some 或空括号 Some() → 内层通配（覆盖全部）。
+                            None => some_inner_wild = true,
+                            Some(a) if a.is_empty() => some_inner_wild = true,
+                            Some(a) => {
+                                if let Some(first) = a.first() {
+                                    if self.pattern_covers_all(first) {
+                                        some_inner_wild = true;
+                                    } else {
+                                        some_inner_pats.push(first);
+                                    }
+                                } else {
+                                    some_inner_wild = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !has_none {
+                return Some("None".to_string());
+            }
+            if !some_inner_wild && some_inner_pats.is_empty() {
+                return Some("Some(_)".to_string());
+            }
+            if some_inner_wild {
+                return None;
+            }
+            // Some 的内层需穷尽 inner。
+            return self
+                .missing_pattern(inner, &some_inner_pats)
+                .map(|m| format!("Some({m})"));
+        }
         match self.env.store.kind(ty) {
             TypeKind::Value(crate::ty::ValueTypeKind::Bool) => {
                 let mut has_true = false;
@@ -1594,51 +1635,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     return Some("false".to_string());
                 }
                 None
-            }
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner_ty)) => {
-                let inner = *inner_ty;
-                let mut has_none = false;
-                let mut some_inner_wild = false;
-                let mut some_inner_pats: Vec<&ast::Pattern> = Vec::new();
-                for p in pats {
-                    if let PatternKind::Variant { path, args } = &p.kind
-                        && let Some(seg) = path.segments.last()
-                    {
-                        let name = self.env.interner.resolve(seg.symbol);
-                        if name == "None" {
-                            has_none = true;
-                        } else if name == "Some" {
-                            match args {
-                                // bare Some 或空括号 Some() → 内层通配（覆盖全部）。
-                                None => some_inner_wild = true,
-                                Some(a) if a.is_empty() => some_inner_wild = true,
-                                Some(a) => {
-                                    if let Some(first) = a.first() {
-                                        if self.pattern_covers_all(first) {
-                                            some_inner_wild = true;
-                                        } else {
-                                            some_inner_pats.push(first);
-                                        }
-                                    } else {
-                                        some_inner_wild = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                if !has_none {
-                    return Some("None".to_string());
-                }
-                if !some_inner_wild && some_inner_pats.is_empty() {
-                    return Some("Some(_)".to_string());
-                }
-                if some_inner_wild {
-                    return None;
-                }
-                // Some 的内层需穷尽 inner。
-                self.missing_pattern(inner, &some_inner_pats)
-                    .map(|m| format!("Some({m})"))
             }
             TypeKind::Value(crate::ty::ValueTypeKind::Tuple(elem_tys)) => {
                 self.missing_tuple(ty, elem_tys, pats)
@@ -1897,12 +1893,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn equivalence_classes(&self, ty: TypeId) -> Vec<String> {
         use crate::syntax::ast::PatternKind;
         let _ = PatternKind::Wildcard; // 抑制未用 import 警告
+        if self.is_option_ty(ty) {
+            return vec!["None".to_string(), "Some(_)".to_string()];
+        }
         match self.env.store.kind(ty) {
             TypeKind::Value(crate::ty::ValueTypeKind::Bool) => {
                 vec!["true".to_string(), "false".to_string()]
-            }
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(_)) => {
-                vec!["None".to_string(), "Some(_)".to_string()]
             }
             TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
             | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => self
@@ -2356,6 +2352,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 取一个表达式的已记录类型（来自 expr_types）。
     fn expr_ty(&self, expr: &Expr) -> Option<TypeId> {
         self.expr_types.get(expr.id).copied()
+    }
+
+    /// 若 `ty` 是 `Option<T>`，返回 `Some(T)`；否则 `None`。
+    /// 走通用 FQN 判定（store 缓存的 option_fqn），无 Option 后门。
+    fn option_inner_of(&self, ty: TypeId) -> Option<TypeId> {
+        self.env
+            .store
+            .nominal_args_of_fqn(ty, self.env.store.option_fqn())
+            .and_then(|args| args.first().copied())
+    }
+
+    /// `ty` 是否为 `Option<T>`。
+    fn is_option_ty(&self, ty: TypeId) -> bool {
+        self.env.store.is_nominal_with_fqn(ty, self.env.store.option_fqn())
     }
 
     /// 为泛型调用推断类型实参（若未显式提供）。
@@ -3489,10 +3499,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let outer_id = expr.id;
                 let outer_span = expr.span;
                 let t = self.walk_expr(e);
-                if let TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) =
-                    self.env.store.kind(t)
-                {
-                    let inner = *inner;
+                if let Some(inner) = self.option_inner_of(t) {
                     // a!! 等价于 Option.unwrap（None 则 panic）。
                     // 记录 call_resolution 供 MIR 作为普通方法调用消费（不再特判节点）。
                     self.record_option_method_call_by_id(outer_id, e, "unwrap", inner);
@@ -3521,10 +3528,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ExprKind::SafeMemberAccess { receiver, member } => {
                 let rt = self.walk_expr(receiver);
-                let base_ty = match self.env.store.kind(rt) {
-                    TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => *inner,
-                    _ => rt,
-                };
+                let base_ty = self.option_inner_of(rt).unwrap_or(rt);
                 let member_ty = self.member_access_type(base_ty, *member, expr.span);
                 self.env.store.option(member_ty)
             }
@@ -3908,12 +3912,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         // 不是整个声明类型（否则会定型成 Bool???）。
                         let saved_typed = self.in_typed_val_init;
                         let saved_typed_ty = self.typed_val_init_ty;
-                        let payload_expected = saved_typed_ty.and_then(|t| {
-                            match self.env.store.kind(t) {
-                                TypeKind::Value(crate::ty::ValueTypeKind::Option(i)) => Some(*i),
-                                _ => None,
-                            }
-                        });
+                        let payload_expected = saved_typed_ty.and_then(|t| self.option_inner_of(t));
                         self.in_typed_val_init = payload_expected.is_some();
                         self.typed_val_init_ty = payload_expected;
                         let arg_ty = self.walk_expr(&mut args[0].value);
@@ -3929,10 +3928,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     // 避免 None 退化为 Option<Nothing>（其 Pointer niche 布局与
                     // Option<Bool> 的 Tagged 布局不一致，写入/读取尺寸错位）。
                     if let Some(t) = self.typed_val_init_ty
-                        && matches!(
-                            self.env.store.kind(t),
-                            TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
-                        )
+                        && self.is_option_ty(t)
                     {
                         return t;
                     }
@@ -4605,10 +4601,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .collect();
                 self.env.store.tuple(new_els)
             }
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
-                let new_inner = self.subst_all_params(inner, subst);
-                self.env.store.option(new_inner)
-            }
             _ => ty,
         }
     }
@@ -4670,10 +4662,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .collect();
                 self.env.store.tuple(new_els)
             }
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
-                let new_inner = self.subst_named_params(inner, map);
-                self.env.store.option(new_inner)
-            }
             _ => ty,
         }
     }
@@ -4710,9 +4698,23 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .collect();
                 self.env.store.tuple(new_els)
             }
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
-                let new_inner = self.subst_eff_var_in_type(inner, eff_var, inferred);
-                self.env.store.option(new_inner)
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+            | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                // Option<T> 现为 value nominal；与其它 nominal 一样按 args 递归替换。
+                let args: Vec<TypeId> = n
+                    .args
+                    .iter()
+                    .map(|&a| self.subst_eff_var_in_type(a, eff_var, inferred))
+                    .collect();
+                let new_n = crate::ty::NominalType {
+                    fqn: n.fqn,
+                    args,
+                    eff: n.eff,
+                };
+                match self.env.store.kind(ty) {
+                    TypeKind::Ref(_) => self.env.store.ref_nominal(new_n),
+                    _ => self.env.store.value_nominal(new_n),
+                }
             }
             _ => ty,
         }
@@ -5451,9 +5453,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.collect_type_params(e, seen, out);
                 }
             }
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
-                self.collect_type_params(*inner, seen, out);
-            }
             _ => {}
         }
     }
@@ -5491,12 +5490,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 for (pe, ae) in pe.iter().zip(ae.iter()) {
                     self.infer_type_params(*pe, *ae, subst_map);
                 }
-            }
-            (
-                TypeKind::Value(crate::ty::ValueTypeKind::Option(pi)),
-                TypeKind::Value(crate::ty::ValueTypeKind::Option(ai)),
-            ) => {
-                self.infer_type_params(*pi, *ai, subst_map);
             }
             (
                 TypeKind::Ref(crate::ty::RefTypeKind::Function(pf)),
@@ -6812,10 +6805,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn is_star_read_compatible_elem(&self, elem: TypeId) -> bool {
         match self.env.store.kind(elem) {
             TypeKind::Ref(_) => true,
-            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
-                matches!(self.env.store.kind(*inner), TypeKind::Ref(_))
-            }
-            _ => false,
+            _ => match self.option_inner_of(elem) {
+                Some(inner) => matches!(self.env.store.kind(inner), TypeKind::Ref(_)),
+                None => false,
+            },
         }
     }
 
@@ -6884,22 +6877,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         use crate::syntax::ast::PatternKind;
         match &pat.kind {
             PatternKind::Variant { path, args } => {
-                // Option 特判：Value(Option(inner)) 的 Some(x) 模式绑定 x 到 inner。
-                // Option 不是 Nominal（是 Value(Option(_))），nominal_fqn_of 无法解析。
-                if let TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) =
-                    self.env.store.kind(subject_ty)
-                {
+                // Option 特判：Option<T> 的 Some(x) 模式绑定 x 到 T。
+                // Option 现为 value nominal（走 FQN 判定），但 Some 的 payload 就是
+                // Option 的类型实参，直接用 option_inner_of 取得 inner。
+                if let Some(inner) = self.option_inner_of(subject_ty) {
                     if let Some(last_seg) = path.segments.last()
                         && self.env.interner.resolve(last_seg.symbol) == "Some"
                         && let Some(args) = args
                     {
                         if let Some(PatternKind::Bind(ident)) = args.first().map(|a| &a.kind) {
-                            self.locals.insert(ident.symbol, *inner);
+                            self.locals.insert(ident.symbol, inner);
                             self.facts.pattern_bindings.set(
                                 pat.id,
                                 vec![crate::hir::PatternBinding {
                                     name: ident.symbol,
-                                    ty: *inner,
+                                    ty: inner,
                                     source: crate::hir::PatternBindingSource::VariantField,
                                     span: ident.span,
                                 }],
@@ -6909,7 +6901,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         if let Some(first) = args.first()
                             && !matches!(&first.kind, PatternKind::Bind(_))
                         {
-                            self.bind_pattern_locals_typed(first, *inner);
+                            self.bind_pattern_locals_typed(first, inner);
                         }
                     }
                     return;
@@ -7183,7 +7175,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             PatternKind::Variant { path, args } => {
                 // enum nominal 或内建 Option<T>（variant 模式可用的 subject）。
-                let is_enum = matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Option(_)))
+                let is_enum = self.is_option_ty(subject_ty)
                     || nominal_fqn_of(kind)
                         .and_then(|fqn| self.env.index.category(fqn))
                         .is_some_and(|c| {
@@ -7293,7 +7285,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             |s: &crate::syntax::ast::Ident| self.env.interner.resolve(s.symbol).to_string();
         let kind = self.env.store.kind(init_ty);
         // Option initializer：Some/None 已知，跳过 prefix/variant 校验。
-        if matches!(kind, TypeKind::Value(crate::ty::ValueTypeKind::Option(_))) {
+        if self.is_option_ty(init_ty) {
             return;
         }
         // initializer 必须是 enum nominal。
@@ -8213,9 +8205,9 @@ pub(super) fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> O
         TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
         TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
         TypeKind::Ref(RefTypeKind::Any) => "scoop.core.Any",
-        // Option<T>：内建 ValueTypeKind，但 owner FQN 指向 sysroot 的 enum 声明，
-        // 使 unwrap/isSome/isNone 等 std method 可被 member 解析命中。
-        TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
+        // nominal 值类型（含 Option<T>：它的 FQN 就是 scoop.core.Option，
+        // 使 unwrap/isSome/isNone 等 std method 可被 member 解析命中）。
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => return Some(n.fqn),
         _ => return None,
     };
     interner.get(name)

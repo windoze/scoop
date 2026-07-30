@@ -560,7 +560,6 @@ fn option_niche_storage(types: &TypeStore, inner: TypeId) -> NicheStorage {
         TypeKind::Value(ValueTypeKind::Unit) => NicheStorage::U8,
         TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection => NicheStorage::Pointer,
         TypeKind::Value(ValueTypeKind::Nominal(_)) => NicheStorage::Pointer,
-        TypeKind::Value(ValueTypeKind::Option(_)) => NicheStorage::Pointer,
         TypeKind::Value(ValueTypeKind::Tuple(_)) => NicheStorage::None,
         _ => NicheStorage::U8,
     }
@@ -568,15 +567,19 @@ fn option_niche_storage(types: &TypeStore, inner: TypeId) -> NicheStorage {
 
 /// 判断某类型是否需要 GC trace（与 layout/codegen 一致）。
 pub fn mir_transport_trace_requirement_for_type(types: &TypeStore, ty: TypeId) -> bool {
+    // Option<T>：按 inner 的 niche 存储判定（Option 现为 value nominal，走 FQN 判定）。
+    if let Some(inner) = types
+        .nominal_args_of_fqn(ty, types.option_fqn())
+        .and_then(|args| args.first().copied())
+    {
+        return match option_niche_storage(types, inner) {
+            NicheStorage::Pointer => true,
+            NicheStorage::U8 => false,
+            NicheStorage::None => true,
+        };
+    }
     match types.kind(ty) {
         TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection => true,
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            match option_niche_storage(types, *inner) {
-                NicheStorage::Pointer => true,
-                NicheStorage::U8 => false,
-                NicheStorage::None => true,
-            }
-        }
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
             .iter()
             .any(|element| mir_transport_trace_requirement_for_type(types, *element)),
@@ -599,7 +602,7 @@ pub fn mir_transport_trace_requirement_for_type(types: &TypeStore, ty: TypeId) -
 /// 判断某类型是否为聚合 transport 类型。
 pub fn mir_is_aggregate_transport_ty(types: &TypeStore, ty: TypeId) -> bool {
     match types.kind(ty) {
-        TypeKind::Value(ValueTypeKind::Tuple(_) | ValueTypeKind::Option(_)) => true,
+        TypeKind::Value(ValueTypeKind::Tuple(_)) => true,
         TypeKind::Value(ValueTypeKind::Nominal(_)) => true,
         _ => false,
     }
@@ -615,11 +618,14 @@ pub fn mir_transport_kind_for_ty(
     enum_fqns: &std::collections::HashSet<scoop2_base::Symbol>,
 ) -> MirTransportKind {
     use scoop2_hir::ty::RefTypeKind;
+    // Option<T> → EnumPayload（Option 现为 value nominal，走 FQN 判定）。
+    if types.is_nominal_with_fqn(ty, types.option_fqn()) {
+        return MirTransportKind::EnumPayload;
+    }
     match types.kind(ty) {
         TypeKind::Ref(RefTypeKind::Function(_)) => MirTransportKind::FunctionValue,
         TypeKind::Ref(_) => MirTransportKind::Reference,
         TypeKind::Value(ValueTypeKind::Tuple(_)) => MirTransportKind::Tuple,
-        TypeKind::Value(ValueTypeKind::Option(_)) => MirTransportKind::EnumPayload,
         TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             if enum_fqns.contains(&n.fqn) {
                 MirTransportKind::EnumPayload

@@ -401,11 +401,10 @@ pub enum ValueTypeKind {
     IntN(u16),
     /// `UInt8`/`UInt16`/`UInt32`/`UInt64`。
     UIntN(u16),
-    /// `Option<T>`（`T?` 的脱糖；嵌套不拍平，P2 §6）。
-    Option(TypeId),
     /// 元组 `(T0, .., Tn)`（结构类型）。
     Tuple(Vec<TypeId>),
-    /// struct / enum 等 nominal 值类型。
+    /// struct / enum 等 nominal 值类型（含 `Option<T>`：它是普通 enum，
+    /// FQN 固定为 `scoop.core.Option`）。
     Nominal(NominalType),
 }
 
@@ -445,7 +444,6 @@ impl std::fmt::Debug for ValueTypeKind {
             ValueTypeKind::UInt => write!(f, "UInt"),
             ValueTypeKind::IntN(bits) => write!(f, "IntN({bits})"),
             ValueTypeKind::UIntN(bits) => write!(f, "UIntN({bits})"),
-            ValueTypeKind::Option(inner) => write!(f, "Option({inner:?})"),
             ValueTypeKind::Tuple(elems) => {
                 f.debug_set().entries(elems.iter().map(|e| e.0)).finish()
             }
@@ -495,11 +493,26 @@ pub struct TypeStore {
     param_decls: HashMap<TypeParamId, TypeParamDecl>,
     /// 下一个待分配的 [`TypeParamId`]。
     next_param_id: u32,
+    /// `Option` 的固定 FQN symbol（`scoop.core.Option`）。由 typecheck 启动时
+    /// 经 interner resolve 一次后注入。`option()` 便利构造器用它产出 value nominal。
+    /// Option 是普通 enum，无任何后门——这只是缓存其固定 FQN。
+    option_fqn: Symbol,
 }
 
 impl TypeStore {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// 注入 `Option` 的固定 FQN（`scoop.core.Option` 的 interned symbol）。
+    /// typecheck 启动时调用一次。之后 [`TypeStore::option`] 产出正确的 value nominal。
+    pub fn set_option_fqn(&mut self, fqn: Symbol) {
+        self.option_fqn = fqn;
+    }
+
+    /// 取已注入的 `Option` FQN（用于通用 FQN 判定）。未注入时返回 default Symbol。
+    pub fn option_fqn(&self) -> Symbol {
+        self.option_fqn
     }
 
     pub fn len(&self) -> usize {
@@ -524,6 +537,29 @@ impl TypeStore {
     /// 取一个 id 的种类。`id` 必须由本 store 的 [`intern`][Self::intern] 产出。
     pub fn kind(&self, id: TypeId) -> &TypeKind {
         &self.kinds[id.0 as usize]
+    }
+
+    /// `ty` 是否为 FQN == `fqn` 的 nominal 类型（ref 或 value）。
+    /// 通用 FQN 判定——不针对任何特定类型开后门。
+    pub fn is_nominal_with_fqn(&self, ty: TypeId, fqn: Symbol) -> bool {
+        match self.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+                n.fqn == fqn
+            }
+            _ => false,
+        }
+    }
+
+    /// 若 `ty` 是 FQN == `fqn` 的 nominal 且有类型实参，返回其 args 切片；否则 None。
+    pub fn nominal_args_of_fqn(&self, ty: TypeId, fqn: Symbol) -> Option<&[TypeId]> {
+        match self.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n))
+                if n.fqn == fqn =>
+            {
+                Some(&n.args)
+            }
+            _ => None,
+        }
     }
 
     /// 把 `other` 中的全部类型重新 intern 进本 store，返回 `other` TypeId → 本 store
@@ -616,8 +652,16 @@ impl TypeStore {
     pub fn any(&mut self) -> TypeId {
         self.intern(TypeKind::Ref(RefTypeKind::Any))
     }
+    /// `Option<T>` 便利构造器：产出 `Value(Nominal{fqn: scoop.core.Option, args:[T]})`。
+    /// Option 是普通 enum（值类型），无后门——这只是省去手写 nominal 的便捷函数。
+    /// 需先 [`set_option_fqn`] 注入 FQN；未注入时 fqn 为 default（仅供测试结构比对）。
     pub fn option(&mut self, inner: TypeId) -> TypeId {
-        self.intern(TypeKind::Value(ValueTypeKind::Option(inner)))
+        let n = NominalType {
+            fqn: self.option_fqn,
+            args: vec![inner],
+            eff: None,
+        };
+        self.intern(TypeKind::Value(ValueTypeKind::Nominal(n)))
     }
     pub fn tuple(&mut self, elems: Vec<TypeId>) -> TypeId {
         self.intern(TypeKind::Value(ValueTypeKind::Tuple(elems)))
@@ -709,10 +753,6 @@ impl TypeStore {
                     .map(|v| self.apply_subst_full(v, subst, eff_subst))
                     .collect::<Vec<_>>();
                 self.intern(TypeKind::Ref(RefTypeKind::Union(UnionType { variants })))
-            }
-            TypeKind::Value(ValueTypeKind::Option(inner)) => {
-                let inner = self.apply_subst_full(inner, subst, eff_subst);
-                self.intern(TypeKind::Value(ValueTypeKind::Option(inner)))
             }
             TypeKind::Value(ValueTypeKind::Tuple(elems)) => {
                 let elems = elems
@@ -1072,11 +1112,6 @@ fn render_value(
         ValueTypeKind::UInt => "UInt".into(),
         ValueTypeKind::IntN(bits) => format!("Int{bits}"),
         ValueTypeKind::UIntN(bits) => format!("UInt{bits}"),
-        ValueTypeKind::Option(inner) => {
-            // 嵌套 Option 不拍平：`Int??` 合法。inner 若是裸标识需加括号？spec 用 `T?`
-            // 后缀且对复合类型无歧义，故直接后缀。
-            format!("{}?", render_type(store, interner, *inner, full_fqn))
-        }
         ValueTypeKind::Tuple(els) => {
             if els.is_empty() {
                 "()".into()
@@ -1092,6 +1127,11 @@ fn render_value(
             }
         }
         ValueTypeKind::Nominal(n) => {
+            // Option<T> 渲染为 `T?`（可读性；嵌套不拍平 `Int??`）。
+            // Option 的唯一"特殊之处"是固定 FQN scoop.core.Option——按 FQN 判定。
+            if interner.get("scoop.core.Option") == Some(n.fqn) && n.args.len() == 1 {
+                return format!("{}?", render_type(store, interner, n.args[0], full_fqn));
+            }
             let mut s = nominal_name(interner, n.fqn, full_fqn);
             s.push_str(&nominal_tail(store, interner, n, full_fqn));
             s
@@ -1431,7 +1471,10 @@ mod tests {
     #[test]
     fn render_scalars_and_option_tuple() {
         let mut s = TypeStore::new();
-        let interner = scoop2_base::Interner::new();
+        let mut interner = scoop2_base::Interner::new();
+        // Option 现为 value nominal：option_fqn 必须注入（与 render 的 FQN 判定一致），
+        // render 才能识别为 `T?`。
+        s.set_option_fqn(interner.intern("scoop.core.Option"));
         let unit = s.unit();
         let bool_ = s.bool();
         let int = s.int();

@@ -465,9 +465,15 @@ pub(crate) fn is_native_abi_value_type(env: &TypeEnv, id: TypeId) -> bool {
             | ValueTypeKind::UInt
             | ValueTypeKind::IntN(_)
             | ValueTypeKind::UIntN(_) => true,
-            ValueTypeKind::Option(_) => false,
             ValueTypeKind::Tuple(els) => els.iter().all(|e| is_native_abi_value_type(env, *e)),
-            ValueTypeKind::Nominal(n) => is_native_abi_nominal(env, n.fqn),
+            ValueTypeKind::Nominal(n) => {
+                // Option<T> 不属于 native ABI（与其它 nominal 的声明级判定不同）。
+                if n.fqn == env.store.option_fqn() {
+                    false
+                } else {
+                    is_native_abi_nominal(env, n.fqn)
+                }
+            }
         },
     }
 }
@@ -549,8 +555,12 @@ fn scoop_abi_v1_type_is_supported(env: &TypeEnv, id: TypeId) -> bool {
         TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String | RefTypeKind::Union(_)) => true,
         TypeKind::Param(_) => true,
         TypeKind::Nothing => true,
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            scoop_abi_v1_type_is_supported(env, *inner)
+        TypeKind::Value(ValueTypeKind::Nominal(n)) if n.fqn == env.store.option_fqn() => {
+            // Option<T>：按 inner 递归判定。
+            match n.args.first() {
+                Some(inner) => scoop_abi_v1_type_is_supported(env, *inner),
+                None => true,
+            }
         }
         TypeKind::Value(ValueTypeKind::Tuple(els)) => {
             els.iter().all(|e| scoop_abi_v1_type_is_supported(env, *e))

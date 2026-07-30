@@ -103,11 +103,18 @@ fn encode_type(
         TypeKind::Value(ValueTypeKind::UInt) => "V(UInt)".to_string(),
         TypeKind::Value(ValueTypeKind::IntN(bits)) => format!("V(Int{bits})"),
         TypeKind::Value(ValueTypeKind::UIntN(bits)) => format!("V(UInt{bits})"),
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            format!(
-                "V(Option<{}>)",
-                encode_type(types, interner, *inner, depth + 1, cache)
-            )
+        // Option<T>：保持原编码 V(Option<inner>)（Option 现为 value nominal，走 FQN 判定）。
+        TypeKind::Value(ValueTypeKind::Nominal(n))
+            if n.fqn == types.option_fqn() =>
+        {
+            let inner = n.args.first().copied();
+            match inner {
+                Some(inner) => format!(
+                    "V(Option<{}>)",
+                    encode_type(types, interner, inner, depth + 1, cache)
+                ),
+                None => "V(Option<>)".to_string(),
+            }
         }
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
             let elems: Vec<String> = elements

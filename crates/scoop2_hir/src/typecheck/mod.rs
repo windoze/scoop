@@ -168,6 +168,10 @@ pub fn run_typecheck_with_options(
     });
     // 创建 TypeEnv（借用 interner 不可变）。
     let mut env = TypeEnv::new(&index, interner);
+    // 注入 Option FQN（Option<T> 现为 value nominal，走 FQN 判定）。
+    // 必须在任何 typecheck 构造/检查 Option 之前完成。
+    env.store
+        .set_option_fqn(interner.get("scoop.core.Option").unwrap_or_default());
     for &(i, ref prefix, ref imports) in &file_state {
         let inp = &inputs[i];
         // register_type_constraints 先运行（填充 eff_param_types 等供后续降级使用）。
@@ -2327,17 +2331,20 @@ fn lint_size_of(env: &TypeEnv, ty: crate::ty::TypeId, depth: u32) -> u64 {
                 .iter()
                 .map(|&e| lint_size_of(env, e, depth + 1).max(1).next_multiple_of(8))
                 .sum(),
-            ValueTypeKind::Option(inner) => {
-                let inner_kind = env.store.kind(*inner);
-                if matches!(inner_kind, TypeKind::Ref(_) | TypeKind::Nothing) {
-                    8
-                } else {
-                    8 + lint_size_of(env, *inner, depth + 1)
-                        .max(1)
-                        .next_multiple_of(8)
-                }
-            }
             ValueTypeKind::Nominal(n) => {
+                // Option<T>：内层为引用/Nothing 时按 niche 取 8，否则 8 + inner。
+                if n.fqn == env.store.option_fqn()
+                    && let Some(inner) = n.args.first()
+                {
+                    let inner_kind = env.store.kind(*inner);
+                    return if matches!(inner_kind, TypeKind::Ref(_) | TypeKind::Nothing) {
+                        8
+                    } else {
+                        8 + lint_size_of(env, *inner, depth + 1)
+                            .max(1)
+                            .next_multiple_of(8)
+                    };
+                }
                 if let Some(variants) = env.enum_variants(n.fqn) {
                     // 嵌套 enum：tag（8）+ 最大 variant payload。
                     let enum_name = env.interner.resolve(n.fqn);
