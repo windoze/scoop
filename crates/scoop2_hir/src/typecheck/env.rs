@@ -582,6 +582,22 @@ impl<'i> TypeEnv<'i> {
                 )
             })
             .collect();
+        // 构建 `HashMap<TypeId, TypeInfo>`：把上述按 FQN 分散的声明信息合并为按
+        // `TypeId` 索引的单条信息（freeze 边界）。当前与旧字段并存（增量迁移）。
+        let type_infos = build_type_infos(
+            &mut store,
+            index,
+            interner_ref,
+            &member_funs,
+            &self.member_fun_order,
+            &self.members,
+            &self.member_order,
+            &ctor_signatures,
+            &self.enum_variants,
+            &extensible_class_fqns,
+            &self.class_ctor_params,
+            &self.super_ctor_delegations,
+        );
         TypedHir {
             store,
             interner,
@@ -601,8 +617,430 @@ impl<'i> TypeEnv<'i> {
             supertypes,
             class_ctor_params: self.class_ctor_params,
             super_ctor_delegations: self.super_ctor_delegations,
+            type_infos,
             files,
         }
+    }
+}
+
+/// 在 freeze 边界构建 `HashMap<TypeId, TypeInfo>`。
+///
+/// 遍历 `index.categories_iter()` 给出的所有 nominal 类型，按类别构造对应的
+/// [`crate::hir::type_info::TypeInfo`] 变体；并补充 primitive / tuple / function 条目
+/// （从 `TypeStore` 现有内建类型派生）。键为该类型声明对应的 `TypeId`
+/// （ref/value nominal 由 `NominalCategory::is_reference` 决定）。
+///
+/// 设计说明：
+/// - 字段 / 方法顺序沿用旧字段（`member_order` / `member_fun_order`）以保证确定性。
+/// - 超类型按 `index.category` 拆分 base_class（Class）vs direct_implements（Interface）/
+///   direct_extends（Interface）。
+/// - `is_final` = 不在 `extensible_class_fqns`（即非 open/abstract）。
+#[allow(clippy::too_many_arguments)]
+fn build_type_infos(
+    store: &mut TypeStore,
+    index: &Index,
+    interner: &Interner,
+    member_funs: &HashMap<Symbol, HashMap<Symbol, Vec<crate::hir::TypedSignature>>>,
+    member_fun_order: &HashMap<Symbol, Vec<Symbol>>,
+    members: &HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    member_order: &HashMap<Symbol, Vec<Symbol>>,
+    ctor_signatures: &HashMap<Symbol, Vec<crate::hir::TypedSignature>>,
+    enum_variants: &HashMap<Symbol, Vec<Symbol>>,
+    extensible_class_fqns: &HashSet<Symbol>,
+    class_ctor_params: &HashMap<Symbol, Vec<crate::hir::ClassCtorParamInfo>>,
+    super_ctor_delegations: &HashMap<Symbol, crate::hir::SuperCtorDelegation>,
+) -> HashMap<TypeId, crate::hir::type_info::TypeInfo> {
+    use crate::hir::type_info::{PrimitiveKind, PrimitiveTypeInfo, TypeInfo};
+    use crate::resolve::symbol::NominalCategory;
+
+    let mut out: HashMap<TypeId, TypeInfo> = HashMap::new();
+
+    for (fqn, category) in index.categories_iter() {
+        let is_ref = category.is_reference();
+        let ty_id = nominal_type_id(store, fqn, is_ref);
+        let info = match category {
+            NominalCategory::Class | NominalCategory::Object => {
+                let (base_class, direct_implements, _) =
+                    split_supertypes(store, index, fqn);
+                TypeInfo::Class(build_class_info(
+                    store, index, interner, fqn, base_class, direct_implements,
+                    member_funs, member_fun_order, members, member_order,
+                    ctor_signatures, class_ctor_params, super_ctor_delegations,
+                    !extensible_class_fqns.contains(&fqn),
+                ))
+            }
+            NominalCategory::Interface => {
+                let (_, _, direct_extends) = split_supertypes(store, index, fqn);
+                TypeInfo::Interface(build_interface_info(
+                    store, index, interner, fqn, direct_extends,
+                    member_funs, member_fun_order,
+                ))
+            }
+            NominalCategory::Struct => {
+                let (_, direct_implements, _) = split_supertypes(store, index, fqn);
+                TypeInfo::Struct(build_struct_info(
+                    store, index, interner, fqn, direct_implements,
+                    member_funs, member_fun_order, members, member_order,
+                ))
+            }
+            NominalCategory::Enum => {
+                let (_, direct_implements, _) = split_supertypes(store, index, fqn);
+                let variants = collect_enum_variants(
+                    interner, fqn, enum_variants, members, member_order,
+                );
+                TypeInfo::Enum(build_enum_info(
+                    store, index, interner, fqn, variants, direct_implements,
+                    member_funs, member_fun_order,
+                ))
+            }
+            NominalCategory::Effect => TypeInfo::Effect,
+        };
+        out.insert(ty_id, info);
+    }
+
+    // Primitive 条目：从 TypeStore 现有内建值类型派生。
+    // 这些类型在 typecheck 期间经 `builtin()`/构造器 intern，故存在于 store。
+    for (ty, kind) in [
+        (store.unit(), PrimitiveKind::Unit),
+        (store.bool(), PrimitiveKind::Bool),
+        (store.char(), PrimitiveKind::Char),
+        (store.int(), PrimitiveKind::Int),
+        (store.uint(), PrimitiveKind::UInt),
+        (store.int_n(8), PrimitiveKind::Int8),
+        (store.int_n(16), PrimitiveKind::Int16),
+        (store.int_n(32), PrimitiveKind::Int32),
+        (store.int_n(64), PrimitiveKind::Int64),
+        (store.uint_n(8), PrimitiveKind::UInt8),
+        (store.uint_n(16), PrimitiveKind::UInt16),
+        (store.uint_n(32), PrimitiveKind::UInt32),
+        (store.uint_n(64), PrimitiveKind::UInt64),
+        (store.float32(), PrimitiveKind::Float32),
+        (store.float64(), PrimitiveKind::Float64),
+    ] {
+        out.entry(ty).or_insert(TypeInfo::Primitive(PrimitiveTypeInfo {
+            kind,
+            direct_implements: Vec::new(),
+        }));
+    }
+
+    // Tuple / Function：这两类无具名声明，且 store 内具体元组/函数实例可能很多
+    // （每次签名不同 arity/params 都 intern 新类型），无法在 freeze 边界枚举全部。
+    // 故此处不预填——HOF / 元组查询改由消费侧按需构造 TypeInfo（后续步骤）。
+
+    out
+}
+
+/// 声明态 nominal 的 `TypeId`：无类型实参（args 为空），按 `is_ref` 选 ref/value。
+fn nominal_type_id(store: &mut TypeStore, fqn: Symbol, is_ref: bool) -> TypeId {
+    use crate::ty::NominalType;
+    let n = NominalType {
+        fqn,
+        args: vec![],
+        eff: None,
+    };
+    if is_ref {
+        store.ref_nominal(n)
+    } else {
+        store.value_nominal(n)
+    }
+}
+
+/// 超类型按类别拆分：返回 `(base_class, direct_implements, direct_extends)`。
+///
+/// - `base_class` = supertypes 中为 Class/Object 的第一个（单继承）；
+/// - `direct_implements` = 接口超类型（非传递）；
+/// - `direct_extends` = 接口超类型（仅对 interface 自身有意义，与 implements 同源）。
+fn split_supertypes(
+    store: &mut TypeStore,
+    index: &Index,
+    fqn: Symbol,
+) -> (Option<TypeId>, Vec<TypeId>, Vec<TypeId>) {
+    use crate::resolve::symbol::NominalCategory;
+    let mut base_class: Option<TypeId> = None;
+    let mut direct_implements: Vec<TypeId> = Vec::new();
+    let mut direct_extends: Vec<TypeId> = Vec::new();
+    for &sup in index.supertypes_of(fqn) {
+        let is_ref = index.category(sup).is_some_and(|c| c.is_reference());
+        let sup_id = nominal_type_id(store, sup, is_ref);
+        match index.category(sup) {
+            Some(NominalCategory::Class | NominalCategory::Object) => {
+                if base_class.is_none() {
+                    base_class = Some(sup_id);
+                }
+            }
+            Some(NominalCategory::Interface) => {
+                direct_implements.push(sup_id);
+                direct_extends.push(sup_id);
+            }
+            _ => {}
+        }
+    }
+    (base_class, direct_implements, direct_extends)
+}
+
+/// 把某 FQN 的有序字段列表收集为 `(name, ty)`，遵循 `member_order`（缺失时按名排序）。
+fn ordered_fields(
+    interner: &Interner,
+    members: &HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    member_order: &HashMap<Symbol, Vec<Symbol>>,
+    fqn: Symbol,
+) -> Vec<(Symbol, TypeId)> {
+    let Some(ms) = members.get(&fqn) else {
+        return Vec::new();
+    };
+    match member_order.get(&fqn) {
+        Some(order) => order
+            .iter()
+            .filter_map(|&name| ms.get(&name).map(|&ty| (name, ty)))
+            .collect(),
+        None => {
+            let mut v: Vec<(Symbol, TypeId)> = ms.iter().map(|(&n, &t)| (n, t)).collect();
+            v.sort_by(|a, b| interner.resolve(a.0).cmp(interner.resolve(b.0)));
+            v
+        }
+    }
+}
+
+/// 把某 FQN 的方法表收集为 `(name, 签名重载集)`，遵循 `member_fun_order`（缺失时按名排序）。
+fn ordered_methods(
+    interner: &Interner,
+    member_funs: &HashMap<Symbol, HashMap<Symbol, Vec<crate::hir::TypedSignature>>>,
+    member_fun_order: &HashMap<Symbol, Vec<Symbol>>,
+    fqn: Symbol,
+) -> Vec<(Symbol, Vec<crate::hir::type_info::Signature>)> {
+    let Some(table) = member_funs.get(&fqn) else {
+        return Vec::new();
+    };
+    let names: Vec<Symbol> = match member_fun_order.get(&fqn) {
+        Some(order) => order
+            .iter()
+            .filter(|name| table.contains_key(*name))
+            .copied()
+            .collect(),
+        None => {
+            let mut v: Vec<Symbol> = table.keys().copied().collect();
+            v.sort_by(|a, b| interner.resolve(*a).cmp(interner.resolve(*b)));
+            v
+        }
+    };
+    names
+        .into_iter()
+        .filter_map(|name| {
+            table.get(&name).map(|sigs| {
+                (
+                    name,
+                    sigs.iter()
+                        .map(typed_sig_to_type_info_sig)
+                        .collect::<Vec<_>>(),
+                )
+            })
+        })
+        .collect()
+}
+
+/// class 构造器信息（primary_params + secondary + super delegation）。
+fn build_class_ctor(
+    ctor_signatures: &HashMap<Symbol, Vec<crate::hir::TypedSignature>>,
+    class_ctor_params: &HashMap<Symbol, Vec<crate::hir::ClassCtorParamInfo>>,
+    super_ctor_delegations: &HashMap<Symbol, crate::hir::SuperCtorDelegation>,
+    fqn: Symbol,
+) -> crate::hir::type_info::ClassCtor {
+    use crate::hir::type_info::{
+        ClassCtor as TiClassCtor, ClassCtorParamInfo as TiClassCtorParamInfo,
+        SuperCtorDelegation as TiSuperCtorDelegation,
+    };
+    let primary_params: Vec<TiClassCtorParamInfo> = class_ctor_params
+        .get(&fqn)
+        .map(|v| {
+            v.iter()
+                .map(|p| TiClassCtorParamInfo {
+                    name: p.name,
+                    ty: p.ty,
+                    is_property: p.is_property,
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    // secondary = ctor_signatures 除首个（primary）外的签名。
+    let secondary: Vec<crate::hir::type_info::Signature> = ctor_signatures
+        .get(&fqn)
+        .map(|v| {
+            v.iter()
+                .skip(1)
+                .map(typed_sig_to_type_info_sig)
+                .collect()
+        })
+        .unwrap_or_default();
+    let super_delegation: Option<TiSuperCtorDelegation> = super_ctor_delegations
+        .get(&fqn)
+        .map(|d| TiSuperCtorDelegation {
+            super_fqn: d.super_fqn,
+            base_index: d.base_index,
+            arg_tys: d.arg_tys.clone(),
+        });
+    TiClassCtor {
+        primary_params,
+        secondary,
+        super_delegation,
+    }
+}
+
+/// 收集 enum variants（含 payload 字段，登记在 `<enum_fqn>.<variant>` 的 members 下）。
+fn collect_enum_variants(
+    interner: &Interner,
+    fqn: Symbol,
+    enum_variants: &HashMap<Symbol, Vec<Symbol>>,
+    members: &HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    member_order: &HashMap<Symbol, Vec<Symbol>>,
+) -> Vec<crate::hir::type_info::EnumVariantInfo> {
+    use crate::hir::type_info::EnumVariantInfo;
+    enum_variants
+        .get(&fqn)
+        .map(|vs| {
+            vs.iter()
+                .map(|&vname| {
+                    let variant_fqn_text =
+                        format!("{}.{}", interner.resolve(fqn), interner.resolve(vname));
+                    let fields = interner
+                        .get(&variant_fqn_text)
+                        .map(|vfqn| ordered_fields(interner, members, member_order, vfqn))
+                        .unwrap_or_default();
+                    EnumVariantInfo {
+                        name: vname,
+                        fields,
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// 取一个 nominal 类型声明的类型参数列表（占位，见下方说明）。
+///
+/// `TypeParamId` / `bound` 无法在 freeze 边界从 `Index` 恢复（Index 不存运行时 id），
+/// 故此处返回空列表占位——后续若需完整 type_param 元数据，应在 typecheck 收集阶段
+/// 把 (FQN → Vec<TypeParamId>) 一并快照进 `TypedHir`。
+fn type_param_decls_for(
+    _store: &mut TypeStore,
+    _index: &Index,
+    _interner: &Interner,
+    _fqn: Symbol,
+) -> Vec<crate::hir::type_info::TypeParamDecl> {
+    // TODO: 后续从 typecheck 收集的 type_constraints / 专门的 type-param 快照表恢复。
+    Vec::new()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_class_info(
+    store: &mut TypeStore,
+    index: &Index,
+    interner: &Interner,
+    fqn: Symbol,
+    base_class: Option<TypeId>,
+    direct_implements: Vec<TypeId>,
+    member_funs: &HashMap<Symbol, HashMap<Symbol, Vec<crate::hir::TypedSignature>>>,
+    member_fun_order: &HashMap<Symbol, Vec<Symbol>>,
+    members: &HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    member_order: &HashMap<Symbol, Vec<Symbol>>,
+    ctor_signatures: &HashMap<Symbol, Vec<crate::hir::TypedSignature>>,
+    class_ctor_params: &HashMap<Symbol, Vec<crate::hir::ClassCtorParamInfo>>,
+    super_ctor_delegations: &HashMap<Symbol, crate::hir::SuperCtorDelegation>,
+    is_final: bool,
+) -> crate::hir::type_info::ClassTypeInfo {
+    use crate::hir::type_info::ClassTypeInfo;
+    ClassTypeInfo {
+        type_params: type_param_decls_for(store, index, interner, fqn),
+        fields: ordered_fields(interner, members, member_order, fqn),
+        methods: ordered_methods(interner, member_funs, member_fun_order, fqn),
+        base_class,
+        direct_implements,
+        ctor: build_class_ctor(
+            ctor_signatures,
+            class_ctor_params,
+            super_ctor_delegations,
+            fqn,
+        ),
+        is_final,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_struct_info(
+    store: &mut TypeStore,
+    index: &Index,
+    interner: &Interner,
+    fqn: Symbol,
+    direct_implements: Vec<TypeId>,
+    member_funs: &HashMap<Symbol, HashMap<Symbol, Vec<crate::hir::TypedSignature>>>,
+    member_fun_order: &HashMap<Symbol, Vec<Symbol>>,
+    members: &HashMap<Symbol, HashMap<Symbol, TypeId>>,
+    member_order: &HashMap<Symbol, Vec<Symbol>>,
+) -> crate::hir::type_info::StructTypeInfo {
+    use crate::hir::type_info::StructTypeInfo;
+    StructTypeInfo {
+        type_params: type_param_decls_for(store, index, interner, fqn),
+        fields: ordered_fields(interner, members, member_order, fqn),
+        methods: ordered_methods(interner, member_funs, member_fun_order, fqn),
+        direct_implements,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_interface_info(
+    store: &mut TypeStore,
+    index: &Index,
+    interner: &Interner,
+    fqn: Symbol,
+    direct_extends: Vec<TypeId>,
+    member_funs: &HashMap<Symbol, HashMap<Symbol, Vec<crate::hir::TypedSignature>>>,
+    member_fun_order: &HashMap<Symbol, Vec<Symbol>>,
+) -> crate::hir::type_info::InterfaceTypeInfo {
+    use crate::hir::type_info::InterfaceTypeInfo;
+    InterfaceTypeInfo {
+        type_params: type_param_decls_for(store, index, interner, fqn),
+        methods: ordered_methods(interner, member_funs, member_fun_order, fqn),
+        direct_extends,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_enum_info(
+    store: &mut TypeStore,
+    index: &Index,
+    interner: &Interner,
+    fqn: Symbol,
+    variants: Vec<crate::hir::type_info::EnumVariantInfo>,
+    direct_implements: Vec<TypeId>,
+    member_funs: &HashMap<Symbol, HashMap<Symbol, Vec<crate::hir::TypedSignature>>>,
+    member_fun_order: &HashMap<Symbol, Vec<Symbol>>,
+) -> crate::hir::type_info::EnumTypeInfo {
+    use crate::hir::type_info::EnumTypeInfo;
+    EnumTypeInfo {
+        type_params: type_param_decls_for(store, index, interner, fqn),
+        variants,
+        methods: ordered_methods(interner, member_funs, member_fun_order, fqn),
+        direct_implements,
+    }
+}
+
+/// 把 freeze 后的 [`crate::hir::TypedSignature`] 转换为
+/// [`crate::hir::type_info::Signature`]（两者字段同构，仅类型不同）。
+///
+/// 用于在 `into_typed_hir` 末尾把已转换的签名重打包进 [`crate::hir::type_info::TypeInfo`]。
+fn typed_sig_to_type_info_sig(
+    ts: &crate::hir::TypedSignature,
+) -> crate::hir::type_info::Signature {
+    crate::hir::type_info::Signature {
+        param_types: ts.param_types.clone(),
+        return_ty: ts.return_ty,
+        type_param_count: ts.type_param_count,
+        param_names: ts.param_names.clone(),
+        has_defaults: ts.has_defaults.clone(),
+        default_exprs: ts.default_exprs.clone(),
+        effect_row: ts.effect_row.clone(),
+        has_vararg: ts.has_vararg,
+        decl_span: ts.decl_span,
+        decl_file: ts.decl_file,
     }
 }
 

@@ -189,6 +189,12 @@ pub struct TypedHir {
     pub class_ctor_params: HashMap<Symbol, Vec<ClassCtorParamInfo>>,
     /// class FQN → `: Super(args)` 委托（可静态解析时记录）。
     pub super_ctor_delegations: HashMap<Symbol, SuperCtorDelegation>,
+    /// 类型声明信息表：每个 `TypeId`（nominal / primitive / tuple / function）→
+    /// 对应的 [`type_info::TypeInfo`]。由 `into_typed_hir` 在 freeze 边界构建，
+    /// 将上述按 FQN 分散的声明信息合并为按 `TypeId` 索引的单条信息。
+    ///
+    /// 当前与上方 16 个旧字段并存（增量迁移阶段）；消费者仍用旧字段，此表待后续迁移。
+    pub type_infos: HashMap<TypeId, type_info::TypeInfo>,
     /// 每个用户文件的 typed 产物（含 expr_types + 语义事实）。
     pub files: Vec<TypedFile>,
 }
@@ -381,6 +387,7 @@ impl TypedHir {
             supertypes: HashMap::new(),
             class_ctor_params: HashMap::new(),
             super_ctor_delegations: HashMap::new(),
+            type_infos: HashMap::new(),
             files: Vec::new(),
         }
     }
