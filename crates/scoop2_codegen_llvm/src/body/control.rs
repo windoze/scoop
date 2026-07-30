@@ -41,6 +41,9 @@ pub fn lower_terminator<'a, 'ctx>(
                         }
                         _ => v,
                     };
+                    // 归一到函数返回类型的 LLVM 表示宽度（修复 Float32 函数返回 Float64
+                    // 计算结果、或窄整数函数返回宽整数等类型不匹配导致的 LLVM 验证失败）。
+                    let coerced = coerce_to_return_type(fl, coerced, fl.return_ty)?;
                     Some(coerced)
                 }
                 None => None,
@@ -171,4 +174,67 @@ fn lookup_block<'a, 'ctx>(
 /// 此 TypeId 仅在 operand 是 Const 时被 lower_const 忽略，在 Local 时由 load_local 覆盖。
 fn bool_ty() -> scoop2_hir::ty::TypeId {
     scoop2_hir::ty::TypeId(0)
+}
+
+/// 把返回值归一到函数返回类型的 LLVM 表示宽度。
+///
+/// 修复 Float32 函数返回 Float64 计算结果（或窄整数返回宽整数）等情形：
+/// LLVM 要求 `ret` 指令的操作数类型与函数返回类型严格一致。Scoop 的 expected-type
+/// 吸收让 `1.25 + 2.75`（期望 Float32）按 Float64 计算（intrinsic 不按 expected 宽度
+/// 选择），导致 ret f64 与声明 f32 不匹配。这里按返回类型把标量截断/扩展。
+fn coerce_to_return_type<'a, 'ctx>(
+    fl: &FunctionLowerer<'a, 'ctx>,
+    val: BasicValueEnum<'ctx>,
+    return_ty: scoop2_hir::ty::TypeId,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    use inkwell::types::BasicTypeEnum;
+    let Some(layout) = fl.layouts.get(return_ty) else {
+        return Ok(val);
+    };
+    let target = fl.cg.lower_type(return_ty, fl.layouts)?;
+    match (val, target, &layout.kind) {
+        // 浮点：f64 → f32 截断（fptrunc）；f32 → f64 扩展（fpext）。
+        (BasicValueEnum::FloatValue(fv), BasicTypeEnum::FloatType(dst_ty), _) => {
+            if fv.get_type() == dst_ty {
+                Ok(fv.into())
+            } else {
+                // 判断方向：目标是 f32（窄）→ trunc；否则 ext。
+                let dst_is_f32 = dst_ty == fl.cg.context.f32_type();
+                if dst_is_f32 {
+                    fl.builder
+                        .build_float_trunc(fv, dst_ty, "ret_fptrunc")
+                        .map(|v| v.into())
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), "coerce return fptrunc", scoop2_base::Span::default())
+                        })
+                } else {
+                    fl.builder
+                        .build_float_ext(fv, dst_ty, "ret_fpext")
+                        .map(|v| v.into())
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), "coerce return fpext", scoop2_base::Span::default())
+                        })
+                }
+            }
+        }
+        // 整数：宽度不匹配时截断/扩展。
+        (BasicValueEnum::IntValue(iv), BasicTypeEnum::IntType(dst_ty), _) => {
+            let sw = iv.get_type().get_bit_width();
+            let dw = dst_ty.get_bit_width();
+            if sw == dw {
+                Ok(iv.into())
+            } else if sw > dw {
+                fl.builder
+                    .build_int_truncate(iv, dst_ty, "ret_trunc")
+                    .map(|v| v.into())
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "coerce return trunc", scoop2_base::Span::default()))
+            } else {
+                fl.builder
+                    .build_int_z_extend(iv, dst_ty, "ret_zext")
+                    .map(|v| v.into())
+                    .map_err(|e| CodegenError::llvm(e.to_string(), "coerce return zext", scoop2_base::Span::default()))
+            }
+        }
+        (v, _, _) => Ok(v),
+    }
 }

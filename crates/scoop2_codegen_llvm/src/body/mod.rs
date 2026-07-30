@@ -1000,7 +1000,8 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
     ///
     /// 必要性：intrinsic 运算可能把窄整数（UInt8）操作数 zext 到 i64 再计算，
     /// 返回 i64 结果；若直接 store 到 i8 slot 会越界写相邻 local（store i64 到 i8*）。
-    /// 这里按 local 类型把整数结果截断/扩展到正确宽度。指针/聚合保持原样。
+    /// Float32 期望类型的运算可能按 Float64 计算（intrinsic 不按 expected 宽度选择），
+    /// 需 fptrunc。这里按 local 类型把标量截断/扩展到正确宽度。指针/聚合保持原样。
     fn coerce_to_local_type(
         &self,
         id: u32,
@@ -1029,6 +1030,25 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
                         .map(|v| v.into())
                         .map_err(|e| {
                             CodegenError::llvm(e.to_string(), "coerce zext", scoop2_base::Span::default())
+                        })
+                }
+            }
+            (BasicValueEnum::FloatValue(src), inkwell::types::BasicTypeEnum::FloatType(dst_ty)) => {
+                if src.get_type() == dst_ty {
+                    Ok(src.into())
+                } else if dst_ty == self.cg.context.f32_type() {
+                    self.builder
+                        .build_float_trunc(src, dst_ty, &format!("local{}_fptrunc", id))
+                        .map(|v| v.into())
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), "coerce fptrunc", scoop2_base::Span::default())
+                        })
+                } else {
+                    self.builder
+                        .build_float_ext(src, dst_ty, &format!("local{}_fpext", id))
+                        .map(|v| v.into())
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), "coerce fpext", scoop2_base::Span::default())
                         })
                 }
             }
