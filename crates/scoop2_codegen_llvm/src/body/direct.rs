@@ -36,20 +36,21 @@ pub fn lower_direct<'a, 'ctx>(
             .unwrap_or(LirOperand::Const(scoop2_lir::LirConstValue::Null));
         return super::call::lower_resume_direct(fl, &cont, &rv, result_ty);
     }
-    // 1. LIR 携带的 intrinsic name（从 @Intrinsic 注解透传）— 权威来源。
-    //    优先于函数声明，因为 @Intrinsic 方法虽有声明（body=None）但应内联而非调用。
+    // 1. LIR 携带的 intrinsic name（从 @Intrinsic 注解透传）— 直接路径。
+    //    @Intrinsic 方法（body=None）由此内联，不经过函数声明查找。
     if let Some(name) = intrinsic_name {
         if let Some(v) = crate::intrinsics::try_lower_named_intrinsic(fl, name, args, result_ty)? {
             return Ok(v);
         }
     }
-    // 2. FQN 启发式（仅当 LIR 未携带 intrinsic name 时回退）。
-    if intrinsic_name.is_none() {
-        if let Some(v) =
-            crate::intrinsics::try_lower_intrinsic_by_fqn(fl, callee_symbol, args, result_ty)?
-        {
-            return Ok(v);
-        }
+    // 2. intrinsic_map 按 FQN 查找（覆盖 devirtualize 后 Virtual→Direct 的调用，
+    //    这些调用的 LIR intrinsic_name=None 但 callee_symbol 是 @Intrinsic 方法 FQN）。
+    //    注意：这不是 FQN 启发式——intrinsic_map 从 LirDeclaration.intrinsic_name 构建，
+    //    仅对 @Intrinsic 方法（body=None）有条目。非 @Intrinsic 方法不在 map 中。
+    if let Some(v) =
+        crate::intrinsics::try_lower_intrinsic_by_fqn(fl, callee_symbol, args, result_ty)?
+    {
+        return Ok(v);
     }
     // 3. 已声明/定义的函数。
     if let Some(fv) = fl
@@ -59,7 +60,7 @@ pub fn lower_direct<'a, 'ctx>(
     {
         return lower_known_fn(fl, fv, args, result_ty);
     }
-    // 4. runtime 符号映射（println/print 等常用符号）。
+    // 3. runtime 符号映射（println/print 等常用符号）。
     if let Some(fv) = resolve_runtime_symbol(fl, callee_symbol) {
         return lower_known_fn(fl, fv, args, result_ty);
     }

@@ -31,21 +31,16 @@ pub fn try_lower_intrinsic_by_fqn<'a, 'ctx>(
     if let Some(v) = try_lower_string_intrinsic(fl, callee_fqn, args)? {
         return Ok(Some(v));
     }
-    // 优先用 `@Intrinsic("name")` 注解透传的真实 intrinsic 名（权威来源，
-    // 覆盖 `ushr` 等启发式推导遗漏的运算符）。
-    let mut name = if let Some(ann_name) = fl.cg.lookup_intrinsic_name(callee_fqn) {
-        ann_name.to_string()
-    } else {
-        // 回退：从 FQN 启发式推导（旧路径，覆盖无注解的内建方法调用）。
-        match intrinsic_name_from_fqn(callee_fqn) {
-            Some(n) => n,
-            None => return Ok(None),
-        }
+    // 用 `@Intrinsic("name")` 注解透传的真实 intrinsic 名（唯一权威来源）。
+    // intrinsic_map 从 LirDeclaration.intrinsic_name 构建，覆盖所有 @Intrinsic 方法。
+    let name = match fl.cg.lookup_intrinsic_name(callee_fqn) {
+        Some(ann_name) => ann_name.to_string(),
+        None => return Ok(None),
     };
     // 重载歧义修正：同名方法（如 `Char.minus`）有多个 @Intrinsic 注解
     // （char_minus_int / char_minus_char），intrinsic_map 只保留其一。
     // 按 result_ty / 实参类型精确选名，避免把 `Char - Int` 当成 `Char - Char`。
-    name = disambiguate_overloaded_intrinsic(fl, callee_fqn, &name, args, result_ty);
+    let name = disambiguate_overloaded_intrinsic(fl, callee_fqn, &name, args, result_ty);
     lower_named_intrinsic(fl, &name, args).map(Some)
 }
 
@@ -591,68 +586,6 @@ fn native_to_gc_if_ptr<'a, 'ctx>(
         }
         _ => Ok(val),
     }
-}
-
-/// 从 Scoop FQN 推导 intrinsic name（启发式）。
-/// 例如 `scoop.core.Int.plus` → `int_plus`。
-/// 仅处理内建标量类型 + 已知运算符方法。
-fn intrinsic_name_from_fqn(fqn: &str) -> Option<String> {
-    let last_dot = fqn.rfind('.')?;
-    let (owner_path, method) = fqn.split_at(last_dot);
-    let method = &method[1..]; // 去掉 '.'
-    let owner = owner_path.rsplit('.').next()?;
-    let type_prefix = match owner {
-        "Int" => "int",
-        "UInt" => "uint",
-        "Int8" => "int8",
-        "Int16" => "int16",
-        "Int32" => "int32",
-        "Int64" => "int64",
-        "UInt8" => "uint8",
-        "UInt16" => "uint16",
-        "UInt32" => "uint32",
-        "UInt64" => "uint64",
-        "UIntPtr" => "uint",
-        "Bool" => "bool",
-        "Char" => "char",
-        "Float" | "Float64" => "float",
-        // sysroot 中 Float32 与 Float64 共用 `float_*` 注解名（位宽由操作数决定）。
-        "Float32" => "float",
-        _ => return None,
-    };
-    // 只对内建运算符方法映射。
-    let mapped = match method {
-        "plus" => "plus",
-        "minus" => "minus",
-        "times" => "times",
-        "div" => "div",
-        "rem" => "rem",
-        "unaryMinus" => "unary_minus",
-        "unaryPlus" => "unary_plus",
-        "inc" => "inc",
-        "dec" => "dec",
-        "and" => "and",
-        "or" => "or",
-        "xor" => "xor",
-        "inv" => "inv",
-        "shl" => "shl",
-        "shr" => "shr",
-        "ushr" => "ushr",
-        "compareTo" => "compare_to",
-        // sysroot 注解名用短形式 `int_eq`/`int_ne`（与 @Intrinsic 注解一致）。
-        "equals" => "eq",
-        "notEquals" => "ne",
-        "lt" => "lt",
-        "le" => "le",
-        "gt" => "gt",
-        "ge" => "ge",
-        "hashCode" | "hash" => "hash",
-        "toInt" => "to_int",
-        "toIntBits" => "to_int",
-        "toString" => "to_string",
-        _ => return None,
-    };
-    Some(format!("{type_prefix}_{mapped}"))
 }
 
 /// 按已知 intrinsic name lower（公开接口，供 codegen direct.rs 调用）。
