@@ -2301,8 +2301,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.record_index_call(expr, receiver, ty);
             }
             // 调用 → 调用决议（顶层函数 / 方法 / 构造器 / 局部值 / effect-op）。
-            ExprKind::Call { callee, args: _ } => {
-                if let Some(rc) = self.derive_call_resolution(callee, ty, expr.id) {
+            ExprKind::Call { callee, args } => {
+                // 收集实参类型（walk 时已定型）。
+                let arg_types: Vec<TypeId> = args.iter().map(|a| self.expr_types.get(a.value.id).copied().unwrap_or_else(|| self.env.store.nothing())).collect();
+                if let Some(mut rc) = self.derive_call_resolution(callee, ty, expr.id) {
+                    // 泛型调用推断类型实参（若 HIR 未显式填充）。
+                    self.fill_inferred_type_args(&mut rc, &arg_types);
                     // effect-op 调用同时记录 effect site 元数据。
                     if let crate::hir::ResolvedCall::EffectOp {
                         effect_name,
@@ -2331,6 +2335,73 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 取一个表达式的已记录类型（来自 expr_types）。
     fn expr_ty(&self, expr: &Expr) -> Option<TypeId> {
         self.expr_types.get(expr.id).copied()
+    }
+
+    /// 为泛型调用推断类型实参（若未显式提供）。
+    ///
+    /// 对 TopLevelFun / Method：从 callee 的 type_params + 签名参数类型 + 实参类型，
+    /// 推断每个类型参数的绑定。消除 MIR 的 `infer_type_args_from_call`。
+    fn fill_inferred_type_args(&self, rc: &mut crate::hir::ResolvedCall, arg_types: &[TypeId]) {
+        let (fqn, explicit, inferred) = match rc {
+            crate::hir::ResolvedCall::TopLevelFun { fqn, explicit_type_args, inferred_type_args, .. } => {
+                (*fqn, explicit_type_args, inferred_type_args)
+            }
+            crate::hir::ResolvedCall::Method { owner_fqn, explicit_type_args, inferred_type_args, .. } => {
+                // 方法的类型参数来自方法自身（而非 owner）。当前简化：不推断方法类型参数。
+                let _ = owner_fqn;
+                return;
+            }
+            _ => return,
+        };
+        // 若已有显式或推断的类型实参，不覆盖。
+        if !explicit.is_empty() || !inferred.is_empty() {
+            return;
+        }
+        // 取 callee type_params（声明顺序）。
+        let type_params: Vec<scoop2_base::Symbol> = self
+            .env
+            .type_constraints(fqn)
+            .map(|(params, _)| params.to_vec())
+            .unwrap_or_default();
+        if type_params.is_empty() {
+            return;
+        }
+        // 取 callee 签名参数类型（首个重载）。
+        let sig_param_tys: Vec<TypeId> = self
+            .env
+            .signatures(fqn)
+            .and_then(|sigs| sigs.first())
+            .map(|s| s.params.clone())
+            .unwrap_or_default();
+        if sig_param_tys.is_empty() {
+            return;
+        }
+        // 推断：Param(name) → arg type。
+        let mut tp_map: std::collections::HashMap<scoop2_base::Symbol, TypeId> = std::collections::HashMap::new();
+        for (i, sig_ty) in sig_param_tys.iter().enumerate() {
+            if let Some(&arg_ty) = arg_types.get(i) {
+                self.infer_tp_recursive(*sig_ty, arg_ty, &mut tp_map);
+            }
+        }
+        let result: Vec<TypeId> = type_params.iter().filter_map(|&tp| tp_map.get(&tp).copied()).collect();
+        *inferred = result;
+    }
+
+    /// 递归匹配签名类型与实参类型，填充 Param→TypeId 映射。
+    fn infer_tp_recursive(
+        &self,
+        sig_ty: TypeId,
+        arg_ty: TypeId,
+        out: &mut std::collections::HashMap<scoop2_base::Symbol, TypeId>,
+    ) {
+        use crate::ty::TypeKind;
+        match self.env.store.kind(sig_ty) {
+            TypeKind::Param(p) => {
+                out.entry(p.name).or_insert(arg_ty);
+            }
+            // 嵌套泛型推断（如 Array<T>）在后续迭代中补充。
+            _ => {}
+        }
     }
 
     /// 为某 effect 类型名构造单元素 [`EffectRow`]（解析为 nominal TypeId）。

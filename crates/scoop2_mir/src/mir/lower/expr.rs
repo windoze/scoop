@@ -770,15 +770,13 @@ fn emit_call_resolution(
                     },
                 );
             }
-            // 优先用显式类型实参；否则用推断的类型实参；再否则从实参类型推断（供 scan_calls 单态化 println<String> 等）。
-            let mut type_args = if !explicit_type_args.is_empty() {
+            // 类型实参：优先显式，其次 HIR 推断。HIR 现在填充 inferred_type_args
+            // （fill_inferred_type_args），MIR 不再自行推断。
+            let type_args = if !explicit_type_args.is_empty() {
                 explicit_type_args.clone()
             } else {
                 inferred_type_args.clone()
             };
-            if type_args.is_empty() {
-                type_args = infer_type_args_from_call(builder, *fqn, &final_args);
-            }
             Rvalue::Call {
                 site_id: call_site_id,
                 kind: builder.make_direct_call_kind(callee_fqn.clone(), type_args, false),
