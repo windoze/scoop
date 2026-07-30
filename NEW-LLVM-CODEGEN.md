@@ -385,7 +385,18 @@ codegen 是 pipeline 末端，绝大多数非法程序在 parse/typecheck/MIR/LI
 
 ### 当前阻塞（println 等需 interface dispatch）
 
-- `println("x")` 需要 `value.toString()` 的 **interface/virtual dispatch**（W1-6）。当前 codegen 仅实现 Direct 调用；Virtual/Interface/Closure/FunValue 未实现。且 LIR 中该调用的 dispatch metadata 损坏（`owner_fqn="scoop"`），需修 LIR map_rvalue 的 Virtual 元数据映射 + 实现 W1-2（vtable/itable 全局）+ W1-6（dispatch lowering）。
+- ~~`println("x")` 需要 interface/virtual dispatch~~ **已解锁**：Virtual/Interface/Closure/FunValue dispatch 已实现；println/toString 等经 dispatch 正确工作。算术/控制流/string/class/struct/enum/closure 基本可用。
+
+### 当前主要遗留（run-pass 132/439 通过后的剩余）
+
+run-pass 271 失败按根因：
+- **sysroot 精简移除**（~40 resolve + ~30 typecheck）：使用 runtime.test/sync/thread/RefCell/AtomicInt/Lazy/IntProgression/Vec/delegate 等已移除包的 fixture。预期，待辅助功能逐步加回。
+- **class ctor init 体未执行**（init blocks / property initializers / super delegation）：LIR ClassInitPlan.init_blocks 空、FieldInit.init_kind 占位；跨 HIR/MIR/LIR/codegen 四层待补（见 §3.4 / 旧 crate class_ctor.rs 参考实现）。
+- **object/companion 静态访问**：`<unresolved:Foo>` 等——object 单例 + 静态成员访问未实现。
+- **effect frame local 类型不匹配**：try_catch 类（effect step 函数 frame local 期望指针实际 StructValue）。
+- **struct 返回值类型不匹配**：嵌套泛型 struct 构造/返回（Function return type does not match）。
+- **Float32 数组字面量吸收**：`Array<Float32> = [1.5, 2.5]` 中无后缀字面量按 f64 存储导致读取错位。
+- **确定性**：个别 fixture 偶发不稳定（HashMap 迭代序影响重载/实例解析）。
 
 ### 待办
 
