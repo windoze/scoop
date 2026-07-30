@@ -2743,6 +2743,56 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         self.owner_is_interface(owner_fqn)
     }
 
+    /// 填充默认参数 + 按位置排序，写入 resolved_call_args 事实表。
+    ///
+    /// 对于选中签名的每个参数位置：
+    /// - 位置实参（无命名）：按位置序映射到原始实参 index。
+    /// - 命名实参：按参数名匹配到原始实参 index。
+    /// - 未提供且有默认值：用 Default { expr_node_id }（从签名的 default_exprs 取）。
+    /// - 未提供且无默认值：不应到达此处（ctor_sig_applicable 已过滤）。
+    fn fill_resolved_args(
+        &mut self,
+        call_node: scoop2_base::NodeId,
+        args: &[crate::syntax::ast::CallArg],
+        sig: &crate::typecheck::env::Signature,
+    ) {
+        let n_params = sig.param_names.len();
+        // 若实参数 == 参数数且全为位置实参，无需填充（常见路径，跳过写表）。
+        if args.len() == n_params && args.iter().all(|a| a.name.is_none()) {
+            return;
+        }
+        let mut resolved: Vec<crate::hir::ResolvedCallArg> = Vec::with_capacity(n_params);
+        // 位置实参的原始 index（跳过命名实参）。
+        let mut positional_iter = args
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| a.name.is_none())
+            .map(|(i, _)| i)
+            .peekable();
+        for (param_idx, &pname) in sig.param_names.iter().enumerate() {
+            // 先查命名实参是否提供了此参数。
+            let named_idx = args
+                .iter()
+                .position(|a| a.name.as_ref().is_some_and(|n| n.symbol == pname));
+            if let Some(idx) = named_idx {
+                resolved.push(crate::hir::ResolvedCallArg::Provided { original_index: idx });
+            } else if positional_iter.peek().is_some() {
+                // 位置实参。
+                let idx = positional_iter.next().unwrap();
+                resolved.push(crate::hir::ResolvedCallArg::Provided { original_index: idx });
+            } else {
+                // 默认值：直接从签名的 default_exprs 取克隆的 Expr。
+                if let Some(Some(expr)) = sig.default_exprs.get(param_idx) {
+                    resolved.push(crate::hir::ResolvedCallArg::Default { expr: expr.clone() });
+                } else {
+                    // 无默认值表达式（如 body-field 属性——它们是属性初始化器，
+                    // 不是构造参数，不应出现在 resolved_call_args 中）。跳过。
+                }
+            }
+        }
+        self.facts.resolved_call_args.set(call_node, resolved);
+    }
+
     /// owner 类型是否为 interface（决定 itable vs class vtable 分发通道）。
     fn owner_is_interface(&self, owner_fqn: Symbol) -> bool {
         matches!(
@@ -3834,6 +3884,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // 记录选中的 ctor decl_span（区分 primary/secondary）。
             if let Some(decl_span) = selected_ctor_span {
                 self.facts.ctor_selections.set(call_id, decl_span);
+            }
+            // 默认参数填充：用选中签名的参数列表填充默认值 + 按位置排序。
+            let selected_sig = selected_ctor_span
+                .and_then(|s| ctors.iter().find(|c| c.decl_span == s))
+                .or_else(|| ctors.first());
+            if let Some(sig) = selected_sig {
+                self.fill_resolved_args(call_id, args, sig);
             }
             return ty;
         }

@@ -28,7 +28,7 @@ use crate::ty::{EffectRow, TypeId, TypeStore};
 
 pub use facts::{
     EffectSite, PatternBinding, PatternBindingKey, PatternBindingSource, ResolvedCall,
-    ResolvedMember, ResolvedPlace, SemanticFacts,
+    ResolvedCallArg, ResolvedMember, ResolvedPlace, SemanticFacts,
 };
 
 /// 一个顶层函数 / 成员函数 / 构造器的类型化签名快照（render 用）。
@@ -218,6 +218,12 @@ impl TypedHir {
     pub fn ctor_selection(&self, file_id: FileId, node: NodeId) -> Option<scoop2_base::Span> {
         self.file(file_id)
             .and_then(|f| f.facts.ctor_selections.get(node).copied())
+    }
+
+    /// 查询某调用点的解析后实参列表（默认值填充 + 按位置排序）。
+    pub fn resolved_call_args(&self, file_id: FileId, node: NodeId) -> Option<&[ResolvedCallArg]> {
+        self.file(file_id)
+            .and_then(|f| f.facts.resolved_call_args.get(node).map(|v| v.as_slice()))
     }
 
     /// 查询某成员访问的决议结果。

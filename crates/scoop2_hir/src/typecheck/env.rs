@@ -29,9 +29,9 @@ pub struct Signature {
     pub param_names: Vec<Symbol>,
     /// 各参数是否有默认值（与 params 等长）。
     pub has_defaults: Vec<bool>,
-    /// 各参数默认值表达式的 NodeId（与 params 等长；None = 无默认值）。
-    /// 供 MIR lower 在调用点填充缺失参数时 lower 默认表达式。
-    pub default_exprs: Vec<Option<scoop2_base::NodeId>>,
+    /// 各参数默认值表达式的克隆（与 params 等长；None = 无默认值）。
+    /// 供 HIR 层在调用点填充缺失参数时 lower / 存储默认表达式。
+    pub default_exprs: Vec<Option<crate::syntax::ast::Expr>>,
     /// 是否有 vararg 参数（最后一个参数为 `vararg`，可接收任意多余位置实参）。
     pub has_vararg: bool,
     /// 声明处修饰符（open/abstract/override/final 等；M6 override 匹配用）。
@@ -750,7 +750,7 @@ pub fn register_top_level_signatures(
                     .push(Signature {
                         param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                         has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
-                        default_exprs: d.params.iter().map(|p| p.default.as_ref().map(|e| e.id)).collect(),
+                        default_exprs: d.params.iter().map(|p| p.default.clone()).collect(),
                         has_vararg: d.params.iter().any(|p| p.is_vararg),
                         params,
                         return_ty,
@@ -838,7 +838,7 @@ pub fn register_top_level_signatures(
             Signature {
                 param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                 has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
-                default_exprs: d.params.iter().map(|p| p.default.as_ref().map(|e| e.id)).collect(),
+                default_exprs: d.params.iter().map(|p| p.default.clone()).collect(),
                 has_vararg: d.params.iter().any(|p| p.is_vararg),
                 params,
                 return_ty,
@@ -1093,7 +1093,7 @@ fn register_body_members(
                     Signature {
                         param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                         has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
-                        default_exprs: d.params.iter().map(|p| p.default.as_ref().map(|e| e.id)).collect(),
+                        default_exprs: d.params.iter().map(|p| p.default.clone()).collect(),
                         has_vararg: d.params.iter().any(|p| p.is_vararg),
                         params,
                         return_ty,
@@ -1656,7 +1656,7 @@ pub fn register_constructors(
                 secondary.push(Signature {
                     param_names: c.params.iter().map(|p| p.name.symbol).collect(),
                     has_defaults: c.params.iter().map(|p| p.default.is_some()).collect(),
-                    default_exprs: c.params.iter().map(|p| p.default.as_ref().map(|e| e.id)).collect(),
+                    default_exprs: c.params.iter().map(|p| p.default.clone()).collect(),
                     has_vararg: c.params.iter().any(|p| p.is_vararg),
                     params,
                     return_ty: unit_ty,
@@ -1740,12 +1740,36 @@ pub fn register_constructors(
                     .iter()
                     .flat_map(|pc| pc.params.iter())
                     .any(|cp| cp.is_vararg);
-                let primary_default_exprs: Vec<Option<scoop2_base::NodeId>> = d
+                // primary_defaults / primary_default_exprs 与 primary_params 等长：
+                // body-field 追加的参数无默认值表达式，但标记 has_defaults=true（保持
+                // 适用性——body-field 是属性初始化器，调用点不传它们，但不报错）。
+                let primary_ctor_n = d
                     .primary_ctor
                     .iter()
                     .flat_map(|pc| pc.params.iter())
-                    .map(|cp| cp.default.as_ref().map(|e| e.id))
-                    .collect();
+                    .count();
+                let body_field_count = primary_params.len().saturating_sub(primary_ctor_n);
+                let primary_default_exprs = {
+                    let mut v: Vec<Option<crate::syntax::ast::Expr>> = d
+                        .primary_ctor
+                        .iter()
+                        .flat_map(|pc| pc.params.iter())
+                        .map(|cp| cp.default.clone())
+                        .collect();
+                    // body-field 参数无默认值表达式（None）。
+                    for _ in 0..body_field_count {
+                        v.push(None);
+                    }
+                    v
+                };
+                let primary_defaults = {
+                    let mut v = primary_defaults;
+                    // body-field 参数标记为 has_defaults=true（保持适用性，不报缺少参数）。
+                    for _ in 0..body_field_count {
+                        v.push(true);
+                    }
+                    v
+                };
                 let mut all = vec![Signature {
                     param_names: primary_names,
                     has_defaults: primary_defaults,

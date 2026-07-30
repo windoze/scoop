@@ -414,7 +414,14 @@ fn lower_call(
     let call_node = builder.current_expr_id;
     // 查 call_resolutions（key = Call 表达式 NodeId，由 record_expr_facts 在漏斗处写入）。
     let resolution = builder.hir.call_resolution(builder.file_id, call_node);
-    let mir_args: Vec<CallArg> = lower_call_args(builder, args);
+    // 查 resolved_call_args（默认参数填充 + 按位置排序后的实参列表）。
+    // 若存在，用它替代原始 args（MIR 不做 resolution/default filling）。
+    let resolved = builder.hir.resolved_call_args(builder.file_id, call_node);
+    let mir_args: Vec<CallArg> = if let Some(resolved) = resolved {
+        lower_resolved_call_args(builder, args, resolved)
+    } else {
+        lower_call_args(builder, args)
+    };
     if let Some(rc) = resolution {
         // 若是方法调用（callee 是 MemberAccess），先 lower receiver 再传入。
         // 但 effect-op 调用（Raise.raise）的 receiver 是 effect 类型名（非值），
@@ -1084,6 +1091,43 @@ fn emit_call_resolution(
     };
     builder.assign(tmp, rv, span);
     Operand::Local(tmp)
+}
+
+/// lower resolved call args（默认参数填充 + 按位置排序后的实参列表）。
+///
+/// 每个 ResolvedCallArg：
+/// - Provided { original_index } → lower 原始调用点第 original_index 个实参。
+/// - Default { expr_node_id } → 按 NodeId 找到 AST Expr 并 lower（默认值表达式）。
+fn lower_resolved_call_args(
+    builder: &mut FnLowering,
+    original_args: &[ast::CallArg],
+    resolved: &[scoop2_hir::hir::ResolvedCallArg],
+) -> Vec<CallArg> {
+    resolved
+        .iter()
+        .map(|r| match r {
+            scoop2_hir::hir::ResolvedCallArg::Provided { original_index } => {
+                let a = &original_args[*original_index];
+                let v = lower_expr(builder, &a.value);
+                CallArg {
+                    name: None, // 已按位置排序，丢弃原始命名
+                    is_spread: a.is_spread,
+                    value_ty: super::stmt::operand_ty(builder, &v),
+                    value: v,
+                }
+            }
+            scoop2_hir::hir::ResolvedCallArg::Default { expr } => {
+                // 默认值表达式（已克隆的 Expr，直接 lower——MIR 无 AST 查找）。
+                let v = lower_expr(builder, expr);
+                CallArg {
+                    name: None,
+                    is_spread: false,
+                    value_ty: super::stmt::operand_ty(builder, &v),
+                    value: v,
+                }
+            }
+        })
+        .collect()
 }
 
 /// lower 一组 CallArg。

@@ -221,6 +221,23 @@ pub struct SemanticFacts {
     /// 区分 primary/secondary，供 MIR/codegen 选择正确的 ctor callable。
     /// 缺省（无 secondary ctor 时）不写入——调用点按 primary 处理。
     pub ctor_selections: NodeIdTable<scoop2_base::Span>,
+    /// 调用点（Call 节点）的解析后实参列表。
+    ///
+    /// HIR 层完整解析每个 call site 后，把实参按参数位置排序 + 填充默认值，
+    /// 写入此表。MIR lower 直接消费（不再做任何 resolution / default filling）。
+    /// 每个元素：Provided(original_idx) = 用调用点第 original_idx 个实参；
+    /// Default(expr_node_id) = 用默认值表达式（需 MIR lower 该表达式）。
+    /// 不写入 = 无默认值填充（全部位置实参，MIR 按原样使用）。
+    pub resolved_call_args: NodeIdTable<Vec<ResolvedCallArg>>,
+}
+
+/// 解析后的调用实参（按 callee 参数位置排序 + 默认值填充）。
+#[derive(Debug, Clone)]
+pub enum ResolvedCallArg {
+    /// 使用调用点提供的第 `original_index` 个实参。
+    Provided { original_index: usize },
+    /// 使用默认值表达式（已克隆的 Expr，供 MIR 直接 lower）。
+    Default { expr: crate::syntax::ast::Expr },
 }
 
 impl SemanticFacts {
