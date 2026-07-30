@@ -103,6 +103,11 @@ pub struct FunDecl {
     pub type_params: Vec<scoop2_base::Symbol>,
     /// `None` = 声明体（abstract / interface 成员 / @Extern / @Intrinsic）。
     pub body: Option<Body>,
+    /// `@Intrinsic("name")` 注解的 intrinsic 名（仅 `@Intrinsic` 无 body 方法非 None）。
+    /// 区分 `@Extern`（extern 运行时符号）与 `@Intrinsic`（codegen 内联）：
+    /// intrinsic 方法不进入 extern 声明，而是 codegen 按此名内联 lowering。
+    /// `@Intrinsic`（无参，类型级注解）的成员方法各自带 `@Intrinsic("xxx")`。
+    pub intrinsic_name: Option<String>,
     /// 源文件（跨文件诊断用）。
     pub file: FileId,
     /// 该函数的 stable template key（供分离编译使用）。

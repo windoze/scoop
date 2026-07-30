@@ -127,6 +127,7 @@ fn verify_semantic_detects_empty_callee() {
         stable_template_key: None,
         effect_abi: None,
         instance_symbol: None,
+        intrinsic_name: None,
     };
     let mut errors = Vec::new();
     let kf: std::collections::HashSet<String> = std::collections::HashSet::new();

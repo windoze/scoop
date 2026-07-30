@@ -151,6 +151,9 @@ fn map_bodies(
                 } else {
                     // 无函数体（extern / abstract / intrinsic）：放入 declarations。
                     let symbol_name = &fd.fqn;
+                    // 区分 @Intrinsic（内联，不声明 extern 符号）与 @Extern（运行时符号）。
+                    // 仅 @Extern 才 is_extern=true；@Intrinsic 走 codegen 内联路径。
+                    let is_intrinsic = fd.intrinsic_name.is_some();
                     program.declarations.push(LirDeclaration {
                         fqn: fd.fqn.clone(),
                         symbol_name: symbol_name.clone(),
@@ -166,8 +169,13 @@ fn map_bodies(
                             .collect(),
                         return_ty: fd.return_ty,
                         return_abi: abi::param_abi_for_type(fd.return_ty, &program.type_layouts),
-                        is_extern: true,
-                        extern_symbol: Some(symbol_name.clone()),
+                        is_extern: !is_intrinsic,
+                        extern_symbol: if is_intrinsic {
+                            None
+                        } else {
+                            Some(symbol_name.clone())
+                        },
+                        intrinsic_name: fd.intrinsic_name.clone(),
                     });
                 }
             }
@@ -190,6 +198,7 @@ fn map_bodies(
                     return_abi: ParamAbi::Direct,
                     is_extern: true,
                     extern_symbol: Some(eg.fqn.clone()),
+                    intrinsic_name: None,
                 });
             }
             _ => {}

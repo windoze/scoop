@@ -695,6 +695,7 @@ pub fn lower_fun_decl_inner(
         stable_template_key: None,
         instance_symbol: None,
         effect_abi: None,
+        intrinsic_name: extract_intrinsic_name(d, hir),
     };
     // 无函数体的声明（extern / abstract / intrinsic）：仍需填充签名参数。
     if d.body.is_none() {
@@ -997,5 +998,34 @@ fn resolve_member_receiver_ty(
         store.intern(TypeKind::Ref(RefTypeKind::Nominal(nominal)))
     } else {
         store.intern(TypeKind::Value(ValueTypeKind::Nominal(nominal)))
+    }
+}
+
+/// 从 `@Intrinsic("name")` 注解中提取 intrinsic 名（无参 `@Intrinsic` 类型级注解
+/// 不在此处理——它只标记「类型是内建标量」，具体方法名由方法级 `@Intrinsic("xxx")` 给出）。
+///
+/// 返回 None 表示：无 `@Intrinsic` 注解，或注解无字符串字面量实参（无参 `@Intrinsic`）。
+fn extract_intrinsic_name(
+    d: &scoop2_syntax::ast::FunDecl,
+    hir: &TypedHir,
+) -> Option<String> {
+    use scoop2_syntax::ast::{AnnotationUse, ExprKind};
+    let intrinsic_sym = hir.interner.get("Intrinsic")?;
+    fn is_intrinsic_ann(ann: &AnnotationUse, intrinsic_sym: scoop2_base::Symbol) -> bool {
+        ann.path
+            .segments
+            .last()
+            .is_some_and(|s| s.symbol == intrinsic_sym)
+    }
+    let ann = d
+        .annotations
+        .iter()
+        .find(|a| is_intrinsic_ann(a, intrinsic_sym))?;
+    // 取首个位置实参（字符串字面量）：`@Intrinsic("int_plus")`。
+    let arg = ann.args.iter().find(|a| a.name.is_none())?;
+    if let ExprKind::StringLit(sl) = &arg.value.kind {
+        Some(sl.value.clone())
+    } else {
+        None
     }
 }

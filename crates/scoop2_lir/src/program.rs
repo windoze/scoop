@@ -399,6 +399,11 @@ pub struct LirDeclaration {
     pub is_extern: bool,
     /// extern 符号名（@Extern(name = ...)）。
     pub extern_symbol: Option<String>,
+    /// `@Intrinsic("name")` 内联 intrinsic 名。
+    /// Some 时该声明是 `@Intrinsic` 方法（无 body），codegen 必须按此名内联
+    /// lowering，**不得**当作 extern 运行时符号声明（否则会把 `scoop.core.Int.ushr`
+    /// 错误映射成不存在的 `@scoop_ushr` 运行时符号）。
+    pub intrinsic_name: Option<String>,
 }
 
 /// 函数 ABI 种类。

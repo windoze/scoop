@@ -109,6 +109,12 @@ fn lower_all_callables<'ctx>(
         callable_fns.push(fv);
     }
     for decl in &program.declarations {
+        // @Intrinsic 方法（无 body，intrinsic_name = Some）：codegen 按调用点内联
+        // lowering，不声明任何 LLVM 符号（避免把 `scoop.core.Int.ushr` 错误地映射成
+        // 不存在的运行时符号 `@scoop_ushr`）。
+        if decl.intrinsic_name.is_some() {
+            continue;
+        }
         declare_declaration(cg, program, decl)?;
     }
     // 2. lowering 每个 callable 的函数体。

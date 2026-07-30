@@ -77,6 +77,10 @@ pub struct CodegenContext<'ctx> {
     /// interface FQN → interface_id 映射（从 LirProgram.itables 注入，
     /// 供 TypeTest/Is-pattern 对接口做 itable 遍历匹配）。
     pub interface_id_map: std::collections::HashMap<String, u64>,
+    /// `@Intrinsic` 方法 FQN → intrinsic 名映射（从 LirProgram.declarations 注入，
+    /// intrinsic_name = Some 的条目）。供 Direct 调用按 FQN 查到真实 intrinsic 名，
+    /// 而非从 FQN 启发式推导（避免 `ushr` 等遗漏）。
+    pub intrinsic_map: std::collections::HashMap<String, String>,
 }
 
 impl<'ctx> CodegenContext<'ctx> {
@@ -92,6 +96,15 @@ impl<'ctx> CodegenContext<'ctx> {
             .itables
             .iter()
             .map(|il| (il.interface_fqn.clone(), il.interface_id))
+            .collect();
+        let intrinsic_map = program
+            .declarations
+            .iter()
+            .filter_map(|d| {
+                d.intrinsic_name
+                    .as_ref()
+                    .map(|n| (d.fqn.clone(), n.clone()))
+            })
             .collect();
         // 初始化 native target（幂等）。
         Target::initialize_native(&InitializationConfig::default()).map_err(|e| {
@@ -144,6 +157,7 @@ impl<'ctx> CodegenContext<'ctx> {
             type_layouts,
             class_inits,
             interface_id_map,
+            intrinsic_map,
         })
     }
 
@@ -173,6 +187,10 @@ impl<'ctx> CodegenContext<'ctx> {
     }
     pub fn lookup_callable_fn(&self, symbol: &str) -> Option<FunctionValue<'ctx>> {
         self.callable_fn_cache.borrow().get(symbol).copied()
+    }
+    /// 查 `@Intrinsic` 方法 FQN 对应的真实 intrinsic 名（来自注解，非启发式推导）。
+    pub fn lookup_intrinsic_name(&self, fqn: &str) -> Option<&str> {
+        self.intrinsic_map.get(fqn).map(|s| s.as_str())
     }
 
     // ---- 全局缓存 ----

@@ -31,8 +31,16 @@ pub fn try_lower_intrinsic_by_fqn<'a, 'ctx>(
     if let Some(v) = try_lower_string_intrinsic(fl, callee_fqn, args)? {
         return Ok(Some(v));
     }
-    let Some(name) = intrinsic_name_from_fqn(callee_fqn) else {
-        return Ok(None);
+    // 优先用 `@Intrinsic("name")` 注解透传的真实 intrinsic 名（权威来源，
+    // 覆盖 `ushr` 等启发式推导遗漏的运算符）。
+    let name = if let Some(ann_name) = fl.cg.lookup_intrinsic_name(callee_fqn) {
+        ann_name.to_string()
+    } else {
+        // 回退：从 FQN 启发式推导（旧路径，覆盖无注解的内建方法调用）。
+        match intrinsic_name_from_fqn(callee_fqn) {
+            Some(n) => n,
+            None => return Ok(None),
+        }
     };
     lower_named_intrinsic(fl, &name, args).map(Some)
 }
@@ -670,9 +678,44 @@ fn lower_named_intrinsic<'a, 'ctx>(
             IntBin::And => fl.builder.build_and(lhs_i, rhs_i, "and"),
             IntBin::Or => fl.builder.build_or(lhs_i, rhs_i, "or"),
             IntBin::Xor => fl.builder.build_xor(lhs_i, rhs_i, "xor"),
-            IntBin::Shl => fl.builder.build_left_shift(lhs_i, rhs_i, "shl"),
-            IntBin::LShr => fl.builder.build_right_shift(lhs_i, rhs_i, false, "lshr"),
-            IntBin::AShr => fl.builder.build_right_shift(lhs_i, rhs_i, true, "ashr"),
+            // 移位：Scoop 语义要求移位量按位宽取模（`1 << 64` == `1 << 0` == 1）。
+            // LLVM 的 shl/lshr/ashr 在 shift >= bitwidth 时是 UB，必须先 `& (width-1)`。
+            IntBin::Shl | IntBin::LShr | IntBin::AShr => {
+                let width = lhs_i.get_type().get_bit_width();
+                let lhs_ty = lhs_i.get_type();
+                // rhs 归一到 lhs 宽度（Scoop 移位量是 Int/i64，值类型可能是 i8..i64）。
+                let rhs_typed = if rhs_i.get_type().get_bit_width() == width {
+                    rhs_i
+                } else if rhs_i.get_type().get_bit_width() < width {
+                    fl.builder
+                        .build_int_z_extend(rhs_i, lhs_ty, "shift_amt_ext")
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                        })?
+                } else {
+                    fl.builder
+                        .build_int_truncate(rhs_i, lhs_ty, "shift_amt_trunc")
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                        })?
+                };
+                // Scoop 语义要求移位量按位宽取模（`1 << 64` == `1 << 0` == 1）。
+                // LLVM 的 shl/lshr/ashr 在 shift >= bitwidth 时是 UB，必须先 `& (width-1)`。
+                let mask = lhs_ty.const_int((width - 1) as u64, false);
+                let masked = fl
+                    .builder
+                    .build_and(rhs_typed, mask, "shift_masked")
+                    .map_err(|e| {
+                        CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                    })?;
+                match op {
+                    IntBin::Shl => fl.builder.build_left_shift(lhs_i, masked, "shl"),
+                    IntBin::LShr => fl.builder.build_right_shift(lhs_i, masked, false, "lshr"),
+                    IntBin::AShr => fl.builder.build_right_shift(lhs_i, masked, true, "ashr"),
+                    // 上面 match arm 已限定为三种移位；此分支不可达但保持穷尽。
+                    _ => fl.builder.build_left_shift(lhs_i, masked, "shl"),
+                }
+            }
         }
         .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
         return Ok(res.into());
@@ -874,6 +917,35 @@ fn lower_named_intrinsic<'a, 'ctx>(
                 })?;
             return Ok(zext_bool(fl, r, name)?);
         }
+        // 短形式 `_eq` / `_ne`（sysroot `@Intrinsic("int_eq"/"int_ne")` / `bool_eq`/`bool_ne`）。
+        // 注意顺序：必须晚于 `_ge`/`_le`（它们不以 `_eq`/`_ne` 结尾，故无冲突），
+        // 但 `_ne` 不能被 `_le` 误匹配（"int_ne" 不以 "_le" 结尾）。
+        n if n.ends_with("_ne") => {
+            let lhs =
+                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
+            let rhs =
+                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
+            let r = fl
+                .builder
+                .build_int_compare(IntPredicate::NE, lhs, rhs, "ne")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            return Ok(zext_bool(fl, r, name)?);
+        }
+        n if n.ends_with("_eq") => {
+            let lhs =
+                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
+            let rhs =
+                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
+            let r = fl
+                .builder
+                .build_int_compare(IntPredicate::EQ, lhs, rhs, "eq")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            return Ok(zext_bool(fl, r, name)?);
+        }
         _ => {}
     }
     Err(CodegenError::unknown_intrinsic(
@@ -1023,7 +1095,11 @@ fn int_binary_op(name: &str) -> Option<IntBin> {
         n if n.ends_with("_or") => Some(IntBin::Or),
         n if n.ends_with("_xor") => Some(IntBin::Xor),
         n if n.ends_with("_shl") => Some(IntBin::Shl),
-        n if n.ends_with("_shr") => Some(IntBin::AShr), // Int 用算术右移
+        // `ushr`（逻辑右移）必须先于 `shr`——"int_ushr" 同样以 "_shr" 结尾。
+        n if n.ends_with("_ushr") => Some(IntBin::LShr),
+        // 有符号 `int_shr`（算术右移）；无符号 `uint_shr` 也走此分支，
+        // 但其运算数恒非负，算术右移 == 逻辑右移，结果正确。
+        n if n.ends_with("_shr") => Some(IntBin::AShr),
         _ => None,
     }
 }

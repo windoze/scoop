@@ -2533,6 +2533,7 @@ fn lower_lambda(
         stable_template_key: None,
         instance_symbol: None,
         effect_abi: None,
+        intrinsic_name: None,
     };
     builder.nested_funs.push(nested);
     builder.nested_funs.extend(nested_more);

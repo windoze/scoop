@@ -32,6 +32,7 @@ fn minimal_module() -> Module {
         stable_template_key: None,
         effect_abi: None,
         instance_symbol: None,
+        intrinsic_name: None,
     };
     Module {
         items: vec![crate::mir::Item::Fun(main)],
@@ -174,6 +175,7 @@ fn build_subst_rejects_arity_mismatch() {
         stable_template_key: None,
         effect_abi: None,
         instance_symbol: None,
+        intrinsic_name: None,
     };
     // main 调用 generic_id 但不提供 type_args（type_args 为空，但模板有 1 个 type_param）。
     // 由于 scan_call_kind 依赖 stable_template_key 提取 type_args，
