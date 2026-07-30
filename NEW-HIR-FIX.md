@@ -1,7 +1,19 @@
 # HIR 完善计划
 
-> 状态：待实施
+> 状态：步骤 1/2/5/6 已完成；步骤 3/4 进行中
 > 目标：让 HIR 成为唯一的 resolution 产出层——每个语法节点有精确 type + 每个 call site 有精确 ResolvedCall + 完整 outward effect row，下游（MIR/LIR/codegen）不再做任何 resolve 工作。
+
+## 已完成
+
+- **步骤 1**：`derive_call_resolution` 覆盖 TypeApply callee + FunValue 变体；消除静默 None（合法程序不再返回 None）。
+- **步骤 2**：`resolve_member_owner_fqn` 支持 String/Any/标量类型（`scalar_fqn` 回退）；MIR fallback 路径不再被合法程序触发（0 次 fallback hit）。`lower_infix_call`/`lower_index` 消费 `call_resolutions`。
+- **步骤 5**：`inferred_type_args` 在 HIR 填充（`fill_inferred_type_args`）；MIR 不再调 `infer_type_args_from_call`。
+- **步骤 6（部分）**：Codegen intrinsic 分发已正确结构化（`intrinsic_map` 优先，FQN heuristic 仅对 `@Intrinsic` 方法生效）。
+
+## 进行中
+
+- **步骤 3**：消除 `store.nothing()` 兜底（~45 处）。这些是类型推断的缺口（空数组、lambda 参数、pattern binder 等），不影响 MIR resolution 传递（已由步骤 2 修复），但影响 HIR 类型精确性。
+- **步骤 4**：`expr_effect_rows` 完整性——依赖 `call_resolutions` 完整性（已由步骤 2 保证），需添加完整性检查。
 
 ---
 
