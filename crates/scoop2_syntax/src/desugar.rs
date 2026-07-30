@@ -323,60 +323,11 @@ fn reshape_expr(expr: &mut Expr, cx: &mut Cx) {
                 reshape_block(f, cx);
             }
         }
-        ExprKind::MemberAccess { receiver, .. } => {
+        ExprKind::MemberAccess { receiver, .. }
+        | ExprKind::SafeMemberAccess { receiver, .. } => {
+            // `?.`（SafeMemberAccess）保留为一等 AST 节点：它的类型 = Option<成员类型>，
+            // 需要语义判断（成员类型 + Option 包装），由 typecheck 直接给出，不 desugar。
             reshape_expr(receiver, cx);
-        }
-        ExprKind::SafeMemberAccess { receiver, member } => {
-            reshape_expr(receiver, cx);
-            // 项5：a?.b → when(a){Some(v)->v.b; None->None}。
-            let span = expr.span;
-            let recv = std::mem::replace(
-                receiver.as_mut(),
-                Expr {
-                    id: cx.nid(),
-                    span,
-                    kind: ExprKind::UnitLit,
-                },
-            );
-            // 合成绑定名（唯一：带原 receiver 的 NodeId 后缀避免撞用户名）。
-            let binder_name = format!("__safe_{}", recv.id.as_u32());
-            let binder = cx.ident(&binder_name, span);
-            let binder_for_pat = binder;
-            // v.b：用合成绑定作 receiver。
-            let v_expr = Expr {
-                id: cx.nid(),
-                span,
-                kind: ExprKind::Ident(binder),
-            };
-            let access = Expr {
-                id: cx.nid(),
-                span,
-                kind: ExprKind::MemberAccess {
-                    receiver: Box::new(v_expr),
-                    member: *member,
-                },
-            };
-            // Some 分支体：把访问结果包回 Some(...)，使两分支同为 Option<T>。
-            let some_body = make_variant_call(cx, "Some", vec![access], span);
-            // None 字面量（variant 引用）。
-            let none_expr = Expr {
-                id: cx.nid(),
-                span,
-                kind: ExprKind::Ident(cx.ident("None", span)),
-            };
-            let some_pat = make_some_pattern(cx, binder_for_pat, span);
-            let none_pat = make_none_pattern(cx, span);
-            let some_arm = make_when_arm(cx, some_pat, some_body, span);
-            let none_arm = make_when_arm(cx, none_pat, none_expr, span);
-            let when_id = cx.nid();
-            *expr = Expr {
-                id: when_id,
-                span,
-                kind: ExprKind::When {
-                    subject: Box::new(recv),
-                    arms: vec![some_arm, none_arm],
-                },
-            };
         }
         ExprKind::SpliceField { receiver, field } => {
             reshape_expr(receiver, cx);
