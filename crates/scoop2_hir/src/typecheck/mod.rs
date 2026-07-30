@@ -467,6 +467,7 @@ fn check_file_bodies(
                     check_superclass_open(d, d.name.symbol, env, package_prefix, diags);
                     check_overrides(d, env, imports, diags, package_prefix);
                     check_interface_impl_complete(d, env, diags, package_prefix);
+                    record_class_ctor_layout(d, env, imports, package_prefix, diags);
                     if let Some(body) = &d.body {
                         overloads::check_ctor_overload_conflicts(
                             env,
@@ -2900,6 +2901,162 @@ fn check_superclass_open(
         if !is_open {
             diags.push(diagnostics::superclass_not_open(st.span));
         }
+    }
+}
+
+/// 记录 class 主构造器参数布局与 `: Super(args)` 委托（MIR 继承构造链展开用）。
+///
+/// super 实参仅覆盖可静态解析的形式：常量字面量与本类主构造器参数引用
+/// （`class B(tag: String) : A(tag)`），且仅位置实参。命名实参 / 一般表达式
+/// 不记录（MIR 侧保持旧的「不初始化超类字段」行为，不回归）。
+fn record_class_ctor_layout(
+    d: &crate::syntax::ast::TypeDecl,
+    env: &mut TypeEnv,
+    imports: &crate::resolve::imports::ImportTable,
+    package_prefix: &str,
+    diags: &mut DiagnosticSink,
+) {
+    use crate::resolve::symbol::NominalCategory;
+    let name_text = env.interner.resolve(d.name.symbol);
+    let fqn_text = if package_prefix.is_empty() {
+        name_text.to_string()
+    } else {
+        format!("{package_prefix}.{name_text}")
+    };
+    let Some(fqn) = env.interner.get(&fqn_text) else {
+        return;
+    };
+    let Some(ctor) = &d.primary_ctor else {
+        return;
+    };
+    // 主构造器参数布局（含非属性参数）。
+    let tp_map = env::build_tp_map(d.type_params.as_ref());
+    let mut infos: Vec<crate::hir::ClassCtorParamInfo> = Vec::with_capacity(ctor.params.len());
+    for cp in &ctor.params {
+        let ty = match &cp.ty {
+            Some(t) => {
+                let mut lower = crate::typecheck::lower::TypeLowering::new(
+                    env,
+                    imports,
+                    tp_map.clone(),
+                    package_prefix.to_string(),
+                    diags,
+                );
+                lower.lower(t)
+            }
+            None => env.store.nothing(),
+        };
+        infos.push(crate::hir::ClassCtorParamInfo {
+            name: cp.name.symbol,
+            ty,
+            is_property: cp.property.is_some(),
+        });
+    }
+    env.class_ctor_params.insert(fqn, infos);
+    // super 委托：supertypes 中第一个 class 类别项。
+    let bases: Vec<scoop2_base::Symbol> = env.index.supertypes_of(fqn).to_vec();
+    for (i, st) in d.supertypes.iter().enumerate() {
+        let Some(&base_fqn) = bases.get(i) else {
+            continue;
+        };
+        if !matches!(env.index.category(base_fqn), Some(NominalCategory::Class)) {
+            continue;
+        }
+        if st.args.is_empty() || st.args.iter().any(|a| a.name.is_some()) {
+            return;
+        }
+        let params = env.class_ctor_params.get(&fqn).cloned().unwrap_or_default();
+        let mut args: Vec<crate::hir::SuperCtorArg> = Vec::with_capacity(st.args.len());
+        let mut resolved_all = true;
+        for a in &st.args {
+            match super_ctor_arg_of(&a.value, &params, env) {
+                Some(arg) => args.push(arg),
+                None => {
+                    resolved_all = false;
+                    break;
+                }
+            }
+        }
+        if resolved_all {
+            env.super_ctor_delegations.insert(
+                fqn,
+                crate::hir::SuperCtorDelegation {
+                    super_fqn: base_fqn,
+                    args,
+                },
+            );
+        }
+        return;
+    }
+}
+
+/// 把 super 委托实参表达式解析为 [`crate::hir::SuperCtorArg`]。
+/// 支持：常量字面量 / `true`/`false` / 本类主构造器参数引用（按名字匹配）。
+fn super_ctor_arg_of(
+    e: &crate::syntax::ast::Expr,
+    params: &[crate::hir::ClassCtorParamInfo],
+    env: &mut TypeEnv,
+) -> Option<crate::hir::SuperCtorArg> {
+    use crate::syntax::ast::ExprKind;
+    match &e.kind {
+        ExprKind::IntLit(l) => {
+            let ty = env.store.int();
+            Some(crate::hir::SuperCtorArg::Const {
+                value: crate::hir::SuperCtorConst::Int(l.value),
+                ty,
+            })
+        }
+        ExprKind::FloatLit(l) => {
+            let ty = if l.suffix.is_some() {
+                env.store.float32()
+            } else {
+                env.store.float64()
+            };
+            Some(crate::hir::SuperCtorArg::Const {
+                value: crate::hir::SuperCtorConst::Float(l.value),
+                ty,
+            })
+        }
+        ExprKind::CharLit(l) => {
+            let ty = env.store.char();
+            Some(crate::hir::SuperCtorArg::Const {
+                value: crate::hir::SuperCtorConst::Char(l.value),
+                ty,
+            })
+        }
+        ExprKind::StringLit(l) => {
+            let ty = env.store.string();
+            Some(crate::hir::SuperCtorArg::Const {
+                value: crate::hir::SuperCtorConst::String(l.value.clone()),
+                ty,
+            })
+        }
+        ExprKind::UnitLit => {
+            let ty = env.store.unit();
+            Some(crate::hir::SuperCtorArg::Const {
+                value: crate::hir::SuperCtorConst::Unit,
+                ty,
+            })
+        }
+        ExprKind::Ident(ident) => {
+            let text = env.interner.resolve(ident.symbol);
+            // Bool 字面量（`true`/`false` 是普通 Ident）。
+            if text == "true" || text == "false" {
+                let ty = env.store.bool();
+                return Some(crate::hir::SuperCtorArg::Const {
+                    value: crate::hir::SuperCtorConst::Bool(text == "true"),
+                    ty,
+                });
+            }
+            // 本类主构造器参数引用（按名字匹配）。
+            let (index, ty) = params
+                .iter()
+                .enumerate()
+                .find(|(_, p)| env.interner.resolve(p.name) == text)
+                .map(|(i, p)| (i as u32, p.ty))?;
+            Some(crate::hir::SuperCtorArg::CtorParam { index, ty })
+        }
+        _ => None,
     }
 }
 

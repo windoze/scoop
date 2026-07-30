@@ -7,8 +7,8 @@
 //! 命名约定（与 sysroot `@Intrinsic("name")` 对齐）：
 //! - `scoop.core.Int.plus` → `int_plus`，依此类推（owner 类型 + 方法名）。
 
-use inkwell::IntPredicate;
 use inkwell::values::BasicValueEnum;
+use inkwell::{FloatPredicate, IntPredicate};
 
 use scoop2_hir::ty::TypeId;
 use scoop2_lir::LirOperand;
@@ -50,8 +50,51 @@ fn try_lower_string_intrinsic<'a, 'ctx>(
         Some(m) => m,
         None => return Ok(None),
     };
-    if method != "byteLength" && method != "getByte" {
+    if !matches!(method, "byteLength" | "getByte" | "equals" | "notEquals") {
         return Ok(None);
+    }
+    // equals / notEquals：`scoop_string_equals(a, b)` → i64（1=相等），按运算符映射 Bool(i8)。
+    // （String 未声明 equals/notEquals 方法；`==`/`!=` 由 typecheck 记为运算符方法解析到这里。）
+    if method == "equals" || method == "notEquals" {
+        let lhs = one_arg(fl, args, 0)?;
+        let rhs = one_arg(fl, args, 1)?;
+        let lhs_gc = native_to_gc_if_ptr(fl, lhs)?;
+        let rhs_gc = native_to_gc_if_ptr(fl, rhs)?;
+        let call = fl
+            .builder
+            .build_call(
+                fl.rt.string_equals,
+                &[lhs_gc.into(), rhs_gc.into()],
+                "str_eq",
+            )
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "str_eq", scoop2_base::Span::default())
+            })?;
+        let eq_i64 = match call.try_as_basic_value() {
+            inkwell::values::ValueKind::Basic(v) => {
+                crate::body::expect_int_val(v, "string_equals 返回值", &fl.fqn)?
+            }
+            inkwell::values::ValueKind::Instruction(_) => {
+                return Err(CodegenError::llvm(
+                    "scoop_string_equals 未返回值",
+                    "equals",
+                    scoop2_base::Span::default(),
+                ));
+            }
+        };
+        let zero = fl.cg.context.i64_type().const_zero();
+        let pred = if method == "equals" {
+            IntPredicate::NE // 非 0 = 相等
+        } else {
+            IntPredicate::EQ
+        };
+        let cmp = fl
+            .builder
+            .build_int_compare(pred, eq_i64, zero, "str_eq_i1")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "str_eq_i1", scoop2_base::Span::default())
+            })?;
+        return zext_bool(fl, cmp, "str_eq").map(Some);
     }
     let i64 = fl.cg.context.i64_type();
     let i8 = fl.cg.context.i8_type();
@@ -523,7 +566,8 @@ fn intrinsic_name_from_fqn(fqn: &str) -> Option<String> {
         "Bool" => "bool",
         "Char" => "char",
         "Float" | "Float64" => "float",
-        "Float32" => "float32",
+        // sysroot 中 Float32 与 Float64 共用 `float_*` 注解名（位宽由操作数决定）。
+        "Float32" => "float",
         _ => return None,
     };
     // 只对内建运算符方法映射。
@@ -565,35 +609,41 @@ fn lower_named_intrinsic<'a, 'ctx>(
     args: &[LirOperand],
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let ctx = fl.cg.context;
-    // to_string：按类型 dispatch 到 runtime scoop_*_to_string（runtime 接受 i64 标量）。
+    // to_string：按类型 dispatch 到 runtime scoop_*_to_string（runtime 接受 i64 标量 / f64）。
     if name.ends_with("_to_string") {
         let gc_ptr_ty = fl.cg.gc_ptr_ty();
-        let i64 = ctx.i64_type();
         let arg0 = one_arg(fl, args, 0)?;
-        // 标量值扩展到 i64（runtime scoop_*_to_string 接受 int64_t）。
-        let arg_int = crate::body::expect_int_val(arg0, "toString 参数", &fl.fqn)?;
-        let arg_int_64 = zext_to_i64(fl, arg_int);
-        let call = if name.starts_with("int") {
-            fl.builder
-                .build_call(fl.rt.int_to_string, &[arg_int_64.into()], "i2s")
-        } else if name.starts_with("bool") {
-            fl.builder
-                .build_call(fl.rt.bool_to_string, &[arg_int_64.into()], "b2s")
-        } else if name.starts_with("char") {
-            fl.builder
-                .build_call(fl.rt.char_to_string, &[arg_int_64.into()], "c2s")
-        } else if name.starts_with("float") {
-            fl.builder.build_call(
-                fl.rt.float64_to_string,
-                &[crate::body::expect_float_val(arg0, "toString 参数", &fl.fqn)?.into()],
-                "f2s",
-            )
+        let call = if name.starts_with("float") {
+            // 按实际位宽 dispatch：f32 → scoop_float32_to_string(f32)，
+            // f64 → scoop_float64_to_string(f64)（与旧管线/runtime ABI 对齐）。
+            let fv = crate::body::expect_float_val(arg0, "toString 参数", &fl.fqn)?;
+            if fv.get_type() == ctx.f32_type() {
+                fl.builder
+                    .build_call(fl.rt.float32_to_string, &[fv.into()], "f2s")
+            } else {
+                fl.builder
+                    .build_call(fl.rt.float64_to_string, &[fv.into()], "f2s")
+            }
         } else {
-            return Err(CodegenError::unsupported(
-                format!("unsupported to_string intrinsic: {name}"),
-                &fl.fqn,
-                scoop2_base::Span::default(),
-            ));
+            // 标量值扩展到 i64（runtime scoop_*_to_string 接受 int64_t）。
+            let arg_int = crate::body::expect_int_val(arg0, "toString 参数", &fl.fqn)?;
+            let arg_int_64 = zext_to_i64(fl, arg_int);
+            if name.starts_with("int") {
+                fl.builder
+                    .build_call(fl.rt.int_to_string, &[arg_int_64.into()], "i2s")
+            } else if name.starts_with("bool") {
+                fl.builder
+                    .build_call(fl.rt.bool_to_string, &[arg_int_64.into()], "b2s")
+            } else if name.starts_with("char") {
+                fl.builder
+                    .build_call(fl.rt.char_to_string, &[arg_int_64.into()], "c2s")
+            } else {
+                return Err(CodegenError::unsupported(
+                    format!("unsupported to_string intrinsic: {name}"),
+                    &fl.fqn,
+                    scoop2_base::Span::default(),
+                ));
+            }
         }
         .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
         let ptr = match call.try_as_basic_value() {
@@ -601,6 +651,11 @@ fn lower_named_intrinsic<'a, 'ctx>(
             _ => gc_ptr_ty.const_null(),
         };
         return Ok(ptr.into());
+    }
+    // 浮点 intrinsic（Float32/Float64 共用 `float_*` 名；按操作数实际位宽 lowering）。
+    // 必须先于 int_binary_op——"float_plus" 等同样以 "_plus"/"_minus" 结尾，会被整型路径误匹配。
+    if name.starts_with("float") {
+        return lower_float_intrinsic(fl, name, args);
     }
     // 整数二元运算（plus/minus/times/div/rem/and/or/xor/shl/shr）。
     if let Some(op) = int_binary_op(name) {
@@ -826,6 +881,122 @@ fn lower_named_intrinsic<'a, 'ctx>(
         &format!("intrinsic lower in {}", fl.fqn),
         scoop2_base::Span::default(),
     ))
+}
+
+/// 浮点 intrinsic lowering（Float32/Float64；按操作数实际位宽产出 fadd/fcmp 等）。
+///
+/// 覆盖 sysroot `scoop.core` 中 Float64/Float32 声明的 `float_*` 注解：
+/// plus/minus/times/div/rem、unary_minus/unary_plus、compare_to、equals、to_int。
+fn lower_float_intrinsic<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    name: &str,
+    args: &[LirOperand],
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    let ctx = fl.cg.context;
+    let float_arg = |fl: &mut FunctionLowerer<'a, 'ctx>, i: usize| {
+        crate::body::expect_float_val(one_arg(fl, args, i)?, "float intrinsic 参数", &fl.fqn)
+    };
+    match name {
+        "float_plus" | "float_minus" | "float_times" | "float_div" | "float_rem" => {
+            let lhs = float_arg(fl, 0)?;
+            let rhs = float_arg(fl, 1)?;
+            let res = match name {
+                "float_plus" => fl.builder.build_float_add(lhs, rhs, "fadd"),
+                "float_minus" => fl.builder.build_float_sub(lhs, rhs, "fsub"),
+                "float_times" => fl.builder.build_float_mul(lhs, rhs, "fmul"),
+                "float_div" => fl.builder.build_float_div(lhs, rhs, "fdiv"),
+                _ => fl.builder.build_float_rem(lhs, rhs, "frem"),
+            }
+            .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
+            Ok(res.into())
+        }
+        "float_unary_minus" => {
+            let v = float_arg(fl, 0)?;
+            let r = fl.builder.build_float_neg(v, "fneg").map_err(|e| {
+                CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+            })?;
+            Ok(r.into())
+        }
+        "float_unary_plus" => Ok(float_arg(fl, 0)?.into()),
+        "float_compare_to" => {
+            // 三路比较：lt → -1，gt → 1，否则 0（与整型 compare_to 同构，返回 i64）。
+            let lhs = float_arg(fl, 0)?;
+            let rhs = float_arg(fl, 1)?;
+            let lt = fl
+                .builder
+                .build_float_compare(FloatPredicate::OLT, lhs, rhs, "flt")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            let gt = fl
+                .builder
+                .build_float_compare(FloatPredicate::OGT, lhs, rhs, "fgt")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            let i64_ty = ctx.i64_type();
+            let lt_i = fl
+                .builder
+                .build_int_z_extend(lt, i64_ty, "lt_i")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            let gt_i = fl
+                .builder
+                .build_int_z_extend(gt, i64_ty, "gt_i")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            let r = fl.builder.build_int_sub(gt_i, lt_i, "fcmp").map_err(|e| {
+                CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+            })?;
+            Ok(r.into())
+        }
+        "float_equals" => {
+            let lhs = float_arg(fl, 0)?;
+            let rhs = float_arg(fl, 1)?;
+            let r = fl
+                .builder
+                .build_float_compare(FloatPredicate::OEQ, lhs, rhs, "feq")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            zext_bool(fl, r, name)
+        }
+        "float_not_equals" | "float_lt" | "float_le" | "float_gt" | "float_ge" => {
+            let lhs = float_arg(fl, 0)?;
+            let rhs = float_arg(fl, 1)?;
+            let pred = match name {
+                "float_not_equals" => FloatPredicate::ONE,
+                "float_lt" => FloatPredicate::OLT,
+                "float_le" => FloatPredicate::OLE,
+                "float_gt" => FloatPredicate::OGT,
+                _ => FloatPredicate::OGE,
+            };
+            let r = fl
+                .builder
+                .build_float_compare(pred, lhs, rhs, "fcmp")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            zext_bool(fl, r, name)
+        }
+        "float_to_int" | "float64_to_int" | "float32_to_int" => {
+            let v = float_arg(fl, 0)?;
+            let r = fl
+                .builder
+                .build_float_to_signed_int(v, ctx.i64_type(), "f2i")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            Ok(r.into())
+        }
+        _ => Err(CodegenError::unknown_intrinsic(
+            name,
+            &format!("float intrinsic lower in {}", fl.fqn),
+            scoop2_base::Span::default(),
+        )),
+    }
 }
 
 #[derive(Clone, Copy)]

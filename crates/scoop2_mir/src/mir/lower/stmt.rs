@@ -438,13 +438,26 @@ pub fn bind_pattern(
         }
         PatternKind::Struct { fields, .. } => {
             // struct 解构 `val Point(x, y) = p` / `val Point { x, y } = p`。
+            // 绑定类型优先取 HIR pattern_bindings 侧表（typecheck 按字段声明类型
+            // 记录）；缺失时回退 Any（旧行为）。绑定类型错误（如 Any）会让后续
+            // 二元运算解析不到 owner（`plus` 等 callee 缺前缀）。
+            let recorded: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> =
+                if let Some(bs) = builder.hir.pattern_bindings(builder.file_id, pat.id) {
+                    bs.iter().map(|b| (b.name, b.ty)).collect()
+                } else {
+                    Vec::new()
+                };
             for f in fields {
                 if let Some(p) = &f.pattern {
                     super::stmt::bind_pattern(builder, p, src.clone(), src_ty, mutable);
                     continue;
                 }
                 let bname = f.name.symbol;
-                let fty = builder.types.any();
+                let fty = recorded
+                    .iter()
+                    .find(|(n, _)| *n == bname)
+                    .map(|(_, t)| *t)
+                    .unwrap_or_else(|| builder.types.any());
                 let bname_str = builder.hir.interner.resolve(bname).to_string();
                 let lid = builder.alloc_named_mutable(bname_str.clone(), fty, f.name.span, mutable);
                 builder.symbol_locals.insert(bname, lid);
@@ -765,7 +778,8 @@ pub fn resolve_owner_fqn_from_operand(builder: &FnLowering, op: &Operand) -> sco
                 crate::mir::ConstValue::Bool(_) => Some("scoop.core.Bool"),
                 crate::mir::ConstValue::Char(_) => Some("scoop.core.Char"),
                 crate::mir::ConstValue::Int(_, _) => Some("scoop.core.Int"),
-                crate::mir::ConstValue::Float(_, _) => Some("scoop.core.Float64"),
+                crate::mir::ConstValue::Float(_, None) => Some("scoop.core.Float64"),
+                crate::mir::ConstValue::Float(_, Some(_)) => Some("scoop.core.Float32"),
                 crate::mir::ConstValue::Unit | crate::mir::ConstValue::Null => None,
             };
             return fqn
@@ -785,7 +799,8 @@ fn const_ty(builder: &mut FnLowering, c: &crate::mir::ConstValue) -> scoop2_hir:
         crate::mir::ConstValue::Char(_) => builder.types.char(),
         crate::mir::ConstValue::Unit => builder.types.unit(),
         crate::mir::ConstValue::Int(_, _) => builder.types.int(),
-        crate::mir::ConstValue::Float(_, _) => builder.types.float64(),
+        crate::mir::ConstValue::Float(_, None) => builder.types.float64(),
+        crate::mir::ConstValue::Float(_, Some(_)) => builder.types.float32(),
         crate::mir::ConstValue::String(_) => builder.types.string(),
         crate::mir::ConstValue::Null => builder.types.any(),
     }

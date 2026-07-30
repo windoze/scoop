@@ -93,6 +93,10 @@ pub struct TypeEnv<'i> {
     /// 类型 FQN → 直接超类型列表（(超类型 FQN, 类型实参 TypeIds)）。
     /// 用于 where 约束中参数化 bound 的类型实参检查。
     supertype_instances: HashMap<Symbol, Vec<(Symbol, Vec<TypeId>)>>,
+    /// class FQN → 主构造器参数布局（含非属性参数；继承构造链展开用）。
+    pub class_ctor_params: HashMap<Symbol, Vec<crate::hir::ClassCtorParamInfo>>,
+    /// class FQN → `: Super(args)` 委托（可静态解析时记录）。
+    pub super_ctor_delegations: HashMap<Symbol, crate::hir::SuperCtorDelegation>,
 }
 
 impl<'i> TypeEnv<'i> {
@@ -117,6 +121,8 @@ impl<'i> TypeEnv<'i> {
             enum_variant_arities: HashMap::new(),
             eff_param_types: HashSet::new(),
             supertype_instances: HashMap::new(),
+            class_ctor_params: HashMap::new(),
+            super_ctor_delegations: HashMap::new(),
         }
     }
 
@@ -516,6 +522,8 @@ impl<'i> TypeEnv<'i> {
             extensible_class_fqns,
             direct_subtypes,
             supertypes,
+            class_ctor_params: self.class_ctor_params,
+            super_ctor_delegations: self.super_ctor_delegations,
             files,
         }
     }

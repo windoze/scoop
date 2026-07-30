@@ -59,21 +59,17 @@ pub fn plan_global_init(
                 });
             }
         }
-        // 查找超类：从 BackendContracts 的 vtable 推断。
-        // 简化：如果 class 有超类，其 vtable 应包含 owner_fqn 不等于自身的方法
-        // （继承自父类的方法 owner 指向父类）。该推断不依赖 HIR symbol，故不在此处
-        // 用 fqn_sym gating。
-        let super_init = mir
-            .backend_contracts
-            .class_vtables
-            .iter()
-            .find(|vt| vt.class_fqn == *class_fqn_text)
-            .and_then(|vt| {
-                vt.virtual_methods
+        // 查找超类：从 HIR supertypes 表取第一个 class 超类型（与
+        // `ordered_class_fields` 的超类链同源；替代旧的 vtable 启发式——
+        // 超类无虚方法可继承时 vtable 推断会丢失 super_init）。
+        let super_init = fqn_sym.and_then(|sym| {
+            hir.supertypes.get(&sym).and_then(|supers| {
+                supers
                     .iter()
-                    .find(|(_, owner, _)| owner != class_fqn_text)
-                    .map(|(_, owner, _)| owner.clone())
-            });
+                    .find(|s| hir.class_fqns.contains(s))
+                    .map(|s| hir.interner.resolve(*s).to_string())
+            })
+        });
         program.class_inits.push(ClassInitPlan {
             class_fqn: class_fqn_text.clone(),
             field_inits,

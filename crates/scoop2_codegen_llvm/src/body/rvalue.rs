@@ -2542,7 +2542,46 @@ fn lower_interp_expr_to_string<'a, 'ctx>(
         }
         LirOperand::Const(c) => {
             let v = fl.lower_const_value(c)?;
-            (v, None)
+            // 常量无 local 类型可查，按常量种类合成 layout kind（否则落入 null 回退，
+            // f-string 中的字面量（如 f"${1.5}"）会打印为空）。
+            let kind = match c {
+                scoop2_lir::LirConstValue::Bool(_) => Some(scoop2_lir::TypeLayoutKind::Scalar {
+                    scalar_kind: scoop2_lir::ScalarKind::Bool,
+                }),
+                scoop2_lir::LirConstValue::Char(_) => Some(scoop2_lir::TypeLayoutKind::Scalar {
+                    scalar_kind: scoop2_lir::ScalarKind::Char,
+                }),
+                scoop2_lir::LirConstValue::Int(_, suffix) => {
+                    Some(scoop2_lir::TypeLayoutKind::Scalar {
+                        scalar_kind: scoop2_lir::ScalarKind::Int {
+                            bits: 64,
+                            unsigned: matches!(
+                                suffix,
+                                Some(scoop2_lir::LirIntSuffix::U | scoop2_lir::LirIntSuffix::UL)
+                            ),
+                        },
+                    })
+                }
+                scoop2_lir::LirConstValue::Float(_, suffix) => {
+                    Some(scoop2_lir::TypeLayoutKind::Scalar {
+                        scalar_kind: scoop2_lir::ScalarKind::Float {
+                            bits: if matches!(suffix, Some(scoop2_lir::LirFloatSuffix::F32)) {
+                                32
+                            } else {
+                                64
+                            },
+                        },
+                    })
+                }
+                scoop2_lir::LirConstValue::String(_) => {
+                    Some(scoop2_lir::TypeLayoutKind::Reference {
+                        gc_traceable: true,
+                        ref_kind: scoop2_lir::RefKind::String,
+                    })
+                }
+                scoop2_lir::LirConstValue::Unit | scoop2_lir::LirConstValue::Null => None,
+            };
+            (v, kind)
         }
     };
     let (v, kind) = val;
@@ -2619,11 +2658,17 @@ fn lower_interp_expr_to_string<'a, 'ctx>(
                         _ => gc_ptr_ty.const_null(),
                     }
                 }
-                ScalarKind::Float { bits: 64 } | ScalarKind::Float { bits: 32 } => {
+                ScalarKind::Float { bits } => {
                     let fv = super::expect_float_val(v, "interp expr 浮点", &fl.fqn)?;
+                    // 按位宽 dispatch：f32 → scoop_float32_to_string，f64 → scoop_float64_to_string。
+                    let rt_fn = if *bits == 32 {
+                        fl.rt.float32_to_string
+                    } else {
+                        fl.rt.float64_to_string
+                    };
                     let call = fl
                         .builder
-                        .build_call(fl.rt.float64_to_string, &[fv.into()], "f2s")
+                        .build_call(rt_fn, &[fv.into()], "f2s")
                         .map_err(|e| {
                             CodegenError::llvm(
                                 e.to_string(),

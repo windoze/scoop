@@ -74,6 +74,59 @@ pub struct TypedFile {
     pub facts: SemanticFacts,
 }
 
+/// class 主构造器参数布局（typecheck 记录；MIR 继承构造链展开用）。
+#[derive(Clone, Debug)]
+pub struct ClassCtorParamInfo {
+    /// 参数名。
+    pub name: Symbol,
+    /// 参数类型。
+    pub ty: TypeId,
+    /// 是否 `val`/`var` 属性参数（为 true 才贡献对象字段）。
+    pub is_property: bool,
+}
+
+/// class `: Super(args)` 主构造器委托的解析结果。
+///
+/// 实参只覆盖两种可静态解析的形式：常量字面量与本类主构造器参数引用
+/// （`class B(tag: String) : A(tag)`）；其它形式不记录（保持旧行为）。
+#[derive(Clone, Debug)]
+pub struct SuperCtorDelegation {
+    /// 超类 FQN。
+    pub super_fqn: Symbol,
+    /// 实参（按书写顺序 = 超类主构造器参数序；仅位置实参）。
+    pub args: Vec<SuperCtorArg>,
+}
+
+/// super 委托实参。
+#[derive(Clone, Debug)]
+pub enum SuperCtorArg {
+    /// 引用本类主构造器第 index 个参数（`A(tag)`）。
+    CtorParam {
+        /// 本类主构造器参数下标。
+        index: u32,
+        /// 参数类型。
+        ty: TypeId,
+    },
+    /// 常量字面量实参（`A(1)` / `B("xyz")`）。
+    Const {
+        /// 字面量值。
+        value: SuperCtorConst,
+        /// 字面量类型。
+        ty: TypeId,
+    },
+}
+
+/// super 委托支持的常量字面量。
+#[derive(Clone, Debug)]
+pub enum SuperCtorConst {
+    Int(u128),
+    Float(f64),
+    Bool(bool),
+    Char(char),
+    String(String),
+    Unit,
+}
+
 /// typecheck 的完整产出：自包含的 typed HIR。
 ///
 /// 由 [`crate::typecheck::run_typecheck`] 构造并返回。所有 `Symbol` 句柄通过内置
@@ -119,6 +172,10 @@ pub struct TypedHir {
     /// 子类型 → 直接超类型 FQN 列表（正向 index.supertypes）。
     /// 供 MIR 收集 class × interface itable 契约。
     pub supertypes: HashMap<Symbol, Vec<Symbol>>,
+    /// class FQN → 主构造器参数布局（含非属性参数；MIR 构造链展开用）。
+    pub class_ctor_params: HashMap<Symbol, Vec<ClassCtorParamInfo>>,
+    /// class FQN → `: Super(args)` 委托（可静态解析时记录）。
+    pub super_ctor_delegations: HashMap<Symbol, SuperCtorDelegation>,
     /// 每个用户文件的 typed 产物（含 expr_types + 语义事实）。
     pub files: Vec<TypedFile>,
 }
@@ -262,6 +319,8 @@ impl TypedHir {
             extensible_class_fqns: HashSet::new(),
             direct_subtypes: HashMap::new(),
             supertypes: HashMap::new(),
+            class_ctor_params: HashMap::new(),
+            super_ctor_delegations: HashMap::new(),
             files: Vec::new(),
         }
     }

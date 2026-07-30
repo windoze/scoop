@@ -502,10 +502,17 @@ fn map_rvalue(
                     _ => None,
                 };
                 let member_sym = interner.get(&member.name);
-                fqn.and_then(|f| hir.members.get(&f))
-                    .and_then(|m| member_sym.and_then(|s| m.get(&s)))
-                    .copied()
-                    .unwrap_or(member.receiver_ty)
+                // ordered_class_fields 覆盖自身 members 且沿超类链含继承字段
+                // （class 自身无字段时 members 无条目，仅查 members 会漏掉继承字段）。
+                fqn.and_then(|f| {
+                    member_sym.and_then(|s| {
+                        hir.ordered_class_fields(f)
+                            .into_iter()
+                            .find(|(n, _)| *n == s)
+                            .map(|(_, t)| t)
+                    })
+                })
+                .unwrap_or(member.receiver_ty)
             };
             LirRvalue::MemberAccess {
                 receiver_local: map_operand(receiver),
@@ -979,8 +986,11 @@ fn compute_field_offset(
         TypeKind::Value(ValueTypeKind::Nominal(n)) => (n.fqn, false),
         _ => return Ok(0),
     };
-    // HIR 未注册该类型的 members（内建 / 外部 opaque 类型）：旧回退。
-    if !hir.members.contains_key(&fqn_sym) {
+    // HIR 完全未知该类型（内建 / 外部 opaque 类型，如 String.length）：旧回退。
+    // 已知 class（class_fqns 登记）不走此回退：class 可能自身无字段（members
+    // 无条目）但沿超类链继承字段，由下方 ordered_class_fields 解析。
+    let known_class = is_ref && hir.class_fqns.contains(&fqn_sym);
+    if !known_class && !hir.members.contains_key(&fqn_sym) {
         return Ok(0);
     }
     let fqn_text = interner.resolve(fqn_sym);

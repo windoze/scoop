@@ -241,6 +241,7 @@ pub fn check_function<'a, 'i>(
         in_nogc,
         lenient_type_errors: false,
         in_typed_val_init: false,
+        typed_val_init_ty: None,
         performed_effects: Vec::new(),
         escape_effects: Vec::new(),
         effect_suspend_depth: 0,
@@ -361,6 +362,7 @@ pub fn check_top_level_val<'a, 'i>(
         in_nogc: false,
         lenient_type_errors: true,
         in_typed_val_init: false,
+        typed_val_init_ty: None,
         performed_effects: Vec::new(),
         escape_effects: Vec::new(),
         effect_suspend_depth: 0,
@@ -369,9 +371,12 @@ pub fn check_top_level_val<'a, 'i>(
     };
     let declared = val.ty.as_ref().map(|t| c.lower_type(t));
     let saved_typed = c.in_typed_val_init;
+    let saved_typed_ty = c.typed_val_init_ty;
     c.in_typed_val_init = declared.is_some();
+    c.typed_val_init_ty = declared;
     let init_ty = val.init.as_ref().map(|e| c.walk_expr(e));
     c.in_typed_val_init = saved_typed;
+    c.typed_val_init_ty = saved_typed_ty;
     // 空数组字面量 `[]` 无显式类型标注时必须报错（无法推断元素类型）。
     if declared.is_none()
         && val
@@ -480,6 +485,7 @@ pub(super) fn check_pure_static_init<'a, 'i>(
         in_nogc: false,
         lenient_type_errors: true,
         in_typed_val_init: false,
+        typed_val_init_ty: None,
         performed_effects: Vec::new(),
         escape_effects: Vec::new(),
         effect_suspend_depth: 0,
@@ -507,6 +513,8 @@ struct ExprChecker<'a, 'i> {
     diags: &'a mut DiagnosticSink,
     /// 当前正在遍历的 val 初始化器是否有声明类型（用于 enum variant 歧义抑制）。
     in_typed_val_init: bool,
+    /// 当前 val 初始化器的声明类型（用于字面量按期望类型定型，如 Float32 注解下的 FloatLit）。
+    typed_val_init_ty: Option<TypeId>,
     package_prefix: String,
     type_params: HashMap<Symbol, TypeParamType>,
     /// 类型参数名 → 是否声明了 `ref` bound（ref/value kind bound 检查用）。
@@ -1068,9 +1076,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         let declared = val.ty.as_ref().map(|t| self.lower_type(t));
         let saved_typed = self.in_typed_val_init;
+        let saved_typed_ty = self.typed_val_init_ty;
         self.in_typed_val_init = declared.is_some();
+        self.typed_val_init_ty = declared;
         let init_ty = val.init.as_ref().map(|e| self.walk_expr(e));
         self.in_typed_val_init = saved_typed;
+        self.typed_val_init_ty = saved_typed_ty;
         // 空数组字面量 `[]` 无显式类型标注时必须报错（无法推断元素类型）。
         if declared.is_none()
             && val
@@ -1175,8 +1186,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
             ValBinding::Pattern(p) => {
-                self.bind_pattern_locals(p);
-                self.check_val_pattern(p, init_ty.unwrap_or(ty));
+                // 按 initializer 类型登记绑定（tuple 元素/variant payload），
+                // 避免 `val (a, b) = (1, 2)` 的 a/b 退化为 Nothing。
+                let subject = init_ty.unwrap_or(ty);
+                self.bind_pattern_locals_typed(p, subject);
+                self.check_val_pattern(p, subject);
             }
         }
     }
@@ -2229,22 +2243,24 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             MemberName::Named(name) => {
                 let owner_fqn = self.resolve_member_owner_fqn(receiver_ty)?;
-                // 优先字段/属性（member_type）。
-                if let Some(member_ty) = self.env.member_type(owner_fqn, name.symbol) {
-                    let is_immutable = self.env.is_immutable_member(owner_fqn, name.symbol);
+                // 优先字段/属性（member_type），沿超类型链解析到声明 owner（继承字段）。
+                if let Some((decl_owner, member_ty)) =
+                    self.member_type_in_chain(owner_fqn, name.symbol)
+                {
+                    let is_immutable = self.env.is_immutable_member(decl_owner, name.symbol);
                     return Some(crate::hir::ResolvedMember::Field {
                         receiver_ty,
-                        owner_fqn,
+                        owner_fqn: decl_owner,
                         member_name: name.symbol,
                         member_ty,
                         is_immutable,
                     });
                 }
-                // 否则方法引用（member_signatures 非空）。
-                if self.env.member_signatures(owner_fqn, name.symbol).is_some() {
+                // 否则方法引用（member_signatures 非空），沿超类型链解析声明 owner。
+                if let Some(decl_owner) = self.method_owner_in_chain(owner_fqn, name.symbol) {
                     return Some(crate::hir::ResolvedMember::Method {
                         receiver_ty,
-                        owner_fqn,
+                        owner_fqn: decl_owner,
                         method_name: name.symbol,
                     });
                 }
@@ -2355,6 +2371,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                 }
                 let owner_fqn = self.resolve_member_owner_fqn(receiver_ty)?;
+                // 继承方法：沿超类型链解析到声明 owner（`c.fromB()` → B.fromB）。
+                let owner_fqn = self
+                    .method_owner_in_chain(owner_fqn, name.symbol)
+                    .unwrap_or(owner_fqn);
                 let (decl_span, decl_file) =
                     self.first_member_overload_decl(owner_fqn, name.symbol);
                 let is_virtual = self.member_is_virtual(owner_fqn, name.symbol);
@@ -2699,6 +2719,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::IntLit(_) => self.env.store.int(),
             ExprKind::FloatLit(lit) => {
                 if lit.suffix.is_some() {
+                    self.env.store.float32()
+                } else if self.typed_val_init_ty.is_some_and(|t| {
+                    matches!(
+                        self.env.store.kind(t),
+                        TypeKind::Value(crate::ty::ValueTypeKind::Float32)
+                    )
+                }) {
+                    // `val f: Float32 = 1.5`：无后缀 FloatLit 在 Float32 声明类型下按 f32 定型，
+                    // 保证 MIR local / 运算符 owner 与注解一致。
                     self.env.store.float32()
                 } else {
                     self.env.store.float64()
@@ -5646,11 +5675,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let Some(fqn) = fqn else {
             return self.env.store.nothing();
         };
-        match self.env.member_type(fqn, name.symbol) {
-            Some(t) => t,
+        // 字段沿超类型链查找（继承的 val/var 声明在祖先类上）。
+        match self.member_type_in_chain(fqn, name.symbol) {
+            Some((_, t)) => t,
             None => {
                 // 名为方法的成员在值位访问（未调用）→ 方法不能作为值（需以 () 调用）。
-                if self.env.member_signatures(fqn, name.symbol).is_some() {
+                if self.method_exists_in_chain(fqn, name.symbol) {
                     let mname = self.env.interner.resolve(name.symbol);
                     self.diags
                         .push(diagnostics::member_not_a_value(mname, name.span));
@@ -6340,6 +6370,113 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.bind_pattern_locals_typed(alt, subject_ty);
                 }
             }
+            PatternKind::Tuple(elems) => {
+                // tuple subject：按位置绑定元素类型。rest 之前的元素取前缀位置，
+                // rest 之后的元素从 tuple 尾部对齐；嵌套 tuple/variant 递归。
+                let elem_tys: Option<Vec<TypeId>> = match self.env.store.kind(subject_ty) {
+                    TypeKind::Value(crate::ty::ValueTypeKind::Tuple(ts)) => Some(ts.clone()),
+                    _ => None,
+                };
+                let Some(elem_tys) = elem_tys else {
+                    self.bind_pattern_locals(pat);
+                    return;
+                };
+                let non_rest_count = elems
+                    .iter()
+                    .filter(|e| !matches!(e.kind, PatternKind::Rest))
+                    .count();
+                // 首个 Rest 之前的元素全部是非 rest 前缀。
+                let prefix_count = elems
+                    .iter()
+                    .position(|e| matches!(e.kind, PatternKind::Rest))
+                    .unwrap_or(non_rest_count);
+                let mut bindings: Vec<crate::hir::PatternBinding> = Vec::new();
+                let mut seen = 0usize; // 已遇到的非 rest 元素序号
+                for e in elems {
+                    if matches!(e.kind, PatternKind::Rest) {
+                        continue;
+                    }
+                    let pos = if seen < prefix_count {
+                        seen
+                    } else {
+                        elem_tys.len().saturating_sub(non_rest_count - seen)
+                    };
+                    seen += 1;
+                    let elem_ty = elem_tys
+                        .get(pos)
+                        .copied()
+                        .unwrap_or_else(|| self.env.store.nothing());
+                    match &e.kind {
+                        PatternKind::Bind(ident) => {
+                            self.locals.insert(ident.symbol, elem_ty);
+                            bindings.push(crate::hir::PatternBinding {
+                                name: ident.symbol,
+                                ty: elem_ty,
+                                source: crate::hir::PatternBindingSource::Destructure,
+                                span: ident.span,
+                            });
+                        }
+                        PatternKind::Tuple(_) | PatternKind::Variant { .. } => {
+                            self.bind_pattern_locals_typed(e, elem_ty);
+                        }
+                        _ => {}
+                    }
+                }
+                if !bindings.is_empty() {
+                    self.facts.pattern_bindings.set(pat.id, bindings);
+                }
+            }
+            PatternKind::Struct { fields, .. } => {
+                // struct 解构：按字段名绑定声明的成员类型；`field: pat` 形式的
+                // 嵌套 pattern 以字段类型递归。subject 非 nominal 或无 members 时
+                // 回退 Nothing（保持旧行为）。
+                let member_tys = nominal_fqn_of(self.env.store.kind(subject_ty))
+                    .and_then(|fqn| self.env.member_types(fqn))
+                    .map(|m| m.clone());
+                let Some(member_tys) = member_tys else {
+                    self.bind_pattern_locals(pat);
+                    return;
+                };
+                let mut bindings: Vec<crate::hir::PatternBinding> = Vec::new();
+                for f in fields {
+                    let field_ty = member_tys
+                        .get(&f.name.symbol)
+                        .copied()
+                        .unwrap_or_else(|| self.env.store.nothing());
+                    match &f.pattern {
+                        // 简写 `Point { x }`：绑定名 = 字段名。
+                        None => {
+                            self.locals.insert(f.name.symbol, field_ty);
+                            bindings.push(crate::hir::PatternBinding {
+                                name: f.name.symbol,
+                                ty: field_ty,
+                                source: crate::hir::PatternBindingSource::Destructure,
+                                span: f.name.span,
+                            });
+                        }
+                        Some(p) => match &p.kind {
+                            PatternKind::Bind(ident) => {
+                                self.locals.insert(ident.symbol, field_ty);
+                                bindings.push(crate::hir::PatternBinding {
+                                    name: ident.symbol,
+                                    ty: field_ty,
+                                    source: crate::hir::PatternBindingSource::Destructure,
+                                    span: ident.span,
+                                });
+                            }
+                            PatternKind::Tuple(_)
+                            | PatternKind::Variant { .. }
+                            | PatternKind::Struct { .. } => {
+                                self.bind_pattern_locals_typed(p, field_ty);
+                            }
+                            _ => {}
+                        },
+                    }
+                }
+                if !bindings.is_empty() {
+                    self.facts.pattern_bindings.set(pat.id, bindings);
+                }
+            }
             _ => {
                 self.bind_pattern_locals(pat);
             }
@@ -6629,6 +6766,41 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
         }
         false
+    }
+
+    /// 在 FQN 及其超类型链中查找字段成员；返回（声明 owner FQN，成员类型）。
+    /// 子类遮蔽字段优先（先在自身查，命中即返回）。
+    fn member_type_in_chain(
+        &self,
+        fqn: scoop2_base::Symbol,
+        name: scoop2_base::Symbol,
+    ) -> Option<(scoop2_base::Symbol, TypeId)> {
+        if let Some(t) = self.env.member_type(fqn, name) {
+            return Some((fqn, t));
+        }
+        for &sup in self.env.index.supertypes_of(fqn) {
+            if let Some(r) = self.member_type_in_chain(sup, name) {
+                return Some(r);
+            }
+        }
+        None
+    }
+
+    /// 在 FQN 及其超类型链中查找方法的声明 owner FQN（继承方法解析到祖先类）。
+    fn method_owner_in_chain(
+        &self,
+        fqn: scoop2_base::Symbol,
+        method: scoop2_base::Symbol,
+    ) -> Option<scoop2_base::Symbol> {
+        if self.env.member_signatures(fqn, method).is_some() {
+            return Some(fqn);
+        }
+        for &sup in self.env.index.supertypes_of(fqn) {
+            if let Some(o) = self.method_owner_in_chain(sup, method) {
+                return Some(o);
+            }
+        }
+        None
     }
 
     /// 方法调用（`receiver.method(args)` / `receiver[args]` / `receiver until arg`）：

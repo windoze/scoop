@@ -26,10 +26,20 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
     match &expr.kind {
         // 字面量。
         ExprKind::IntLit(l) => Operand::Const(ConstValue::Int(l.value, suffix_of(&l.suffix))),
-        ExprKind::FloatLit(l) => Operand::Const(ConstValue::Float(
-            l.value,
-            l.suffix.map(|_| crate::mir::FloatSuffix::F32),
-        )),
+        ExprKind::FloatLit(l) => {
+            // 无后缀 FloatLit 在 Float32 期望类型下（如 `val f: Float32 = 1.5`，
+            // typecheck 已按注解定型）按 f32 物化，与 local/alloca 类型一致。
+            let f32_expected = matches!(
+                builder.types.kind(ty),
+                scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Float32)
+            );
+            let suffix = if l.suffix.is_some() || f32_expected {
+                Some(crate::mir::FloatSuffix::F32)
+            } else {
+                None
+            };
+            Operand::Const(ConstValue::Float(l.value, suffix))
+        }
         ExprKind::CharLit(l) => Operand::Const(ConstValue::Char(l.value)),
         ExprKind::StringLit(l) => Operand::Const(ConstValue::String(l.value.clone())),
         ExprKind::UnitLit => Operand::Const(ConstValue::Unit),
@@ -922,6 +932,9 @@ fn emit_call_resolution(
                 }
             } else {
                 let type_fqn_str = builder.hir.interner.resolve(*type_fqn).to_string();
+                // 继承构造链：有 `: Super(args)` 委托的 class，把超类字段实参
+                // 展开到 args 前部，使 args 与字段布局（超类字段在前）对齐。
+                let args = expand_super_ctor_chain(builder, type_fqn, args);
                 Rvalue::ClassCtor {
                     site_id: call_site_id,
                     type_fqn: *type_fqn,
@@ -1453,9 +1466,8 @@ fn owner_fqn_of(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> Symbol {
         TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt"),
         TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool"),
         TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char"),
-        TypeKind::Value(ValueTypeKind::Float64) | TypeKind::Value(ValueTypeKind::Float32) => {
-            Some("scoop.core.Float64")
-        }
+        TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64"),
+        TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32"),
         TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String"),
         TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             return n.fqn;
@@ -1475,14 +1487,155 @@ fn nominal_fqn_of(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> String {
         TypeKind::Value(ValueTypeKind::UInt) => "scoop.core.UInt".to_string(),
         TypeKind::Value(ValueTypeKind::Bool) => "scoop.core.Bool".to_string(),
         TypeKind::Value(ValueTypeKind::Char) => "scoop.core.Char".to_string(),
-        TypeKind::Value(ValueTypeKind::Float64) | TypeKind::Value(ValueTypeKind::Float32) => {
-            "scoop.core.Float64".to_string()
-        }
+        TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64".to_string(),
+        TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32".to_string(),
         TypeKind::Ref(RefTypeKind::String) => "scoop.core.String".to_string(),
         TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             builder.hir.interner.resolve(n.fqn).to_string()
         }
         _ => "?".to_string(),
+    }
+}
+
+/// 继承构造链展开：`class B(...) : A(sargs)` 的 ClassCtor 实参前部插入超类字段
+/// 实参，使最终 args 顺序 = [祖先字段..., 本类属性参数...]（与 HIR
+/// `ordered_class_fields` / codegen class_ctor 字段布局一致）。
+///
+/// 无委托记录时原样返回（无继承的 class 不受影响）。
+fn expand_super_ctor_chain(
+    builder: &mut FnLowering,
+    class_fqn: &scoop2_base::Symbol,
+    call_args: Vec<CallArg>,
+) -> Vec<CallArg> {
+    if !builder.hir.super_ctor_delegations.contains_key(class_fqn) {
+        return call_args;
+    }
+    let params = builder
+        .hir
+        .class_ctor_params
+        .get(class_fqn)
+        .cloned()
+        .unwrap_or_default();
+    // 调用点实参 → 按主构造器参数序（位置实参按序，命名实参按参数名匹配）。
+    let mut param_ops: Vec<Option<(Operand, scoop2_hir::ty::TypeId)>> = vec![None; params.len()];
+    if call_args.iter().all(|a| a.name.is_none()) {
+        for (i, a) in call_args.into_iter().enumerate() {
+            if i < params.len() {
+                param_ops[i] = Some((a.value, a.value_ty));
+            }
+        }
+    } else {
+        let mut pos = 0usize;
+        for a in call_args {
+            match a.name {
+                Some(n) => {
+                    if let Some(i) = params.iter().position(|p| p.name == n) {
+                        param_ops[i] = Some((a.value, a.value_ty));
+                    }
+                }
+                None => {
+                    if pos < params.len() {
+                        param_ops[pos] = Some((a.value, a.value_ty));
+                    }
+                    pos += 1;
+                }
+            }
+        }
+    }
+    collect_ctor_field_args(builder, *class_fqn, &params, param_ops)
+}
+
+/// 递归收集 class 的完整字段实参：先超类（沿 `: Super(args)` 委托链自顶向下），
+/// 再本类属性（val/var）参数。委托实参引用本类构造器参数时按参数序替换。
+fn collect_ctor_field_args(
+    builder: &mut FnLowering,
+    class_fqn: scoop2_base::Symbol,
+    params: &[scoop2_hir::hir::ClassCtorParamInfo],
+    param_ops: Vec<Option<(Operand, scoop2_hir::ty::TypeId)>>,
+) -> Vec<CallArg> {
+    let mut out: Vec<CallArg> = Vec::new();
+    if let Some(del) = builder.hir.super_ctor_delegations.get(&class_fqn).cloned() {
+        let super_params = builder
+            .hir
+            .class_ctor_params
+            .get(&del.super_fqn)
+            .cloned()
+            .unwrap_or_default();
+        // 委托实参数必须等于超类构造器参数数（无默认值代入能力时不展开，保持旧行为）。
+        if !super_params.is_empty() && del.args.len() == super_params.len() {
+            let mut super_ops: Vec<Option<(Operand, scoop2_hir::ty::TypeId)>> =
+                vec![None; super_params.len()];
+            let mut resolved_all = true;
+            for (i, a) in del.args.iter().enumerate() {
+                match a {
+                    scoop2_hir::hir::SuperCtorArg::CtorParam { index, .. } => {
+                        match param_ops.get(*index as usize).and_then(|o| o.as_ref()) {
+                            Some((op, oty)) => super_ops[i] = Some((op.clone(), *oty)),
+                            None => {
+                                resolved_all = false;
+                                break;
+                            }
+                        }
+                    }
+                    scoop2_hir::hir::SuperCtorArg::Const { value, ty } => {
+                        super_ops[i] = Some((super_ctor_const_operand(builder, value, *ty), *ty));
+                    }
+                }
+            }
+            if resolved_all {
+                out.extend(collect_ctor_field_args(
+                    builder,
+                    del.super_fqn,
+                    &super_params,
+                    super_ops,
+                ));
+            }
+        }
+    }
+    // 本类属性参数（val/var）按参数序追加（= 字段布局序）。
+    for (i, p) in params.iter().enumerate() {
+        if !p.is_property {
+            continue;
+        }
+        if let Some(Some((op, oty))) = param_ops.get(i) {
+            out.push(CallArg {
+                name: None,
+                is_spread: false,
+                value: op.clone(),
+                value_ty: *oty,
+            });
+        }
+    }
+    out
+}
+
+/// super 委托常量实参 → MIR 常量 operand（Float 按记录类型区分 f32/f64）。
+fn super_ctor_const_operand(
+    builder: &FnLowering,
+    value: &scoop2_hir::hir::SuperCtorConst,
+    ty: scoop2_hir::ty::TypeId,
+) -> Operand {
+    use scoop2_hir::hir::SuperCtorConst as C;
+    match value {
+        C::Int(v) => Operand::Const(ConstValue::Int(*v, None)),
+        C::Float(v) => {
+            let f32 = matches!(
+                builder.types.kind(ty),
+                scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Float32)
+            );
+            Operand::Const(ConstValue::Float(
+                *v,
+                if f32 {
+                    Some(crate::mir::FloatSuffix::F32)
+                } else {
+                    None
+                },
+            ))
+        }
+        C::Bool(v) => Operand::Const(ConstValue::Bool(*v)),
+        C::Char(v) => Operand::Const(ConstValue::Char(*v)),
+        C::String(v) => Operand::Const(ConstValue::String(v.clone())),
+        C::Unit => Operand::Const(ConstValue::Unit),
     }
 }
 
