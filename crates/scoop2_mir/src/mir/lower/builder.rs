@@ -7,7 +7,9 @@
 use std::collections::HashMap;
 
 use scoop2_base::{FileId, NodeId, Span, Symbol};
-use scoop2_hir::hir::TypedHir;
+use scoop2_hir::hir::{
+    ClassCtorParamInfo, SuperCtorArg, SuperCtorConst, SuperCtorDelegation, TypedHir,
+};
 use scoop2_hir::ty::{EffectRow, TypeId, TypeStore};
 
 use crate::diagnostics::MirLowerError;
@@ -969,7 +971,325 @@ pub fn lower_type_member_funs_with_stores(
     out
 }
 
-/// 计算嵌套类型的 owner FQN symbol：`<outer>.<name>`。
+/// 为 class 合成初始化 callable `<Class>.$init`，按 Kotlin 顺序执行：
+///   1. super 委托（`: Super(args)`）——递归初始化超类（同一 `this`）；
+///   2. 主构造器 `val/var` 属性参数 → 字段赋值；
+///   3. 类型体内 property initializer 与 `init {}` 块按源码顺序交错执行。
+///
+/// 仅当类**确实有初始化体**（init 块 / 属性初始化器 / 超类委托）时返回 Some；
+/// 纯字段-参数类（无 init 块、无属性初始化器、无超类）返回 None（codegen 直接
+/// 按参数序写字段即可）。
+///
+/// `this` 是 class 引用类型（GC ptr）；init callable 不返回值（Unit）。
+/// 调用方（codegen）在 `scoop_alloc_typed` 之后调用此 callable。
+pub fn lower_class_init_callable(
+    file_id: FileId,
+    d: &scoop2_syntax::ast::TypeDecl,
+    hir: &TypedHir,
+    package_prefix: &str,
+    base_types: &TypeStore,
+    errors: &mut Vec<MirLowerError>,
+    owner_fqn_sym: scoop2_base::Symbol,
+) -> Option<(FunDecl, Vec<FunDecl>, TypeStore)> {
+    use scoop2_syntax::ast::TypeMemberKind;
+
+    // 仅 class 需要初始化 callable（struct 无继承/init 块语义）。
+    if !matches!(d.kind, scoop2_syntax::ast::TypeKind::Class) {
+        return None;
+    }
+    let body = d.body.as_ref()?;
+    let owner_fqn = hir.interner.resolve(owner_fqn_sym).to_string();
+
+    // 判定是否有任何初始化体（init 块 / 属性初始化器 / 超类委托）。
+    let has_init_block = body
+        .members
+        .iter()
+        .any(|m| matches!(m.kind, TypeMemberKind::InitBlock(_)));
+    let has_property_init = body.members.iter().any(|m| {
+        matches!(
+            &m.kind,
+            TypeMemberKind::Property(p) if p.init.is_some()
+        )
+    });
+    let has_super = hir.super_ctor_delegations.contains_key(&owner_fqn_sym);
+    if !(has_init_block || has_property_init || has_super) {
+        return None;
+    }
+
+    let mut types = base_types.clone();
+    let unit_ty = types.unit();
+    let effect_row = EffectRow::pure();
+
+    // 构造 this 参数类型：class 引用（GC ptr → Ref Nominal）。
+    let this_ty = resolve_member_receiver_ty(hir, &mut types, owner_fqn_sym);
+
+    // 主构造器参数（来自 class_ctor_params）：含 is_property 标记。
+    let ctor_params: Vec<ClassCtorParamInfo> = hir
+        .class_ctor_params
+        .get(&owner_fqn_sym)
+        .cloned()
+        .unwrap_or_default();
+    let _ = package_prefix; // owner_fqn_sym 已携带完整 FQN。
+
+    // 参数类型序列：[this, ctor_param0, ctor_param1, ...]。
+    let mut param_tys: Vec<TypeId> = vec![this_ty];
+    param_tys.extend(ctor_params.iter().map(|p| p.ty));
+
+    let fn_ty = types.function(scoop2_hir::ty::FunctionType {
+        receiver: None,
+        params: param_tys,
+        return_ty: unit_ty,
+        effects: effect_row.clone(),
+        closed: false,
+    });
+
+    let init_fqn = format!("{}.$init", owner_fqn);
+    let mut fd = FunDecl {
+        span: d.name.span,
+        fqn: init_fqn.clone(),
+        name: "$init".to_string(),
+        ty: fn_ty,
+        params: Vec::new(),
+        return_ty: unit_ty,
+        effect_row: effect_row.clone(),
+        type_params: d
+            .type_params
+            .as_ref()
+            .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
+            .unwrap_or_default(),
+        body: None,
+        file: file_id,
+        stable_template_key: None,
+        instance_symbol: None,
+        effect_abi: None,
+        intrinsic_name: None,
+    };
+
+    let mut builder = FnLowering::new(
+        hir, types, file_id, init_fqn, unit_ty, effect_row, errors,
+    );
+
+    // 分配 this local 并注册为参数（首参）。
+    let this_lid = builder.alloc_named("<this>".to_string(), this_ty, d.name.span);
+    builder.this_local = Some(this_lid);
+    if let Some(this_sym) = hir.interner.get("this") {
+        builder.symbol_locals.insert(this_sym, this_lid);
+    }
+    fd.params.push(crate::mir::Param {
+        span: d.name.span,
+        name: "<this>".to_string(),
+        ty: this_ty,
+        local: this_lid,
+    });
+
+    // 分配 ctor 参数 local 并注册符号（init 块/属性初始化器可引用构造参数名）。
+    // primary_ctor AST 参数（若存在）提供名字；否则用 class_ctor_params 的 name。
+    let primary_param_names: Vec<scoop2_base::Symbol> = d
+        .primary_ctor
+        .as_ref()
+        .map(|pc| pc.params.iter().map(|p| p.name.symbol).collect())
+        .unwrap_or_default();
+    for (i, cp) in ctor_params.iter().enumerate() {
+        let name_sym = primary_param_names.get(i).copied().unwrap_or(cp.name);
+        let name_text = builder.hir.interner.resolve(name_sym).to_string();
+        let lid = builder.alloc_named(name_text.clone(), cp.ty, d.name.span);
+        builder.symbol_locals.insert(name_sym, lid);
+        fd.params.push(crate::mir::Param {
+            span: d.name.span,
+            name: name_text,
+            ty: cp.ty,
+            local: lid,
+        });
+    }
+
+    // ---- 执行初始化步骤（Kotlin 顺序）----
+    // 1. super 委托：`: Super(args)`。对同一 this 调用超类的 $init。
+    //    实参从 SuperCtorDelegation.args 解析（CtorParam 引用本类参数 / Const 字面量）。
+    if let Some(super_del) = hir.super_ctor_delegations.get(&owner_fqn_sym) {
+        emit_super_init_call(&mut builder, this_lid, this_ty, super_del, &ctor_params, d.name.span);
+    }
+
+    // 2 + 3. 按源码顺序交错执行：
+    //   - 主构造器 `val/var` 属性参数 → this.field = param（在首个 property/init-block 之前一次性发出）；
+    //   - property initializer（`val x = expr`）→ this.x = expr；
+    //   - init block（`init { ... }`）→ 执行块语句。
+    // Kotlin 语义：property-param 赋值发生在「第一个 property initializer / init block」之前；
+    // 若无任何 property initializer / init block，property-param 赋值仍在末尾发生（保证字段已初始化）。
+    let mut emitted_param_props = false;
+
+    // 预计算 property-param → (field_name, param_lid, field_ty) 列表，避免在闭包里
+    // 反复 borrow builder.symbol_locals（与 push_stmt 的可变 borrow 冲突）。
+    let param_prop_assigns: Vec<(String, LocalId, TypeId)> = ctor_params
+        .iter()
+        .enumerate()
+        .filter(|(_, cp)| cp.is_property)
+        .filter_map(|(i, cp)| {
+            let param_lid = primary_param_names
+                .get(i)
+                .and_then(|s| builder.symbol_locals.get(s).copied())
+                .unwrap_or(this_lid);
+            let field_name = builder.hir.interner.resolve(cp.name).to_string();
+            Some((field_name, param_lid, cp.ty))
+        })
+        .collect();
+
+    let mut emit_param_props = |builder: &mut FnLowering| {
+        if emitted_param_props {
+            return;
+        }
+        emitted_param_props = true;
+        for (field_name, param_lid, field_ty) in &param_prop_assigns {
+            builder.push_stmt(crate::mir::Statement {
+                span: d.name.span,
+                kind: crate::mir::StatementKind::StoreMember {
+                    receiver: crate::mir::Operand::Local(this_lid),
+                    member: builder.member_access_metadata(field_name, this_ty),
+                    value: crate::mir::Operand::Local(*param_lid),
+                    value_ty: *field_ty,
+                    continuation_route:
+                        crate::mir::transport::StoredContinuationRoutePublication::None,
+                },
+            });
+        }
+    };
+
+    for m in &body.members {
+        match &m.kind {
+            TypeMemberKind::Property(p) => {
+                if let Some(init_expr) = &p.init {
+                    // 第一个初始化步骤前先发 property-param 赋值。
+                    emit_param_props(&mut builder);
+                    // property initializer：this.field = init_expr。
+                    let field_name = builder
+                        .hir
+                        .interner
+                        .resolve(p.name.symbol)
+                        .to_string();
+                    let val = crate::mir::lower::expr::lower_expr(&mut builder, init_expr);
+                    // property 字段类型：从 HIR members 查（owner.member）。
+                    let field_ty = builder
+                        .hir
+                        .members
+                        .get(&owner_fqn_sym)
+                        .and_then(|mm| mm.get(&p.name.symbol))
+                        .copied()
+                        .unwrap_or_else(|| builder.types.nothing());
+                    builder.push_stmt(crate::mir::Statement {
+                        span: p.name.span,
+                        kind: crate::mir::StatementKind::StoreMember {
+                            receiver: crate::mir::Operand::Local(this_lid),
+                            member: builder.member_access_metadata(&field_name, this_ty),
+                            value: val,
+                            value_ty: field_ty,
+                            continuation_route:
+                                crate::mir::transport::StoredContinuationRoutePublication::None,
+                        },
+                    });
+                }
+            }
+            TypeMemberKind::InitBlock(ib) => {
+                emit_param_props(&mut builder);
+                // 执行 init block 语句（副作用；尾值丢弃）。
+                let _ = crate::mir::lower::stmt::lower_block(&mut builder, &ib.body);
+            }
+            _ => {}
+        }
+    }
+    // 无 property initializer / init block 时，仍需发 property-param 赋值（super-only 类）。
+    emit_param_props(&mut builder);
+
+    // 函数尾：return Unit。
+    let (mir_body, nested, types_out) = builder.finish();
+    fd.body = Some(mir_body);
+    Some((fd, nested, types_out))
+}
+
+/// 发出 super 委托初始化调用：`<SuperClass>.$init(this, super_args...)`。
+///
+/// 实参解析（SuperCtorArg）：CtorParam 引用本类参数 local；Const 是字面量。
+/// 递归地让超类在同一 this 上执行其初始化体（属性参数 / 初始化器 / init 块 / 其 super）。
+fn emit_super_init_call(
+    builder: &mut FnLowering,
+    this_lid: LocalId,
+    this_ty: TypeId,
+    super_del: &SuperCtorDelegation,
+    ctor_params: &[ClassCtorParamInfo],
+    span: scoop2_base::Span,
+) {
+    // 超类引用类型（this 的静态类型即子类引用，super init 接收同一 this）。
+    let super_fqn_text = builder.hir.interner.resolve(super_del.super_fqn).to_string();
+    // 构造调用实参：[this, super_arg0, ...]。
+    let mut args: Vec<crate::mir::CallArg> = Vec::new();
+    args.push(crate::mir::CallArg {
+        name: None,
+        is_spread: false,
+        value: crate::mir::Operand::Local(this_lid),
+        value_ty: this_ty,
+    });
+    for sa in &super_del.args {
+        let (operand, ty) = match sa {
+            SuperCtorArg::CtorParam { index, ty } => {
+                // 引用本类第 index 个构造参数 local。
+                let lid = ctor_params
+                    .get(*index as usize)
+                    .and_then(|cp| {
+                        // 通过 ctor_params 的 name 反查 symbol_locals（init callable 里已注册）。
+                        builder.symbol_locals.get(&cp.name).copied()
+                    })
+                    .unwrap_or(this_lid);
+                (crate::mir::Operand::Local(lid), *ty)
+            }
+            SuperCtorArg::Const { value, ty } => {
+                let cv = super_const_to_mir(value);
+                (crate::mir::Operand::Const(cv), *ty)
+            }
+        };
+        args.push(crate::mir::CallArg {
+            name: None,
+            is_spread: false,
+            value: operand,
+            value_ty: ty,
+        });
+    }
+    let callee_fqn = format!("{}.$init", super_fqn_text);
+    let unit_ty = builder.types.unit();
+    let tmp = builder.alloc_temp(unit_ty, span);
+    builder.push_stmt(crate::mir::Statement {
+        span,
+        kind: crate::mir::StatementKind::Assign {
+            target: tmp,
+            value: crate::mir::Rvalue::Call {
+                site_id: None,
+                kind: crate::mir::CallKind::Direct {
+                    callee_fqn,
+                    type_args: vec![],
+                    is_intrinsic: false,
+                    stable_template_key: None,
+                    stable_instance_key: None,
+                    generic_type_args: vec![],
+                    generic_eff_args: vec![],
+                },
+                args,
+                transport: crate::mir::transport::CallTransportMetadata::plain_no_outward(
+                    unit_ty,
+                    crate::mir::transport::MirTransportKind::Scalar,
+                ),
+            },
+        },
+    });
+}
+
+/// 把 SuperCtorConst 转成 MIR ConstValue。
+fn super_const_to_mir(c: &SuperCtorConst) -> crate::mir::ConstValue {
+    match c {
+        SuperCtorConst::Int(v) => crate::mir::ConstValue::Int(*v, None),
+        SuperCtorConst::Float(v) => crate::mir::ConstValue::Float(*v, None),
+        SuperCtorConst::Bool(b) => crate::mir::ConstValue::Bool(*b),
+        SuperCtorConst::Char(ch) => crate::mir::ConstValue::Char(*ch),
+        SuperCtorConst::String(s) => crate::mir::ConstValue::String(s.clone()),
+        SuperCtorConst::Unit => crate::mir::ConstValue::Unit,
+    }
+}
 fn nested_owner_fqn(
     hir: &TypedHir,
     outer: scoop2_base::Symbol,

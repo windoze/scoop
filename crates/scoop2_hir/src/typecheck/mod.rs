@@ -804,6 +804,61 @@ fn check_file_bodies(
                         expr_types,
                         facts,
                     );
+                    // class 的 init 块与属性初始化器：走 init-body typecheck（写回
+                    // call_resolutions / value_refs / expr_types，供 MIR `<Class>.$init`
+                    // 合成 callable lowering 消费）。constructor/init 块对外强制 Pure
+                    //（outward effect——含未捕获的 Raise——是编译错误：构造副作用必须
+                    // 在 init 内部用 handle 消化）。object 走自己的 check_pure_static_init
+                    // 路径（静态初始化器），这里仅处理 class。
+                    if d.kind == crate::syntax::ast::TypeKind::Class {
+                        for m in &body.members {
+                            use crate::syntax::ast::TypeMemberKind;
+                            match &m.kind {
+                                TypeMemberKind::InitBlock(ib) => {
+                                    let what = format!(
+                                        "class `{}` init block",
+                                        env.interner.resolve(d.name.symbol)
+                                    );
+                                    expr::check_init_body(
+                                        env,
+                                        imports,
+                                        resolution,
+                                        diags,
+                                        package_prefix,
+                                        this_ty,
+                                        what,
+                                        expr::PureInitSite::Block(&ib.body),
+                                        expr_types,
+                                        facts,
+                                        /* require_pure */ true,
+                                    );
+                                }
+                                TypeMemberKind::Property(pd) if pd.init.is_some() => {
+                                    let pname = env.interner.resolve(pd.name.symbol);
+                                    let what = format!(
+                                        "class `{}` 属性 `{pname}`",
+                                        env.interner.resolve(d.name.symbol)
+                                    );
+                                    if let Some(init) = &pd.init {
+                                        expr::check_init_body(
+                                            env,
+                                            imports,
+                                            resolution,
+                                            diags,
+                                            package_prefix,
+                                            this_ty,
+                                            what,
+                                            expr::PureInitSite::Expr(init),
+                                            expr_types,
+                                            facts,
+                                            /* require_pure */ true,
+                                        );
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                     // computed property 引用 `field` 检查。
                     check_computed_property_field_ref(&body.members, env.interner, diags);
                 }
@@ -3141,7 +3196,8 @@ fn record_class_ctor_layout(
         if !matches!(env.index.category(base_fqn), Some(NominalCategory::Class)) {
             continue;
         }
-        if st.args.is_empty() || st.args.iter().any(|a| a.name.is_some()) {
+        // 命名实参的 super 委托不静态解析（位置实参才解析）。
+        if st.args.iter().any(|a| a.name.is_some()) {
             return;
         }
         let params = env.class_ctor_params.get(&fqn).cloned().unwrap_or_default();
@@ -3156,6 +3212,8 @@ fn record_class_ctor_layout(
                 }
             }
         }
+        // 无实参（`: A()`）也是合法的 super 委托（args 为空）；只有实参存在但无法
+        // 静态解析时才跳过（resolved_all == false）。前者是最常见的继承构造形式。
         if resolved_all {
             env.super_ctor_delegations.insert(
                 fqn,

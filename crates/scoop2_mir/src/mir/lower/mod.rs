@@ -130,6 +130,24 @@ fn lower_file(
                         local_items.push(remap_item(&remap, it));
                     }
                 }
+                // class 初始化 callable（`<Class>.$init`）：仅当类有 init 块 / 属性初始化器 /
+                // 超类委托时合成。codegen 在 scoop_alloc_typed 之后调用它，执行 Kotlin 顺序
+                // 的 super 委托 / 属性参数赋值 / 属性初始化器 / init 块。
+                if let Some((init_fd, nested, init_store)) = builder::lower_class_init_callable(
+                    file_id,
+                    d,
+                    hir,
+                    package_prefix,
+                    &module.types.clone(),
+                    errors,
+                    owner_sym,
+                ) {
+                    let remap = module.types.extend_from(&init_store);
+                    local_items.push(remap_item(&remap, Item::Fun(init_fd)));
+                    for nf in nested {
+                        local_items.push(remap_item(&remap, Item::Fun(nf)));
+                    }
+                }
             }
             ItemKind::Object(d) => {
                 if let Some(name) = &d.name {

@@ -132,6 +132,7 @@ pub fn materialize(
         queue: VecDeque::new(),
         seen: HashMap::new(),
         backend_contracts: BackendContracts::default(),
+        interner: hir.interner.clone(),
     };
     // 种子：entry 函数（无类型实参）或所有非泛型函数。
     if let Some(entry) = entry_fqn {
@@ -472,6 +473,8 @@ struct Materializer {
     queue: VecDeque<InstanceKey>,
     seen: HashMap<InstanceKey, bool>,
     backend_contracts: BackendContracts,
+    /// interner（解析 ClassCtor.type_fqn Symbol 为 FQN 文本，供 $init 实例化入队）。
+    interner: scoop2_base::Interner,
 }
 
 impl Materializer {
@@ -522,7 +525,7 @@ impl Materializer {
         for fd in family {
             if let Some(body) = &fd.body {
                 let mut raw_reqs = Vec::new();
-                scan_body_calls(body, &mut raw_reqs);
+                scan_body_calls(body, &mut raw_reqs, &self.interner);
                 for r in raw_reqs {
                     if self.templates.contains_key(&r.template_fqn) {
                         reqs.push(r);
@@ -1068,18 +1071,26 @@ fn subst_pattern(pat: &mut crate::mir::Pattern, subst: &Subst, store: &mut TypeS
 // 可达性扫描（递归进实例化后的 body）
 // ---------------------------------------------------------------------------
 
-fn scan_body_calls(body: &Body, reqs: &mut Vec<InstanceKey>) {
+fn scan_body_calls(
+    body: &Body,
+    reqs: &mut Vec<InstanceKey>,
+    interner: &scoop2_base::Interner,
+) {
     for block in &body.blocks {
         for stmt in &block.stmts {
             if let StatementKind::Assign { value, .. } = &stmt.kind {
-                scan_rvalue_calls(value, reqs);
+                scan_rvalue_calls(value, reqs, interner);
             }
         }
         scan_terminator_calls(&block.terminator.kind, reqs);
     }
 }
 
-fn scan_rvalue_calls(rv: &Rvalue, reqs: &mut Vec<InstanceKey>) {
+fn scan_rvalue_calls(
+    rv: &Rvalue,
+    reqs: &mut Vec<InstanceKey>,
+    interner: &scoop2_base::Interner,
+) {
     match rv {
         Rvalue::Call { kind, args, .. } => {
             scan_call_kind(kind, reqs);
@@ -1090,6 +1101,18 @@ fn scan_rvalue_calls(rv: &Rvalue, reqs: &mut Vec<InstanceKey>) {
         Rvalue::MakeClosure { invoke_fqn, .. } => {
             reqs.push(InstanceKey {
                 template_fqn: invoke_fqn.clone(),
+                overload_sig: String::new(),
+                type_args: Vec::new(),
+            });
+        }
+        // class 构造：强制实例化该类的 `<Class>.$init` 初始化 callable
+        //（codegen 在 alloc 后调用它执行 super 委托 / 属性初始化器 / init 块）。
+        // 仅当类合成了 $init（有 init 体）时 templates 里才有该条目；
+        // 无 init 体的类此处 push 一个不存在的 template，scan_calls 会过滤掉。
+        Rvalue::ClassCtor { type_fqn, .. } => {
+            let class_fqn = interner.resolve(*type_fqn);
+            reqs.push(InstanceKey {
+                template_fqn: format!("{}.$init", class_fqn),
                 overload_sig: String::new(),
                 type_args: Vec::new(),
             });

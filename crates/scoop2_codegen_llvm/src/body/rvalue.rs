@@ -3778,6 +3778,28 @@ fn lower_class_ctor<'a, 'ctx>(
                 scoop2_base::Span::default(),
             )
         })?;
+    // 7. 调用 class 初始化 callable（`<Class>.$init`）：执行 super 委托 / 属性参数赋值 /
+    //    属性初始化器 / init 块（Kotlin 顺序）。仅当类有 init 体时该 callable 存在。
+    //    init callable 签名：(this: GC ptr, ctor_param0, ctor_param1, ...) -> Unit。
+    //    实参 = [obj_gc, ...原 ctor args]。
+    let init_fqn = format!("{}.$init", class_fqn);
+    if let Some(init_fv) = fl
+        .cg
+        .lookup_callable_fn(&init_fqn)
+        .or_else(|| fl.cg.module.get_function(&init_fqn))
+    {
+        let mut init_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(args.len() + 1);
+        init_args.push(obj_gc.into());
+        for arg in args {
+            let val = match arg {
+                LirOperand::Local(id) => fl.load_local(*id)?,
+                LirOperand::Const(c) => fl.lower_const_value(c)?,
+            };
+            init_args.push(val.into());
+        }
+        let _ = fl.builder.build_call(init_fv, &init_args, "ctor_init");
+    }
     Ok(obj_gc.into())
 }
 

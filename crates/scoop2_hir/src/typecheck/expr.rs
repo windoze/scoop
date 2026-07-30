@@ -469,6 +469,41 @@ pub(super) fn check_pure_static_init<'a, 'i>(
     expr_types: &'a mut crate::resolve::output::NodeIdTable<TypeId>,
     facts: &'a mut crate::hir::SemanticFacts,
 ) {
+    check_init_body(
+        env,
+        imports,
+        resolution,
+        diags,
+        package_prefix,
+        this_ty,
+        what,
+        site,
+        expr_types,
+        facts,
+        /* require_pure */ true,
+    )
+}
+
+/// 检查初始化体（init 块 / property initializer / 构造体）的类型，并写回
+/// `call_resolutions` / `value_refs` / `expr_types` 语义事实，供 MIR lowering 消费。
+///
+/// `require_pure = true`（object 静态初始化器）：禁止 effect，违反报
+/// `static_initializer_must_be_pure`。
+/// `require_pure = false`（class init 块 / property initializer）：允许 effect
+/// （Kotlin 语义——构造时可调用任意成员、可抛异常），仅做类型检查与事实记录。
+pub(super) fn check_init_body<'a, 'i>(
+    env: &mut TypeEnv<'i>,
+    imports: &'a ImportTable,
+    resolution: &'a Resolution,
+    diags: &'a mut DiagnosticSink,
+    package_prefix: &str,
+    this_ty: Option<TypeId>,
+    what: String,
+    site: PureInitSite<'_>,
+    expr_types: &'a mut crate::resolve::output::NodeIdTable<TypeId>,
+    facts: &'a mut crate::hir::SemanticFacts,
+    require_pure: bool,
+) {
     let mut c = ExprChecker {
         env,
         imports,
@@ -504,9 +539,13 @@ pub(super) fn check_pure_static_init<'a, 'i>(
             c.walk_expr(e);
         }
     }
-    if let Some(span) = c.performed_effects.first().map(|(_, s)| *s) {
-        c.diags
-            .push(diagnostics::static_initializer_must_be_pure(&what, span));
+    // 仅 require_pure（object 静态初始化器）时才报 effect 违规；
+    // class init 块 / property initializer 允许 effect（构造时语义）。
+    if require_pure {
+        if let Some(span) = c.performed_effects.first().map(|(_, s)| *s) {
+            c.diags
+                .push(diagnostics::static_initializer_must_be_pure(&what, span));
+        }
     }
 }
 
