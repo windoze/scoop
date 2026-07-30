@@ -1100,7 +1100,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     return;
                 }
                 if let Some(e) = value {
+                    // 把函数返回类型作为期望类型传给 return 表达式，
+                    // 使裸 variant（如 `return None`）能从期望类型推断为 Option<T> 等。
+                    let saved_typed = self.in_typed_val_init;
+                    let saved_typed_ty = self.typed_val_init_ty;
+                    self.in_typed_val_init = self.return_ty.is_some();
+                    self.typed_val_init_ty = self.return_ty;
                     let t = self.walk_expr(e);
+                    self.in_typed_val_init = saved_typed;
+                    self.typed_val_init_ty = saved_typed_ty;
                     if let Some(expected) = self.return_ty
                         && !self.assignable(t, expected)
                         // 期望为函数类型但实参不是函数类型时跳过（`{ ... }` 块表达式应
