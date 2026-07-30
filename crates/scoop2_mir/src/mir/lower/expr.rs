@@ -549,6 +549,7 @@ fn emit_call_resolution(
             fqn,
             explicit_type_args,
             inferred_type_args,
+            param_types,
             ..
         } => {
             let callee_fqn = builder.hir.interner.resolve(*fqn).to_string();
@@ -588,6 +589,7 @@ fn emit_call_resolution(
             is_virtual,
             is_interface,
             explicit_type_args,
+            param_types,
             ..
         } => {
             // 用真实 lowered receiver operand（由调用方传入），不再用未初始化 temp。
@@ -623,7 +625,12 @@ fn emit_call_resolution(
                 return Operand::Local(tmp);
             }
             let member_fqn = format!("{}.{}", owner_str, method_str);
-            let overload_sig = member_overload_sig(builder, *owner_fqn, *method_name);
+            // 使用 HIR 携带的 param_types 构建 overload_sig（不再查 hir.member_funs）。
+            let overload_sig = crate::mir::stable_id::build_overload_sig(
+                &builder.types,
+                &builder.hir.interner,
+                param_types,
+            );
             let stk = crate::mir::stable_id::make_stable_template_key(
                 crate::mir::stable_id::StableHashScope::Dump,
                 &member_fqn,

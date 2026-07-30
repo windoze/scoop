@@ -2545,6 +2545,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 decl_file,
                                 explicit_type_args: Vec::new(),
                                 inferred_type_args: Vec::new(),
+                                param_types: self.first_overload_param_types(*fqn),
                                 return_ty,
                             });
                         }
@@ -2633,6 +2634,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     is_interface,
                     explicit_type_args: Vec::new(),
                     inferred_type_args: Vec::new(),
+                    param_types: self.first_member_param_types(owner_fqn, name.symbol),
                     return_ty,
                 })
             }
@@ -2686,6 +2688,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     decl_file,
                     explicit_type_args: explicit_type_args.clone(),
                     inferred_type_args: explicit_type_args,
+                    param_types: self.first_overload_param_types(fqn),
                     return_ty,
                 })
             }
@@ -2708,6 +2711,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 is_interface,
                 explicit_type_args: explicit_type_args.clone(),
                 inferred_type_args: explicit_type_args,
+                param_types: self.first_member_param_types(owner_fqn, method_name),
                 return_ty,
             }),
             other => Some(other),
@@ -2746,6 +2750,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 is_interface,
                 explicit_type_args: Vec::new(),
                 inferred_type_args: Vec::new(),
+                param_types: self.first_member_param_types(owner_fqn, method_sym),
                 return_ty,
             },
         );
@@ -2780,6 +2785,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 is_interface,
                 explicit_type_args: Vec::new(),
                 inferred_type_args: Vec::new(),
+                param_types: self.first_member_param_types(owner_fqn, method_name),
                 return_ty,
             },
         );
@@ -2811,6 +2817,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 is_interface,
                 explicit_type_args: Vec::new(),
                 inferred_type_args: Vec::new(),
+                param_types: self.first_member_param_types(owner_fqn, get_sym),
                 return_ty,
             },
         );
@@ -2880,6 +2887,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
+    /// 取顶层函数首个重载的参数类型列表（供 MIR 构建 stable_template_key）。
+    fn first_overload_param_types(&self, fqn: Symbol) -> Vec<TypeId> {
+        self.env
+            .signatures(fqn)
+            .and_then(|sigs| sigs.first())
+            .map(|s| s.params.clone())
+            .unwrap_or_default()
+    }
+
     /// 取某 owner 方法名首个重载声明 span/file。
     fn first_member_overload_decl(
         &self,
@@ -2892,6 +2908,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return (first.decl_span, first.decl_file);
         }
         (Span::default(), scoop2_base::FileId(0))
+    }
+
+    /// 取某 owner 方法名首个重载的参数类型列表（供 MIR 构建 stable_template_key）。
+    fn first_member_param_types(&self, owner_fqn: Symbol, method: Symbol) -> Vec<TypeId> {
+        self.env
+            .member_signatures(owner_fqn, method)
+            .and_then(|sigs| sigs.first())
+            .map(|s| s.params.clone())
+            .unwrap_or_default()
     }
 
     /// 方法是否虚分发（open/abstract/override 或 owner 是 interface）。
