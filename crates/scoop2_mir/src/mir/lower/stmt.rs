@@ -48,8 +48,14 @@ pub fn lower_block(builder: &mut FnLowering, block: &Block) -> Operand {
             StmtKind::While { cond, body } => {
                 super::stmt::lower_while(builder, cond, body, stmt.span);
             }
-            StmtKind::For { binder, iter, body } => {
-                super::stmt::lower_for(builder, binder, iter, body, stmt.span);
+            // For 已在 typecheck 阶段 desugar 为 do{var __it; while{when next}}，
+            // 不再到达 MIR（此处不会触发；若触发说明 desugar 未运行，报错）。
+            StmtKind::For { .. } => {
+                builder.error(
+                    crate::diagnostics::LOWER_UNRESOLVED,
+                    stmt.span,
+                    "for-loop 应在 typecheck 阶段 desugar，不应到达 MIR",
+                );
             }
             StmtKind::Break => {
                 if let Some(loop_ctx) = builder.loop_stack.last().copied() {
@@ -562,179 +568,6 @@ pub fn lower_while(builder: &mut FnLowering, cond: &ast::Expr, body: &Block, spa
     builder.current_bb = exit_bb;
 }
 
-/// lower `for (binder in iter) { body }`（desugar: iterator() + when + break，spec §16.2）。
-pub fn lower_for(
-    builder: &mut FnLowering,
-    binder: &ast::Ident,
-    iter: &ast::Expr,
-    body: &Block,
-    span: Span,
-) {
-    // 1. iter → Iterator：lower `iter.iterator()`（method call）。
-    let iter_val = super::expr::lower_expr(builder, iter);
-    let iter_ty = builder.expr_ty(iter.id);
-    // iterator() 的返回类型：保留 Iterator<T> 的 T（从 for 表达式的类型查询元素类型）。
-    // for (x in xs) 中 xs 的元素类型 = expr_types[xs] 的 nominal args[0]（若 xs 是 Array<T>）。
-    // 精确保留元素类型，不退化为 Any。
-    let iter_obj_ty = for_loop_element_type(builder, iter_ty);
-    let iter_obj = builder.alloc_temp(iter_obj_ty, span);
-    let it_method = builder.hir.interner.get("iterator");
-    let it_args = Vec::new();
-    let it_kind = if let Some(m) = it_method {
-        let method_str = builder.hir.interner.resolve(m).to_string();
-        let owner_str = "";
-        let it_dispatch = crate::mir::transport::DispatchMetadata {
-            owner_fqn: owner_str.to_string(),
-            member_name: method_str.clone(),
-            member_fqn: format!("{}.{}", owner_str, method_str),
-            member_decl_span: None,
-            receiver_ty: iter_ty,
-            stable_candidate_keys: Vec::new(),
-            stable_template_key: None,
-            generic_type_args: Vec::new(),
-            generic_eff_args: Vec::new(),
-        };
-        builder.make_dispatch_call_kind(
-            resolve_owner_fqn_from_operand(builder, &iter_val),
-            iter_val,
-            it_dispatch,
-        )
-    } else {
-        builder.error(
-            crate::diagnostics::PRELUDE_SYMBOL_MISSING,
-            span,
-            "prelude 必需符号未注册：iterator（检查 sysroot / prelude 加载）",
-        );
-        return;
-    };
-    let it_site_id = builder.next_site_id();
-    let it_transport = builder.call_transport(iter_obj_ty);
-    builder.assign(
-        iter_obj,
-        crate::mir::Rvalue::Call {
-            site_id: Some(it_site_id),
-            kind: it_kind,
-            args: it_args,
-            transport: it_transport,
-        },
-        span,
-    );
-    // 2. loop: cond = iter.hasNext(); if !cond break; val e = iter.next(); body。
-    let cond_bb = builder.new_block();
-    let body_bb = builder.new_block();
-    let exit_bb = builder.new_block();
-    builder.goto(cond_bb, span);
-    // cond。
-    builder.current_bb = cond_bb;
-    let has_next_sym = builder.hir.interner.get("hasNext");
-    let next_sym = builder.hir.interner.get("next");
-    let (has_next_sym, next_sym) = match (has_next_sym, next_sym) {
-        (Some(h), Some(n)) => (h, n),
-        _ => {
-            builder.error(
-                crate::diagnostics::PRELUDE_SYMBOL_MISSING,
-                span,
-                "prelude 必需符号未注册：hasNext / next（检查 sysroot / prelude 加载）",
-            );
-            return;
-        }
-    };
-    let bool_ty = builder.types.bool();
-    let cond_tmp = builder.alloc_temp(bool_ty, span);
-    let has_next_str = builder.hir.interner.resolve(has_next_sym).to_string();
-    let has_next_owner = "";
-    let iter_obj_ty_for_dispatch = operand_ty(builder, &Operand::Local(iter_obj));
-    let has_next_site_id = builder.next_site_id();
-    let has_next_transport = builder.call_transport(bool_ty);
-    let has_next_dispatch = crate::mir::transport::DispatchMetadata {
-        owner_fqn: has_next_owner.to_string(),
-        member_name: has_next_str.clone(),
-        member_fqn: format!("{}.{}", has_next_owner, has_next_str),
-        member_decl_span: None,
-        receiver_ty: iter_obj_ty_for_dispatch,
-        stable_candidate_keys: Vec::new(),
-        stable_template_key: None,
-        generic_type_args: Vec::new(),
-        generic_eff_args: Vec::new(),
-    };
-    let has_next_kind = builder.make_dispatch_call_kind(
-        resolve_owner_fqn_from_operand(builder, &Operand::Local(iter_obj)),
-        Operand::Local(iter_obj),
-        has_next_dispatch,
-    );
-    builder.assign(
-        cond_tmp,
-        crate::mir::Rvalue::Call {
-            site_id: Some(has_next_site_id),
-            kind: has_next_kind,
-            args: Vec::new(),
-            transport: has_next_transport,
-        },
-        span,
-    );
-    builder.terminate(
-        Terminator {
-            span,
-            kind: TerminatorKind::CondBr {
-                cond: Operand::Local(cond_tmp),
-                then_target: body_bb,
-                else_target: exit_bb,
-            },
-        },
-        body_bb,
-    );
-    // body: binder = iter.next(); <body>。
-    builder
-        .loop_stack
-        .push(crate::mir::lower::builder::LoopContext {
-            break_target: exit_bb,
-            continue_target: body_bb,
-        });
-    let elem_ty = iter_obj_ty; // for 循环 binder 类型 = iterator 元素类型（精确保留）。
-    let elem = builder.alloc_named_mutable(
-        builder.hir.interner.resolve(binder.symbol).to_string(),
-        elem_ty,
-        binder.span,
-        false,
-    );
-    builder.symbol_locals.insert(binder.symbol, elem);
-    let next_str = builder.hir.interner.resolve(next_sym).to_string();
-    let next_owner = "";
-    let iter_obj_ty_for_next = operand_ty(builder, &Operand::Local(iter_obj));
-    let next_site_id = builder.next_site_id();
-    let next_transport = builder.call_transport(elem_ty);
-    let next_dispatch = crate::mir::transport::DispatchMetadata {
-        owner_fqn: next_owner.to_string(),
-        member_name: next_str.clone(),
-        member_fqn: format!("{}.{}", next_owner, next_str),
-        member_decl_span: None,
-        receiver_ty: iter_obj_ty_for_next,
-        stable_candidate_keys: Vec::new(),
-        stable_template_key: None,
-        generic_type_args: Vec::new(),
-        generic_eff_args: Vec::new(),
-    };
-    let next_kind = builder.make_dispatch_call_kind(
-        resolve_owner_fqn_from_operand(builder, &Operand::Local(iter_obj)),
-        Operand::Local(iter_obj),
-        next_dispatch,
-    );
-    builder.assign(
-        elem,
-        crate::mir::Rvalue::Call {
-            site_id: Some(next_site_id),
-            kind: next_kind,
-            args: Vec::new(),
-            transport: next_transport,
-        },
-        span,
-    );
-    super::stmt::lower_block(builder, body);
-    builder.loop_stack.pop();
-    builder.goto(cond_bb, span);
-    builder.current_bb = exit_bb;
-}
-
 /// 取一个 operand 的类型（best-effort）。
 pub fn operand_ty(builder: &mut FnLowering, op: &Operand) -> scoop2_hir::ty::TypeId {
     match op {
@@ -854,29 +687,6 @@ fn const_ty(builder: &mut FnLowering, c: &crate::mir::ConstValue) -> scoop2_hir:
 /// - `Array<T>` (nominal with args[0]=T) → T;
 /// - `Iterator<T>` (nominal with args[0]=T) → T;
 /// - 其余 nominal → 尝试 args[0]；失败 → Any。
-fn for_loop_element_type(
-    builder: &mut FnLowering,
-    iterable_ty: scoop2_hir::ty::TypeId,
-) -> scoop2_hir::ty::TypeId {
-    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
-    match builder.types.kind(iterable_ty) {
-        // Array<T> / Iterator<T> as reference nominal.
-        TypeKind::Ref(RefTypeKind::Nominal(n)) => {
-            if let Some(&elem_ty) = n.args.first() {
-                return elem_ty;
-            }
-            builder.types.any()
-        }
-        // value nominal (struct Array<T>).
-        TypeKind::Value(ValueTypeKind::Nominal(n)) => {
-            if let Some(&elem_ty) = n.args.first() {
-                return elem_ty;
-            }
-            builder.types.any()
-        }
-        _ => builder.types.any(),
-    }
-}
 
 /// tuple 元素类型查询。
 fn tuple_elem_ty(
