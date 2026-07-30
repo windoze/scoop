@@ -5,6 +5,7 @@
 //! 未覆盖的返回明确错误（绝不静默/panic）。
 
 use inkwell::values::BasicValueEnum;
+use inkwell::AddressSpace;
 
 use scoop2_hir::ty::TypeId;
 use scoop2_lir::{LirOperand, LirRvalue};
@@ -3707,18 +3708,21 @@ fn lower_class_ctor<'a, 'ctx>(
                 })?;
             }
             BasicValueEnum::StructValue(sv) => {
-                // 聚合字段：按聚合类型 GEP 到 field_slot 后 store。
-                // 用值的实际 struct 类型（field_llvm_ty 可能与值不匹配）。
+                // 聚合字段：按**字节偏移**定位（与读取路径 MemberAccess 一致：
+                // i8 GEP 到 field_offset，再 bitcast 成聚合指针类型 store）。
+                // 错误做法是用 `gep struct_ty, base, [offset/ptr_size]`——那把
+                // 字节偏移当成「结构体元素个数」，写入地址 = base + idx*sizeof(struct)，
+                // 与读取的 base+field_offset 不一致，导致字段读写错位。
                 let struct_ty = sv.get_type();
-                let typed_slot = unsafe {
+                let byte_slot = unsafe {
                     fl.builder.build_in_bounds_gep(
-                        struct_ty,
+                        fl.cg.context.i8_type(),
                         obj_native,
                         &[fl.cg
                             .context
                             .i64_type()
-                            .const_int(field_offset / ptr_size, false)],
-                        &format!("ctor_field{}_s", i),
+                            .const_int(field_offset, false)],
+                        &format!("ctor_field{}_bytes", i),
                     )
                 }
                 .map_err(|e| {
@@ -3728,6 +3732,16 @@ fn lower_class_ctor<'a, 'ctx>(
                         scoop2_base::Span::default(),
                     )
                 })?;
+                let typed_slot = fl
+                    .builder
+                    .build_pointer_cast(byte_slot, struct_ty.ptr_type(AddressSpace::from(0)), &format!("ctor_field{}_s", i))
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "pointer_cast ctor_struct_field",
+                            scoop2_base::Span::default(),
+                        )
+                    })?;
                 fl.builder.build_store(typed_slot, sv).map_err(|e| {
                     CodegenError::llvm(
                         e.to_string(),
