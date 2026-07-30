@@ -356,6 +356,8 @@ fn reshape_expr(expr: &mut Expr, cx: &mut Cx) {
                     member: *member,
                 },
             };
+            // Some 分支体：把访问结果包回 Some(...)，使两分支同为 Option<T>。
+            let some_body = make_variant_call(cx, "Some", vec![access], span);
             // None 字面量（variant 引用）。
             let none_expr = Expr {
                 id: cx.nid(),
@@ -364,7 +366,7 @@ fn reshape_expr(expr: &mut Expr, cx: &mut Cx) {
             };
             let some_pat = make_some_pattern(cx, binder_for_pat, span);
             let none_pat = make_none_pattern(cx, span);
-            let some_arm = make_when_arm(cx, some_pat, access, span);
+            let some_arm = make_when_arm(cx, some_pat, some_body, span);
             let none_arm = make_when_arm(cx, none_pat, none_expr, span);
             let when_id = cx.nid();
             *expr = Expr {
@@ -715,6 +717,33 @@ fn make_when_arm(cx: &mut Cx, pat: Pattern, body: Expr, span: Span) -> WhenArm {
         pat,
         guard: None,
         body,
+    }
+}
+
+/// 构造 variant 调用 `Name(args...)`（如 `Some(x)`）。
+fn make_variant_call(cx: &mut Cx, name: &str, args: Vec<Expr>, span: Span) -> Expr {
+    let callee = Expr {
+        id: cx.nid(),
+        span,
+        kind: ExprKind::Ident(cx.ident(name, span)),
+    };
+    let call_args: Vec<CallArg> = args
+        .into_iter()
+        .map(|a| CallArg {
+            id: cx.nid(),
+            span: a.span,
+            name: None,
+            is_spread: false,
+            value: a,
+        })
+        .collect();
+    Expr {
+        id: cx.nid(),
+        span,
+        kind: ExprKind::Call {
+            callee: Box::new(callee),
+            args: call_args,
+        },
     }
 }
 

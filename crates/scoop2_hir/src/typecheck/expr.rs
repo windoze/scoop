@@ -8131,6 +8131,9 @@ pub(super) fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> O
         TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
         TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
         TypeKind::Ref(RefTypeKind::Any) => "scoop.core.Any",
+        // Option<T>：内建 ValueTypeKind，但 owner FQN 指向 sysroot 的 enum 声明，
+        // 使 unwrap/isSome/isNone 等 std method 可被 member 解析命中。
+        TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
         _ => return None,
     };
     interner.get(name)
