@@ -736,8 +736,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         let fk = self.env.store.kind(found);
         let ek = self.env.store.kind(expected);
-        // Any：所有类型可装箱赋值给 Any（spec P2 §2.1）。
-        if matches!(ek, TypeKind::Ref(crate::ty::RefTypeKind::Any)) {
+        // Any：所有类型可装箱赋值给 Any（spec P2 §2.1），**但**非闭合/非 Pure
+        // 函数类型不可擦除到 Any（只有 Pure! 闭合函数是数据）。
+        if self.env.store.is_nominal_with_fqn(expected, self.env.store.any_fqn()) {
+            if let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = fk {
+                return ft.closed && ft.effects.is_pure();
+            }
             return true;
         }
         // TypeParam：leniently accept（泛型实例化推迟；签名中的类型参数可接受任何实参）。
@@ -848,29 +852,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         {
             return true;
         }
-        // 隐式 Any 根：所有引用类型（非值标量）是 Any 的子类型。
-        if let Some(any_fqn) = self.env.interner.get("scoop.core.Any")
-            && fqn_b == any_fqn
-        {
-            let a_text = self.env.interner.resolve(fqn_a);
-            // 值标量不是 Any 的子类型（需 boxing）。
-            let is_value_scalar = matches!(
-                a_text,
-                "scoop.core.Int"
-                    | "scoop.core.UInt"
-                    | "scoop.core.Bool"
-                    | "scoop.core.Char"
-                    | "scoop.core.Float32"
-                    | "scoop.core.Float64"
-            ) || a_text.contains("IntN")
-                || a_text.contains("UIntN");
-            // effect 类型不是值类型，可作为 Any。
-            let is_effect = self
-                .env
-                .index
-                .category(fqn_a)
-                .is_some_and(|c| matches!(c, crate::resolve::symbol::NominalCategory::Effect));
-            return !is_value_scalar || is_effect;
+        // 隐式 Any 根：所有类型（ref + value）都是 Any 的子类型（O(1) 装箱，spec）。
+        if fqn_b == self.env.store.any_fqn() && self.env.store.any_fqn() != scoop2_base::Symbol::default() {
+            return true;
         }
         false
     }
@@ -887,11 +871,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     fn check_assignable(&mut self, found: TypeId, expected: TypeId, span: Span) {
-        // 函数值擦除到 Any：必须是闭合 Pure!（open / Pure 或带 effect 的函数不可擦除）。
-        if matches!(
-            self.env.store.kind(expected),
-            TypeKind::Ref(crate::ty::RefTypeKind::Any)
-        ) && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = self.env.store.kind(found)
+        // 函数值擦除到 Any：必须是闭合 Pure!（effectful 函数不可擦除为 Any）。
+        // assignable_with 已拒绝，这里给精确诊断。
+        if self.env.store.is_nominal_with_fqn(expected, self.env.store.any_fqn())
+            && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = self.env.store.kind(found)
             && !(ft.closed && ft.effects.is_pure())
         {
             self.diags
@@ -964,10 +947,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     // 这里保守：只要 inner 当前类型可赋值给收窄目标或收窄目标是 inner 的子类型即收窄。
                     let cur = self.locals.get(&ident.symbol).copied();
                     if let Some(cur) = cur {
-                        let cur_is_any = matches!(
-                            self.env.store.kind(cur),
-                            TypeKind::Ref(crate::ty::RefTypeKind::Any)
-                        );
+                        let cur_is_any = self
+                            .env
+                            .store
+                            .is_nominal_with_fqn(cur, self.env.store.any_fqn());
                         let target_subtype = self.assignable(target, cur);
                         if cur_is_any || target_subtype {
                             match op {
@@ -1216,10 +1199,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         // 函数值擦除到 Any：必须是闭合 Pure!（open / Pure 或带 effect 的函数不可擦除）。
         if let (Some(d), Some(i)) = (declared, init_ty)
-            && matches!(
-                self.env.store.kind(d),
-                TypeKind::Ref(crate::ty::RefTypeKind::Any)
-            )
+            && self
+                .env
+                .store
+                .is_nominal_with_fqn(d, self.env.store.any_fqn())
             && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = self.env.store.kind(i)
             && !(ft.closed && ft.effects.is_pure())
         {
@@ -8243,7 +8226,6 @@ pub(super) fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> O
         TypeKind::Value(ValueTypeKind::UIntN(32)) => "scoop.core.UInt32",
         TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
         TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
-        TypeKind::Ref(RefTypeKind::Any) => "scoop.core.Any",
         // nominal 值类型（含 Option<T>：它的 FQN 就是 scoop.core.Option，
         // 使 unwrap/isSome/isNone 等 std method 可被 member 解析命中）。
         TypeKind::Value(ValueTypeKind::Nominal(n)) => return Some(n.fqn),

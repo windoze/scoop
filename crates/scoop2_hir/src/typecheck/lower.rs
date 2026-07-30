@@ -197,7 +197,7 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             if let Some(b) = self.env.builtin(&name_text) {
                 return b;
             }
-            // Any → Ref(RefTypeKind::Any)（spec P2 §2.1 根引用类型）。
+            // Any → Ref(Nominal{scoop.core.Any})（spec P2 §2.1 根引用类型）。
             let stripped = name_text.strip_prefix("scoop.core.").unwrap_or(&name_text);
             if stripped == "Any" {
                 return self.env.store.any();

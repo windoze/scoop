@@ -367,11 +367,10 @@ pub enum TypeKind {
 /// 引用类型分支。
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum RefTypeKind {
-    /// `Any`：所有可传递引用值的根接口（P2 §2.1）。
-    Any,
     /// `String`（GC 引用、内容相等，P2 §3.5）。
     String,
-    /// class / interface / object / 数组 等 nominal 引用类型。
+    /// class / interface / object / 数组 等 nominal 引用类型（含 `Any`：
+    /// 它是 sysroot 空 interface，FQN 固定为 `scoop.core.Any`）。
     Nominal(NominalType),
     /// 函数类型（函数值是引用）。
     Function(FunctionType),
@@ -423,7 +422,6 @@ impl std::fmt::Debug for TypeKind {
 impl std::fmt::Debug for RefTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RefTypeKind::Any => write!(f, "Any"),
             RefTypeKind::String => write!(f, "String"),
             RefTypeKind::Nominal(n) => write!(f, "Nominal({n:?})"),
             RefTypeKind::Function(ft) => write!(f, "Function({ft:?})"),
@@ -497,6 +495,8 @@ pub struct TypeStore {
     /// 经 interner resolve 一次后注入。`option()` 便利构造器用它产出 value nominal。
     /// Option 是普通 enum，无任何后门——这只是缓存其固定 FQN。
     option_fqn: Symbol,
+    /// `Any` 的固定 FQN symbol（`scoop.core.Any`）。同理缓存。
+    any_fqn: Symbol,
 }
 
 impl TypeStore {
@@ -513,6 +513,16 @@ impl TypeStore {
     /// 取已注入的 `Option` FQN（用于通用 FQN 判定）。未注入时返回 default Symbol。
     pub fn option_fqn(&self) -> Symbol {
         self.option_fqn
+    }
+
+    /// 注入 `Any` 的固定 FQN（`scoop.core.Any`）。
+    pub fn set_any_fqn(&mut self, fqn: Symbol) {
+        self.any_fqn = fqn;
+    }
+
+    /// 取已注入的 `Any` FQN。
+    pub fn any_fqn(&self) -> Symbol {
+        self.any_fqn
     }
 
     pub fn len(&self) -> usize {
@@ -649,8 +659,15 @@ impl TypeStore {
     pub fn string(&mut self) -> TypeId {
         self.intern(TypeKind::Ref(RefTypeKind::String))
     }
+    /// `Any` 便利构造器：产出 `Ref(Nominal{scoop.core.Any})`。
+    /// Any 是 sysroot 的空 interface（所有类型的根）。需先 [`set_any_fqn`] 注入 FQN。
     pub fn any(&mut self) -> TypeId {
-        self.intern(TypeKind::Ref(RefTypeKind::Any))
+        let n = NominalType {
+            fqn: self.any_fqn,
+            args: vec![],
+            eff: None,
+        };
+        self.intern(TypeKind::Ref(RefTypeKind::Nominal(n)))
     }
     /// `Option<T>` 便利构造器：产出 `Value(Nominal{fqn: scoop.core.Option, args:[T]})`。
     /// Option 是普通 enum（值类型），无后门——这只是省去手写 nominal 的便捷函数。
@@ -765,9 +782,8 @@ impl TypeStore {
                 let n = self.apply_subst_nominal(n, subst, eff_subst);
                 self.intern(TypeKind::Value(ValueTypeKind::Nominal(n)))
             }
-            // 标量 / Unit / Any / String / Nothing / Star：内部无参数，原样返回。
-            TypeKind::Ref(RefTypeKind::Any)
-            | TypeKind::Ref(RefTypeKind::String)
+            // 标量 / Unit / String / Nothing / Star：内部无参数，原样返回。
+            TypeKind::Ref(RefTypeKind::String)
             | TypeKind::Value(ValueTypeKind::Unit)
             | TypeKind::Value(ValueTypeKind::Bool)
             | TypeKind::Value(ValueTypeKind::Char)
@@ -956,6 +972,12 @@ pub fn render_type(
     id: TypeId,
     full_fqn: bool,
 ) -> String {
+    // Any（scoop.core.Any）是根类型关键字，始终渲染为短名 `Any`（与 Nothing 一致），
+    // 而非全限定 `scoop.core.Any`。仅在 any_fqn 已注入时生效。
+    let any_fqn = store.any_fqn();
+    if any_fqn != Symbol::default() && store.is_nominal_with_fqn(id, any_fqn) {
+        return "Any".to_string();
+    }
     render_kind(store, interner, store.kind(id), full_fqn)
 }
 
@@ -1048,7 +1070,6 @@ fn render_ref(
     full_fqn: bool,
 ) -> String {
     match r {
-        RefTypeKind::Any => "Any".into(),
         RefTypeKind::String => {
             if full_fqn {
                 "scoop.core.String".into()
@@ -1475,6 +1496,8 @@ mod tests {
         // Option 现为 value nominal：option_fqn 必须注入（与 render 的 FQN 判定一致），
         // render 才能识别为 `T?`。
         s.set_option_fqn(interner.intern("scoop.core.Option"));
+        // Any 现为 ref nominal{scoop.core.Any}：any_fqn 必须注入，render 才能识别为 `Any`。
+        s.set_any_fqn(interner.intern("scoop.core.Any"));
         let unit = s.unit();
         let bool_ = s.bool();
         let int = s.int();

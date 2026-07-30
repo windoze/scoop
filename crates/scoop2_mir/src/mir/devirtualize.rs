@@ -146,6 +146,10 @@ fn is_final_type(store: &TypeStore, ctx: &DevirtContext, ty: scoop2_hir::ty::Typ
         TypeKind::Value(_) | TypeKind::Nothing => true,
         TypeKind::Ref(RefTypeKind::String) => true, // String 是 final（无子类）。
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
+            // Any 是所有类型的根（任意类型皆其子类）→ 永不可去虚化。
+            if n.fqn == store.any_fqn() {
+                return false;
+            }
             let fqn_text = ctx.interner.resolve(n.fqn);
             !ctx.is_extensible_class(fqn_text) && !ctx.is_interface(fqn_text)
         }

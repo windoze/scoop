@@ -1283,13 +1283,12 @@ fn resolve_with_update_path(
 
 /// 在 TypeStore 中查找 Any 引用类型的 TypeId（不修改 store）。
 fn find_any_type(types: &scoop2_hir::ty::TypeStore) -> scoop2_hir::ty::TypeId {
-    // TypeStore 的 Any 类型在 intern 时分配了固定 ID。
-    // 遍历前几个 ID 查找 Ref(Any)。
+    // Any 现为 ref nominal{scoop.core.Any}：按 FQN 查找其已 intern 的 TypeId。
+    let any_fqn = types.any_fqn();
     for i in 0..100u32 {
         let tid = scoop2_hir::ty::TypeId(i);
-        match types.kind(tid) {
-            scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Any) => return tid,
-            _ => {}
+        if types.is_nominal_with_fqn(tid, any_fqn) {
+            return tid;
         }
     }
     // 回退：返回 Nothing（size 0）。

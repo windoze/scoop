@@ -552,7 +552,7 @@ fn scoop_abi_v1_type_is_supported(env: &TypeEnv, id: TypeId) -> bool {
     match env.store.kind(id) {
         TypeKind::Ref(RefTypeKind::Function(_)) | TypeKind::StarProjection => false,
         TypeKind::Ref(RefTypeKind::Nominal(n)) => !is_continuation_fqn(env.interner.resolve(n.fqn)),
-        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String | RefTypeKind::Union(_)) => true,
+        TypeKind::Ref(RefTypeKind::String | RefTypeKind::Union(_)) => true,
         TypeKind::Param(_) => true,
         TypeKind::Nothing => true,
         TypeKind::Value(ValueTypeKind::Nominal(n)) if n.fqn == env.store.option_fqn() => {

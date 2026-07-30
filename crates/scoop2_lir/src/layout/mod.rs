@@ -418,19 +418,23 @@ fn compute_layout(
         }
         TypeKind::Ref(ref_kind) => {
             let (gc_traceable, rk) = match ref_kind {
-                RefTypeKind::Any => (true, RefKind::Any),
                 RefTypeKind::String => (true, RefKind::String),
                 RefTypeKind::Nominal(n) => {
-                    // 区分 interface 引用与 class 引用：interface 走 itable 分发，
-                    // class 走 vtable 分发。HIR 的 interface_fqns 集合记录所有 interface
-                    // 类型的 FQN，据此选择 RefKind。
-                    let is_interface = hir.interface_fqns.contains(&n.fqn);
-                    let rk = if is_interface {
-                        RefKind::Interface
+                    // Any（scoop.core.Any）布局为根引用：GC 可追踪、RefKind::Any。
+                    if n.fqn == types.any_fqn() {
+                        (true, RefKind::Any)
                     } else {
-                        RefKind::Class
-                    };
-                    (true, rk)
+                        // 区分 interface 引用与 class 引用：interface 走 itable 分发，
+                        // class 走 vtable 分发。HIR 的 interface_fqns 集合记录所有 interface
+                        // 类型的 FQN，据此选择 RefKind。
+                        let is_interface = hir.interface_fqns.contains(&n.fqn);
+                        let rk = if is_interface {
+                            RefKind::Interface
+                        } else {
+                            RefKind::Class
+                        };
+                        (true, rk)
+                    }
                 }
                 RefTypeKind::Function(_) => {
                     // 函数类型走 Function 布局种类。

@@ -565,7 +565,6 @@ fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, Str
             .get(&env.store.param_decl(*p).name)
             .cloned()
             .unwrap_or_else(|| "Any".to_string()),
-        TypeKind::Ref(crate::ty::RefTypeKind::Any) => "Any".to_string(),
         TypeKind::Ref(crate::ty::RefTypeKind::String) => "String".to_string(),
         TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
         | TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => env

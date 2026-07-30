@@ -50,7 +50,6 @@ fn encode_type(
         return "?depth".to_string();
     }
     let encoded = match types.kind(ty) {
-        TypeKind::Ref(RefTypeKind::Any) => "R(Any)".to_string(),
         TypeKind::Ref(RefTypeKind::String) => "R(String)".to_string(),
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
             let fqn_text = interner.resolve(n.fqn).to_string();

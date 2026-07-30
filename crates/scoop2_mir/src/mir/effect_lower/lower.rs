@@ -1713,11 +1713,8 @@ fn lower_to_effect_step(
     {
         let any_ty = store.any();
         let is_imprecise = |store: &TypeStore, ty: TypeId| {
-            matches!(
-                store.kind(ty),
-                scoop2_hir::ty::TypeKind::Param(_)
-                    | scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Any)
-            )
+            matches!(store.kind(ty), scoop2_hir::ty::TypeKind::Param(_))
+                || store.is_nominal_with_fqn(ty, store.any_fqn())
         };
         let mut resume_retype: Vec<(usize, usize, usize, TypeId)> = Vec::new();
         for route in escape_routing.values() {
