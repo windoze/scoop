@@ -4741,7 +4741,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         let has_named = args.iter().any(|a| a.name.is_some());
         if has_named {
-            // 命名实参：每个名字必须在签名中，且类型可赋值；未提供的必需参数须有默认。
+            // 命名实参：每个调用提供的命名实参名必须在签名中存在（否则不适用）。
+            for a in args {
+                if let Some(aname) = &a.name
+                    && !s.param_names.contains(&aname.symbol)
+                {
+                    return false;
+                }
+            }
+            // 每个签名参数：要么被命名实参提供且类型可赋值，要么有默认值。
             for (i, &pname) in s.param_names.iter().enumerate() {
                 let has_default = s.has_defaults.get(i).copied().unwrap_or(false);
                 let arg_idx = args

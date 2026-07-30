@@ -29,6 +29,9 @@ pub struct Signature {
     pub param_names: Vec<Symbol>,
     /// 各参数是否有默认值（与 params 等长）。
     pub has_defaults: Vec<bool>,
+    /// 各参数默认值表达式的 NodeId（与 params 等长；None = 无默认值）。
+    /// 供 MIR lower 在调用点填充缺失参数时 lower 默认表达式。
+    pub default_exprs: Vec<Option<scoop2_base::NodeId>>,
     /// 是否有 vararg 参数（最后一个参数为 `vararg`，可接收任意多余位置实参）。
     pub has_vararg: bool,
     /// 声明处修饰符（open/abstract/override/final 等；M6 override 匹配用）。
@@ -747,6 +750,7 @@ pub fn register_top_level_signatures(
                     .push(Signature {
                         param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                         has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
+                        default_exprs: d.params.iter().map(|p| p.default.as_ref().map(|e| e.id)).collect(),
                         has_vararg: d.params.iter().any(|p| p.is_vararg),
                         params,
                         return_ty,
@@ -834,6 +838,7 @@ pub fn register_top_level_signatures(
             Signature {
                 param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                 has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
+                default_exprs: d.params.iter().map(|p| p.default.as_ref().map(|e| e.id)).collect(),
                 has_vararg: d.params.iter().any(|p| p.is_vararg),
                 params,
                 return_ty,
@@ -1088,6 +1093,7 @@ fn register_body_members(
                     Signature {
                         param_names: d.params.iter().map(|p| p.name.symbol).collect(),
                         has_defaults: d.params.iter().map(|p| p.default.is_some()).collect(),
+                        default_exprs: d.params.iter().map(|p| p.default.as_ref().map(|e| e.id)).collect(),
                         has_vararg: d.params.iter().any(|p| p.is_vararg),
                         params,
                         return_ty,
@@ -1594,6 +1600,7 @@ pub fn register_constructors(
                     d.type_params.as_ref(),
                     &mut TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags),
                 );
+                let n_params = params.len();
                 env.ctor_signatures.insert(
                     owner,
                     vec![Signature {
@@ -1603,6 +1610,7 @@ pub fn register_constructors(
                         type_param_bounds: tp_bounds,
                         param_names: names,
                         has_defaults: defaults,
+                        default_exprs: vec![None; n_params],
                         has_vararg: vararg,
                         modifiers: crate::resolve::symbol::ModifierSet::default(),
                         effect: None,
@@ -1648,6 +1656,7 @@ pub fn register_constructors(
                 secondary.push(Signature {
                     param_names: c.params.iter().map(|p| p.name.symbol).collect(),
                     has_defaults: c.params.iter().map(|p| p.default.is_some()).collect(),
+                    default_exprs: c.params.iter().map(|p| p.default.as_ref().map(|e| e.id)).collect(),
                     has_vararg: c.params.iter().any(|p| p.is_vararg),
                     params,
                     return_ty: unit_ty,
@@ -1731,9 +1740,16 @@ pub fn register_constructors(
                     .iter()
                     .flat_map(|pc| pc.params.iter())
                     .any(|cp| cp.is_vararg);
+                let primary_default_exprs: Vec<Option<scoop2_base::NodeId>> = d
+                    .primary_ctor
+                    .iter()
+                    .flat_map(|pc| pc.params.iter())
+                    .map(|cp| cp.default.as_ref().map(|e| e.id))
+                    .collect();
                 let mut all = vec![Signature {
                     param_names: primary_names,
                     has_defaults: primary_defaults,
+                    default_exprs: primary_default_exprs,
                     has_vararg: primary_vararg,
                     params: primary_params,
                     return_ty: env.store.unit(),
