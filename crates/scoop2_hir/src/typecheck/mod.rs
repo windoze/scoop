@@ -175,6 +175,9 @@ pub fn run_typecheck_with_options(
     // 注入 Any FQN（Any 现为 ref nominal{scoop.core.Any}，走 FQN 判定）。
     env.store
         .set_any_fqn(interner.get("scoop.core.Any").unwrap_or_default());
+    // 注入 String FQN（String 现为 ref nominal{scoop.core.String}，走 FQN 判定）。
+    env.store
+        .set_string_fqn(interner.get("scoop.core.String").unwrap_or_default());
     for &(i, ref prefix, ref imports) in &file_state {
         let inp = &inputs[i];
         // register_type_constraints 先运行（填充 eff_param_types 等供后续降级使用）。
@@ -1206,9 +1209,6 @@ fn check_main_signature(
                             .map(|a| match env.store.kind(*a) {
                                 crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(an)) => {
                                     env.interner.resolve(an.fqn).to_string()
-                                }
-                                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::String) => {
-                                    "String".to_string()
                                 }
                                 crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Int) => {
                                     "Int".to_string()

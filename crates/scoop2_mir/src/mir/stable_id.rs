@@ -50,7 +50,7 @@ fn encode_type(
         return "?depth".to_string();
     }
     let encoded = match types.kind(ty) {
-        TypeKind::Ref(RefTypeKind::String) => "R(String)".to_string(),
+        // String 现为 Ref(Nominal{scoop.core.String})，由 nominal arm 编码为 N(scoop.core.String)。
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
             let fqn_text = interner.resolve(n.fqn).to_string();
             let args: Vec<String> = n

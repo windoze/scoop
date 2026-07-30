@@ -418,11 +418,13 @@ fn compute_layout(
         }
         TypeKind::Ref(ref_kind) => {
             let (gc_traceable, rk) = match ref_kind {
-                RefTypeKind::String => (true, RefKind::String),
                 RefTypeKind::Nominal(n) => {
                     // Any（scoop.core.Any）布局为根引用：GC 可追踪、RefKind::Any。
                     if n.fqn == types.any_fqn() {
                         (true, RefKind::Any)
+                    } else if n.fqn == types.string_fqn() {
+                        // String（scoop.core.String）现为 nominal ref：GC 可追踪、RefKind::String。
+                        (true, RefKind::String)
                     } else {
                         // 区分 interface 引用与 class 引用：interface 走 itable 分发，
                         // class 走 vtable 分发。HIR 的 interface_fqns 集合记录所有 interface

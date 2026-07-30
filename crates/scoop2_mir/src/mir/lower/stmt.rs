@@ -598,11 +598,7 @@ pub fn owner_fqn_of_type(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> sc
     match builder.types.kind(ty) {
         TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,
         TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
-        TypeKind::Ref(RefTypeKind::String) => builder
-            .hir
-            .interner
-            .get("scoop.core.String")
-            .unwrap_or_default(),
+        // String 现为 Ref(Nominal{scoop.core.String})，已由上一 arm 返回 n.fqn。
         TypeKind::Value(ValueTypeKind::Bool) => builder
             .hir
             .interner

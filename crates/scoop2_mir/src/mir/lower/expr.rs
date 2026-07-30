@@ -1255,7 +1255,7 @@ fn nominal_fqn_of(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> String {
         TypeKind::Value(ValueTypeKind::Char) => "scoop.core.Char".to_string(),
         TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64".to_string(),
         TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32".to_string(),
-        TypeKind::Ref(RefTypeKind::String) => "scoop.core.String".to_string(),
+        // String 现为 Ref(Nominal{scoop.core.String})，由下一 arm resolve FQN。
         TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             builder.hir.interner.resolve(n.fqn).to_string()
         }

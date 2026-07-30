@@ -367,10 +367,8 @@ pub enum TypeKind {
 /// 引用类型分支。
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum RefTypeKind {
-    /// `String`（GC 引用、内容相等，P2 §3.5）。
-    String,
-    /// class / interface / object / 数组 等 nominal 引用类型（含 `Any`：
-    /// 它是 sysroot 空 interface，FQN 固定为 `scoop.core.Any`）。
+    /// class / interface / object / 数组 等 nominal 引用类型（含 `Any`、`String`：
+    /// 它们是 sysroot 声明的普通 class/interface，FQN 固定 `scoop.core.Any`/`.String`）。
     Nominal(NominalType),
     /// 函数类型（函数值是引用）。
     Function(FunctionType),
@@ -422,7 +420,6 @@ impl std::fmt::Debug for TypeKind {
 impl std::fmt::Debug for RefTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RefTypeKind::String => write!(f, "String"),
             RefTypeKind::Nominal(n) => write!(f, "Nominal({n:?})"),
             RefTypeKind::Function(ft) => write!(f, "Function({ft:?})"),
             RefTypeKind::Union(u) => write!(f, "Union({u:?})"),
@@ -497,6 +494,8 @@ pub struct TypeStore {
     option_fqn: Symbol,
     /// `Any` 的固定 FQN symbol（`scoop.core.Any`）。同理缓存。
     any_fqn: Symbol,
+    /// `String` 的固定 FQN symbol（`scoop.core.String`）。
+    string_fqn: Symbol,
 }
 
 impl TypeStore {
@@ -523,6 +522,16 @@ impl TypeStore {
     /// 取已注入的 `Any` FQN。
     pub fn any_fqn(&self) -> Symbol {
         self.any_fqn
+    }
+
+    /// 注入 `String` 的固定 FQN（`scoop.core.String`）。
+    pub fn set_string_fqn(&mut self, fqn: Symbol) {
+        self.string_fqn = fqn;
+    }
+
+    /// 取已注入的 `String` FQN。
+    pub fn string_fqn(&self) -> Symbol {
+        self.string_fqn
     }
 
     pub fn len(&self) -> usize {
@@ -656,8 +665,15 @@ impl TypeStore {
     pub fn uint_n(&mut self, bits: u16) -> TypeId {
         self.intern(TypeKind::Value(ValueTypeKind::UIntN(bits)))
     }
+    /// `String` 便利构造器：产出 `Ref(Nominal{scoop.core.String})`。
+    /// String 是 sysroot 的 class（引用类型）。需先 [`set_string_fqn`] 注入 FQN。
     pub fn string(&mut self) -> TypeId {
-        self.intern(TypeKind::Ref(RefTypeKind::String))
+        let n = NominalType {
+            fqn: self.string_fqn,
+            args: vec![],
+            eff: None,
+        };
+        self.intern(TypeKind::Ref(RefTypeKind::Nominal(n)))
     }
     /// `Any` 便利构造器：产出 `Ref(Nominal{scoop.core.Any})`。
     /// Any 是 sysroot 的空 interface（所有类型的根）。需先 [`set_any_fqn`] 注入 FQN。
@@ -782,9 +798,8 @@ impl TypeStore {
                 let n = self.apply_subst_nominal(n, subst, eff_subst);
                 self.intern(TypeKind::Value(ValueTypeKind::Nominal(n)))
             }
-            // 标量 / Unit / String / Nothing / Star：内部无参数，原样返回。
-            TypeKind::Ref(RefTypeKind::String)
-            | TypeKind::Value(ValueTypeKind::Unit)
+            // 标量 / Unit / Nothing / Star：内部无参数，原样返回。
+            TypeKind::Value(ValueTypeKind::Unit)
             | TypeKind::Value(ValueTypeKind::Bool)
             | TypeKind::Value(ValueTypeKind::Char)
             | TypeKind::Value(ValueTypeKind::Float64)
@@ -1070,13 +1085,6 @@ fn render_ref(
     full_fqn: bool,
 ) -> String {
     match r {
-        RefTypeKind::String => {
-            if full_fqn {
-                "scoop.core.String".into()
-            } else {
-                "String".into()
-            }
-        }
         RefTypeKind::Nominal(n) => {
             let mut s = nominal_name(interner, n.fqn, full_fqn);
             s.push_str(&nominal_tail(store, interner, n, full_fqn));
@@ -1221,6 +1229,9 @@ mod tests {
     #[test]
     fn distinct_builtin_scalars_are_distinct() {
         let mut s = TypeStore::new();
+        // String/Any 现为 ref nominal：需注入各自 FQN 才能使二者彼此不同（默认 Symbol(0) 相同）。
+        s.set_string_fqn(Symbol::from_u32(997));
+        s.set_any_fqn(Symbol::from_u32(998));
         let ids = [
             s.unit(),
             s.nothing(),
@@ -1472,6 +1483,9 @@ mod tests {
     #[test]
     fn union_flattens_drops_nothing_dedup_sorts() {
         let mut s = TypeStore::new();
+        // String/Any 现为 ref nominal：注入不同 FQN 以保证二者互异（默认 Symbol(0) 相同）。
+        s.set_string_fqn(Symbol::from_u32(997));
+        s.set_any_fqn(Symbol::from_u32(998));
         let a = s.string();
         let b = s.any();
         let nothing = s.nothing();
@@ -1498,6 +1512,8 @@ mod tests {
         s.set_option_fqn(interner.intern("scoop.core.Option"));
         // Any 现为 ref nominal{scoop.core.Any}：any_fqn 必须注入，render 才能识别为 `Any`。
         s.set_any_fqn(interner.intern("scoop.core.Any"));
+        // String 现为 ref nominal{scoop.core.String}：string_fqn 必须注入，render 才能识别为 FQN。
+        s.set_string_fqn(interner.intern("scoop.core.String"));
         let unit = s.unit();
         let bool_ = s.bool();
         let int = s.int();
@@ -1535,6 +1551,8 @@ mod tests {
     fn render_nominal_and_function_and_param() {
         let mut s = TypeStore::new();
         let mut interner = scoop2_base::Interner::new();
+        // String 现为 ref nominal{scoop.core.String}：string_fqn 必须注入，render 才能识别为 FQN。
+        s.set_string_fqn(interner.intern("scoop.core.String"));
         let int = s.int();
         let bool_ = s.bool();
         let str_ = s.string();

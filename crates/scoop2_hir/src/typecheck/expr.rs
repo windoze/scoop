@@ -3263,7 +3263,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::Binary { lhs, op, rhs } => {
                 let lt = self.walk_expr(lhs);
                 let rt = self.walk_expr(rhs);
-                let cat = scalar_cat(self.env.store.kind(lt));
+                let cat = scalar_cat(self.env.store.kind(lt), self.env.store.string_fqn());
                 let bool_ty = self.env.store.bool();
                 match builtin_binop(*op, cat, lt, rt, bool_ty) {
                     Some(t) => t,
@@ -3337,7 +3337,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ExprKind::Unary { op, expr: e } => {
                 let t = self.walk_expr(e);
-                let cat = scalar_cat(self.env.store.kind(t));
+                let cat = scalar_cat(self.env.store.kind(t), self.env.store.string_fqn());
                 let bool_ty = self.env.store.bool();
                 match builtin_unary(*op, cat, t, bool_ty) {
                     Some(t) => t,
@@ -3731,8 +3731,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let et = self.walk_expr(e);
                     // Float 字面量有吸收语义（Float64 默认可吸收为 Float32），跨 Float 类型
                     // 不做元素一致性检查；仅捕获明显的跨类别不匹配（如 Int vs String）。
-                    let both_float = scalar_cat(self.env.store.kind(elem_ty)) == ScalarCat::Float
-                        && scalar_cat(self.env.store.kind(et)) == ScalarCat::Float;
+                    let both_float = scalar_cat(
+                        self.env.store.kind(elem_ty),
+                        self.env.store.string_fqn(),
+                    ) == ScalarCat::Float
+                        && scalar_cat(self.env.store.kind(et), self.env.store.string_fqn())
+                            == ScalarCat::Float;
                     if !both_float
                         && !self.assignable(et, elem_ty)
                         && !self.env.store.is_nothing(et)
@@ -7182,14 +7186,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
             PatternKind::Literal(PatternLiteral::String(_)) => {
-                let nominal_name = match kind {
-                    TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
-                        Some(self.env.interner.resolve(n.fqn))
-                    }
-                    _ => None,
-                };
-                let is_string = matches!(kind, TypeKind::Ref(crate::ty::RefTypeKind::String))
-                    || nominal_name.is_some_and(|n| n == "String" || n.ends_with(".String"));
+                // String 现为 Ref(Nominal{scoop.core.String})，按 FQN 判定。
+                let is_string = self
+                    .env
+                    .store
+                    .is_nominal_with_fqn(subject_ty, self.env.store.string_fqn());
                 if !is_string {
                     self.diags
                         .push(diagnostics::when_string_pat_not_string(pat.span));
@@ -8225,10 +8226,10 @@ pub(super) fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> O
         TypeKind::Value(ValueTypeKind::UIntN(16)) => "scoop.core.UInt16",
         TypeKind::Value(ValueTypeKind::UIntN(32)) => "scoop.core.UInt32",
         TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
-        TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
-        // nominal 值类型（含 Option<T>：它的 FQN 就是 scoop.core.Option，
-        // 使 unwrap/isSome/isNone 等 std method 可被 member 解析命中）。
-        TypeKind::Value(ValueTypeKind::Nominal(n)) => return Some(n.fqn),
+        // nominal 类型（ref 或 value）：含 `String`（Ref(Nominal{scoop.core.String})）、
+        // `Option<T>` 等——FQN 直接来自声明，无后门。
+        TypeKind::Value(ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(RefTypeKind::Nominal(n)) => return Some(n.fqn),
         _ => return None,
     };
     interner.get(name)
@@ -8388,7 +8389,7 @@ enum ScalarCat {
     Other,
 }
 
-fn scalar_cat(kind: &TypeKind) -> ScalarCat {
+fn scalar_cat(kind: &TypeKind, string_fqn: Symbol) -> ScalarCat {
     match kind {
         TypeKind::Value(crate::ty::ValueTypeKind::Int)
         | TypeKind::Value(crate::ty::ValueTypeKind::UInt)
@@ -8398,7 +8399,10 @@ fn scalar_cat(kind: &TypeKind) -> ScalarCat {
         | TypeKind::Value(crate::ty::ValueTypeKind::Float32) => ScalarCat::Float,
         TypeKind::Value(crate::ty::ValueTypeKind::Bool) => ScalarCat::Bool,
         TypeKind::Value(crate::ty::ValueTypeKind::Char) => ScalarCat::Char,
-        TypeKind::Ref(crate::ty::RefTypeKind::String) => ScalarCat::String,
+        // String 现为 Ref(Nominal{scoop.core.String}) nominal 引用类型。
+        TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) if n.fqn == string_fqn => {
+            ScalarCat::String
+        }
         _ => ScalarCat::Other,
     }
 }
@@ -8598,7 +8602,7 @@ fn builtin_scalar_tag(k: &TypeKind) -> Option<ScalarTag> {
         TypeKind::Value(ValueTypeKind::UInt) => Some(ScalarTag::UInt),
         TypeKind::Value(ValueTypeKind::IntN(n)) => Some(ScalarTag::IntN(*n)),
         TypeKind::Value(ValueTypeKind::UIntN(n)) => Some(ScalarTag::UIntN(*n)),
-        TypeKind::Ref(crate::ty::RefTypeKind::String) => Some(ScalarTag::String),
+        // String 现为 nominal，由 nominal_fqn_scalar_tag 经 FQN 判定（见 scalar_kinds_equal）。
         _ => None,
     }
 }

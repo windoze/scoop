@@ -573,7 +573,7 @@ fn nominal_args_of(kind: &TypeKind) -> Option<&[TypeId]> {
 
 /// 标量 → scoop.core 短名 FQN。
 fn scalar_fqn(kind: &TypeKind, interner: &Interner) -> Option<Symbol> {
-    use crate::ty::{RefTypeKind, ValueTypeKind};
+    use crate::ty::ValueTypeKind;
     let name: &'static str = match kind {
         TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int",
         TypeKind::Value(ValueTypeKind::UInt) => "scoop.core.UInt",
@@ -589,7 +589,7 @@ fn scalar_fqn(kind: &TypeKind, interner: &Interner) -> Option<Symbol> {
         TypeKind::Value(ValueTypeKind::UIntN(16)) => "scoop.core.UInt16",
         TypeKind::Value(ValueTypeKind::UIntN(32)) => "scoop.core.UInt32",
         TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
-        TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
+        // String 现为 Ref(Nominal{scoop.core.String})，由调用方 nominal_fqn_of 处理。
         _ => return None,
     };
     interner.get(name)

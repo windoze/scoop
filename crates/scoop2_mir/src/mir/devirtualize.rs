@@ -109,10 +109,7 @@ fn exact_receiver_fqn(
             }
             Some(n.fqn)
         }
-        TypeKind::Ref(RefTypeKind::String) => {
-            // String 是 final（无子类）；映射到 nominal FQN。
-            ctx.interner.get("scoop.core.String")
-        }
+        // String 现为 Ref(Nominal{scoop.core.String})，已由上一 arm 覆盖（final 无子类）。
         TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Nominal(n)) => {
             // 值类型 nominal（struct/enum）不可继承 → 总是精确。
             Some(n.fqn)
@@ -144,7 +141,7 @@ fn exact_receiver_fqn(
 fn is_final_type(store: &TypeStore, ctx: &DevirtContext, ty: scoop2_hir::ty::TypeId) -> bool {
     match store.kind(ty) {
         TypeKind::Value(_) | TypeKind::Nothing => true,
-        TypeKind::Ref(RefTypeKind::String) => true, // String 是 final（无子类）。
+        // String 现为 Ref(Nominal{scoop.core.String})，已由 nominal arm 覆盖（final 无子类）。
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
             // Any 是所有类型的根（任意类型皆其子类）→ 永不可去虚化。
             if n.fqn == store.any_fqn() {
@@ -380,9 +377,15 @@ mod tests {
 
     #[test]
     fn string_is_final_any_is_not() {
-        let interner = Interner::new();
+        let mut interner = Interner::new();
+        // String/Any 现为 ref nominal：注入各自 FQN（默认 Symbol(0) 相同会使 String
+        // 误判为 Any → 不可去虚化）。需在 ctx 借用 interner 之前完成（intern 需可变借用）。
+        let string_fqn = interner.intern("scoop.core.String");
+        let any_fqn = interner.intern("scoop.core.Any");
         let ctx = empty_ctx(&interner);
         let mut store = TypeStore::new();
+        store.set_string_fqn(string_fqn);
+        store.set_any_fqn(any_fqn);
         // String 是 final（无子类，不可继承）→ 可去虚化。
         let str_ty = store.string();
         assert!(is_final_type(&store, &ctx, str_ty));

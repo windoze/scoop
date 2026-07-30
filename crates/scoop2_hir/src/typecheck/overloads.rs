@@ -565,7 +565,7 @@ fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, Str
             .get(&env.store.param_decl(*p).name)
             .cloned()
             .unwrap_or_else(|| "Any".to_string()),
-        TypeKind::Ref(crate::ty::RefTypeKind::String) => "String".to_string(),
+        // String 现为 Ref(Nominal{scoop.core.String})，由下一 arm 渲染短名 `String`。
         TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
         | TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => env
             .interner
