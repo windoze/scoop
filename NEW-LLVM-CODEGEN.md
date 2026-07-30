@@ -393,6 +393,7 @@ run-pass 271 失败按根因：
 - **sysroot 精简移除**（~40 resolve + ~30 typecheck）：使用 runtime.test/sync/thread/RefCell/AtomicInt/Lazy/IntProgression/Vec/delegate 等已移除包的 fixture。预期，待辅助功能逐步加回。
 - **class ctor init 体未执行**（init blocks / property initializers / super delegation）：LIR ClassInitPlan.init_blocks 空、FieldInit.init_kind 占位；跨 HIR/MIR/LIR/codegen 四层待补（见 §3.4 / 旧 crate class_ctor.rs 参考实现）。
 - **object/companion 静态访问**：`<unresolved:Foo>` 等——object 单例 + 静态成员访问未实现。
+- **secondary constructor**：`constructor(...) : this/super(...) { body }` 未实现（primary ctor + init 块 + property initializer + super 委托已完成）。
 - **effect frame local 类型不匹配**：try_catch 类（effect step 函数 frame local 期望指针实际 StructValue）。
 - **struct 返回值类型不匹配**：嵌套泛型 struct 构造/返回（Function return type does not match）。
 - **Float32 数组字面量吸收**：`Array<Float32> = [1.5, 2.5]` 中无后缀字面量按 f64 存储导致读取错位。
@@ -436,3 +437,17 @@ run-pass 271 失败按根因：
 - **Char 算术 / Bool.not / int_hash**：char_plus_int/char_minus_int/char_minus_char；bool_ne 一元（Bool.not）= XOR 1；int_hash/char_hash（值本身）；Char.minus 重载歧义按 result_ty 精确选 char_minus_int/char_minus_char。
 - **顶层 val/var 全局机制**：codegen `declare_top_level_globals` 为每个 global_init entry 声明 backing slot；entry main 在用户 main 前调用 init_callable 写入初值；TopLevelRef/StoreGlobal 按真实类型 load/store。LIR TopLevelRef.ty 从 global_types 按 fqn 查真实类型（修复 find_any_type 兜底）。typecheck record_assign_place 在 value_ref 未记录时按 symbol 查 top_level_val（确保 `globalVar = ...` 产出 StoreTopLevelVar）。
 - **inline rename_operand 未回写**（重大）：`rename_operand` 返回新 Operand，但 StoreTopLevelVar/StoreMember/StoreTupleIndex 调用后未赋值回 `*value`/`*receiver`，导致 inline 后这些语句引用旧 local id（跨函数顶层 var 写入/成员字段写入 inline 后错位）。修复 `*value = rename_operand(value, map)`（三处）。
+
+### 进展更新（class ctor init bodies 完成）
+
+实现了 class 构造器初始化体执行（§3.4），覆盖 primary ctor 的完整 Kotlin 初始化语义：
+
+- **HIR**：`check_init_body` 让 class init 块 / property initializer 走 init-body typecheck，写回 call_resolutions/value_refs/expr_types（此前 class init 块根本没被 typecheck——是 completeness 的「宽容区域」）。**constructor/init 块对外强制 Pure**：outward effect（含未捕获 Raise）是编译错误（构造副作用必须内部 handle 消化），规避 effectful ctor 的横切复杂度与半初始化对象 rooting 的内存安全风险。
+- **resolve**：`resolve_member_bodies` walk super 委托实参表达式（记录 value_refs），修复顶层函数调用实参（`cSuper(b)`）未被 resolve 覆盖的根因；ctor 参数注册进 typecheck locals（init 块/property initializer/super 实参都能解析构造参数引用）。
+- **MIR**：`lower_class_init_callable` 合成 `<Class>.$init(this, ctor_params...) -> Unit` callable，按 Kotlin 顺序执行 super 委托 → 属性参数赋值 → 属性初始化器 + init 块（交错）。super 委托实参支持任意表达式（从 `d.supertypes[base_index].args` 直接 lower）。ClassCtor 入队对应 `$init` 实例化。
+- **codegen**：`lower_class_ctor` 在 `scoop_alloc_typed` 后调用 `$init`（this + ctor 参数）。
+- **super_ctor_delegations 修复**：无参 super 委托（`: A()`）曾被错误跳过（`st.args.is_empty()` 判定反了）。
+
+解锁 fixture：class_init_order_inheritance_chain / class_init_super_ctor_args_eval_order / class_ctor_arg_eval_scope_shadow_free 等。
+
+**已知遗留**：secondary constructor（`constructor(...) : this/super(...) { body }`）未实现（primary ctor + init 块 + property initializer + super 委托已完成）。
