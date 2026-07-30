@@ -6082,7 +6082,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             return None;
         }
-        let mut fqn = nominal_fqn_of(self.env.store.kind(receiver_ty))?;
+        let mut fqn = nominal_fqn_of(self.env.store.kind(receiver_ty))
+            .or_else(|| scalar_fqn(self.env.store.kind(receiver_ty), &self.env.interner))?;
         // typealias 展开（最多 8 层防环）。
         for _ in 0..8 {
             if let Some((rhs, _)) = self.env.type_alias(fqn) {
