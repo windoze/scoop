@@ -41,7 +41,7 @@ pub fn lower_rvalue<'a, 'ctx>(
             result_ty,
             ..
         } => lower_member_access(fl, receiver_local, member_name, *field_offset, *result_ty),
-        LirRvalue::TopLevelRef { fqn, .. } => lower_top_level_ref(fl, fqn),
+        LirRvalue::TopLevelRef { fqn, ty } => lower_top_level_ref(fl, fqn, *ty),
         LirRvalue::IndexAccess {
             receiver_local,
             index_locals,
@@ -963,28 +963,26 @@ use scoop2_lir::{LirInterpolatedPart, LirPattern, LirWithUpdateField};
 fn lower_top_level_ref<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     fqn: &str,
+    result_ty: TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
-    // 查找已声明的全局。
+    // 查找已声明的 toplevel 全局 backing slot。
     if let Some(gv) = fl.cg.lookup_global(fqn) {
-        let ty = fl
-            .layouts
-            .entries
-            .keys()
-            .next()
-            .copied()
-            .unwrap_or(scoop2_hir::ty::TypeId(0));
-        let _ = ty;
-        // 全局 backing slot 是 native ptr (alloca-like)；但 top-level val 的类型
-        // 由 LIR TypeLayout 决定。当前简化：返回全局指针 cast 到 GC ptr。
+        let llvm_ty = fl.cg.lower_type(result_ty, fl.layouts)?;
+        // global 是 [N x i8]*；opaque ptr 下 pointer_cast 到 native ptr 后 load。
+        let typed_ptr = fl
+            .builder
+            .build_pointer_cast(gv, fl.cg.native_ptr_ty(), "tl_cast")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "toplevel pointer_cast", scoop2_base::Span::default())
+            })?;
         let val = fl
             .builder
-            .build_load(fl.cg.native_ptr_ty(), gv, "toplevel")
+            .build_load(llvm_ty, typed_ptr, "toplevel")
             .map_err(|e| {
                 CodegenError::llvm(e.to_string(), "load toplevel", scoop2_base::Span::default())
             })?;
         return Ok(val);
     }
-    // 未找到全局：返回 zero（防御性）。
     Err(CodegenError::undefined_symbol(
         fqn,
         &format!("top-level ref in {}", fl.fqn),

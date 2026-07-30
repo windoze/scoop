@@ -793,8 +793,44 @@ impl<'ctx> CodegenContext<'ctx> {
         Ok(())
     }
 
+    /// 声明顶层 val/var 的全局 backing slot（每个 global_init entry 一个）。
+    ///
+    /// 全局以「零初始化的 mutable global」形式声明，entry main 在用户 main 之前
+    /// 调用各 init_callable 把初值写入。TopLevelRef 读这些 global。
+    /// GC 引用类型的全局额外经 `scoop_gc_register_global_root` 注册为 GC root。
+    pub fn declare_top_level_globals(
+        &self,
+        program: &scoop2_lir::LirProgram,
+    ) -> CodegenResult<()> {
+        for entry in &program.global_init.entries {
+            let llvm_ty = self.lower_type(entry.ty, &program.type_layouts)?;
+            // 用 [N x i8] 形式声明以避免 LLVM global 必须是常量初始化的限制；
+            // 实际存取按 entry.ty 的 LLVM 类型 load/store（bitcast 后）。
+            let store_size = self.target_data.get_store_size(&llvm_ty).max(1);
+            let arr_ty = self.context.i8_type().array_type(store_size as u32);
+            let gv = self
+                .module
+                .add_global(arr_ty, None, &format!("__scoop_toplevel_{}", sanitize_global_name(&entry.fqn)));
+            gv.set_linkage(Linkage::Internal);
+            // 零初始化：[store_size x i8] zeroinitializer。
+            gv.set_initializer(&arr_ty.const_zero());
+            // 缓存为 native ptr（global 的地址）。
+            self.cache_global(entry.fqn.clone(), gv.as_pointer_value());
+        }
+        Ok(())
+    }
+
     /// type descriptor cache helper（供 cache_type_desc / lookup_type_desc）。
     pub fn cache_type_desc_pub(&self, fqn: String, ptr: PointerValue<'ctx>) {
         self.cache_type_desc(fqn, ptr);
     }
+}
+
+/// 把 FQN 转成合法的 LLVM 符号后缀（替换 `.` / `<` / `>` 等）。
+fn sanitize_global_name(fqn: &str) -> String {
+    fqn.replace('.', "_")
+        .replace('<', "L")
+        .replace('>', "R")
+        .replace(',', "_")
+        .replace(' ', "_")
 }

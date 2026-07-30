@@ -60,9 +60,16 @@ pub fn lower_to_lir(
     effect::prepare_effect_steps(&mut program, mir, hir, interner);
     // 6. 全局初始化规划
     global_init::plan_global_init(&mut program, mir, hir, interner);
+    // 顶层 val/var 的 fqn → 真实类型映射（供 TopLevelRef.ty 查真实类型）。
+    let global_types: std::collections::HashMap<String, scoop2_hir::ty::TypeId> = program
+        .global_init
+        .entries
+        .iter()
+        .map(|e| (e.fqn.clone(), e.ty))
+        .collect();
     // 7. MIR→LIR body 映射（含 GC info + effect schema 挂载）
     let step_tags = build_step_tag_tables(mir, interner);
-    map_bodies(&mut program, mir, hir, interner, &step_tags)?;
+    map_bodies(&mut program, mir, hir, interner, &step_tags, &global_types)?;
     // 8. 回填分发表信息到调用点
     dispatch::backfill_call_sites(&mut program);
     // 9. 验证
@@ -134,6 +141,7 @@ fn map_bodies(
     hir: &TypedHir,
     interner: &Interner,
     step_tags: &StepTagTables,
+    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
 ) -> Result<(), LirError> {
     for item in &mir.module.items {
         match item {
@@ -147,6 +155,7 @@ fn map_bodies(
                         &program.type_layouts,
                         interner,
                         step_tags,
+                        global_types,
                     )?);
                 } else {
                     // 无函数体（extern / abstract / intrinsic）：放入 declarations。
@@ -187,6 +196,7 @@ fn map_bodies(
                     hir,
                     interner,
                     step_tags,
+                    global_types,
                 )?);
             }
             scoop2_mir::mir::Item::ExternGlobal(eg) => {
@@ -214,6 +224,7 @@ fn map_callable(
     layouts: &TypeLayoutTable,
     interner: &Interner,
     step_tags: &StepTagTables,
+    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = fd
         .instance_symbol
@@ -248,6 +259,7 @@ fn map_callable(
                 interner,
                 step_tags,
                 frame_local,
+                global_types,
             )?;
             let frame_for_gc = fd
                 .effect_abi
@@ -309,9 +321,10 @@ fn map_initializer(
     hir: &TypedHir,
     interner: &Interner,
     step_tags: &StepTagTables,
+    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = abi::mangle_symbol(&ir.fqn, &None);
-    let body = map_body(&ir.body, layouts, types, hir, interner, step_tags, None)?;
+    let body = map_body(&ir.body, layouts, types, hir, interner, step_tags, None, global_types)?;
     Ok(LirCallable {
         fqn: ir.fqn.clone(),
         symbol_name,
@@ -337,6 +350,7 @@ fn map_body(
     interner: &Interner,
     step_tags: &StepTagTables,
     frame_local: Option<scoop2_mir::mir::LocalId>,
+    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
 ) -> Result<LirBody, LirError> {
     let locals = body
         .locals
@@ -358,7 +372,7 @@ fn map_body(
     for (bi, blk) in body.blocks.iter().enumerate() {
         let mut stmts = Vec::with_capacity(blk.stmts.len());
         for s in &blk.stmts {
-            stmts.push(map_stmt(s, layouts, types, hir, interner, step_tags)?);
+            stmts.push(map_stmt(s, layouts, types, hir, interner, step_tags, global_types)?);
         }
         blocks.push(LirBlock {
             id: bi as u32,
@@ -380,13 +394,14 @@ fn map_stmt(
     hir: &TypedHir,
     interner: &Interner,
     step_tags: &StepTagTables,
+    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
 ) -> Result<LirStmt, LirError> {
     use scoop2_mir::mir::StatementKind;
     let kind = match &stmt.kind {
         StatementKind::Nop => LirStmtKind::Nop,
         StatementKind::Assign { target, value } => LirStmtKind::Assign {
             target: target.0,
-            value: map_rvalue(value, layouts, types, hir, interner, step_tags)?,
+            value: map_rvalue(value, layouts, types, hir, interner, step_tags, global_types)?,
         },
         StatementKind::StoreMember {
             receiver,
@@ -449,6 +464,7 @@ fn map_rvalue(
     hir: &TypedHir,
     interner: &Interner,
     step_tags: &StepTagTables,
+    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
 ) -> Result<LirRvalue, LirError> {
     use scoop2_mir::mir::{CallKind, Operand, Rvalue};
     let out = match rv {
@@ -458,12 +474,12 @@ fn map_rvalue(
         },
         Rvalue::TopLevelRef(tl) => LirRvalue::TopLevelRef {
             fqn: tl.fqn.clone(),
-            // TopLevelRef 不携带类型字段；从已知 locals 的引用类型中取一个作为占位。
-            // 优先使用 generic_type_args 中的第一个类型。
-            ty: tl
-                .generic_type_args
-                .first()
+            // 真实全局类型：优先从 global_types 按 fqn 查（权威来源）；
+            // 否则回退 generic_type_args / find_any_type。
+            ty: global_types
+                .get(&tl.fqn)
                 .copied()
+                .or_else(|| tl.generic_type_args.first().copied())
                 .unwrap_or_else(|| find_any_type(types)),
         },
         Rvalue::UnresolvedName { name } => LirRvalue::TopLevelRef {

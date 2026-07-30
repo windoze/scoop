@@ -60,6 +60,7 @@ pub fn emit_object_to_file(
     }
     // 2. 生成 type descriptor + itable 全局（此时函数符号已可见，itable 可正确引用）。
     cg.declare_all_globals()?;
+    cg.declare_top_level_globals(program)?;
     // 3. lowering 函数体。
     for (callable, fv) in program.callables.iter().zip(callable_fns.iter().copied()) {
         if callable.body.is_some() {
@@ -90,6 +91,7 @@ pub fn emit_program(program: &LirProgram, _options: &EmitOptions) -> CodegenResu
     let rt = cg.declare_runtime();
     cg.declare_gc_globals()?;
     cg.declare_all_globals()?;
+    cg.declare_top_level_globals(program)?;
     lower_all_callables(&cg, program, &rt)?;
     lower_entry_main(&cg, program, &rt)?;
     let ir_text = cg.module.to_string();
@@ -405,6 +407,36 @@ fn lower_entry_main<'ctx>(
                 scoop2_base::Span::default(),
             )
         })?;
+    // 1b. 全局初始化：按 global_init 顺序调用各 init_callable（无参，返回初值），
+    //     把返回值写入对应 toplevel global 的 backing slot。
+    for entry in &program.global_init.entries {
+        let Some(init_fv) = cg.module.get_function(&entry.init_callable) else {
+            continue;
+        };
+        let Some(gv_ptr) = cg.lookup_global(&entry.fqn) else {
+            continue;
+        };
+        let init_call = match builder.build_call(init_fv, &[], &format!("init_{}", entry.fqn)) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        // 取返回值，按 entry.ty 的 LLVM 类型 store 到 global backing slot。
+        if init_fv.get_type().get_return_type().is_some() {
+            if let inkwell::values::ValueKind::Basic(bv) = init_call.try_as_basic_value() {
+                let llvm_ty = match cg.lower_type(entry.ty, &program.type_layouts) {
+                    Ok(t) => t,
+                    Err(_) => continue,
+                };
+                // global 是 [N x i8]*；opaque ptr 下 pointer_cast 到 native ptr 后 store。
+                let typed_ptr = builder
+                    .build_pointer_cast(gv_ptr, cg.native_ptr_ty(), "gv_cast")
+                    .ok();
+                if let Some(p) = typed_ptr {
+                    let _ = builder.build_store(p, bv);
+                }
+            }
+        }
+    }
     // 2. 调用用户 main。
     let user_call = builder
         .build_call(user_main_fv, &[], "user_main")

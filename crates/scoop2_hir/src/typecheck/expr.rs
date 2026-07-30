@@ -2687,6 +2687,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         }
                         _ => return,
                     }
+                } else if let Some(fqn) = self.env.top_level_val_fqn(ident.symbol) {
+                    // 赋值目标的 value_ref 可能未记录（只有读取才记 value_refs）；
+                    // 按 symbol 查 top-level val，确保 `globalVar = ...` 产出 StoreTopLevelVar。
+                    let ty = self.env.top_level_val(fqn).unwrap_or(val_ty);
+                    crate::hir::ResolvedPlace::TopLevelVar { fqn, ty }
                 } else {
                     return;
                 }

@@ -155,6 +155,17 @@ impl<'i> TypeEnv<'i> {
         self.top_level_vals.get(&name).copied()
     }
 
+    /// 顶层 val 的 FQN 查询（赋值目标 record_assign_place 用）。
+    /// 返回 name symbol 自身（与 value_ref 记录的 FQN 一致——collect 阶段
+    /// top_level_vals 以 simple name symbol 为键，存储侧按同 symbol 查 global）。
+    pub fn top_level_val_fqn(&self, name: Symbol) -> Option<Symbol> {
+        if self.top_level_vals.contains_key(&name) {
+            Some(name)
+        } else {
+            None
+        }
+    }
+
     /// enum variant 列表查询（when 穷尽性用）。
     pub fn enum_variants(&self, fqn: Symbol) -> Option<&[Symbol]> {
         self.enum_variants.get(&fqn).map(|v| v.as_slice())

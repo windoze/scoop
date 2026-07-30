@@ -246,34 +246,49 @@ pub fn lower_stmt<'a, 'ctx>(
             value_local,
             value_ty,
         } => {
-            // 顶层 var 赋值：store 到全局 backing slot。
+            // 顶层 var 赋值：store 到全局 backing slot（按 value_ty 类型）。
             let val = fl.lower_operand(value_local, *value_ty)?;
             if let Some(gv) = fl.cg.lookup_global(&global_fqn) {
-                let val_native = match val {
+                let _llvm_ty = fl.cg.lower_type(*value_ty, fl.layouts)?;
+                // global 是 [N x i8]*；opaque ptr 下 pointer_cast 到 native ptr 后 store。
+                let typed_ptr = fl
+                    .builder
+                    .build_pointer_cast(gv, fl.cg.native_ptr_ty(), "sg_cast")
+                    .map_err(|e| {
+                        CodegenError::llvm(e.to_string(), "store_global pointer_cast", scoop2_base::Span::default())
+                    })?;
+                // 标量直接 store；GC 指针需转 native ptr（global slot 存 native ptr，
+                // 与 TopLevelRef load 时的 addrspace 转换对称）。
+                let stored = match val {
                     BasicValueEnum::PointerValue(p) => {
-                        let pi = fl
-                            .builder
-                            .build_ptr_to_int(p, fl.cg.context.i64_type(), "sg_val_int")
-                            .map_err(|e| {
-                                CodegenError::llvm(
-                                    e.to_string(),
-                                    "ptr_to_int store_global",
-                                    scoop2_base::Span::default(),
-                                )
-                            })?;
-                        fl.builder
-                            .build_int_to_ptr(pi, fl.cg.native_ptr_ty(), "sg_val_native")
-                            .map_err(|e| {
-                                CodegenError::llvm(
-                                    e.to_string(),
-                                    "int_to_ptr store_global",
-                                    scoop2_base::Span::default(),
-                                )
-                            })?
+                        if p.get_type().get_address_space() == crate::context::gc_address_space() {
+                            let pi = fl
+                                .builder
+                                .build_ptr_to_int(p, fl.cg.context.i64_type(), "sg_val_int")
+                                .map_err(|e| {
+                                    CodegenError::llvm(
+                                        e.to_string(),
+                                        "ptr_to_int store_global",
+                                        scoop2_base::Span::default(),
+                                    )
+                                })?;
+                            fl.builder
+                                .build_int_to_ptr(pi, fl.cg.native_ptr_ty(), "sg_val_native")
+                                .map_err(|e| {
+                                    CodegenError::llvm(
+                                        e.to_string(),
+                                        "int_to_ptr store_global",
+                                        scoop2_base::Span::default(),
+                                    )
+                                })?
+                                .into()
+                        } else {
+                            p.into()
+                        }
                     }
-                    _ => fl.cg.native_ptr_ty().const_null(),
+                    other => other,
                 };
-                fl.builder.build_store(gv, val_native).map_err(|e| {
+                fl.builder.build_store(typed_ptr, stored).map_err(|e| {
                     CodegenError::llvm(e.to_string(), "store global", scoop2_base::Span::default())
                 })?;
             }
