@@ -209,7 +209,7 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
         if is_option_name(&name_text) {
             let inner = self
                 .lower_type_args_one(args, span)
-                .unwrap_or_else(|| self.env.store.nothing());
+                .unwrap_or_else(|| self.env.store.unit());
             return self.env.store.option(inner);
         }
 
@@ -228,7 +228,7 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
         let Some(fqn) = self.resolve_type_fqn(path) else {
             self.diags
                 .push(diagnostics::unresolved_type_ref(&name_text, span));
-            return self.env.store.nothing();
+            return self.env.store.unit();
         };
         // 5. typealias 展开：FQN 是 typealias 时降级其 RHS（类型实参绑定到别名参数）。
         if self.alias_depth < 32

@@ -153,7 +153,7 @@ fn program_arithmetic() -> LirProgram {
                             callee_symbol: "scoop.core.Int.plus".to_string(),
                             callee_fqn: "scoop.core.Int.plus".to_string(),
                             stable_instance_key: None,
-                            intrinsic_name: None,
+                            intrinsic_name: Some("int_plus".to_string()),
                         },
                         args: vec![LirOperand::Local(0), LirOperand::Local(1)],
                         result_ty: TypeId(2),

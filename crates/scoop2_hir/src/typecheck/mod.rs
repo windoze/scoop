@@ -1163,7 +1163,7 @@ fn check_main_signature(
             .ty
             .as_ref()
             .map(|t| lower.lower(t))
-            .unwrap_or_else(|| env.store.nothing());
+            .unwrap_or_else(|| env.store.unit());
         let string_fqn = env
             .interner
             .get("scoop.core.String")
@@ -3274,7 +3274,7 @@ fn record_class_ctor_layout(
                     );
                     lower.lower(t)
                 }
-                None => env.store.nothing(),
+                None => env.store.unit(),
             };
             infos.push(crate::hir::ClassCtorParamInfo {
                 name: cp.name.symbol,

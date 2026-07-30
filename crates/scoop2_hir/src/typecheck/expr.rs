@@ -253,7 +253,7 @@ pub fn check_function<'a, 'i>(
     for p in params {
         let ty = match &p.ty {
             Some(t) => c.lower_type(t),
-            None => c.env.store.nothing(),
+            None => c.env.store.unit(),
         };
         c.locals.insert(p.name.symbol, ty);
     }
@@ -1136,7 +1136,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 // iterable 契约：iterator() → (next() → Option<T>)。
                 self.check_for_iterable(iter_ty, iter.span);
                 self.in_loop += 1;
-                self.locals.insert(binder.symbol, self.env.store.nothing());
+                self.locals.insert(binder.symbol, self.env.store.unit());
                 self.walk_block(body);
                 self.in_loop -= 1;
             }
@@ -1268,7 +1268,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         let ty = declared
             .or(init_ty)
-            .unwrap_or_else(|| self.env.store.nothing());
+            .unwrap_or_else(|| self.env.store.unit());
         match &val.binding {
             ValBinding::Name(name) => {
                 self.locals.insert(name.symbol, ty);
@@ -2247,7 +2247,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         };
                         Some(self.env.store.function(ft))
                     } else {
-                        Some(self.env.store.nothing())
+                        Some(self.env.store.unit())
                     }
                 }
             }
@@ -2293,7 +2293,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // 调用 → 调用决议（顶层函数 / 方法 / 构造器 / 局部值 / effect-op）。
             ExprKind::Call { callee, args } => {
                 // 收集实参类型（walk 时已定型）。
-                let arg_types: Vec<TypeId> = args.iter().map(|a| self.expr_types.get(a.value.id).copied().unwrap_or_else(|| self.env.store.nothing())).collect();
+                let arg_types: Vec<TypeId> = args.iter().map(|a| self.expr_types.get(a.value.id).copied().unwrap_or_else(|| self.env.store.unit())).collect();
                 if let Some(mut rc) = self.derive_call_resolution(callee, ty, expr.id) {
                     // 泛型调用推断类型实参（若 HIR 未显式填充）。
                     self.fill_inferred_type_args(&mut rc, &arg_types);
@@ -3062,7 +3062,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     }
                     // `this` 在非成员上下文是非法程序（spec：this 仅在成员函数绑定）。
                     self.diags.push(diagnostics::this_outside_member(expr.span));
-                    return self.env.store.nothing();
+                    return self.env.store.unit();
                 }
                 // 隐式 `it` 参数（无参 lambda 内的裸标识符）。
                 if name == "it"
@@ -3107,7 +3107,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         .push(diagnostics::generic_type_arg_not_inferred(expr.span));
                 }
                 // 顶层值 / 函数引用 / 类型名 → 推迟精确类型（返回 Nothing，避免假错误）。
-                self.env.store.nothing()
+                self.env.store.unit()
             }
             ExprKind::IntLit(_) => self.env.store.int(),
             ExprKind::FloatLit(lit) => {
@@ -3211,7 +3211,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                     ));
                             }
                         }
-                        self.env.store.nothing()
+                        self.env.store.unit()
                     }
                 }
             }
@@ -3252,7 +3252,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                     ));
                             }
                         }
-                        self.env.store.nothing()
+                        self.env.store.unit()
                     }
                 }
             }
@@ -3473,7 +3473,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     if let Some(k_ident) = &arm.escape_continuation {
                         let resume_ty = self
                             .effect_op_resume_type(&arm.op)
-                            .unwrap_or_else(|| self.env.store.nothing());
+                            .unwrap_or_else(|| self.env.store.unit());
                         let cont_ty = self.build_continuation_type_with_effects(
                             resume_ty,
                             body_ty,
@@ -3567,7 +3567,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         "operator get",
                         expr.span,
                     ));
-                    return self.env.store.nothing();
+                    return self.env.store.unit();
                 };
                 self.method_call_return_type(
                     rt,
@@ -3600,7 +3600,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::ArrayLit(els) => {
                 if els.is_empty() {
                     // 空数组字面量 `[]`：返回 Nothing（由调用方 check_assignable 判定）。
-                    return self.env.store.nothing();
+                    return self.env.store.unit();
                 }
                 let elem_ty = self.walk_expr(&els[0]);
                 for (idx, e) in els[1..].iter().enumerate() {
@@ -3641,7 +3641,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         // prelude 未定义 `Array` / `scoop.core.Array`——编译环境错误。
                         self.diags
                             .push(diagnostics::prelude_symbol_missing("Array", expr.span));
-                        self.env.store.nothing()
+                        self.env.store.unit()
                     }
                 }
             }
@@ -3659,7 +3659,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             return self
                                 .env
                                 .member_type(fqn, sym)
-                                .unwrap_or_else(|| self.env.store.nothing());
+                                .unwrap_or_else(|| self.env.store.unit());
                         }
                         // 未知字段（spec §6.5：unknown field is a compile error）。
                         let type_name = self.env.interner.resolve(fqn).to_string();
@@ -3667,7 +3667,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             .push(diagnostics::unknown_field(&type_name, &s.value, field.span));
                     }
                     // 未知接收者类型 → lenient。
-                    return self.env.store.nothing();
+                    return self.env.store.unit();
                 }
                 // 非字符串字面量（动态名）→ splice_field_name_not_static（但 StructLit 不报——它不是 splice field）。
                 let is_struct_lit = matches!(field.kind, ExprKind::StructLit { .. });
@@ -3676,7 +3676,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.diags
                         .push(diagnostics::splice_field_name_not_static(field.span));
                 }
-                self.env.store.nothing()
+                self.env.store.unit()
             }
         }
     }
@@ -3799,7 +3799,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let is_prelude_none = name == "None" || name.ends_with(".Option.None");
                 if is_prelude_some {
                     let inner = if args.is_empty() {
-                        self.env.store.nothing()
+                        self.env.store.unit()
                     } else {
                         // 期望类型透传到 payload 位：
                         // `val x: Option<Option<Bool>> = Some(None())` 中 `None`
@@ -3835,7 +3835,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     {
                         return t;
                     }
-                    let nothing = self.env.store.nothing();
+                    let nothing = self.env.store.unit();
                     return self.env.store.option(nothing);
                 }
                 // 其他 enum variant：返回所属 enum 的 nominal。
@@ -3870,7 +3870,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         self.env.store.value_nominal(nominal)
                     };
                 }
-                return self.env.store.nothing();
+                return self.env.store.unit();
             }
         }
         // 3. 方法调用 `receiver.method(args)`。
@@ -4009,7 +4009,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
         }
-        self.env.store.nothing()
+        self.env.store.unit()
     }
 
     /// 构造器调用 `Type(args)`：按主构造参数类型检查实参，返回该 nominal 类型。
@@ -4873,7 +4873,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .get("scoop.core.Continuation")
             .or_else(|| self.env.interner.get("Continuation"));
         let Some(fqn) = cont_fqn else {
-            return self.env.store.nothing();
+            return self.env.store.unit();
         };
         // 构造 effect row：每个 effect 短名 → nominal 引用。
         // 候选 FQN：裸名 / package prefix / scoop.core（用户 effect 按 package FQN 注册）。
@@ -5580,7 +5580,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if let Some(sig) = sigs.first() {
                     self.check_generic_call_constraints(fqn, sig, &arg_types, span);
                 }
-                return self.env.store.nothing();
+                return self.env.store.unit();
             }
             if applicable.len() < 2 {
                 let (idx, sig) = applicable.into_iter().next().expect("non-empty");
@@ -5852,7 +5852,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 non_generic
                     .first()
                     .map(|s| s.return_ty)
-                    .unwrap_or_else(|| self.env.store.nothing())
+                    .unwrap_or_else(|| self.env.store.unit())
             }
             1 => non_generic[applicable[0]].return_ty,
             _ => {
@@ -6147,14 +6147,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // tuple 索引（`t.0`）：元素类型从 tuple 类型派生。
         if let MemberName::TupleIndex { value, .. } = member {
             return tuple_element_ty(self.env, receiver_ty, value)
-                .unwrap_or_else(|| self.env.store.nothing());
+                .unwrap_or_else(|| self.env.store.unit());
         }
         let MemberName::Named(name) = member else {
-            return self.env.store.nothing();
+            return self.env.store.unit();
         };
         let fqn = self.resolve_member_owner_fqn(receiver_ty);
         let Some(fqn) = fqn else {
-            return self.env.store.nothing();
+            return self.env.store.unit();
         };
         // 字段沿超类型链查找（继承的 val/var 声明在祖先类上）。
         match self.member_type_in_chain(fqn, name.symbol) {
@@ -6166,7 +6166,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.diags
                         .push(diagnostics::member_not_a_value(mname, name.span));
                 }
-                self.env.store.nothing()
+                self.env.store.unit()
             }
         }
     }
@@ -6184,7 +6184,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             let nname = self.env.interner.resolve(name.symbol);
             self.diags
                 .push(diagnostics::struct_lit_unknown_type(nname, span));
-            return self.env.store.nothing();
+            return self.env.store.unit();
         };
         // struct 字面量只能用于 struct 类型。
         let is_struct = self
@@ -6203,7 +6203,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             for f in fields {
                 self.walk_expr(&f.value);
             }
-            return self.env.store.nothing();
+            return self.env.store.unit();
         }
         let type_name = self.env.interner.resolve(name.symbol).to_string();
         let mut seen: HashSet<Symbol> = HashSet::new();
@@ -6569,14 +6569,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let inject_it = lambda.params.is_empty() && expected_param_type.is_some();
         let mut param_types: Vec<TypeId> = Vec::new();
         if inject_it && let Some(it_sym) = self.env.interner.get("it") {
-            let it_ty = expected_param_type.unwrap_or_else(|| self.env.store.nothing());
+            let it_ty = expected_param_type.unwrap_or_else(|| self.env.store.unit());
             self.locals.insert(it_sym, it_ty);
             param_types.push(it_ty);
         }
         for p in &lambda.params {
             let ty = match &p.ty {
                 Some(t) => self.lower_type(t),
-                None => self.env.store.nothing(),
+                None => self.env.store.unit(),
             };
             self.locals.insert(p.name.symbol, ty);
             param_types.push(ty);
@@ -6740,7 +6740,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// 把模式中的绑定名登记为 Nothing 类型局部（精确模式类型在 M5 补齐）。
     fn bind_pattern_locals(&mut self, pat: &ast::Pattern) {
-        let nothing_ty = self.env.store.nothing();
+        let nothing_ty = self.env.store.unit();
         let mut names: Vec<Symbol> = Vec::new();
         collect_pattern_binders(&pat.kind, &mut names);
         for name in names {
@@ -6902,7 +6902,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let elem_ty = elem_tys
                         .get(pos)
                         .copied()
-                        .unwrap_or_else(|| self.env.store.nothing());
+                        .unwrap_or_else(|| self.env.store.unit());
                     match &e.kind {
                         PatternKind::Bind(ident) => {
                             self.locals.insert(ident.symbol, elem_ty);
@@ -6939,7 +6939,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let field_ty = member_tys
                         .get(&f.name.symbol)
                         .copied()
-                        .unwrap_or_else(|| self.env.store.nothing());
+                        .unwrap_or_else(|| self.env.store.unit());
                     match &f.pattern {
                         // 简写 `Point { x }`：绑定名 = 字段名。
                         None => {
@@ -7239,7 +7239,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     if let Some(ret) = ret {
                         return ret;
                     }
-                    return self.env.store.nothing();
+                    return self.env.store.unit();
                 }
             }
         }
@@ -7247,7 +7247,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.diags
                 .push(diagnostics::callee_not_callable(&method_text, span));
         }
-        self.env.store.nothing()
+        self.env.store.unit()
     }
 
     /// 在 FQN 及其超类型链中查找方法。
@@ -7319,7 +7319,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     ) -> TypeId {
         // Nothing 接收者（类型未知）→ lenient（返回 Nothing，不报错误）。
         if self.env.store.is_nothing(receiver_ty) {
-            return self.env.store.nothing();
+            return self.env.store.unit();
         }
         // TypeParam 接收者：检查 where 约束是否有该方法。
         let tp_clone = if let TypeKind::Param(tp) = self.env.store.kind(receiver_ty) {
@@ -7346,7 +7346,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 mname,
                 span,
             ));
-            return self.env.store.nothing();
+            return self.env.store.unit();
         };
         let sigs_with_owners = self.env.member_signatures_with_owners(fqn, method_name);
         let sigs: Vec<Signature> = sigs_with_owners.iter().map(|(_, s)| s.clone()).collect();
@@ -7377,7 +7377,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 self.diags
                     .push(diagnostics::callee_not_callable(&callee_fqn, name_span));
             }
-            return self.env.store.nothing();
+            return self.env.store.unit();
         }
         let non_generic: Vec<Signature> = sigs
             .iter()
@@ -7399,7 +7399,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     self.env.store.kind(receiver_ty)
                 {
                     // 函数类型 receiver 不是常规 nominal；lenient。
-                    return self.env.store.nothing();
+                    return self.env.store.unit();
                 }
                 // 尝试从 receiver_ty 提取类型实参并替换 sig.return_ty 中的 Param。
                 let receiver_args =
@@ -7422,7 +7422,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let subst_arg = rargs
                         .first()
                         .copied()
-                        .unwrap_or_else(|| self.env.store.nothing());
+                        .unwrap_or_else(|| self.env.store.unit());
                     let substituted = self.subst_all_params(sig.return_ty, subst_arg);
                     return substituted;
                 }
@@ -7443,7 +7443,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         .push(diagnostics::generic_type_arg_not_inferred(span));
                 }
             }
-            return self.env.store.nothing();
+            return self.env.store.unit();
         }
         if non_generic.len() == 1 {
             let sig = &non_generic[0];
@@ -7500,7 +7500,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         let subst_arg = rargs
                             .first()
                             .copied()
-                            .unwrap_or_else(|| self.env.store.nothing());
+                            .unwrap_or_else(|| self.env.store.unit());
                         let subst_params: Vec<TypeId> = sig
                             .params
                             .iter()
@@ -7775,7 +7775,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let subst_arg = rargs
             .first()
             .copied()
-            .unwrap_or_else(|| self.env.store.nothing());
+            .unwrap_or_else(|| self.env.store.unit());
         self.subst_all_params(return_ty, subst_arg)
     }
 
