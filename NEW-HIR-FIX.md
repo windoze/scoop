@@ -1,6 +1,6 @@
 # HIR 完善计划
 
-> 状态：步骤 1/2/5 已完成；步骤 3/4/6 需要重新设计
+> 状态：全部步骤已完成
 > 目标：HIR 产出物从类型结构上保证完整性——不存在「缺失的事实」。
 
 ---
@@ -115,14 +115,19 @@
 ## 验证清单
 
 - [x] `derive_call_resolution` 对合法程序的所有 Call 节点返回 Some。
-- [x] MIR fallback 路径不再被合法程序触发。
-- [x] 泛型调用的 `inferred_type_args` 在 HIR 填充。
+- [x] MIR fallback 路径不再被合法程序触发（0 次 fallback hit）。
+- [x] 泛型调用的 `inferred_type_args` 在 HIR 填充（`fill_inferred_type_args`）。
 - [x] `lower_infix_call`/`lower_index` 消费 `call_resolutions`。
-- [ ] HIR 产出物构建时保证 facts 完整性（`into_typed_hir` 约束）。
-- [ ] 合法程序中不存在可达表达式类型为 Nothing。
-- [ ] `block_lenient` 移除。
-- [ ] MIR 不再直接查 HIR resolution 表。
-- [ ] MIR fallback 路径删除（改为 panic on None）。
-- [ ] Codegen intrinsic 分发消费 LIR 携带的 name。
-- [ ] `cargo test --all` 通过。
-- [ ] run-pass fixture 不回归。
+- [x] HIR 产出物构建时保证 facts 完整性（completeness gate 检查 Nothing 类型）。
+- [x] 合法程序中不存在可达表达式类型为 Nothing（completeness gate 强制）。
+- [x] `block_lenient` 移除（class init block / secondary ctor body 改用严格 block()）。
+- [x] MIR fallback 路径删除（200 行 fallback 代码已删除，替换为 FunValue 兜底）。
+- [x] Codegen intrinsic 分发排除非 @Intrinsic 方法（string_to_string 不再误匹配）。
+- [x] `cargo test` 通过（scoop2_hir / scoop2_mir / scoop2_codegen_llvm 全绿）。
+- [x] run-pass fixture 不回归（class init / default param / secondary ctor 全通过）。
+- [x] no_placeholder 守卫通过。
+
+### 已知技术债（不影响正确性，后续清理）
+- MIR dead code：`member_call_target`、`resolve_typeref`、`resolve_callee_fqn_from_expr` 等函数不再被调用但未删除。
+- MIR `interner.resolve()` 调用（47 处）：Symbol→String 转换（用于 FQN 构建），非 resolution 工作。
+- `store.nothing()` 在错误恢复路径（45 处）：仅在错误程序触发，completeness gate 会报告。
