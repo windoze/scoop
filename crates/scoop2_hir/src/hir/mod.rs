@@ -350,6 +350,12 @@ impl TypedHir {
         out.extend(self.ordered_members(&fqn));
         out
     }
+
+    /// 判断某 FQN 是否为引用类型（class / interface / object）。
+    /// 用于 MIR resolve_typeref 判断 ref vs value nominal（不查 TypeEnv）。
+    pub fn is_reference_nominal(&self, fqn: Symbol) -> bool {
+        self.class_fqns.contains(&fqn) || self.interface_fqns.contains(&fqn)
+    }
 }
 
 impl TypedHir {

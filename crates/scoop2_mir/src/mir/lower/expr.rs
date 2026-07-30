@@ -342,7 +342,7 @@ fn span_node(_builder: &FnLowering, _sym: Symbol, _span: Span) -> scoop2_base::N
 /// 当显式类型实参缺失时，MIR 单态化仍需知道具体类型实参（如 `println("x")` → T=String）。
 /// 通过匹配 callee 签名的参数类型（含 TypeKind::Param）与调用实参的 value_ty 推断。
 fn infer_type_args_from_call(
-    builder: &FnLowering,
+    builder: &mut FnLowering,
     fqn: scoop2_base::Symbol,
     args: &[crate::mir::CallArg],
 ) -> Vec<scoop2_hir::ty::TypeId> {
@@ -482,7 +482,7 @@ fn lower_call(
 /// 检测 `<EnumType>.<Variant>(args)` 形态的 enum variant 构造调用。
 /// 若 `enum_sym` 是一个 enum 类型 FQN 且 `variant_sym` 是其 variant，返回 EnumVariant 决议。
 fn derive_enum_variant_call(
-    builder: &FnLowering,
+    builder: &mut FnLowering,
     enum_sym: Symbol,
     variant_sym: Symbol,
     return_ty: scoop2_hir::ty::TypeId,
@@ -2802,7 +2802,7 @@ fn lower_pattern_test(
 /// Option subject 的 `Some` payload = inner；nominal enum 走 `<enum>.<variant>`
 /// 名义下登记的 members（声明序）。
 pub(crate) fn variant_payload_field_ty(
-    builder: &FnLowering,
+    builder: &mut FnLowering,
     subj_ty: scoop2_hir::ty::TypeId,
     path: &ast::TypePath,
     index: usize,
@@ -2831,7 +2831,7 @@ pub(crate) fn variant_payload_field_ty(
 
 /// tuple 类型第 `index` 个元素的类型（嵌套 tuple 子模式递归用）。
 fn tuple_elem_ty(
-    builder: &FnLowering,
+    builder: &mut FnLowering,
     tuple_ty: scoop2_hir::ty::TypeId,
     index: usize,
 ) -> Option<scoop2_hir::ty::TypeId> {
@@ -2845,7 +2845,7 @@ fn tuple_elem_ty(
 /// nominal（struct/class）字段在声明序中的下标（struct 模式 binder 提取用；
 /// 与 pattern 中字段的书写顺序无关）。
 fn nominal_field_index(
-    builder: &FnLowering,
+    builder: &mut FnLowering,
     ty: scoop2_hir::ty::TypeId,
     name: scoop2_base::Symbol,
 ) -> Option<usize> {
@@ -3393,76 +3393,76 @@ fn resolve_struct_fqn(builder: &FnLowering, sym: Symbol) -> Symbol {
 
 pub(crate) fn resolve_typeref(
     builder: &mut FnLowering,
-    t: &ast::TypeRef,
+    ty_ref: &ast::TypeRef,
 ) -> scoop2_hir::ty::TypeId {
-    // TypeRef 节点未类型化；从 expr_types 查（is/as 的目标类型有时记录）。
-    if let Some(ty) = builder.hir.expr_type(builder.file_id, t.id) {
-        return ty;
+    // 优先用 HIR 预计算的 type_ref_resolutions。
+    if let Some(pre) = builder.hir.type_ref_resolution(builder.file_id, ty_ref.id) {
+        return pre;
     }
-    // 按路径名查 nominal / 标量 / Unit（不再回退 Any）。
-    use ast::TypeRefKind;
-    match &t.kind {
-        TypeRefKind::Path { path, .. } => {
+    // 回退：用 MIR 自己的 TypeStore 构造类型（不查 HIR resolution 表）。
+    // 仅使用 hir.interner（字符串池）和 builder.types（类型存储）。
+    resolve_typeref_fallback(builder, ty_ref)
+}
+
+fn resolve_typeref_fallback(
+    builder: &mut FnLowering,
+    ty_ref: &ast::TypeRef,
+) -> scoop2_hir::ty::TypeId {
+    use scoop2_hir::ty::{FunctionType, NominalType, RefTypeKind, TypeKind, ValueTypeKind};
+    match &ty_ref.kind {
+        ast::TypeRefKind::Path { path, .. } => {
+            // 构建候选 FQN 列表（与 HIR TypeLowering 同逻辑）。
+            let prefix = builder
+                .hir
+                .file(builder.file_id)
+                .map(|f| f.package_prefix.as_str())
+                .unwrap_or("");
             if let Some(last) = path.segments.last() {
                 let name = builder.hir.interner.resolve(last.symbol);
-                // 候选 FQN：裸名 / package prefix / scoop.core。
-                let prefix = builder
-                    .hir
-                    .file(builder.file_id)
-                    .map(|f| f.package_prefix.as_str())
-                    .unwrap_or("");
-                let candidates = if prefix.is_empty() {
-                    vec![name.to_string(), format!("scoop.core.{}", name)]
+                let candidates: Vec<String> = if path.segments.len() == 1 {
+                    if prefix.is_empty() {
+                        vec![name.to_string(), format!("scoop.core.{}", name)]
+                    } else {
+                        vec![
+                            format!("{}.{}", prefix, name),
+                            name.to_string(),
+                            format!("scoop.core.{}", name),
+                        ]
+                    }
                 } else {
-                    vec![
-                        name.to_string(),
-                        format!("{}.{}", prefix, name),
-                        format!("scoop.core.{}", name),
-                    ]
+                    vec![name.to_string()]
                 };
                 for cand in &candidates {
                     if let Some(f) = builder.hir.interner.get(cand) {
-                        // 查 members / enum_variants / top_level_vals 确认存在。
-                        let is_known = builder.hir.members.contains_key(&f)
-                            || builder.hir.enum_variants.contains_key(&f)
-                            || builder.hir.top_level_vals.contains_key(&f)
-                            || builder.hir.top_level_funs.contains_key(&f)
-                            || builder.hir.member_funs.contains_key(&f);
-                        if is_known {
-                            // 判断 ref vs value nominal：class/interface/object → ref；
-                            // struct/enum → value。
-                            let is_value = builder.hir.enum_variants.contains_key(&f);
-                            let nominal = scoop2_hir::ty::NominalType {
-                                fqn: f,
-                                args: vec![],
-                                eff: None,
-                            };
-                            if is_value {
-                                return builder.types.value_nominal(nominal);
-                            } else {
-                                return builder.types.ref_nominal(nominal);
-                            }
+                        // 判断 ref vs value nominal：用 hir.is_reference_nominal
+                        // （查询 index.category，不是 resolution 表）。
+                        let is_ref = builder.hir.is_reference_nominal(f);
+                        let nominal = NominalType {
+                            fqn: f,
+                            args: vec![],
+                            eff: None,
+                        };
+                        if is_ref {
+                            return builder.types.ref_nominal(nominal);
+                        } else {
+                            return builder.types.value_nominal(nominal);
                         }
                     }
                 }
             }
-            // 路径存在但无法解析到已知 nominal——精确报错而非回退 Any。
-            // 注：此时返回 expr 的已推断类型（ty 参数由调用方传入），而非 Any。
-            // 调用方在 is/as 场景会拿到 test_ty/target_ty 用于 runtime test metadata。
-            // 此处返回 nothing（bottom）作为「类型不可解析」的精确标记。
             builder.types.nothing()
         }
-        TypeRefKind::Unit => builder.types.unit(),
-        TypeRefKind::Tuple(els) => {
+        ast::TypeRefKind::Unit => builder.types.unit(),
+        ast::TypeRefKind::Tuple(els) => {
             let elem_tys: Vec<scoop2_hir::ty::TypeId> =
                 els.iter().map(|e| resolve_typeref(builder, e)).collect();
             builder.types.tuple(elem_tys)
         }
-        TypeRefKind::Nullable(inner) => {
+        ast::TypeRefKind::Nullable(inner) => {
             let inner_ty = resolve_typeref(builder, inner);
             builder.types.option(inner_ty)
         }
-        TypeRefKind::Function {
+        ast::TypeRefKind::Function {
             params,
             ret,
             effect: _,
@@ -3471,7 +3471,7 @@ pub(crate) fn resolve_typeref(
             let param_tys: Vec<scoop2_hir::ty::TypeId> =
                 params.iter().map(|p| resolve_typeref(builder, p)).collect();
             let return_ty = resolve_typeref(builder, ret);
-            let ft = scoop2_hir::ty::FunctionType {
+            let ft = FunctionType {
                 receiver: None,
                 params: param_tys,
                 return_ty,
@@ -3480,7 +3480,7 @@ pub(crate) fn resolve_typeref(
             };
             builder.types.function(ft)
         }
-        TypeRefKind::ReceiverFunction {
+        ast::TypeRefKind::ReceiverFunction {
             receiver,
             params,
             ret,
@@ -3490,7 +3490,7 @@ pub(crate) fn resolve_typeref(
             let param_tys: Vec<scoop2_hir::ty::TypeId> =
                 params.iter().map(|p| resolve_typeref(builder, p)).collect();
             let return_ty = resolve_typeref(builder, ret);
-            let ft = scoop2_hir::ty::FunctionType {
+            let ft = FunctionType {
                 receiver: Some(recv_ty),
                 params: param_tys,
                 return_ty,
@@ -3499,5 +3499,7 @@ pub(crate) fn resolve_typeref(
             };
             builder.types.function(ft)
         }
+
+        _ => builder.types.nothing(),
     }
 }
