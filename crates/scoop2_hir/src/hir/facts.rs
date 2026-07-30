@@ -241,6 +241,11 @@ pub struct SemanticFacts {
     /// Default(expr_node_id) = 用默认值表达式（需 MIR lower 该表达式）。
     /// 不写入 = 无默认值填充（全部位置实参，MIR 按原样使用）。
     pub resolved_call_args: NodeIdTable<Vec<ResolvedCallArg>>,
+    /// TypeRef 节点 → 解析后的 TypeId。
+    ///
+    /// `is`/`as`/`as?` 模式中的类型引用（TypeRef AST 节点）在 typecheck 时解析
+    /// 为 TypeId，写入此表。MIR 直接消费，不再自行解析类型名。
+    pub type_ref_resolutions: NodeIdTable<crate::ty::TypeId>,
 }
 
 /// 解析后的调用实参（按 callee 参数位置排序 + 默认值填充）。

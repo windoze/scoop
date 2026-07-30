@@ -3373,8 +3373,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let types: Vec<TypeId> = els.iter().map(|e| self.walk_expr(e)).collect();
                 self.env.store.tuple(types)
             }
-            ExprKind::TypeCheck { expr: e, .. } => {
+            ExprKind::TypeCheck { expr: e, ty, .. } => {
                 self.walk_expr(e);
+                let target = self.lower_type(ty);
+                self.facts.type_ref_resolutions.set(ty.id, target);
                 self.env.store.bool()
             }
             ExprKind::Cast {
@@ -3382,6 +3384,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             } => {
                 let operand_ty = self.walk_expr(e);
                 let target = self.lower_type(ty);
+                self.facts.type_ref_resolutions.set(ty.id, target);
                 // 带非 Pure effect row 的函数类型不能参与显式 `as`/`as?`（检查目标 TypeRef
                 // 与操作数已降级类型）。
                 if is_effectful_function_type_ref(ty, self.env.interner)

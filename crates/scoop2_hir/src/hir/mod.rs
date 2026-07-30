@@ -229,6 +229,12 @@ impl TypedHir {
             .and_then(|f| f.facts.resolved_call_args.get(node).map(|v| v.as_slice()))
     }
 
+    /// 查询某 TypeRef 节点解析后的 TypeId（is/as 模式类型引用）。
+    pub fn type_ref_resolution(&self, file_id: FileId, node: NodeId) -> Option<crate::ty::TypeId> {
+        self.file(file_id)
+            .and_then(|f| f.facts.type_ref_resolutions.get(node).copied())
+    }
+
     /// 查询某成员访问的决议结果。
     pub fn member_ref(&self, file_id: FileId, node: NodeId) -> Option<&ResolvedMember> {
         self.file(file_id)

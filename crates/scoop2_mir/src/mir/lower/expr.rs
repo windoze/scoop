@@ -154,7 +154,10 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             ty: test_ty,
         } => {
             let v = lower_expr(builder, inner);
-            let test_ty_id = resolve_typeref(builder, test_ty);
+            let test_ty_id = builder
+                .hir
+                .type_ref_resolution(builder.file_id, test_ty.id)
+                .unwrap_or_else(|| resolve_typeref(builder, test_ty));
             let operand_ty_id = super::stmt::operand_ty(builder, &v);
             let bool_ty = builder.types.bool();
             let tmp = builder.alloc_temp(bool_ty, span);
@@ -191,7 +194,10 @@ pub fn lower_expr(builder: &mut FnLowering, expr: &Expr) -> Operand {
             ty: target,
         } => {
             let v = lower_expr(builder, inner);
-            let target_ty = resolve_typeref(builder, target);
+            let target_ty = builder
+                .hir
+                .type_ref_resolution(builder.file_id, target.id)
+                .unwrap_or_else(|| resolve_typeref(builder, target));
             let operand_ty_id = super::stmt::operand_ty(builder, &v);
             let result = match op {
                 ast::CastOp::As => ty,
@@ -2743,7 +2749,10 @@ fn lower_pattern_test(
         }
         ast::PatternKind::Is(ty_ref) => {
             // `is T` / `!is T` 模式：解析真实目标类型，发射 PatternMatch{Is{ty, negated}}。
-            let target_ty = resolve_typeref(builder, ty_ref);
+            let target_ty = builder
+                .hir
+                .type_ref_resolution(builder.file_id, ty_ref.id)
+                .unwrap_or_else(|| resolve_typeref(builder, ty_ref));
             let mir_pat = crate::mir::Pattern::Is {
                 ty: target_ty,
                 negated: false,
