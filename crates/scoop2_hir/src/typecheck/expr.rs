@@ -2506,7 +2506,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             ExprKind::MemberAccess { receiver, member } => {
                 let MemberName::Named(name) = member else {
-                    return None;
+                    // TupleIndex 成员访问作为 callee（`receiver._0(args)`）：
+                    // _0 字段的值作为函数被调用。走 FunValue 路径。
+                    let callee_ty = self.expr_types.get(callee.id).copied();
+                    return callee_ty
+                        .filter(|ty| self.function_type_of(*ty).is_some())
+                        .map(|fn_ty| crate::hir::ResolvedCall::FunValue {
+                            fn_ty,
+                            return_ty,
+                        });
                 };
                 let receiver_ty = self.expr_ty(receiver)?;
                 // effect-op 调用：`EffectPath.op(...)`。
@@ -2546,7 +2554,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::TypeApply { callee: inner, .. } => {
                 self.derive_typeapply_call_resolution(callee, return_ty, call_node_id)
             }
-            _ => None,
+            // 函数值调用（`f()(x)` / `fns[0](1)` / lambda 调用）：callee 是任意表达式，
+            // 其类型为函数类型。不经过 Ident/MemberAccess 解析，直接产出 FunValue 决议。
+            _ => {
+                let callee_ty = self.expr_types.get(callee.id).copied();
+                callee_ty
+                    .filter(|ty| self.function_type_of(*ty).is_some())
+                    .map(|fn_ty| crate::hir::ResolvedCall::FunValue {
+                        fn_ty,
+                        return_ty,
+                    })
+            }
         }
     }
 

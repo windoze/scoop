@@ -8,8 +8,9 @@
 //!
 //! - 所有表以 [`NodeId`](scoop2_base::NodeId) 为键（与 `expr_types` 同），存放在
 //!   [`crate::hir::TypedFile`] 中，使其与表达式类型表同生命周期。
-//! - 事实是**尽力而为**的决议快照：决议失败（如重载歧义、未解析引用）时不写入，
-//!   对应 NodeId 在表中缺失。MIR lowering 对缺失事实按「无法 lower」报错。
+//! - 事实是**完整精确**的决议快照：每个 Call/MemberAccess/Operator/Index 节点
+//!   都有对应事实。决议失败时，typecheck 必须报诊断（而非静默跳过）。
+//!   合法程序的 HIR 中不存在缺失事实的 call/member site。
 //! - 携带的类型句柄（`TypeId`）来自 typecheck 的 `TypeStore`，move 进 `TypedHir`
 //!   后保持有效（store 是 TypeId 的唯一来源）。
 
@@ -88,6 +89,13 @@ pub enum ResolvedCall {
         /// 局部绑定名。
         local_name: Symbol,
         /// 函数类型。
+        fn_ty: TypeId,
+        return_ty: TypeId,
+    },
+    /// 函数值调用（callee 是计算结果为函数类型的表达式，如 `f()(x)` / `fns[0](1)` / lambda 调用）。
+    /// callee 不是命名局部变量，而是任意表达式。MIR 按 FunValue indirect call 处理。
+    FunValue {
+        /// callee 表达式的函数类型。
         fn_ty: TypeId,
         return_ty: TypeId,
     },

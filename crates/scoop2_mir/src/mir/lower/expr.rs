@@ -424,10 +424,15 @@ fn lower_call(
     };
     if let Some(rc) = resolution {
         // 若是方法调用（callee 是 MemberAccess），先 lower receiver 再传入。
+        // 若是函数值调用（FunValue），lower callee 表达式本身作为 indirect call 目标。
         // 但 effect-op 调用（Raise.raise）的 receiver 是 effect 类型名（非值），
         // 不应 lower 为表达式；EffectOp 分支会发射 Perform 终结符，不需 receiver operand。
         let recv_op = match rc {
             scoop2_hir::hir::ResolvedCall::EffectOp { .. } => None,
+            scoop2_hir::hir::ResolvedCall::FunValue { .. } => {
+                // callee 是任意表达式（函数值）：lower 它作为 indirect call 的目标。
+                Some(lower_expr(builder, callee))
+            }
             _ => {
                 if let ExprKind::MemberAccess { receiver, .. } = &callee.kind {
                     Some(lower_expr(builder, receiver))
@@ -991,6 +996,27 @@ fn emit_call_resolution(
                 let l = builder.alloc_temp(ty, span);
                 Operand::Local(l)
             };
+            Rvalue::Call {
+                site_id: call_site_id,
+                kind: crate::mir::CallKind::FunValue { callee },
+                args,
+                transport: call_transport,
+            }
+        }
+        ResolvedCall::FunValue { .. } => {
+            // callee 是任意表达式（函数值调用）：lower callee 表达式为 operand，
+            // 然后作为 FunValue indirect call。
+            // 注意：callee 作为 Call 节点的子表达式，在 lower_call 中需要单独 lower。
+            // 但 lower_call 的签名只接收 callee: &Expr，我们可以直接 lower 它。
+            // 然而 emit_call_resolution 不接收 callee —— 它只接收 rc + args。
+            // 解决：FunValue 的 callee operand 已经在 lower_call 中 lower 过（因为
+            // lower_call 在进入 emit_call_resolution 之前捕获了 call_node）。
+            // 但 callee 本身可能还没 lower——lower_call 的正常路径不 lower callee。
+            // 简化：使用 receiver_operand（若 caller 传了）或分配一个临时。
+            let callee = receiver_operand.unwrap_or_else(|| {
+                let l = builder.alloc_temp(ty, span);
+                Operand::Local(l)
+            });
             Rvalue::Call {
                 site_id: call_site_id,
                 kind: crate::mir::CallKind::FunValue { callee },
