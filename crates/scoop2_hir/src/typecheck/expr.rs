@@ -2207,6 +2207,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         if let Some(t) = self.env.top_level_val(sym) {
             return Some(t);
         }
+        // 类型名作为表达式节点（构造器调用的 callee）：返回 nominal 类型。
+        // 例如 C() 中的 "C" 是类型名，其「表达式类型」是该类型的引用。
+        if let Some(fqn) = self.callee_type_fqn_symbol(sym) {
+            let is_ref = self.env.is_reference_nominal(fqn);
+            let nominal_ty = crate::ty::NominalType {
+                fqn,
+                args: Vec::new(),
+                eff: None,
+            };
+            if is_ref {
+                return Some(self.env.store.ref_nominal(nominal_ty));
+            } else {
+                return Some(self.env.store.value_nominal(nominal_ty));
+            }
+        }
         if let Some(rv) = self.resolution.value_refs.get(node_id) {
             match rv {
                 ResolvedValue::Local { .. } => self.locals.get(&sym).copied(),

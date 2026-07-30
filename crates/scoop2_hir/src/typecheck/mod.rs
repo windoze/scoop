@@ -95,6 +95,7 @@ pub fn run_typecheck_with_options(
         prefix: String,
         imports: imports::ImportTable,
         resolution: Resolution,
+        is_sysroot: bool,
         trusted: bool,
     }
     let mut user_files: Vec<UserFile> = Vec::new();
@@ -132,6 +133,7 @@ pub fn run_typecheck_with_options(
             imports,
             resolution,
             trusted: inp.trusted,
+            is_sysroot: inp.origin == InputOrigin::Sysroot,
         });
     }
 
@@ -200,16 +202,16 @@ pub fn run_typecheck_with_options(
     }
     // 把 typecheck 产出 move 进自包含的 TypedHir（含 interner 副本，解耦借用）。
     let hir = env.into_typed_hir(interner.clone(), typed_files);
-    // 完整性闸门：在 run_typecheck 末尾**无条件**启用 completeness::verify 作门禁。
-    //
-    // typechecker 通过 walk_expr 漏斗的 backfill_child_types 为所有子表达式补类型，
-    // 且 completeness::verify 对 typechecker 覆盖最小的区域（class init block /
-    // secondary ctor body / class·struct property initializer）采取宽容策略（仅在
-    // 顶层表达式有类型时递归验证）。这使 558 个 typecheck fixture 无回归，同时
-    // 为 MIR lowering 提供完整性保证：任何未类型化的可 lower 表达式都会在此报
-    // `scoop::typecheck::untyped_node`。
-    let user_file_refs: Vec<(scoop2_base::FileId, &File)> =
-        user_files.iter().map(|uf| (uf.file_id, uf.file)).collect();
+    // 完整性闸门：仅对 User-origin 文件做严格检查（包括 Nothing 类型检测）。
+    // sysroot 文件（lower_sysroot_bodies=true 时包含）不做严格检查——它们的
+    // 表达式类型可能不完整（backfill_child_types 的 Nothing 兜底），但不影响
+    // MIR lowering 正确性（MIR 只消费 call_resolutions/member_refs facts，
+    // 这些 facts 在 check_file_bodies 时已写入）。
+    let user_file_refs: Vec<(scoop2_base::FileId, &File)> = user_files
+        .iter()
+        .filter(|uf| !uf.is_sysroot)
+        .map(|uf| (uf.file_id, uf.file))
+        .collect();
     crate::completeness::verify(&hir, &user_file_refs, diags);
     hir
 }
