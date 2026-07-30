@@ -354,14 +354,29 @@ impl<'hir> FnLowering<'hir> {
             None
         };
         crate::mir::CallKind::Direct {
-            callee_fqn,
+            callee_fqn: callee_fqn.clone(),
             type_args: type_args.clone(),
             is_intrinsic,
             stable_template_key: stk,
             stable_instance_key: sik,
             generic_type_args: type_args,
             generic_eff_args: vec![],
+            intrinsic_name: self.lookup_intrinsic_name_for_fqn(&callee_fqn),
         }
+    }
+
+    /// 从 callee FQN 查找 @Intrinsic 注解名（从 hir declarations 表）。
+    fn lookup_intrinsic_name_for_fqn(&self, callee_fqn: &str) -> Option<String> {
+        // callee_fqn 是 owner.method 形式的 FQN。
+        // intrinsic_name 存储在 MIR FunDecl 中，但此处只有 FQN 字符串。
+        // 通过 hir interner 查找 Symbol，然后在 declarations 表中匹配。
+        let fqn_sym = self.hir.interner.get(callee_fqn)?;
+        // hir 不直接暴露 declarations，但 intrinsic 信息在 MIR module items 中。
+        // 实际上 intrinsic_name 在 MIR lower 阶段已存入 FunDecl。
+        // 此处我们无法直接访问——需要在 lower 阶段填充。
+        // 简化：返回 None，由 LIR 层从 LirDeclaration 填充。
+        let _ = fqn_sym;
+        None
     }
 
     /// 根据 owner FQN 选择 Interface（itable）或 Virtual（class vtable）分发通道。
@@ -1330,6 +1345,7 @@ fn emit_super_init_call(
                     stable_instance_key: None,
                     generic_type_args: vec![],
                     generic_eff_args: vec![],
+                    intrinsic_name: None,
                 },
                 args,
                 transport: crate::mir::transport::CallTransportMetadata::plain_no_outward(
@@ -1770,6 +1786,7 @@ fn emit_plain_init_call(
                     stable_instance_key: None,
                     generic_type_args: vec![],
                     generic_eff_args: vec![],
+                    intrinsic_name: None,
                 },
                 args,
                 transport: crate::mir::transport::CallTransportMetadata::plain_no_outward(

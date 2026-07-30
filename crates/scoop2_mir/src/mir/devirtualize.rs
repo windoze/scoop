@@ -280,6 +280,7 @@ fn devirtualize_call_kind(
         stable_instance_key,
         generic_type_args: dispatch.generic_type_args.clone(),
         generic_eff_args: dispatch.generic_eff_args.clone(),
+        intrinsic_name: None,
     };
 }
 

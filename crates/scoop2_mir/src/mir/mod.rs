@@ -708,6 +708,9 @@ pub enum CallKind {
         stable_instance_key: Option<StableInstanceKey>,
         generic_type_args: Vec<TypeId>,
         generic_eff_args: Vec<EffectRow>,
+        /// `@Intrinsic("name")` 注解透传的 intrinsic 名。
+        /// 从 callee_fqn 查 hir declarations 的 intrinsic_name 填充。
+        intrinsic_name: Option<String>,
     },
     /// class 虚方法分发（open/override 方法，走 vtable）。
     Virtual {

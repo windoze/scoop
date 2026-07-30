@@ -655,6 +655,16 @@ fn intrinsic_name_from_fqn(fqn: &str) -> Option<String> {
     Some(format!("{type_prefix}_{mapped}"))
 }
 
+/// 按已知 intrinsic name lower（公开接口，供 codegen direct.rs 调用）。
+pub fn try_lower_named_intrinsic<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    name: &str,
+    args: &[LirOperand],
+    result_ty: TypeId,
+) -> CodegenResult<Option<BasicValueEnum<'ctx>>> {
+    lower_named_intrinsic(fl, name, args).map(Some)
+}
+
 /// 按已知 intrinsic name lower。未实现的返回错误。
 fn lower_named_intrinsic<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,

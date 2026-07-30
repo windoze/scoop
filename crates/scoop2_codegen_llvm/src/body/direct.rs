@@ -22,9 +22,9 @@ pub fn lower_direct<'a, 'ctx>(
     callee_symbol: &str,
     args: &[LirOperand],
     result_ty: TypeId,
+    intrinsic_name: Option<&str>,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     // 0. Continuation.resume（effect_lower 重写的 resume 调用）。
-    //    args = [continuation, resume_value]；调用 continuation 的 step_fn。
     if callee_symbol == "scoop.core.Continuation.resume" {
         let cont = args
             .get(0)
@@ -36,14 +36,22 @@ pub fn lower_direct<'a, 'ctx>(
             .unwrap_or(LirOperand::Const(scoop2_lir::LirConstValue::Null));
         return super::call::lower_resume_direct(fl, &cont, &rv, result_ty);
     }
-    // 1. intrinsic 启发式（按 FQN）— 优先于函数声明，因为 @Intrinsic 方法
-    //    虽有声明（body=None）但应内联而非调用。
-    if let Some(v) =
-        crate::intrinsics::try_lower_intrinsic_by_fqn(fl, callee_symbol, args, result_ty)?
-    {
-        return Ok(v);
+    // 1. LIR 携带的 intrinsic name（从 @Intrinsic 注解透传）— 权威来源。
+    //    优先于函数声明，因为 @Intrinsic 方法虽有声明（body=None）但应内联而非调用。
+    if let Some(name) = intrinsic_name {
+        if let Some(v) = crate::intrinsics::try_lower_named_intrinsic(fl, name, args, result_ty)? {
+            return Ok(v);
+        }
     }
-    // 2. 已声明/定义的函数。
+    // 2. FQN 启发式（仅当 LIR 未携带 intrinsic name 时回退）。
+    if intrinsic_name.is_none() {
+        if let Some(v) =
+            crate::intrinsics::try_lower_intrinsic_by_fqn(fl, callee_symbol, args, result_ty)?
+        {
+            return Ok(v);
+        }
+    }
+    // 3. 已声明/定义的函数。
     if let Some(fv) = fl
         .cg
         .lookup_callable_fn(callee_symbol)
@@ -51,7 +59,7 @@ pub fn lower_direct<'a, 'ctx>(
     {
         return lower_known_fn(fl, fv, args, result_ty);
     }
-    // 3. runtime 符号映射（println/print 等常用符号）。
+    // 4. runtime 符号映射（println/print 等常用符号）。
     if let Some(fv) = resolve_runtime_symbol(fl, callee_symbol) {
         return lower_known_fn(fl, fv, args, result_ty);
     }

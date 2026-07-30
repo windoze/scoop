@@ -676,12 +676,13 @@ fn map_rvalue(
                     callee_fqn,
                     stable_instance_key,
                     generic_type_args,
+                    intrinsic_name,
                     ..
                 } => {
                     // 对带类型实参的 Direct 调用，解析到目标实例的唯一符号名
                     // （与 materialize 的 compute_instance_symbol 同公式），确保
-                    // 同 FQN 不同实参的重载（println<Int>/println<String>）指向
-                    // 正确实例。无类型实参时保留 FQN（由 backfill/codegen 解析）。
+                    // 同 FQN 不同实参的重载（println<Int>/println<String>）指向正确实例。
+                    // 无类型实参时保留 FQN（由 backfill/codegen 解析）。
                     let callee_symbol = if generic_type_args.is_empty() {
                         callee_fqn.clone()
                     } else {
@@ -696,6 +697,7 @@ fn map_rvalue(
                         callee_symbol,
                         callee_fqn: callee_fqn.clone(),
                         stable_instance_key: stable_instance_key.clone(),
+                        intrinsic_name: intrinsic_name.clone(),
                     }
                 }
                 CallKind::Virtual {
