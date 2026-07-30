@@ -414,3 +414,14 @@ codegen 是 pipeline 末端，绝大多数非法程序在 parse/typecheck/MIR/LI
 - **成员签名查找确定性**：`lookup_member_sig` 按声明 owner 精确查 `member_funs`（修复原实现全表 `.values()` 首命中——HashMap 迭代序导致 `String.compareTo` 随机拿到 Int/Char/Float32.compareTo 签名、参数类型每次编译随机）。
 - **codegen**：`String.byteLength`/`getByte` intrinsic（runtime `scoop_string_byte_length`/`scoop_string_bytes`+索引 load）；修复 `_not_equals` 被 `_equals` 前缀匹配吞掉（`!=` 曾 lowering 成 EQ）；旧管线 intrinsic 表补 `float_equals`/`float32_to_int`/`float64_to_int`/`int_to_int`/`string_byte_length`/`string_get_byte` 校验条目。
 - 已知遗留（旧管线，sysroot 精简预期内）：`scoopc_hir` 7 个依赖已移除包（lang_string/sync/delegates/atomic/RefCell）的测试失败；p7 5 个旧 effect codegen 测试依赖旧 sysroot RuntimeError 形状/GC debug helper，待新 effect 管线（W1-10）取代。
+
+### 进展更新（run-pass 审计 + 多项正确性修复）
+
+对 439 个 run-pass fixture 做了系统审计（scoop2c run）：**132 通过 / 271 失败 / 0 crash**。失败按根因分类：CODEGEN ~138、RESOLVE ~62（其中 ~40 因 sysroot 精简移除 runtime.test/sync/thread/RefCell/AtomicInt/Lazy/IntProgression/Vec 等）、TYPECHECK ~39（多为委托属性/缺少 effect 声明等 sysroot 移除项）。本轮修复的真实正确性 bug：
+
+- **ClassCtor 聚合字段存储**：写 struct/tuple 字段用 `gep struct_ty, base, [offset/ptr_size]` 把字节偏移当元素个数 → 改 i8 GEP 字节偏移 + pointer_cast + store（与读取路径一致）。
+- **@Intrinsic 注解名透传**（四层）：sysroot `@Intrinsic("int_ushr")` 等无 body 方法被 LIR 误当 extern，codegen 把 FQN 错误映射成不存在的 `@scoop_ushr`。修复：MIR FunDesc 增 `intrinsic_name`（从注解提取）；LIR LirDeclaration 增 `intrinsic_name`（@Intrinsic 不再 is_extern）；codegen Context 增 `intrinsic_map`（FQN→注解名），intrinsic 分发优先用注解名。
+- **整数符号性/宽度**：div/rem/cmp/移位符号性以 receiver 类型（UInt*→无符号）为准而非注解名前缀（sysroot UInt*.div/shr 复用 int_*）；移位量按位宽掩码（`1<<64`==1，修复 LLVM shift>=width UB）；移位保持 lhs 原始位宽（避免 unify 到 i64 后 store 越界 i8 slot）；`store_local` 按声明类型截断/扩展标量。
+- **Char 算术 / Bool.not / int_hash**：char_plus_int/char_minus_int/char_minus_char；bool_ne 一元（Bool.not）= XOR 1；int_hash/char_hash（值本身）；Char.minus 重载歧义按 result_ty 精确选 char_minus_int/char_minus_char。
+- **顶层 val/var 全局机制**：codegen `declare_top_level_globals` 为每个 global_init entry 声明 backing slot；entry main 在用户 main 前调用 init_callable 写入初值；TopLevelRef/StoreGlobal 按真实类型 load/store。LIR TopLevelRef.ty 从 global_types 按 fqn 查真实类型（修复 find_any_type 兜底）。typecheck record_assign_place 在 value_ref 未记录时按 symbol 查 top_level_val（确保 `globalVar = ...` 产出 StoreTopLevelVar）。
+- **inline rename_operand 未回写**（重大）：`rename_operand` 返回新 Operand，但 StoreTopLevelVar/StoreMember/StoreTupleIndex 调用后未赋值回 `*value`/`*receiver`，导致 inline 后这些语句引用旧 local id（跨函数顶层 var 写入/成员字段写入 inline 后错位）。修复 `*value = rename_operand(value, map)`（三处）。
