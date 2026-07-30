@@ -1242,7 +1242,7 @@ fn emit_super_init_call(
 ) {
     // 超类引用类型（this 的静态类型即子类引用，super init 接收同一 this）。
     let super_fqn_text = builder.hir.interner.resolve(super_del.super_fqn).to_string();
-    // 构造调用实参：[this, super_arg0, ...]。
+    // 构造调用实参：[this, ...填充后的参数]。
     let mut args: Vec<crate::mir::CallArg> = Vec::new();
     args.push(crate::mir::CallArg {
         name: None,
@@ -1250,18 +1250,28 @@ fn emit_super_init_call(
         value: crate::mir::Operand::Local(this_lid),
         value_ty: this_ty,
     });
-    for a in base_args {
-        // 实参表达式直接 lower（任意表达式：函数调用/运算/参数引用/常量）。
-        // 实参表达式已由 check_super_delegation_args typecheck，lower 时消费其语义事实。
-        let val = crate::mir::lower::expr::lower_expr(builder, &a.value);
-        let val_ty = crate::mir::lower::stmt::operand_ty(builder, &val);
-        args.push(crate::mir::CallArg {
-            name: None,
-            is_spread: false,
-            value: val,
-            value_ty: val_ty,
+    // 查超类 ctor 签名（用于默认参数填充 + 命名实参排序）。
+    let super_sig = builder
+        .hir
+        .ctor_signatures
+        .get(&super_del.super_fqn)
+        .and_then(|sigs| {
+            let n_args = base_args.len();
+            sigs.iter().find(|s| {
+                let min_arity = s.has_defaults.iter().position(|d| *d).unwrap_or(s.param_types.len());
+                n_args >= min_arity && n_args <= s.param_types.len()
+            }).or_else(|| sigs.first())
         });
-    }
+    // 用 lower_delegation_args 填充默认值 + 排序命名实参。
+    // base_args 是 d.supertypes[base_index].args（AST CallArg 列表）。
+    // 构造一个临时的 CtorDelegation 来复用 lower_delegation_args。
+    let temp_del = scoop2_syntax::ast::CtorDelegation {
+        span,
+        kind: scoop2_syntax::ast::CtorDelegationKind::Super,
+        args: base_args.to_vec(),
+    };
+    let filled = lower_delegation_args(builder, &temp_del, super_sig);
+    args.extend(filled);
     let callee_fqn = format!("{}.$init", super_fqn_text);
     let unit_ty = builder.types.unit();
     let tmp = builder.alloc_temp(unit_ty, span);
@@ -1408,7 +1418,37 @@ pub fn lower_secondary_ctor_callable(
     let primary_init_fqn = format!("{}.$init", owner_fqn);
     match &sc.delegation {
         Some(del) => {
-            // lower delegation 实参。
+            // lower delegation 实参（含默认参数填充 + 命名实参排序）。
+            // 目标 ctor 签名：this → 本类 ctor_signatures；super → 超类 ctor_signatures。
+            let (target_fqn, target_sig_owner) = match del.kind {
+                CtorDelegationKind::This => {
+                    let n_args = del.args.len();
+                    let fqn = resolve_this_delegation_target(hir, owner_fqn_sym, &owner_fqn, n_args);
+                    (fqn, owner_fqn_sym)
+                }
+                CtorDelegationKind::Super => {
+                    let sd = hir.super_ctor_delegations.get(&owner_fqn_sym);
+                    let super_fqn_text = sd
+                        .map(|sd| hir.interner.resolve(sd.super_fqn).to_string())
+                        .unwrap_or_default();
+                    let fqn = format!("{}.$init", super_fqn_text);
+                    let super_sym = sd.map(|sd| sd.super_fqn).unwrap_or_default();
+                    (fqn, super_sym)
+                }
+            };
+            // 查目标 ctor 签名（按参数数匹配）。
+            let target_sig = hir
+                .ctor_signatures
+                .get(&target_sig_owner)
+                .and_then(|sigs| {
+                    // 找参数数匹配（考虑默认值：n_args <= n_params）的签名。
+                    let n_args = del.args.len();
+                    sigs.iter().find(|s| {
+                        let min_arity = s.has_defaults.iter().position(|d| *d).unwrap_or(s.param_types.len());
+                        n_args >= min_arity && n_args <= s.param_types.len()
+                    }).or_else(|| sigs.first())
+                });
+            // 构建实参列表（this + 填充后的参数）。
             let mut del_ops: Vec<crate::mir::CallArg> = Vec::new();
             del_ops.push(crate::mir::CallArg {
                 name: None,
@@ -1416,33 +1456,14 @@ pub fn lower_secondary_ctor_callable(
                 value: crate::mir::Operand::Local(this_lid),
                 value_ty: this_ty,
             });
-            for a in &del.args {
-                let val = crate::mir::lower::expr::lower_expr(&mut builder, &a.value);
-                let val_ty = crate::mir::lower::stmt::operand_ty(&mut builder, &val);
-                del_ops.push(crate::mir::CallArg {
-                    name: None,
-                    is_spread: false,
-                    value: val,
-                    value_ty: val_ty,
-                });
-            }
+            let filled_args = lower_delegation_args(&mut builder, del, target_sig);
+            del_ops.extend(filled_args);
             match del.kind {
                 CtorDelegationKind::This => {
-                    // this(args)：委托给同类另一个 ctor。按 delegation 实参数解析目标 ctor
-                    // （primary = ctors[0] → $init；secondary = ctors[i] → $ctor.s<span>）。
-                    let n_args = del.args.len();
-                    let target_fqn = resolve_this_delegation_target(hir, owner_fqn_sym, &owner_fqn, n_args);
                     emit_plain_init_call(&mut builder, &target_fqn, del_ops, sc.span);
                 }
                 CtorDelegationKind::Super => {
-                    // super(args)：直接调超类 $init（传 super 实参），然后跑本类
-                    // property-param 赋值 + initializer + init-block（不含 super 委托——
-                    // 已在上面直接调超类）。
-                    if let Some(sd) = hir.super_ctor_delegations.get(&owner_fqn_sym) {
-                        let super_fqn_text = hir.interner.resolve(sd.super_fqn).to_string();
-                        let super_init_fqn = format!("{}.$init", super_fqn_text);
-                        emit_plain_init_call(&mut builder, &super_init_fqn, del_ops, sc.span);
-                    }
+                    emit_plain_init_call(&mut builder, &target_fqn, del_ops, sc.span);
                     // 本类 property-param + initializer + init-block（从 d.body.members 发射）。
                     emit_class_init_steps(&mut builder, d, hir, owner_fqn_sym, this_lid, this_ty, &ctor_params, &primary_param_names, &owner_fqn, sc.span);
                 }
@@ -1589,6 +1610,100 @@ fn emit_class_init_steps(
     }
     emit_param_props(builder);
     let _ = owner_fqn;
+}
+
+/// lower delegation 实参（含默认参数填充 + 命名实参排序）。
+///
+/// 与 HIR 的 fill_resolved_args 对称：按目标 ctor 签名的参数位置，
+/// 将命名实参映射到正确位置 + 填充默认值。
+fn lower_delegation_args(
+    builder: &mut FnLowering,
+    del: &scoop2_syntax::ast::CtorDelegation,
+    target_sig: Option<&scoop2_hir::hir::TypedSignature>,
+) -> Vec<crate::mir::CallArg> {
+    let args = &del.args;
+    // 无签名或全位置实参（参数数 == 签名参数数）→ 直接 lower。
+    let sig = match target_sig {
+        Some(s) => s,
+        None => {
+            return args
+                .iter()
+                .map(|a| {
+                    let v = crate::mir::lower::expr::lower_expr(builder, &a.value);
+                    let ty = crate::mir::lower::stmt::operand_ty(builder, &v);
+                    crate::mir::CallArg {
+                        name: None,
+                        is_spread: a.is_spread,
+                        value: v,
+                        value_ty: ty,
+                    }
+                })
+                .collect();
+        }
+    };
+    // 若全位置且参数数匹配 → 直接 lower（常见路径）。
+    let all_positional = args.iter().all(|a| a.name.is_none());
+    if all_positional && args.len() == sig.param_types.len() {
+        return args
+            .iter()
+            .map(|a| {
+                let v = crate::mir::lower::expr::lower_expr(builder, &a.value);
+                let ty = crate::mir::lower::stmt::operand_ty(builder, &v);
+                crate::mir::CallArg {
+                    name: None,
+                    is_spread: a.is_spread,
+                    value: v,
+                    value_ty: ty,
+                }
+            })
+            .collect();
+    }
+    // 按签名参数位置排序 + 填充默认值。
+    let n_params = sig.param_types.len();
+    let mut out: Vec<crate::mir::CallArg> = Vec::with_capacity(n_params);
+    let mut positional_iter = args
+        .iter()
+        .filter(|a| a.name.is_none())
+        .map(|a| &a.value);
+    for (param_idx, &pname) in sig.param_names.iter().enumerate() {
+        // 先查命名实参。
+        let named = args
+            .iter()
+            .find(|a| a.name.as_ref().is_some_and(|n| n.symbol == pname));
+        if let Some(a) = named {
+            let v = crate::mir::lower::expr::lower_expr(builder, &a.value);
+            let ty = crate::mir::lower::stmt::operand_ty(builder, &v);
+            out.push(crate::mir::CallArg {
+                name: None,
+                is_spread: false,
+                value: v,
+                value_ty: ty,
+            });
+        } else if let Some(expr) = positional_iter.next() {
+            let v = crate::mir::lower::expr::lower_expr(builder, expr);
+            let ty = crate::mir::lower::stmt::operand_ty(builder, &v);
+            out.push(crate::mir::CallArg {
+                name: None,
+                is_spread: false,
+                value: v,
+                value_ty: ty,
+            });
+        } else {
+            // 默认值。
+            if let Some(Some(default_expr)) = sig.default_exprs.get(param_idx) {
+                let v = crate::mir::lower::expr::lower_expr(builder, default_expr);
+                let ty = crate::mir::lower::stmt::operand_ty(builder, &v);
+                out.push(crate::mir::CallArg {
+                    name: None,
+                    is_spread: false,
+                    value: v,
+                    value_ty: ty,
+                });
+            }
+            // body-field 参数（无默认表达式）→ 跳过（不传）。
+        }
+    }
+    out
 }
 
 /// 发出一个对 `<Class>.$init` 的普通调用（this + 实参）。

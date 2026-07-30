@@ -44,6 +44,9 @@ pub struct TypedSignature {
     pub param_names: Vec<Symbol>,
     /// 是否带默认值（与 param_types 平行）。
     pub has_defaults: Vec<bool>,
+    /// 各参数默认值表达式（与 param_types 平行；None = 无默认值）。
+    /// 供 MIR lower 在 delegation 调用点填充缺失参数时 lower。
+    pub default_exprs: Vec<Option<crate::syntax::ast::Expr>>,
     /// effect 行（`/ Row`）；`Pure`（空行）若未声明。
     pub effect_row: EffectRow,
     /// 是否带 `vararg`。

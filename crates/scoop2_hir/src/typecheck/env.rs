@@ -487,6 +487,7 @@ impl<'i> TypeEnv<'i> {
                     type_param_count: s.type_param_count,
                     param_names: s.param_names,
                     has_defaults: s.has_defaults,
+                    default_exprs: s.default_exprs,
                     effect_row: resolve_signature_effect_row(
                         store,
                         index_ref,
