@@ -220,17 +220,15 @@ pub fn run_typecheck_with_options(
     }
     // 把 typecheck 产出 move 进自包含的 TypedHir（含 interner 副本，解耦借用）。
     let hir = env.into_typed_hir(interner.clone(), typed_files);
-    // 完整性闸门：仅对 User-origin 文件做严格检查（包括 Nothing 类型检测）。
-    // sysroot 文件（lower_sysroot_bodies=true 时包含）不做严格检查——它们的
-    // 表达式类型可能不完整（backfill_child_types 的 Nothing 兜底），但不影响
-    // MIR lowering 正确性（MIR 只消费 call_resolutions/member_refs facts，
-    // 这些 facts 在 check_file_bodies 时已写入）。
-    let user_file_refs: Vec<(scoop2_base::FileId, &File)> = user_files
+    // 完整性闸门：对所有文件（User + sysroot）做严格检查。
+    // sysroot 与 User 同等对待——MIR 会 lower sysroot 函数体，sysroot 的不完整事实
+    // 同样会泄漏进 MIR，故必须同等保证完整。backfill_child_types 已删除（不再有
+    // Nothing 兜底），sysroot 类型应已完整。
+    let all_file_refs: Vec<(scoop2_base::FileId, &File)> = user_files
         .iter()
-        .filter(|uf| !uf.is_sysroot)
         .map(|uf| (uf.file_id, &*inputs[uf.file_idx].file))
         .collect();
-    crate::completeness::verify(&hir, &user_file_refs, diags);
+    crate::completeness::verify(&hir, &all_file_refs, diags);
     hir
 }
 
