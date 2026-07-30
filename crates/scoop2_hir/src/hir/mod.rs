@@ -87,14 +87,18 @@ pub struct ClassCtorParamInfo {
 
 /// class `: Super(args)` 主构造器委托的解析结果。
 ///
-/// 实参只覆盖两种可静态解析的形式：常量字面量与本类主构造器参数引用
-/// （`class B(tag: String) : A(tag)`）；其它形式不记录（保持旧行为）。
+/// super 委托实参可以是任意表达式（函数调用、运算、ctor 参数引用、常量等），
+/// 在 MIR `<Class>.$init` 合成时从 `TypeDecl.supertypes[base_index].args` 直接
+/// lower（实参表达式已由 check_super_delegation_args typecheck，写回语义事实）。
 #[derive(Clone, Debug)]
 pub struct SuperCtorDelegation {
     /// 超类 FQN。
     pub super_fqn: Symbol,
-    /// 实参（按书写顺序 = 超类主构造器参数序；仅位置实参）。
-    pub args: Vec<SuperCtorArg>,
+    /// base supertype 在 `TypeDecl.supertypes` 中的索引（MIR 据此取实参 AST）。
+    pub base_index: usize,
+    /// 实参类型序列（按超类主构造器参数序；与 supertypes[base_index].args 平行）。
+    /// 供 MIR 构造 CallArg 的 value_ty（实参表达式的推断类型）。
+    pub arg_tys: Vec<TypeId>,
 }
 
 /// super 委托实参。

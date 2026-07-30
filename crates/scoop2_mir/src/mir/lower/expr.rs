@@ -1548,51 +1548,15 @@ fn expand_super_ctor_chain(
 /// 递归收集 class 的完整字段实参：先超类（沿 `: Super(args)` 委托链自顶向下），
 /// 再本类属性（val/var）参数。委托实参引用本类构造器参数时按参数序替换。
 fn collect_ctor_field_args(
-    builder: &mut FnLowering,
-    class_fqn: scoop2_base::Symbol,
+    _builder: &mut FnLowering,
+    _class_fqn: scoop2_base::Symbol,
     params: &[scoop2_hir::hir::ClassCtorParamInfo],
     param_ops: Vec<Option<(Operand, scoop2_hir::ty::TypeId)>>,
 ) -> Vec<CallArg> {
+    // super 委托的字段初始化现由 `<Class>.$init` 合成 callable 负责（递归调超类 $init）。
+    // ClassCtor 的 args 只需本类的属性参数（按参数序 = 本类字段布局序）。
+    // 超类字段参数不再 prepend（避免与 $init 的 super 委托重复初始化）。
     let mut out: Vec<CallArg> = Vec::new();
-    if let Some(del) = builder.hir.super_ctor_delegations.get(&class_fqn).cloned() {
-        let super_params = builder
-            .hir
-            .class_ctor_params
-            .get(&del.super_fqn)
-            .cloned()
-            .unwrap_or_default();
-        // 委托实参数必须等于超类构造器参数数（无默认值代入能力时不展开，保持旧行为）。
-        if !super_params.is_empty() && del.args.len() == super_params.len() {
-            let mut super_ops: Vec<Option<(Operand, scoop2_hir::ty::TypeId)>> =
-                vec![None; super_params.len()];
-            let mut resolved_all = true;
-            for (i, a) in del.args.iter().enumerate() {
-                match a {
-                    scoop2_hir::hir::SuperCtorArg::CtorParam { index, .. } => {
-                        match param_ops.get(*index as usize).and_then(|o| o.as_ref()) {
-                            Some((op, oty)) => super_ops[i] = Some((op.clone(), *oty)),
-                            None => {
-                                resolved_all = false;
-                                break;
-                            }
-                        }
-                    }
-                    scoop2_hir::hir::SuperCtorArg::Const { value, ty } => {
-                        super_ops[i] = Some((super_ctor_const_operand(builder, value, *ty), *ty));
-                    }
-                }
-            }
-            if resolved_all {
-                out.extend(collect_ctor_field_args(
-                    builder,
-                    del.super_fqn,
-                    &super_params,
-                    super_ops,
-                ));
-            }
-        }
-    }
-    // 本类属性参数（val/var）按参数序追加（= 字段布局序）。
     for (i, p) in params.iter().enumerate() {
         if !p.is_property {
             continue;
@@ -1607,36 +1571,6 @@ fn collect_ctor_field_args(
         }
     }
     out
-}
-
-/// super 委托常量实参 → MIR 常量 operand（Float 按记录类型区分 f32/f64）。
-fn super_ctor_const_operand(
-    builder: &FnLowering,
-    value: &scoop2_hir::hir::SuperCtorConst,
-    ty: scoop2_hir::ty::TypeId,
-) -> Operand {
-    use scoop2_hir::hir::SuperCtorConst as C;
-    match value {
-        C::Int(v) => Operand::Const(ConstValue::Int(*v, None)),
-        C::Float(v) => {
-            let f32 = matches!(
-                builder.types.kind(ty),
-                scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Float32)
-            );
-            Operand::Const(ConstValue::Float(
-                *v,
-                if f32 {
-                    Some(crate::mir::FloatSuffix::F32)
-                } else {
-                    None
-                },
-            ))
-        }
-        C::Bool(v) => Operand::Const(ConstValue::Bool(*v)),
-        C::Char(v) => Operand::Const(ConstValue::Char(*v)),
-        C::String(v) => Operand::Const(ConstValue::String(v.clone())),
-        C::Unit => Operand::Const(ConstValue::Unit),
-    }
 }
 
 /// lower infix call（`a until b`）。

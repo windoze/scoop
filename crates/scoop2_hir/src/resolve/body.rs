@@ -104,7 +104,7 @@ impl<'a> BodyResolver<'a> {
             ItemKind::Object(d) => {
                 if let (Some(name), Some(body)) = (&d.name, &d.body) {
                     let owner = self.fqn_of_simple(name.symbol);
-                    self.resolve_member_bodies(owner, &body.members, &[]);
+                    self.resolve_member_bodies(owner, &body.members, &[], &[]);
                 }
             }
             ItemKind::Type(d) => {
@@ -115,7 +115,7 @@ impl<'a> BodyResolver<'a> {
                         .as_ref()
                         .map(|c| c.params.as_slice())
                         .unwrap_or(&[]);
-                    self.resolve_member_bodies(owner, &body.members, ctor_params);
+                    self.resolve_member_bodies(owner, &body.members, ctor_params, &d.supertypes);
                 }
             }
             ItemKind::ExtensionProperty(_) | ItemKind::TypeAlias(_) => {}
@@ -123,12 +123,14 @@ impl<'a> BodyResolver<'a> {
     }
 
     /// 解析类型体成员的函数体（`this` = `owner_fqn`）。`ctor_params` 是主构造参数，
-    /// 对本类型全部成员体可见（在成员体外层作用域绑定）。
+    /// 对本类型全部成员体可见（在成员体外层作用域绑定）。`supertypes` 用于解析
+    /// super 委托实参表达式（`: Base(arg_exprs)`）。
     fn resolve_member_bodies(
         &mut self,
         owner_fqn: Symbol,
         members: &[ast::TypeMember],
         ctor_params: &[CtorParam],
+        supertypes: &[ast::SuperType],
     ) {
         self.scopes.enter();
         // 主构造参数对本类型成员可见。
@@ -136,6 +138,15 @@ impl<'a> BodyResolver<'a> {
             self.define_synthetic(cp.name.symbol, cp.name.span);
         }
         self.init_visible_props.clear();
+        // super 委托实参表达式：在 ctor 参数作用域内 walk（记录 value_refs，
+        // 供 typecheck 的 call_resolution 消费）。实参可引用 ctor 参数 / 顶层函数。
+        self.this_type = Some(owner_fqn);
+        self.local_types.clear();
+        for st in supertypes {
+            for a in &st.args {
+                self.walk_expr(&a.value);
+            }
+        }
         for m in members {
             self.in_init_block = false;
             match &m.kind {
@@ -176,11 +187,11 @@ impl<'a> BodyResolver<'a> {
                     if d.companion {
                         // companion 是单例，不持有外类构造参数。
                         if let Some(b) = &d.body {
-                            self.resolve_member_bodies(owner_fqn, &b.members, &[]);
+                            self.resolve_member_bodies(owner_fqn, &b.members, &[], &[]);
                         }
                     } else if let (Some(name), Some(b)) = (d.name, &d.body) {
                         let fqn = self.fqn_under(owner_fqn, name.symbol);
-                        self.resolve_member_bodies(fqn, &b.members, &[]);
+                        self.resolve_member_bodies(fqn, &b.members, &[], &[]);
                     }
                 }
                 TypeMemberKind::Type(d) => {
@@ -191,7 +202,7 @@ impl<'a> BodyResolver<'a> {
                             .as_ref()
                             .map(|c| c.params.as_slice())
                             .unwrap_or(&[]);
-                        self.resolve_member_bodies(fqn, &b.members, inner_ctor);
+                        self.resolve_member_bodies(fqn, &b.members, inner_ctor, &[]);
                     }
                 }
                 TypeMemberKind::SecondaryCtor(_) | TypeMemberKind::EnumVariant(_) => {}

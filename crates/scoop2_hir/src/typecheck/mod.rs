@@ -811,6 +811,45 @@ fn check_file_bodies(
                     // 在 init 内部用 handle 消化）。object 走自己的 check_pure_static_init
                     // 路径（静态初始化器），这里仅处理 class。
                     if d.kind == crate::syntax::ast::TypeKind::Class {
+                        // ctor 参数（name → ty），供 init 块 / property initializer / super
+                        // 实参表达式 typecheck 时解析构造参数引用。
+                        let class_fqn_sym = env.interner.get(
+                            &if package_prefix.is_empty() {
+                                env.interner.resolve(d.name.symbol).to_string()
+                            } else {
+                                format!(
+                                    "{}.{}",
+                                    package_prefix,
+                                    env.interner.resolve(d.name.symbol)
+                                )
+                            },
+                        );
+                        let ctor_params: Vec<(scoop2_base::Symbol, crate::ty::TypeId)> =
+                            class_fqn_sym
+                                .and_then(|sym| env.class_ctor_params.get(&sym).cloned())
+                                .unwrap_or_default()
+                                .into_iter()
+                                .map(|cp| (cp.name, cp.ty))
+                                .collect();
+                        // super 委托实参表达式 typecheck（任意表达式：函数调用/运算/参数引用）。
+                        // 写回语义事实，供 MIR $init 合成时 lower super 调用实参消费。
+                        if let Some(sym) = class_fqn_sym
+                            && let Some(super_del) = env.super_ctor_delegations.get(&sym).cloned()
+                            && let Some(base_st) = d.supertypes.get(super_del.base_index)
+                        {
+                            expr::check_super_delegation_args(
+                                env,
+                                imports,
+                                resolution,
+                                diags,
+                                package_prefix,
+                                this_ty,
+                                &base_st.args,
+                                expr_types,
+                                facts,
+                                &ctor_params,
+                            );
+                        }
                         for m in &body.members {
                             use crate::syntax::ast::TypeMemberKind;
                             match &m.kind {
@@ -831,6 +870,7 @@ fn check_file_bodies(
                                         expr_types,
                                         facts,
                                         /* require_pure */ true,
+                                        &ctor_params,
                                     );
                                 }
                                 TypeMemberKind::Property(pd) if pd.init.is_some() => {
@@ -852,6 +892,7 @@ fn check_file_bodies(
                                             expr_types,
                                             facts,
                                             /* require_pure */ true,
+                                            &ctor_params,
                                         );
                                     }
                                 }
@@ -3196,33 +3237,22 @@ fn record_class_ctor_layout(
         if !matches!(env.index.category(base_fqn), Some(NominalCategory::Class)) {
             continue;
         }
-        // 命名实参的 super 委托不静态解析（位置实参才解析）。
+        // 命名实参的 super 委托不支持（仅位置实参）。
         if st.args.iter().any(|a| a.name.is_some()) {
             return;
         }
-        let params = env.class_ctor_params.get(&fqn).cloned().unwrap_or_default();
-        let mut args: Vec<crate::hir::SuperCtorArg> = Vec::with_capacity(st.args.len());
-        let mut resolved_all = true;
-        for a in &st.args {
-            match super_ctor_arg_of(&a.value, &params, env) {
-                Some(arg) => args.push(arg),
-                None => {
-                    resolved_all = false;
-                    break;
-                }
-            }
-        }
-        // 无实参（`: A()`）也是合法的 super 委托（args 为空）；只有实参存在但无法
-        // 静态解析时才跳过（resolved_all == false）。前者是最常见的继承构造形式。
-        if resolved_all {
-            env.super_ctor_delegations.insert(
-                fqn,
-                crate::hir::SuperCtorDelegation {
-                    super_fqn: base_fqn,
-                    args,
-                },
-            );
-        }
+        // 记录 super 委托：base_index 指向 d.supertypes[i]，实参表达式由 MIR
+        // 从 AST 直接 lower（任意表达式：函数调用/运算/参数引用/常量）。
+        // arg_tys 暂用 ctor 参数类型占位——实参真实类型由 check_super_delegation_args
+        // typecheck 后的 expr_types 提供，MIR lower 时按实参 NodeId 取 expr_type。
+        env.super_ctor_delegations.insert(
+            fqn,
+            crate::hir::SuperCtorDelegation {
+                super_fqn: base_fqn,
+                base_index: i,
+                arg_tys: Vec::new(),
+            },
+        );
         return;
     }
 }

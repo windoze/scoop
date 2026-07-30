@@ -7,9 +7,7 @@
 use std::collections::HashMap;
 
 use scoop2_base::{FileId, NodeId, Span, Symbol};
-use scoop2_hir::hir::{
-    ClassCtorParamInfo, SuperCtorArg, SuperCtorConst, SuperCtorDelegation, TypedHir,
-};
+use scoop2_hir::hir::{ClassCtorParamInfo, SuperCtorDelegation, TypedHir};
 use scoop2_hir::ty::{EffectRow, TypeId, TypeStore};
 
 use crate::diagnostics::MirLowerError;
@@ -1104,9 +1102,14 @@ pub fn lower_class_init_callable(
 
     // ---- 执行初始化步骤（Kotlin 顺序）----
     // 1. super 委托：`: Super(args)`。对同一 this 调用超类的 $init。
-    //    实参从 SuperCtorDelegation.args 解析（CtorParam 引用本类参数 / Const 字面量）。
+    //    实参表达式从 d.supertypes[base_index].args 直接 lower（任意表达式）。
     if let Some(super_del) = hir.super_ctor_delegations.get(&owner_fqn_sym) {
-        emit_super_init_call(&mut builder, this_lid, this_ty, super_del, &ctor_params, d.name.span);
+        let base_args: &[scoop2_syntax::ast::CallArg] = d
+            .supertypes
+            .get(super_del.base_index)
+            .map(|st| st.args.as_slice())
+            .unwrap_or(&[]);
+        emit_super_init_call(&mut builder, this_lid, this_ty, super_del, base_args, d.name.span);
     }
 
     // 2 + 3. 按源码顺序交错执行：
@@ -1213,7 +1216,7 @@ fn emit_super_init_call(
     this_lid: LocalId,
     this_ty: TypeId,
     super_del: &SuperCtorDelegation,
-    ctor_params: &[ClassCtorParamInfo],
+    base_args: &[scoop2_syntax::ast::CallArg],
     span: scoop2_base::Span,
 ) {
     // 超类引用类型（this 的静态类型即子类引用，super init 接收同一 this）。
@@ -1226,29 +1229,16 @@ fn emit_super_init_call(
         value: crate::mir::Operand::Local(this_lid),
         value_ty: this_ty,
     });
-    for sa in &super_del.args {
-        let (operand, ty) = match sa {
-            SuperCtorArg::CtorParam { index, ty } => {
-                // 引用本类第 index 个构造参数 local。
-                let lid = ctor_params
-                    .get(*index as usize)
-                    .and_then(|cp| {
-                        // 通过 ctor_params 的 name 反查 symbol_locals（init callable 里已注册）。
-                        builder.symbol_locals.get(&cp.name).copied()
-                    })
-                    .unwrap_or(this_lid);
-                (crate::mir::Operand::Local(lid), *ty)
-            }
-            SuperCtorArg::Const { value, ty } => {
-                let cv = super_const_to_mir(value);
-                (crate::mir::Operand::Const(cv), *ty)
-            }
-        };
+    for a in base_args {
+        // 实参表达式直接 lower（任意表达式：函数调用/运算/参数引用/常量）。
+        // 实参表达式已由 check_super_delegation_args typecheck，lower 时消费其语义事实。
+        let val = crate::mir::lower::expr::lower_expr(builder, &a.value);
+        let val_ty = crate::mir::lower::stmt::operand_ty(builder, &val);
         args.push(crate::mir::CallArg {
             name: None,
             is_spread: false,
-            value: operand,
-            value_ty: ty,
+            value: val,
+            value_ty: val_ty,
         });
     }
     let callee_fqn = format!("{}.$init", super_fqn_text);
@@ -1277,18 +1267,6 @@ fn emit_super_init_call(
             },
         },
     });
-}
-
-/// 把 SuperCtorConst 转成 MIR ConstValue。
-fn super_const_to_mir(c: &SuperCtorConst) -> crate::mir::ConstValue {
-    match c {
-        SuperCtorConst::Int(v) => crate::mir::ConstValue::Int(*v, None),
-        SuperCtorConst::Float(v) => crate::mir::ConstValue::Float(*v, None),
-        SuperCtorConst::Bool(b) => crate::mir::ConstValue::Bool(*b),
-        SuperCtorConst::Char(ch) => crate::mir::ConstValue::Char(*ch),
-        SuperCtorConst::String(s) => crate::mir::ConstValue::String(s.clone()),
-        SuperCtorConst::Unit => crate::mir::ConstValue::Unit,
-    }
 }
 fn nested_owner_fqn(
     hir: &TypedHir,

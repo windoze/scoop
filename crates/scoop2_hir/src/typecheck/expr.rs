@@ -481,6 +481,7 @@ pub(super) fn check_pure_static_init<'a, 'i>(
         expr_types,
         facts,
         /* require_pure */ true,
+        /* ctor_params */ &[],
     )
 }
 
@@ -503,7 +504,13 @@ pub(super) fn check_init_body<'a, 'i>(
     expr_types: &'a mut crate::resolve::output::NodeIdTable<TypeId>,
     facts: &'a mut crate::hir::SemanticFacts,
     require_pure: bool,
+    ctor_params: &[(scoop2_base::Symbol, TypeId)],
 ) {
+    // ctor 参数注册进 locals：init 块 / property initializer / super 实参都引用构造参数。
+    let mut locals: HashMap<scoop2_base::Symbol, TypeId> = HashMap::new();
+    for (name, ty) in ctor_params {
+        locals.insert(*name, *ty);
+    }
     let mut c = ExprChecker {
         env,
         imports,
@@ -514,7 +521,7 @@ pub(super) fn check_init_body<'a, 'i>(
         constraint_owners: Vec::new(),
         param_ref_bounds: HashSet::new(),
         param_value_bounds: HashSet::new(),
-        locals: HashMap::new(),
+        locals,
         local_vars: HashMap::new(),
         lambda_depth: 0,
         return_ty: None,
@@ -546,6 +553,44 @@ pub(super) fn check_init_body<'a, 'i>(
             c.diags
                 .push(diagnostics::static_initializer_must_be_pure(&what, span));
         }
+    }
+}
+
+/// typecheck class 的 super 委托实参表达式（`: Super(arg_exprs...)`）。
+///
+/// 实参可以是任意表达式（函数调用 / 运算 / ctor 参数引用 / 常量）。此处走 ExprChecker
+/// walk，写回 call_resolutions / value_refs / expr_types，供 MIR `<Class>.$init` 合成时
+/// lower 实参表达式消费。super 委托整体也受 constructor Pure 约束（实参求值的 effect
+/// 归属 ctor effect）。
+pub(super) fn check_super_delegation_args<'a, 'i>(
+    env: &mut TypeEnv<'i>,
+    imports: &'a ImportTable,
+    resolution: &'a Resolution,
+    diags: &'a mut DiagnosticSink,
+    package_prefix: &str,
+    this_ty: Option<TypeId>,
+    arg_exprs: &[crate::syntax::ast::CallArg],
+    expr_types: &'a mut crate::resolve::output::NodeIdTable<TypeId>,
+    facts: &'a mut crate::hir::SemanticFacts,
+    ctor_params: &[(scoop2_base::Symbol, TypeId)],
+) {
+    // 复用 check_init_body 的 ExprChecker（不报 Pure——super 实参的 effect 由 ctor
+    // 整体 Pure 约束在 init 块层面统一处理；这里只 typecheck 实参表达式）。
+    for arg in arg_exprs {
+        check_init_body(
+            env,
+            imports,
+            resolution,
+            diags,
+            package_prefix,
+            this_ty,
+            "super 委托实参".to_string(),
+            PureInitSite::Expr(&arg.value),
+            expr_types,
+            facts,
+            /* require_pure */ false,
+            ctor_params,
+        );
     }
 }
 
