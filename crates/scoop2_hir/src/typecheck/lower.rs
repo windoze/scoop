@@ -15,7 +15,9 @@ use scoop2_base::{Interner, Span, Symbol};
 
 use crate::resolve::imports::ImportTable;
 use crate::syntax::ast::{TypeArg, TypeArgKind, TypePath, TypeRef, TypeRefKind};
-use crate::ty::{EffectRow, FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
+use crate::ty::{
+    EffectRow, EffectTail, FunctionType, NominalType, TypeId, TypeKind, TypeParamId,
+};
 
 use super::diagnostics;
 use super::env::TypeEnv;
@@ -24,8 +26,8 @@ use super::env::TypeEnv;
 pub struct TypeLowering<'a, 'i> {
     env: &'a mut TypeEnv<'i>,
     imports: &'a ImportTable,
-    /// 当前声明的类型参数：名字 → 身份。
-    type_params: HashMap<Symbol, TypeParamType>,
+    /// 当前声明的类型参数：名字 → [`TypeParamId`]（普通类型参数 + effect 行参数）。
+    type_params: HashMap<Symbol, TypeParamId>,
     package_prefix: String,
     diags: &'a mut DiagnosticSink,
     /// typealias 展开期间的类型参数替换（别名参数 → 实参 TypeId）。
@@ -36,16 +38,16 @@ pub struct TypeLowering<'a, 'i> {
     param_ref_bounds: HashSet<Symbol>,
     /// 当前作用域声明了 `value` bound 的类型参数名集合。
     param_value_bounds: HashSet<Symbol>,
-    /// 当前声明的 effect 行参数名（`<eff E = Pure>` 中的 E）。
-    /// 在 effect row 降级时保留为 `TypeKind::Param`，供 typecheck 推断替换。
-    eff_params: HashSet<Symbol>,
+    /// 当前声明的 effect 行参数：名字 → [`TypeParamId`]（`<eff E>` 中的 E）。
+    /// 降级 effect row 时写入 `EffectRow::tail = Var(id)`。
+    eff_params: HashMap<Symbol, TypeParamId>,
 }
 
 impl<'a, 'i> TypeLowering<'a, 'i> {
     pub fn new(
         env: &'a mut TypeEnv<'i>,
         imports: &'a ImportTable,
-        type_params: HashMap<Symbol, TypeParamType>,
+        type_params: HashMap<Symbol, TypeParamId>,
         package_prefix: String,
         diags: &'a mut DiagnosticSink,
     ) -> Self {
@@ -59,7 +61,7 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             alias_depth: 0,
             param_ref_bounds: HashSet::new(),
             param_value_bounds: HashSet::new(),
-            eff_params: HashSet::new(),
+            eff_params: HashMap::new(),
         }
     }
 
@@ -67,7 +69,7 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
     pub fn with_bounds(
         env: &'a mut TypeEnv<'i>,
         imports: &'a ImportTable,
-        type_params: HashMap<Symbol, TypeParamType>,
+        type_params: HashMap<Symbol, TypeParamId>,
         package_prefix: String,
         diags: &'a mut DiagnosticSink,
         param_ref_bounds: HashSet<Symbol>,
@@ -83,13 +85,13 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             alias_depth: 0,
             param_ref_bounds,
             param_value_bounds,
-            eff_params: HashSet::new(),
+            eff_params: HashMap::new(),
         }
     }
 
-    /// 设置当前声明的 effect 行参数名（`<eff E = Pure>` 中的 E）。
-    pub fn set_eff_params(&mut self, names: HashSet<Symbol>) {
-        self.eff_params = names;
+    /// 设置当前声明的 effect 行参数（名字 → id）。
+    pub fn set_eff_params(&mut self, params: HashMap<Symbol, TypeParamId>) {
+        self.eff_params = params;
     }
 
     /// 降级一个 `TypeRef`。无法解析时记录诊断并返回 `Nothing`（bottom，宽容降级）。
@@ -152,23 +154,20 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             return EffectRow::pure();
         };
         let mut terms: Vec<TypeId> = Vec::new();
+        let mut tail = EffectTail::Empty;
         for term in &eff.terms {
             // Pure 项不计入行。
             let last_seg = term.path.segments.last();
             if last_seg.is_some_and(|s| self.env.interner.resolve(s.symbol) == "Pure") {
                 continue;
             }
-            // eff 行参数（`<eff E>` 中的 E）：保留为 Param，供 typecheck 推断替换。
+            // eff 行参数（`<eff E>` 中的 E）：写入 EffectRow::tail = Var(id)。
+            // E 代表一整组抽象 effect，是一等行变量，不再伪装成单个 term。
             if term.path.segments.len() == 1
                 && let Some(seg) = last_seg
-                && self.eff_params.contains(&seg.symbol)
+                && let Some(&id) = self.eff_params.get(&seg.symbol)
             {
-                let tp = crate::ty::TypeParamType {
-                    name: seg.symbol,
-                    file: scoop2_base::FileId(0),
-                    span: seg.span,
-                };
-                terms.push(self.env.store.param(tp));
+                tail = EffectTail::Var(id);
                 continue;
             }
             // 尝试解析为 nominal（不带类型实参——effect 行按 FQN 短名比较）。
@@ -187,7 +186,7 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
             }
             // 未解析 → 跳过（宽容，不报错）。
         }
-        EffectRow::from_terms(terms)
+        EffectRow::from_terms_with_tail(terms, tail)
     }
 
     fn lower_path(&mut self, path: &TypePath, args: &[TypeArg], span: Span) -> TypeId {
@@ -384,13 +383,19 @@ impl<'a, 'i> TypeLowering<'a, 'i> {
                 GenericBound::Ref(_) => match self.env.store.kind(arg) {
                     TypeKind::Ref(_) => false,
                     // 类型参数：只有声明了 `ref` bound 才满足 `ref` 约束（forward）。
-                    TypeKind::Param(p) => !self.param_ref_bounds.contains(&p.name),
+                    TypeKind::Param(id) => {
+                        let name = self.env.store.param_decl(*id).name;
+                        !self.param_ref_bounds.contains(&name)
+                    }
                     _ => true,
                 },
                 GenericBound::Value(_) => match self.env.store.kind(arg) {
                     TypeKind::Value(_) => false,
                     // 类型参数：只有声明了 `value` bound 才满足 `value` 约束（forward）。
-                    TypeKind::Param(p) => !self.param_value_bounds.contains(&p.name),
+                    TypeKind::Param(id) => {
+                        let name = self.env.store.param_decl(*id).name;
+                        !self.param_value_bounds.contains(&name)
+                    }
                     _ => true,
                 },
                 GenericBound::Type(t) => {

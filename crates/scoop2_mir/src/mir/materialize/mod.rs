@@ -16,7 +16,7 @@ mod tests;
 
 use std::collections::{HashMap, VecDeque};
 
-use scoop2_hir::ty::{Subst, TypeId, TypeKind, TypeParamType, TypeStore};
+use scoop2_hir::ty::{Subst, TypeId, TypeKind, TypeStore};
 
 use crate::diagnostics::MonomorphError;
 use crate::mir::{Body, CallKind, FunDecl, Item, Module, Rvalue, StatementKind, TerminatorKind};
@@ -589,7 +589,7 @@ fn is_generic_template_by_fqn(fqn: &str, templates: &HashMap<String, Vec<FunDecl
 // Subst 构造（真实绑定类型参数名 → 实参）
 // ---------------------------------------------------------------------------
 
-/// 从模板的 type_params（类型参数名序列）按声明顺序绑定到 type_args。
+/// 从模板的 type_params（类型参数 id 序列）按声明顺序绑定到 type_args。
 fn build_subst(templates: &[FunDecl], type_args: &[TypeId]) -> MaterializeResult<Subst> {
     let mut subst = Subst::new();
     if let Some(first) = templates.first() {
@@ -604,15 +604,9 @@ fn build_subst(templates: &[FunDecl], type_args: &[TypeId]) -> MaterializeResult
                 ),
             ));
         }
-        for (i, &tp_sym) in first.type_params.iter().enumerate() {
+        for (i, &tp_id) in first.type_params.iter().enumerate() {
             if let Some(&arg_ty) = type_args.get(i) {
-                // TypeParamType 需要 name + file + span；file/span 用占位（不影响替换逻辑）。
-                let tp = TypeParamType {
-                    name: tp_sym,
-                    file: scoop2_base::FileId(0),
-                    span: scoop2_base::Span::default(),
-                };
-                subst.insert(tp, arg_ty);
+                subst.insert(tp_id, arg_ty);
             }
         }
     }

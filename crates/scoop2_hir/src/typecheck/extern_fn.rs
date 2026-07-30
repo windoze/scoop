@@ -12,7 +12,7 @@ use scoop2_base::diag::{Diagnostic, DiagnosticSink};
 
 use crate::resolve::imports::ImportTable;
 use crate::syntax::ast::{AnnotationUse, ExprKind, FunDecl, TypeRef};
-use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeParamType, ValueTypeKind};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeParamId, ValueTypeKind};
 
 use super::TypeEnv;
 use super::diagnostics;
@@ -565,18 +565,11 @@ fn is_continuation_fqn(name: &str) -> bool {
 
 // ===== 工具 =====
 
-fn type_param_map(d: &FunDecl) -> HashMap<Symbol, TypeParamType> {
+fn type_param_map(d: &FunDecl) -> HashMap<Symbol, TypeParamId> {
     let mut map = HashMap::new();
     if let Some(tpl) = &d.type_params {
         for p in &tpl.params {
-            map.insert(
-                p.name.symbol,
-                TypeParamType {
-                    name: p.name.symbol,
-                    file: scoop2_base::FileId(0),
-                    span: p.name.span,
-                },
-            );
+            map.insert(p.name.symbol, TypeParamId(p.id.as_u32()));
         }
     }
     map

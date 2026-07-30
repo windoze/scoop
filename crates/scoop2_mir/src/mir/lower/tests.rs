@@ -99,6 +99,7 @@ fn verify_semantic_detects_empty_callee() {
                         stable_instance_key: None,
                         generic_type_args: Vec::new(),
                         generic_eff_args: Vec::new(),
+                        intrinsic_name: None,
                     },
                     args: Vec::<CallArg>::new(),
                     transport: crate::mir::CallTransportMetadata::plain_no_outward(

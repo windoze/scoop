@@ -401,7 +401,10 @@ fn infer_tp_recursive(
     match store.kind(sig_ty) {
         TypeKind::Param(p) => {
             // 签名是类型参数 → 绑定到实参类型。
-            out.entry(p.name).or_insert(arg_ty);
+            // p 是 TypeParamId；通过 store 侧表查其 name（Symbol），与 type_params
+            // （仍为 callee 声明的类型参数名 Symbol 序列）对齐。
+            let name = store.param_decl(*p).name;
+            out.entry(name).or_insert(arg_ty);
         }
         // 复合/引用类型的嵌套类型实参推断在后续迭代补充。
         TypeKind::Ref(_) | TypeKind::Value(_) | TypeKind::Nothing | TypeKind::StarProjection => {}

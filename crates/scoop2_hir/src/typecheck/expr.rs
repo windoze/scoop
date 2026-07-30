@@ -25,7 +25,7 @@ use crate::syntax::ast::{
     self, AssignTargetKind, BinaryOp, Block, CallArg, CastOp, Expr, ExprKind, FunBody, MemberName,
     Param, Stmt, StmtKind, StructLitField, TypeRef, TypeRefKind, UnaryOp, ValBinding,
 };
-use crate::ty::{FunctionType, NominalType, TypeId, TypeKind, TypeParamType};
+use crate::ty::{FunctionType, NominalType, TypeId, TypeKind, TypeParamId};
 
 use super::diagnostics;
 use super::env::{Signature, TypeEnv};
@@ -212,7 +212,7 @@ pub fn check_function<'a, 'i>(
     resolution: &'a Resolution,
     diags: &'a mut DiagnosticSink,
     package_prefix: &str,
-    type_params: HashMap<Symbol, TypeParamType>,
+    type_params: HashMap<Symbol, TypeParamId>,
     param_ref_bounds: HashSet<Symbol>,
     param_value_bounds: HashSet<Symbol>,
     this_ty: Option<TypeId>,
@@ -604,7 +604,7 @@ struct ExprChecker<'a, 'i> {
     /// 当前 val 初始化器的声明类型（用于字面量按期望类型定型，如 Float32 注解下的 FloatLit）。
     typed_val_init_ty: Option<TypeId>,
     package_prefix: String,
-    type_params: HashMap<Symbol, TypeParamType>,
+    type_params: HashMap<Symbol, TypeParamId>,
     /// 当前声明（函数 / 所属类型）的约束 owner FQN 列表：where Type bound 查找
     /// 只在这些 owner 注册的约束中进行（见 `TypeEnv::type_param_bounds_for`）。
     constraint_owners: Vec<scoop2_base::Symbol>,
@@ -646,6 +646,19 @@ struct ExprChecker<'a, 'i> {
 
 impl<'a, 'i> ExprChecker<'a, 'i> {
     fn lower_type(&mut self, ty: &TypeRef) -> TypeId {
+        // 先（在借用 env 之前）计算 effect 行参数：按 TypeParamDecl.kind = Effect 筛选
+        // 当前声明的类型参数，使函数类型 effect 行里的 `<eff E>` 写入 `EffectRow::tail`。
+        let eff_params: std::collections::HashMap<Symbol, TypeParamId> = self
+            .type_params
+            .iter()
+            .filter(|(_, id)| {
+                matches!(
+                    self.env.store.param_decl_opt(**id),
+                    Some(crate::ty::TypeParamDecl { kind: crate::ty::TypeParamKind::Effect, .. })
+                )
+            })
+            .map(|(n, id)| (*n, *id))
+            .collect();
         let mut lower = TypeLowering::with_bounds(
             self.env,
             self.imports,
@@ -655,6 +668,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             self.param_ref_bounds.clone(),
             self.param_value_bounds.clone(),
         );
+        lower.set_eff_params(eff_params);
         lower.lower(ty)
     }
 
@@ -1430,7 +1444,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             if let TypeKind::Param(tp) = self.env.store.kind(*p)
                 && let Some(&arg) = arg_types.get(i)
             {
-                subst.insert(tp.name, arg);
+                let name = self.env.store.param_decl(*tp).name;
+                subst.insert(name, arg);
             }
         }
         // 也从显式类型实参推断（`RefBox<U>` 中的 U → explicit_type_args）。
@@ -1451,13 +1466,19 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 GenericBound::Ref(_) => match self.env.store.kind(arg) {
                     TypeKind::Ref(_) => false,
                     // 类型参数：只有声明了 `ref` bound 才满足 `ref` 约束（forward）。
-                    TypeKind::Param(p) => !self.param_has_ref_bound(p.name),
+                    TypeKind::Param(id) => {
+                        let name = self.env.store.param_decl(*id).name;
+                        !self.param_has_ref_bound(name)
+                    }
                     _ => true,
                 },
                 GenericBound::Value(_) => match self.env.store.kind(arg) {
                     TypeKind::Value(_) => false,
                     // 类型参数：只有声明了 `value` bound 才满足 `value` 约束（forward）。
-                    TypeKind::Param(p) => !self.param_has_value_bound(p.name),
+                    TypeKind::Param(id) => {
+                        let name = self.env.store.param_decl(*id).name;
+                        !self.param_has_value_bound(name)
+                    }
                     _ => true,
                 },
                 GenericBound::Type(_) => !self.arg_satisfies_type_bound(arg, bound),
@@ -2386,8 +2407,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     ) {
         use crate::ty::TypeKind;
         match self.env.store.kind(sig_ty) {
-            TypeKind::Param(p) => {
-                out.entry(p.name).or_insert(arg_ty);
+            TypeKind::Param(id) => {
+                let name = self.env.store.param_decl(*id).name;
+                out.entry(name).or_insert(arg_ty);
             }
             // 嵌套泛型推断（如 Array<T>）在后续迭代中补充。
             _ => {}
@@ -4186,11 +4208,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             }
                         })
                     {
+                        let tp_name = self.env.store.param_decl(*tp).name;
                         // 找到 T 在类型形参列表中的位置。
                         if let Some(tp_pos) = self
                             .env
                             .type_constraints(fqn)
-                            .and_then(|(tps, _)| tps.iter().position(|&n| n == tp.name))
+                            .and_then(|(tps, _)| tps.iter().position(|&n| n == tp_name))
                         {
                             let arg_ty = self.walk_expr(&args[arg_idx].value);
                             let explicit = explicit_arg_types.get(tp_pos).copied();
@@ -4363,20 +4386,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         args: &[CallArg],
         span: Span,
     ) {
-        // 收集函数声明的 effect row 变量名（如 `E`）。
+        // 收集函数声明的 effect 行变量 id（`<eff E>` 的 E）。
         let eff_var_name = self.eff_var_of_fqn_or_sig(sig);
         let Some(eff_var) = eff_var_name else {
             return;
         };
         // 从第 1 个参数的函数类型 effect row 推断 E 的 effect 集。
         // `() -> Unit / (Raise<Int> + IO)` → E 推断为 `{Raise<Int>}`（减去签名中的 `IO` 等）。
-        let inferred_effs = self.infer_eff_var_from_arg(&eff_var, sig, arg_types);
+        let inferred_effs = self.infer_eff_var_from_arg(eff_var, sig, arg_types);
         if inferred_effs.is_empty() {
             return;
         }
         // 对第 2+ 个参数：将 E 替换为推断值后做类型检查。
         for (i, (&at, &pt)) in arg_types.iter().zip(&sig.params).enumerate().skip(1) {
-            let substituted_pt = self.subst_eff_var_in_type(pt, &eff_var, &inferred_effs);
+            let substituted_pt = self.subst_eff_var_in_type(pt, eff_var, &inferred_effs);
             if substituted_pt != pt
                 && !self.assignable(at, substituted_pt)
                 && !self.lenient_type_errors
@@ -4390,20 +4413,21 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
-    /// 从签名查找 `<eff E = Pure>` 的 E 变量名。
-    fn eff_var_of_fqn_or_sig(&self, _sig: &Signature) -> Option<scoop2_base::Symbol> {
-        // 签名不直接携带 eff 变量名；我们用约定的 `E` 名（spec §5.4: eff 参数名）。
-        // 这是一个简化——若有多 eff 变量或不同名，需从 Index 查。
-        self.env.interner.get("E")
+    /// 从签名查找 `<eff E>` 的 effect 行参数 id。
+    /// 不再靠约定的 `"E"` 名字猜测——直接读签名注册时记录的真实 [`TypeParamId`]
+    ///（[`Signature::eff_param_id`]），保证不同声明里同名 eff 参数不混淆。
+    fn eff_var_of_fqn_or_sig(&self, sig: &Signature) -> Option<crate::ty::TypeParamId> {
+        sig.eff_param_id
     }
 
     /// 从第 1 个参数的函数类型 effect row 推断 E 的 effect 集。
     /// 签名第 1 参数：`() -> Unit / E`。
     /// 实参第 1 参数：`() -> Unit / (Raise<Int> + IO)`。
-    /// 推断：E = `Raise<Int>`（实参 effect row 减去签名中不依赖 E 的 effect）。
+    /// 推断：E = 实参 effect row 中超出签名固定 effect 的部分（`arg.terms − sig.terms`）。
+    /// 返回推断出的具体 effect 项列表（作为 [`EffSubst`] 替换 E 的值）。
     fn infer_eff_var_from_arg(
         &self,
-        _eff_var: &scoop2_base::Symbol,
+        _eff_var: crate::ty::TypeParamId,
         sig: &Signature,
         arg_types: &[TypeId],
     ) -> Vec<TypeId> {
@@ -4415,19 +4439,35 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         };
         // 提取签名第 1 参数的 effect row。
         let sig_effs = match self.env.store.kind(sig_pt) {
-            TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => f.effects.terms.clone(),
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => &f.effects,
             _ => return vec![],
         };
         // 提取实参第 1 参数的 effect row。
         let arg_effs = match self.env.store.kind(arg_pt) {
-            TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => f.effects.terms.clone(),
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => &f.effects,
             _ => return vec![],
         };
-        // 实参 effect row 中不在签名 effect row 里的项 = E 推断值。
+        // 实参 effect row 中不在签名固定 effect 里的项 = E 推断值。
         arg_effs
-            .into_iter()
-            .filter(|ae| !sig_effs.iter().any(|se| se == ae))
+            .terms
+            .iter()
+            .filter(|ae| !sig_effs.contains(**ae))
+            .copied()
             .collect()
+    }
+
+    /// 对泛型调用：若签名声明了 `<eff E>`，从实参推断 E 的 effect 集，
+    /// 并把 E 替换进返回类型（高阶：E 可能透传到返回的函数类型）。无 eff 参数或推断
+    /// 为空时原样返回 `return_ty`。
+    fn apply_eff_inference(&mut self, sig: &Signature, arg_types: &[TypeId], return_ty: TypeId) -> TypeId {
+        let Some(ev) = self.eff_var_of_fqn_or_sig(sig) else {
+            return return_ty;
+        };
+        let inferred = self.infer_eff_var_from_arg(ev, sig, arg_types);
+        if inferred.is_empty() {
+            return return_ty;
+        }
+        self.subst_eff_var_in_type(return_ty, ev, &inferred)
     }
 
     /// 在类型 `ty` 中将 effect row 变量 `eff_var` 替换为 `inferred` effect 集。
@@ -4497,7 +4537,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// Param 保持原样。
     fn subst_named_params(&mut self, ty: TypeId, map: &HashMap<Symbol, TypeId>) -> TypeId {
         match self.env.store.kind(ty).clone() {
-            TypeKind::Param(tp) => map.get(&tp.name).copied().unwrap_or(ty),
+            TypeKind::Param(tp) => {
+                let name = self.env.store.param_decl(tp).name;
+                map.get(&name).copied().unwrap_or(ty)
+            }
             TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) => {
                 let params: Vec<TypeId> = ft
                     .params
@@ -4556,7 +4599,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn subst_eff_var_in_type(
         &mut self,
         ty: TypeId,
-        eff_var: &scoop2_base::Symbol,
+        eff_var: crate::ty::TypeParamId,
         inferred: &[TypeId],
     ) -> TypeId {
         let kind = self.env.store.kind(ty).clone();
@@ -4593,25 +4636,23 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
-    /// 在 effect row 中将变量 `eff_var` 替换为 `inferred` effect 集。
-    /// `E + IO` → `inferred + IO`。
+    /// 在 effect row 中将行变量 `eff_var` 替换为 `inferred` effect 集。
+    /// 走 [`EffSubst`] + [`TypeStore::apply_subst_row_full`]：把行变量
+    /// （`tail = Var(eff_var)`）展开为具体 effect，并并入 terms。
     fn subst_eff_row(
-        &self,
+        &mut self,
         row: &crate::ty::EffectRow,
-        eff_var: &scoop2_base::Symbol,
+        eff_var: crate::ty::TypeParamId,
         inferred: &[TypeId],
     ) -> crate::ty::EffectRow {
-        let mut new_terms: Vec<TypeId> = Vec::new();
-        for &term in &row.terms {
-            if let TypeKind::Param(p) = self.env.store.kind(term)
-                && &p.name == eff_var
-            {
-                new_terms.extend_from_slice(inferred);
-                continue;
-            }
-            new_terms.push(term);
-        }
-        crate::ty::EffectRow::from_terms(new_terms)
+        let mut eff_subst = crate::ty::EffSubst::new();
+        eff_subst.insert(
+            eff_var,
+            crate::ty::EffectRow::from_terms(inferred.to_vec()),
+        );
+        self.env
+            .store
+            .apply_subst_row_full(row.clone(), &crate::ty::Subst::new(), Some(&eff_subst))
     }
 
     /// 泛型 `<eff E>` 函数：从 lambda 实参体推断 E 的 effect 集，记录之。
@@ -5275,7 +5316,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return sig.return_ty;
         }
         // 收集 Param → TypeId 的推断映射。
-        let mut subst_map: HashMap<TypeParamType, TypeId> = HashMap::new();
+        let mut subst_map: HashMap<TypeParamId, TypeId> = HashMap::new();
         for (i, &param_ty) in sig.params.iter().enumerate() {
             if i >= arg_types.len() {
                 break;
@@ -5299,18 +5340,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn collect_type_params(
         &self,
         ty: TypeId,
-        seen: &mut std::collections::HashSet<TypeParamType>,
-        out: &mut Vec<TypeParamType>,
+        seen: &mut std::collections::HashSet<TypeParamId>,
+        out: &mut Vec<TypeParamId>,
     ) {
         match self.env.store.kind(ty) {
             TypeKind::Param(tp) => {
-                let tp_clone = TypeParamType {
-                    name: tp.name,
-                    file: tp.file,
-                    span: tp.span,
-                };
-                if seen.insert(tp_clone.clone()) {
-                    out.push(tp_clone);
+                if seen.insert(*tp) {
+                    out.push(*tp);
                 }
             }
             TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) => {
@@ -5344,16 +5380,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         &self,
         param_ty: TypeId,
         arg_ty: TypeId,
-        subst_map: &mut HashMap<TypeParamType, TypeId>,
+        subst_map: &mut HashMap<TypeParamId, TypeId>,
     ) {
         match (self.env.store.kind(param_ty), self.env.store.kind(arg_ty)) {
             (TypeKind::Param(tp), _) => {
-                let tp_clone = TypeParamType {
-                    name: tp.name,
-                    file: tp.file,
-                    span: tp.span,
-                };
-                subst_map.entry(tp_clone).or_insert(arg_ty);
+                subst_map.entry(*tp).or_insert(arg_ty);
             }
             (
                 TypeKind::Ref(crate::ty::RefTypeKind::Nominal(pn)),
@@ -5427,8 +5458,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // 映射到对应的显式类型实参。
         let mut subst = crate::ty::Subst::new();
         // 从 sig.params 和 sig.return_ty 中收集所有 TypeParamType（去重，保持出现顺序）。
-        let mut seen: std::collections::HashSet<TypeParamType> = std::collections::HashSet::new();
-        let mut tp_list: Vec<TypeParamType> = Vec::new();
+        let mut seen: std::collections::HashSet<TypeParamId> = std::collections::HashSet::new();
+        let mut tp_list: Vec<TypeParamId> = Vec::new();
         let mut collect_params = |ty: TypeId| {
             self.collect_type_params(ty, &mut seen, &mut tp_list);
         };
@@ -5594,7 +5625,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
                 // 无显式类型实参：从函数参数推断类型实参，替换返回类型。
                 let inferred_ret = self.subst_return_with_inferred_args(&sig, &arg_types);
-                return inferred_ret;
+                // 再把 <eff E> 推断结果替换进返回类型（高阶 eff 透传）。
+                return self.apply_eff_inference(&sig, &arg_types, inferred_ret);
             }
             // 多候选：按 bound 特异性比较（bound1 <: bound2 → 更具体）。
             let bound_of = |s: &Signature| s.type_param_bounds.first().and_then(|b| *b);
@@ -5629,7 +5661,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if !explicit_type_args.is_empty() {
                     return self.subst_return_with_explicit_args(sig, explicit_type_args, span);
                 }
-                return self.subst_return_with_inferred_args(sig, &arg_types);
+                let inferred_ret = self.subst_return_with_inferred_args(sig, &arg_types);
+                return self.apply_eff_inference(sig, &arg_types, inferred_ret);
             }
             // 歧义：构造 incomparable 诊断 + related 标签。
             let mut msg = "重载决议歧义：泛型 bound 不可比较".to_string();
@@ -5733,9 +5766,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             self.record_callee_effects(&sig, args, span);
             // <eff E = Pure> 泛型函数：从第 1 个参数推断 E 的 effect 集，
-            // 然后将 E 替换到所有参数类型中做类型检查。
+            // 然后将 E 替换到所有参数类型与返回类型中做类型检查。
             let eff_var = self.eff_var_of_fqn_or_sig(&sig);
             let mut subst_params = sig.params.clone();
+            let mut subst_return = sig.return_ty;
             if let Some(ev) = eff_var {
                 // 计算预实参类型（块实参按函数类型参数降级为 lambda）。
                 let arg_types_pre: Vec<TypeId> = args
@@ -5743,18 +5777,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     .enumerate()
                     .map(|(i, a)| self.walk_call_arg_for_inference(a, sig.params.get(i).copied()))
                     .collect();
-                let inferred = self.infer_eff_var_from_arg(&ev, &sig, &arg_types_pre);
+                let inferred = self.infer_eff_var_from_arg(ev, &sig, &arg_types_pre);
                 if !inferred.is_empty() {
                     subst_params = sig
                         .params
                         .iter()
-                        .map(|&pt| self.subst_eff_var_in_type(pt, &ev, &inferred))
+                        .map(|&pt| self.subst_eff_var_in_type(pt, ev, &inferred))
                         .collect();
+                    // 返回类型中的 E 也要替换（高阶：E 透传到返回的函数类型）。
+                    subst_return = self.subst_eff_var_in_type(sig.return_ty, ev, &inferred);
                 }
             }
             return self.check_call_args_with(
                 subst_params,
-                sig.return_ty,
+                subst_return,
                 args,
                 span,
                 sig.has_vararg,
@@ -6073,9 +6109,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // 类型参数接收者：通过其 bound（interface 约束）解析 owner。
         // 例如 `value: T where T: ToString` 调用 `value.toString()` → owner = ToString。
         if let TypeKind::Param(p) = self.env.store.kind(receiver_ty) {
+            let p_name = self.env.store.param_decl(*p).name;
             for tref in self
                 .env
-                .type_param_bounds_for(&self.constraint_owners, p.name)
+                .type_param_bounds_for(&self.constraint_owners, p_name)
             {
                 if let crate::syntax::ast::TypeRefKind::Path { path, .. } = &tref.kind {
                     if let Some(last) = path.segments.last() {
@@ -7215,15 +7252,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 无约束时报告不可调用。
     fn check_typeparam_method(
         &mut self,
-        tp: &crate::ty::TypeParamType,
+        tp: TypeParamId,
         method_name: Symbol,
         span: Span,
     ) -> TypeId {
         let method_text = self.env.interner.resolve(method_name).to_string();
+        let tp_name = self.env.store.param_decl(tp).name;
         // 在当前声明（函数 / 所属类型）注册的 where 约束中查找 Type bound。
         let bound_refs: Vec<crate::syntax::ast::TypeRef> = self
             .env
-            .type_param_bounds_for(&self.constraint_owners, tp.name);
+            .type_param_bounds_for(&self.constraint_owners, tp_name);
         for bound_ref in &bound_refs {
             let bound_ty = self.lower_type(bound_ref);
             let kind = self.env.store.kind(bound_ty);
@@ -7322,17 +7360,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return self.env.store.unit();
         }
         // TypeParam 接收者：检查 where 约束是否有该方法。
-        let tp_clone = if let TypeKind::Param(tp) = self.env.store.kind(receiver_ty) {
-            Some(crate::ty::TypeParamType {
-                name: tp.name,
-                file: tp.file,
-                span: tp.span,
-            })
-        } else {
-            None
-        };
-        if let Some(tp) = tp_clone {
-            return self.check_typeparam_method(&tp, method_name, span);
+        if let TypeKind::Param(tp) = self.env.store.kind(receiver_ty) {
+            return self.check_typeparam_method(*tp, method_name, span);
         }
         let fqn = self
             .resolve_member_owner_fqn(receiver_ty)

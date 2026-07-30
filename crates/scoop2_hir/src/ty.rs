@@ -14,13 +14,17 @@
 //!   [`TypeStore::is_reference`] / [`TypeStore::is_value`] 回答——这对 spec 的
 //!   「变体子类型仅对引用类型生效」(P2 §9.1) 至关重要。`Nothing` 既非引用也非值，
 //!   单独列为 [`TypeKind::Nothing`]。
-//! - **effect 行是集合**：[`EffectRow`] 是规范化（排序去重）的 effect 类型 id
-//!   集合；`Pure` = 空集；`+` 为并（幂等/交换/结合）；`⊆` 为子集（双指针）。
-//!   generic effect 不变（P4 §4）。闭合行标记 `/ R!` 不挂在行上，而挂在
-//!   [`FunctionType::closed`] 上（闭合性是函数标注的属性，P4 §4.3）。
-//! - **类型参数按声明位识别**：[`TypeParamType`] 由 `(file, span)` 全局唯一定位，
-//!   因此不同声明里同名的 `T` 是不同的参数（P3 §17）。结构替换 [`Subst`] /
-//!   [`TypeStore::apply_subst`] 遍历所有类型/effect 位置。
+//! - **effect 行是集合**：[`EffectRow`] 是规范化（排序去重）的具体 effect 类型 id
+//!   集合，外加至多一个多态行变量（[`EffectTail`]，对应声明级 `<eff E>`）；
+//!   `Pure` = 空集且无 tail；`+` 为并（幂等/交换/结合）；`⊆` 为子集（双指针 +
+//!   tail 包含规则）。generic effect 不变（P4 §4）。闭合行标记 `/ R!` 不挂在行上，
+//!   而挂在 [`FunctionType::closed`] 上（闭合性是函数标注的属性，P4 §4.3）。
+//! - **类型参数按全局唯一 id 识别**：[`TypeParamId`] 在声明点由
+//!   [`TypeStore::mint_param`] 分配一次，不可伪造、不可重复（同名 `T` 在不同声明
+//!   中是不同的参数，P3 §17）。元数据（名字/位置/变型/约束/种类）存于
+//!   [`TypeParamDecl`] 侧表，不参与身份。结构替换 [`Subst`]（普通参数 → `TypeId`）
+//!   与 [`EffSubst`]（effect 行参数 → `EffectRow`，值域不同故分表）均按 id 键，
+//!   [`TypeStore::apply_subst_full`] 遍历所有类型/effect 位置。
 //!
 //! `MonoTypeId` / `as_mono`（codegen 边界的「无 Param 泄漏」不变量）在本阶段**不建
 //! 模**——它服务于 codegen，而当前交付物止于 typecheck；现在实现会是死代码。
@@ -46,69 +50,182 @@ impl std::fmt::Debug for TypeId {
     }
 }
 
-/// 一个类型参数的出现身份：`(file, span)` 全局唯一（同名 `T` 在不同声明中不同）。
+/// 全局唯一的类型参数身份：声明时由 [`TypeStore::mint_param`] 分配一次，
+/// 不可伪造、不可重复（同名 `T` 在不同声明中是不同的参数，P3 §17）。
 ///
-/// `name` 仅供诊断/显示，不参与「这是哪个参数」的判定（同一 span 即同一参数，
-/// 名字必然相同）。
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TypeParamType {
-    pub name: Symbol,
-    pub file: FileId,
-    pub span: Span,
-}
+/// 用作 [`TypeKind::Param`] 的载体和 [`Subst`] / [`EffSubst`] 的替换键。
+/// 名字/位置/约束等元数据存于 [`TypeParamDecl`] 侧表（通过
+/// [`TypeStore::param_decl`] 查询），**不参与身份判定**。
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct TypeParamId(pub u32);
 
-impl std::fmt::Debug for TypeParamType {
+impl std::fmt::Debug for TypeParamId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "param({}:{:?})", self.file, self.span)
+        write!(f, "tp#{}", self.0)
     }
 }
 
-/// Effect 行：规范化（按 [`TypeId`] 排序去重）的 effect 类型 id 集合。
+/// 类型参数的种类：普通类型参数 `<T>` vs effect 行参数 `<eff E>`。
 ///
-/// - `Pure` ≡ `terms` 为空；
+/// 两者共享 [`TypeParamId`] 身份体系，但替换值域不同——普通参数替换为一个
+/// [`TypeId`]（见 [`Subst`]），effect 行参数替换为一个完整 [`EffectRow`]（见
+/// [`EffSubst`]），对应其出现在 [`EffectRow::tail`] 上。
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TypeParamKind {
+    /// 普通类型参数 `<T: bound>`。
+    Type,
+    /// effect 行参数 `<eff E = Pure>`（每声明至多一个，必须为最后一项）。
+    Effect,
+}
+
+/// 声明一个类型参数时的完整元数据，存于 [`TypeStore::param_decls`] 侧表。
+///
+/// 身份由 [`TypeParamDecl::id`]（[`TypeParamId`]）唯一确定；其余字段仅供诊断、
+/// 渲染与（将来的）协变/逆变子类型判定使用。
+#[derive(Clone, Debug)]
+pub struct TypeParamDecl {
+    pub id: TypeParamId,
+    /// 参数名，仅诊断/显示（不参与身份）。
+    pub name: Symbol,
+    pub span: Span,
+    pub file: FileId,
+    /// 变型（`in`/`out`），从 AST 带下；当前仅存储，子类型派发尚未启用。
+    pub variance: Option<Variance>,
+    /// 声明 bound（降级后的类型；无 bound 为 `None`）。
+    pub bound: Option<TypeId>,
+    /// 普通类型参数 vs effect 行参数。
+    pub kind: TypeParamKind,
+}
+
+/// 类型参数的变型（`in` = 逆变 / `out` = 协变；spec §5.1 `typeParam`）。
+///
+/// 与 AST 的 [`crate::syntax::ast::Variance`] 同构；独立定义以免 `ty` 模块
+/// 反向依赖 `scoop2_syntax::ast`。
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Variance {
+    In,
+    Out,
+}
+
+/// effect 行的尾部：至多一个多态行变量（`<eff E>`）。
+///
+/// - [`EffectTail::Empty`]：闭合的具体行（如 `Pure`、`IO + State`）；
+/// - [`EffectTail::Var(id)`]：尾部是抽象行变量 `E`，代表「E 可能含的任意 effect 集」。
+///
+/// 每个声明至多一个 `<eff E>`（由 parser 强制其为 `TypeParamList` 最后一项），
+/// 故 tail 永远是 `Option`，而非列表。
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum EffectTail {
+    /// 闭合行：可观测 effect 恰为 `terms`。
+    Empty,
+    /// 行变量 `E`：`terms ∪ E`（E 为任意 effect 集）。
+    Var(TypeParamId),
+}
+
+impl Default for EffectTail {
+    fn default() -> Self {
+        EffectTail::Empty
+    }
+}
+
+/// Effect 行：规范化（按 [`TypeId`] 排序去重）的具体 effect 集合，外加至多一个
+/// 多态行变量 [`EffectTail`]。
+///
+/// - `Pure` ≡ `terms` 为空且 `tail` 为 [`EffectTail::Empty`]；
 /// - `+`（并）幂等 / 交换 / 结合，由 [`EffectRow::union`] 维持规范形式；
-/// - `⊆`（子集）由 [`EffectRow::is_subset_of`] 用双指针在两个有序集合上判定；
+/// - `⊆`（子集）由 [`EffectRow::is_subset_of`] 判定，含 tail 的行变量包含规则；
 /// - generic effect 不变：`Emit<Any>` 与 `Emit<String>` 互不蕴含（P4 §4）。
 ///
+/// `<eff E>`（声明级 effect 行参数）体现为 `tail = Var(E 的 TypeParamId)`，而**不再**
+/// 伪装成 `terms` 里的一个 `Param` term——它代表「一整组抽象 effect」，语义与单个
+/// 具体 effect 不同。
+///
 /// 闭合标记 `/ R!` 不在此处，而在 [`FunctionType::closed`]。
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub struct EffectRow {
     pub terms: Vec<TypeId>,
+    pub tail: EffectTail,
 }
 
 impl EffectRow {
-    /// 构造一个行并规范化（排序去重）。
+    /// 构造一个闭合行并规范化 `terms`（tail 默认 [`EffectTail::Empty`]）。
     pub fn from_terms(mut terms: Vec<TypeId>) -> Self {
         terms.sort_unstable();
         terms.dedup();
-        EffectRow { terms }
+        EffectRow {
+            terms,
+            tail: EffectTail::Empty,
+        }
     }
 
-    /// `Pure`（空行）。
+    /// 构造一个带行变量的行（`terms ∪ E`），并规范化 `terms`。
+    pub fn from_terms_with_tail(mut terms: Vec<TypeId>, tail: EffectTail) -> Self {
+        terms.sort_unstable();
+        terms.dedup();
+        EffectRow { terms, tail }
+    }
+
+    /// 把一个闭合行的 tail 替换为 `tail`（不改 terms）。
+    pub fn with_tail(mut self, tail: EffectTail) -> Self {
+        self.tail = tail;
+        self
+    }
+
+    /// `Pure`（空行，无 tail）。
     pub fn pure() -> Self {
-        EffectRow { terms: Vec::new() }
+        EffectRow {
+            terms: Vec::new(),
+            tail: EffectTail::Empty,
+        }
     }
 
-    /// 单元素行。
+    /// 单元素闭合行。
     pub fn single(term: TypeId) -> Self {
-        EffectRow { terms: vec![term] }
+        EffectRow {
+            terms: vec![term],
+            tail: EffectTail::Empty,
+        }
     }
 
+    /// 是否为 `Pure`（无具体 effect 且无行变量）。
     pub fn is_pure(&self) -> bool {
-        self.terms.is_empty()
+        self.terms.is_empty() && matches!(self.tail, EffectTail::Empty)
     }
 
     /// `self + other`（并），结果规范化。
+    ///
+    /// tail 合并策略：
+    /// - 两边都 [`EffectTail::Empty`] → 结果 tail 为 `Empty`；
+    /// - 一边 `Empty`、另一边 `Var(v)` → 结果 tail 为 `Var(v)`（吸收）；
+    /// - 两边 `Var(v)` 且 **同一 id** → 结果 tail 为 `Var(v)`；
+    /// - 两边 `Var` 但 id **不同** → 行变量不可合并，结果退化为闭合行（tail=`Empty`）。
+    ///   这是保守的：`E + F`（两个独立行变量）的确切并集无法用单一 tail 表达，
+    ///   保守退化为「丢弃行变量」，对应 typecheck 的宽松判定（不会误判不合法程序为合法）。
     pub fn union(&self, other: &EffectRow) -> EffectRow {
         let mut terms = self.terms.clone();
         terms.extend_from_slice(&other.terms);
-        EffectRow::from_terms(terms)
+        let tail = match (&self.tail, &other.tail) {
+            (EffectTail::Empty, EffectTail::Empty) => EffectTail::Empty,
+            (EffectTail::Empty, v @ EffectTail::Var(_)) => v.clone(),
+            (v @ EffectTail::Var(_), EffectTail::Empty) => v.clone(),
+            (EffectTail::Var(a), EffectTail::Var(b)) if a == b => EffectTail::Var(*a),
+            // 两个不同行变量并集无法用单 tail 表达 → 保守闭合。
+            (EffectTail::Var(_), EffectTail::Var(_)) => EffectTail::Empty,
+        };
+        EffectRow::from_terms_with_tail(terms, tail)
     }
 
-    /// `self ⊆ other`？双指针（两边均规范有序）。
+    /// `self ⊆ other`？
     ///
-    /// 满足：`Pure ⊆ R`、`R ⊆ R + S`、`R ⊆ R`。
+    /// - `terms` 部分用双指针判定（两边均规范有序）；
+    /// - tail 规则（行包含）：
+    ///   - other.tail = `Empty` ⇒ 仅当 self.tail 也为 `Empty` 且 terms 子集成立；
+    ///   - other.tail = `Var(v)` ⇒ self.tail 可为 `Empty` 或同一 `Var(v)`，
+    ///     且 terms 子集成立（Var 可吸收任意具体 effect）。
+    ///
+    /// 满足：`Pure ⊆ R`、`R ⊆ R + S`、`R ⊆ R`、`R ⊆ R + E`。
     pub fn is_subset_of(&self, other: &EffectRow) -> bool {
+        // terms 子集判定（双指针）。
         let mut i = 0usize;
         let mut j = 0usize;
         while i < self.terms.len() && j < other.terms.len() {
@@ -121,12 +238,21 @@ impl EffectRow {
                 std::cmp::Ordering::Greater => j += 1,
             }
         }
-        // self 的剩余项必须为空（否则 self 含有 other 没有的项）。
-        i == self.terms.len()
+        if i != self.terms.len() {
+            // self 含有 other 没有的具体 term。
+            return false;
+        }
+        // terms 子集成立；判定 tail。
+        match (&self.tail, &other.tail) {
+            (EffectTail::Empty, _) => true,
+            (EffectTail::Var(a), EffectTail::Var(b)) => a == b,
+            // self 有行变量但 other 没有 → 不可包含（other 闭合无法吸收任意 effect）。
+            (EffectTail::Var(_), EffectTail::Empty) => false,
+        }
     }
 
     pub fn equals(&self, other: &EffectRow) -> bool {
-        self.terms == other.terms
+        self.terms == other.terms && self.tail == other.tail
     }
 
     /// 是否含某 effect 项（`terms` 规范有序，用二分）。
@@ -134,8 +260,11 @@ impl EffectRow {
         self.terms.binary_search(&term).is_ok()
     }
 
-    /// 差集：`self − other`（从 self 中移除 other 中存在的 terms）。
-    /// self 已排序去重，过滤后仍有序，无需再规范化。
+    /// 差集：`self − other`（从 self.terms 中移除 other.terms 中存在的项）。
+    ///
+    /// **不动 tail**：差集只对具体 effect 有意义；行变量保持原样。
+    /// （`Handle` 语义：handled 是具体 effect，body 的行变量不被 handle 消除。）
+    /// self.terms 已排序去重，过滤后仍有序，无需再规范化。
     pub fn difference(&self, other: &EffectRow) -> EffectRow {
         let result: Vec<TypeId> = self
             .terms
@@ -143,15 +272,21 @@ impl EffectRow {
             .filter(|t| !other.contains(**t))
             .copied()
             .collect();
-        EffectRow { terms: result }
+        EffectRow {
+            terms: result,
+            tail: self.tail.clone(),
+        }
     }
 }
 
 impl std::fmt::Debug for EffectRow {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_list()
-            .entries(self.terms.iter().map(|t| t.0))
-            .finish()
+        let mut d = f.debug_struct("EffectRow");
+        d.field("terms", &self.terms.iter().map(|t| t.0).collect::<Vec<_>>());
+        if let EffectTail::Var(id) = &self.tail {
+            d.field("tail", id);
+        }
+        d.finish()
     }
 }
 
@@ -223,8 +358,8 @@ pub enum TypeKind {
     Value(ValueTypeKind),
     /// `Nothing`（bottom）：既非引用也非值，是一切类型的子类型（P2 §2.2）。
     Nothing,
-    /// 类型参数出现。
-    Param(TypeParamType),
+    /// 类型参数出现（只带 [`TypeParamId`] 身份；元数据见 [`TypeParamDecl`] 侧表）。
+    Param(TypeParamId),
     /// 星投影 `Type<*>`（仅 use-site 类型实参位置，P2 §9.2）。
     StarProjection,
 }
@@ -280,7 +415,7 @@ impl std::fmt::Debug for TypeKind {
             TypeKind::Ref(r) => write!(f, "Ref({r:?})"),
             TypeKind::Value(v) => write!(f, "Value({v:?})"),
             TypeKind::Nothing => write!(f, "Nothing"),
-            TypeKind::Param(p) => write!(f, "Param({p:?})"),
+            TypeKind::Param(id) => write!(f, "Param({id:?})"),
             TypeKind::StarProjection => write!(f, "StarProjection"),
         }
     }
@@ -348,10 +483,18 @@ impl std::fmt::Debug for UnionType {
 // ---------------------------------------------------------------------------
 
 /// 类型存储：拥有全部 [`TypeKind`]，按结构 hash-cons。
+///
+/// 同时维护类型参数的元数据侧表 [`TypeStore::param_decls`]：每个 [`TypeParamId`]
+/// 对应一份 [`TypeParamDecl`]（名字/位置/变型/约束/种类）。参数身份在声明点由
+/// [`TypeStore::mint_param`] 分配，全局唯一、不可伪造。
 #[derive(Debug, Default, Clone)]
 pub struct TypeStore {
     kinds: Vec<TypeKind>,
     dedup: HashMap<TypeKind, u32>,
+    /// 类型参数元数据侧表（id → 声明信息）。
+    param_decls: HashMap<TypeParamId, TypeParamDecl>,
+    /// 下一个待分配的 [`TypeParamId`]。
+    next_param_id: u32,
 }
 
 impl TypeStore {
@@ -387,12 +530,21 @@ impl TypeStore {
     /// TypeId 的重映射表。用于合并多个 per-function store 到一个规范 store。
     ///
     /// 结构同构的类型经 hash-cons 复用现有 TypeId；新类型追加到末尾。
+    /// 类型参数元数据侧表（[`TypeParamDecl`]）一并迁移——`TypeParamId` 跨 store
+    /// **保持不变**（id 是全局语义身份，不由 store 索引决定）。
     pub fn extend_from(&mut self, other: &TypeStore) -> std::collections::HashMap<TypeId, TypeId> {
         let mut remap = std::collections::HashMap::new();
         for (i, kind) in other.kinds.iter().enumerate() {
             let old = TypeId(i as u32);
             let new = self.intern(kind.clone());
             remap.insert(old, new);
+        }
+        // 迁移参数元数据侧表（id 不重映射）。
+        for (id, decl) in &other.param_decls {
+            self.param_decls.entry(*id).or_insert_with(|| decl.clone());
+        }
+        if other.next_param_id > self.next_param_id {
+            self.next_param_id = other.next_param_id;
         }
         remap
     }
@@ -481,52 +633,96 @@ impl TypeStore {
     pub fn value_nominal(&mut self, n: NominalType) -> TypeId {
         self.intern(TypeKind::Value(ValueTypeKind::Nominal(n)))
     }
-    pub fn param(&mut self, p: TypeParamType) -> TypeId {
-        self.intern(TypeKind::Param(p))
+    pub fn param(&mut self, id: TypeParamId) -> TypeId {
+        self.intern(TypeKind::Param(id))
     }
     pub fn star(&mut self) -> TypeId {
         self.intern(TypeKind::StarProjection)
     }
 
+    // ----- 类型参数身份与元数据 -----
+
+    /// 为一个类型参数分配新的全局唯一 [`TypeParamId`]，并登记其元数据到侧表。
+    /// 返回该 id；后续可用 [`TypeStore::param`] 把它 intern 成 `TypeKind::Param`。
+    ///
+    /// 这是参数身份的**唯一 minting 点**：调用方在 AST→HIR 降级时为每个声明位
+    /// 调用一次，保证同名 `T` 在不同声明中得到不同 id。
+    pub fn mint_param(&mut self, decl: TypeParamDecl) -> TypeParamId {
+        let id = decl.id;
+        self.param_decls.insert(id, decl);
+        if id.0 >= self.next_param_id {
+            self.next_param_id = id.0 + 1;
+        }
+        id
+    }
+
+    /// 分配一个**新的** [`TypeParamId`]（自动递增），并登记元数据。用于不便预计算
+    /// id 的场景（如合成参数）。返回新分配的 id。
+    pub fn fresh_param(&mut self, decl_init: impl FnOnce(TypeParamId) -> TypeParamDecl) -> TypeParamId {
+        let id = TypeParamId(self.next_param_id);
+        self.next_param_id += 1;
+        let decl = decl_init(id);
+        self.param_decls.insert(id, decl);
+        id
+    }
+
+    /// 取某 [`TypeParamId`] 的声明元数据。id 必须由 [`TypeStore::mint_param`] /
+    /// [`TypeStore::fresh_param`] 登记过。
+    pub fn param_decl(&self, id: TypeParamId) -> &TypeParamDecl {
+        &self.param_decls[&id]
+    }
+
+    /// 取某 [`TypeParamId`] 的声明元数据（可能缺失时返回 `None`）。
+    pub fn param_decl_opt(&self, id: TypeParamId) -> Option<&TypeParamDecl> {
+        self.param_decls.get(&id)
+    }
+
     // ----- 结构替换 -----
 
-    /// 把 [`Subst`] 应用到 `ty`，返回新 intern 的 [`TypeId`]。
+    /// 把 [`Subst`]（普通类型参数）+ [`EffSubst`]（effect 行参数）应用到 `ty`，
+    /// 返回新 intern 的 [`TypeId`]。
     ///
     /// 遍历函数类型 / nominal / Option / Tuple / effect 行中的所有类型与 effect
-    /// 位置；未出现在替换表里的参数保持原样。
-    pub fn apply_subst(&mut self, ty: TypeId, subst: &Subst) -> TypeId {
+    /// 位置；未出现在替换表里的参数保持原样。`eff_subst` 为 `None` 时不对
+    /// [`EffectRow::tail`] 的行变量做替换（保持原样）。
+    pub fn apply_subst_full(
+        &mut self,
+        ty: TypeId,
+        subst: &Subst,
+        eff_subst: Option<&EffSubst>,
+    ) -> TypeId {
         let kind = self.kind(ty).clone();
         match kind {
-            TypeKind::Param(p) => subst.get(&p).unwrap_or(ty),
+            TypeKind::Param(id) => subst.get(id).unwrap_or(ty),
             TypeKind::Ref(RefTypeKind::Function(f)) => {
-                let f = self.apply_subst_function(f, subst);
+                let f = self.apply_subst_function(f, subst, eff_subst);
                 self.intern(TypeKind::Ref(RefTypeKind::Function(f)))
             }
             TypeKind::Ref(RefTypeKind::Nominal(n)) => {
-                let n = self.apply_subst_nominal(n, subst);
+                let n = self.apply_subst_nominal(n, subst, eff_subst);
                 self.intern(TypeKind::Ref(RefTypeKind::Nominal(n)))
             }
             TypeKind::Ref(RefTypeKind::Union(u)) => {
                 let variants = u
                     .variants
                     .into_iter()
-                    .map(|v| self.apply_subst(v, subst))
+                    .map(|v| self.apply_subst_full(v, subst, eff_subst))
                     .collect::<Vec<_>>();
                 self.intern(TypeKind::Ref(RefTypeKind::Union(UnionType { variants })))
             }
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
-                let inner = self.apply_subst(inner, subst);
+                let inner = self.apply_subst_full(inner, subst, eff_subst);
                 self.intern(TypeKind::Value(ValueTypeKind::Option(inner)))
             }
             TypeKind::Value(ValueTypeKind::Tuple(elems)) => {
                 let elems = elems
                     .into_iter()
-                    .map(|e| self.apply_subst(e, subst))
+                    .map(|e| self.apply_subst_full(e, subst, eff_subst))
                     .collect::<Vec<_>>();
                 self.intern(TypeKind::Value(ValueTypeKind::Tuple(elems)))
             }
             TypeKind::Value(ValueTypeKind::Nominal(n)) => {
-                let n = self.apply_subst_nominal(n, subst);
+                let n = self.apply_subst_nominal(n, subst, eff_subst);
                 self.intern(TypeKind::Value(ValueTypeKind::Nominal(n)))
             }
             // 标量 / Unit / Any / String / Nothing / Star：内部无参数，原样返回。
@@ -546,49 +742,102 @@ impl TypeStore {
         }
     }
 
-    fn apply_subst_nominal(&mut self, mut n: NominalType, subst: &Subst) -> NominalType {
-        n.args = n.args.iter().map(|&a| self.apply_subst(a, subst)).collect();
+    /// 便捷重载：只应用普通类型参数替换（无 effect 行变量替换）。
+    /// 等价于 `apply_subst_full(ty, subst, None)`。
+    pub fn apply_subst(&mut self, ty: TypeId, subst: &Subst) -> TypeId {
+        self.apply_subst_full(ty, subst, None)
+    }
+
+    fn apply_subst_nominal(
+        &mut self,
+        mut n: NominalType,
+        subst: &Subst,
+        eff_subst: Option<&EffSubst>,
+    ) -> NominalType {
+        n.args = n
+            .args
+            .iter()
+            .map(|&a| self.apply_subst_full(a, subst, eff_subst))
+            .collect();
         if let Some(row) = n.eff.take() {
-            n.eff = Some(self.apply_subst_row(row, subst));
+            n.eff = Some(self.apply_subst_row_full(row, subst, eff_subst));
         }
         n
     }
 
-    fn apply_subst_function(&mut self, mut f: FunctionType, subst: &Subst) -> FunctionType {
-        f.receiver = f.receiver.map(|r| self.apply_subst(r, subst));
+    fn apply_subst_function(
+        &mut self,
+        mut f: FunctionType,
+        subst: &Subst,
+        eff_subst: Option<&EffSubst>,
+    ) -> FunctionType {
+        f.receiver = f.receiver.map(|r| self.apply_subst_full(r, subst, eff_subst));
         f.params = f
             .params
             .iter()
-            .map(|&p| self.apply_subst(p, subst))
+            .map(|&p| self.apply_subst_full(p, subst, eff_subst))
             .collect();
-        f.return_ty = self.apply_subst(f.return_ty, subst);
-        f.effects = self.apply_subst_row(f.effects, subst);
+        f.return_ty = self.apply_subst_full(f.return_ty, subst, eff_subst);
+        f.effects = self.apply_subst_row_full(f.effects, subst, eff_subst);
         f
     }
 
     /// 对一个 effect row 应用类型参数替换（pub 版本，供 MIR 单态化调用）。
-    pub fn apply_subst_row(&mut self, row: EffectRow, subst: &Subst) -> EffectRow {
-        self.apply_subst_row_inner(row, subst)
-    }
-
-    fn apply_subst_row_inner(&mut self, row: EffectRow, subst: &Subst) -> EffectRow {
-        let terms = row
+    ///
+    /// 同时处理：
+    /// - `terms` 中的参数（经 [`Subst`] 替换为具体类型）；
+    /// - `tail` 的行变量（经 [`EffSubst`] 替换为具体 effect 行；展开后并回 terms，
+    ///   tail 变 [`EffectTail::Empty`]）。
+    pub fn apply_subst_row_full(
+        &mut self,
+        row: EffectRow,
+        subst: &Subst,
+        eff_subst: Option<&EffSubst>,
+    ) -> EffectRow {
+        // terms：逐项应用普通替换。
+        let mut terms: Vec<TypeId> = row
             .terms
             .iter()
-            .map(|&t| self.apply_subst(t, subst))
+            .map(|&t| self.apply_subst_full(t, subst, eff_subst))
             .collect();
-        EffectRow::from_terms(terms)
+        // tail：行变量替换。
+        let tail = match row.tail {
+            EffectTail::Empty => EffectTail::Empty,
+            EffectTail::Var(id) => {
+                if let Some(es) = eff_subst
+                    && let Some(replacement) = es.get(id)
+                {
+                    // E → 具体 effect 行：把 replacement 的 terms 并回，tail 取其 tail。
+                    terms.extend_from_slice(&replacement.terms);
+                    replacement.tail.clone()
+                } else {
+                    // 未提供替换：行变量保持原样。
+                    EffectTail::Var(id)
+                }
+            }
+        };
+        EffectRow::from_terms_with_tail(terms, tail)
+    }
+
+    /// 便捷重载：只应用普通类型参数替换到 effect row（不替换行变量 tail）。
+    /// 等价于 `apply_subst_row_full(row, subst, None)`。
+    pub fn apply_subst_row(&mut self, row: EffectRow, subst: &Subst) -> EffectRow {
+        self.apply_subst_row_full(row, subst, None)
     }
 }
 
 // ---------------------------------------------------------------------------
-// Subst：类型参数 → 类型 的替换表
+// Subst / EffSubst：类型参数替换表（按 TypeParamId 键，值域不同）
 // ---------------------------------------------------------------------------
 
-/// 类型参数替换表（键为参数身份 [`TypeParamType`]）。
+/// 普通类型参数替换表：[`TypeParamId`]（`kind = Type`）→ [`TypeId`]。
+///
+/// 键用 [`TypeParamId`] 身份（**不再用名字**），保证两个不同声明里同名的 `T`
+/// 互不混淆。effect 行参数（`kind = Effect`）的替换见 [`EffSubst`]——两者值域
+/// 不同（一个 TypeId，一个 EffectRow），故分表存储。
 #[derive(Clone, Default)]
 pub struct Subst {
-    entries: HashMap<Symbol, TypeId>,
+    entries: HashMap<TypeParamId, TypeId>,
 }
 
 impl Subst {
@@ -596,12 +845,12 @@ impl Subst {
         Self::default()
     }
 
-    pub fn insert(&mut self, param: TypeParamType, ty: TypeId) {
-        self.entries.insert(param.name, ty);
+    pub fn insert(&mut self, id: TypeParamId, ty: TypeId) {
+        self.entries.insert(id, ty);
     }
 
-    pub fn get(&self, param: &TypeParamType) -> Option<TypeId> {
-        self.entries.get(&param.name).copied()
+    pub fn get(&self, id: TypeParamId) -> Option<TypeId> {
+        self.entries.get(&id).copied()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -610,6 +859,34 @@ impl Subst {
 
     pub fn len(&self) -> usize {
         self.entries.len()
+    }
+}
+
+/// effect 行参数替换表：[`TypeParamId`]（`kind = Effect`）→ [`EffectRow`]。
+///
+/// effect 行参数（`<eff E>`）的替换值是一**整组 effect**（一个完整
+/// [`EffectRow`]），而非单个 [`TypeId`]，故与 [`Subst`] 分表。
+/// 在 [`TypeStore::apply_subst_row`] 中用于展开 [`EffectRow::tail`] 的行变量。
+#[derive(Clone, Default)]
+pub struct EffSubst {
+    entries: HashMap<TypeParamId, EffectRow>,
+}
+
+impl EffSubst {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert(&mut self, id: TypeParamId, row: EffectRow) {
+        self.entries.insert(id, row);
+    }
+
+    pub fn get(&self, id: TypeParamId) -> Option<&EffectRow> {
+        self.entries.get(&id)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 }
 
@@ -677,22 +954,31 @@ fn nominal_tail(
     out
 }
 
-/// effect 行渲染：`Pure`（空）/ `A` / `A + B`。
+/// effect 行渲染：`Pure`（空）/ `A` / `A + B` / `A + E`（行变量）。
 fn render_effect_row(
     store: &TypeStore,
     interner: &scoop2_base::Interner,
     row: &EffectRow,
     full_fqn: bool,
 ) -> String {
-    if row.terms.is_empty() {
-        return "Pure".to_string();
-    }
-    let items: Vec<String> = row
+    let mut items: Vec<String> = row
         .terms
         .iter()
         .map(|&t| render_type(store, interner, t, full_fqn))
         .collect();
-    items.join(" + ")
+    // 行变量渲染为其参数名（从侧表查）。
+    if let EffectTail::Var(id) = &row.tail {
+        let name = store
+            .param_decl_opt(*id)
+            .map(|d| interner.resolve(d.name).to_string())
+            .unwrap_or_else(|| format!("{id:?}"));
+        items.push(name);
+    }
+    if items.is_empty() {
+        "Pure".to_string()
+    } else {
+        items.join(" + ")
+    }
 }
 
 /// [`TypeKind`] 级渲染（递归）。
@@ -705,7 +991,11 @@ fn render_kind(
     match kind {
         TypeKind::Nothing => "Nothing".into(),
         TypeKind::StarProjection => "*".into(),
-        TypeKind::Param(p) => interner.resolve(p.name).into(),
+        TypeKind::Param(id) => store
+            .param_decl_opt(*id)
+            .map(|d| interner.resolve(d.name).to_string())
+            .unwrap_or_else(|| format!("{id:?}"))
+            .into(),
         TypeKind::Ref(r) => render_ref(store, interner, r, full_fqn),
         TypeKind::Value(v) => render_value(store, interner, v, full_fqn),
     }
@@ -817,20 +1107,38 @@ mod tests {
         interner.intern(name)
     }
 
-    fn param(name: &str, interner: &mut scoop2_base::Interner) -> TypeParamType {
-        TypeParamType {
+    /// 注册一个类型参数到 store（自动分配新 id），返回该 id。
+    fn reg_param(
+        store: &mut TypeStore,
+        interner: &mut scoop2_base::Interner,
+        name: &str,
+    ) -> TypeParamId {
+        store.fresh_param(|id| TypeParamDecl {
+            id,
             name: interner.intern(name),
             file: FileId(0),
             span: Span::new(0, 1),
-        }
+            variance: None,
+            bound: None,
+            kind: TypeParamKind::Type,
+        })
     }
 
-    fn param_at(name: &str, interner: &mut scoop2_base::Interner, off: usize) -> TypeParamType {
-        TypeParamType {
+    /// 注册一个 effect 行参数到 store（自动分配新 id），返回该 id。
+    fn reg_eff_param(
+        store: &mut TypeStore,
+        interner: &mut scoop2_base::Interner,
+        name: &str,
+    ) -> TypeParamId {
+        store.fresh_param(|id| TypeParamDecl {
+            id,
             name: interner.intern(name),
             file: FileId(0),
-            span: Span::new(off, off + 1),
-        }
+            span: Span::new(0, 1),
+            variance: None,
+            bound: None,
+            kind: TypeParamKind::Effect,
+        })
     }
 
     // ----- hash-consing -----
@@ -967,7 +1275,7 @@ mod tests {
     fn subst_into_function_and_option_and_tuple() {
         let mut s = TypeStore::new();
         let mut interner = scoop2_base::Interner::new();
-        let t = param("T", &mut interner);
+        let t = reg_param(&mut s, &mut interner, "T");
         let t_id = s.param(t);
         let ret = t_id;
         let ft = s.function(FunctionType {
@@ -992,7 +1300,7 @@ mod tests {
     fn subst_leaves_non_param_types_unchanged() {
         let mut s = TypeStore::new();
         let mut interner = scoop2_base::Interner::new();
-        let t = param_at("T", &mut interner, 5);
+        let t = reg_param(&mut s, &mut interner, "T");
         let subst = Subst::new(); // 空
         let opt_inner = s.int();
         let opt = s.option(opt_inner);
@@ -1010,7 +1318,7 @@ mod tests {
     fn subst_into_nominal_args_and_eff() {
         let mut s = TypeStore::new();
         let mut interner = scoop2_base::Interner::new();
-        let t = param("T", &mut interner);
+        let t = reg_param(&mut s, &mut interner, "T");
         let t_id = s.param(t);
         let list = s.ref_nominal(NominalType {
             fqn: interner.intern("List"),
@@ -1030,12 +1338,72 @@ mod tests {
     fn subst_distinguishes_params_by_decl_site() {
         let mut s = TypeStore::new();
         let mut interner = scoop2_base::Interner::new();
-        // 两个同名 T，不同 span → 不同参数。
-        let t1 = param_at("T", &mut interner, 1);
-        let t2 = param_at("T", &mut interner, 9);
+        // 两个同名 T，独立注册 → 不同 id。
+        let t1 = reg_param(&mut s, &mut interner, "T");
+        let t2 = reg_param(&mut s, &mut interner, "T");
         let id1 = s.param(t1);
         let id2 = s.param(t2);
-        assert_ne!(id1, id2, "same name, different decl site → distinct");
+        assert_ne!(id1, id2, "same name, different decl → distinct id");
+    }
+
+    #[test]
+    fn subst_id_keys_do_not_collide_across_decls() {
+        // 两个不同声明里同名 T：各自的 Subst 只命中自己的 id。
+        let mut s = TypeStore::new();
+        let mut interner = scoop2_base::Interner::new();
+        let t1 = reg_param(&mut s, &mut interner, "T");
+        let t2 = reg_param(&mut s, &mut interner, "T");
+        // 声明 1 的 Subst 把 t1 映射到 Int。
+        let mut subst1 = Subst::new();
+        subst1.insert(t1, s.int());
+        // t2 不在 subst1 里 → 原样返回（不会因为同名而被误替换）。
+        let p2 = s.param(t2);
+        assert_eq!(s.apply_subst(p2, &subst1), p2);
+    }
+
+    #[test]
+    fn effect_tail_substitution_via_eff_subst() {
+        // <eff E> 体现为 tail = Var(E)；EffSubst 把 E 展开成具体 effect 行。
+        let mut s = TypeStore::new();
+        let mut interner = scoop2_base::Interner::new();
+        let e = reg_eff_param(&mut s, &mut interner, "E");
+        let io = s.string();
+        let state = s.int();
+        // 行 = {IO} + E
+        let row = EffectRow::from_terms_with_tail(vec![io], EffectTail::Var(e));
+        let mut es = EffSubst::new();
+        es.insert(e, EffectRow::single(state)); // E → {State}
+        let applied = s.apply_subst_row_full(row, &Subst::new(), Some(&es));
+        // 展开后 = {IO, State}，tail 变 Empty。
+        assert_eq!(applied.terms.len(), 2);
+        assert!(applied.contains(io));
+        assert!(applied.contains(state));
+        assert!(matches!(applied.tail, EffectTail::Empty));
+    }
+
+    #[test]
+    fn effect_row_is_pure_requires_no_tail() {
+        let a = TypeStore::new().string();
+        // 有 tail 的行不是 Pure，即便 terms 为空。
+        let row_with_tail = EffectRow::from_terms_with_tail(vec![], EffectTail::Var(TypeParamId(7)));
+        assert!(!row_with_tail.is_pure());
+        // 真正的 Pure。
+        assert!(EffectRow::pure().is_pure());
+        let _ = a;
+    }
+
+    #[test]
+    fn effect_row_subset_with_tail() {
+        let mut s = TypeStore::new();
+        let mut interner = scoop2_base::Interner::new();
+        let e = reg_eff_param(&mut s, &mut interner, "E");
+        let io = s.string();
+        // {IO} + E 包含 {IO}（tail 可吸收任意）。
+        let big = EffectRow::from_terms_with_tail(vec![io], EffectTail::Var(e));
+        let small = EffectRow::single(io);
+        assert!(small.is_subset_of(&big));
+        // {IO} + E 不被 {IO} 包含（闭合行无法吸收任意）。
+        assert!(!big.is_subset_of(&small));
     }
 
     // ----- UnionType 规范化 -----
@@ -1199,7 +1567,8 @@ mod tests {
             "scoop.core.String.(Int) -> Bool / Pure"
         );
         // type param + star projection
-        let p = s.param(param("T", &mut interner));
+        let t_id = reg_param(&mut s, &mut interner, "T");
+        let p = s.param(t_id);
         assert_eq!(render_type(&s, &interner, p, true), "T");
         let star = s.star();
         assert_eq!(render_type(&s, &interner, star, true), "*");

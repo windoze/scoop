@@ -232,7 +232,7 @@ fn check_file_bodies(
 ) {
     use crate::syntax::ast::{ItemKind, ModifierKind};
     use std::collections::{HashMap, HashSet};
-    let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamType> = HashMap::new();
+    let empty_tp: HashMap<scoop2_base::Symbol, crate::ty::TypeParamId> = HashMap::new();
     // 顶层函数重载冲突检测（pre-pass）。
     let top_funs: Vec<&crate::syntax::ast::FunDecl> = file
         .items
@@ -372,11 +372,7 @@ fn check_file_bodies(
                     for p in &tp_list.params {
                         m.insert(
                             p.name.symbol,
-                            crate::ty::TypeParamType {
-                                name: p.name.symbol,
-                                file: scoop2_base::FileId(0),
-                                span: p.name.span,
-                            },
+                            crate::ty::TypeParamId(p.id.as_u32()),
                         );
                     }
                     m
@@ -3260,7 +3256,7 @@ fn record_class_ctor_layout(
     };
     // 主构造器参数布局（含非属性参数）。无 primary_ctor 时跳过（class_ctor_params 无条目）。
     if let Some(ctor) = &d.primary_ctor {
-        let tp_map = env::build_tp_map(d.type_params.as_ref());
+        let tp_map = env::build_tp_map(env, d.type_params.as_ref());
         let mut infos: Vec<crate::hir::ClassCtorParamInfo> = Vec::with_capacity(ctor.params.len());
         for cp in &ctor.params {
             let ty = match &cp.ty {
@@ -3412,7 +3408,7 @@ fn check_overrides(
     let Some(body) = &d.body else {
         return;
     };
-    let tp_map = env::build_tp_map(d.type_params.as_ref());
+    let tp_map = env::build_tp_map(env, d.type_params.as_ref());
     let unit_ty = env.store.unit();
     // 接口超类的 use-site effect 行实参（`Disposable<eff Pure>` 的 `Pure`），按 base FQN 索引。
     // 用于接口实现方法的 effect 行代入（eff 形参 → 实参）。
@@ -3897,13 +3893,12 @@ fn check_one_fun(
     package_prefix: &str,
     enclosing_type_params: &std::collections::HashMap<
         scoop2_base::Symbol,
-        crate::ty::TypeParamType,
+        crate::ty::TypeParamId,
     >,
     this_ty: Option<crate::ty::TypeId>,
     expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
     facts: &mut crate::hir::SemanticFacts,
 ) {
-    use scoop2_base::FileId;
     // 闭合 effect row（`...!`）不允许引用 effect row 变量（`eff E`）—— header 级检查。
     check_closed_effect_row_no_row_var(d, diags);
     // 函数参数必须显式标注类型（无参数类型推断）。
@@ -3946,11 +3941,7 @@ fn check_one_fun(
         for p in &type_params.params {
             tp.insert(
                 p.name.symbol,
-                crate::ty::TypeParamType {
-                    name: p.name.symbol,
-                    file: FileId(0),
-                    span: p.name.span,
-                },
+                crate::ty::TypeParamId(p.id.as_u32()),
             );
             // 内联 bound（§5.1 `T: ref` / `T: value`）。
             if let Some(bound) = &p.bound {
@@ -4051,7 +4042,7 @@ fn check_member_funs(
     package_prefix: &str,
     enclosing_type_params: &std::collections::HashMap<
         scoop2_base::Symbol,
-        crate::ty::TypeParamType,
+        crate::ty::TypeParamId,
     >,
     expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
     facts: &mut crate::hir::SemanticFacts,
@@ -4119,19 +4110,14 @@ fn check_member_funs(
 
 /// 把类型参数列表合并进已有 map（用于嵌套类型累积外层 + 自身类型参数）。
 fn merge_type_params(
-    map: &mut std::collections::HashMap<scoop2_base::Symbol, crate::ty::TypeParamType>,
+    map: &mut std::collections::HashMap<scoop2_base::Symbol, crate::ty::TypeParamId>,
     tp: Option<&crate::syntax::ast::TypeParamList>,
 ) {
-    use scoop2_base::FileId;
     if let Some(tp) = tp {
         for p in &tp.params {
             map.insert(
                 p.name.symbol,
-                crate::ty::TypeParamType {
-                    name: p.name.symbol,
-                    file: FileId(0),
-                    span: p.name.span,
-                },
+                crate::ty::TypeParamId(p.id.as_u32()),
             );
         }
     }

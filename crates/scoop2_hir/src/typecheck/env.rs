@@ -12,7 +12,7 @@ use scoop2_base::{FileId, Interner, Symbol};
 use crate::resolve::imports::ImportTable;
 use crate::resolve::index::Index;
 use crate::syntax::ast::{File, ItemKind, TypeMember, TypeMemberKind, TypeParamList, ValBinding};
-use crate::ty::{EffectRow, TypeId, TypeParamType, TypeStore};
+use crate::ty::{EffectRow, TypeId, TypeStore};
 
 use super::lower::TypeLowering;
 
@@ -38,6 +38,9 @@ pub struct Signature {
     pub modifiers: crate::resolve::symbol::ModifierSet,
     /// 声明的 effect 行（M6 override effect containment 用）。
     pub effect: Option<crate::syntax::ast::EffectRowExpr>,
+    /// effect 行参数的 id（`<eff E>` 中的 E；无 eff 参数为 None）。
+    /// 供 effect row 快照时把 E 写入 `EffectRow::tail = Var(id)`。
+    pub eff_param_id: Option<crate::ty::TypeParamId>,
     /// 是否带函数体（区分 interface default 方法 / abstract 方法；M6 用）。
     pub has_body: bool,
     /// 声明 span（M3 构造器重载 related 标签用；顶层/成员默认 default）。
@@ -493,6 +496,7 @@ impl<'i> TypeEnv<'i> {
                         index_ref,
                         interner_ref,
                         s.effect.as_ref(),
+                        s.eff_param_id,
                     ),
                     has_vararg: s.has_vararg,
                     decl_span: s.decl_span,
@@ -612,13 +616,15 @@ fn resolve_signature_effect_row(
     index: &Index,
     interner: &Interner,
     effect: Option<&crate::syntax::ast::EffectRowExpr>,
+    eff_param_id: Option<crate::ty::TypeParamId>,
 ) -> EffectRow {
     use crate::resolve::symbol::NominalCategory;
-    use crate::ty::{NominalType, TypeParamType};
+    use crate::ty::NominalType;
     let Some(eff) = effect else {
         return EffectRow::pure();
     };
     let mut terms: Vec<TypeId> = Vec::new();
+    let mut tail = crate::ty::EffectTail::Empty;
     for term in &eff.terms {
         let Some(last) = term.path.segments.last() else {
             continue;
@@ -628,14 +634,12 @@ fn resolve_signature_effect_row(
         if last_name == "Pure" {
             continue;
         }
-        // 单段名：可能是 eff 行参数（`<eff E>`）→ 保留为 Param。
-        if term.path.segments.len() == 1 {
-            let tp = TypeParamType {
-                name: last.symbol,
-                file: scoop2_base::FileId(0),
-                span: last.span,
-            };
-            terms.push(store.param(tp));
+        // 单段名：可能是 eff 行参数（`<eff E>` 中的 E）→ 写入 tail = Var(id)，
+        // 而非伪装成单个 term（E 代表一整组抽象 effect）。
+        if term.path.segments.len() == 1
+            && let Some(id) = eff_param_id
+        {
+            tail = crate::ty::EffectTail::Var(id);
             continue;
         }
         // 多段名：拼 FQN，查 index。
@@ -667,7 +671,7 @@ fn resolve_signature_effect_row(
         }
         // 未解析 → 跳过（宽容）。
     }
-    EffectRow::from_terms(terms)
+    EffectRow::from_terms_with_tail(terms, tail)
 }
 
 /// 把文件的**顶层函数**（非扩展、非成员）签名降级并登记进 `env.signatures`。
@@ -688,10 +692,11 @@ pub fn register_top_level_signatures(
         if let Some(receiver_ref) = &d.receiver {
             // 降级 receiver 类型 → FQN。
             let recv_fqn = {
+                let tp_map = build_tp_map(env, d.type_params.as_ref());
                 let mut lower = TypeLowering::new(
                     env,
                     imports,
-                    build_tp_map(d.type_params.as_ref()),
+                    tp_map,
                     package_prefix.to_string(),
                     diags,
                 );
@@ -701,19 +706,15 @@ pub fn register_top_level_signatures(
                     .or_else(|| crate::typecheck::expr::scalar_fqn(kind, env.interner))
             };
             if let Some(recv_fqn) = recv_fqn {
-                let tp_map = build_tp_map(d.type_params.as_ref());
+                let tp_map = build_tp_map(env, d.type_params.as_ref());
                 let unit_ty = env.store.unit();
-                // 收集 effect 行参数名（`<eff E = Pure>` 中的 E）。
-                let eff_param_names: HashSet<Symbol> = d
-                    .type_params
-                    .iter()
-                    .flat_map(|tpl| tpl.effect_row.iter())
-                    .map(|er| er.name.symbol)
-                    .collect();
+                // 收集 effect 行参数（`<eff E = Pure>` 中的 E）：name → id。
+                let eff_params = eff_param_map(d.type_params.as_ref(), &tp_map);
+                let eff_param_id = eff_params.values().next().copied();
                 let (params, tpb) = {
                     let mut lower =
                         TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
-                    lower.set_eff_params(eff_param_names.clone());
+                    lower.set_eff_params(eff_params.clone());
                     let params: Vec<TypeId> = d
                         .params
                         .iter()
@@ -727,14 +728,15 @@ pub fn register_top_level_signatures(
                 };
                 let return_ty = match &d.return_ty {
                     Some(t) => {
+                        let tp_map2 = build_tp_map(env, d.type_params.as_ref());
                         let mut lower = TypeLowering::new(
                             env,
                             imports,
-                            build_tp_map(d.type_params.as_ref()),
+                            tp_map2,
                             package_prefix.to_string(),
                             diags,
                         );
-                        lower.set_eff_params(eff_param_names);
+                        lower.set_eff_params(eff_params);
                         lower.lower(t)
                     }
                     None => unit_ty,
@@ -765,6 +767,7 @@ pub fn register_top_level_signatures(
                             &d.modifiers,
                         ),
                         effect: d.effect.clone(),
+                        eff_param_id,
                         has_body: d.body.is_some(),
                         decl_span: d.name.span,
                         decl_file: file_id,
@@ -788,31 +791,13 @@ pub fn register_top_level_signatures(
             continue;
         };
         // 类型参数映射（用于降低签名中的类型参数引用）。
-        let tp_map: HashMap<Symbol, TypeParamType> = d
-            .type_params
-            .iter()
-            .flat_map(|tpl| tpl.params.iter())
-            .map(|p| {
-                (
-                    p.name.symbol,
-                    TypeParamType {
-                        name: p.name.symbol,
-                        file: FileId(0),
-                        span: p.name.span,
-                    },
-                )
-            })
-            .collect();
+        let tp_map = build_tp_map(env, d.type_params.as_ref());
         let tpc = tp_map.len();
         let unit_ty = env.store.unit();
         let (prb, pvb) = collect_param_kind_bounds(d.type_params.as_ref(), d.where_clause.as_ref());
-        // 收集 effect 行参数名（`<eff E = Pure>` 中的 E）。
-        let eff_param_names: HashSet<Symbol> = d
-            .type_params
-            .iter()
-            .flat_map(|tpl| tpl.effect_row.iter())
-            .map(|er| er.name.symbol)
-            .collect();
+        // 收集 effect 行参数（`<eff E = Pure>` 中的 E）：name → id。
+        let eff_params = eff_param_map(d.type_params.as_ref(), &tp_map);
+        let eff_param_id = eff_params.values().next().copied();
         let sig = {
             let mut lower = TypeLowering::with_bounds(
                 env,
@@ -823,7 +808,7 @@ pub fn register_top_level_signatures(
                 prb,
                 pvb,
             );
-            lower.set_eff_params(eff_param_names);
+            lower.set_eff_params(eff_params);
             let params: Vec<TypeId> = d
                 .params
                 .iter()
@@ -847,6 +832,7 @@ pub fn register_top_level_signatures(
                 type_param_bounds: lower_type_param_bounds(d.type_params.as_ref(), &mut lower),
                 modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(&d.modifiers),
                 effect: d.effect.clone(),
+                eff_param_id,
                 has_body: d.body.is_some(),
                 decl_span: scoop2_base::Span::default(),
                 decl_file: file_id,
@@ -1061,24 +1047,24 @@ fn register_body_members(
                 }
             }
             TypeMemberKind::Fun(d) => {
-                let mut tp_map = build_tp_map(type_params);
-                // 合并成员函数自身的类型参数（`fun <T> ask(...)` 中的 T）。
-                if let Some(m_tp) = &d.type_params {
-                    for p in &m_tp.params {
-                        tp_map.insert(
-                            p.name.symbol,
-                            crate::ty::TypeParamType {
-                                name: p.name.symbol,
-                                file: scoop2_base::FileId(0),
-                                span: p.name.span,
-                            },
-                        );
-                    }
+                // 注册外层类型 + 成员函数自身的类型参数（各自稳定 id）。
+                let mut tp_map = build_tp_map(env, type_params);
+                if d.type_params.is_some() {
+                    let m = build_tp_map(env, d.type_params.as_ref());
+                    tp_map.extend(m);
                 }
+                // effect 行参数（优先成员函数自身声明，其次外层类型）。
+                let eff_params = eff_param_map(d.type_params.as_ref(), &tp_map);
+                let eff_params = if eff_params.is_empty() {
+                    eff_param_map(type_params, &tp_map)
+                } else {
+                    eff_params
+                };
                 let unit_ty = env.store.unit();
                 let sig = {
                     let mut lower =
                         TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
+                    lower.set_eff_params(eff_params.clone());
                     let params: Vec<TypeId> = d
                         .params
                         .iter()
@@ -1111,6 +1097,7 @@ fn register_body_members(
                             &d.modifiers,
                         ),
                         effect: d.effect.clone(),
+                        eff_param_id: eff_params.values().next().copied(),
                         has_body: d.body.is_some(),
                         decl_span: d.name.span,
                         decl_file: file_id,
@@ -1141,7 +1128,7 @@ fn register_body_members(
                     env.interner.resolve(ev.name.symbol)
                 );
                 if let Some(variant_fqn) = env.interner.get(&variant_fqn_text) {
-                    let tp_map = build_tp_map(type_params);
+                    let tp_map = build_tp_map(env, type_params);
                     for field in &ev.fields {
                         let mut lower = TypeLowering::new(
                             env,
@@ -1184,7 +1171,7 @@ fn lower_and_store_member(
     type_params: Option<&TypeParamList>,
     diags: &mut DiagnosticSink,
 ) {
-    let tp_map = build_tp_map(type_params);
+    let tp_map = build_tp_map(env, type_params);
     let lowered = {
         let mut lower = TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
         lower.lower(ty)
@@ -1201,21 +1188,73 @@ fn lower_and_store_member(
     }
 }
 
-pub(super) fn build_tp_map(tpl: Option<&TypeParamList>) -> HashMap<Symbol, TypeParamType> {
+/// 把 AST 类型参数列表注册为 `TypeParamDecl`（每个参数分配稳定的
+/// `TypeParamId = NodeId.as_u32()`，按声明位全局唯一），返回 name → id 映射，
+/// 供 [`TypeLowering`] 按名字查到 id。
+///
+/// 幂等：同一 AST `TypeParam` 的 `id: NodeId` 不变，故多次调用注册同一 id，
+/// 不会重复分配——这保证了同声明内 `build_tp_map` 被多次调用（参数/返回值/bound
+/// 各一次）时 id 一致。
+pub(super) fn build_tp_map(
+    env: &mut TypeEnv,
+    tpl: Option<&TypeParamList>,
+) -> HashMap<Symbol, crate::ty::TypeParamId> {
     let mut map = HashMap::new();
     if let Some(tpl) = tpl {
         for p in &tpl.params {
-            map.insert(
-                p.name.symbol,
-                TypeParamType {
-                    name: p.name.symbol,
-                    file: FileId(0),
-                    span: p.name.span,
-                },
-            );
+            let id = crate::ty::TypeParamId(p.id.as_u32());
+            env.store.mint_param(crate::ty::TypeParamDecl {
+                id,
+                name: p.name.symbol,
+                file: FileId(0),
+                span: p.name.span,
+                variance: p.variance.map(ast_variance_to_ty),
+                bound: None, // bound 在 lower_type_param_bounds 阶段单独填入
+                kind: crate::ty::TypeParamKind::Type,
+            });
+            map.insert(p.name.symbol, id);
+        }
+        // effect 行参数（<eff E>）也注册，kind = Effect。
+        if let Some(er) = &tpl.effect_row {
+            let id = crate::ty::TypeParamId(er.id.as_u32());
+            env.store.mint_param(crate::ty::TypeParamDecl {
+                id,
+                name: er.name.symbol,
+                file: FileId(0),
+                span: er.name.span,
+                variance: None,
+                bound: None,
+                kind: crate::ty::TypeParamKind::Effect,
+            });
+            map.insert(er.name.symbol, id);
         }
     }
     map
+}
+
+/// AST 的 [`crate::syntax::ast::Variance`] → ty 模块的 [`crate::ty::Variance`]。
+fn ast_variance_to_ty(v: crate::syntax::ast::Variance) -> crate::ty::Variance {
+    match v {
+        crate::syntax::ast::Variance::In => crate::ty::Variance::In,
+        crate::syntax::ast::Variance::Out => crate::ty::Variance::Out,
+    }
+}
+
+/// 从已注册的 `tp_map`（name → id，含普通参数 + effect 行参数）中抽取 effect
+/// 行参数（`<eff E>`）的 name → id 子映射，供 [`TypeLowering::set_eff_params`]。
+fn eff_param_map(
+    tpl: Option<&TypeParamList>,
+    tp_map: &HashMap<Symbol, crate::ty::TypeParamId>,
+) -> HashMap<Symbol, crate::ty::TypeParamId> {
+    let mut out = HashMap::new();
+    if let Some(tpl) = tpl
+        && let Some(er) = &tpl.effect_row
+    {
+        if let Some(&id) = tp_map.get(&er.name.symbol) {
+            out.insert(er.name.symbol, id);
+        }
+    }
+    out
 }
 
 /// 收集类型参数列表与 where 子句中声明了 `ref` / `value` kind bound 的参数名集合。
@@ -1398,7 +1437,7 @@ pub fn register_type_constraints(
                 );
                 // 注册直接超类型实例化（FQN + 类型实参）。
                 let owner = fqn_of(env, package_prefix, d.name.symbol);
-                let tp_map = build_tp_map(d.type_params.as_ref());
+                let tp_map = build_tp_map(env, d.type_params.as_ref());
                 let mut sup_instances: Vec<(Symbol, Vec<TypeId>)> = Vec::new();
                 for st in &d.supertypes {
                     let mut lower = TypeLowering::new(
@@ -1533,7 +1572,7 @@ pub fn register_constructors(
         };
         let owner = fqn_of(env, package_prefix, d.name.symbol);
         if let Some(ctor) = &d.primary_ctor {
-            let tp_map = build_tp_map(d.type_params.as_ref());
+            let tp_map = build_tp_map(env, d.type_params.as_ref());
             let unit_ty = env.store.unit();
             let params: Vec<TypeId> = ctor
                 .params
@@ -1558,7 +1597,7 @@ pub fn register_constructors(
         {
             // 无主构造器头（`struct S { val a: T }`）：从 body 的属性字段合成构造参数。
             use crate::syntax::ast::TypeMemberKind;
-            let tp_map = build_tp_map(d.type_params.as_ref());
+            let tp_map = build_tp_map(env, d.type_params.as_ref());
             let unit_ty = env.store.unit();
             let mut params: Vec<TypeId> = Vec::new();
             let mut names: Vec<Symbol> = Vec::new();
@@ -1615,6 +1654,7 @@ pub fn register_constructors(
                         has_vararg: vararg,
                         modifiers: crate::resolve::symbol::ModifierSet::default(),
                         effect: None,
+                        eff_param_id: None,
                         has_body: true,
                         decl_span: d.name.span,
                         decl_file: file_id,
@@ -1636,8 +1676,8 @@ pub fn register_constructors(
                 let TypeMemberKind::SecondaryCtor(c) = &m.kind else {
                     continue;
                 };
-                let mut tp_map = build_tp_map(d.type_params.as_ref());
-                tp_map.extend(build_tp_map(c.type_params.as_ref()));
+                let mut tp_map = build_tp_map(env, d.type_params.as_ref());
+                tp_map.extend(build_tp_map(env, c.type_params.as_ref()));
                 let unit_ty = env.store.unit();
                 let (params, tpb) = {
                     let mut lower =
@@ -1669,6 +1709,7 @@ pub fn register_constructors(
                     type_param_bounds: tpb,
                     modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(&c.modifiers),
                     effect: None,
+                        eff_param_id: None,
                     has_body: true,
                     decl_span: c.span,
                     decl_file: file_id,
@@ -1681,7 +1722,7 @@ pub fn register_constructors(
                 // 若有主构造器，追加 body-field 属性的类型到主构造器参数（使 param_names 与 params 对齐）。
                 // 无主构造器的 struct 的 body-field 已在合成路径中处理，不重复追加。
                 if d.primary_ctor.is_some() {
-                    let tp_map = build_tp_map(d.type_params.as_ref());
+                    let tp_map = build_tp_map(env, d.type_params.as_ref());
                     let unit_ty = env.store.unit();
                     for m in &body.members {
                         if let TypeMemberKind::Property(pd) = &m.kind
@@ -1707,10 +1748,11 @@ pub fn register_constructors(
                     let _ = tp_map;
                 }
                 let primary_tp_bounds = {
+                    let tp_map = build_tp_map(env, d.type_params.as_ref());
                     let mut lower = TypeLowering::new(
                         env,
                         imports,
-                        build_tp_map(d.type_params.as_ref()),
+                        tp_map,
                         package_prefix.to_string(),
                         diags,
                     );
@@ -1782,6 +1824,7 @@ pub fn register_constructors(
                     type_param_bounds: primary_tp_bounds,
                     modifiers: crate::resolve::symbol::ModifierSet::default(),
                     effect: None,
+                        eff_param_id: None,
                     has_body: true,
                     decl_span: d
                         .primary_ctor

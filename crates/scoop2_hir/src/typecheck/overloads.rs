@@ -12,7 +12,7 @@ use scoop2_base::diag::{Diagnostic, DiagnosticSink};
 
 use crate::resolve::imports::ImportTable;
 use crate::syntax::ast::FunDecl;
-use crate::ty::{TypeId, TypeKind, TypeParamType};
+use crate::ty::{TypeId, TypeKind, TypeParamId};
 
 use super::TypeEnv;
 use super::diagnostics;
@@ -553,7 +553,7 @@ fn prefixes_equal(a: &[String], b: &[String], k: usize) -> bool {
 fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, String>) -> String {
     match env.store.kind(id) {
         TypeKind::Param(p) => tp_bounds
-            .get(&p.name)
+            .get(&env.store.param_decl(*p).name)
             .cloned()
             .unwrap_or_else(|| "Any".to_string()),
         TypeKind::Ref(crate::ty::RefTypeKind::Any) => "Any".to_string(),
@@ -608,7 +608,7 @@ fn effective_type_str(env: &TypeEnv, id: TypeId, tp_bounds: &HashMap<Symbol, Str
     }
 }
 
-fn type_param_map(d: &FunDecl) -> HashMap<Symbol, TypeParamType> {
+fn type_param_map(d: &FunDecl) -> HashMap<Symbol, TypeParamId> {
     type_param_map_of(d.type_params.as_ref())
 }
 
@@ -637,18 +637,11 @@ fn types_mutually_assignable(store: &crate::ty::TypeStore, a: TypeId, b: TypeId)
 /// 同 [`type_param_map`]，但直接接受类型参数列表（供构造器复用）。
 fn type_param_map_of(
     tpl: Option<&crate::syntax::ast::TypeParamList>,
-) -> HashMap<Symbol, TypeParamType> {
+) -> HashMap<Symbol, TypeParamId> {
     let mut map = HashMap::new();
     if let Some(tpl) = tpl {
         for p in &tpl.params {
-            map.insert(
-                p.name.symbol,
-                TypeParamType {
-                    name: p.name.symbol,
-                    file: scoop2_base::FileId(0),
-                    span: p.name.span,
-                },
-            );
+            map.insert(p.name.symbol, TypeParamId(p.id.as_u32()));
         }
     }
     map

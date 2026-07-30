@@ -132,7 +132,7 @@ fn encode_type(
         }
         TypeKind::Nothing => "Nothing".to_string(),
         TypeKind::Param(p) => {
-            format!("P({})", interner.resolve(p.name))
+            format!("P({})", interner.resolve(types.param_decl(*p).name))
         }
         TypeKind::StarProjection => "Star".to_string(),
     };
@@ -295,11 +295,11 @@ pub fn compute_public_stable_keys(module: &mut crate::mir::Module, interner: &In
     for item in &mut module.items {
         if let crate::mir::Item::Fun(fd) = item {
             if fd.stable_template_key.is_none() {
-                // 构造类型参数名列表（从 type_params Symbol → 文本）。
+                // 构造类型参数名列表（从 type_params TypeParamId → 经 store 侧表查 name → 文本）。
                 let tp_names: Vec<String> = fd
                     .type_params
                     .iter()
-                    .map(|&sym| interner.resolve(sym).to_string())
+                    .map(|&id| interner.resolve(store.param_decl(id).name).to_string())
                     .collect();
                 // 构造 overload signature（canonical param types）。
                 let param_types: Vec<TypeId> = fd.params.iter().map(|p| p.ty).collect();

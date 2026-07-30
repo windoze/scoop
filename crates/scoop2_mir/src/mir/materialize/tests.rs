@@ -148,7 +148,7 @@ fn build_subst_rejects_arity_mismatch() {
     let mut store = TypeStore::new();
     let ret = store.unit();
     let param_ty = store.int();
-    let tp_sym = scoop2_base::Symbol::from_u32(999);
+    let tp_id = scoop2_hir::ty::TypeParamId(999);
     let fn_ty = store.function(scoop2_hir::ty::FunctionType {
         receiver: None,
         params: vec![param_ty],
@@ -169,7 +169,7 @@ fn build_subst_rejects_arity_mismatch() {
         }],
         return_ty: ret,
         effect_row: scoop2_hir::ty::EffectRow::pure(),
-        type_params: vec![tp_sym],
+        type_params: vec![tp_id],
         body: None,
         file: scoop2_base::FileId(0),
         stable_template_key: None,

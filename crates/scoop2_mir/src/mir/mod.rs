@@ -99,8 +99,9 @@ pub struct FunDecl {
     pub return_ty: TypeId,
     /// effect 行。
     pub effect_row: EffectRow,
-    /// 类型参数名序列（按声明顺序；>0 表示泛型模板）。
-    pub type_params: Vec<scoop2_base::Symbol>,
+    /// 类型参数身份序列（按声明顺序；>0 表示泛型模板）。
+    /// 携带 HIR 分配的全局唯一 [`TypeParamId`]，保证单态化替换按身份而非名字键。
+    pub type_params: Vec<scoop2_hir::ty::TypeParamId>,
     /// `None` = 声明体（abstract / interface 成员 / @Extern / @Intrinsic）。
     pub body: Option<Body>,
     /// `@Intrinsic("name")` 注解的 intrinsic 名（仅 `@Intrinsic` 无 body 方法非 None）。

@@ -745,7 +745,12 @@ pub fn lower_fun_decl_inner(
         type_params: d
             .type_params
             .as_ref()
-            .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
+            .map(|tp| {
+                tp.params
+                    .iter()
+                    .map(|p| scoop2_hir::ty::TypeParamId(p.id.as_u32()))
+                    .collect()
+            })
             .unwrap_or_default(),
         body: None,
         file: file_id,
@@ -1131,7 +1136,12 @@ pub fn lower_class_init_callable(
         type_params: d
             .type_params
             .as_ref()
-            .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
+            .map(|tp| {
+                tp.params
+                    .iter()
+                    .map(|p| scoop2_hir::ty::TypeParamId(p.id.as_u32()))
+                    .collect()
+            })
             .unwrap_or_default(),
         body: None,
         file: file_id,
@@ -1419,7 +1429,12 @@ pub fn lower_secondary_ctor_callable(
         type_params: sc
             .type_params
             .as_ref()
-            .map(|tp| tp.params.iter().map(|p| p.name.symbol).collect())
+            .map(|tp| {
+                tp.params
+                    .iter()
+                    .map(|p| scoop2_hir::ty::TypeParamId(p.id.as_u32()))
+                    .collect()
+            })
             .unwrap_or_default(),
         body: None,
         file: file_id,
