@@ -18,6 +18,7 @@
 
 pub mod facts;
 pub mod render;
+pub mod type_info;
 
 use std::collections::{HashMap, HashSet};
 

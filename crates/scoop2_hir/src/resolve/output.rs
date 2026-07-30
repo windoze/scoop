@@ -8,6 +8,8 @@
 //! 本文件先落地通用 [`NodeIdTable`]；完整的 `Resolution`（value/type/member 引用、
 //! scope、this、local 声明等表）随 body 解析阶段补齐。
 
+use std::collections::HashMap;
+
 use scoop2_base::{NodeId, Symbol};
 
 /// 一个值引用（`Ident` / 调用 callee）的解析结果。
@@ -48,6 +50,7 @@ impl Default for Resolution {
 /// 以 [`NodeId`] 为键的致密侧表。
 ///
 /// 稀疏写入（`set` 自动扩展到足够容量）；读取返回 `Option`。
+/// typecheck 中间态使用（允许缺失）。
 #[derive(Debug, Clone)]
 pub struct NodeIdTable<T> {
     slots: Vec<Option<T>>,
@@ -93,6 +96,75 @@ impl<T> NodeIdTable<T> {
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Freeze（compact）：把可能缺失的稀疏表转换为**无空槽的 dense 表**。
+    ///
+    /// 遍历 `expected`（所有**应该有条目**的 NodeId，由遍历 AST 收集），
+    /// 对每个 expected NodeId 若表中缺失（`Option::None`），调用 `on_missing`
+    /// 报告诊断（真实输入程序错误 / typecheck 缺口）。
+    ///
+    /// 然后把所有 `Some` 条目 compact 进 `HashMap<NodeId, T>`——**没有空槽**，
+    /// 每一项都有明确内容。
+    pub fn freeze(
+        self,
+        expected: &[NodeId],
+        mut on_missing: impl FnMut(NodeId),
+    ) -> FrozenNodeIdTable<T> {
+        for &id in expected {
+            if !self.contains(id) {
+                on_missing(id);
+            }
+        }
+        let mut dense = HashMap::with_capacity(self.len());
+        for (i, slot) in self.slots.into_iter().enumerate() {
+            if let Some(v) = slot {
+                dense.insert(NodeId::from_u32(i as u32), v);
+            }
+        }
+        FrozenNodeIdTable { entries: dense }
+    }
+}
+
+/// **冻结后的** NodeId 侧表：compact 后无空槽，每一项都有明确内容。
+///
+/// 由 [`NodeIdTable::freeze`] 产出。内部是 `HashMap<NodeId, T>`——只含有数据的
+/// 条目，没有空槽。`get()` 返回 `&T`（非 `Option`）。
+///
+/// **安全契约**：消费者只查询 freeze 时 `expected` 列表中的 NodeId。
+/// 这些 NodeId 在 freeze 时已校验存在（若缺失已报诊断，driver 会中止 pipeline）。
+/// 查询未在 expected 中的 NodeId 是消费者 bug——会 panic。
+#[derive(Debug, Clone)]
+pub struct FrozenNodeIdTable<T> {
+    entries: HashMap<NodeId, T>,
+}
+
+impl<T> FrozenNodeIdTable<T> {
+    /// 查询 `id` 处的条目。返回 `&T`（非 `Option`）。
+    pub fn get(&self, id: NodeId) -> &T {
+        self.entries
+            .get(&id)
+            .expect("FrozenNodeIdTable::get: 节点不在表中（消费者查询了未 freeze 的 NodeId）")
+    }
+
+    /// 查询 `id` 处的条目（Copy 类型直接返回值）。
+    pub fn get_copy(&self, id: NodeId) -> T
+    where
+        T: Copy,
+    {
+        *self.get(id)
+    }
+
+    pub fn contains(&self, id: NodeId) -> bool {
+        self.entries.contains_key(&id)
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 }
 
