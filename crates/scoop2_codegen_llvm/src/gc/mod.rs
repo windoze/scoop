@@ -132,20 +132,31 @@ pub struct RootFrameState<'ctx> {
     pub frame_ty: Option<inkwell::types::StructType<'ctx>>,
     /// slot 数量。
     pub slot_count: u32,
-    /// GC local id → frame slot index。
-    pub local_to_slot: std::collections::HashMap<u32, u32>,
+    /// GC local id → 叶子 slot 列表（slot_index, 叶子在 local 值内的字节偏移）。
+    /// 每个 GC 指针叶子一个 slot（NEW-LLVM-CODEGEN.md §3.2 slot 镜像）：
+    /// 普通引用 local 恰好一项（偏移 0）；内嵌 GC 指针的 struct/enum 值
+    /// 按其 ref 叶子偏移各登记一项。
+    pub local_to_slot: std::collections::HashMap<u32, Vec<(u32, u64)>>,
 }
 
 impl<'ctx> RootFrameState<'ctx> {
-    /// 计算一个函数体需要的 GC slot 数，并建立 local id → slot index 映射。
-    /// 仅对 gc_traceable 的 local 各分配 1 个 slot（当前 Scoop 的 GC local 都是基指针）。
+    /// 计算一个函数体需要的 GC slot 数，并建立 local id → 叶子 slot 映射。
+    /// 对 gc_traceable 的 local 按 ref 叶子各分配 1 个 slot。
     pub fn compute(body: &LirBody, layouts: &TypeLayoutTable) -> Self {
         let mut local_to_slot = std::collections::HashMap::new();
         let mut next_slot = 0u32;
         for d in &body.locals {
             if d.gc_traceable || is_gc_traceable_type(d.ty, layouts) {
-                local_to_slot.insert(d.id, next_slot);
-                next_slot += 1;
+                let leaves = scoop2_lir::gc::ref_leaf_offsets(d.ty, layouts);
+                if leaves.is_empty() {
+                    continue;
+                }
+                let mut slots: Vec<(u32, u64)> = Vec::with_capacity(leaves.len());
+                for off in leaves {
+                    slots.push((next_slot, off));
+                    next_slot += 1;
+                }
+                local_to_slot.insert(d.id, slots);
             }
         }
         RootFrameState {

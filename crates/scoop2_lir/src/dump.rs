@@ -261,6 +261,7 @@ fn format_layout_kind(kind: &TypeLayoutKind) -> String {
             tag_size,
             tag_offset,
             variants,
+            ..
         } => format!(
             "Enum(tag={}, off={}, {} variants)",
             tag_size,

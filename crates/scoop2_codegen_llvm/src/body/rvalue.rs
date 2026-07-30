@@ -71,8 +71,9 @@ pub fn lower_rvalue<'a, 'ctx>(
         } => lower_pattern_match(fl, subject_local, pattern),
         LirRvalue::PatternExtract {
             subject_local,
+            path,
             result_ty,
-        } => lower_pattern_extract(fl, subject_local, *result_ty),
+        } => lower_pattern_extract(fl, subject_local, path, *result_ty),
         LirRvalue::InterpolatedString { parts } => lower_interpolated_string(fl, parts),
         LirRvalue::WithUpdate {
             base_local,
@@ -2334,17 +2335,21 @@ fn type_id_equals<'a, 'ctx>(
         .map_err(|e| CodegenError::llvm(e.to_string(), "zext tid", scoop2_base::Span::default()))?)
 }
 
-/// `PatternExtract { subject, result_ty }` → 模式提取。
+/// `PatternExtract { subject, path, result_ty }` → 模式提取。
 ///
 /// 对 Option subject 提取 payload（Some(x) 的 x）：
 /// - Pointer / U8 niche：payload 就是 subject 值本身，原样返回。
 /// - Tagged：`{ i8 tag; payload }` → extractvalue 取字段 1。
-/// 对值枚举 subject（EffectStep 的 Step enum 等，`{ iN tag; [payload_bytes x i8] }`）：
-/// 从 payload 区域按 `result_ty` 读出（与 lower_enum_variant 的写入对称）。
+/// 对值枚举 subject（`{ iN tag; [payload_bytes x i8] }`）：按 `path` 定位——
+/// `VariantField { variant, field_index }` 给出 variant 名与字段序号，偏移 =
+/// 该 variant 的 slot_offset +（多字段时）payload_fields[field_index].offset；
+/// 无 path 时退化为 scalar union slot 起点（EffectStep 的 Step enum 等，
+/// 其 variant 共用 payload_offset 区）。与 lower_enum_variant 的写入对称。
 /// 其他 subject（无 payload 的值枚举等）保持旧行为：返回 subject 本身。
 fn lower_pattern_extract<'a, 'ctx>(
     fl: &mut FunctionLowerer<'a, 'ctx>,
     subject: &LirOperand,
+    path: &[scoop2_mir::mir::transport::PatternBindingStep],
     result_ty: scoop2_hir::ty::TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let subj_ty = match subject {
@@ -2388,11 +2393,33 @@ fn lower_pattern_extract<'a, 'ctx>(
         // 时没有可读的 payload，退化为返回 subject（与旧行为一致）。
         let result_size = fl.layouts.get(result_ty).map(|l| l.size).unwrap_or(0);
         if result_size > 0 {
+            // 提取偏移：优先按 path 的 VariantField 定位（variant slot_offset +
+            // 多字段相对偏移）；无 path 信息时用 scalar union slot 起点。
+            let offset = if let [scoop2_mir::mir::transport::PatternBindingStep::VariantField {
+                variant,
+                field_index,
+            }] = path
+            {
+                match &layout.kind {
+                    scoop2_lir::TypeLayoutKind::Enum { variants, .. } => variants
+                        .iter()
+                        .find(|v| v.name == *variant)
+                        .map(|v| {
+                            v.payload_fields
+                                .get(*field_index)
+                                .map(|f| v.slot_offset + f.offset)
+                                .unwrap_or(v.slot_offset)
+                        })
+                        .unwrap_or_else(|| enum_payload_offset(layout, fl.layouts)),
+                    _ => enum_payload_offset(layout, fl.layouts),
+                }
+            } else {
+                enum_payload_offset(layout, fl.layouts)
+            };
             let agg = match subject {
                 LirOperand::Local(id) => fl.load_local(*id)?,
                 LirOperand::Const(c) => fl.lower_const_value(c)?,
             };
-            let offset = enum_payload_offset(layout, fl.layouts);
             let enum_llvm_ty = fl.cg.lower_type(ty, fl.layouts)?;
             let scratch = fl
                 .builder
@@ -2434,6 +2461,78 @@ fn lower_pattern_extract<'a, 'ctx>(
                     CodegenError::llvm(
                         e.to_string(),
                         "enum extract load",
+                        scoop2_base::Span::default(),
+                    )
+                })?;
+            return Ok(v);
+        }
+    }
+    // tuple / struct 字段提取（path 首步 TupleIndex）：内存 round-trip——
+    // subject 落 scratch alloca，按字段偏移以 result_ty 具类型 load（与 enum
+    // payload 提取同法；聚合字段不能按首类值错位读取）。
+    if let Some(ty) = subj_ty
+        && let Some(layout) = fl.layouts.get(ty)
+    {
+        let field_offset = match (&layout.kind, path.first()) {
+            (
+                scoop2_lir::TypeLayoutKind::Tuple { elements },
+                Some(scoop2_mir::mir::transport::PatternBindingStep::TupleIndex(i)),
+            ) => elements.get(*i).map(|f| f.offset),
+            (
+                scoop2_lir::TypeLayoutKind::Struct { fields },
+                Some(scoop2_mir::mir::transport::PatternBindingStep::TupleIndex(i)),
+            ) => fields.get(*i).map(|f| f.offset),
+            _ => None,
+        };
+        let result_size = fl.layouts.get(result_ty).map(|l| l.size).unwrap_or(0);
+        if let Some(offset) = field_offset
+            && result_size > 0
+        {
+            let agg = match subject {
+                LirOperand::Local(id) => fl.load_local(*id)?,
+                LirOperand::Const(c) => fl.lower_const_value(c)?,
+            };
+            let agg_llvm_ty = fl.cg.lower_type(ty, fl.layouts)?;
+            let scratch = fl
+                .builder
+                .build_alloca(agg_llvm_ty, "field_extract_scratch")
+                .map_err(|e| {
+                    CodegenError::llvm(
+                        e.to_string(),
+                        "field extract alloca",
+                        scoop2_base::Span::default(),
+                    )
+                })?;
+            fl.builder.build_store(scratch, agg).map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "field extract store",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+            let field_ptr = unsafe {
+                fl.builder.build_gep(
+                    fl.cg.context.i8_type(),
+                    scratch,
+                    &[fl.cg.context.i64_type().const_int(offset, false)],
+                    "field_extract_ptr",
+                )
+            }
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "field extract gep",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+            let result_llvm_ty = fl.cg.lower_type(result_ty, fl.layouts)?;
+            let v = fl
+                .builder
+                .build_load(result_llvm_ty, field_ptr, "field_extract_payload")
+                .map_err(|e| {
+                    CodegenError::llvm(
+                        e.to_string(),
+                        "field extract load",
                         scoop2_base::Span::default(),
                     )
                 })?;
@@ -2695,6 +2794,11 @@ fn lower_with_update<'a, 'ctx>(
     updates: &[LirWithUpdateField],
     result_ty: scoop2_hir::ty::TypeId,
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
+    // enum variant with 更新（`err with { Ok.point.x: 7 }`）：运行时 tag 与
+    // 目标 variant 不匹配 → scoop_panic（exit 3）；匹配则按绝对偏移写字段。
+    if updates.iter().any(|u| u.variant.is_some()) {
+        return lower_enum_with_update(fl, base, updates, result_ty);
+    }
     // 值语义：拷贝 base 聚合值，再按 LIR 解析好的字段路径逐条 insertvalue。
     let mut agg = match base {
         LirOperand::Local(id) => fl.load_local(*id)?,
@@ -2708,6 +2812,204 @@ fn lower_with_update<'a, 'ctx>(
         agg = apply_with_update_path(fl, agg, result_ty, &update.path, val)?;
     }
     Ok(agg)
+}
+
+/// enum `with` 更新：base 落 scratch alloca，逐条 update 做 tag 检查
+/// （不匹配 → `scoop_panic`，exit 3）后按绝对偏移写字段，最后整体 reload。
+///
+/// 走内存 round-trip 而非 insertvalue：enum 布局是 `{ tag; [N x i8] }` 字节
+/// 数组，payload 字段没有对应的 LLVM 结构字段下标。嵌套路径（`Ok.point.x`）
+/// 的中间聚合不变，直接按末段绝对偏移写入即可。不切换 variant（ mismatch
+/// 已 panic），各 ref 区内容保持原状，满足 GC trace 的零初始化纪律。
+fn lower_enum_with_update<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    base: &LirOperand,
+    updates: &[LirWithUpdateField],
+    result_ty: scoop2_hir::ty::TypeId,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    let layout = fl.layouts.get(result_ty).ok_or_else(|| {
+        CodegenError::missing_layout(result_ty.0, "WithUpdate enum", scoop2_base::Span::default())
+    })?;
+    let (tag_offset, tag_size) = match &layout.kind {
+        scoop2_lir::TypeLayoutKind::Enum {
+            tag_offset,
+            tag_size,
+            ..
+        } => (*tag_offset, *tag_size),
+        other => {
+            return Err(CodegenError::unsupported(
+                format!("enum with 更新的 receiver 布局不是 Enum：{:?}", other),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ));
+        }
+    };
+    let enum_llvm_ty = fl.cg.lower_type(result_ty, fl.layouts)?;
+    let agg = match base {
+        LirOperand::Local(id) => fl.load_local(*id)?,
+        LirOperand::Const(c) => fl.lower_const_value(c)?,
+    };
+    let scratch = fl
+        .builder
+        .build_alloca(enum_llvm_ty, "enum_wu_scratch")
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "enum with alloca", scoop2_base::Span::default())
+        })?;
+    fl.builder.build_store(scratch, agg).map_err(|e| {
+        CodegenError::llvm(e.to_string(), "enum with store", scoop2_base::Span::default())
+    })?;
+    let parent_fn = fl
+        .builder
+        .get_insert_block()
+        .and_then(|b| b.get_parent())
+        .ok_or_else(|| {
+            CodegenError::llvm(
+                "enum with update 不在函数体内".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+    for update in updates {
+        let Some(vt) = &update.variant else {
+            return Err(CodegenError::unsupported(
+                "enum with 更新混用了非 variant 路径",
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ));
+        };
+        // tag 运行时检查：tag != variant.tag_value → scoop_panic(exit 3)。
+        let tag_ptr = unsafe {
+            fl.builder.build_gep(
+                fl.cg.context.i8_type(),
+                scratch,
+                &[fl.cg.context.i64_type().const_int(tag_offset, false)],
+                "enum_wu_tag_ptr",
+            )
+        }
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "enum with tag gep", scoop2_base::Span::default())
+        })?;
+        let tag_ty = fl
+            .cg
+            .context
+            .custom_width_int_type((tag_size.max(1) * 8) as u32);
+        let tag = fl
+            .builder
+            .build_load(tag_ty, tag_ptr, "enum_wu_tag")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "enum with tag load",
+                    scoop2_base::Span::default(),
+                )
+            })?
+            .into_int_value();
+        let expect = tag_ty.const_int(vt.tag_value, false);
+        let mismatch = fl
+            .builder
+            .build_int_compare(inkwell::IntPredicate::NE, tag, expect, "enum_wu_tag_ne")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "enum with tag cmp", scoop2_base::Span::default())
+            })?;
+        let panic_bb = fl.cg.context.append_basic_block(parent_fn, "enum_wu_panic");
+        let ok_bb = fl.cg.context.append_basic_block(parent_fn, "enum_wu_ok");
+        fl.builder
+            .build_conditional_branch(mismatch, panic_bb, ok_bb)
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "enum with condbr",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        fl.builder.position_at_end(panic_bb);
+        let msg = fl
+            .cg
+            .get_or_create_string_literal("enum with update: variant mismatch")?;
+        let msg_int = fl
+            .builder
+            .build_ptr_to_int(msg, fl.cg.context.i64_type(), "enum_wu_msg_int")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "ptr_to_int enum with msg",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        let native = fl
+            .builder
+            .build_int_to_ptr(msg_int, fl.cg.native_ptr_ty(), "enum_wu_msg")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "int_to_ptr enum with msg",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        let _ = fl
+            .builder
+            .build_call(fl.rt.panic, &[native.into()], "enum_wu_panic")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "call enum with panic",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        fl.builder.build_unreachable().map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "unreachable enum with",
+                scoop2_base::Span::default(),
+            )
+        })?;
+        fl.builder.position_at_end(ok_bb);
+        // 写字段：末段绝对偏移 + 新值（嵌套路径的中间聚合不变）。
+        let last = update.path.last().ok_or_else(|| {
+            CodegenError::llvm(
+                format!("enum with 更新 `{}` 缺少字段路径", vt.name),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?;
+        let val = match &update.value {
+            LirOperand::Local(id) => fl.load_local(*id)?,
+            LirOperand::Const(c) => fl.lower_const_value(c)?,
+        };
+        let field_ptr = unsafe {
+            fl.builder.build_gep(
+                fl.cg.context.i8_type(),
+                scratch,
+                &[fl.cg.context.i64_type().const_int(last.offset, false)],
+                "enum_wu_field_ptr",
+            )
+        }
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "enum with field gep",
+                scoop2_base::Span::default(),
+            )
+        })?;
+        fl.builder.build_store(field_ptr, val).map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "enum with field store",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    }
+    let result = fl
+        .builder
+        .build_load(enum_llvm_ty, scratch, "enum_wu_result")
+        .map_err(|e| {
+            CodegenError::llvm(
+                e.to_string(),
+                "enum with reload",
+                scoop2_base::Span::default(),
+            )
+        })?;
+    Ok(result)
 }
 
 /// 递归应用一条 with 更新路径：定位当前层字段（与 lower_member_access 同一套
@@ -2846,23 +3148,52 @@ fn lower_enum_variant<'a, 'ctx>(
         })?;
     // 关联数据 payload：值枚举表示为 `{ iN tag; [payload_bytes x i8] }` 扁平字节
     // blob，无法用 insertvalue 写入具类型 payload——经内存 round-trip：先把
-    // with_tag 落进 scratch alloca，再按 payload 字节偏移以实际类型 store，
-    // 最后整体 load 回 SSA 值。size=0 的 payload（如 Unit）无需写入。
-    // （EffectStep 的 Step enum 携带 op 实参 payload，见 NEW-LLVM-CODEGEN.md §3.1。）
-    if let (Some(payload_ty), Some(arg)) = (payload_ty, args.first()) {
+    // with_tag 落进 scratch alloca，再按字节偏移以实际类型 store，最后整体
+    // load 回 SSA 值。const_zero 聚合保证所有 ref slot（含非本 variant 的
+    // 独立 ref 区）为零——零初始化纪律（NEW-LLVM-CODEGEN.md §3.1）。
+    // 写入位置取自布局：多字段 variant 按 payload_fields 逐字段写（偏移 =
+    // 本 variant slot_offset + 字段相对偏移）；单字段 variant 写 payload_ty
+    // 于 slot_offset。size=0 的 payload（如 Unit）无需写入。
+    // （EffectStep 的 Step enum 携带 op 实参 payload，其 variant 共用
+    // payload_offset 区，见 NEW-LLVM-CODEGEN.md §3.1。）
+    let mut writes: Vec<(u64, scoop2_hir::ty::TypeId, &LirOperand)> = Vec::new();
+    let variant_layout = match &layout.kind {
+        scoop2_lir::TypeLayoutKind::Enum { variants, .. } => {
+            variants.iter().find(|v| v.tag_value == tag_value)
+        }
+        _ => None,
+    };
+    if let Some(vl) = variant_layout
+        && !vl.payload_fields.is_empty()
+        && vl.payload_fields.len() == args.len()
+    {
+        // 多字段 variant：逐字段写入本 variant 的 slot。
+        for (f, a) in vl.payload_fields.iter().zip(args.iter()) {
+            if f.size > 0 {
+                writes.push((vl.slot_offset + f.offset, f.ty, a));
+            }
+        }
+    } else if let (Some(payload_ty), Some(arg)) = (payload_ty, args.first()) {
         let payload_size = fl.layouts.get(payload_ty).map(|l| l.size).unwrap_or(0);
         if payload_size > 0 {
-            let payload_val = fl.lower_operand(arg, payload_ty)?;
-            let offset = enum_payload_offset(layout, fl.layouts);
-            let scratch = fl
-                .builder
-                .build_alloca(enum_struct, "enum_payload_scratch")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), "enum scratch alloca", scoop2_base::Span::default())
-                })?;
-            fl.builder.build_store(scratch, with_tag).map_err(|e| {
-                CodegenError::llvm(e.to_string(), "enum scratch store", scoop2_base::Span::default())
+            let offset = variant_layout
+                .map(|v| v.slot_offset)
+                .unwrap_or_else(|| enum_payload_offset(layout, fl.layouts));
+            writes.push((offset, payload_ty, arg));
+        }
+    }
+    if !writes.is_empty() {
+        let scratch = fl
+            .builder
+            .build_alloca(enum_struct, "enum_payload_scratch")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "enum scratch alloca", scoop2_base::Span::default())
             })?;
+        fl.builder.build_store(scratch, with_tag).map_err(|e| {
+            CodegenError::llvm(e.to_string(), "enum scratch store", scoop2_base::Span::default())
+        })?;
+        for (offset, field_ty, arg) in writes {
+            let payload_val = fl.lower_operand(arg, field_ty)?;
             let payload_ptr = unsafe {
                 fl.builder.build_gep(
                     fl.cg.context.i8_type(),
@@ -2881,39 +3212,29 @@ fn lower_enum_variant<'a, 'ctx>(
                     scoop2_base::Span::default(),
                 )
             })?;
-            let loaded = fl
-                .builder
-                .build_load(enum_struct, scratch, "enum_with_payload")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), "enum reload", scoop2_base::Span::default())
-                })?;
-            return Ok(loaded);
         }
+        let loaded = fl
+            .builder
+            .build_load(enum_struct, scratch, "enum_with_payload")
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), "enum reload", scoop2_base::Span::default())
+            })?;
+        return Ok(loaded);
     }
     Ok(with_tag.into_struct_value().into())
 }
 
-/// enum 值（`{ iN tag; [payload_bytes x i8] }`）中 payload 区域的起始字节偏移。
-/// 与 `scoop2_lir::layout` 的布局计算一致：`align_to(tag_size, max_payload_align)`。
+/// enum 值（`{ iN tag; [payload_bytes x i8] }`）中 scalar union slot 的起始字节偏移。
+/// 直接读布局预计算的 `payload_offset`（`align_to(tag_size, max_scalar_payload_align)`，
+/// 见 `scoop2_lir::layout`）；含 ref 的 variant 另有独立 slot（EnumVariantLayout.slot_offset）。
 pub(crate) fn enum_payload_offset(
     layout: &scoop2_lir::TypeLayout,
-    layouts: &scoop2_lir::TypeLayoutTable,
+    _layouts: &scoop2_lir::TypeLayoutTable,
 ) -> u64 {
-    let scoop2_lir::TypeLayoutKind::Enum {
-        tag_size, variants, ..
-    } = &layout.kind
-    else {
-        return layout.size;
-    };
-    let max_payload_align = variants
-        .iter()
-        .filter_map(|v| v.payload_ty)
-        .filter_map(|t| layouts.get(t))
-        .map(|l| l.align)
-        .max()
-        .unwrap_or(1);
-    let tag = (*tag_size).max(1);
-    tag.div_ceil(max_payload_align) * max_payload_align
+    match &layout.kind {
+        scoop2_lir::TypeLayoutKind::Enum { payload_offset, .. } => *payload_offset,
+        _ => layout.size,
+    }
 }
 
 /// 构造内建 Option<T> 的 Some/None 值（按 niche 表示）。

@@ -171,12 +171,12 @@ pub fn materialize(
                 .flat_map(|iface_fqn| {
                     hir.interner
                         .get(iface_fqn)
-                        .and_then(|sym| hir.member_funs.get(&sym))
-                        .map(|methods| {
+                        .map(|sym| {
                             // 成员函数模板 FQN = owner.method（与 lower_fun_decl_inner 的 owner-qualified FQN 一致）。
-                            methods
-                                .keys()
-                                .map(move |m| format!("{}.{}", class, hir.interner.resolve(*m)))
+                            // 迭代走声明序侧表，保证实例化顺序逐次构建一致。
+                            hir.ordered_member_fun_names(&sym)
+                                .into_iter()
+                                .map(move |m| format!("{}.{}", class, hir.interner.resolve(m)))
                                 .collect::<Vec<_>>()
                         })
                         .unwrap_or_default()
@@ -267,32 +267,10 @@ pub fn materialize(
                 match m.kind {
                     crate::mir::MetadataKind::Class | crate::mir::MetadataKind::Struct => {
                         // class vtable 契约：从 HIR member_funs 收集虚方法（含 overload signature）。
-                        let owner_fqn_text = m.fqn.clone();
-                        let store_ref = &generic_types;
-                        let interner_ref = &hir.interner;
+                        // 继承感知 + 声明序：超类链方法占前面的 slot，子类 override 保留
+                        // slot 位置；迭代走 member_fun_order，避免 HashMap 迭代序不确定。
                         let virtual_methods: Vec<(String, String, String)> =
-                            hir_fqn_for_metadata(hir, &m.fqn)
-                                .and_then(|fqn_sym| hir.member_funs.get(&fqn_sym))
-                                .map(|methods| {
-                                    methods
-                                        .iter()
-                                        .flat_map(|(method_name, sigs)| {
-                                            let mname =
-                                                hir.interner.resolve(*method_name).to_string();
-                                            let owner = owner_fqn_text.clone();
-                                            sigs.iter().map(move |sig| {
-                                                let sig_canonical =
-                                                    crate::mir::stable_id::build_overload_sig(
-                                                        store_ref,
-                                                        interner_ref,
-                                                        &sig.param_types,
-                                                    );
-                                                (mname.clone(), owner.clone(), sig_canonical)
-                                            })
-                                        })
-                                        .collect()
-                                })
-                                .unwrap_or_default();
+                            collect_class_virtual_methods(hir, &generic_types, &m.fqn);
                         work.backend_contracts
                             .class_vtables
                             .push(ClassVtableContract {
@@ -337,13 +315,21 @@ pub fn materialize(
                     crate::mir::MetadataKind::Interface => {
                         let store_ref = &generic_types;
                         let interner_ref = &hir.interner;
+                        // itable slot 同样按声明序（member_fun_order）分配，
+                        // 避免 HashMap 迭代序不确定导致逐次构建不一致。
                         let methods: Vec<(String, String)> = hir_fqn_for_metadata(hir, &m.fqn)
-                            .and_then(|fqn_sym| hir.member_funs.get(&fqn_sym))
-                            .map(|mf| {
-                                mf.iter()
-                                    .flat_map(|(method_name, sigs)| {
-                                        let mname = hir.interner.resolve(*method_name).to_string();
-                                        sigs.iter().map(move |sig| {
+                            .map(|fqn_sym| {
+                                hir.ordered_member_fun_names(&fqn_sym)
+                                    .into_iter()
+                                    .flat_map(|name_sym| {
+                                        let mname = hir.interner.resolve(name_sym).to_string();
+                                        let sigs = hir
+                                            .member_funs
+                                            .get(&fqn_sym)
+                                            .and_then(|mf| mf.get(&name_sym))
+                                            .into_iter()
+                                            .flatten();
+                                        sigs.map(move |sig| {
                                             let sig_canonical =
                                                 crate::mir::stable_id::build_overload_sig(
                                                     store_ref,
@@ -352,6 +338,7 @@ pub fn materialize(
                                                 );
                                             (mname.clone(), sig_canonical)
                                         })
+                                        .collect::<Vec<_>>()
                                     })
                                     .collect()
                             })
@@ -1202,4 +1189,72 @@ fn hir_fqn_for_metadata(
 ) -> Option<scoop2_base::Symbol> {
     // 用 interner 查找 FQN 文本对应的 Symbol。
     hir.interner.get(fqn_text)
+}
+
+/// 收集 class 的虚方法槽（继承感知 + 确定性顺序）：
+/// - 超类链（仅 class，自顶向下）先声明的方法占前面的 slot；
+/// - 子类 override 同 (方法名, overload sig) 的方法时保留原 slot 位置、
+///   target owner 换成本级实现（保证子类 vtable 与超类 vtable 前缀布局一致）；
+/// - 子类新增方法 / 新 overload 按声明序追加在后。
+///
+/// 方法名迭代走 HIR `ordered_member_fun_names`（声明序侧表），避免
+/// `member_funs` HashMap 迭代序不确定导致 vtable slot 逐次构建不一致。
+fn collect_class_virtual_methods(
+    hir: &scoop2_hir::hir::TypedHir,
+    store: &TypeStore,
+    class_fqn_text: &str,
+) -> Vec<(String, String, String)> {
+    let Some(class_sym) = hir.interner.get(class_fqn_text) else {
+        return Vec::new();
+    };
+    // 超类链（仅 class）：自顶向下排列（链首 = 最顶层超类，链尾 = 本 class）。
+    let mut chain: Vec<scoop2_base::Symbol> = Vec::new();
+    let mut cur = class_sym;
+    let mut visited = std::collections::HashSet::new();
+    while visited.insert(cur) {
+        let next = hir
+            .supertypes
+            .get(&cur)
+            .and_then(|supers| supers.iter().find(|s| hir.class_fqns.contains(s)).copied());
+        match next {
+            Some(sup) => {
+                chain.push(sup);
+                cur = sup;
+            }
+            None => break,
+        }
+    }
+    let mut owners: Vec<scoop2_base::Symbol> = chain.iter().rev().copied().collect();
+    owners.push(class_sym);
+    let mut slots: Vec<(String, String, String)> = Vec::new();
+    for owner_sym in owners {
+        let owner_text = hir.interner.resolve(owner_sym).to_string();
+        for name_sym in hir.ordered_member_fun_names(&owner_sym) {
+            let Some(sigs) = hir
+                .member_funs
+                .get(&owner_sym)
+                .and_then(|m| m.get(&name_sym))
+            else {
+                continue;
+            };
+            let mname = hir.interner.resolve(name_sym).to_string();
+            for sig in sigs {
+                let sig_canonical = crate::mir::stable_id::build_overload_sig(
+                    store,
+                    &hir.interner,
+                    &sig.param_types,
+                );
+                if let Some(existing) = slots
+                    .iter_mut()
+                    .find(|(n, _, s)| *n == mname && *s == sig_canonical)
+                {
+                    // override：保留超类 slot 位置，target 换成本级实现。
+                    existing.1 = owner_text.clone();
+                } else {
+                    slots.push((mname.clone(), owner_text.clone(), sig_canonical));
+                }
+            }
+        }
+    }
+    slots
 }

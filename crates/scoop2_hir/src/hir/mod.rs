@@ -141,6 +141,11 @@ pub struct TypedHir {
     pub top_level_funs: HashMap<Symbol, Vec<TypedSignature>>,
     /// 类型 FQN → (方法名 → 签名重载集)。成员函数 / 扩展。
     pub member_funs: HashMap<Symbol, HashMap<Symbol, Vec<TypedSignature>>>,
+    /// 类型 FQN → 成员函数名列表（按声明顺序；与 `member_funs` 同步填充）。
+    ///
+    /// `member_funs` 内层是 HashMap（迭代序不确定），vtable / itable slot 分配
+    /// 必须以此表为准，保证逐次构建的方法序一致（参照 `member_order` 模式）。
+    pub member_fun_order: HashMap<Symbol, Vec<Symbol>>,
     /// 类型 FQN → (成员名 → 成员类型)。属性 / 字段。
     pub members: HashMap<Symbol, HashMap<Symbol, TypeId>>,
     /// 类型 FQN → 成员名列表（按声明顺序）。
@@ -268,6 +273,28 @@ impl TypedHir {
         }
     }
 
+    /// 按声明序返回类型 `fqn` 的成员函数名列表。
+    ///
+    /// vtable / itable slot 分配必须走这里（`member_funs` HashMap 迭代序不确定）。
+    /// `member_fun_order` 缺失时回退为按方法名排序——仍然确定，只是不一定等于声明序。
+    pub fn ordered_member_fun_names(&self, fqn: &Symbol) -> Vec<Symbol> {
+        let Some(methods) = self.member_funs.get(fqn) else {
+            return Vec::new();
+        };
+        match self.member_fun_order.get(fqn) {
+            Some(order) => order
+                .iter()
+                .filter(|name| methods.contains_key(*name))
+                .copied()
+                .collect(),
+            None => {
+                let mut sorted: Vec<Symbol> = methods.keys().copied().collect();
+                sorted.sort_by(|a, b| self.interner.resolve(*a).cmp(self.interner.resolve(*b)));
+                sorted
+            }
+        }
+    }
+
     /// class 的完整字段列表（`(name, ty)`）：超类字段在前（沿 `supertypes` 链
     /// 自顶向下），自身字段按声明序在后。同名遮蔽字段去重（子类优先……此处
     /// 保留首次出现 = 最顶层超类的声明，与单继承布局一致）。
@@ -308,6 +335,7 @@ impl TypedHir {
             interner,
             top_level_funs: HashMap::new(),
             member_funs: HashMap::new(),
+            member_fun_order: HashMap::new(),
             members: HashMap::new(),
             member_order: HashMap::new(),
             ctor_signatures: HashMap::new(),

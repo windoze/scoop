@@ -603,23 +603,29 @@ fn map_rvalue(
             };
             // payload 类型：用户 enum 的单字段 variant 以 HIR 登记的字段类型
             // 为准（`<enum_fqn>.<variant>` members，与布局计算的 payload 类型
-            // 一致）；其余（合成 Step enum / 内建 Option 等）从 transport 的
-            // aggregate 获取。
-            let variant_payload_ty = (|| {
-                let variant_fqn_text =
-                    format!("{}.{}", interner.resolve(*enum_fqn), vname);
+            // 一致）；多字段 variant 无单一 payload 类型（codegen 按布局的
+            // payload_fields 逐字段写入，不得回退 aggregate_ty——那会把首实参
+            // 按 enum 自身类型误写）；其余（合成 Step enum / 内建 Option 等）
+            // 从 transport 的 aggregate 获取。
+            let variant_fields: Vec<scoop2_hir::ty::TypeId> = (|| {
+                let variant_fqn_text = format!("{}.{}", interner.resolve(*enum_fqn), vname);
                 let vf = interner.get(&variant_fqn_text)?;
-                let ordered = hir.ordered_members(&vf);
-                if ordered.len() == 1 {
-                    Some(ordered[0].1)
-                } else {
-                    None
-                }
-            })();
+                Some(
+                    hir.ordered_members(&vf)
+                        .into_iter()
+                        .map(|(_, t)| t)
+                        .collect(),
+                )
+            })()
+            .unwrap_or_default();
             let payload_ty = if args.is_empty() {
                 None
+            } else if variant_fields.len() == 1 {
+                Some(variant_fields[0])
+            } else if variant_fields.len() > 1 {
+                None
             } else {
-                Some(variant_payload_ty.unwrap_or(payload.aggregate_ty))
+                Some(payload.aggregate_ty)
             };
             LirRvalue::EnumVariant {
                 enum_ty: *enum_ty,
@@ -753,10 +759,11 @@ fn map_rvalue(
             updates: updates
                 .iter()
                 .map(|u| {
-                    let path = resolve_with_update_path(
+                    let (variant, path) = resolve_with_update_path(
                         *result_ty, &u.path, layouts, types, hir, interner,
                     )?;
                     Ok(LirWithUpdateField {
+                        variant,
                         path,
                         value: map_operand(&u.value),
                         value_ty: u.value_ty,
@@ -784,9 +791,12 @@ fn map_rvalue(
             pattern: map_pattern(pattern, types, hir, interner, step_tags),
         },
         Rvalue::PatternExtract {
-            subject, result_ty, ..
+            subject,
+            path,
+            result_ty,
         } => LirRvalue::PatternExtract {
             subject_local: map_operand(subject),
+            path: path.clone(),
             result_ty: *result_ty,
         },
         Rvalue::IntEq { lhs, rhs } => LirRvalue::IntEq {
@@ -1113,6 +1123,11 @@ fn resolve_named_field_ty(
 /// 偏移用 [`compute_field_offset`]（与 MemberAccess 同源）；tuple 段直接读
 /// TypeLayoutTable 的 Tuple elements。解析失败（非 nominal receiver / 字段缺失 /
 /// tuple 布局缺失或索引越界）返回 [`LirError`]——绝不静默落到字段 0。
+///
+/// enum variant 模式（`err with { Ok.point.x: 7 }`）：首段匹配 result_ty 的
+/// enum variant 名时，返回 [`LirWithUpdateVariantTarget`]（运行时 tag 检查），
+/// 且之后各段的 offset 是 enum 值内的绝对字节偏移（variant slot 起点累计，
+/// 首字段段按 `<enum>.<variant>` 名义下登记的 payload 成员定位）。
 fn resolve_with_update_path(
     result_ty: scoop2_hir::ty::TypeId,
     segments: &[scoop2_mir::mir::WithUpdateSegment],
@@ -1120,15 +1135,91 @@ fn resolve_with_update_path(
     types: &scoop2_hir::ty::TypeStore,
     hir: &TypedHir,
     interner: &Interner,
-) -> Result<Vec<crate::LirWithUpdateSegment>, LirError> {
+) -> Result<
+    (
+        Option<crate::LirWithUpdateVariantTarget>,
+        Vec<crate::LirWithUpdateSegment>,
+    ),
+    LirError,
+> {
+    use scoop2_hir::ty::{TypeKind, ValueTypeKind};
     let mut out = Vec::with_capacity(segments.len());
+    let mut variant_target = None;
     let mut cur_ty = result_ty;
-    for seg in segments {
+    // enum variant 模式下的绝对偏移累计（None = 非 enum 模式，offset 逐层相对）。
+    let mut abs_acc: Option<u64> = None;
+    let mut iter = segments.iter();
+    if let Some(scoop2_mir::mir::WithUpdateSegment::Named(sym)) = segments.first() {
+        let name = interner.resolve(*sym);
+        let variant = layouts.get(result_ty).and_then(|l| match &l.kind {
+            TypeLayoutKind::Enum { variants, .. } => {
+                variants.iter().find(|v| v.name == name).cloned()
+            }
+            _ => None,
+        });
+        if let Some(v) = variant {
+            variant_target = Some(crate::LirWithUpdateVariantTarget {
+                name: name.to_string(),
+                tag_value: v.tag_value,
+            });
+            iter.next();
+            // 首个字段段：owner 是 `<enum_fqn>.<variant>` 名义下的 payload 成员。
+            let Some(scoop2_mir::mir::WithUpdateSegment::Named(field_sym)) = iter.next()
+            else {
+                return Err(LirError::new(format!(
+                    "with 更新的 enum variant `{name}` 后缺少字段路径"
+                )));
+            };
+            let field_name = interner.resolve(*field_sym);
+            let enum_fqn = match types.kind(result_ty) {
+                TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
+                _ => {
+                    return Err(LirError::new(
+                        "with 更新的 enum receiver 不是 nominal 值类型",
+                    ));
+                }
+            };
+            let owner_text = format!("{}.{}", interner.resolve(enum_fqn), name);
+            let owner = interner
+                .get(&owner_text)
+                .ok_or_else(|| LirError::new(format!("with 更新找不到 variant 类型 {owner_text}")))?;
+            let ordered = hir.ordered_members(&owner);
+            let idx = ordered
+                .iter()
+                .position(|(n, _)| interner.resolve(*n) == field_name)
+                .ok_or_else(|| LirError::new(format!("with 更新找不到字段 {field_name}")))?;
+            let field_ty = ordered[idx].1;
+            // 单字段 variant（payload_fields 为空）字段在 slot 起点；
+            // 多字段 variant 按声明序取 payload_fields 相对偏移。
+            let rel = if v.payload_fields.is_empty() {
+                0
+            } else {
+                v.payload_fields.get(idx).map(|f| f.offset).ok_or_else(|| {
+                    LirError::new(format!(
+                        "with 更新字段 {field_name} 在 variant `{name}` 的布局中缺失"
+                    ))
+                })?
+            };
+            let abs = v.slot_offset + rel;
+            out.push(crate::LirWithUpdateSegment {
+                name: field_name.to_string(),
+                offset: abs,
+                ty: field_ty,
+            });
+            cur_ty = field_ty;
+            abs_acc = Some(abs);
+        }
+    }
+    for seg in iter {
         match seg {
             scoop2_mir::mir::WithUpdateSegment::Named(sym) => {
                 let name = interner.resolve(*sym).to_string();
-                let offset = compute_field_offset(cur_ty, &name, layouts, types, hir, interner)?;
+                let rel = compute_field_offset(cur_ty, &name, layouts, types, hir, interner)?;
                 let field_ty = resolve_named_field_ty(cur_ty, &name, types, hir, interner)?;
+                let offset = abs_acc.map(|b| b + rel).unwrap_or(rel);
+                if abs_acc.is_some() {
+                    abs_acc = Some(offset);
+                }
                 out.push(crate::LirWithUpdateSegment {
                     name,
                     offset,
@@ -1146,16 +1237,20 @@ fn resolve_with_update_path(
                         "with 更新路径段 _{idx} 的 receiver 不是含该索引的 tuple 布局"
                     ))
                 })?;
+                let offset = abs_acc.map(|b| b + field.offset).unwrap_or(field.offset);
+                if abs_acc.is_some() {
+                    abs_acc = Some(offset);
+                }
                 out.push(crate::LirWithUpdateSegment {
                     name: format!("_{idx}"),
-                    offset: field.offset,
+                    offset,
                     ty: field.ty,
                 });
                 cur_ty = field.ty;
             }
         }
     }
-    Ok(out)
+    Ok((variant_target, out))
 }
 
 /// 在 TypeStore 中查找 Any 引用类型的 TypeId（不修改 store）。

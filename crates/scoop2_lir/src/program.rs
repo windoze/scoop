@@ -230,6 +230,8 @@ pub enum TypeLayoutKind {
         tag_size: u64,
         /// tag 在对象中的偏移。
         tag_offset: u64,
+        /// payload 区域在对象中的字节偏移（`align_to(tag_size, max_payload_align)`）。
+        payload_offset: u64,
         /// 变体列表。
         variants: Vec<EnumVariantLayout>,
     },
@@ -300,8 +302,17 @@ pub struct EnumVariantLayout {
     pub name: String,
     /// tag 值（判别值）。
     pub tag_value: u64,
-    /// payload 类型（None = 无 payload）。
+    /// 本 variant payload 区域在 enum 值内的绝对字节偏移。
+    /// 不含 ref 的 variant 共用 scalar union slot（= Enum.payload_offset）；
+    /// 含 ref 的 variant 各占独立 slot（GC trace 位按偏移静态枚举，
+    /// 不同 variant 的 ref 叶子偏移不能落在同一字节上歧义）。
+    pub slot_offset: u64,
+    /// payload 类型（None = 无 payload 或多字段 variant——后者无单一 TypeId 可表达，
+    /// 字段布局见 `payload_fields`）。
     pub payload_ty: Option<TypeId>,
+    /// 多字段 variant 的 payload 字段布局（偏移相对本 variant 的 slot 起点；
+    /// 单字段 variant 为空——读写走 `payload_ty` 主线）。
+    pub payload_fields: Vec<FieldLayout>,
 }
 
 // =========================================================================
@@ -595,6 +606,9 @@ pub enum LirRvalue {
     /// 模式提取。
     PatternExtract {
         subject_local: LirOperand,
+        /// 提取路径（MIR 透传）：variant 字段提取携带 `VariantField { variant,
+        /// field_index }`，codegen 据此计算多字段 variant payload 内的字段偏移。
+        path: Vec<scoop2_mir::mir::transport::PatternBindingStep>,
         result_ty: TypeId,
     },
     /// 整数相等比较。
@@ -730,6 +744,11 @@ pub enum LirPattern {
 /// with 更新字段。
 #[derive(Clone, Debug)]
 pub struct LirWithUpdateField {
+    /// enum variant 目标（`err with { Ok.point.x: 7 }` 的首段 `Ok`）：
+    /// 运行时 tag 必须等于 `tag_value`，否则 panic（exit 3）。
+    /// Some 时 `path` 各段的 offset 是 enum 值内的**绝对**字节偏移
+    /// （variant slot 起点累计），不再逐层相对。
+    pub variant: Option<LirWithUpdateVariantTarget>,
     /// 更新路径（已逐段解析：字段名 + 在该层布局中的字节偏移 + 字段类型）。
     /// 单段 = 扁平更新；多段 = 嵌套更新（`line with { start.x: 99 }`）。
     pub path: Vec<LirWithUpdateSegment>,
@@ -737,6 +756,15 @@ pub struct LirWithUpdateField {
     pub value: LirOperand,
     /// 值类型。
     pub value_ty: TypeId,
+}
+
+/// with 更新的 enum variant 目标（tag 运行时检查）。
+#[derive(Clone, Debug)]
+pub struct LirWithUpdateVariantTarget {
+    /// 变体名（诊断用）。
+    pub name: String,
+    /// 判别值（与 `EnumVariantLayout::tag_value` 同源）。
+    pub tag_value: u64,
 }
 
 /// with 更新路径的一段。

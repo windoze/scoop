@@ -69,8 +69,11 @@ pub struct TypeEnv<'i> {
     ctors: HashMap<Symbol, Vec<TypeId>>,
     /// 类型 FQN → 次构造器签名重载集（M3 构造器重载决议用）。
     ctor_signatures: HashMap<Symbol, Vec<Signature>>,
-    /// 类型 FQN → (方法名 → 签名重载集)。成员函数（含扩展）。
+    /// 类型 FQN → (方法名 → 签名重载集)。成员函数 / 扩展。
     member_signatures: HashMap<Symbol, HashMap<Symbol, Vec<Signature>>>,
+    /// 类型 FQN → 成员函数名列表（按声明顺序；与 `member_signatures` 同步填充）。
+    /// vtable / itable slot 分配的确定性来源（内层 HashMap 迭代序不确定）。
+    member_fun_order: HashMap<Symbol, Vec<Symbol>>,
     /// 带 `@CLayout` 注解的 struct FQN 集合（native `@Extern` ABI 允许的 nominal 值类型）。
     clayout_structs: HashSet<Symbol>,
     /// 顶层函数 FQN → 注解属性（release-hook cross-reference 校验用）。
@@ -112,6 +115,7 @@ impl<'i> TypeEnv<'i> {
             ctors: HashMap::new(),
             ctor_signatures: HashMap::new(),
             member_signatures: HashMap::new(),
+            member_fun_order: HashMap::new(),
             clayout_structs: HashSet::new(),
             fun_attrs: HashMap::new(),
             type_aliases: HashMap::new(),
@@ -211,11 +215,41 @@ impl<'i> TypeEnv<'i> {
     }
 
     /// 搜索所有注册的 type_constraints，找到名为 `param_name` 的类型参数的所有 Type bound。
+    ///
+    /// 注意：这是**跨文件全局按名搜索**（任意 owner 的同名约束都会命中），
+    /// 仅保留给无当前声明上下文的调用方；函数体检查应改用
+    /// [`Self::type_param_bounds_for`]（按当前声明 owner 作用域），避免
+    /// 把别的文件里同名类型参数的约束泄漏进当前上下文。
     pub fn find_type_param_bounds(
         &mut self,
         param_name: Symbol,
     ) -> Vec<crate::syntax::ast::TypeRef> {
         self.find_type_param_bounds_immutable(param_name)
+    }
+
+    /// 按 owner FQN 列表查找名为 `param_name` 的类型参数的 Type bound TypeRefs。
+    ///
+    /// 只搜索 `owners`（当前函数 / 所属类型）注册的 where 约束，避免跨文件
+    /// 同名类型参数的约束互相泄漏（泄漏会把外文件的 bound TypeRef 拿到当前
+    /// 文件的 package 上下文里降级，产生非确定的 unresolved_type_ref）。
+    pub fn type_param_bounds_for(
+        &self,
+        owners: &[Symbol],
+        param_name: Symbol,
+    ) -> Vec<crate::syntax::ast::TypeRef> {
+        let mut result = Vec::new();
+        for owner in owners {
+            if let Some((_, cons)) = self.type_constraints.get(owner) {
+                for (cname, bound) in cons {
+                    if *cname == param_name
+                        && let crate::syntax::ast::GenericBound::Type(t) = bound
+                    {
+                        result.push(t.clone());
+                    }
+                }
+            }
+        }
+        result
     }
 
     /// `find_type_param_bounds` 的不可变版本（供借用 `&self` 的调用方使用）。
@@ -352,6 +386,29 @@ impl<'i> TypeEnv<'i> {
     /// 类型的全部字段成员类型（GC-free 递归校验用）。
     pub fn member_types(&self, type_fqn: Symbol) -> Option<&HashMap<Symbol, TypeId>> {
         self.members.get(&type_fqn)
+    }
+
+    /// 类型的字段成员类型列表（按声明序）。
+    ///
+    /// enum variant payload 字段（`<enum>.<variant>` 名义下登记）/ struct 字段的
+    /// 确定性顺序来源（`members` HashMap 迭代序不确定）；`member_order` 缺失时
+    /// 回退按成员名排序。
+    pub fn ordered_member_types(&self, type_fqn: Symbol) -> Vec<TypeId> {
+        let Some(members) = self.members.get(&type_fqn) else {
+            return Vec::new();
+        };
+        match self.member_order.get(&type_fqn) {
+            Some(order) => order
+                .iter()
+                .filter_map(|name| members.get(name).copied())
+                .collect(),
+            None => {
+                let mut sorted: Vec<(Symbol, TypeId)> =
+                    members.iter().map(|(&n, &t)| (n, t)).collect();
+                sorted.sort_by(|a, b| self.interner.resolve(a.0).cmp(self.interner.resolve(b.0)));
+                sorted.into_iter().map(|(_, t)| t).collect()
+            }
+        }
     }
 
     /// 成员是否为不可变（`val`）属性（赋值目标可变性检查）。
@@ -511,6 +568,7 @@ impl<'i> TypeEnv<'i> {
             interner,
             top_level_funs,
             member_funs,
+            member_fun_order: self.member_fun_order,
             members: self.members,
             member_order: self.member_order,
             ctor_signatures,
@@ -666,6 +724,10 @@ pub fn register_top_level_signatures(
                     }
                     None => unit_ty,
                 };
+                let is_new_fun = !env
+                    .member_signatures
+                    .get(&recv_fqn)
+                    .is_some_and(|m| m.contains_key(&d.name.symbol));
                 env.member_signatures
                     .entry(recv_fqn)
                     .or_default()
@@ -691,6 +753,12 @@ pub fn register_top_level_signatures(
                         decl_span: d.name.span,
                         decl_file: file_id,
                     });
+                if is_new_fun {
+                    env.member_fun_order
+                        .entry(recv_fqn)
+                        .or_default()
+                        .push(d.name.symbol);
+                }
             }
             continue;
         }
@@ -1030,12 +1098,22 @@ fn register_body_members(
                         decl_file: file_id,
                     }
                 };
+                let is_new_fun = !env
+                    .member_signatures
+                    .get(&owner)
+                    .is_some_and(|m| m.contains_key(&d.name.symbol));
                 env.member_signatures
                     .entry(owner)
                     .or_default()
                     .entry(d.name.symbol)
                     .or_default()
                     .push(sig);
+                if is_new_fun {
+                    env.member_fun_order
+                        .entry(owner)
+                        .or_default()
+                        .push(d.name.symbol);
+                }
             }
             TypeMemberKind::EnumVariant(ev) => {
                 // 把 variant 的字段类型注册到 `<enum_fqn>.<variant_name>` 的 members。

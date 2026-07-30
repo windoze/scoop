@@ -462,6 +462,10 @@ fn check_file_bodies(
                         ));
                     }
                 }
+                // enum-size-disparity lint（T0826，复刻 legacy 判定与 warning 文本）。
+                if d.kind == crate::syntax::ast::TypeKind::Enum {
+                    check_enum_size_disparity(d, &file.file_annotations, env, package_prefix);
+                }
                 // 只能继承 `open`/`abstract` 类（class 超类必须 open）。
                 if d.kind == crate::syntax::ast::TypeKind::Class {
                     check_superclass_open(d, d.name.symbol, env, package_prefix, diags);
@@ -2114,6 +2118,181 @@ fn check_suppress_annotation(
     let _ = interner;
 }
 
+/// 一组注解中是否存在 `@Suppress("<code>")`（file 级与 decl 级通用）。
+fn warning_code_suppressed(
+    anns: &[crate::syntax::ast::AnnotationUse],
+    interner: &scoop2_base::Interner,
+    code: &str,
+) -> bool {
+    use crate::syntax::ast::ExprKind;
+    for ann in anns {
+        let Some(last) = ann.path.segments.last() else {
+            continue;
+        };
+        if interner.resolve(last.symbol) != "Suppress" {
+            continue;
+        }
+        for arg in &ann.args {
+            if let ExprKind::StringLit(s) = &arg.value.kind
+                && s.value == code
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// lint 用的类型尺寸近似（字节）：标量按位宽，引用/类型参数按字长 8，
+/// tuple/struct/enum 按字段递归（每个字段按 8 字节槽进位），depth 防环。
+///
+/// 只为 `enum-size-disparity` lint 的阈值判定服务，不是真实布局（真实布局在
+/// `scoop2_lir::layout`）；与 legacy lint 的 `aggregate_fields_layout` 语义对齐到
+/// “足够触发/不触发”即可。
+fn lint_size_of(env: &TypeEnv, ty: crate::ty::TypeId, depth: u32) -> u64 {
+    use crate::ty::{TypeKind, ValueTypeKind};
+    if depth >= 32 {
+        return 8;
+    }
+    let kind = env.store.kind(ty);
+    match kind {
+        TypeKind::Nothing
+        | TypeKind::Ref(_)
+        | TypeKind::Param(_)
+        | TypeKind::StarProjection => 8,
+        TypeKind::Value(v) => match v {
+            ValueTypeKind::Unit => 0,
+            ValueTypeKind::Bool => 1,
+            ValueTypeKind::Char | ValueTypeKind::Float32 => 4,
+            ValueTypeKind::Int | ValueTypeKind::UInt | ValueTypeKind::Float64 => 8,
+            ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => u64::from(*bits) / 8,
+            ValueTypeKind::Tuple(elems) => elems
+                .iter()
+                .map(|&e| lint_size_of(env, e, depth + 1).max(1).next_multiple_of(8))
+                .sum(),
+            ValueTypeKind::Option(inner) => {
+                let inner_kind = env.store.kind(*inner);
+                if matches!(inner_kind, TypeKind::Ref(_) | TypeKind::Nothing) {
+                    8
+                } else {
+                    8 + lint_size_of(env, *inner, depth + 1)
+                        .max(1)
+                        .next_multiple_of(8)
+                }
+            }
+            ValueTypeKind::Nominal(n) => {
+                if let Some(variants) = env.enum_variants(n.fqn) {
+                    // 嵌套 enum：tag（8）+ 最大 variant payload。
+                    let enum_name = env.interner.resolve(n.fqn);
+                    let max_payload = variants
+                        .iter()
+                        .map(|&v| {
+                            let text =
+                                format!("{enum_name}.{}", env.interner.resolve(v));
+                            env.interner
+                                .get(&text)
+                                .map(|vf| {
+                                    env.ordered_member_types(vf)
+                                        .iter()
+                                        .map(|&t| {
+                                            lint_size_of(env, t, depth + 1)
+                                                .max(1)
+                                                .next_multiple_of(8)
+                                        })
+                                        .sum::<u64>()
+                                })
+                                .unwrap_or(0)
+                        })
+                        .max()
+                        .unwrap_or(0);
+                    8 + max_payload
+                } else {
+                    env.ordered_member_types(n.fqn)
+                        .iter()
+                        .map(|&t| lint_size_of(env, t, depth + 1).max(1).next_multiple_of(8))
+                        .sum()
+                }
+            }
+        },
+    }
+}
+
+/// T0826：enum variant payload 尺寸差异 lint（复刻 legacy
+/// `scoopc_hir/src/typecheck/layout.rs` 的判定：`max >= 16 字` 且
+/// （`second == 0` 或 `max >= second * 4`））。
+///
+/// 注意：新管线的实际布局是 inline tagged union（scalar union slot + ref 独立
+/// slot，不做真 boxing）；本 lint 仅为 spec/fixture 契约保留 legacy warning
+/// 文本。`@Suppress("enum-size-disparity")`（decl 级或 `@file:Suppress`）可抑制。
+fn check_enum_size_disparity(
+    d: &crate::syntax::ast::TypeDecl,
+    file_annotations: &[crate::syntax::ast::AnnotationUse],
+    env: &TypeEnv,
+    package_prefix: &str,
+) {
+    use crate::syntax::ast::TypeMemberKind;
+    if warning_code_suppressed(file_annotations, env.interner, "enum-size-disparity")
+        || warning_code_suppressed(&d.annotations, env.interner, "enum-size-disparity")
+    {
+        return;
+    }
+    let Some(body) = &d.body else {
+        return;
+    };
+    let enum_name = env.interner.resolve(d.name.symbol);
+    let enum_fqn = if package_prefix.is_empty() {
+        enum_name.to_string()
+    } else {
+        format!("{package_prefix}.{enum_name}")
+    };
+    let mut sizes: Vec<(String, u64)> = Vec::new();
+    for member in &body.members {
+        let TypeMemberKind::EnumVariant(v) = &member.kind else {
+            continue;
+        };
+        // variant payload 字段登记在 `<enum_fqn>.<variant>` 的 members 下（声明序）。
+        let variant_fqn_text = format!("{enum_fqn}.{}", env.interner.resolve(v.name.symbol));
+        let payload = env
+            .interner
+            .get(&variant_fqn_text)
+            .map(|vf| {
+                env.ordered_member_types(vf)
+                    .iter()
+                    .map(|&t| lint_size_of(env, t, 0).max(1).next_multiple_of(8))
+                    .sum::<u64>()
+            })
+            .unwrap_or(0);
+        sizes.push((env.interner.resolve(v.name.symbol).to_string(), payload));
+    }
+    if sizes.len() < 2 {
+        return;
+    }
+    let mut sorted: Vec<u64> = sizes.iter().map(|(_, s)| *s).collect();
+    sorted.sort_unstable_by(|a, b| b.cmp(a));
+    let max_size = sorted[0];
+    let second_size = sorted[1];
+    // legacy：`ENUM_BOX_INLINE_THRESHOLD_WORDS = 16` 字 × 8 字节；比例 4。
+    let inline_threshold = 8 * 16;
+    let disparity =
+        max_size >= inline_threshold && (second_size == 0 || max_size >= second_size * 4);
+    if !disparity {
+        return;
+    }
+    let boxed: Vec<&str> = sizes
+        .iter()
+        .filter(|(_, s)| *s == max_size && max_size > 8)
+        .map(|(n, _)| n.as_str())
+        .collect();
+    if boxed.is_empty() {
+        return;
+    }
+    eprintln!(
+        "warn[enum-size-disparity]: enum `{enum_fqn}` 的 variant payload 尺寸差异显著；\
+         已对 oversized variant 做 boxing（boxed={}; max_size={max_size}; second_size={second_size}）",
+        boxed.join(", ")
+    );
+}
+
 /// B3-1：注解实参必须是编译期常量（字面量 / 常量算术 / 数组字面量 / enum 变体 /
 /// 嵌套注解 / `::class` 等）。调用等非常量表达式不允许。
 fn check_annotation_const_args(
@@ -3676,6 +3855,26 @@ fn check_one_fun(
     let is_entry_main =
         this_ty.is_none() && d.receiver.is_none() && env.interner.resolve(d.name.symbol) == "main";
     let in_nogc = has_annotation(&d.annotations, "NoGC", env.interner);
+    // 当前声明的 where 约束 owner：顶层 fun 约束注册在 fun FQN 下；成员 / 扩展 fun
+    // 的约束注册在所属类型 FQN 下（`register_type_constraints`）。函数体内的
+    // Type bound 查找只在这些 owner 中进行，避免跨文件同名类型参数约束泄漏。
+    let mut constraint_owners: Vec<scoop2_base::Symbol> = Vec::new();
+    if d.receiver.is_none() && this_ty.is_none() {
+        let name_text = env.interner.resolve(d.name.symbol);
+        let fqn_text = if package_prefix.is_empty() {
+            name_text.to_string()
+        } else {
+            format!("{package_prefix}.{name_text}")
+        };
+        if let Some(f) = env.interner.get(&fqn_text) {
+            constraint_owners.push(f);
+        }
+    }
+    if let Some(tt) = this_ty {
+        if let Some(f) = expr::nominal_fqn_of(env.store.kind(tt)) {
+            constraint_owners.push(f);
+        }
+    }
     expr::check_function(
         &d.params,
         d.return_ty.as_ref(),
@@ -3695,6 +3894,7 @@ fn check_one_fun(
         facts,
         is_entry_main,
         in_nogc,
+        constraint_owners,
     );
 }
 

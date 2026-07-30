@@ -793,10 +793,13 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
 
     /// 读取一个 local 的值（带类型 load）。
     ///
-    /// GC-managed local **必须从 root frame slot load**（权威源）：
+    /// GC-managed local 的 ref 叶子**必须从 root frame slot 同步**（权威源）：
     /// immix 后端是 moving/compacting GC，会在 roots update 阶段原地改写 frame slot 里的指针
     /// 为搬迁后的新地址。alloca 中的旧值在 safepoint 后失效。frame slot 中存的是 native void*，
     /// load 后经 ptrtoint/inttoptr 还原为 `ptr addrspace(1)`。
+    /// 普通引用 local（单叶子、偏移 0）直接从 frame slot load 返回；
+    /// 内嵌 GC 指针的聚合 local（struct/enum 值）先把各 frame slot 的权威叶子
+    /// 回写 alloca，再整体 load（叶子级 slot 镜像，NEW-LLVM-CODEGEN.md §3.2）。
     pub fn load_local_typed(&self, id: u32, ty: TypeId) -> CodegenResult<BasicValueEnum<'ctx>> {
         let slot = self.locals.get(&id).copied().ok_or_else(|| {
             CodegenError::unsupported(
@@ -806,46 +809,128 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
             )
         })?;
         let llvm_ty = self.cg.lower_type(ty, self.layouts)?;
-        // GC local：从 frame slot 取权威值。
-        if self.is_gc_local(id) {
-            if let Some(frame_slot) = self.frame_slot_ptr(id)? {
-                let native = self
-                    .builder
-                    .build_load(self.cg.native_ptr_ty(), frame_slot, &format!("ldf{}", id))
-                    .map_err(|e| {
-                        CodegenError::llvm(
-                            e.to_string(),
-                            "build_load frame",
-                            scoop2_base::Span::default(),
+        // GC local：从 frame slot 同步权威叶子。
+        let leaf_slots = self
+            .root_frame
+            .as_ref()
+            .and_then(|rf| rf.local_to_slot.get(&id).cloned());
+        if let Some(leaves) = leaf_slots {
+            let is_single_ptr_leaf = leaves.len() == 1
+                && leaves[0].1 == 0
+                && matches!(llvm_ty, inkwell::types::BasicTypeEnum::PointerType(_));
+            if is_single_ptr_leaf {
+                // 整个 local 就是单个 GC 指针：直接从 frame slot load。
+                if let Some(frame_slot) = self.mirror_slot_ptr(leaves[0].0)? {
+                    let native = self
+                        .builder
+                        .build_load(self.cg.native_ptr_ty(), frame_slot, &format!("ldf{}", id))
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "build_load frame",
+                                scoop2_base::Span::default(),
+                            )
+                        })?
+                        .into_pointer_value();
+                    // native void* → GC ptr (addrspace 1)：经 i64 中转。
+                    let as_int = self
+                        .builder
+                        .build_ptr_to_int(
+                            native,
+                            self.cg.context.i64_type(),
+                            &format!("ldf_int{}", id),
                         )
-                    })?
-                    .into_pointer_value();
-                // native void* → GC ptr (addrspace 1)：经 i64 中转。
-                let as_int = self
-                    .builder
-                    .build_ptr_to_int(
-                        native,
-                        self.cg.context.i64_type(),
-                        &format!("ldf_int{}", id),
-                    )
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "ptr_to_int load",
+                                scoop2_base::Span::default(),
+                            )
+                        })?;
+                    let gc_ptr = self
+                        .builder
+                        .build_int_to_ptr(as_int, self.cg.gc_ptr_ty(), &format!("ldf_gc{}", id))
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "int_to_ptr load",
+                                scoop2_base::Span::default(),
+                            )
+                        })?;
+                    return Ok(gc_ptr.into());
+                }
+            } else {
+                // 聚合 local：把各 frame slot 的权威叶子回写 alloca，再整体 load。
+                for (slot_index, leaf_off) in leaves {
+                    let Some(frame_slot) = self.mirror_slot_ptr(slot_index)? else {
+                        continue;
+                    };
+                    let native = self
+                        .builder
+                        .build_load(
+                            self.cg.native_ptr_ty(),
+                            frame_slot,
+                            &format!("ldf{}_{}", id, slot_index),
+                        )
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "build_load frame leaf",
+                                scoop2_base::Span::default(),
+                            )
+                        })?
+                        .into_pointer_value();
+                    let as_int = self
+                        .builder
+                        .build_ptr_to_int(
+                            native,
+                            self.cg.context.i64_type(),
+                            &format!("ldf_int{}_{}", id, slot_index),
+                        )
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "ptr_to_int load leaf",
+                                scoop2_base::Span::default(),
+                            )
+                        })?;
+                    let gc_ptr = self
+                        .builder
+                        .build_int_to_ptr(
+                            as_int,
+                            self.cg.gc_ptr_ty(),
+                            &format!("ldf_gc{}_{}", id, slot_index),
+                        )
+                        .map_err(|e| {
+                            CodegenError::llvm(
+                                e.to_string(),
+                                "int_to_ptr load leaf",
+                                scoop2_base::Span::default(),
+                            )
+                        })?;
+                    let leaf_addr = unsafe {
+                        self.builder.build_gep(
+                            self.cg.context.i8_type(),
+                            slot,
+                            &[self.cg.context.i64_type().const_int(leaf_off, false)],
+                            &format!("leaf_addr{}_{}", id, slot_index),
+                        )
+                    }
                     .map_err(|e| {
                         CodegenError::llvm(
                             e.to_string(),
-                            "ptr_to_int load",
+                            "gep leaf addr",
                             scoop2_base::Span::default(),
                         )
                     })?;
-                let gc_ptr = self
-                    .builder
-                    .build_int_to_ptr(as_int, self.cg.gc_ptr_ty(), &format!("ldf_gc{}", id))
-                    .map_err(|e| {
+                    self.builder.build_store(leaf_addr, gc_ptr).map_err(|e| {
                         CodegenError::llvm(
                             e.to_string(),
-                            "int_to_ptr load",
+                            "store leaf back",
                             scoop2_base::Span::default(),
                         )
                     })?;
-                return Ok(gc_ptr.into());
+                }
             }
         }
         self.builder
@@ -922,57 +1007,86 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
         self.builder.build_store(slot, val).map_err(|e| {
             CodegenError::llvm(e.to_string(), "build_store", scoop2_base::Span::default())
         })?;
-        // GC local：镜像到 frame slot（仅对指针类型值）。
-        if let Some(frame_slot) = self.frame_slot_ptr(id)? {
-            match val {
-                BasicValueEnum::PointerValue(ptr_val) => {
-                    // GC 指针（addrspace 1）cast 到 native ptr 后存入 frame slot。
-                    let native = self
-                        .builder
-                        .build_ptr_to_int(
-                            ptr_val,
-                            self.cg.context.i64_type(),
-                            &format!("sf_cast{}", id),
-                        )
-                        .map_err(|e| {
-                            CodegenError::llvm(
-                                e.to_string(),
-                                "ptr_to_int frame mirror",
-                                scoop2_base::Span::default(),
-                            )
-                        })?;
-                    let native_ptr = self
-                        .builder
-                        .build_int_to_ptr(native, self.cg.native_ptr_ty(), &format!("sf_ptr{}", id))
-                        .map_err(|e| {
-                            CodegenError::llvm(
-                                e.to_string(),
-                                "int_to_ptr frame mirror",
-                                scoop2_base::Span::default(),
-                            )
-                        })?;
-                    self.builder
-                        .build_store(frame_slot, native_ptr)
-                        .map_err(|e| {
-                            CodegenError::llvm(
-                                e.to_string(),
-                                "store frame mirror",
-                                scoop2_base::Span::default(),
-                            )
-                        })?;
+        // GC local：各 ref 叶子镜像到对应 frame slot（叶子值统一从 alloca 读——
+        // val 已写入；普通引用 local 恰好是偏移 0 的单叶子）。
+        let leaf_slots = self
+            .root_frame
+            .as_ref()
+            .and_then(|rf| rf.local_to_slot.get(&id).cloned());
+        if let Some(leaves) = leaf_slots {
+            for (slot_index, leaf_off) in leaves {
+                let Some(frame_slot) = self.mirror_slot_ptr(slot_index)? else {
+                    continue;
+                };
+                let leaf_addr = unsafe {
+                    self.builder.build_gep(
+                        self.cg.context.i8_type(),
+                        slot,
+                        &[self.cg.context.i64_type().const_int(leaf_off, false)],
+                        &format!("sf_leaf{}_{}", id, slot_index),
+                    )
                 }
-                // 非指针值（Int/Float/Struct）的 GC local：当前不镜像到 frame slot
-                //（immix 非移动式 GC 下 alloca 值在 safepoint 后仍有效）。
-                _ => {}
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), "gep leaf addr", scoop2_base::Span::default())
+                })?;
+                let leaf_ptr = self
+                    .builder
+                    .build_load(
+                        self.cg.gc_ptr_ty(),
+                        leaf_addr,
+                        &format!("sf_leaf_ld{}_{}", id, slot_index),
+                    )
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "load leaf for mirror",
+                            scoop2_base::Span::default(),
+                        )
+                    })?
+                    .into_pointer_value();
+                // GC 指针（addrspace 1）cast 到 native ptr 后存入 frame slot。
+                let native = self
+                    .builder
+                    .build_ptr_to_int(
+                        leaf_ptr,
+                        self.cg.context.i64_type(),
+                        &format!("sf_cast{}_{}", id, slot_index),
+                    )
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "ptr_to_int frame mirror",
+                            scoop2_base::Span::default(),
+                        )
+                    })?;
+                let native_ptr = self
+                    .builder
+                    .build_int_to_ptr(native, self.cg.native_ptr_ty(), &format!("sf_ptr{}", id))
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "int_to_ptr frame mirror",
+                            scoop2_base::Span::default(),
+                        )
+                    })?;
+                self.builder
+                    .build_store(frame_slot, native_ptr)
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "store frame mirror",
+                            scoop2_base::Span::default(),
+                        )
+                    })?;
             }
         }
         Ok(())
     }
 
-    /// 取一个 GC local 在 root frame 中的 slot 指针（None = 非 GC local 或无 frame）。
-    fn frame_slot_ptr(
+    /// 取 root frame 第 `slot_index` 个镜像 slot 的指针（None = 无 frame）。
+    fn mirror_slot_ptr(
         &self,
-        id: u32,
+        slot_index: u32,
     ) -> CodegenResult<Option<inkwell::values::PointerValue<'ctx>>> {
         let rf = match &self.root_frame {
             Some(rf) => rf,
@@ -980,10 +1094,6 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
         };
         let frame_ptr = match rf.frame_ptr {
             Some(p) => p,
-            None => return Ok(None),
-        };
-        let slot_index = match rf.local_to_slot.get(&id) {
-            Some(&i) => i,
             None => return Ok(None),
         };
         // slot 区在 frame 偏移 HEADER_SIZE；slot_index 个 ptr。
@@ -1026,7 +1136,7 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
                     .context
                     .i64_type()
                     .const_int(slot_index as u64, false)],
-                &format!("mirror_slot{}", id),
+                &format!("mirror_slot{}", slot_index),
             )
         }
         .map_err(|e| {

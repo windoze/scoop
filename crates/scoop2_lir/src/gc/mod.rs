@@ -7,16 +7,124 @@ use scoop2_mir::mir::{Body, Rvalue, StatementKind, TerminatorKind, materialize::
 
 use crate::*;
 
-/// 判定一个类型是否需要 GC 跟踪。
+/// 判定一个类型是否需要 GC 跟踪（深层递归判定——NEW-LLVM-CODEGEN.md §3.1：
+/// Struct/Tuple/Enum/Option 内嵌 ref 也算 traceable；浅判定是 bug，禁止回潮）。
 pub fn is_gc_traceable_type(ty: TypeId, layouts: &TypeLayoutTable) -> bool {
+    let mut seen = std::collections::HashSet::new();
+    is_gc_traceable_deep(ty, layouts, &mut seen)
+}
+
+fn is_gc_traceable_deep(
+    ty: TypeId,
+    layouts: &TypeLayoutTable,
+    seen: &mut std::collections::HashSet<TypeId>,
+) -> bool {
+    // 值类型自引用（如 `enum A { V(val a: A) }`）防无限递归：
+    // 重访节点不贡献新 ref（其可达 ref 已由首次展开覆盖）。
+    if !seen.insert(ty) {
+        return false;
+    }
     match layouts.get(ty) {
         Some(layout) => match &layout.kind {
             TypeLayoutKind::Reference { gc_traceable, .. } => *gc_traceable,
             TypeLayoutKind::Function => true,
+            TypeLayoutKind::Struct { fields } | TypeLayoutKind::Tuple { elements: fields } => {
+                fields
+                    .iter()
+                    .any(|f| is_gc_traceable_deep(f.ty, layouts, seen))
+            }
+            TypeLayoutKind::Option { payload_ty, .. } => {
+                is_gc_traceable_deep(*payload_ty, layouts, seen)
+            }
+            TypeLayoutKind::Enum { variants, .. } => variants.iter().any(|v| {
+                v.payload_ty
+                    .is_some_and(|t| is_gc_traceable_deep(t, layouts, seen))
+                    || v.payload_fields
+                        .iter()
+                        .any(|f| is_gc_traceable_deep(f.ty, layouts, seen))
+            }),
             _ => false,
         },
         None => false,
     }
+}
+
+/// 一个值内全部 ref 叶子的相对字节偏移（无 ref 时为空；供 codegen root frame
+/// 叶子级 slot 镜像使用——每个叶子一个 frame slot，见 NEW-LLVM-CODEGEN.md §3.2）。
+pub fn ref_leaf_offsets(ty: TypeId, layouts: &TypeLayoutTable) -> Vec<u64> {
+    let mut out: Vec<u64> = Vec::new();
+    let mut path: Vec<TypeId> = Vec::new();
+    collect_ref_leaf_offsets(ty, 0, layouts, &mut path, &mut out);
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// 收集 `base` 处一个 `ty` 值内全部 ref 叶子的绝对字节偏移（含嵌套
+/// struct/tuple/enum/Option 展开；enum 取所有 ref variant slot 的并集——
+/// GC 无条件 trace 这些槽，构造/改写路径负责保持非当前 variant 的 ref 区为 null）。
+/// `path` 为递归栈上的 TypeId（防止值类型自引用无限递归；同一类型在不同
+/// 偏移出现是 DAG 不是环，仍会各自展开）。
+fn collect_ref_leaf_offsets(
+    ty: TypeId,
+    base: u64,
+    layouts: &TypeLayoutTable,
+    path: &mut Vec<TypeId>,
+    out: &mut Vec<u64>,
+) {
+    if path.contains(&ty) {
+        return;
+    }
+    let Some(layout) = layouts.get(ty) else {
+        return;
+    };
+    path.push(ty);
+    match &layout.kind {
+        TypeLayoutKind::Reference { gc_traceable, .. } => {
+            if *gc_traceable {
+                out.push(base);
+            }
+        }
+        TypeLayoutKind::Function => out.push(base),
+        TypeLayoutKind::Struct { fields } | TypeLayoutKind::Tuple { elements: fields } => {
+            for f in fields {
+                collect_ref_leaf_offsets(f.ty, base + f.offset, layouts, path, out);
+            }
+        }
+        TypeLayoutKind::Option {
+            storage, payload_ty, ..
+        } => match storage {
+            // niche 表示：整个字就是 payload 指针（None = null，trace null 安全）。
+            crate::NicheStorage::Pointer => {
+                if is_gc_traceable_type(*payload_ty, layouts) {
+                    out.push(base);
+                }
+            }
+            _ => {
+                let palign = layouts.get(*payload_ty).map(|l| l.align).unwrap_or(1);
+                let payload_off = align_to(1, palign.max(1));
+                collect_ref_leaf_offsets(*payload_ty, base + payload_off, layouts, path, out);
+            }
+        },
+        TypeLayoutKind::Enum { variants, .. } => {
+            for v in variants {
+                if let Some(pt) = v.payload_ty {
+                    collect_ref_leaf_offsets(pt, base + v.slot_offset, layouts, path, out);
+                }
+                for f in &v.payload_fields {
+                    collect_ref_leaf_offsets(
+                        f.ty,
+                        base + v.slot_offset + f.offset,
+                        layouts,
+                        path,
+                        out,
+                    );
+                }
+            }
+        }
+        _ => {}
+    }
+    path.pop();
 }
 
 /// 主入口：生成 GC 类型描述符。
@@ -94,25 +202,30 @@ fn compute_class_trace_offsets(
     layouts: &TypeLayoutTable,
 ) -> Vec<u64> {
     let mut offsets: Vec<u64> = Vec::new();
-    let fqn_sym = interner.get(class_fqn);
-    if let Some(sym) = fqn_sym {
-        if let Some(members) = hir.members.get(&sym) {
-            // GC 对象头占 8 字节，字段从 offset 8 开始。
-            let mut field_offset: u64 = 8;
-            for (_, &member_ty) in members {
-                let (field_size, field_align) = layouts
-                    .get(member_ty)
-                    .map(|l| (l.size, l.align))
-                    .unwrap_or((8, 8));
-                // 对齐到字段的对齐要求。
-                field_offset = align_to(field_offset, field_align);
-                if is_gc_traceable_type(member_ty, layouts) {
-                    offsets.push(field_offset);
-                }
-                field_offset += field_size;
-            }
-        }
+    let Some(sym) = interner.get(class_fqn) else {
+        return offsets;
+    };
+    // GC 对象头实际占 32 字节（ScoopObjectHeader；与 lib.rs compute_field_offset
+    // 的 class 字段偏移同源）。字段沿超类链按声明序排布，8 字节对齐、每槽至少
+    // 8 字节——与 codegen 的 class ctor 布局严格一致。
+    let header_size: u64 = 32;
+    let ptr_size: u64 = 8;
+    let ordered = hir.ordered_class_fields(sym);
+    let mut field_offset: u64 = header_size;
+    for (_, member_ty) in &ordered {
+        field_offset = align_to(field_offset, ptr_size);
+        // 深层展开：值类型字段内嵌的 ref 叶子也要 trace（偏移 = 字段基址 + 内部叶子偏移）。
+        let mut path: Vec<TypeId> = Vec::new();
+        collect_ref_leaf_offsets(*member_ty, field_offset, layouts, &mut path, &mut offsets);
+        let field_size = layouts
+            .get(*member_ty)
+            .map(|l| l.size)
+            .unwrap_or(ptr_size)
+            .max(ptr_size);
+        field_offset += field_size;
     }
+    offsets.sort_unstable();
+    offsets.dedup();
     offsets
 }
 
@@ -132,19 +245,24 @@ fn compute_class_layout_size(
     interner: &Interner,
     layouts: &TypeLayoutTable,
 ) -> (u64, u64) {
-    let header_size: u64 = 8; // GC 对象头
+    // 与 compute_class_trace_offsets 同源：对象头 32 字节，字段沿超类链按声明序、
+    // 8 字节对齐、每槽至少 8 字节。
+    let header_size: u64 = 32;
     let header_align: u64 = 8;
+    let ptr_size: u64 = 8;
     let mut total: u64 = header_size;
-    let fqn_sym = interner.get(class_fqn);
-    if let Some(sym) = fqn_sym {
-        if let Some(members) = hir.members.get(&sym) {
-            for (_, &member_ty) in members {
-                let field_size = layouts.get(member_ty).map(|l| l.size).unwrap_or(8);
-                total += field_size;
-            }
+    if let Some(sym) = interner.get(class_fqn) {
+        for (_, member_ty) in &hir.ordered_class_fields(sym) {
+            total = align_to(total, ptr_size);
+            let field_size = layouts
+                .get(*member_ty)
+                .map(|l| l.size)
+                .unwrap_or(ptr_size)
+                .max(ptr_size);
+            total += field_size;
         }
     }
-    (total.max(header_size), header_align)
+    (align_to(total, ptr_size).max(header_size), header_align)
 }
 
 /// 查找 class 的父类 type_id。

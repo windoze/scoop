@@ -221,6 +221,7 @@ pub fn check_function<'a, 'i>(
     facts: &'a mut crate::hir::SemanticFacts,
     is_entry_main: bool,
     in_nogc: bool,
+    constraint_owners: Vec<scoop2_base::Symbol>,
 ) {
     let mut c = ExprChecker {
         env,
@@ -229,6 +230,7 @@ pub fn check_function<'a, 'i>(
         diags,
         package_prefix: package_prefix.to_string(),
         type_params,
+        constraint_owners,
         param_ref_bounds,
         param_value_bounds,
         locals: HashMap::new(),
@@ -350,6 +352,7 @@ pub fn check_top_level_val<'a, 'i>(
         diags,
         package_prefix: package_prefix.to_string(),
         type_params: HashMap::new(),
+        constraint_owners: Vec::new(),
         param_ref_bounds: HashSet::new(),
         param_value_bounds: HashSet::new(),
         locals: HashMap::new(),
@@ -473,6 +476,7 @@ pub(super) fn check_pure_static_init<'a, 'i>(
         diags,
         package_prefix: package_prefix.to_string(),
         type_params: HashMap::new(),
+        constraint_owners: Vec::new(),
         param_ref_bounds: HashSet::new(),
         param_value_bounds: HashSet::new(),
         locals: HashMap::new(),
@@ -517,6 +521,9 @@ struct ExprChecker<'a, 'i> {
     typed_val_init_ty: Option<TypeId>,
     package_prefix: String,
     type_params: HashMap<Symbol, TypeParamType>,
+    /// 当前声明（函数 / 所属类型）的约束 owner FQN 列表：where Type bound 查找
+    /// 只在这些 owner 注册的约束中进行（见 `TypeEnv::type_param_bounds_for`）。
+    constraint_owners: Vec<scoop2_base::Symbol>,
     /// 类型参数名 → 是否声明了 `ref` bound（ref/value kind bound 检查用）。
     param_ref_bounds: HashSet<Symbol>,
     /// 类型参数名 → 是否声明了 `value` bound。
@@ -1565,7 +1572,54 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             a.len() == arity && a.iter().all(|e| self.pattern_covers_all(e))
                         });
                         if !any_covering {
-                            return Some(self.env.interner.resolve(*v).to_string());
+                            // 递归乘积穷尽性：variant payload 各字段类型（`<enum>.<variant>`
+                            // members，声明序）上，把形态完整的 arm 的 args 视作一行做
+                            // 组合检查（嵌套 variant / Option / Bool 等可组合穷尽）。
+                            let variant_fqn_text = format!(
+                                "{}.{}",
+                                self.env.interner.resolve(fqn),
+                                self.env.interner.resolve(*v)
+                            );
+                            let field_tys = self
+                                .env
+                                .interner
+                                .get(&variant_fqn_text)
+                                .map(|vf| self.env.ordered_member_types(vf))
+                                .unwrap_or_default();
+                            let complete: Vec<&[ast::Pattern]> = arg_lists
+                                .iter()
+                                .filter(|a| {
+                                    a.len() == arity
+                                        && !a.iter().any(|e| matches!(e.kind, PatternKind::Rest))
+                                })
+                                .copied()
+                                .collect();
+                            let covered = if field_tys.len() == arity && !complete.is_empty() {
+                                if arity == 1 {
+                                    let col: Vec<&ast::Pattern> =
+                                        complete.iter().filter_map(|a| a.first()).collect();
+                                    self.missing_pattern(field_tys[0], &col).is_none()
+                                } else {
+                                    // 包装为 Tuple pattern 复用元组组合穷尽逻辑。
+                                    let wrapped: Vec<ast::Pattern> = complete
+                                        .iter()
+                                        .map(|a| ast::Pattern {
+                                            id: a[0].id,
+                                            span: a[0].span,
+                                            kind: PatternKind::Tuple(a.to_vec()),
+                                        })
+                                        .collect();
+                                    let refs: Vec<&ast::Pattern> = wrapped.iter().collect();
+                                    // missing_tuple 不使用首个 TypeId 参数，传首字段类型占位。
+                                    self.missing_tuple(field_tys[0], &field_tys, &refs)
+                                        .is_none()
+                                }
+                            } else {
+                                false
+                            };
+                            if !covered {
+                                return Some(self.env.interner.resolve(*v).to_string());
+                            }
                         }
                     }
                 }
@@ -2532,6 +2586,26 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         None
     }
 
+    /// `Color.Red`（无构造调用）的 enum variant 值类型：`enum_sym` 解析到的 enum
+    /// 的 variants 含 `variant_sym` 时，返回该 enum 的 nominal（value/ref 按声明）。
+    fn enum_variant_value_type(&mut self, enum_sym: Symbol, variant_sym: Symbol) -> Option<TypeId> {
+        let fqn = self.callee_type_fqn_symbol(enum_sym)?;
+        let variants = self.env.enum_variants.get(&fqn)?;
+        if !variants.contains(&variant_sym) {
+            return None;
+        }
+        let nominal = NominalType {
+            fqn,
+            args: vec![],
+            eff: None,
+        };
+        Some(if self.env.is_reference_nominal(fqn) {
+            self.env.store.ref_nominal(nominal)
+        } else {
+            self.env.store.value_nominal(nominal)
+        })
+    }
+
     /// 取某顶层函数 FQN 的首个重载声明 span/file（用于调用决议定位）。
     fn first_overload_decl(&self, fqn: Symbol) -> (Span, scoop2_base::FileId) {
         let decls = self.env.index.lookup_funs(fqn);
@@ -2923,6 +2997,16 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             | ExprKind::SafeBlock(b) => self.walk_block(b),
             ExprKind::Call { callee, args } => self.type_call(callee, args, expr.span),
             ExprKind::MemberAccess { receiver, member } => {
+                // enum variant 值（`Color.Red`，无构造调用）：receiver 是类型名、
+                // member 是其 variant → 类型为该 enum 的 nominal。必须在 walk
+                // receiver 之前特判：类型名 Ident 定型 Nothing，常规
+                // member_access_type 查不到 variant。
+                if let ExprKind::Ident(id) = &receiver.kind
+                    && let MemberName::Named(n) = member
+                    && let Some(ty) = self.enum_variant_value_type(id.symbol, n.symbol)
+                {
+                    return ty;
+                }
                 let rt = self.walk_expr(receiver);
                 // 旧 tuple 字段语法 `t._0` 已移除（应为 `t.0`）。
                 if let crate::syntax::ast::MemberName::Named(n) = member {
@@ -3395,12 +3479,40 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let inner = if args.is_empty() {
                         self.env.store.nothing()
                     } else {
-                        self.walk_expr(&args[0].value)
+                        // 期望类型透传到 payload 位：
+                        // `val x: Option<Option<Bool>> = Some(None())` 中 `None`
+                        // 的期望类型是外层 Option 的类型实参（Option<Bool>），
+                        // 不是整个声明类型（否则会定型成 Bool???）。
+                        let saved_typed = self.in_typed_val_init;
+                        let saved_typed_ty = self.typed_val_init_ty;
+                        let payload_expected = saved_typed_ty.and_then(|t| {
+                            match self.env.store.kind(t) {
+                                TypeKind::Value(crate::ty::ValueTypeKind::Option(i)) => Some(*i),
+                                _ => None,
+                            }
+                        });
+                        self.in_typed_val_init = payload_expected.is_some();
+                        self.typed_val_init_ty = payload_expected;
+                        let arg_ty = self.walk_expr(&args[0].value);
+                        self.in_typed_val_init = saved_typed;
+                        self.typed_val_init_ty = saved_typed_ty;
+                        arg_ty
                     };
                     let opt = self.env.store.option(inner);
                     return opt;
                 }
                 if is_prelude_none {
+                    // `val x: Option<Bool> = None()`：有声明类型时按期望类型定型，
+                    // 避免 None 退化为 Option<Nothing>（其 Pointer niche 布局与
+                    // Option<Bool> 的 Tagged 布局不一致，写入/读取尺寸错位）。
+                    if let Some(t) = self.typed_val_init_ty
+                        && matches!(
+                            self.env.store.kind(t),
+                            TypeKind::Value(crate::ty::ValueTypeKind::Option(_))
+                        )
+                    {
+                        return t;
+                    }
                     let nothing = self.env.store.nothing();
                     return self.env.store.option(nothing);
                 }
@@ -3408,6 +3520,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 if let Some(dot) = name.rfind('.')
                     && let Some(enum_fqn) = self.env.interner.get(&name[..dot])
                 {
+                    // walk 实参：嵌套调用（如 `Wrap(Hit(7))` 中的 `Hit(7)`）需要
+                    // 记录 expr 类型 / 调用决议，否则 MIR lowering 只能按未解析名兜底。
+                    let _arg_tys: Vec<TypeId> =
+                        args.iter().map(|a| self.walk_expr(&a.value)).collect();
                     // 泛型 enum variant 在无期望类型上下文时构造歧义（无法推断类型实参）。
                     // 有声明类型的 val（`val opt: Option<Int> = Some(1)`）不报（期望类型消歧）。
                     let enum_has_type_params = self
@@ -5596,7 +5712,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         // 类型参数接收者：通过其 bound（interface 约束）解析 owner。
         // 例如 `value: T where T: ToString` 调用 `value.toString()` → owner = ToString。
         if let TypeKind::Param(p) = self.env.store.kind(receiver_ty) {
-            for tref in self.env.find_type_param_bounds_immutable(p.name) {
+            for tref in self
+                .env
+                .type_param_bounds_for(&self.constraint_owners, p.name)
+            {
                 if let crate::syntax::ast::TypeRefKind::Path { path, .. } = &tref.kind {
                     if let Some(last) = path.segments.last() {
                         let name = self.env.interner.resolve(last.symbol);
@@ -6300,6 +6419,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                 }],
                             );
                         }
+                        // 嵌套子模式（如 `Some(Wrap(..))` / `Some((a, b))`）按 inner 递归绑定。
+                        if let Some(first) = args.first()
+                            && !matches!(&first.kind, PatternKind::Bind(_))
+                        {
+                            self.bind_pattern_locals_typed(first, *inner);
+                        }
                     }
                     return;
                 }
@@ -6317,12 +6442,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     )];
                     for vfqn_text in &variant_fqn_candidates {
                         if let Some(vfqn) = self.env.interner.get(vfqn_text)
-                            && let Some(fields) = self.env.member_types(vfqn)
+                            && self.env.member_types(vfqn).is_some()
                         {
-                            // 按位置绑定 binder 到字段类型。
+                            // 按位置绑定 binder 到字段类型（声明序；`fields` 是 HashMap，
+                            // values() 迭代序不确定，必须走 ordered_member_types）。
                             // 字段类型可能含 enum 的类型参数（如 Option<T>.Some.value: T）；
                             // 用 subject 的类型实参替换（Option<Int> → T 替换为 Int）。
-                            let raw_field_tys: Vec<TypeId> = fields.values().copied().collect();
+                            let raw_field_tys: Vec<TypeId> = self.env.ordered_member_types(vfqn);
                             let subst_arg = match self.env.store.kind(subject_ty) {
                                 TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
                                     n.args.first().copied()
@@ -6353,6 +6479,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                                             source: crate::hir::PatternBindingSource::VariantField,
                                             span: ident.span,
                                         });
+                                    }
+                                }
+                                // 嵌套 variant / tuple 子模式：按对应字段类型递归绑定
+                                // （如 `Wrap(Hit(v))` 中的 `v` 绑定到 Hit 的 payload 类型）。
+                                for (i, arg) in args.iter().enumerate() {
+                                    if !matches!(&arg.kind, PatternKind::Bind(_))
+                                        && let Some(&ft) = field_tys.get(i)
+                                    {
+                                        self.bind_pattern_locals_typed(arg, ft);
                                     }
                                 }
                             }
@@ -6723,8 +6858,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         span: Span,
     ) -> TypeId {
         let method_text = self.env.interner.resolve(method_name).to_string();
-        // 搜索所有 type_constraints，找到约束名 == tp.name 的 Type bound。
-        let bound_refs: Vec<crate::syntax::ast::TypeRef> = self.env.find_type_param_bounds(tp.name);
+        // 在当前声明（函数 / 所属类型）注册的 where 约束中查找 Type bound。
+        let bound_refs: Vec<crate::syntax::ast::TypeRef> = self
+            .env
+            .type_param_bounds_for(&self.constraint_owners, tp.name);
         for bound_ref in &bound_refs {
             let bound_ty = self.lower_type(bound_ref);
             let kind = self.env.store.kind(bound_ty);
@@ -8130,6 +8267,18 @@ mod tests {
             {
                 let mut expr_types = crate::resolve::output::NodeIdTable::new();
                 let mut facts = crate::hir::SemanticFacts::new();
+                let mut constraint_owners: Vec<scoop2_base::Symbol> = Vec::new();
+                if d.receiver.is_none() {
+                    let name_text = interner.resolve(d.name.symbol);
+                    let fqn_text = if prefix.is_empty() {
+                        name_text.to_string()
+                    } else {
+                        format!("{prefix}.{name_text}")
+                    };
+                    if let Some(f) = interner.get(&fqn_text) {
+                        constraint_owners.push(f);
+                    }
+                }
                 check_function(
                     &d.params,
                     d.return_ty.as_ref(),
@@ -8149,6 +8298,7 @@ mod tests {
                     &mut facts,
                     false,
                     false,
+                    constraint_owners,
                 );
             }
         }

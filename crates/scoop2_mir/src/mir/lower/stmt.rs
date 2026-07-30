@@ -390,49 +390,88 @@ pub fn bind_pattern(
         }
         PatternKind::Rest => {}
         PatternKind::Variant { path, args } => {
-            // variant 解构 `val Result.Ok(v) = r`：spec §3420 允许。
-            // 从 pattern_bindings 侧表取绑定的字段类型；variant 的 payload 通常是单字段，
-            // subject 即 payload（单字段）或 tuple（多字段）。
-            let binders: Vec<(
-                scoop2_base::Symbol,
-                scoop2_hir::ty::TypeId,
-                scoop2_base::Span,
-            )> = if let Some(bs) = builder.hir.pattern_bindings(builder.file_id, pat.id) {
-                bs.iter().map(|b| (b.name, b.ty, b.span)).collect()
-            } else if let Some(args) = args {
-                // 回退：pattern_bindings 未记录时，按位置用 src_ty。
-                args.iter()
-                    .filter_map(|a| match &a.kind {
-                        PatternKind::Bind(n) => Some((n.symbol, src_ty, n.span)),
-                        _ => None,
-                    })
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            let _ = path;
-            for (i, (bname, bty, bspan)) in binders.iter().enumerate() {
-                let lid = builder.alloc_named_mutable(
-                    builder.hir.interner.resolve(*bname).to_string(),
-                    *bty,
-                    *bspan,
-                    mutable,
-                );
-                builder.symbol_locals.insert(*bname, lid);
-                if binders.len() == 1 {
-                    // 单字段 variant：subject 即 payload。
-                    builder.assign(lid, crate::mir::Rvalue::Use(src.clone()), *bspan);
-                } else {
-                    // 多字段 variant：按 tuple-index 从 payload 提取。
-                    builder.assign(
-                        lid,
-                        crate::mir::Rvalue::TupleIndex {
-                            receiver: src.clone(),
-                            index: i as u128,
-                            element_ty: *bty,
-                        },
-                        *bspan,
-                    );
+            // variant 解构 `val Result.Ok(v) = r` / `val Some(x) = opt`（spec §3420 允许）。
+            // 与 when arm 的 bind_pattern_arm 同源：binder 按其在 args 中的字段位置
+            // 经 PatternExtract（VariantField path）从 payload 提取——不能绑定整个
+            // subject（单字段 variant 的 payload 也只是其中一个 slot）。
+            let variant_name = path
+                .segments
+                .last()
+                .map(|s| builder.hir.interner.resolve(s.symbol).to_string())
+                .unwrap_or_default();
+            if let Some(args) = args {
+                for (i, a) in args.iter().enumerate() {
+                    match &a.kind {
+                        PatternKind::Bind(n) => {
+                            // 字段类型：优先 pattern_bindings 侧表（typecheck 按字段
+                            // 声明类型记录），缺失时按字段位置从 HIR 登记表推。
+                            let bty = builder
+                                .hir
+                                .pattern_bindings(builder.file_id, pat.id)
+                                .and_then(|bs| {
+                                    bs.iter().find(|b| b.name == n.symbol).map(|b| b.ty)
+                                })
+                                .or_else(|| {
+                                    super::expr::variant_payload_field_ty(
+                                        builder, src_ty, path, i,
+                                    )
+                                })
+                                .unwrap_or(src_ty);
+                            let lid = builder.alloc_named_mutable(
+                                builder.hir.interner.resolve(n.symbol).to_string(),
+                                bty,
+                                n.span,
+                                mutable,
+                            );
+                            builder.symbol_locals.insert(n.symbol, lid);
+                            builder.assign(
+                                lid,
+                                crate::mir::Rvalue::PatternExtract {
+                                    subject: src.clone(),
+                                    path: vec![
+                                        crate::mir::transport::PatternBindingStep::VariantField {
+                                            variant: variant_name.clone(),
+                                            field_index: i,
+                                        },
+                                    ],
+                                    result_ty: bty,
+                                },
+                                n.span,
+                            );
+                        }
+                        PatternKind::Variant { .. }
+                        | PatternKind::Tuple(_)
+                        | PatternKind::Struct { .. } => {
+                            // 嵌套子模式：提取字段后递归绑定。
+                            if let Some(field_ty) =
+                                super::expr::variant_payload_field_ty(builder, src_ty, path, i)
+                            {
+                                let tmp = builder.alloc_temp(field_ty, a.span);
+                                builder.assign(
+                                    tmp,
+                                    crate::mir::Rvalue::PatternExtract {
+                                        subject: src.clone(),
+                                        path: vec![
+                                            crate::mir::transport::PatternBindingStep::VariantField {
+                                                variant: variant_name.clone(),
+                                                field_index: i,
+                                            },
+                                        ],
+                                        result_ty: field_ty,
+                                    },
+                                    a.span,
+                                );
+                                super::stmt::bind_pattern(
+                                    builder,
+                                    a,
+                                    Operand::Local(tmp),
+                                    field_ty,
+                                    mutable,
+                                );
+                            }
+                        }
+                        _ => {} // Wildcard/Rest 等不绑定
+                    }
                 }
             }
         }

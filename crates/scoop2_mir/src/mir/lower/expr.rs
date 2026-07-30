@@ -1774,6 +1774,15 @@ fn lower_member_access(
     span: Span,
     ty: scoop2_hir::ty::TypeId,
 ) -> Operand {
+    // enum variant 值（`Color.Red`，无构造调用）：直接构造 EnumVariant。
+    // 必须在 lower receiver 之前特判——类型名 Ident 无法 lower 为值。
+    if let ExprKind::Ident(recv_ident) = &receiver.kind
+        && let MemberName::Named(variant_ident) = member
+        && let Some(rc) =
+            derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
+    {
+        return emit_call_resolution(builder, &rc, vec![], span, ty, None);
+    }
     let recv = lower_expr(builder, receiver);
     let recv_ty = super::stmt::operand_ty(builder, &recv);
     match member {
@@ -2613,11 +2622,91 @@ fn lower_pattern_test(
         ast::PatternKind::Else | ast::PatternKind::Wildcard | ast::PatternKind::Rest => {
             Operand::Const(ConstValue::Bool(true))
         }
-        ast::PatternKind::Bind(_)
-        | ast::PatternKind::Tuple(_)
-        | ast::PatternKind::Struct { .. } => {
+        ast::PatternKind::Bind(_) | ast::PatternKind::Struct { .. } => {
             // irrefutable 模式：类型已由 typecheck 保证匹配 → 总是命中。
             Operand::Const(ConstValue::Bool(true))
+        }
+        ast::PatternKind::Tuple(elems) => {
+            // tuple 模式：逐元素提取并递归测试（AND 链，short-circuit）。
+            // bind/wildcard/rest 元素无约束（跳过）；字面量/嵌套模式可反驳
+            // （如 `(1, x)` / `("go", 'A')` 的字面量元素必须真实比较）。
+            let testable: Vec<(usize, &ast::Pattern)> = elems
+                .iter()
+                .enumerate()
+                .filter(|(_, e)| {
+                    matches!(
+                        &e.kind,
+                        ast::PatternKind::Literal(_)
+                            | ast::PatternKind::Variant { .. }
+                            | ast::PatternKind::Tuple(_)
+                            | ast::PatternKind::Struct { .. }
+                            | ast::PatternKind::Is(_)
+                            | ast::PatternKind::Or(_)
+                    )
+                })
+                .map(|(i, e)| (i, e))
+                .collect();
+            if testable.is_empty() {
+                return Operand::Const(ConstValue::Bool(true));
+            }
+            let result = builder.alloc_temp(bool_ty, span);
+            let merge_bb = builder.new_block();
+            let mut prev_test: Option<Operand> = None;
+            for (i, sub_pat) in testable {
+                // 前置测试失败 → result = false，goto merge（首元素无前置条件）。
+                if let Some(prev) = prev_test.take() {
+                    let cont_bb = builder.new_block();
+                    let fail_bb = builder.new_block();
+                    builder.terminate(
+                        crate::mir::Terminator {
+                            span,
+                            kind: crate::mir::TerminatorKind::CondBr {
+                                cond: prev,
+                                then_target: cont_bb,
+                                else_target: fail_bb,
+                            },
+                        },
+                        cont_bb,
+                    );
+                    builder.current_bb = fail_bb;
+                    builder.assign(
+                        result,
+                        Rvalue::Use(Operand::Const(ConstValue::Bool(false))),
+                        span,
+                    );
+                    builder.goto(merge_bb, span);
+                    builder.current_bb = cont_bb;
+                }
+                let elem_ty =
+                    tuple_elem_ty(builder, subj_ty, i).unwrap_or_else(|| builder.types.any());
+                let tmp = builder.alloc_temp(elem_ty, span);
+                builder.assign(
+                    tmp,
+                    Rvalue::PatternExtract {
+                        subject: subj.clone(),
+                        path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(i)],
+                        result_ty: elem_ty,
+                    },
+                    span,
+                );
+                prev_test = Some(lower_pattern_test(
+                    builder,
+                    sub_pat,
+                    Operand::Local(tmp),
+                    elem_ty,
+                    _arm,
+                    span,
+                ));
+            }
+            // 全部通过：result = 最后一个子测试的值。
+            builder.assign(
+                result,
+                Rvalue::Use(prev_test.expect("testable 非空")),
+                span,
+            );
+            builder.goto(merge_bb, span);
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
         }
         ast::PatternKind::Variant { path, args } => {
             // variant 模式：发射 PatternMatch，让后端做真实 variant tag 比较。
@@ -2642,29 +2731,121 @@ fn lower_pattern_test(
                     .next()
                     .unwrap_or(variant_name_sym)
             };
-            // 构造 MIR Pattern::Variant。
-            let mir_args: Vec<crate::mir::Pattern> = args
+            // tag 级测试的 args：嵌套子模式（variant/tuple/struct/字面量/is/or）降级为
+            // Wildcard——它们需要先从 payload 提取才能测试，在下方 AND 链中展开；
+            // binder / 通配原样保留（无约束，但保留 arity 形态）。
+            let tag_args: Vec<crate::mir::Pattern> = args
                 .as_ref()
                 .map(|args| {
                     args.iter()
-                        .map(|a| lower_pattern_to_mir(builder, a))
+                        .map(|a| match &a.kind {
+                            ast::PatternKind::Bind(_) | ast::PatternKind::Wildcard => {
+                                lower_pattern_to_mir(builder, a)
+                            }
+                            _ => crate::mir::Pattern::Wildcard,
+                        })
                         .collect()
                 })
                 .unwrap_or_default();
-            let tmp = builder.alloc_temp(bool_ty, span);
+            let tag_tmp = builder.alloc_temp(bool_ty, span);
             builder.assign(
-                tmp,
+                tag_tmp,
                 Rvalue::PatternMatch {
-                    subject: subj,
+                    subject: subj.clone(),
                     pattern: crate::mir::Pattern::Variant {
                         enum_fqn,
                         variant_name: variant_name_sym,
-                        args: mir_args,
+                        args: tag_args,
                     },
                 },
                 span,
             );
-            Operand::Local(tmp)
+            // 嵌套子模式位置（需要提取 payload 字段后递归测试）。
+            let nested: Vec<(usize, &ast::Pattern)> = args
+                .as_ref()
+                .map(|args| {
+                    args.iter()
+                        .enumerate()
+                        .filter(|(_, a)| {
+                            matches!(
+                                &a.kind,
+                                ast::PatternKind::Variant { .. }
+                                    | ast::PatternKind::Tuple(_)
+                                    | ast::PatternKind::Struct { .. }
+                                    | ast::PatternKind::Literal(_)
+                                    | ast::PatternKind::Is(_)
+                                    | ast::PatternKind::Or(_)
+                            )
+                        })
+                        .map(|(i, a)| (i, a))
+                        .collect()
+                })
+                .unwrap_or_default();
+            if nested.is_empty() {
+                return Operand::Local(tag_tmp);
+            }
+            // AND 链：tag 测试通过后，逐位置提取 payload 字段并递归测试；
+            // 任一环节失败 → false。
+            let result = builder.alloc_temp(bool_ty, span);
+            let merge_bb = builder.new_block();
+            let mut prev_test = Operand::Local(tag_tmp);
+            for (i, sub_pat) in nested {
+                let cont_bb = builder.new_block();
+                let fail_bb = builder.new_block();
+                builder.terminate(
+                    crate::mir::Terminator {
+                        span,
+                        kind: crate::mir::TerminatorKind::CondBr {
+                            cond: prev_test.clone(),
+                            then_target: cont_bb,
+                            else_target: fail_bb,
+                        },
+                    },
+                    cont_bb,
+                );
+                // 失败路径：result = false，goto merge。
+                builder.current_bb = fail_bb;
+                builder.assign(
+                    result,
+                    Rvalue::Use(Operand::Const(ConstValue::Bool(false))),
+                    span,
+                );
+                builder.goto(merge_bb, span);
+                // 通过路径：提取第 i 个 payload 字段并递归测试。
+                builder.current_bb = cont_bb;
+                prev_test =
+                    if let Some(field_ty) = variant_payload_field_ty(builder, subj_ty, path, i) {
+                        let variant_name = path
+                            .segments
+                            .last()
+                            .map(|s| builder.hir.interner.resolve(s.symbol).to_string())
+                            .unwrap_or_default();
+                        let tmp = builder.alloc_temp(field_ty, span);
+                        builder.assign(
+                            tmp,
+                            Rvalue::PatternExtract {
+                                subject: subj.clone(),
+                                path: vec![
+                                    crate::mir::transport::PatternBindingStep::VariantField {
+                                        variant: variant_name,
+                                        field_index: i,
+                                    },
+                                ],
+                                result_ty: field_ty,
+                            },
+                            span,
+                        );
+                        lower_pattern_test(builder, sub_pat, Operand::Local(tmp), field_ty, _arm, span)
+                    } else {
+                        // 字段类型不可定位 → 保守视为命中（不阻断 tag 级语义）。
+                        Operand::Const(ConstValue::Bool(true))
+                    };
+            }
+            // 全部通过：result = 最后一个子测试的值。
+            builder.assign(result, Rvalue::Use(prev_test), span);
+            builder.goto(merge_bb, span);
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
         }
         ast::PatternKind::Literal(lit) => {
             // 字面量模式：发射 PatternMatch，让后端做值比较。
@@ -2749,9 +2930,71 @@ fn lower_pattern_test(
     }
 }
 
-/// 把 AST Pattern 转换为 MIR Pattern（递归）。
-fn lower_pattern_to_mir(builder: &mut FnLowering, pat: &ast::Pattern) -> crate::mir::Pattern {
-    match &pat.kind {
+/// variant 模式第 `index` 个 payload 字段的类型（嵌套子模式递归绑定用）。
+///
+/// Option subject 的 `Some` payload = inner；nominal enum 走 `<enum>.<variant>`
+/// 名义下登记的 members（声明序）。
+pub(crate) fn variant_payload_field_ty(
+    builder: &FnLowering,
+    subj_ty: scoop2_hir::ty::TypeId,
+    path: &ast::TypePath,
+    index: usize,
+) -> Option<scoop2_hir::ty::TypeId> {
+    use scoop2_hir::ty::{TypeKind, ValueTypeKind};
+    match builder.types.kind(subj_ty) {
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            let inner = *inner;
+            if index == 0 { Some(inner) } else { None }
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => {
+            let variant_sym = path.segments.last().map(|s| s.symbol)?;
+            let variant_fqn_text = format!(
+                "{}.{}",
+                builder.hir.interner.resolve(n.fqn),
+                builder.hir.interner.resolve(variant_sym)
+            );
+            let vfqn = builder.hir.interner.get(&variant_fqn_text)?;
+            let members = builder.hir.ordered_members(&vfqn);
+            members.get(index).map(|(_, ty)| *ty)
+        }
+        _ => None,
+    }
+}
+
+/// tuple 类型第 `index` 个元素的类型（嵌套 tuple 子模式递归用）。
+fn tuple_elem_ty(
+    builder: &FnLowering,
+    tuple_ty: scoop2_hir::ty::TypeId,
+    index: usize,
+) -> Option<scoop2_hir::ty::TypeId> {
+    use scoop2_hir::ty::{TypeKind, ValueTypeKind};
+    match builder.types.kind(tuple_ty) {
+        TypeKind::Value(ValueTypeKind::Tuple(elems)) => elems.get(index).copied(),
+        _ => None,
+    }
+}
+
+/// nominal（struct/class）字段在声明序中的下标（struct 模式 binder 提取用；
+/// 与 pattern 中字段的书写顺序无关）。
+fn nominal_field_index(
+    builder: &FnLowering,
+    ty: scoop2_hir::ty::TypeId,
+    name: scoop2_base::Symbol,
+) -> Option<usize> {
+    use scoop2_hir::ty::{TypeKind, ValueTypeKind};
+    let fqn = match builder.types.kind(ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => n.fqn,
+        _ => return None,
+    };
+    builder
+        .hir
+        .ordered_members(&fqn)
+        .iter()
+        .position(|(n, _)| *n == name)
+}
+fn lower_pattern_to_mir(builder: &mut FnLowering, pat: &ast::Pattern) -> crate::mir::Pattern {    match &pat.kind {
         ast::PatternKind::Wildcard => crate::mir::Pattern::Wildcard,
         ast::PatternKind::Bind(name) => {
             let ty = builder
@@ -2802,9 +3045,7 @@ fn bind_pattern_arm(
             builder.symbol_locals.insert(name.symbol, lid);
             builder.assign(lid, Rvalue::Use(subj), name.span);
         }
-        ast::PatternKind::Variant { .. }
-        | ast::PatternKind::Tuple(_)
-        | ast::PatternKind::Struct { .. } => {
+        ast::PatternKind::Variant { path, args } => {
             // 从 pattern_bindings 侧表引入 binder。
             if let Some(bindings) = builder.hir.pattern_bindings(builder.file_id, pat.id) {
                 for (i, b) in bindings.iter().enumerate() {
@@ -2818,16 +3059,36 @@ fn bind_pattern_arm(
                         b.source,
                         scoop2_hir::hir::PatternBindingSource::VariantField
                     ) {
-                        // variant 字段绑定：从 payload 提取第 i 个字段
+                        // variant 字段绑定：从 payload 提取第 pos 个字段
                         // （单字段 variant 也必须提取——`Some(x)` 的 x 是 payload，
                         // 不是整个 Option 值）。
+                        // 提取路径用 binder 在 args 中的字段位置（bindings 序可能
+                        // 与字段序不一致：非 binder 位置不占 bindings 条目）。
+                        // VariantField 携带 variant 名：多字段 variant 的字段偏移
+                        // 依赖具体 variant 的 slot（codegen 按布局表定位）。
+                        let pos = args
+                            .as_ref()
+                            .and_then(|args| {
+                                args.iter().position(|a| {
+                                    matches!(&a.kind, ast::PatternKind::Bind(id) if id.symbol == b.name)
+                                })
+                            })
+                            .unwrap_or(i);
+                        let variant_name = path
+                            .segments
+                            .last()
+                            .map(|s| builder.hir.interner.resolve(s.symbol).to_string())
+                            .unwrap_or_default();
                         builder.assign(
                             lid,
                             Rvalue::PatternExtract {
                                 subject: subj.clone(),
-                                path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(
-                                    i,
-                                )],
+                                path: vec![
+                                    crate::mir::transport::PatternBindingStep::VariantField {
+                                        variant: variant_name,
+                                        field_index: pos,
+                                    },
+                                ],
                                 result_ty: b.ty,
                             },
                             b.span,
@@ -2835,6 +3096,126 @@ fn bind_pattern_arm(
                     } else {
                         builder.assign(lid, Rvalue::Use(subj.clone()), b.span);
                     }
+                }
+            }
+            // 嵌套子模式（如 `Wrap(Hit(v))` / `Some((a, b))`）：按字段位置提取后递归绑定。
+            if let Some(args) = args {
+                for (i, arg) in args.iter().enumerate() {
+                    if matches!(
+                        &arg.kind,
+                        ast::PatternKind::Variant { .. }
+                            | ast::PatternKind::Tuple(_)
+                            | ast::PatternKind::Struct { .. }
+                    ) && let Some(field_ty) =
+                        variant_payload_field_ty(builder, subj_ty, path, i)
+                    {
+                        let variant_name = path
+                            .segments
+                            .last()
+                            .map(|s| builder.hir.interner.resolve(s.symbol).to_string())
+                            .unwrap_or_default();
+                        let tmp = builder.alloc_temp(field_ty, arg.span);
+                        builder.assign(
+                            tmp,
+                            Rvalue::PatternExtract {
+                                subject: subj.clone(),
+                                path: vec![
+                                    crate::mir::transport::PatternBindingStep::VariantField {
+                                        variant: variant_name,
+                                        field_index: i,
+                                    },
+                                ],
+                                result_ty: field_ty,
+                            },
+                            arg.span,
+                        );
+                        bind_pattern_arm(builder, arg, Operand::Local(tmp), field_ty);
+                    }
+                }
+            }
+        }
+        ast::PatternKind::Tuple(elems) => {
+            // 从 pattern_bindings 侧表引入 binder。
+            if let Some(bindings) = builder.hir.pattern_bindings(builder.file_id, pat.id) {
+                for (i, b) in bindings.iter().enumerate() {
+                    let lid = builder.alloc_named(
+                        builder.hir.interner.resolve(b.name).to_string(),
+                        b.ty,
+                        b.span,
+                    );
+                    builder.symbol_locals.insert(b.name, lid);
+                    // tuple 元素 binder（when arm 中 source 多为 Destructure）
+                    // 一律按元素位置提取，不能绑整个 tuple。
+                    // 提取路径用 binder 在 tuple 元素中的位置（bindings 序可能
+                    // 与字段序不一致：字面量/通配元素不占 bindings 条目，
+                    // 如 `(1, x)` 中 x 的字段下标是 1 而非 0）。
+                    let pos = elems
+                        .iter()
+                        .position(|e| {
+                            matches!(&e.kind, ast::PatternKind::Bind(id) if id.symbol == b.name)
+                        })
+                        .unwrap_or(i);
+                    builder.assign(
+                        lid,
+                        Rvalue::PatternExtract {
+                            subject: subj.clone(),
+                            path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(
+                                pos,
+                            )],
+                            result_ty: b.ty,
+                        },
+                        b.span,
+                    );
+                }
+            }
+            // 嵌套子模式（如 `((a, b), c)`）：按元素位置提取后递归绑定。
+            for (i, e) in elems.iter().enumerate() {
+                if matches!(
+                    &e.kind,
+                    ast::PatternKind::Variant { .. }
+                        | ast::PatternKind::Tuple(_)
+                        | ast::PatternKind::Struct { .. }
+                ) && let Some(elem_ty) = tuple_elem_ty(builder, subj_ty, i)
+                {
+                    let tmp = builder.alloc_temp(elem_ty, e.span);
+                    builder.assign(
+                        tmp,
+                        Rvalue::PatternExtract {
+                            subject: subj.clone(),
+                            path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(i)],
+                            result_ty: elem_ty,
+                        },
+                        e.span,
+                    );
+                    bind_pattern_arm(builder, e, Operand::Local(tmp), elem_ty);
+                }
+            }
+        }
+        ast::PatternKind::Struct { .. } => {
+            // 从 pattern_bindings 侧表引入 binder；字段下标按 subject 声明序
+            // （ordered_members）定位，与 pattern 中的书写顺序无关。
+            if let Some(bindings) = builder.hir.pattern_bindings(builder.file_id, pat.id) {
+                for (i, b) in bindings.iter().enumerate() {
+                    let lid = builder.alloc_named(
+                        builder.hir.interner.resolve(b.name).to_string(),
+                        b.ty,
+                        b.span,
+                    );
+                    builder.symbol_locals.insert(b.name, lid);
+                    // struct 字段 binder（source 多为 Destructure）一律按声明序
+                    // 字段下标提取，不能绑整个 struct。
+                    let pos = nominal_field_index(builder, subj_ty, b.name).unwrap_or(i);
+                    builder.assign(
+                        lid,
+                        Rvalue::PatternExtract {
+                            subject: subj.clone(),
+                            path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(
+                                pos,
+                            )],
+                            result_ty: b.ty,
+                        },
+                        b.span,
+                    );
                 }
             }
         }

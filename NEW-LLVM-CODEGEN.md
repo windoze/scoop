@@ -175,7 +175,13 @@ crates/scoop2_codegen_llvm/
 - `Reference`/`Function`/`String`/`Any`/`Object`：`ptr addrspace(1)`。
 - `Struct`/`Tuple`：named `{ field0, ... }`（按 `FieldLayout.offset` 顺序；offset 间隙插 `[N x i8]` padding，保证与 LIR 一致）。
 - `Option`：按 `NicheStorage`——Pointer→直接 payload ptr(None=null)；U8{none_value}→payload 整型 + 编码 None；Tagged→`{ i8 tag; payload }`。
-- `Enum`：`{ iN tag(在 tag_offset); payload_union }`；**GC 指针字段必须单列**（不复用 union 槽与标量覆盖），杜绝 ptr↔int punning，保证 GC 可枚举。若变体 payload 含 GC 指针且不能静态枚举 → boxed payload（单独 `scoop_alloc_typed` 对象，enum 内存只放指向它的 GC 指针）。
+- `Enum`：`{ iN tag(在 tag_offset); payload 区 }`，payload 区按 GC 可枚举性分三类槽位（约束根源：GC 按静态位置 trace——type descriptor bitmap / root frame slot / stackmap 都只能表达"某偏移是不是指针"，不能在 trace 时读 tag 分派；因此同一偏移在所有 variant 下的"ref 性"必须唯一）：
+  1. **不含 ref 的 variant（深层判定，见下）共用一个 scalar union slot**（按各 variant payload 取 max size/align 的普通 union）；该区内无任何 trace 位。
+  2. **每个含 ref 的 variant 各占一个独立 slot**（该区域 = 该 variant payload 的自然 struct 布局，ref 叶子偏移静态已知；单 variant 内部不存在 tag 歧义，无需区内再分离）。trace_offsets = 全部含 ref variant 区域的 ref 叶子偏移之并集。**合并"形状"相同的 ref variant 共享 slot 只是内存优化，现阶段不做。**
+  3. **嵌套 enum 按同一规则递归**：payload 深层含 ref（含嵌套 enum/struct/Option 内嵌 ref）的 variant 一律归入第 2 类。**类型的布局上下文无关（每个 TypeId 唯一布局，composite copy/memcpy/数组元素/值传递都依赖这一点），禁止"嵌入时重新布局"**：嵌套 enum E 以其独立布局原样嵌入父 variant 区域，父区域的 trace 位 = 父自身 ref 叶子偏移 + 指向嵌入 E 内部 ref 槽的偏移（E 基址 + E 布局中 ref 区偏移，纯 trace 元数据，不改变 E 的布局）。安全性由 E 自身的零初始化纪律保证（其 ref 槽恒为有效指针或 null，与 E 的 tag 无关），父级无需读 E 的 tag。struct 嵌套 enum/struct 同理：容器递归把 trace 位指向嵌入体的 ref 叶子。
+  - **零初始化纪律（必须）**：构造 enum 值时全部 ref 区清零；任何改写路径（赋值 / `with` / 模式重绑 / with-update 变体切换）必须保证非当前 variant 的 ref 区保持 null——GC 无条件 trace 所有 ref 槽，读到未初始化内存即崩。
+  - 深层"含 ref"判定由 LIR 层统一的递归谓词（`is_gc_traceable_type`，递归展开 Struct/Tuple/Enum/Option）给出，**浅判定（value 类型一律 false）是 bug，禁止回潮**。
+  - 若变体 payload 含 GC 指针且不能静态枚举（如 `Any`）→ boxed payload（单独 `scoop_alloc_typed` 对象，enum 内存只放指向它的 GC 指针槽，恒为指针或 null）。
 - `Nothing`：i8 占位（不实际产生值）。
 
 class 对象类型 = `{ ScoopObjectHeader; <payload struct> }`；payload 字段顺序按 HIR members（偏移与 LIR 一致）。closure 对象 = `{ header; env_ptr(ptr addrspace1); invoke_fn_ptr(ptr addrspace0) }`。

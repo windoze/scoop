@@ -79,7 +79,7 @@ pub fn compute_type_layouts(
         if program.type_layouts.get(ty).is_some() {
             continue;
         }
-        let layout = compute_layout(ty, types, hir, interner, &mut |t| {
+        let layout = compute_layout(ty, types, hir, interner, 0, &mut |t| {
             enqueue(t, &mut worklist, &mut seen)
         });
         program.type_layouts.insert(ty, layout);
@@ -100,13 +100,14 @@ pub fn compute_type_layouts(
                 while let Some(t) = pending.pop() {
                     if program.type_layouts.get(t).is_none() {
                         let mut sub_pending: Vec<TypeId> = Vec::new();
-                        let l =
-                            compute_layout(t, types, hir, interner, &mut |st| sub_pending.push(st));
+                        let l = compute_layout(t, types, hir, interner, 0, &mut |st| {
+                            sub_pending.push(st)
+                        });
                         program.type_layouts.insert(t, l);
                         pending.extend(sub_pending);
                     }
                 }
-                prepare_effect_synthetic_layouts(program, types, fd, eff_abi);
+                prepare_effect_synthetic_layouts(program, types, hir, interner, fd, eff_abi);
             }
         }
     }
@@ -117,11 +118,14 @@ pub fn compute_type_layouts(
 // ---------------------------------------------------------------------------
 
 /// 计算单个 TypeId 的布局。`enqueue` 用于把未处理的子类型入队（递归保证）。
+/// `depth` 为 nominal 值类型的嵌套深度，用于给 `sub_size_align` 的就地递归
+/// 兜底（值类型自引用如 `enum A { V(val a: A) }` 会无限递归）。
 fn compute_layout(
     ty: TypeId,
     types: &TypeStore,
     hir: &TypedHir,
     interner: &Interner,
+    depth: u32,
     enqueue: &mut impl FnMut(TypeId),
 ) -> TypeLayout {
     match types.kind(ty) {
@@ -213,7 +217,7 @@ fn compute_layout(
             for &elem in elems {
                 // 先确保子类型布局存在（入队）。
                 enqueue(elem);
-                let (esize, ealign) = sub_size_align(elem, types);
+                let (esize, ealign) = sub_size_align(elem, types, hir, interner, depth);
                 offset = align_to(offset, ealign);
                 fields.push(FieldLayout {
                     offset,
@@ -234,7 +238,7 @@ fn compute_layout(
         }
         TypeKind::Value(ValueTypeKind::Option(inner)) => {
             enqueue(*inner);
-            compute_option_layout(*inner, types)
+            compute_option_layout(*inner, types, hir, interner, depth)
         }
         TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             // 内建标量别名（@Intrinsic struct Bool/Char/Int/UInt/Int8../Float64/Float32/Unit）：
@@ -254,7 +258,7 @@ fn compute_layout(
                 let mut fields: Vec<FieldLayout> = Vec::new();
                 for (_member_name_sym, member_ty) in ordered {
                     enqueue(member_ty);
-                    let (fsize, falign) = sub_size_align(member_ty, types);
+                    let (fsize, falign) = sub_size_align(member_ty, types, hir, interner, depth);
                     offset = align_to(offset, falign);
                     fields.push(FieldLayout {
                         offset,
@@ -275,64 +279,129 @@ fn compute_layout(
             }
             // 尝试 enum 布局：查 HIR enum_variants。
             if let Some(variants) = hir.enum_variants.get(&n.fqn) {
-                // variant payload：`<enum_fqn>.<variant>` 在 hir.members 中登记了
-                // payload 字段类型（注册见 typecheck/env.rs）。payload 区按字段
-                // 声明序做 struct 式布局，取所有 variant 的 max size/align。
+                // 布局规则（NEW-LLVM-CODEGEN.md §3.1 Enum）：
+                // - 不含 ref 的 variant（深层判定）共用一个 scalar union slot；
+                // - 每个含 ref 的 variant 各占独立 slot（其 payload 的自然 struct
+                //   布局），trace_offsets 取全部 ref variant 区域 ref 叶子偏移并集。
+                // 约束根源：GC 按静态位置 trace，同一偏移在所有 variant 下的
+                // "ref 性"必须唯一。
+                // variant payload 字段：`<enum_fqn>.<variant>` 在 hir.members 中登记
+                // （注册见 typecheck/env.rs），按声明序做 struct 式布局。
                 // 单字段 variant 记录 payload_ty（构造/提取的具类型读写依据）；
-                // 多字段 variant 暂只保留空间（无单一 payload TypeId 可表达）。
-                let mut max_payload_size: u64 = 0;
-                let mut max_payload_align: u64 = 1;
-                let mut variant_layouts: Vec<EnumVariantLayout> = Vec::new();
-                for (i, &variant_name_sym) in variants.iter().enumerate() {
+                // 多字段 variant 记录 payload_fields（相对本 variant slot 起点）。
+                struct VariantPayload {
+                    name: String,
+                    fields: Vec<FieldLayout>,
+                    size: u64,
+                    align: u64,
+                    has_ref: bool,
+                }
+                let mut payloads: Vec<VariantPayload> = Vec::new();
+                for &variant_name_sym in variants {
                     let variant_name = interner.resolve(variant_name_sym).to_string();
                     let variant_fqn_text = format!("{fqn_text}.{variant_name}");
                     let ordered = interner
                         .get(&variant_fqn_text)
                         .map(|vf| hir.ordered_members(&vf))
                         .unwrap_or_default();
-                    let mut payload_offset: u64 = 0;
-                    let mut payload_align: u64 = 1;
+                    let mut offset: u64 = 0;
+                    let mut align: u64 = 1;
+                    let mut has_ref = false;
+                    let mut fields: Vec<FieldLayout> = Vec::new();
                     for (_field_name_sym, field_ty) in &ordered {
                         enqueue(*field_ty);
-                        let (fsize, falign) = sub_size_align(*field_ty, types);
-                        payload_offset = align_to(payload_offset, falign) + fsize;
-                        if falign > payload_align {
-                            payload_align = falign;
+                        let (fsize, falign) =
+                            sub_size_align(*field_ty, types, hir, interner, depth);
+                        let field_offset = align_to(offset, falign);
+                        fields.push(FieldLayout {
+                            offset: field_offset,
+                            size: fsize,
+                            ty: *field_ty,
+                        });
+                        offset = field_offset + fsize;
+                        if falign > align {
+                            align = falign;
+                        }
+                        if !has_ref
+                            && type_contains_ref(
+                                *field_ty,
+                                types,
+                                hir,
+                                interner,
+                                &mut std::collections::HashSet::new(),
+                            )
+                        {
+                            has_ref = true;
                         }
                     }
-                    let payload_size = align_to(payload_offset, payload_align);
-                    if payload_size > max_payload_size {
-                        max_payload_size = payload_size;
-                    }
-                    if payload_align > max_payload_align {
-                        max_payload_align = payload_align;
-                    }
-                    variant_layouts.push(EnumVariantLayout {
+                    payloads.push(VariantPayload {
                         name: variant_name,
-                        tag_value: i as u64,
-                        payload_ty: if ordered.len() == 1 {
-                            Some(ordered[0].1)
-                        } else {
-                            None
-                        },
+                        fields,
+                        size: align_to(offset, align),
+                        align,
+                        has_ref,
                     });
                 }
                 let tag_size: u64 = if variants.len() <= 256 { 1 } else { 4 };
-                let total = if max_payload_size > 0 {
-                    let payload_offset = align_to(tag_size, max_payload_align);
-                    align_to(
-                        payload_offset + max_payload_size,
-                        max_payload_align.max(tag_size),
-                    )
+                // scalar union slot：所有无 ref variant 共用。
+                let scalar_size: u64 = payloads
+                    .iter()
+                    .filter(|p| !p.has_ref)
+                    .map(|p| p.size)
+                    .max()
+                    .unwrap_or(0);
+                let scalar_align: u64 = payloads
+                    .iter()
+                    .filter(|p| !p.has_ref)
+                    .map(|p| p.align)
+                    .max()
+                    .unwrap_or(1);
+                let scalar_slot = align_to(tag_size, scalar_align);
+                // ref variant 独立 slot：紧跟 scalar slot 顺序排布。
+                let mut cursor = scalar_slot + scalar_size;
+                let mut variant_layouts: Vec<EnumVariantLayout> = Vec::new();
+                for (i, p) in payloads.iter().enumerate() {
+                    let slot_offset = if p.has_ref {
+                        let off = align_to(cursor, p.align);
+                        cursor = off + p.size;
+                        off
+                    } else {
+                        scalar_slot
+                    };
+                    variant_layouts.push(EnumVariantLayout {
+                        name: p.name.clone(),
+                        tag_value: i as u64,
+                        slot_offset,
+                        payload_ty: if p.fields.len() == 1 {
+                            Some(p.fields[0].ty)
+                        } else {
+                            None
+                        },
+                        payload_fields: if p.fields.len() > 1 {
+                            p.fields.clone()
+                        } else {
+                            Vec::new()
+                        },
+                    });
+                }
+                let max_align = payloads
+                    .iter()
+                    .map(|p| p.align)
+                    .max()
+                    .unwrap_or(1)
+                    .max(tag_size);
+                let total = if cursor > scalar_slot || scalar_size > 0 {
+                    align_to(cursor.max(scalar_slot + scalar_size), max_align)
                 } else {
                     tag_size
                 };
                 return TypeLayout {
                     size: total,
-                    align: max_payload_align.max(tag_size),
+                    align: max_align,
                     kind: TypeLayoutKind::Enum {
                         tag_size,
                         tag_offset: 0,
+                        payload_offset: scalar_slot,
                         variants: variant_layouts,
                     },
                 };
@@ -397,7 +466,13 @@ fn compute_layout(
 }
 
 /// 计算 Option<inner> 的布局。
-fn compute_option_layout(inner: TypeId, types: &TypeStore) -> TypeLayout {
+fn compute_option_layout(
+    inner: TypeId,
+    types: &TypeStore,
+    hir: &TypedHir,
+    interner: &Interner,
+    depth: u32,
+) -> TypeLayout {
     // niche 判定：inner 是引用 → Pointer niche（null 表示 None）。
     // inner 是 Bool/Unit/Int 等标量 → Tagged（tag 字节 + payload）。
     let is_inner_ref = matches!(types.kind(inner), TypeKind::Ref(_) | TypeKind::Nothing);
@@ -414,7 +489,7 @@ fn compute_option_layout(inner: TypeId, types: &TypeStore) -> TypeLayout {
         }
     } else {
         // 标量/聚合 inner：tag 字节 + payload（带 padding）。
-        let (psize, palign) = sub_size_align(inner, types);
+        let (psize, palign) = sub_size_align(inner, types, hir, interner, depth);
         let tag_size: u64 = 1;
         let total_align = palign.max(1);
         let payload_offset = align_to(tag_size, palign);
@@ -432,9 +507,74 @@ fn compute_option_layout(inner: TypeId, types: &TypeStore) -> TypeLayout {
     }
 }
 
+/// 深层判定类型是否含 GC 引用（NEW-LLVM-CODEGEN.md §3.1：enum 布局的
+/// scalar/ref variant 分类依据；浅判定——value 类型一律 false——是 bug，禁止回潮）。
+/// 结构递归展开 Tuple/Option/struct/enum；`seen` 防止值类型自引用无限递归
+/// （重访节点不贡献新 ref——其可达 ref 已由首次展开覆盖）。
+fn type_contains_ref(
+    ty: TypeId,
+    types: &TypeStore,
+    hir: &TypedHir,
+    interner: &Interner,
+    seen: &mut std::collections::HashSet<TypeId>,
+) -> bool {
+    if !seen.insert(ty) {
+        return false;
+    }
+    match types.kind(ty) {
+        // 引用类型（含 Any/String/class/interface/函数值）都是 GC 指针。
+        TypeKind::Ref(_) => true,
+        // 类型参数 / 星投影：单态化后不应出现；保守按含 ref 处理。
+        TypeKind::Param(_) | TypeKind::StarProjection => true,
+        TypeKind::Value(ValueTypeKind::Tuple(elems)) => elems
+            .iter()
+            .any(|&e| type_contains_ref(e, types, hir, interner, seen)),
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            type_contains_ref(*inner, types, hir, interner, seen)
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+            let fqn_text = interner.resolve(n.fqn);
+            let simple = fqn_text.rsplit('.').next().unwrap_or("");
+            if builtin_scalar_kind(simple).is_some() {
+                return false;
+            }
+            // struct 值类型：任一成员深层含 ref 即含 ref。
+            if hir.members.contains_key(&n.fqn) {
+                return hir
+                    .ordered_members(&n.fqn)
+                    .iter()
+                    .any(|(_, mt)| type_contains_ref(*mt, types, hir, interner, seen));
+            }
+            // enum 值类型：任一 variant 的任一 payload 字段深层含 ref 即含 ref。
+            if let Some(variants) = hir.enum_variants.get(&n.fqn) {
+                return variants.iter().any(|&v| {
+                    let variant_fqn_text = format!("{fqn_text}.{}", interner.resolve(v));
+                    interner
+                        .get(&variant_fqn_text)
+                        .map(|vf| hir.ordered_members(&vf))
+                        .unwrap_or_default()
+                        .iter()
+                        .any(|(_, mt)| type_contains_ref(*mt, types, hir, interner, seen))
+                });
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
 /// 取子类型的 (size, align)，优先用已计算的布局表，否则就地递归计算。
 /// 注意：这里只读 types，不写 program，避免借用冲突；调用方需保证子类型最终入队。
-fn sub_size_align(ty: TypeId, types: &TypeStore) -> (u64, u64) {
+/// `depth` 为 nominal 值类型嵌套深度：Nominal 分支就地调用 compute_layout 取真实
+/// 尺寸（嵌套 struct/enum 值类型不能按保守指针尺寸估算，否则字段偏移/总尺寸错）；
+/// depth 达到上限时退回保守值 (8, 8)，防止值类型自引用无限递归。
+fn sub_size_align(
+    ty: TypeId,
+    types: &TypeStore,
+    hir: &TypedHir,
+    interner: &Interner,
+    depth: u32,
+) -> (u64, u64) {
     match types.kind(ty) {
         TypeKind::Value(ValueTypeKind::Unit) | TypeKind::Nothing => (0, 1),
         TypeKind::Value(ValueTypeKind::Bool) => (1, 1),
@@ -454,7 +594,7 @@ fn sub_size_align(ty: TypeId, types: &TypeStore) -> (u64, u64) {
             let mut offset: u64 = 0;
             let mut max_align: u64 = 1;
             for &e in elems {
-                let (s, a) = sub_size_align(e, types);
+                let (s, a) = sub_size_align(e, types, hir, interner, depth);
                 offset = align_to(offset, a) + s;
                 if a > max_align {
                     max_align = a;
@@ -463,15 +603,19 @@ fn sub_size_align(ty: TypeId, types: &TypeStore) -> (u64, u64) {
             (align_to(offset, max_align), max_align)
         }
         TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            let l = compute_option_layout(*inner, types);
+            let l = compute_option_layout(*inner, types, hir, interner, depth);
             (l.size, l.align)
         }
         TypeKind::Value(ValueTypeKind::Nominal(_)) => {
-            // Nominal value struct/enum：无法在此函数中查 HIR。
-            // 返回保守值 (8, 8)：struct/enum 至少有指针大小（作为引用或值类型容器）。
-            // 真实布局在 compute_layout 中通过 HIR 查询计算并缓存在 type_layouts。
-            // sub_size_align 仅用于嵌套类型的快速估算，最终布局以 type_layouts 为准。
-            (8, 8)
+            // Nominal value struct/enum：就地递归计算真实布局取 (size, align)。
+            // 嵌套深度达上限（值类型自引用）时退回保守值；enqueue 传 no-op——
+            // 子类型的入队由外层 compute_layout 的 struct/enum 分支负责。
+            const MAX_NEST_DEPTH: u32 = 32;
+            if depth >= MAX_NEST_DEPTH {
+                return (8, 8);
+            }
+            let l = compute_layout(ty, types, hir, interner, depth + 1, &mut |_| {});
+            (l.size, l.align)
         }
     }
 }
@@ -684,6 +828,8 @@ fn collect_nominal_value_types(_types: &TypeStore, _emit: &mut impl FnMut(TypeId
 fn prepare_effect_synthetic_layouts(
     program: &mut LirProgram,
     types: &TypeStore,
+    hir: &TypedHir,
+    interner: &Interner,
     fd: &scoop2_mir::mir::FunDecl,
     eff_abi: &scoop2_mir::mir::EffectStepAbi,
 ) {
@@ -724,7 +870,7 @@ fn prepare_effect_synthetic_layouts(
         let mut max_payload_size: u64 = 0;
         let mut max_payload_align: u64 = 1;
         for v in &eff_abi.step_variants {
-            let (s, a) = sub_size_align(v.payload_ty, types);
+            let (s, a) = sub_size_align(v.payload_ty, types, hir, interner, 0);
             if s > max_payload_size {
                 max_payload_size = s;
             }
@@ -733,7 +879,7 @@ fn prepare_effect_synthetic_layouts(
             }
         }
         for &ty in &eff_abi.escape_answer_tys {
-            let (s, a) = sub_size_align(ty, types);
+            let (s, a) = sub_size_align(ty, types, hir, interner, 0);
             if s > max_payload_size {
                 max_payload_size = s;
             }
@@ -753,6 +899,7 @@ fn prepare_effect_synthetic_layouts(
             kind: TypeLayoutKind::Enum {
                 tag_size,
                 tag_offset: 0,
+                payload_offset,
                 variants: eff_abi
                     .step_variants
                     .iter()
@@ -760,7 +907,9 @@ fn prepare_effect_synthetic_layouts(
                     .map(|(i, v)| EnumVariantLayout {
                         name: v.name.clone(),
                         tag_value: i as u64,
+                        slot_offset: payload_offset,
                         payload_ty: Some(v.payload_ty),
+                        payload_fields: Vec::new(),
                     })
                     .collect(),
             },
@@ -795,7 +944,7 @@ fn prepare_effect_synthetic_layouts(
         let mut max_payload_size: u64 = 0;
         let mut max_payload_align: u64 = 1;
         for v in &site.step_variants {
-            let (s, a) = sub_size_align(v.payload_ty, types);
+            let (s, a) = sub_size_align(v.payload_ty, types, hir, interner, 0);
             if s > max_payload_size {
                 max_payload_size = s;
             }
@@ -815,6 +964,7 @@ fn prepare_effect_synthetic_layouts(
             kind: TypeLayoutKind::Enum {
                 tag_size,
                 tag_offset: 0,
+                payload_offset,
                 variants: site
                     .step_variants
                     .iter()
@@ -822,7 +972,9 @@ fn prepare_effect_synthetic_layouts(
                     .map(|(i, v)| EnumVariantLayout {
                         name: v.name.clone(),
                         tag_value: i as u64,
+                        slot_offset: payload_offset,
                         payload_ty: Some(v.payload_ty),
+                        payload_fields: Vec::new(),
                     })
                     .collect(),
             },
