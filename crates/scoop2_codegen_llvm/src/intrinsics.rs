@@ -663,7 +663,9 @@ fn lower_named_intrinsic<'a, 'ctx>(
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     let ctx = fl.cg.context;
     // to_string：按类型 dispatch 到 runtime scoop_*_to_string（runtime 接受 i64 标量 / f64）。
-    if name.ends_with("_to_string") {
+    // 注意：string_to_string 不是 intrinsic（String.toString 有真实 body，返回 this）。
+    // 不匹配 _to_string 后缀，避免误将 String.toString 方法调用当 intrinsic 内联。
+    if name.ends_with("_to_string") && !name.starts_with("string") {
         let gc_ptr_ty = fl.cg.gc_ptr_ty();
         let arg0 = one_arg(fl, args, 0)?;
         let call = if name.starts_with("float") {
