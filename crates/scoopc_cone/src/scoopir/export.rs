@@ -154,12 +154,20 @@ pub fn export_public_api_for_cone_sources(
             file: &f.ast,
         });
     }
+<<<<<<< Updated upstream:crates/scoopc_cone/src/scoopir/export.rs
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
         indexed.push(scoopc_hir::resolve::IndexedFile {
             cone: scoop_project_model::ConeId::new(1),
             cone_kind: scoop_project_model::ConeKind::Lib,
             source,
             file: ast,
+=======
+    for f in &session.sysroot().compilable_files {
+        indexed.push(crate::resolve::IndexedFile {
+            cone: crate::resolve::ConeId::new(0),
+            source: &f.source,
+            file: &f.ast,
+>>>>>>> Stashed changes:crates/scoopc/src/cone/scoopir/export.rs
         });
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {
@@ -203,8 +211,13 @@ pub fn export_public_api_for_cone_sources(
     // 4) type env：用于导出 public type 的声明头信息。
     let mut env = scoopc_hir::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::from)?;
+<<<<<<< Updated upstream:crates/scoopc_cone/src/scoopir/export.rs
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
         env.extend_from_file(source, ast, &index)
+=======
+    for f in &session.sysroot().compilable_files {
+        env.extend_from_file(&f.source, &f.ast, &index)
+>>>>>>> Stashed changes:crates/scoopc/src/cone/scoopir/export.rs
             .map_err(miette::Report::from)?;
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {
@@ -217,8 +230,13 @@ pub fn export_public_api_for_cone_sources(
     for f in &session.sysroot().files {
         pairs.push((&f.source, &f.ast));
     }
+<<<<<<< Updated upstream:crates/scoopc_cone/src/scoopir/export.rs
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
         pairs.push((source, ast));
+=======
+    for f in &session.sysroot().compilable_files {
+        pairs.push((&f.source, &f.ast));
+>>>>>>> Stashed changes:crates/scoopc/src/cone/scoopir/export.rs
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {
         pairs.push((source, ast));

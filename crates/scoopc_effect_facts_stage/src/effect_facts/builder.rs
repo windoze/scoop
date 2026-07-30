@@ -1689,6 +1689,70 @@ impl EffectFactsTypeContext {
             index: frontend_artifact.index().clone(),
             env: frontend_artifact.type_env().clone(),
         }
+<<<<<<< Updated upstream:crates/scoopc_effect_facts_stage/src/effect_facts/builder.rs
+=======
+        let index = session.build_top_level_index(&sources)?;
+
+        let mut parsed_files = sources
+            .iter()
+            .map(|source| session.parse(source))
+            .collect::<Result<Vec<_>, _>>()?;
+        let source_refs = sources.iter().collect::<Vec<_>>();
+        let mut ast_refs = parsed_files.iter_mut().collect::<Vec<_>>();
+        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+            session.sysroot(),
+            &source_refs,
+            &mut ast_refs,
+        )?;
+
+        let mut env = TypeEnv::from_sysroot(session.sysroot(), &index)
+            .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
+        // T0143：含有 bodied `@Intrinsic` 的 sysroot 文件需要在 dump-mode 也注入到
+        // TypeEnv，否则 effect facts 在解析 `Raise`/`Pure` 等 sysroot effect 时
+        // 找不到声明头。当调用方已通过 `sources` 提供同一路径时跳过，避免重复符号。
+        for f in &session.sysroot().compilable_files {
+            if sources.iter().any(|s| s.path() == f.source.path()) {
+                continue;
+            }
+            env.extend_from_file(&f.source, &f.ast, &index)
+                .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
+        }
+        for (source, parsed) in sources.iter().zip(parsed_files.iter()) {
+            env.extend_from_file(source, parsed, &index)
+                .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
+        }
+
+        let mut pairs = session
+            .sysroot()
+            .files
+            .iter()
+            .map(|file| (&file.source, &file.ast))
+            .collect::<Vec<_>>();
+        for f in &session.sysroot().compilable_files {
+            if sources.iter().any(|s| s.path() == f.source.path()) {
+                continue;
+            }
+            pairs.push((&f.source, &f.ast));
+        }
+        for (source, parsed) in sources.iter().zip(parsed_files.iter()) {
+            pairs.push((source, parsed));
+        }
+
+        let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
+        let (interfaces, class_itables) =
+            crate::itable::collect_interfaces_and_class_itables(&pairs, &index, &class_vtables)?;
+        let direct_subclasses = collect_direct_subclasses(&pairs, &index);
+
+        Ok(Self {
+            stable_cone_key,
+            index,
+            env,
+            class_vtables,
+            interfaces,
+            class_itables,
+            direct_subclasses,
+        })
+>>>>>>> Stashed changes:crates/scoopc/src/effect_facts/builder.rs
     }
 
     fn step_case_seeds(

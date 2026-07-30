@@ -171,6 +171,7 @@ impl Session {
         }
 
         let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+<<<<<<< Updated upstream:crates/scoopc_hir/src/session/mod.rs
         for f in self.sysroot.index_files() {
             if sources
                 .iter()
@@ -178,11 +179,28 @@ impl Session {
             {
                 continue;
             }
+=======
+        let mut seen_paths: std::collections::HashSet<&std::path::Path> =
+            std::collections::HashSet::new();
+        for f in &self.sysroot.files {
+>>>>>>> Stashed changes:crates/scoopc/src/session/mod.rs
             pairs.push((&f.source, &f.ast));
+            seen_paths.insert(f.source.path());
+        }
+        // T0143：含有 bodied `@Intrinsic struct/class` 的 sysroot 文件
+        // （如 overlay 的 `core.scoop`）也持有内建类型声明，必须纳入 Index。
+        // 当调用方已通过 `sources` 提供同一路径时跳过，避免重复定义。
+        for f in &self.sysroot.compilable_files {
+            if sources.iter().any(|s| s.path() == f.source.path()) {
+                continue;
+            }
+            pairs.push((&f.source, &f.ast));
+            seen_paths.insert(f.source.path());
         }
         for (s, a) in sources.iter().zip(asts.iter()) {
             pairs.push((s, a));
         }
+        let _ = seen_paths;
 
         Ok(Index::build(&pairs)?)
     }

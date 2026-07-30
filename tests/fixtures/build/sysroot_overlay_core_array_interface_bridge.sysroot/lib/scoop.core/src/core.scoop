@@ -64,37 +64,69 @@ public interface OverlayVisible
 // Built-in scalar types（声明层 + intrinsic body methods）。
 //
 // 说明：
+<<<<<<< Updated upstream:tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/lib/scoop.core/src/core.scoop
 // - 这些类型的布局/语义由编译器与运行时固定；
 // - `toString` 走普通 method body，使调用路径不再依赖 compiler 按名字拦截。
 @Intrinsic
 public struct Bool : Hashable, ToString {
     public override fun toString(): String {
         return __scoop_bool_to_string(this)
+=======
+// - 这些类型的布局/语义仍由编译器与运行时固定（`@Intrinsic` annotation 锁定 layout）；
+// - 但 `ToString.toString()` 现在通过 sysroot 内 bodied override 落地，让 interface dispatch
+//   能够看见标量类型的真实实现。`Hashable.hash` 仍是 declaration-only / 编译器拦截。
+//
+// P4-T01l：bodied override 与既有 by-name 拦截（`try_codegen_tostring_iface_builtin` 等）双轨可达；
+// 删除 by-name 拦截留给 P4-T01。
+@Intrinsic
+struct Bool : Hashable, ToString {
+    override fun toString(): String {
+        return if (this) "true" else "false"
+>>>>>>> Stashed changes:sysroot/core.scoop
     }
 }
 
 @Intrinsic
+<<<<<<< Updated upstream:tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/lib/scoop.core/src/core.scoop
 public struct Char : Hashable, ToString {
     public override fun toString(): String {
         return __scoop_char_to_string(this)
+=======
+struct Char : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiCharToString(this)
+>>>>>>> Stashed changes:sysroot/core.scoop
     }
 }
 
 @Intrinsic
+<<<<<<< Updated upstream:tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/lib/scoop.core/src/core.scoop
 public struct Float64 : Hashable, ToString {
     public override fun toString(): String {
         return __scoop_float64_to_string(this)
+=======
+struct Float64 : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiFloat64ToString(this)
+>>>>>>> Stashed changes:sysroot/core.scoop
     }
 }
 
 @Intrinsic
+<<<<<<< Updated upstream:tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/lib/scoop.core/src/core.scoop
 public struct Float32 : Hashable, ToString {
     public override fun toString(): String {
         return __scoop_float32_to_string(this)
+=======
+struct Float32 : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiFloat32ToString(this)
+>>>>>>> Stashed changes:sysroot/core.scoop
     }
 }
 
 @Intrinsic
+<<<<<<< Updated upstream:tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/lib/scoop.core/src/core.scoop
 public class String : Hashable, ToString {
     public override fun toString(): String {
         return this
@@ -117,6 +149,14 @@ public class String : Hashable, ToString {
     }
 }
 public typealias Double = Float64
+=======
+class String : Hashable, ToString {
+    override fun toString(): String {
+        return this
+    }
+}
+typealias Double = Float64
+>>>>>>> Stashed changes:sysroot/core.scoop
 // 泛型数组类型（compile-time + runtime 表面）。
 //
 // 说明：
@@ -463,6 +503,7 @@ public struct AnnotationArgMeta {
 //
 // word-sized：随 target 指针宽度变化（Swift 约定）。
 @Intrinsic
+<<<<<<< Updated upstream:tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/lib/scoop.core/src/core.scoop
 public struct Int : Hashable, ToString {
     public override fun toString(): String {
         return __scoop_int_to_string(this)
@@ -472,6 +513,14 @@ public struct Int : Hashable, ToString {
     public fun hash(): Int
 }
 public struct UInt : Hashable
+=======
+struct Int : Hashable, ToString {
+    override fun toString(): String {
+        return scoopAbiIntToString(this)
+    }
+}
+struct UInt : Hashable
+>>>>>>> Stashed changes:sysroot/core.scoop
 
 // fixed-width：用于 FFI/序列化等稳定布局场景。
 public struct Int8 : Hashable
