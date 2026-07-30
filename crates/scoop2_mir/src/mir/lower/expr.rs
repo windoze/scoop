@@ -577,7 +577,7 @@ fn emit_call_resolution(
             };
             Rvalue::Call {
                 site_id: call_site_id,
-                kind: builder.make_direct_call_kind(callee_fqn.clone(), type_args, false),
+                kind: builder.make_direct_call_kind_with_params(callee_fqn.clone(), type_args, false, Some(param_types)),
                 args: final_args,
                 transport: call_transport,
             }

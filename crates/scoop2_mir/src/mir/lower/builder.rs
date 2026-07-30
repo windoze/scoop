@@ -297,7 +297,48 @@ impl<'hir> FnLowering<'hir> {
         type_args: Vec<scoop2_hir::ty::TypeId>,
         is_intrinsic: bool,
     ) -> crate::mir::CallKind {
-        let stk = self.stable_template_key_for(&callee_fqn);
+        self.make_direct_call_kind_with_params(callee_fqn, type_args, is_intrinsic, None)
+    }
+
+    /// 构建 Direct call kind，使用 HIR 携带的 param_types 构建 overload_sig
+    /// （不再查 hir.top_level_funs / hir.member_funs）。
+    pub fn make_direct_call_kind_with_params(
+        &self,
+        callee_fqn: String,
+        type_args: Vec<scoop2_hir::ty::TypeId>,
+        is_intrinsic: bool,
+        param_types: Option<&[scoop2_hir::ty::TypeId]>,
+    ) -> crate::mir::CallKind {
+        let stk = if let Some(pts) = param_types {
+            // 用 HIR 携带的 param_types 构建 overload_sig（不再查 HIR 表）。
+            let overload_sig = crate::mir::stable_id::build_overload_sig(
+                &self.types,
+                &self.hir.interner,
+                pts,
+            );
+            // type_params 仍需从 hir.type_constraints 查（这是声明信息，非 resolution）。
+            let fqn_sym = self.hir.interner.get(&callee_fqn);
+            let type_params: Vec<String> = if let Some(fqn) = fqn_sym {
+                if let Some(tc) = self.hir.type_constraints.get(&fqn) {
+                    tc.type_params
+                        .iter()
+                        .map(|&sym| self.hir.interner.resolve(sym).to_string())
+                        .collect()
+                } else {
+                    Vec::new()
+                }
+            } else {
+                Vec::new()
+            };
+            Some(crate::mir::stable_id::make_stable_template_key(
+                crate::mir::stable_id::StableHashScope::Dump,
+                &callee_fqn,
+                &type_params,
+                &overload_sig,
+            ))
+        } else {
+            self.stable_template_key_for(&callee_fqn)
+        };
         let sik = if !type_args.is_empty() {
             stk.as_ref().map(|template| {
                 crate::mir::stable_id::make_stable_instance_key(
