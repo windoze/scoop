@@ -449,17 +449,9 @@ fn lower_call(
         };
         return emit_call_resolution(builder, rc, mir_args, span, ty, recv_op, call_node);
     }
-    // HIR call_resolution 未产出：对合法程序不应发生（步骤 1/2 已修复）。
-    // 保留 enum variant 构造检测（HIR 覆盖缺口），其余按函数值调用处理。
-    if let ExprKind::MemberAccess { receiver, member } = &callee.kind {
-        if let ExprKind::Ident(recv_ident) = &receiver.kind
-            && let MemberName::Named(variant_ident) = member
-            && let Some(rc) =
-                derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
-        {
-            return emit_call_resolution(builder, &rc, mir_args, span, ty, None, call_node);
-        }
-    }
+    // HIR call_resolution 未产出：对合法程序不应发生（derive_call_resolution
+    // 已覆盖所有 call 形态包括 EnumVariant）。此处仅对错误程序触发——
+    // 按函数值调用处理（callee 表达式 lower 为 indirect call 目标）。
     let callee_op = lower_expr(builder, callee);
     let tmp = builder.alloc_temp(ty, span);
     let site_id = Some(builder.next_site_id());
@@ -475,47 +467,6 @@ fn lower_call(
         span,
     );
     Operand::Local(tmp)
-}
-
-/// 取 member-call 目标 (owner_fqn, method) 从 member_refs。
-
-/// 检测 `<EnumType>.<Variant>(args)` 形态的 enum variant 构造调用。
-/// 若 `enum_sym` 是一个 enum 类型 FQN 且 `variant_sym` 是其 variant，返回 EnumVariant 决议。
-fn derive_enum_variant_call(
-    builder: &mut FnLowering,
-    enum_sym: Symbol,
-    variant_sym: Symbol,
-    return_ty: scoop2_hir::ty::TypeId,
-) -> Option<scoop2_hir::hir::ResolvedCall> {
-    let enum_name = builder.hir.interner.resolve(enum_sym);
-    // 候选 enum FQN：裸名 / package prefix / scoop.core。
-    let prefix = builder
-        .hir
-        .file(builder.file_id)
-        .map(|f| f.package_prefix.as_str())
-        .unwrap_or("");
-    let candidates = [
-        enum_name.to_string(),
-        if prefix.is_empty() {
-            enum_name.to_string()
-        } else {
-            format!("{}.{}", prefix, enum_name)
-        },
-        format!("scoop.core.{}", enum_name),
-    ];
-    for cand in &candidates {
-        if let Some(enum_fqn) = builder.hir.interner.get(cand)
-            && let Some(variants) = builder.hir.enum_variants.get(&enum_fqn)
-            && variants.contains(&variant_sym)
-        {
-            return Some(scoop2_hir::hir::ResolvedCall::EnumVariant {
-                enum_fqn,
-                variant_name: variant_sym,
-                return_ty,
-            });
-        }
-    }
-    None
 }
 
 /// 把 ResolvedCall 发射为 Rvalue::Call。
@@ -1637,15 +1588,9 @@ fn lower_member_access(
     span: Span,
     ty: scoop2_hir::ty::TypeId,
 ) -> Operand {
-    // enum variant 值（`Color.Red`，无构造调用）：直接构造 EnumVariant。
-    // 必须在 lower receiver 之前特判——类型名 Ident 无法 lower 为值。
-    if let ExprKind::Ident(recv_ident) = &receiver.kind
-        && let MemberName::Named(variant_ident) = member
-        && let Some(rc) =
-            derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
-    {
-        return emit_call_resolution(builder, &rc, vec![], span, ty, None, builder.current_expr_id);
-    }
+    // member access without call: `a.b` / `a.b` as value (not `a.b(args)`).
+    // For enum variant values (`Color.Red`), HIR's derive_member_ref handles
+    // resolution. MIR no longer does enum variant detection.
     let recv = lower_expr(builder, receiver);
     let recv_ty = super::stmt::operand_ty(builder, &recv);
     match member {
@@ -3391,6 +3336,15 @@ fn resolve_struct_fqn(builder: &FnLowering, sym: Symbol) -> Symbol {
     sym
 }
 
+/// ⚠ 架构注解：此函数是**仅供错误程序使用**的 fallback。
+///
+/// 对合法程序，HIR 的 `type_ref_resolutions` 表已预计算所有 TypeRef→TypeId，
+/// MIR 应只调 `builder.hir.type_ref_resolution()`。此函数仅在 HIR 未覆盖时触发：
+/// - 错误程序（typecheck 已报诊断，pipeline 继续 lowering）
+/// - val 声明的类型注解（非表达式节点，未走 walk_expr 的 TypeCheck/Cast 分支）
+///
+/// 此 fallback 不查 HIR resolution 表（hir.members / hir.enum_variants 等）。
+/// 仅使用 hir.interner（字符串池）+ hir.is_reference_nominal（类型分类）。
 pub(crate) fn resolve_typeref(
     builder: &mut FnLowering,
     ty_ref: &ast::TypeRef,
