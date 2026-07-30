@@ -864,6 +864,30 @@ public fun <T> println(value: T): Unit where T: ToString {
 public enum Option<T> {
     Some(val value: T),
     None
+
+    /// 取出 Some 的值；None 则 panic（`a!!` 的脱糖目标）。
+    public fun unwrap(): T {
+        return when (this) {
+            Some(v) -> v
+            None -> panic("Option.unwrap on None")
+        }
+    }
+
+    /// 是否为 Some。
+    public fun isSome(): Bool {
+        return when (this) {
+            Some(_) -> true
+            None -> false
+        }
+    }
+
+    /// 是否为 None。
+    public fun isNone(): Bool {
+        return when (this) {
+            Some(_) -> false
+            None -> true
+        }
+    }
 }
 
 // ---- Continuation（spec §5.5）----
