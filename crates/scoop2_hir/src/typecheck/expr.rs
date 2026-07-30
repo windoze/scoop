@@ -4990,11 +4990,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .collect();
         if winners.len() == 1 {
             // 选中 ctor 的 decl_span：仅 secondary 时记录（primary 的 span = 类名 span，
-            // 不记录——codegen 按 None=primary 处理）。primary 是 ctors[0]（当有 primary 时）。
+            // 不记录——codegen 按 None=primary 处理）。
+            // primary 判定：类有 primary_ctor（class_ctor_params 有条目）且选中签名
+            // 的 decl_span == primary 的 decl_span。无 primary_ctor 的类，全部是 secondary。
             let selected = applicable[winners[0]];
-            let is_primary = ctors
-                .first()
-                .is_some_and(|primary| primary.decl_span == selected.decl_span);
+            let has_primary_ctor = self.env.class_ctor_params.contains_key(&fqn);
+            let primary_span = if has_primary_ctor {
+                // primary 的 decl_span = primary_ctor.span 或 d.name.span。
+                // 在 ctor_signatures 中，primary 若存在则是第一个签名（但无 primary_ctor
+                // 的类不含 primary 签名）。
+                ctors.first().map(|c| c.decl_span)
+            } else {
+                None
+            };
+            let is_primary = primary_span.is_some_and(|ps| ps == selected.decl_span);
             let selected_span = if is_primary { None } else { Some(selected.decl_span) };
             return (result, selected_span);
         }
