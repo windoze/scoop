@@ -621,6 +621,19 @@ pub enum LirRvalue {
     /// resume_value=0，返回 GC 指针。frame 指针与 step_fn 从所在函数的
     /// `LirEffectInfo` 推导（MakeContinuation 只可能出现在 EffectStep 函数体内）。
     MakeContinuation { state: u64 },
+    /// 构造 chain link 对象（48B：frame@32 + step_fn@40）并写入 TLS
+    /// `__scoop_effect_chain`。用于 EffectStep 函数把 callee 挂起继续向外
+    /// 传播；`state` 是本函数传播路径的续点编号。产出 Unit。
+    /// frame 指针与 step_fn 同样从 `LirEffectInfo` 推导。
+    MakeChainLink { state: u64 },
+    /// 读取 TLS `__scoop_effect_chain` 并清零（消费语义），产出 GC 指针
+    /// （result_ty，Any ref）。callee 挂起传播到本函数时其 chain link 留在
+    /// TLS；act 块首部取走存入 frame link 槽，或丢弃（abandon 语义）。
+    TakeChainLink { result_ty: TypeId },
+    /// 从本函数 frame 的 `link_slot` 槽取出 chain link，调用其
+    /// `step_fn(link.frame, resume_word)`，产出 callee 的 Step 值。
+    /// 仅出现在 EffectStep 函数的 call-chain resume 续点块。
+    ResumeChainLink { link_slot: u64, result_ty: TypeId },
 }
 
 /// LIR 调用信息。

@@ -45,6 +45,28 @@ pub const CONT_SIZE_BYTES: u64 = 72;
 /// continuation 对象对齐。
 pub const CONT_ALIGN_BYTES: u64 = 8;
 
+// ---------------------------------------------------------------------------
+// Chain link 对象布局（唯一权威来源）
+// ---------------------------------------------------------------------------
+//
+// Chain link 是 GC 堆对象（`scoop_alloc_typed` 分配），用于 EffectStep 函数把
+// callee 的挂起沿调用链逐层传播。布局固定：
+//   offset  0..32 : ScoopObjectHeader
+//   offset 32     : frame 指针（GC ptr → 本层 frame 对象，需 trace）
+//   offset 40     : step 函数指针（native ptr，指向 `sym$step`）
+// 总大小 48 字节，align 8。trace bitmap = 0b01（只 trace frame 指针）。
+//
+// 不变式：link 写入 TLS `__scoop_effect_chain` 后，caller 在无分配窗口内
+// 用 TakeChainLink 取走存入自己 frame 的 link 槽（frame descriptor 自动
+// trace），TLS 清零；期间不触发 GC（无分配），因此 TLS 本身无需扫描。
+
+/// chain link frame 指针字段偏移。
+pub const LINK_OFFSET_FRAME: u64 = OBJECT_HEADER_SIZE_BYTES;
+/// chain link step 函数指针字段偏移。
+pub const LINK_OFFSET_STEP_FN: u64 = 40;
+/// chain link 对象总大小（字节）。
+pub const LINK_SIZE_BYTES: u64 = 48;
+
 /// 构建 canonical continuation 字段表（含真实偏移与字段种类）。
 pub fn canonical_continuation_fields(
     frame_ty: TypeId,

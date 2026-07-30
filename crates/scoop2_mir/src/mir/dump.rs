@@ -498,6 +498,11 @@ fn dump_rvalue(
             dump_operand(rhs, labels)
         ),
         Rvalue::MakeContinuation { state } => format!("MakeContinuation(state={})", state),
+        Rvalue::MakeChainLink { state } => format!("MakeChainLink(state={})", state),
+        Rvalue::TakeChainLink { .. } => "TakeChainLink".to_string(),
+        Rvalue::ResumeChainLink { link_slot, .. } => {
+            format!("ResumeChainLink(link_slot={})", link_slot)
+        }
     }
 }
 

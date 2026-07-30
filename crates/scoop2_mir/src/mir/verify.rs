@@ -450,6 +450,9 @@ where
         Rvalue::PerformResult { .. }
         | Rvalue::ClassLit { .. }
         | Rvalue::MakeContinuation { .. }
+        | Rvalue::MakeChainLink { .. }
+        | Rvalue::TakeChainLink { .. }
+        | Rvalue::ResumeChainLink { .. }
         | Rvalue::TopLevelRef { .. }
         | Rvalue::UnresolvedName { .. } => vec![],
         Rvalue::IndexAccess {

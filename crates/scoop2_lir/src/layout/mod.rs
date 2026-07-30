@@ -275,20 +275,46 @@ fn compute_layout(
             }
             // 尝试 enum 布局：查 HIR enum_variants。
             if let Some(variants) = hir.enum_variants.get(&n.fqn) {
-                // 当前 Scoop 枚举变体无关联数据（值枚举），payload 始终为空。
-                // max_payload_size / max_payload_align 保留为 0 / 1，待将来支持带
-                // payload 的变体时在此累加。
-                let max_payload_size: u64 = 0;
-                let max_payload_align: u64 = 1;
+                // variant payload：`<enum_fqn>.<variant>` 在 hir.members 中登记了
+                // payload 字段类型（注册见 typecheck/env.rs）。payload 区按字段
+                // 声明序做 struct 式布局，取所有 variant 的 max size/align。
+                // 单字段 variant 记录 payload_ty（构造/提取的具类型读写依据）；
+                // 多字段 variant 暂只保留空间（无单一 payload TypeId 可表达）。
+                let mut max_payload_size: u64 = 0;
+                let mut max_payload_align: u64 = 1;
                 let mut variant_layouts: Vec<EnumVariantLayout> = Vec::new();
                 for (i, &variant_name_sym) in variants.iter().enumerate() {
                     let variant_name = interner.resolve(variant_name_sym).to_string();
-                    // enum variant 的 payload：当前 Scoop 枚举变体无关联数据（值枚举）。
-                    // 如果将来支持带 payload 的变体，此处需查 payload 类型并更新 max_payload_size/align。
+                    let variant_fqn_text = format!("{fqn_text}.{variant_name}");
+                    let ordered = interner
+                        .get(&variant_fqn_text)
+                        .map(|vf| hir.ordered_members(&vf))
+                        .unwrap_or_default();
+                    let mut payload_offset: u64 = 0;
+                    let mut payload_align: u64 = 1;
+                    for (_field_name_sym, field_ty) in &ordered {
+                        enqueue(*field_ty);
+                        let (fsize, falign) = sub_size_align(*field_ty, types);
+                        payload_offset = align_to(payload_offset, falign) + fsize;
+                        if falign > payload_align {
+                            payload_align = falign;
+                        }
+                    }
+                    let payload_size = align_to(payload_offset, payload_align);
+                    if payload_size > max_payload_size {
+                        max_payload_size = payload_size;
+                    }
+                    if payload_align > max_payload_align {
+                        max_payload_align = payload_align;
+                    }
                     variant_layouts.push(EnumVariantLayout {
                         name: variant_name,
                         tag_value: i as u64,
-                        payload_ty: None,
+                        payload_ty: if ordered.len() == 1 {
+                            Some(ordered[0].1)
+                        } else {
+                            None
+                        },
                     });
                 }
                 let tag_size: u64 = if variants.len() <= 256 { 1 } else { 4 };
@@ -692,10 +718,22 @@ fn prepare_effect_synthetic_layouts(
         .all(|s| s.fqn != format!("{}$step", fd.fqn))
     {
         // tag 字节 + payload union（按最大 payload 对齐）。
+        // escape continuation 的 answer 经克隆边界 Complete 回传，与函数返回
+        // 共用 payload 槽——answer 类型一并参与尺寸/对齐计算（元数据里的
+        // Complete payload_ty 仍是函数返回类型，caller 提取不受影响）。
         let mut max_payload_size: u64 = 0;
         let mut max_payload_align: u64 = 1;
         for v in &eff_abi.step_variants {
             let (s, a) = sub_size_align(v.payload_ty, types);
+            if s > max_payload_size {
+                max_payload_size = s;
+            }
+            if a > max_payload_align {
+                max_payload_align = a;
+            }
+        }
+        for &ty in &eff_abi.escape_answer_tys {
+            let (s, a) = sub_size_align(ty, types);
             if s > max_payload_size {
                 max_payload_size = s;
             }
@@ -734,6 +772,66 @@ fn prepare_effect_synthetic_layouts(
             fqn: format!("{}$step", fd.fqn),
             kind: SyntheticTypeKind::StepEnum,
             layout: step_layout,
+        });
+    }
+
+    // 间接调用链站点（FunValue/Closure）的合成 Step 布局：与函数自身 Step
+    // 同款 tagged-union，按站点变体表计算。Direct 站点的 step_ty 即 callee 的
+    // abi.step_ty（由 callee 的登记覆盖，含 escape_answer_tys 撑大尺寸），
+    // 这里只登记 callee 处看不到的站点级合成类型（step_fqn_sym 为 default）。
+    // 已知限制：站点布局不含动态 callee 的 escape_answer_tys——callee 内部
+    // 若有 answer 类型大于返回类型的 escape continuation，其 wrapper 写出的
+    // Step 可能大于站点布局（当前 fixture 集未覆盖该形状）。
+    for site in &eff_abi.call_chain_sites {
+        // 无条件覆盖：通用 compute_layout 可能已先为站点合成 nominal 登记了
+        // 空 struct 布局（nominal 无字段元数据），tagged-union 才是权威布局。
+        // 同 TypeId ⇒ 同 payload 组合 ⇒ 同布局，重复登记幂等。
+        if site.step_variants.is_empty()
+            || site.step_ty == eff_abi.step_ty
+            || site.step_fqn_sym != scoop2_base::Symbol::default()
+        {
+            continue;
+        }
+        let mut max_payload_size: u64 = 0;
+        let mut max_payload_align: u64 = 1;
+        for v in &site.step_variants {
+            let (s, a) = sub_size_align(v.payload_ty, types);
+            if s > max_payload_size {
+                max_payload_size = s;
+            }
+            if a > max_payload_align {
+                max_payload_align = a;
+            }
+        }
+        let tag_size: u64 = 1;
+        let payload_offset = align_to(tag_size, max_payload_align);
+        let total = align_to(
+            payload_offset + max_payload_size,
+            max_payload_align.max(tag_size),
+        );
+        let site_layout = TypeLayout {
+            size: total,
+            align: max_payload_align.max(tag_size),
+            kind: TypeLayoutKind::Enum {
+                tag_size,
+                tag_offset: 0,
+                variants: site
+                    .step_variants
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| EnumVariantLayout {
+                        name: v.name.clone(),
+                        tag_value: i as u64,
+                        payload_ty: Some(v.payload_ty),
+                    })
+                    .collect(),
+            },
+        };
+        program.type_layouts.insert(site.step_ty, site_layout.clone());
+        program.synthetic_types.push(SyntheticTypeDecl {
+            fqn: format!("{}$ccstep{}_{}", fd.fqn, site.block_idx, site.stmt_idx),
+            kind: SyntheticTypeKind::StepEnum,
+            layout: site_layout,
         });
     }
 

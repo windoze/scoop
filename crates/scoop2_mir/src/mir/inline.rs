@@ -732,6 +732,9 @@ fn rename_rvalue(rv: &mut Rvalue, map: &HashMap<LocalId, LocalId>) {
         | Rvalue::UnresolvedName { .. }
         | Rvalue::ClassLit { .. }
         | Rvalue::MakeContinuation { .. }
+        | Rvalue::MakeChainLink { .. }
+        | Rvalue::TakeChainLink { .. }
+        | Rvalue::ResumeChainLink { .. }
         | Rvalue::PerformResult { .. } => {}
         Rvalue::TypeTest { value, .. } => {
             *value = rename_operand(value, map);

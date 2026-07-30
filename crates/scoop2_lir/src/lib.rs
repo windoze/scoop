@@ -105,6 +105,21 @@ fn build_step_tag_tables(mir: &MaterializedMir, interner: &Interner) -> StepTagT
                 .insert((abi.step_ty, v.name_sym), i as u64);
             tables.pattern_tags.insert((fn_sym, v.name_sym), i as u64);
         }
+        // call-chain 站点的 Step 变体表：间接调用站点（FunValue/Closure）使用
+        // 站点级合成 Step 类型（step_fqn_sym 为 default Symbol），其 PatternMatch
+        // 的 (enum_fqn_sym, variant_sym) 键不在任何函数的 step_variants 里，
+        // 必须按站点变体表登记（声明序 = tag；Direct 站点与 callee 自身登记
+        // 键值相同，重复 insert 幂等）。
+        for site in &abi.call_chain_sites {
+            for (i, v) in site.step_variants.iter().enumerate() {
+                tables
+                    .rvalue_tags
+                    .insert((site.step_ty, v.name_sym), i as u64);
+                tables
+                    .pattern_tags
+                    .insert((site.step_fqn_sym, v.name_sym), i as u64);
+            }
+        }
     }
     tables
 }
@@ -579,11 +594,25 @@ fn map_rvalue(
                     0
                 }
             };
-            // payload 类型：从 transport 的 aggregate 获取。
+            // payload 类型：用户 enum 的单字段 variant 以 HIR 登记的字段类型
+            // 为准（`<enum_fqn>.<variant>` members，与布局计算的 payload 类型
+            // 一致）；其余（合成 Step enum / 内建 Option 等）从 transport 的
+            // aggregate 获取。
+            let variant_payload_ty = (|| {
+                let variant_fqn_text =
+                    format!("{}.{}", interner.resolve(*enum_fqn), vname);
+                let vf = interner.get(&variant_fqn_text)?;
+                let ordered = hir.ordered_members(&vf);
+                if ordered.len() == 1 {
+                    Some(ordered[0].1)
+                } else {
+                    None
+                }
+            })();
             let payload_ty = if args.is_empty() {
                 None
             } else {
-                Some(payload.aggregate_ty)
+                Some(variant_payload_ty.unwrap_or(payload.aggregate_ty))
             };
             LirRvalue::EnumVariant {
                 enum_ty: *enum_ty,
@@ -759,6 +788,19 @@ fn map_rvalue(
         },
         Rvalue::MakeContinuation { state } => LirRvalue::MakeContinuation {
             state: *state as u64,
+        },
+        Rvalue::MakeChainLink { state } => LirRvalue::MakeChainLink {
+            state: *state as u64,
+        },
+        Rvalue::TakeChainLink { result_ty } => LirRvalue::TakeChainLink {
+            result_ty: *result_ty,
+        },
+        Rvalue::ResumeChainLink {
+            link_slot,
+            result_ty,
+        } => LirRvalue::ResumeChainLink {
+            link_slot: *link_slot as u64,
+            result_ty: *result_ty,
         },
     };
     Ok(out)

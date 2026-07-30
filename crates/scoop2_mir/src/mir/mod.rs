@@ -140,6 +140,24 @@ pub struct EffectStepAbi {
     /// resume 值投递目标 local 及其类型。codegen 的 step 函数在这些块首把
     /// resume word 转为 resume_ty 存入 resume_local。
     pub resume_points: Vec<ResumePoint>,
+    /// EffectStep → EffectStep 调用点的链式挂起/恢复信息（见 CallChainSite）。
+    /// 这些 state 编号不进 `resume_points`（ResumeChainLink 自带 word 投递机制，
+    /// word 从 step 函数参数直接读取，不经 resume_local）。
+    pub call_chain_sites: Vec<CallChainSite>,
+    /// escape 后缀克隆块内、与已适配 call-chain 站点对应的调用语句坐标
+    /// （block_idx, stmt_idx，均为 add_state_dispatch shift 后的最终值）。
+    /// 克隆块里的调用与 `call_chain_sites` 记录的原始站点共享同一条
+    /// B_N/act 适配链（克隆时已一并复制），阶段 B 必须同样跳过，否则会
+    /// 把 op-Step 分支错误地改成 panic("unhandled effect")。
+    pub cloned_call_sites: Vec<(usize, usize)>,
+    /// 本函数内 escape continuation 的 answer 类型集（各 handle 结果 local
+    /// 的类型）。resume answer 经克隆边界的 `Return(Complete(answer))` 回传，
+    /// 与函数自身返回共用 Step 的 Complete payload 槽；当 answer 类型比函数
+    /// 返回类型大时（典型：`fun main()` 返回 Unit、handle 结果 Int），布局
+    /// 必须把 payload 槽撑到能装下 answer，否则写入/读取双双越界。
+    /// 仅用于 LIR 的 Step 布局尺寸计算，不改变 Complete 变体的元数据类型
+    /// （caller 的 PatternExtract 仍按函数返回类型提取）。
+    pub escape_answer_tys: Vec<TypeId>,
 }
 
 /// 一个 resume 续点（escape continuation 捕获点对应的续行位置）。
@@ -570,6 +588,64 @@ pub enum Rvalue {
     /// codegen 用当前函数的 frame 指针 + `sym$step` 函数指针填充；
     /// `state` 是捕获点的 resume 续点编号（1-based）。
     MakeContinuation { state: u128 },
+    /// 构造 chain link 对象（48B：frame@32 + step_fn@40），并把其地址写入
+    /// TLS `__scoop_effect_chain`。用于 EffectStep 函数把 callee 的挂起
+    /// 继续向外传播：link 记录本函数的 frame 与 `sym$step`，使外层 resume
+    /// 时能沿链逐层恢复。产出 Unit。
+    MakeChainLink { state: u128 },
+    /// 读取 TLS `__scoop_effect_chain` 并清零（消费语义）。callee 挂起
+    /// 传播到本函数时，其 chain link 留在 TLS；本函数在 act 块首部取走
+    /// 存入自己 frame 的 per-call-site link 槽（resume 时用），或直接丢弃
+    /// （abandon 语义）。产出 Any ref（result_ty）。
+    TakeChainLink { result_ty: TypeId },
+    /// 从本函数 frame 的 `link_slot` 槽取出 chain link，调用其
+    /// `step_fn(link.frame, resume_word)`，产出被调函数的 Step 值
+    /// （`result_ty` = callee 的 Step 类型）。仅出现在 EffectStep 函数的
+    /// call-chain resume 续点块（R_N）。
+    ResumeChainLink { link_slot: u128, result_ty: TypeId },
+}
+
+/// 一条 EffectStep → EffectStep 调用边的链式挂起/恢复信息。
+///
+/// 当 EffectStep 函数体内出现对另一个 EffectStep 函数的 Direct 调用时，
+/// callee 的挂起（op Step）需要沿调用链逐层传播。phase A 为该调用点：
+/// - 在 frame 里追加一个 link 槽（Any ref，存 TakeChainLink 取回的 callee link）；
+/// - 新建 resume 续点块 R_N（`ResumeChainLink`）与路由块 B_N（Complete/op 分流）；
+/// - 分配 state 编号：被本函数 escape arm 覆盖时有 N_cap（→ 克隆续点），
+///   纯传播时有 N_prop（→ 原始续点）。
+/// phase B 按 (block_idx, stmt_idx) 匹配本记录重写调用点与路由块。
+#[derive(Clone, Debug)]
+pub struct CallChainSite {
+    /// 调用语句所在块 / 语句下标（phase A 记录时的原始坐标，phase B 匹配用）。
+    pub block_idx: usize,
+    pub stmt_idx: usize,
+    /// callee 的 FQN（调试/诊断用）。
+    pub callee_fqn: String,
+    /// 原始调用结果目标 local（Complete payload 提取后写入）。
+    pub target_local: LocalId,
+    /// 原始调用结果类型（= callee Step 的 Complete payload 类型）。
+    pub result_ty: TypeId,
+    /// frame 中 per-call-site 的 link 槽下标（store.any() 类型）。
+    pub link_slot: u128,
+    /// escape 捕获态编号（callee 有 op 被本函数 escape arm 捕获时 Some）。
+    pub state_cap: Option<u128>,
+    /// 传播态编号（callee 有 op 未被本函数 handle 覆盖、向外传播时 Some）。
+    pub state_prop: Option<u128>,
+    /// 存放 callee Step 值的临时 local（ty = callee 的 Step nominal 类型）。
+    pub step_local: LocalId,
+    /// resume 续点块 R_N（state dispatch 的跳转目标；含 ResumeChainLink）。
+    pub resume_block: BasicBlockId,
+    /// 路由块 B_N（初始路径与 resume 路径共享的 Complete/op 分流块）。
+    pub dispatch_block: BasicBlockId,
+    /// 本站点 dispatch 使用的 Step 类型（Direct 站点 = callee 的 Step 类型；
+    /// FunValue/Closure 间接站点 = 按函数值效果行合成的 Step 类型，
+    /// fqn sym 为 default、args 编码 Complete/op payload 类型以保证布局唯一）。
+    pub step_ty: TypeId,
+    /// 本站点 Step 类型的标识 Symbol（Pattern::Variant 的 enum_fqn 键；
+    /// 间接站点为 default Symbol，tag 由 LIR 按 `step_variants` 声明序登记）。
+    pub step_fqn_sym: scoop2_base::Symbol,
+    /// 本站点 Step 变体表（Complete + 站点效果行展开的 op，声明序 = tag）。
+    pub step_variants: Vec<StepVariant>,
 }
 
 /// 调用实参（可命名 / 可展开 `*expr`）。

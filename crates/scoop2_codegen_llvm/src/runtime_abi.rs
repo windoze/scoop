@@ -69,6 +69,8 @@ pub mod sym {
     pub const MEMCPY: &str = "llvm.memcpy.p0.p0.i64";
     /// TLS 全局：explicit root frame 链表顶。
     pub const EXPLICIT_ROOT_FRAME_TOP: &str = "__scoop_explicit_root_frame_top";
+    /// TLS 全局：effect chain link 单槽（编译产物内部符号，C runtime 不感知）。
+    pub const EFFECT_CHAIN: &str = "__scoop_effect_chain";
     /// ScoopString 的运行时 type descriptor（extern，由运行时提供）。
     pub const STRING_TYPE_DESC: &str = "__scoop_type_desc_runtime__ScoopString";
 }

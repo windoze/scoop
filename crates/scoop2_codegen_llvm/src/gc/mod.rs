@@ -42,6 +42,25 @@ impl<'ctx> CodegenContext<'ctx> {
         gv.as_pointer_value()
     }
 
+    /// 声明/获取 TLS 全局 `__scoop_effect_chain`（thread_local，native ptr）。
+    ///
+    /// 与 `__scoop_explicit_root_frame_top` 不同：本符号只在编译产物的单个
+    /// LLVM 模块内使用（C runtime 不感知），因此直接在模块内发定义
+    /// （Internal 链接 + null 初始化），不依赖 libscooprt。
+    pub fn effect_chain_global(&self) -> PointerValue<'ctx> {
+        let name = crate::runtime_abi::sym::EFFECT_CHAIN;
+        if let Some(gv) = self.module.get_global(name) {
+            return gv.as_pointer_value();
+        }
+        let ptr_ty = self.context.ptr_type(native_address_space());
+        let gv = self.module.add_global(ptr_ty, Some(AddressSpace::from(0u16)), name);
+        gv.set_linkage(Linkage::Internal);
+        gv.set_initializer(&ptr_ty.const_null());
+        // thread_local 标记。
+        gv.set_thread_local_mode(Some(inkwell::ThreadLocalMode::GeneralDynamicTLSModel));
+        gv.as_pointer_value()
+    }
+
     /// 构造 `ScoopRootFrameHeader` LLVM 类型：`{ ptr prev; ptr desc }`。
     pub fn root_frame_header_type(&self) -> inkwell::types::StructType<'ctx> {
         let ptr = self.context.ptr_type(native_address_space());

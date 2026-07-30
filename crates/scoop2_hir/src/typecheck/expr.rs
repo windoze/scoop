@@ -3057,6 +3057,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     {
                         let bt = self.lower_type(ty_ref);
                         self.locals.insert(binder.name.symbol, bt);
+                        // 记录 ascription TypeRef 的解析类型（MIR lower_handle 的
+                        // binder 类型查询读 `expr_types[ty_ref.id]`）。
+                        self.expr_types.set(ty_ref.id, bt);
                     }
                 }
                 let arm_tys: Vec<TypeId> = arms.iter().map(|a| self.walk_expr(&a.body)).collect();
@@ -4000,6 +4003,68 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             }
             TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
                 let new_inner = self.subst_all_params(inner, subst);
+                self.env.store.option(new_inner)
+            }
+            _ => ty,
+        }
+    }
+
+    /// 按类型参数名做位置替换：`Continuation<Resume, Answer>.resume(): Answer`
+    /// 中 `Answer` → receiver 第二类型实参（`subst_all_params` 的全替换会把
+    /// 多类型参数 nominal 的所有 Param 错换成第一实参）。名字不在映射中的
+    /// Param 保持原样。
+    fn subst_named_params(&mut self, ty: TypeId, map: &HashMap<Symbol, TypeId>) -> TypeId {
+        match self.env.store.kind(ty).clone() {
+            TypeKind::Param(tp) => map.get(&tp.name).copied().unwrap_or(ty),
+            TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) => {
+                let params: Vec<TypeId> = ft
+                    .params
+                    .iter()
+                    .map(|&p| self.subst_named_params(p, map))
+                    .collect();
+                let return_ty = self.subst_named_params(ft.return_ty, map);
+                let receiver = ft.receiver.map(|r| self.subst_named_params(r, map));
+                self.env.store.function(FunctionType {
+                    receiver,
+                    params,
+                    return_ty,
+                    effects: ft.effects,
+                    closed: ft.closed,
+                })
+            }
+            TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                let args: Vec<TypeId> = n
+                    .args
+                    .iter()
+                    .map(|&a| self.subst_named_params(a, map))
+                    .collect();
+                self.env.store.ref_nominal(crate::ty::NominalType {
+                    fqn: n.fqn,
+                    args,
+                    eff: n.eff,
+                })
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                let args: Vec<TypeId> = n
+                    .args
+                    .iter()
+                    .map(|&a| self.subst_named_params(a, map))
+                    .collect();
+                self.env.store.value_nominal(crate::ty::NominalType {
+                    fqn: n.fqn,
+                    args,
+                    eff: n.eff,
+                })
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Tuple(els)) => {
+                let new_els: Vec<TypeId> = els
+                    .iter()
+                    .map(|&e| self.subst_named_params(e, map))
+                    .collect();
+                self.env.store.tuple(new_els)
+            }
+            TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
+                let new_inner = self.subst_named_params(inner, map);
                 self.env.store.option(new_inner)
             }
             _ => ty,
@@ -5569,6 +5634,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         member: MemberName,
         _span: Span,
     ) -> TypeId {
+        // tuple 索引（`t.0`）：元素类型从 tuple 类型派生。
+        if let MemberName::TupleIndex { value, .. } = member {
+            return tuple_element_ty(self.env, receiver_ty, value)
+                .unwrap_or_else(|| self.env.store.nothing());
+        }
         let MemberName::Named(name) = member else {
             return self.env.store.nothing();
         };
@@ -6727,7 +6797,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 // 泛型方法（如 <U: ref> forwardRefMember(x: U)）的 U 是方法自己的类型参数，
                 // 不能用 receiver 类型实参替换。
                 if sig.type_param_count == 0
-                    && self.env.interner.resolve(method_name) != "resume"
                     && let Some(rargs) =
                         nominal_fqn_of(self.env.store.kind(receiver_ty)).and_then(|_| {
                             match self.env.store.kind(receiver_ty) {
@@ -6742,76 +6811,109 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         })
                     && !rargs.is_empty()
                 {
-                    let subst_arg = rargs
-                        .first()
-                        .copied()
-                        .unwrap_or_else(|| self.env.store.nothing());
-                    let subst_params: Vec<TypeId> = sig
-                        .params
-                        .iter()
-                        .map(|&p| self.subst_all_params(p, subst_arg))
-                        .collect();
-                    let matches = subst_params.len() == arg_types.len()
-                        && arg_types
+                    // 声明类型参数名 → receiver 类型实参的位置映射。多类型参数
+                    // nominal（如 `Continuation<Resume, Answer>.resume(): Answer`）
+                    // 必须按名替换——全替换会把 Answer 错换成第一实参；映射缺失
+                    // 时 resume 保持未替换返回（历史行为），其余场景退化为
+                    // 第一实参全替换（单类型参数 nominal 与之等效）。
+                    let named_map: HashMap<Symbol, TypeId> = self
+                        .env
+                        .type_constraints(fqn)
+                        .map(|(names, _)| {
+                            names.iter().copied().zip(rargs.iter().copied()).collect()
+                        })
+                        .unwrap_or_default();
+                    let is_resume = self.env.interner.resolve(method_name) == "resume";
+                    let use_named = !named_map.is_empty();
+                    if !is_resume || use_named {
+                        let subst_arg = rargs
+                            .first()
+                            .copied()
+                            .unwrap_or_else(|| self.env.store.nothing());
+                        let subst_params: Vec<TypeId> = sig
+                            .params
                             .iter()
-                            .zip(&subst_params)
-                            .all(|(a, p)| self.assignable(*a, *p));
-                    if !matches {
-                        let method_text = self.env.interner.resolve(method_name);
-                        let recv_desc = self
-                            .resolve_member_owner_fqn(receiver_ty)
-                            .map(|fqn| self.env.interner.resolve(fqn).to_string())
-                            .unwrap_or_else(|| self.describe(receiver_ty));
-                        let param_descs: Vec<String> =
-                            subst_params.iter().map(|&p| self.describe(p)).collect();
-                        let candidate_desc = format!(
-                            "{method_text}({recv_desc}{})",
-                            if param_descs.is_empty() {
-                                String::new()
-                            } else {
-                                format!(", {}", param_descs.join(", "))
-                            }
-                        );
-                        let reason = if subst_params.len() != arg_types.len() {
-                            format!(
-                                "实参数量 {} 与形参数量 {} 不匹配",
-                                arg_types.len(),
-                                subst_params.len()
-                            )
-                        } else {
-                            let mut found = None;
-                            for (i, (&at, &pt)) in arg_types.iter().zip(&subst_params).enumerate() {
-                                if !self.assignable(at, pt) {
-                                    let pname = sig
-                                        .param_names
-                                        .get(i)
-                                        .map(|s| self.env.interner.resolve(*s).to_string())
-                                        .unwrap_or_else(|| format!("param{i}"));
-                                    found = Some(format!(
-                                        "argument {} type {} is not a subtype of parameter `{}` type {}",
-                                        i + 2,
-                                        self.describe(at),
-                                        pname,
-                                        self.describe_fqn(pt)
-                                    ));
-                                    break;
+                            .map(|&p| {
+                                if use_named {
+                                    self.subst_named_params(p, &named_map)
+                                } else {
+                                    self.subst_all_params(p, subst_arg)
                                 }
-                            }
-                            found.unwrap_or_else(|| "参数类型不匹配".to_string())
+                            })
+                            .collect();
+                        let matches = subst_params.len() == arg_types.len()
+                            && arg_types
+                                .iter()
+                                .zip(&subst_params)
+                                .all(|(a, p)| self.assignable(*a, *p));
+                        if !matches {
+                            let method_text = self.env.interner.resolve(method_name);
+                            let recv_desc = self
+                                .resolve_member_owner_fqn(receiver_ty)
+                                .map(|fqn| self.env.interner.resolve(fqn).to_string())
+                                .unwrap_or_else(|| self.describe(receiver_ty));
+                            let param_descs: Vec<String> =
+                                subst_params.iter().map(|&p| self.describe(p)).collect();
+                            let candidate_desc = format!(
+                                "{method_text}({recv_desc}{})",
+                                if param_descs.is_empty() {
+                                    String::new()
+                                } else {
+                                    format!(", {}", param_descs.join(", "))
+                                }
+                            );
+                            let reason = if subst_params.len() != arg_types.len() {
+                                format!(
+                                    "实参数量 {} 与形参数量 {} 不匹配",
+                                    arg_types.len(),
+                                    subst_params.len()
+                                )
+                            } else {
+                                let mut found = None;
+                                for (i, (&at, &pt)) in
+                                    arg_types.iter().zip(&subst_params).enumerate()
+                                {
+                                    if !self.assignable(at, pt) {
+                                        let pname = sig
+                                            .param_names
+                                            .get(i)
+                                            .map(|s| self.env.interner.resolve(*s).to_string())
+                                            .unwrap_or_else(|| format!("param{i}"));
+                                        found = Some(format!(
+                                            "argument {} type {} is not a subtype of parameter `{}` type {}",
+                                            i + 2,
+                                            self.describe(at),
+                                            pname,
+                                            self.describe_fqn(pt)
+                                        ));
+                                        break;
+                                    }
+                                }
+                                found.unwrap_or_else(|| "参数类型不匹配".to_string())
+                            };
+                            self.diags.push(diagnostics::no_applicable_overload_member(
+                                &candidate_desc,
+                                &reason,
+                                span,
+                                sig.decl_span,
+                                sig.decl_file,
+                            ));
+                            return if use_named {
+                                self.subst_named_params(sig.return_ty, &named_map)
+                            } else {
+                                self.subst_all_params(sig.return_ty, subst_arg)
+                            };
+                        }
+                        // 返回类型也需用 receiver 类型实参替换（如 Array<Int>.get(): T → Int，
+                        // Continuation<Int, Int>.resume(): Answer → Int）。
+                        let subst_return = if use_named {
+                            self.subst_named_params(sig.return_ty, &named_map)
+                        } else {
+                            self.subst_all_params(sig.return_ty, subst_arg)
                         };
-                        self.diags.push(diagnostics::no_applicable_overload_member(
-                            &candidate_desc,
-                            &reason,
-                            span,
-                            sig.decl_span,
-                            sig.decl_file,
-                        ));
-                        return self.subst_all_params(sig.return_ty, subst_arg);
+                        self.record_callee_effects(sig, args, span);
+                        return subst_return;
                     }
-                    // 返回类型也需用 receiver 类型实参替换（如 Array<Int>.get(): T → Int）。
-                    let subst_return = self.subst_all_params(sig.return_ty, subst_arg);
-                    self.record_callee_effects(sig, args, span);
-                    return subst_return;
                 }
                 // eff-param 方法（`<eff E>`）：从 lambda 实参推断 E 的 effect 并传播到外层。
                 self.record_callee_effects(sig, args, span);

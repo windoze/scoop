@@ -761,7 +761,31 @@ fn lower_fun_body(
     use scoop2_syntax::ast::FunBody;
     match body {
         FunBody::Block(b) => {
-            crate::mir::lower::stmt::lower_block(&mut builder, b);
+            let tail = crate::mir::lower::stmt::lower_block(&mut builder, b);
+            // 块尾表达式是函数的隐式返回值：若尾块尚未终结（没有显式
+            // return / 其他终结符）且尾值非 Unit，补 `Return(tail)`。
+            // 尾值为 Unit 时保持旧行为（finish 补 Return(None)）——避免给
+            // 非 Unit 返回类型的死尾块（如循环后的 merge 块）接上类型不符的
+            // `ret i8 0`。
+            let tail_is_unit = matches!(
+                tail,
+                crate::mir::Operand::Const(crate::mir::ConstValue::Unit)
+            );
+            let bb = builder.current_bb;
+            if !tail_is_unit
+                && matches!(
+                    builder.body.blocks[bb.0 as usize].terminator.kind,
+                    TerminatorKind::Unreachable
+                )
+            {
+                builder.terminate(
+                    Terminator {
+                        span: b.span,
+                        kind: TerminatorKind::Return { value: Some(tail) },
+                    },
+                    bb,
+                );
+            }
         }
         FunBody::Expr(e) => {
             let val = crate::mir::lower::expr::lower_expr(&mut builder, e);

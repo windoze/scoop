@@ -2692,6 +2692,12 @@ pub fn lower_handle(
         Option<crate::mir::LocalId>,
     > = std::collections::HashMap::new();
     let mut handler_arms: Vec<crate::mir::transport::HandlerArm> = Vec::with_capacity(arms.len());
+    // 每个 arm 的 (符号, binder local) 绑定记录：arm body 在 handle body 之后
+    // lower，期间 body 内同名 val 声明会遮盖 construction 期注册的 binder
+    // 绑定（arm 体内引用 binder 名会错解析为 body 局部）。lower 各 arm body
+    // 前按此记录重新安装。
+    let mut arm_binder_pairs: Vec<Vec<(scoop2_base::Symbol, crate::mir::LocalId)>> =
+        Vec::with_capacity(arms.len());
     for arm in arms {
         // op_fqn = effect_path.last_segment . op_name
         let effect_name = arm
@@ -2758,6 +2764,7 @@ pub fn lower_handle(
                 .unwrap_or_default()
         };
         let mut binder_locals: Vec<crate::mir::LocalId> = Vec::new();
+        let mut binder_pairs: Vec<(scoop2_base::Symbol, crate::mir::LocalId)> = Vec::new();
         let mut payload_component_tys: Vec<scoop2_hir::ty::TypeId> = Vec::new();
         for (bi, b) in arm.op.binders.iter().enumerate() {
             let bty = b
@@ -2777,6 +2784,7 @@ pub fn lower_handle(
                 .or_insert_with(|| builder.symbol_locals.get(&b.name.symbol).copied());
             builder.symbol_locals.insert(b.name.symbol, lid);
             binder_locals.push(lid);
+            binder_pairs.push((b.name.symbol, lid));
         }
         // continuation_local：resuming arm 的 escape_continuation binder。
         let (continuation_local, kind) = if let Some(k_ident) = &arm.escape_continuation {
@@ -2793,6 +2801,7 @@ pub fn lower_handle(
                 .entry(k_ident.symbol)
                 .or_insert_with(|| builder.symbol_locals.get(&k_ident.symbol).copied());
             builder.symbol_locals.insert(k_ident.symbol, lid);
+            binder_pairs.push((k_ident.symbol, lid));
             (
                 Some(lid),
                 crate::mir::transport::HandlerArmKind::EscapeContinuation,
@@ -2818,6 +2827,7 @@ pub fn lower_handle(
             body_ty: ty,
             kind,
         });
+        arm_binder_pairs.push(binder_pairs);
     }
     // 发射 Handle 终结符。
     let handle_metadata = HandleMetadata {
@@ -2850,8 +2860,26 @@ pub fn lower_handle(
     // arms（lower 各 arm body 到对应块，结果写 result）。
     for (i, arm) in arms.iter().enumerate() {
         builder.current_bb = arm_bbs[i];
-        // binder locals 已在上方 HandlerArm 构造时注册。
+        // binder locals 在 HandlerArm 构造时注册，但 handle body lowering 期间
+        // 同名 val 声明会遮盖它们（symbol_locals 是平铺 map、无作用域弹出）。
+        // lower 本 arm body 前重新安装本 arm 的 binder 绑定，结束后恢复。
+        let mut arm_saved: Vec<(scoop2_base::Symbol, Option<crate::mir::LocalId>)> =
+            Vec::with_capacity(arm_binder_pairs[i].len());
+        for &(sym, lid) in &arm_binder_pairs[i] {
+            arm_saved.push((sym, builder.symbol_locals.get(&sym).copied()));
+            builder.symbol_locals.insert(sym, lid);
+        }
         let v = lower_expr(builder, &arm.body);
+        for (sym, old) in arm_saved {
+            match old {
+                Some(lid) => {
+                    builder.symbol_locals.insert(sym, lid);
+                }
+                None => {
+                    builder.symbol_locals.remove(&sym);
+                }
+            }
+        }
         builder.assign(result, Rvalue::Use(v), arm.body.span);
         builder.goto(exit_bb, arm.span);
     }

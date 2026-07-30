@@ -382,6 +382,60 @@ impl<'ctx> CodegenContext<'ctx> {
         )
     }
 
+    /// resume 复合值 box 的 type descriptor（按值类型一物一 descriptor）。
+    ///
+    /// 复合（struct/tuple 等按值）resume payload 经 GC box 传递：box 布局 =
+    /// object header 之后按值类型布局存放载荷。trace bitmap 由
+    /// `collect_gc_word_offsets` 枚举 GC 指针叶子得到（与 env blob 同一机制）。
+    /// box 只在 resume word 写入 → step_fn 投递的窗口内被 continuation 的
+    /// resume_value 字段引用，该窗口无 safepoint（与 continuation descriptor
+    /// 不 trace resume_value 同一假设），bitmap 为正确性兜底。
+    pub fn get_or_create_resume_box_type_descriptor(
+        &self,
+        value_ty: scoop2_hir::ty::TypeId,
+        payload_size: u64,
+    ) -> PointerValue<'ctx> {
+        let header_size = self.target_data.get_store_size(&self.object_header_type());
+        let mut word_offsets: Vec<u64> = Vec::new();
+        collect_gc_word_offsets(&self.type_layouts, value_ty, 0, &mut word_offsets);
+        let mut bitmap_words: Vec<u64> = Vec::new();
+        for w in word_offsets {
+            let word_idx = (w / 64) as usize;
+            while bitmap_words.len() <= word_idx {
+                bitmap_words.push(0);
+            }
+            bitmap_words[word_idx] |= 1u64 << (w % 64);
+        }
+        // bitmap 全零时传空（trace_bitmap = null，表示无引用字段）。
+        if bitmap_words.iter().all(|&w| w == 0) {
+            bitmap_words.clear();
+        }
+        let name = format!("__scoop_type_desc_resume_box_{}", value_ty.0);
+        self.emit_simple_type_descriptor(
+            &name,
+            stable_hash_u64(&name),
+            header_size + payload_size,
+            header_size,
+            bitmap_words,
+        )
+    }
+
+    /// chain link 对象的 type descriptor（全程序共享一个）。
+    ///
+    /// 布局见 `scoop2_lir::effect`（header 32B | frame@32 | step_fn@40，共
+    /// 48B）。trace bitmap = 0b01：只 trace frame 指针（word 0，GC 堆对象
+    /// 引用）；step_fn 是代码地址，不需要 trace。
+    pub fn get_or_create_chain_link_type_descriptor(&self) -> PointerValue<'ctx> {
+        let header_size = self.target_data.get_store_size(&self.object_header_type());
+        self.emit_simple_type_descriptor(
+            "__scoop_type_desc_chain_link",
+            stable_hash_u64("__scoop_type_desc_chain_link"),
+            scoop2_lir::effect::LINK_SIZE_BYTES,
+            header_size,
+            vec![0b01],
+        )
+    }
+
     /// 构建一个无 itable/vtable/parent 的 type descriptor 全局（内部链接）。
     /// `bitmap_words` 为空时 trace_bitmap = null（无引用字段）。
     fn emit_simple_type_descriptor(

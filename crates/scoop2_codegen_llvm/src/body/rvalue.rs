@@ -98,6 +98,12 @@ pub fn lower_rvalue<'a, 'ctx>(
         } => lower_make_closure(fl, env_local, invoke_fqn),
         LirRvalue::ClassLit { type_fqn } => lower_class_lit(fl, type_fqn),
         LirRvalue::MakeContinuation { state } => lower_make_continuation(fl, *state),
+        LirRvalue::MakeChainLink { state } => lower_make_chain_link(fl, *state),
+        LirRvalue::TakeChainLink { result_ty } => lower_take_chain_link(fl, *result_ty),
+        LirRvalue::ResumeChainLink {
+            link_slot,
+            result_ty,
+        } => lower_resume_chain_link(fl, *link_slot, *result_ty),
     }
 }
 
@@ -354,6 +360,279 @@ fn lower_make_continuation<'a, 'ctx>(
         )
         .map_err(|e| llvm(e, "store cont resume_value"))?;
     Ok(cont_gc.into())
+}
+
+/// `MakeChainLink { state }`：构造 chain link 对象并写入 TLS
+/// `__scoop_effect_chain`，产出 Unit（i8 0）。
+///
+/// 用于 EffectStep 函数向外传播 callee 的挂起：link 记录本函数的 frame 与
+/// `sym$step` 地址，外层 resume 时沿链逐层恢复。`state` 是本函数传播路径的
+/// 续点编号（外层 ResumeChainLink 调用本层 step_fn 时经 word 无关的 state
+/// dispatch 进入对应续点）。
+fn lower_make_chain_link<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    state: u64,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    use scoop2_lir::effect::{LINK_OFFSET_FRAME, LINK_OFFSET_STEP_FN, LINK_SIZE_BYTES};
+    let llvm = |e: inkwell::builder::BuilderError, what: &str| {
+        CodegenError::llvm(e.to_string(), what, scoop2_base::Span::default())
+    };
+    let step_fn_sym = match &fl.effect {
+        Some(e) => e.step_fn_sym.clone(),
+        None => {
+            return Err(CodegenError::llvm(
+                "MakeChainLink 出现在非 EffectStep 函数".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    let i64_ty = fl.cg.context.i64_type();
+    let i8_ty = fl.cg.context.i8_type();
+    let native_ptr = fl.cg.native_ptr_ty();
+    // 1. 堆分配（descriptor bitmap = 0b01，trace frame 指针）。
+    let desc = fl.cg.get_or_create_chain_link_type_descriptor();
+    let link = fl
+        .builder
+        .build_call(
+            fl.rt.alloc_typed,
+            &[desc.into(), i64_ty.const_int(LINK_SIZE_BYTES, false).into()],
+            "link_alloc",
+        )
+        .map_err(|e| llvm(e, "alloc chain link"))?;
+    let link_gc = match link.try_as_basic_value() {
+        inkwell::values::ValueKind::Basic(v) => {
+            super::expect_ptr_val(v, "chain link alloc", &fl.fqn)?
+        }
+        inkwell::values::ValueKind::Instruction(_) => {
+            return Err(CodegenError::llvm(
+                "scoop_alloc_typed 未返回值".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    let link_int = fl
+        .builder
+        .build_ptr_to_int(link_gc, i64_ty, "link_int")
+        .map_err(|e| llvm(e, "link ptrtoint"))?;
+    let link_native = fl
+        .builder
+        .build_int_to_ptr(link_int, native_ptr, "link_native")
+        .map_err(|e| llvm(e, "link inttoptr"))?;
+    let field = |off: u64, name: &str| -> CodegenResult<inkwell::values::PointerValue<'ctx>> {
+        unsafe {
+            fl.builder
+                .build_in_bounds_gep(i8_ty, link_native, &[i64_ty.const_int(off, false)], name)
+        }
+        .map_err(|e| llvm(e, "gep chain link field"))
+    };
+    // 2. frame 指针（当前函数的 frame，root slot 重载）。
+    let frame = fl.effect_frame_ptr()?;
+    fl.builder
+        .build_store(field(LINK_OFFSET_FRAME, "link_frame")?, frame)
+        .map_err(|e| llvm(e, "store link frame"))?;
+    // 3. step_fn 地址（`sym$step` 函数）。
+    let step_fv = fl.cg.module.get_function(&step_fn_sym).ok_or_else(|| {
+        CodegenError::llvm(
+            format!("step 函数 {} 未声明", step_fn_sym),
+            &fl.fqn,
+            scoop2_base::Span::default(),
+        )
+    })?;
+    fl.builder
+        .build_store(
+            field(LINK_OFFSET_STEP_FN, "link_stepfn")?,
+            step_fv.as_global_value().as_pointer_value(),
+        )
+        .map_err(|e| llvm(e, "store link step_fn"))?;
+    // 4. state 仅供诊断对称性——chain link 不带 state 字段：本层 frame 的
+    //    state 槽（slot 0）在挂出前已由 housekeeping 写入，resume 时 step_fn
+    //    从 frame 自身读取 state 做 dispatch。此处只把 link 写入 TLS。
+    let _ = state;
+    let tls = fl.cg.effect_chain_global();
+    fl.builder
+        .build_store(tls, link_native)
+        .map_err(|e| llvm(e, "store effect chain TLS"))?;
+    // 产出 Unit（i8 0）。
+    Ok(i8_ty.const_zero().into())
+}
+
+/// `TakeChainLink { result_ty }`：读取 TLS `__scoop_effect_chain` 并清零
+/// （消费语义），产出 GC 指针（Any ref）。
+fn lower_take_chain_link<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    _result_ty: TypeId,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    let llvm = |e: inkwell::builder::BuilderError, what: &str| {
+        CodegenError::llvm(e.to_string(), what, scoop2_base::Span::default())
+    };
+    let i64_ty = fl.cg.context.i64_type();
+    let native_ptr = fl.cg.native_ptr_ty();
+    let tls = fl.cg.effect_chain_global();
+    let link_native = fl
+        .builder
+        .build_load(native_ptr, tls, "chain_take")
+        .map_err(|e| llvm(e, "load effect chain TLS"))?
+        .into_pointer_value();
+    // 清零（消费语义：每个 link 只被取走一次）。
+    fl.builder
+        .build_store(tls, native_ptr.const_null())
+        .map_err(|e| llvm(e, "clear effect chain TLS"))?;
+    // native ptr → GC ptr（Any ref）。
+    let as_int = fl
+        .builder
+        .build_ptr_to_int(link_native, i64_ty, "chain_take_int")
+        .map_err(|e| llvm(e, "chain take ptrtoint"))?;
+    let gc_ptr = fl
+        .builder
+        .build_int_to_ptr(as_int, fl.cg.gc_ptr_ty(), "chain_take_gc")
+        .map_err(|e| llvm(e, "chain take inttoptr"))?;
+    Ok(gc_ptr.into())
+}
+
+/// `ResumeChainLink { link_slot, result_ty }`：从本函数 frame 的 link 槽取出
+/// chain link，间接调用 `step_fn(link.frame, resume_word)`，产出 callee 的
+/// Step 值（result_ty）。
+///
+/// 仅出现在 EffectStep 函数的 call-chain resume 续点块；resume word 从
+/// step 函数参数（经 `resume_word_alloca`）读取。
+fn lower_resume_chain_link<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    link_slot: u64,
+    result_ty: TypeId,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    use scoop2_lir::effect::{LINK_OFFSET_FRAME, LINK_OFFSET_STEP_FN};
+    let llvm = |e: inkwell::builder::BuilderError, what: &str| {
+        CodegenError::llvm(e.to_string(), what, scoop2_base::Span::default())
+    };
+    let word_alloca = match &fl.effect {
+        Some(e) => e.resume_word_alloca.ok_or_else(|| {
+            CodegenError::llvm(
+                "ResumeChainLink：step 函数缺 resume word alloca".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            )
+        })?,
+        None => {
+            return Err(CodegenError::llvm(
+                "ResumeChainLink 出现在非 EffectStep 函数".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    let i64_ty = fl.cg.context.i64_type();
+    let i8_ty = fl.cg.context.i8_type();
+    let native_ptr = fl.cg.native_ptr_ty();
+    // 1. 从 frame 槽 load link（槽类型 Any ref = GC ptr）。
+    let slot_ptr = fl.frame_slot_ptr_at(link_slot)?;
+    let link_gc = fl
+        .builder
+        .build_load(fl.cg.gc_ptr_ty(), slot_ptr, "chain_resume_link")
+        .map_err(|e| llvm(e, "load chain link slot"))?
+        .into_pointer_value();
+    let link_int = fl
+        .builder
+        .build_ptr_to_int(link_gc, i64_ty, "chain_resume_int")
+        .map_err(|e| llvm(e, "chain resume ptrtoint"))?;
+    let link_native = fl
+        .builder
+        .build_int_to_ptr(link_int, native_ptr, "chain_resume_native")
+        .map_err(|e| llvm(e, "chain resume inttoptr"))?;
+    // 2. null 检查（防御：link 槽在 capture 时必已填入）。
+    let is_null = fl
+        .builder
+        .build_is_null(link_native, "chain_link_null")
+        .map_err(|e| llvm(e, "chain link null check"))?;
+    let ok_bb = fl.cg.context.append_basic_block(fl.fv, "chain_link_ok");
+    let panic_bb = fl.cg.context.append_basic_block(fl.fv, "chain_link_panic");
+    fl.builder
+        .build_conditional_branch(is_null, panic_bb, ok_bb)
+        .map_err(|e| llvm(e, "chain link br"))?;
+    fl.builder.position_at_end(panic_bb);
+    let msg = fl
+        .cg
+        .get_or_create_string_literal("continuation chain broken")?;
+    let msg_int = fl
+        .builder
+        .build_ptr_to_int(msg, i64_ty, "chain_panic_msg_int")
+        .map_err(|e| llvm(e, "chain panic msg int"))?;
+    let msg_native = fl
+        .builder
+        .build_int_to_ptr(msg_int, native_ptr, "chain_panic_msg")
+        .map_err(|e| llvm(e, "chain panic msg"))?;
+    fl.builder
+        .build_call(fl.rt.panic, &[msg_native.into()], "chain_panic_call")
+        .map_err(|e| llvm(e, "chain panic call"))?;
+    fl.builder
+        .build_unreachable()
+        .map_err(|e| llvm(e, "chain panic unreachable"))?;
+    fl.builder.position_at_end(ok_bb);
+    // 3. 读 link.frame / link.step_fn。
+    let field = |off: u64, name: &str| -> CodegenResult<inkwell::values::PointerValue<'ctx>> {
+        unsafe {
+            fl.builder
+                .build_in_bounds_gep(i8_ty, link_native, &[i64_ty.const_int(off, false)], name)
+        }
+        .map_err(|e| llvm(e, "gep chain link field"))
+    };
+    let frame_ptr = fl
+        .builder
+        .build_load(native_ptr, field(LINK_OFFSET_FRAME, "cl_frame_slot")?, "cl_frame")
+        .map_err(|e| llvm(e, "load link frame"))?
+        .into_pointer_value();
+    let step_fn = fl
+        .builder
+        .build_load(native_ptr, field(LINK_OFFSET_STEP_FN, "cl_stepfn_slot")?, "cl_stepfn")
+        .map_err(|e| llvm(e, "load link step_fn"))?
+        .into_pointer_value();
+    // 4. resume word（step 函数参数）。
+    let word = fl
+        .builder
+        .build_load(i64_ty, word_alloca, "cl_word")
+        .map_err(|e| llvm(e, "load resume word"))?;
+    // 5. 间接调用 step_fn(frame, word) → callee Step（result_ty）。
+    let step_ret_llvm = fl.cg.lower_type(result_ty, fl.layouts)?;
+    let step_fn_ty = match step_ret_llvm {
+        inkwell::types::BasicTypeEnum::IntType(t) => {
+            t.fn_type(&[native_ptr.into(), i64_ty.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::FloatType(t) => {
+            t.fn_type(&[native_ptr.into(), i64_ty.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::PointerType(t) => {
+            t.fn_type(&[native_ptr.into(), i64_ty.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::StructType(t) => {
+            t.fn_type(&[native_ptr.into(), i64_ty.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::ArrayType(t) => {
+            t.fn_type(&[native_ptr.into(), i64_ty.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::VectorType(t) => {
+            t.fn_type(&[native_ptr.into(), i64_ty.into()], false)
+        }
+        inkwell::types::BasicTypeEnum::ScalableVectorType(_) => {
+            return Err(CodegenError::llvm(
+                "Step 类型不合法".to_string(),
+                &fl.fqn,
+                scoop2_base::Span::default(),
+            ))
+        }
+    };
+    let call = fl
+        .builder
+        .build_indirect_call(step_fn_ty, step_fn, &[frame_ptr.into(), word.into()], "cl_step_call")
+        .map_err(|e| llvm(e, "chain step call"))?;
+    match call.try_as_basic_value() {
+        inkwell::values::ValueKind::Basic(v) => Ok(v),
+        inkwell::values::ValueKind::Instruction(_) => Err(CodegenError::llvm(
+            "ResumeChainLink: step_fn 未返回值".to_string(),
+            &fl.fqn,
+            scoop2_base::Span::default(),
+        )),
+    }
 }
 
 /// 加载一个聚合值（Struct/Tuple）。
@@ -661,6 +940,9 @@ fn discriminant(rv: &LirRvalue) -> &'static str {
         LirRvalue::MakeArray { .. } => "MakeArray",
         LirRvalue::StructLit { .. } => "StructLit",
         LirRvalue::MakeContinuation { .. } => "MakeContinuation",
+        LirRvalue::MakeChainLink { .. } => "MakeChainLink",
+        LirRvalue::TakeChainLink { .. } => "TakeChainLink",
+        LirRvalue::ResumeChainLink { .. } => "ResumeChainLink",
         LirRvalue::MakeClosure { .. } => "MakeClosure",
         LirRvalue::ClassLit { .. } => "ClassLit",
     }

@@ -725,6 +725,49 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
                     )
                 })?
                 .into(),
+            // 复合值（struct/tuple 等按值类型）：与 `lower_resume` 的 GC box
+            // 传递对称——word 是 box 指针，载荷在 object header 之后，按目标
+            // 类型直接 load。
+            inkwell::types::BasicTypeEnum::StructType(_)
+            | inkwell::types::BasicTypeEnum::ArrayType(_) => {
+                let box_native = self
+                    .builder
+                    .build_int_to_ptr(word, self.cg.native_ptr_ty(), "resume_box_native")
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "resume box inttoptr",
+                            scoop2_base::Span::default(),
+                        )
+                    })?;
+                let payload_ptr = unsafe {
+                    self.builder.build_in_bounds_gep(
+                        self.cg.context.i8_type(),
+                        box_native,
+                        &[i64_ty.const_int(
+                            scoop2_lir::effect::OBJECT_HEADER_SIZE_BYTES,
+                            false,
+                        )],
+                        "resume_box_payload",
+                    )
+                }
+                .map_err(|e| {
+                    CodegenError::llvm(
+                        e.to_string(),
+                        "resume box payload gep",
+                        scoop2_base::Span::default(),
+                    )
+                })?;
+                self.builder
+                    .build_load(target_llvm, payload_ptr, "resume_unbox")
+                    .map_err(|e| {
+                        CodegenError::llvm(
+                            e.to_string(),
+                            "resume unbox load",
+                            scoop2_base::Span::default(),
+                        )
+                    })?
+            }
             other => {
                 return Err(CodegenError::unsupported(
                     format!("resume 值类型不支持按 word 投递：{:?}（复合值装箱未实现）", other),

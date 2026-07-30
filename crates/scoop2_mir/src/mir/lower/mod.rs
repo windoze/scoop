@@ -262,6 +262,7 @@ fn remap_rvalue(
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. }
         | Rvalue::MakeContinuation { .. }
+        | Rvalue::MakeChainLink { .. }
         | Rvalue::IntEq { .. } => {}
         Rvalue::TopLevelRef(tl) => {
             for t in &mut tl.generic_type_args {
@@ -314,6 +315,9 @@ fn remap_rvalue(
             env_contract.env_ty = TypeStore::remap_id(remap, env_contract.env_ty);
         }
         Rvalue::PerformResult { result_ty, .. } => {
+            *result_ty = TypeStore::remap_id(remap, *result_ty);
+        }
+        Rvalue::TakeChainLink { result_ty } | Rvalue::ResumeChainLink { result_ty, .. } => {
             *result_ty = TypeStore::remap_id(remap, *result_ty);
         }
     }

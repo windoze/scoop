@@ -86,6 +86,7 @@ fn lower_resume<'a, 'ctx>(
 ) -> CodegenResult<BasicValueEnum<'ctx>> {
     use scoop2_lir::effect::{
         CONT_OFFSET_FRAME, CONT_OFFSET_RESUME_VALUE, CONT_OFFSET_RESUMED, CONT_OFFSET_STEP_FN,
+        OBJECT_HEADER_SIZE_BYTES,
     };
     let i64 = fl.cg.context.i64_type();
     let i8 = fl.cg.context.i8_type();
@@ -207,6 +208,87 @@ fn lower_resume<'a, 'ctx>(
                     .into_int_value()
             };
             bits
+        }
+        // 复合值（struct/tuple 等按值类型）：GC box 传递——值存入 box 的
+        // header 后载荷区，word 携带 box 指针；续点投递处对称解箱
+        // （见 `emit_resume_delivery`）。box 只在 word 写入 → step_fn 投递
+        // 的窗口内被 continuation resume_value 字段引用，该窗口无 safepoint
+        // （与 continuation descriptor 不 trace resume_value 同一假设）。
+        other @ (BasicValueEnum::StructValue(_) | BasicValueEnum::ArrayValue(_)) => {
+            let value_ty = match resume_value {
+                LirOperand::Local(id) => fl.local_types.get(id).copied().ok_or_else(|| {
+                    CodegenError::unsupported(
+                        format!("resume value local {} 类型未知", id),
+                        &fl.fqn,
+                        scoop2_base::Span::default(),
+                    )
+                })?,
+                LirOperand::Const(_) => {
+                    return Err(CodegenError::unsupported(
+                        format!(
+                            "resume value 常量复合值不支持按 word 传递：{:?}",
+                            other.get_type()
+                        ),
+                        &fl.fqn,
+                        scoop2_base::Span::default(),
+                    ));
+                }
+            };
+            let payload_size = fl.layouts.get(value_ty).map(|l| l.size).ok_or_else(|| {
+                CodegenError::llvm(
+                    "resume value 布局缺失".to_string(),
+                    &fl.fqn,
+                    scoop2_base::Span::default(),
+                )
+            })?;
+            let desc = fl
+                .cg
+                .get_or_create_resume_box_type_descriptor(value_ty, payload_size);
+            let box_call = fl
+                .builder
+                .build_call(
+                    fl.rt.alloc_typed,
+                    &[
+                        desc.into(),
+                        i64.const_int(OBJECT_HEADER_SIZE_BYTES + payload_size, false)
+                            .into(),
+                    ],
+                    "resume_box_alloc",
+                )
+                .map_err(|e| llvm(e, "resume box alloc"))?;
+            let box_gc = match box_call.try_as_basic_value() {
+                inkwell::values::ValueKind::Basic(v) => {
+                    super::expect_ptr_val(v, "resume box alloc", &fl.fqn)?
+                }
+                inkwell::values::ValueKind::Instruction(_) => {
+                    return Err(CodegenError::llvm(
+                        "scoop_alloc_typed 未返回值".to_string(),
+                        &fl.fqn,
+                        scoop2_base::Span::default(),
+                    ));
+                }
+            };
+            let box_int = fl
+                .builder
+                .build_ptr_to_int(box_gc, i64, "resume_box_int")
+                .map_err(|e| llvm(e, "resume box ptrtoint"))?;
+            let box_native = fl
+                .builder
+                .build_int_to_ptr(box_int, native_ptr, "resume_box_native")
+                .map_err(|e| llvm(e, "resume box inttoptr"))?;
+            let payload_ptr = unsafe {
+                fl.builder.build_in_bounds_gep(
+                    i8,
+                    box_native,
+                    &[i64.const_int(OBJECT_HEADER_SIZE_BYTES, false)],
+                    "resume_box_payload",
+                )
+            }
+            .map_err(|e| llvm(e, "resume box payload gep"))?;
+            fl.builder
+                .build_store(payload_ptr, other)
+                .map_err(|e| llvm(e, "resume box store"))?;
+            box_int
         }
         other => {
             return Err(CodegenError::unsupported(
