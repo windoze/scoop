@@ -595,15 +595,18 @@ fn intrinsic_name_from_fqn(fqn: &str) -> Option<String> {
         "inv" => "inv",
         "shl" => "shl",
         "shr" => "shr",
+        "ushr" => "ushr",
         "compareTo" => "compare_to",
-        "equals" => "equals",
-        "notEquals" => "not_equals",
+        // sysroot 注解名用短形式 `int_eq`/`int_ne`（与 @Intrinsic 注解一致）。
+        "equals" => "eq",
+        "notEquals" => "ne",
         "lt" => "lt",
         "le" => "le",
         "gt" => "gt",
         "ge" => "ge",
         "hashCode" | "hash" => "hash",
         "toInt" => "to_int",
+        "toIntBits" => "to_int",
         "toString" => "to_string",
         _ => return None,
     };
@@ -671,6 +674,58 @@ fn lower_named_intrinsic<'a, 'ctx>(
         let rhs = one_arg(fl, args, 1)?;
         let lhs_i = crate::body::expect_int_val(lhs, "string_compare 参数", &fl.fqn)?;
         let rhs_i = crate::body::expect_int_val(rhs, "string_compare 参数", &fl.fqn)?;
+        // 移位单独处理：保持 lhs 原始位宽（结果类型 = receiver 类型），
+        // 只把移位量归一到 lhs 宽度并按位宽掩码。unify 到 i64 会让结果错位存储
+        // 到窄 receiver 槽（store i64 → load i8）。
+        if matches!(op, IntBin::Shl | IntBin::LShr | IntBin::AShr) {
+            let width = lhs_i.get_type().get_bit_width();
+            let lhs_ty = lhs_i.get_type();
+            let rhs_typed = if rhs_i.get_type().get_bit_width() == width {
+                rhs_i
+            } else if rhs_i.get_type().get_bit_width() < width {
+                fl.builder
+                    .build_int_z_extend(rhs_i, lhs_ty, "shift_amt_ext")
+                    .map_err(|e| {
+                        CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                    })?
+            } else {
+                fl.builder
+                    .build_int_truncate(rhs_i, lhs_ty, "shift_amt_trunc")
+                    .map_err(|e| {
+                        CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                    })?
+            };
+            // Scoop 语义要求移位量按位宽取模（`1 << 64` == `1 << 0` == 1）。
+            // LLVM 的 shl/lshr/ashr 在 shift >= bitwidth 时是 UB，必须先 `& (width-1)`。
+            let mask = lhs_ty.const_int((width - 1) as u64, false);
+            let masked = fl
+                .builder
+                .build_and(rhs_typed, mask, "shift_masked")
+                .map_err(|e| {
+                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+                })?;
+            let res = match op {
+                IntBin::Shl => fl.builder.build_left_shift(lhs_i, masked, "shl"),
+                IntBin::LShr => fl.builder.build_right_shift(lhs_i, masked, false, "lshr"),
+                // `int_shr`：有符号类型算术右移；无符号类型（UInt*）逻辑右移。
+                IntBin::AShr => {
+                    let recv_unsigned =
+                        args.first().is_some_and(|a| operand_is_unsigned(fl, a));
+                    if recv_unsigned {
+                        fl.builder.build_right_shift(lhs_i, masked, false, "lshr")
+                    } else {
+                        fl.builder.build_right_shift(lhs_i, masked, true, "ashr")
+                    }
+                }
+                _ => fl.builder.build_left_shift(lhs_i, masked, "shl"),
+            }
+            .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
+            return Ok(res.into());
+        }
+        let (lhs_i, rhs_i) = unify_int_pair(fl, lhs_i, rhs_i);
+        // 算术结果宽度 = unify 后宽度；但存储回 receiver 类型 slot 时需截断回
+        // receiver 原始宽度（unify 可能把 UInt8 扩到 i64，store i64 到 i8 slot 会越界）。
+        // 此处保留 unify 后结果，由 store 路径按 receiver 类型截断（见 store_local）。
         let res = match op {
             IntBin::Add => fl.builder.build_int_add(lhs_i, rhs_i, "add"),
             IntBin::Sub => fl.builder.build_int_sub(lhs_i, rhs_i, "sub"),
@@ -678,61 +733,33 @@ fn lower_named_intrinsic<'a, 'ctx>(
             IntBin::And => fl.builder.build_and(lhs_i, rhs_i, "and"),
             IntBin::Or => fl.builder.build_or(lhs_i, rhs_i, "or"),
             IntBin::Xor => fl.builder.build_xor(lhs_i, rhs_i, "xor"),
-            // 移位：Scoop 语义要求移位量按位宽取模（`1 << 64` == `1 << 0` == 1）。
-            // LLVM 的 shl/lshr/ashr 在 shift >= bitwidth 时是 UB，必须先 `& (width-1)`。
+            // 移位已在上方单独处理（保持 lhs 原始位宽）；此分支不可达。
             IntBin::Shl | IntBin::LShr | IntBin::AShr => {
-                let width = lhs_i.get_type().get_bit_width();
-                let lhs_ty = lhs_i.get_type();
-                // rhs 归一到 lhs 宽度（Scoop 移位量是 Int/i64，值类型可能是 i8..i64）。
-                let rhs_typed = if rhs_i.get_type().get_bit_width() == width {
-                    rhs_i
-                } else if rhs_i.get_type().get_bit_width() < width {
-                    fl.builder
-                        .build_int_z_extend(rhs_i, lhs_ty, "shift_amt_ext")
-                        .map_err(|e| {
-                            CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                        })?
-                } else {
-                    fl.builder
-                        .build_int_truncate(rhs_i, lhs_ty, "shift_amt_trunc")
-                        .map_err(|e| {
-                            CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                        })?
-                };
-                // Scoop 语义要求移位量按位宽取模（`1 << 64` == `1 << 0` == 1）。
-                // LLVM 的 shl/lshr/ashr 在 shift >= bitwidth 时是 UB，必须先 `& (width-1)`。
-                let mask = lhs_ty.const_int((width - 1) as u64, false);
-                let masked = fl
-                    .builder
-                    .build_and(rhs_typed, mask, "shift_masked")
-                    .map_err(|e| {
-                        CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                    })?;
-                match op {
-                    IntBin::Shl => fl.builder.build_left_shift(lhs_i, masked, "shl"),
-                    IntBin::LShr => fl.builder.build_right_shift(lhs_i, masked, false, "lshr"),
-                    IntBin::AShr => fl.builder.build_right_shift(lhs_i, masked, true, "ashr"),
-                    // 上面 match arm 已限定为三种移位；此分支不可达但保持穷尽。
-                    _ => fl.builder.build_left_shift(lhs_i, masked, "shl"),
-                }
+                fl.builder.build_left_shift(lhs_i, rhs_i, "shl_unreachable")
             }
         }
         .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))?;
         return Ok(res.into());
     }
-    // 整数除法/取余（需符号性；当前按有符号——完整需按类型符号性）。
+    // 整数除法/取余（符号性按 intrinsic 名前缀：`uint_*` 无符号，`int_*` 等有符号）。
     match name {
         n if n.ends_with("_div") => {
             let lhs =
                 crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
             let rhs =
                 crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_signed_div(lhs, rhs, "div")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let (lhs, rhs) = unify_int_pair(fl, lhs, rhs);
+            // 符号性：sysroot 的 UInt*/UIntPtr.div 复用 int_div 注解，故以 receiver
+            // 类型符号性为准（而非注解名前缀）。
+            let is_unsigned = args.first().is_some_and(|a| operand_is_unsigned(fl, a));
+            let r = if is_unsigned {
+                fl.builder.build_int_unsigned_div(lhs, rhs, "udiv")
+            } else {
+                fl.builder.build_int_signed_div(lhs, rhs, "sdiv")
+            }
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+            })?;
             return Ok(r.into());
         }
         n if n.ends_with("_rem") => {
@@ -740,12 +767,16 @@ fn lower_named_intrinsic<'a, 'ctx>(
                 crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
             let rhs =
                 crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_signed_rem(lhs, rhs, "rem")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let (lhs, rhs) = unify_int_pair(fl, lhs, rhs);
+            let is_unsigned = args.first().is_some_and(|a| operand_is_unsigned(fl, a));
+            let r = if is_unsigned {
+                fl.builder.build_int_unsigned_rem(lhs, rhs, "urem")
+            } else {
+                fl.builder.build_int_signed_rem(lhs, rhs, "srem")
+            }
+            .map_err(|e| {
+                CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
+            })?;
             return Ok(r.into());
         }
         n if n.ends_with("_unary_minus") => {
@@ -806,16 +837,28 @@ fn lower_named_intrinsic<'a, 'ctx>(
                 crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
             let rhs =
                 crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
+            let (lhs, rhs) = unify_int_pair(fl, lhs, rhs);
+            let is_unsigned = args.first().is_some_and(|a| operand_is_unsigned(fl, a));
+            let lt_pred = if is_unsigned {
+                IntPredicate::ULT
+            } else {
+                IntPredicate::SLT
+            };
+            let gt_pred = if is_unsigned {
+                IntPredicate::UGT
+            } else {
+                IntPredicate::SGT
+            };
             // 返回 -1/0/1。
             let lt = fl
                 .builder
-                .build_int_compare(IntPredicate::SLT, lhs, rhs, "lt")
+                .build_int_compare(lt_pred, lhs, rhs, "lt")
                 .map_err(|e| {
                     CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
                 })?;
             let gt = fl
                 .builder
-                .build_int_compare(IntPredicate::SGT, lhs, rhs, "gt")
+                .build_int_compare(gt_pred, lhs, rhs, "gt")
                 .map_err(|e| {
                     CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
                 })?;
@@ -840,110 +883,38 @@ fn lower_named_intrinsic<'a, 'ctx>(
         // 注意：`_not_equals` 必须先于 `_equals`——"int_not_equals" 同时以 "_equals" 结尾，
         // 顺序颠倒会把 `!=` 错误地 lowering 成 EQ。
         n if n.ends_with("_not_equals") => {
-            let lhs =
-                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
-            let rhs =
-                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::NE, lhs, rhs, "ne")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let r = lower_int_cmp(fl, name, args, IntCmp::Ne)?;
             return Ok(zext_bool(fl, r, name)?);
         }
         n if n.ends_with("_equals") => {
-            let lhs =
-                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
-            let rhs =
-                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::EQ, lhs, rhs, "eq")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let r = lower_int_cmp(fl, name, args, IntCmp::Eq)?;
             return Ok(zext_bool(fl, r, name)?);
         }
         n if n.ends_with("_lt") => {
-            let lhs =
-                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
-            let rhs =
-                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::SLT, lhs, rhs, "lt")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let r = lower_int_cmp(fl, name, args, IntCmp::Lt)?;
             return Ok(zext_bool(fl, r, name)?);
         }
         n if n.ends_with("_le") => {
-            let lhs =
-                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
-            let rhs =
-                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::SLE, lhs, rhs, "le")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let r = lower_int_cmp(fl, name, args, IntCmp::Le)?;
             return Ok(zext_bool(fl, r, name)?);
         }
         n if n.ends_with("_gt") => {
-            let lhs =
-                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
-            let rhs =
-                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::SGT, lhs, rhs, "gt")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let r = lower_int_cmp(fl, name, args, IntCmp::Gt)?;
             return Ok(zext_bool(fl, r, name)?);
         }
         n if n.ends_with("_ge") => {
-            let lhs =
-                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
-            let rhs =
-                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::SGE, lhs, rhs, "ge")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let r = lower_int_cmp(fl, name, args, IntCmp::Ge)?;
             return Ok(zext_bool(fl, r, name)?);
         }
         // 短形式 `_eq` / `_ne`（sysroot `@Intrinsic("int_eq"/"int_ne")` / `bool_eq`/`bool_ne`）。
         // 注意顺序：必须晚于 `_ge`/`_le`（它们不以 `_eq`/`_ne` 结尾，故无冲突），
         // 但 `_ne` 不能被 `_le` 误匹配（"int_ne" 不以 "_le" 结尾）。
         n if n.ends_with("_ne") => {
-            let lhs =
-                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
-            let rhs =
-                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::NE, lhs, rhs, "ne")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let r = lower_int_cmp(fl, name, args, IntCmp::Ne)?;
             return Ok(zext_bool(fl, r, name)?);
         }
         n if n.ends_with("_eq") => {
-            let lhs =
-                crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
-            let rhs =
-                crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
-            let r = fl
-                .builder
-                .build_int_compare(IntPredicate::EQ, lhs, rhs, "eq")
-                .map_err(|e| {
-                    CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default())
-                })?;
+            let r = lower_int_cmp(fl, name, args, IntCmp::Eq)?;
             return Ok(zext_bool(fl, r, name)?);
         }
         _ => {}
@@ -953,6 +924,78 @@ fn lower_named_intrinsic<'a, 'ctx>(
         &format!("intrinsic lower in {}", fl.fqn),
         scoop2_base::Span::default(),
     ))
+}
+
+/// 整数比较种类。
+#[derive(Clone, Copy)]
+enum IntCmp {
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+}
+
+/// 整数比较 intrinsic lowering：统一操作数位宽 + 按类型符号性选择谓词。
+///
+/// 符号性由 intrinsic 名前缀决定：`uint_*` 用无符号谓词（ULT/ULE/UGT/UGE），
+/// 其它（`int_*`/`bool_*`/`char_*`）用有符号谓词。EQ/NE 与符号无关。
+/// 统一位宽避免 LLVM ICmp 操作数不同宽的验证失败（如 UInt8 == Int 字面量）。
+fn lower_int_cmp<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    name: &str,
+    args: &[LirOperand],
+    cmp: IntCmp,
+) -> CodegenResult<inkwell::values::IntValue<'ctx>> {
+    let lhs = crate::body::expect_int_val(one_arg(fl, args, 0)?, "intrinsic 整型参数", &fl.fqn)?;
+    let rhs = crate::body::expect_int_val(one_arg(fl, args, 1)?, "intrinsic 整型参数", &fl.fqn)?;
+    let (lhs, rhs) = unify_int_pair(fl, lhs, rhs);
+    // 符号性：sysroot UInt*/UIntPtr 的比较复用 int_* 注解，故以 receiver 类型为准。
+    let is_unsigned = args.first().is_some_and(|a| operand_is_unsigned(fl, a));
+    let pred = match cmp {
+        IntCmp::Eq => IntPredicate::EQ,
+        IntCmp::Ne => IntPredicate::NE,
+        IntCmp::Lt => {
+            if is_unsigned {
+                IntPredicate::ULT
+            } else {
+                IntPredicate::SLT
+            }
+        }
+        IntCmp::Le => {
+            if is_unsigned {
+                IntPredicate::ULE
+            } else {
+                IntPredicate::SLE
+            }
+        }
+        IntCmp::Gt => {
+            if is_unsigned {
+                IntPredicate::UGT
+            } else {
+                IntPredicate::SGT
+            }
+        }
+        IntCmp::Ge => {
+            if is_unsigned {
+                IntPredicate::UGE
+            } else {
+                IntPredicate::SGE
+            }
+        }
+    };
+    let label = match cmp {
+        IntCmp::Eq => "eq",
+        IntCmp::Ne => "ne",
+        IntCmp::Lt => "lt",
+        IntCmp::Le => "le",
+        IntCmp::Gt => "gt",
+        IntCmp::Ge => "ge",
+    };
+    fl.builder
+        .build_int_compare(pred, lhs, rhs, label)
+        .map_err(|e| CodegenError::llvm(e.to_string(), name, scoop2_base::Span::default()))
 }
 
 /// 浮点 intrinsic lowering（Float32/Float64；按操作数实际位宽产出 fadd/fcmp 等）。
@@ -1101,6 +1144,61 @@ fn int_binary_op(name: &str) -> Option<IntBin> {
         // 但其运算数恒非负，算术右移 == 逻辑右移，结果正确。
         n if n.ends_with("_shr") => Some(IntBin::AShr),
         _ => None,
+    }
+}
+
+/// 判断一个 operand 的类型是否为无符号整数（UInt*/UIntPtr）。
+///
+/// 用于 `shr` 等与符号性相关的 intrinsic：sysroot 的 `UInt*.shr` 复用 `int_shr`
+/// 注解名，但其语义是无符号逻辑右移。codegen 无法从 LLVM i8/i64 位模式判断符号性，
+/// 需回查 operand 的 Scoop 类型布局。
+fn operand_is_unsigned(
+    fl: &FunctionLowerer,
+    operand: &LirOperand,
+) -> bool {
+    let ty = match operand {
+        LirOperand::Local(id) => fl.local_types.get(id).copied(),
+        _ => None,
+    };
+    let Some(ty) = ty else { return false };
+    let Some(layout) = fl.layouts.get(ty) else {
+        return false;
+    };
+    matches!(
+        layout.kind,
+        scoop2_lir::TypeLayoutKind::Scalar {
+            scalar_kind: scoop2_lir::ScalarKind::Int { unsigned: true, .. },
+            ..
+        }
+    )
+}
+
+/// 把两个整数值归一到相同位宽（取较宽者；窄侧 zext）。
+///
+/// Scoop 的定宽整数（Int8..UInt64）之间运算/比较要求 LLVM 操作数同宽。
+/// 类型检查保证语义合法（如 UInt8 == Int 字面量），但 LLVM 指令拒绝不同宽度的
+/// 操作数；这里按较宽的一侧 zext 较窄侧（无符号语义由具体指令/谓词决定）。
+pub fn unify_int_pair<'a, 'ctx>(
+    fl: &mut FunctionLowerer<'a, 'ctx>,
+    lhs: inkwell::values::IntValue<'ctx>,
+    rhs: inkwell::values::IntValue<'ctx>,
+) -> (inkwell::values::IntValue<'ctx>, inkwell::values::IntValue<'ctx>) {
+    let lw = lhs.get_type().get_bit_width();
+    let rw = rhs.get_type().get_bit_width();
+    if lw == rw {
+        (lhs, rhs)
+    } else if lw > rw {
+        let rhs2 = fl
+            .builder
+            .build_int_z_extend(rhs, lhs.get_type(), "rhs_zext")
+            .unwrap_or_else(|_| lhs.get_type().const_zero());
+        (lhs, rhs2)
+    } else {
+        let lhs2 = fl
+            .builder
+            .build_int_z_extend(lhs, rhs.get_type(), "lhs_zext")
+            .unwrap_or_else(|_| rhs.get_type().const_zero());
+        (lhs2, rhs)
     }
 }
 

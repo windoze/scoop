@@ -996,6 +996,46 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
 
     /// 把一个值存入 local。
     /// GC-managed local 同时把 GC 指针写入 root frame slot（镜像）。
+    /// 把值强制转换到 local 声明类型的 LLVM 表示（标量宽度对齐）。
+    ///
+    /// 必要性：intrinsic 运算可能把窄整数（UInt8）操作数 zext 到 i64 再计算，
+    /// 返回 i64 结果；若直接 store 到 i8 slot 会越界写相邻 local（store i64 到 i8*）。
+    /// 这里按 local 类型把整数结果截断/扩展到正确宽度。指针/聚合保持原样。
+    fn coerce_to_local_type(
+        &self,
+        id: u32,
+        val: BasicValueEnum<'ctx>,
+    ) -> CodegenResult<BasicValueEnum<'ctx>> {
+        let Some(&ty) = self.local_types.get(&id) else {
+            return Ok(val);
+        };
+        let target = self.cg.lower_type(ty, self.layouts)?;
+        match (val, target) {
+            (BasicValueEnum::IntValue(src), inkwell::types::BasicTypeEnum::IntType(dst_ty)) => {
+                let src_w = src.get_type().get_bit_width();
+                let dst_w = dst_ty.get_bit_width();
+                if src_w == dst_w {
+                    Ok(src.into())
+                } else if src_w > dst_w {
+                    self.builder
+                        .build_int_truncate(src, dst_ty, &format!("local{}_trunc", id))
+                        .map(|v| v.into())
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), "coerce trunc", scoop2_base::Span::default())
+                        })
+                } else {
+                    self.builder
+                        .build_int_z_extend(src, dst_ty, &format!("local{}_zext", id))
+                        .map(|v| v.into())
+                        .map_err(|e| {
+                            CodegenError::llvm(e.to_string(), "coerce zext", scoop2_base::Span::default())
+                        })
+                }
+            }
+            (v, _) => Ok(v),
+        }
+    }
+
     pub fn store_local(&self, id: u32, val: BasicValueEnum<'ctx>) -> CodegenResult<()> {
         let slot = self.locals.get(&id).copied().ok_or_else(|| {
             CodegenError::unsupported(
@@ -1004,6 +1044,10 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
                 scoop2_base::Span::default(),
             )
         })?;
+        // 值类型与 local 声明类型的 LLVM 表示宽度可能不一致（如 intrinsic 运算把
+        // UInt8 操作数 zext 到 i64 再算）。store 到窄 slot 会越界写相邻 local，
+        // 必须按 local 类型截断/扩展（标量）或保持（聚合/指针）。
+        let val = self.coerce_to_local_type(id, val)?;
         self.builder.build_store(slot, val).map_err(|e| {
             CodegenError::llvm(e.to_string(), "build_store", scoop2_base::Span::default())
         })?;
