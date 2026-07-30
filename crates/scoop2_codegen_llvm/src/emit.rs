@@ -252,6 +252,15 @@ fn build_effect_wrapper<'ctx>(
     // 3. 写参数槽：第 i 个 LLVM 参数 → frame slot（param_slots 给出槽下标）。
     //    注：wrapper 内参数只在 memset/store 间使用，无额外 safepoint，
     //    不需要 root frame（与 immix 非移动 GC 的既有假设一致）。
+    //    闭包 invoke 函数的首参 `$env` 按统一 ABI 是 env blob 的 GC 指针，
+    //    而 frame 槽声明类型是 env tuple struct——先解包成值再写槽，否则
+    //    step 恢复参数时把 blob 指针位当作 captured 字段值（与普通 invoke
+    //    函数入口的 unpack_closure_env 处理一致）。
+    let closure_env_ty = callable
+        .params
+        .first()
+        .filter(|p| p.name == "$env")
+        .map(|p| p.ty);
     for (i, (param_local, slot)) in ei.param_slots.iter().enumerate() {
         let _ = param_local;
         let param = wrapper_fv.get_nth_param(i as u32).ok_or_else(|| {
@@ -261,6 +270,30 @@ fn build_effect_wrapper<'ctx>(
                 scoop2_base::Span::default(),
             )
         })?;
+        let param = if i == 0
+            && let Some(env_ty) = closure_env_ty
+        {
+            let env_gc = match param {
+                inkwell::values::BasicValueEnum::PointerValue(p) => p,
+                _ => {
+                    return Err(CodegenError::llvm(
+                        "closure $env 参数不是指针".to_string(),
+                        &callable.fqn,
+                        scoop2_base::Span::default(),
+                    ));
+                }
+            };
+            crate::body::unpack_closure_env_value(
+                cg,
+                &program.type_layouts,
+                &builder,
+                &callable.fqn,
+                env_ty,
+                env_gc,
+            )?
+        } else {
+            param
+        };
         let off = tuple_elements
             .get(*slot as usize)
             .map(|f| f.offset)

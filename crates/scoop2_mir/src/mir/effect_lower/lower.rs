@@ -713,12 +713,18 @@ fn adapt_calls_in_body(
             .find(|v| v.is_complete)
             .map(|v| v.name_sym)
             .unwrap_or_default();
-        // 调用点的最内层 handle（区域最小者）。
-        let enclosing: Option<&HandleInfo> = handle_regions
-            .iter()
-            .filter(|(region, _)| region.contains(&bi))
-            .min_by_key(|(region, _)| region.len())
-            .map(|(_, h)| *h);
+        // 调用点的 handle 覆盖查找：从最内层 handle（区域最小者）向外层
+        // 逐层找第一个 arm 覆盖该 op 的 handle——嵌套 handle 时内层未覆盖的
+        // op 向外层 handler 传播（如 escape arm body 内调用 perform 外层
+        // effect 的函数）。
+        let regions_inner_first: Vec<&HandleInfo> = {
+            let mut rs: Vec<&(HashSet<usize>, &HandleInfo)> = handle_regions
+                .iter()
+                .filter(|(region, _)| region.contains(&bi))
+                .collect();
+            rs.sort_by_key(|(region, _)| region.len());
+            rs.into_iter().map(|(_, h)| *h).collect()
+        };
 
         // 分配 Step local（接收 EffectStep 函数的返回值）。
         let step_local = LocalId(body.locals.len() as u32);
@@ -764,8 +770,8 @@ fn adapt_calls_in_body(
             if variant.is_complete {
                 continue;
             }
-            // 1. handle arm 覆盖？（arm op 经规范化后与变体 op 比较）。
-            let arm_route = enclosing.and_then(|h| {
+            // 1. handle arm 覆盖？（arm op 经规范化后与变体 op 比较；内层→外层）。
+            let arm_route = regions_inner_first.iter().find_map(|h| {
                 h.arm_dispatch.iter().find(|(op, _)| {
                     canon_map.get(*op).map(|c| c.replace('.', "_")) == Some(variant.name.clone())
                         || op.replace('.', "_") == variant.name
@@ -2242,6 +2248,11 @@ fn collect_call_chain_sites(
         let region = find_handle_body_region(body, h);
         handle_regions.push((region, h));
     }
+    // 区域按大小升序（内层 handle 在前）——嵌套 handle 的 arm 覆盖查找从
+    // 最内层向外层逐层进行：内层未覆盖的 op 传播到外层 handler。
+    let mut regions_inner_first: Vec<&(HashSet<usize>, &HandleInfo)> =
+        handle_regions.iter().collect();
+    regions_inner_first.sort_by_key(|(region, _)| region.len());
     let mut plans = Vec::new();
     let mut next_state = state_base;
     for (bi, block) in body.blocks.iter().enumerate() {
@@ -2306,12 +2317,6 @@ fn collect_call_chain_sites(
                     }
                     _ => continue,
                 };
-            // 最内层 handle（区域最小者）——与阶段 B 的 enclosing 判定一致。
-            let enclosing: Option<&HandleInfo> = handle_regions
-                .iter()
-                .filter(|(region, _)| region.contains(&bi))
-                .min_by_key(|(region, _)| region.len())
-                .map(|(_, h)| *h);
             let callee_fqn_sym = site_sym;
             // 构造 callee 的 Step 变体表（与 callee 自身 lower_to_effect_step
             // 的产物一致：Complete name_sym = callee FQN Symbol；op 变体
@@ -2336,17 +2341,28 @@ fn collect_call_chain_sites(
             let mut routes: Vec<(usize, CallChainRoute)> = Vec::new();
             let mut needs_cap = false;
             let mut needs_prop = false;
+            // escape arm 所属 handle（克隆边界取该 handle 的出口/结果 local）。
+            let mut esc_handle: Option<&HandleInfo> = None;
             for (vi, variant) in variants.iter().enumerate().skip(1) {
-                let arm_route = enclosing.and_then(|h| {
-                    h.arm_dispatch.iter().find(|(aop, _)| {
-                        canon_map.get(*aop).map(|c| c.replace('.', "_"))
-                            == Some(variant.name.clone())
-                            || aop.replace('.', "_") == variant.name
-                    })
-                });
-                if let Some((_, route)) = arm_route {
+                // arm 覆盖查找：从最内层 handle 向外层逐层找第一个 arm 覆盖
+                // 该 op 的 handle（嵌套 handle：内层未覆盖的 op 向外传播）。
+                let arm_route = regions_inner_first
+                    .iter()
+                    .filter(|(region, _)| region.contains(&bi))
+                    .find_map(|(_, h)| {
+                        h.arm_dispatch
+                            .iter()
+                            .find(|(aop, _)| {
+                                canon_map.get(*aop).map(|c| c.replace('.', "_"))
+                                    == Some(variant.name.clone())
+                                    || aop.replace('.', "_") == variant.name
+                            })
+                            .map(|r| (*h, r))
+                    });
+                if let Some((h, (_, route))) = arm_route {
                     if let Some(k) = route.continuation_local {
                         needs_cap = true;
+                        esc_handle = Some(h);
                         routes.push((
                             vi,
                             CallChainRoute::EscapeArm {
@@ -2411,7 +2427,7 @@ fn collect_call_chain_sites(
                 None
             };
             let esc = if needs_cap {
-                enclosing.map(|h| (h.exit_target, h.result_local))
+                esc_handle.map(|h| (h.exit_target, h.result_local))
             } else {
                 None
             };

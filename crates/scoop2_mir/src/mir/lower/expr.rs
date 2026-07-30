@@ -2317,7 +2317,29 @@ fn lower_lambda(
     // lower lambda body。
     let (body, nested_more, store_out) = match &l.body {
         ast::LambdaBody::Block(b) => {
-            crate::mir::lower::stmt::lower_block(&mut nested_builder, b);
+            let tail = crate::mir::lower::stmt::lower_block(&mut nested_builder, b);
+            // 块尾表达式是 lambda 的隐式返回值（与普通函数体 lower_fun_body
+            // 的处理一致）：尾块未终结且尾值非 Unit 时补 `Return(tail)`，
+            // 否则交由 finish 补 Return(None)。
+            let tail_is_unit = matches!(
+                tail,
+                crate::mir::Operand::Const(crate::mir::ConstValue::Unit)
+            );
+            let bb = nested_builder.current_bb;
+            if !tail_is_unit
+                && matches!(
+                    nested_builder.body.blocks[bb.0 as usize].terminator.kind,
+                    crate::mir::TerminatorKind::Unreachable
+                )
+            {
+                nested_builder.terminate(
+                    crate::mir::Terminator {
+                        span: b.span,
+                        kind: crate::mir::TerminatorKind::Return { value: Some(tail) },
+                    },
+                    bb,
+                );
+            }
             let (bd, more, st) = nested_builder.finish();
             (bd, more, st)
         }

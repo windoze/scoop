@@ -899,70 +899,14 @@ impl<'a, 'ctx> FunctionLowerer<'a, 'ctx> {
         env_ty: TypeId,
         env_gc: PointerValue<'ctx>,
     ) -> CodegenResult<BasicValueEnum<'ctx>> {
-        let struct_llvm = match self.cg.lower_type(env_ty, self.layouts)? {
-            inkwell::types::BasicTypeEnum::StructType(st) => st,
-            // env 不是 record（理论不发生）→ 无法解包。
-            _ => {
-                return Err(CodegenError::unsupported(
-                    "closure $env 类型不是 struct/tuple",
-                    &self.fqn,
-                    scoop2_base::Span::default(),
-                ));
-            }
-        };
-        let fields: Vec<scoop2_lir::FieldLayout> = match self.layouts.get(env_ty) {
-            Some(layout) => match &layout.kind {
-                scoop2_lir::TypeLayoutKind::Struct { fields }
-                | scoop2_lir::TypeLayoutKind::Tuple { elements: fields } => fields.clone(),
-                _ => Vec::new(),
-            },
-            None => Vec::new(),
-        };
-        let header_size = self
-            .cg
-            .target_data
-            .get_store_size(&self.cg.object_header_type());
-        let mut val = struct_llvm.get_undef();
-        for (i, f) in fields.iter().enumerate() {
-            let field_llvm = self.cg.lower_type(f.ty, self.layouts)?;
-            let slot = unsafe {
-                self.builder.build_in_bounds_gep(
-                    self.cg.context.i8_type(),
-                    env_gc,
-                    &[self
-                        .cg
-                        .context
-                        .i64_type()
-                        .const_int(header_size + f.offset, false)],
-                    "env_field_i8",
-                )
-            }
-            .map_err(|e| {
-                CodegenError::llvm(e.to_string(), "gep env field", scoop2_base::Span::default())
-            })?;
-            let field_val = self
-                .builder
-                .build_load(field_llvm, slot, "env_field")
-                .map_err(|e| {
-                    CodegenError::llvm(
-                        e.to_string(),
-                        "load env field",
-                        scoop2_base::Span::default(),
-                    )
-                })?;
-            val = self
-                .builder
-                .build_insert_value(val, field_val, i as u32, "env_unpack")
-                .map_err(|e| {
-                    CodegenError::llvm(
-                        e.to_string(),
-                        "insertvalue env",
-                        scoop2_base::Span::default(),
-                    )
-                })?
-                .into_struct_value();
-        }
-        Ok(val.into())
+        unpack_closure_env_value(
+            self.cg,
+            self.layouts,
+            &self.builder,
+            &self.fqn,
+            env_ty,
+            env_gc,
+        )
     }
 
     /// 把一个值存入 local。
@@ -1183,4 +1127,76 @@ pub fn expect_float_val<'ctx>(
             scoop2_base::Span::default(),
         )),
     }
+}
+
+/// 把统一 ABI 的 env blob 指针解包成 env tuple struct 值（自由函数版）。
+/// blob 布局：object header 之后按 tuple 布局的字段 offset 依次存放字段值
+/// （与 lower_make_closure 的打包侧对称）。供 FunctionLowerer 参数入口与
+/// EffectStep wrapper（emit.rs 写 frame 参数槽）共用。
+pub(crate) fn unpack_closure_env_value<'ctx>(
+    cg: &CodegenContext<'ctx>,
+    layouts: &TypeLayoutTable,
+    builder: &Builder<'ctx>,
+    fqn: &str,
+    env_ty: TypeId,
+    env_gc: PointerValue<'ctx>,
+) -> CodegenResult<BasicValueEnum<'ctx>> {
+    let struct_llvm = match cg.lower_type(env_ty, layouts)? {
+        inkwell::types::BasicTypeEnum::StructType(st) => st,
+        // env 不是 record（理论不发生）→ 无法解包。
+        _ => {
+            return Err(CodegenError::unsupported(
+                "closure $env 类型不是 struct/tuple",
+                fqn,
+                scoop2_base::Span::default(),
+            ));
+        }
+    };
+    let fields: Vec<scoop2_lir::FieldLayout> = match layouts.get(env_ty) {
+        Some(layout) => match &layout.kind {
+            scoop2_lir::TypeLayoutKind::Struct { fields }
+            | scoop2_lir::TypeLayoutKind::Tuple { elements: fields } => fields.clone(),
+            _ => Vec::new(),
+        },
+        None => Vec::new(),
+    };
+    let header_size = cg.target_data.get_store_size(&cg.object_header_type());
+    let mut val = struct_llvm.get_undef();
+    for (i, f) in fields.iter().enumerate() {
+        let field_llvm = cg.lower_type(f.ty, layouts)?;
+        let slot = unsafe {
+            builder.build_in_bounds_gep(
+                cg.context.i8_type(),
+                env_gc,
+                &[cg
+                    .context
+                    .i64_type()
+                    .const_int(header_size + f.offset, false)],
+                "env_field_i8",
+            )
+        }
+        .map_err(|e| {
+            CodegenError::llvm(e.to_string(), "gep env field", scoop2_base::Span::default())
+        })?;
+        let field_val = builder
+            .build_load(field_llvm, slot, "env_field")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "load env field",
+                    scoop2_base::Span::default(),
+                )
+            })?;
+        val = builder
+            .build_insert_value(val, field_val, i as u32, "env_unpack")
+            .map_err(|e| {
+                CodegenError::llvm(
+                    e.to_string(),
+                    "insertvalue env",
+                    scoop2_base::Span::default(),
+                )
+            })?
+            .into_struct_value();
+    }
+    Ok(val.into())
 }
