@@ -1916,7 +1916,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn walk_expr(&mut self, expr: &Expr) -> TypeId {
         let ty = self.walk_expr_inner(expr);
         self.expr_types.set(expr.id, ty);
-        self.backfill_child_types(expr);
+        
         // 先记录语义事实（call_resolutions 等侧表），供 effect row 计算消费。
         self.record_expr_facts(expr, ty);
         // 计算 per-expression effect row（从已记录的子表达式 effect row + call_resolutions 递归推导）。
@@ -2173,31 +2173,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
-    /// 为 `expr` 的所有**未类型化的子表达式（递归全子树）**补写类型（completeness 闸门用）。
-    ///
-    /// 递归遍历 `expr` 的整棵子表达式树；对未在 expr_types 中的节点，派生一个类型并写入：
-    /// - `Ident`：从 value_refs / locals / top_level_val 派生；
-    /// - 其余：Nothing（精确类型不影响 completeness 判定，只保证「有类型」）。
-    ///
-    /// 注意：已类型化的子节点不覆盖，但**仍递归进其子节点**（确保深层也被补）。
-    /// 此方法不改任何决议算法。
-    fn backfill_child_types(&mut self, expr: &Expr) {
-        let nothing = self.env.store.nothing();
-        // 收集 expr 的全部子表达式（递归），按出现顺序。
-        let mut all: Vec<Expr> = Vec::new();
-        collect_all_expr_children(&expr.kind, &mut all);
-        for child in &all {
-            if !self.expr_types.contains(child.id) {
-                let t = if let ExprKind::Ident(ident) = &child.kind {
-                    self.derive_ident_type(ident.symbol, child.id)
-                        .unwrap_or(nothing)
-                } else {
-                    nothing
-                };
-                self.expr_types.set(child.id, t);
-            }
-        }
-    }
 
     /// 派生一个裸 ident 的类型（补 expr_types 用）。
     fn derive_ident_type(&mut self, sym: Symbol, node_id: scoop2_base::NodeId) -> Option<TypeId> {

@@ -260,7 +260,9 @@ impl<'a> Walker<'a> {
             ExprKind::NotNullAssert { expr: inner } => self.expr(inner),
             ExprKind::TypeApply { callee, .. } => self.expr(callee),
             ExprKind::Call { callee, args } => {
-                self.expr(callee);
+                // callee 的类型由 call resolution 推导（不在 expr_types 中独立赋值）。
+                // completeness gate 不检查 callee 节点——它的类型隐含在 Call 的返回类型中。
+                // 仅检查 args。
                 for a in args {
                     self.expr(&a.value);
                 }
