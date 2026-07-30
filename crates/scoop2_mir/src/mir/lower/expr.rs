@@ -443,205 +443,32 @@ fn lower_call(
         };
         return emit_call_resolution(builder, rc, mir_args, span, ty, recv_op, call_node);
     }
-    // MIR 不再做 call resolution——所有合法 call site 应在 HIR resolve。
-    // call_resolution 为 None 意味着 HIR 未解析（错误程序或 HIR 缺口）。
-    // 对 MemberAccess callee 的 enum variant 构造做最后检测（HIR 的 derive_call_resolution
-    // 可能因 value_refs 缺失而未产出——这是已知的 HIR 覆盖缺口）。
-    match &callee.kind {
-        ExprKind::MemberAccess { receiver, member } => {
-            // enum variant 构造（`Color.Red(42)`）：HIR 可能未 resolve。
-            if let ExprKind::Ident(recv_ident) = &receiver.kind
-                && let MemberName::Named(variant_ident) = member
-                && let Some(rc) =
-                    derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
-            {
-                return emit_call_resolution(builder, &rc, mir_args, span, ty, None, call_node);
-            }
-            let recv = lower_expr(builder, receiver);
-            let recv_ty = super::stmt::operand_ty(builder, &recv);
-            let (owner_sym, method_sym) = member_call_target(builder, callee);
-            let owner_str = builder.hir.interner.resolve(owner_sym).to_string();
-            let method_str = builder.hir.interner.resolve(method_sym).to_string();
-            let member_fqn = format!("{}.{}", owner_str, method_str);
-            let overload_sig = member_overload_sig(builder, owner_sym, method_sym);
-            let stk = crate::mir::stable_id::make_stable_template_key(
-                crate::mir::stable_id::StableHashScope::Dump,
-                &member_fqn,
-                &[],
-                &overload_sig,
-            );
-            let tmp = builder.alloc_temp(ty, span);
-            let dispatch = DispatchMetadata {
-                owner_fqn: owner_str.clone(),
-                member_name: method_str.clone(),
-                member_fqn: member_fqn.clone(),
-                member_decl_span: None,
-                receiver_ty: recv_ty,
-                stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(
-                    crate::mir::stable_id::StableHashScope::Dump,
-                    stk.clone(),
-                    &builder.types,
-                    &builder.hir.interner,
-                    &[],
-                    &[],
-                )],
-                stable_template_key: Some(stk),
-                generic_type_args: vec![],
-                generic_eff_args: vec![],
-            };
-            // 通过 interface_fqns 区分 itable vs class vtable 分发通道。
-            let is_interface = builder.hir.interface_fqns.contains(&owner_sym);
-            let kind = if is_interface {
-                crate::mir::CallKind::Interface {
-                    receiver: recv,
-                    dispatch,
-                }
-            } else {
-                crate::mir::CallKind::Virtual {
-                    receiver: recv,
-                    dispatch,
-                }
-            };
-            let site_id = Some(builder.next_site_id());
-            let transport = builder.call_transport(ty);
-            builder.assign(
-                tmp,
-                Rvalue::Call {
-                    site_id,
-                    kind,
-                    args: mir_args,
-                    transport,
-                },
-                span,
-            );
-            Operand::Local(tmp)
-        }
-        _ => {
-            // TypeApply callee（如 `identity<Int>(42)`）：解包到内部 callee（Ident），
-            // 提取显式类型实参。
-            if let ExprKind::TypeApply {
-                callee: inner_callee,
-                args: type_args,
-            } = &callee.kind
-            {
-                // 提取类型实参（TypeApply 的 args 是 TypeArg）。
-                let explicit_tys: Vec<scoop2_hir::ty::TypeId> = type_args
-                    .iter()
-                    .filter_map(|ta| match &ta.kind {
-                        ast::TypeArgKind::Type(t) => Some(resolve_typeref(builder, t)),
-                        _ => None,
-                    })
-                    .collect();
-                // 提取 effect 实参（`<eff E>` 形参）。
-                let explicit_eff_args: Vec<scoop2_hir::ty::EffectRow> = type_args
-                    .iter()
-                    .filter_map(|ta| match &ta.kind {
-                        ast::TypeArgKind::Effect(eff_expr) => {
-                            // 把 AST effect row 解析为 EffectRow。
-                            // 从 eff_expr.terms 解析每个 term 为 TypeId。
-                            let terms: Vec<scoop2_hir::ty::TypeId> = eff_expr
-                                .terms
-                                .iter()
-                                .filter_map(|term| {
-                                    let last = term.path.segments.last()?;
-                                    let name = builder.hir.interner.resolve(last.symbol);
-                                    if name == "Pure" {
-                                        return None;
-                                    }
-                                    builder
-                                        .hir
-                                        .interner
-                                        .get(name)
-                                        .filter(|f| builder.hir.enum_variants.contains_key(f))
-                                        .map(|fqn| {
-                                            builder.types.ref_nominal(scoop2_hir::ty::NominalType {
-                                                fqn,
-                                                args: vec![],
-                                                eff: None,
-                                            })
-                                        })
-                                })
-                                .collect();
-                            Some(scoop2_hir::ty::EffectRow::from_terms(terms))
-                        }
-                        _ => None,
-                    })
-                    .collect();
-                // 尝试对内部 callee（通常是 Ident）构造 Direct 调用。
-                if let ExprKind::Ident(ident) = &inner_callee.kind {
-                    let callee_fqn = {
-                        let name = builder.hir.interner.resolve(ident.symbol);
-                        let prefix = builder
-                            .hir
-                            .file(builder.file_id)
-                            .map(|f| f.package_prefix.as_str())
-                            .unwrap_or("");
-                        if prefix.is_empty() {
-                            name.to_string()
-                        } else {
-                            format!("{prefix}.{name}")
-                        }
-                    };
-                    let tmp = builder.alloc_temp(ty, span);
-                    let site_id = Some(builder.next_site_id());
-                    let transport = builder.call_transport(ty);
-                    let direct_kind = builder.make_direct_call_kind(
-                        callee_fqn.clone(),
-                        explicit_tys.clone(),
-                        false,
-                    );
-                    // 设置 generic_eff_args（从 TypeApply effect 实参）。
-                    let direct_kind = match direct_kind {
-                        crate::mir::CallKind::Direct {
-                            callee_fqn,
-                            type_args,
-                            is_intrinsic,
-                            stable_template_key,
-                            stable_instance_key,
-                            generic_type_args,
-                            ..
-                        } => crate::mir::CallKind::Direct {
-                            callee_fqn,
-                            type_args,
-                            is_intrinsic,
-                            stable_template_key,
-                            stable_instance_key,
-                            generic_type_args,
-                            generic_eff_args: explicit_eff_args,
-                        },
-                        other => other,
-                    };
-                    builder.assign(
-                        tmp,
-                        Rvalue::Call {
-                            site_id,
-                            kind: direct_kind,
-                            args: mir_args,
-                            transport,
-                        },
-                        span,
-                    );
-                    return Operand::Local(tmp);
-                }
-            }
-            // callee 是函数值。
-            let callee_op = lower_expr(builder, callee);
-            let tmp = builder.alloc_temp(ty, span);
-            let site_id = Some(builder.next_site_id());
-            let transport = builder.call_transport(ty);
-            builder.assign(
-                tmp,
-                Rvalue::Call {
-                    site_id,
-                    kind: crate::mir::CallKind::FunValue { callee: callee_op },
-                    args: mir_args,
-                    transport,
-                },
-                span,
-            );
-            Operand::Local(tmp)
+    // HIR call_resolution 未产出：对合法程序不应发生（步骤 1/2 已修复）。
+    // 保留 enum variant 构造检测（HIR 覆盖缺口），其余按函数值调用处理。
+    if let ExprKind::MemberAccess { receiver, member } = &callee.kind {
+        if let ExprKind::Ident(recv_ident) = &receiver.kind
+            && let MemberName::Named(variant_ident) = member
+            && let Some(rc) =
+                derive_enum_variant_call(builder, recv_ident.symbol, variant_ident.symbol, ty)
+        {
+            return emit_call_resolution(builder, &rc, mir_args, span, ty, None, call_node);
         }
     }
+    let callee_op = lower_expr(builder, callee);
+    let tmp = builder.alloc_temp(ty, span);
+    let site_id = Some(builder.next_site_id());
+    let transport = builder.call_transport(ty);
+    builder.assign(
+        tmp,
+        Rvalue::Call {
+            site_id,
+            kind: crate::mir::CallKind::FunValue { callee: callee_op },
+            args: mir_args,
+            transport,
+        },
+        span,
+    );
+    Operand::Local(tmp)
 }
 
 /// 取 member-call 目标 (owner_fqn, method) 从 member_refs。
