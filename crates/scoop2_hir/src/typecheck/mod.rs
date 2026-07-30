@@ -139,6 +139,12 @@ pub fn run_typecheck_with_options(
     }
 
     // ---- Phase 3：类型检查 ----
+    // for-loop desugar pre-pass：在 env 构建（锁定 &interner）之前，就地改写所有
+    // For 循环为 do{var __it; while(true){when(__it.next()){Some(x)->BODY; None->break}}}。
+    // typecheck 随后对改写后的 AST 验证 iterator()/next() 是否存在。
+    for inp in inputs.iter_mut() {
+        crate::typecheck::expr::desugar_for_loops(inp.file, interner);
+    }
     // 先为所有文件构建 imports（ImportTable::collect 需要 &mut interner）。
     let mut file_state: Vec<(usize, String, imports::ImportTable)> = Vec::new();
     for (i, inp) in inputs.iter().enumerate() {

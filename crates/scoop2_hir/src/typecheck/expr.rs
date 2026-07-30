@@ -1006,6 +1006,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
+
     fn walk_stmt(&mut self, stmt: &mut Stmt) {
         match &mut stmt.kind {
             StmtKind::Empty => {}
@@ -8674,6 +8675,295 @@ fn unop_symbol(op: UnaryOp) -> &'static str {
 /// 抑制未用导入警告（NodeId 在 M1 尚未写回 typed 结果）。
 #[allow(dead_code)]
 fn _node_id_used(_id: NodeId) {}
+
+// ===========================================================================
+// for-loop desugar（独立 pre-pass，在 typecheck Phase 3 前运行）
+// ===========================================================================
+
+/// 合成节点构造上下文：分配 NodeId（高基数，不与 parser 冲突）+ intern 符号。
+struct SynthCx<'a> {
+    next_id: u32,
+    interner: &'a mut scoop2_base::Interner,
+}
+
+impl<'a> SynthCx<'a> {
+    fn nid(&mut self) -> scoop2_base::NodeId {
+        let id = scoop2_base::NodeId::from_u32(self.next_id);
+        self.next_id = self.next_id.wrapping_add(1);
+        id
+    }
+    fn sym(&mut self, text: &str) -> scoop2_base::Symbol {
+        self.interner.intern(text)
+    }
+    fn ident(&mut self, text: &str, span: Span) -> crate::syntax::ast::Ident {
+        crate::syntax::ast::Ident {
+            symbol: self.sym(text),
+            span,
+        }
+    }
+    /// `receiver.method(args)`。
+    fn method_call(
+        &mut self,
+        receiver: crate::syntax::ast::Expr,
+        method: &str,
+        args: Vec<crate::syntax::ast::Expr>,
+        span: Span,
+    ) -> crate::syntax::ast::Expr {
+        use crate::syntax::ast::{CallArg, ExprKind, MemberName};
+        let member = crate::syntax::ast::Expr {
+            id: self.nid(),
+            span,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(receiver),
+                member: MemberName::Named(self.ident(method, span)),
+            },
+        };
+        let call_args: Vec<CallArg> = args
+            .into_iter()
+            .map(|a| CallArg {
+                id: self.nid(),
+                span: a.span,
+                name: None,
+                is_spread: false,
+                value: a,
+            })
+            .collect();
+        crate::syntax::ast::Expr {
+            id: self.nid(),
+            span,
+            kind: ExprKind::Call {
+                callee: Box::new(member),
+                args: call_args,
+            },
+        }
+    }
+    fn expr(&mut self, kind: crate::syntax::ast::ExprKind, span: Span) -> crate::syntax::ast::Expr {
+        crate::syntax::ast::Expr {
+            id: self.nid(),
+            span,
+            kind,
+        }
+    }
+    /// 构造 Block（内部分配 id），避免调用方嵌套借 cx。
+    fn block(
+        &mut self,
+        span: Span,
+        stmts: Vec<crate::syntax::ast::Stmt>,
+        last_trailing_semi: bool,
+    ) -> crate::syntax::ast::Block {
+        crate::syntax::ast::Block {
+            id: self.nid(),
+            span,
+            stmts,
+            last_trailing_semi,
+        }
+    }
+    /// 构造 Some(binder) variant 模式。
+    fn some_pattern(&mut self, binder: crate::syntax::ast::Ident, span: Span) -> crate::syntax::ast::Pattern {
+        crate::syntax::ast::Pattern {
+            id: self.nid(),
+            span,
+            kind: crate::syntax::ast::PatternKind::Variant {
+                path: crate::syntax::ast::TypePath {
+                    segments: vec![self.ident("Some", span)],
+                    span,
+                },
+                args: Some(vec![crate::syntax::ast::Pattern {
+                    id: self.nid(),
+                    span: binder.span,
+                    kind: crate::syntax::ast::PatternKind::Bind(binder),
+                }]),
+            },
+        }
+    }
+    /// 构造 None variant 模式。
+    fn none_pattern(&mut self, span: Span) -> crate::syntax::ast::Pattern {
+        crate::syntax::ast::Pattern {
+            id: self.nid(),
+            span,
+            kind: crate::syntax::ast::PatternKind::Variant {
+                path: crate::syntax::ast::TypePath {
+                    segments: vec![self.ident("None", span)],
+                    span,
+                },
+                args: None,
+            },
+        }
+    }
+}
+
+/// 就地把一个 `For` 语句改写成 `do { var __it = iter.iterator(); while(true){ when(__it.next()){Some(b)->BODY; None->break} } }`。
+/// 非本语句返回 false（不改写）。
+fn desugar_for_stmt(stmt: &mut crate::syntax::ast::Stmt, cx: &mut SynthCx) -> bool {
+    use crate::syntax::ast::{
+        Block, Expr, ExprKind, Pattern, PatternKind, Stmt as AStmt, StmtKind, TypePath, ValBinding,
+        ValDecl, ValKind, WhenArm,
+    };
+    let (binder, iter_taken, body_stmts, body_span, body_trailing_semi, span, for_id) =
+        match &mut stmt.kind {
+            StmtKind::For {
+                binder,
+                iter,
+                body,
+            } => {
+                let binder = binder.clone();
+                let iter = std::mem::replace(iter, cx.expr(ExprKind::UnitLit, stmt.span));
+                let body_stmts = std::mem::take(&mut body.stmts);
+                (
+                    binder,
+                    iter,
+                    body_stmts,
+                    body.span,
+                    body.last_trailing_semi,
+                    stmt.span,
+                    stmt.id,
+                )
+            }
+            _ => return false,
+        };
+    // var __it = iter.iterator()
+    let it_name = format!("__for_it_{}", for_id.as_u32());
+    let it_ident = cx.ident(&it_name, span);
+    let iterator_call = cx.method_call(iter_taken, "iterator", vec![], span);
+    let var_stmt = AStmt {
+        id: cx.nid(),
+        span,
+        kind: StmtKind::LocalVal(Box::new(ValDecl {
+            annotations: vec![],
+            modifiers: vec![],
+            kind: ValKind::Var,
+            binding: ValBinding::Name(it_ident.clone()),
+            ty: None,
+            init: Some(iterator_call),
+        })),
+    };
+    // __it.next()
+    let it_ref = cx.expr(ExprKind::Ident(it_ident), span);
+    let next_call = cx.method_call(it_ref, "next", vec![], span);
+    // body → block 表达式。
+    let body_block = cx.block(body_span, body_stmts, body_trailing_semi);
+    let body_expr = cx.expr(ExprKind::Block(body_block), body_span);
+    let some_pat = cx.some_pattern(binder, span);
+    let none_pat = cx.none_pattern(span);
+    let break_stmt_id = cx.nid();
+    let none_inner_block = cx.block(
+        span,
+        vec![AStmt {
+            id: break_stmt_id,
+            span,
+            kind: StmtKind::Break,
+        }],
+        true,
+    );
+    let none_body = cx.expr(ExprKind::Block(none_inner_block), span);
+    let some_arm = WhenArm {
+        id: cx.nid(),
+        span,
+        pat: some_pat,
+        guard: None,
+        body: body_expr,
+    };
+    let none_arm = WhenArm {
+        id: cx.nid(),
+        span,
+        pat: none_pat,
+        guard: None,
+        body: none_body,
+    };
+    let when_expr = cx.expr(
+        ExprKind::When {
+            subject: Box::new(next_call),
+            arms: vec![some_arm, none_arm],
+        },
+        span,
+    );
+    let true_ident = cx.ident("true", span);
+    let true_expr = cx.expr(ExprKind::Ident(true_ident), span);
+    let when_stmt_id = cx.nid();
+    let while_body = cx.block(
+        span,
+        vec![AStmt {
+            id: when_stmt_id,
+            span,
+            kind: StmtKind::Expr(when_expr),
+        }],
+        true,
+    );
+    let while_stmt = AStmt {
+        id: cx.nid(),
+        span,
+        kind: StmtKind::While {
+            cond: true_expr,
+            body: while_body,
+        },
+    };
+    let do_block = cx.block(span, vec![var_stmt, while_stmt], true);
+    stmt.kind = StmtKind::Expr(cx.expr(ExprKind::DoBlock(do_block), span));
+    true
+}
+
+/// 递归改写 block 内的 for-loop（含嵌套的 while/for body）。
+fn desugar_for_in_block(block: &mut crate::syntax::ast::Block, cx: &mut SynthCx) {
+    for s in block.stmts.iter_mut() {
+        if desugar_for_stmt(s, cx) {
+            continue;
+        }
+        // 递归子 block（while body、未改写的 for body）。
+        use crate::syntax::ast::StmtKind as SK;
+        match &mut s.kind {
+            SK::While { body, .. } => desugar_for_in_block(body, cx),
+            SK::For { body, .. } => desugar_for_in_block(body, cx),
+            _ => {}
+        }
+    }
+}
+
+/// 对一个文件做 for-loop desugar pre-pass（递归所有函数体 / init 块）。
+pub fn desugar_for_loops(file: &mut crate::syntax::ast::File, interner: &mut scoop2_base::Interner) {
+    let mut cx = SynthCx {
+        next_id: 0x4000_0000,
+        interner,
+    };
+    use crate::syntax::ast::{FunBody, ItemKind, TypeMemberKind};
+    for item in file.items.iter_mut() {
+        match &mut item.kind {
+            ItemKind::Fun(d) => {
+                if let Some(body) = d.body.as_mut() {
+                    match body {
+                        FunBody::Block(b) => desugar_for_in_block(b, &mut cx),
+                        FunBody::Expr(_) => {}
+                    }
+                }
+            }
+            ItemKind::Val(d) => {
+                if let Some(init) = d.init.as_mut() {
+                    // val init 可能含 do-block（含 for）—— 简化：暂不深入表达式。
+                    let _ = init;
+                }
+            }
+            ItemKind::Type(d) => {
+                if let Some(body) = d.body.as_mut() {
+                    for m in body.members.iter_mut() {
+                        if let TypeMemberKind::Fun(fd) = &mut m.kind
+                            && let Some(body) = fd.body.as_mut()
+                        {
+                            if let crate::syntax::ast::FunBody::Block(b) = body {
+                                desugar_for_in_block(b, &mut cx);
+                            }
+                        }
+                        if let TypeMemberKind::InitBlock(ib) = &mut m.kind {
+                            desugar_for_in_block(&mut ib.body, &mut cx);
+                        }
+                        if let TypeMemberKind::SecondaryCtor(sc) = &mut m.kind {
+                            desugar_for_in_block(&mut sc.body, &mut cx);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
