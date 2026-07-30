@@ -3292,12 +3292,9 @@ fn record_class_ctor_layout(
         if !matches!(env.index.category(base_fqn), Some(NominalCategory::Class)) {
             continue;
         }
-        // 命名实参的 super 委托不支持（仅位置实参）。
-        if st.args.iter().any(|a| a.name.is_some()) {
-            return;
-        }
         // 记录 super 委托：base_index 指向 d.supertypes[i]，实参表达式由 MIR
-        // 从 AST 直接 lower（任意表达式：函数调用/运算/参数引用/常量）。
+        // 从 AST 直接 lower（任意表达式：函数调用/运算/参数引用/常量/命名实参）。
+        // 命名实参由 MIR lower_delegation_args 按目标 ctor 签名排序。
         // arg_tys 暂用 ctor 参数类型占位——实参真实类型由 check_super_delegation_args
         // typecheck 后的 expr_types 提供，MIR lower 时按实参 NodeId 取 expr_type。
         env.super_ctor_delegations.insert(

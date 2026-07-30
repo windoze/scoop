@@ -942,7 +942,14 @@ fn emit_call_resolution(
                 let type_fqn_str = builder.hir.interner.resolve(*type_fqn).to_string();
                 // 继承构造链：有 `: Super(args)` 委托的 class，把超类字段实参
                 // 展开到 args 前部，使 args 与字段布局（超类字段在前）对齐。
-                let args = expand_super_ctor_chain(builder, type_fqn, args);
+                // 若 resolved_call_args 已填充（默认参数 + 命名实参排序），跳过
+                // expand_super_ctor_chain（参数已由 HIR 解析）。
+                let resolved = builder.hir.resolved_call_args(builder.file_id, call_node);
+                let args = if resolved.is_some() {
+                    args
+                } else {
+                    expand_super_ctor_chain(builder, type_fqn, args)
+                };
                 // 选中 ctor 的 span（区分 primary/secondary；secondary 时指向 constructor 关键字）。
                 let selected_ctor_span = builder
                     .hir
