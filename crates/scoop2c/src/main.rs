@@ -325,10 +325,10 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
             }
             if user_parse_ok {
                 let inputs: Vec<scoop2_hir::resolve::InputFile> = parsed
-                    .iter()
+                    .iter_mut()
                     .enumerate()
                     .map(|(i, pf)| scoop2_hir::resolve::InputFile {
-                        file: &pf.file,
+                        file: &mut pf.file,
                         file_id: scoop2_base::FileId(i as u32),
                         origin: if i == 0 {
                             scoop2_hir::resolve::InputOrigin::User
@@ -348,7 +348,7 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
             // 「只关心 parser/AST/HIR 阶段涵盖的错误」），不再有独立 infer/lower 阶段。
             // 三个 phase 都运行完整的 typecheck 管线并汇报相同诊断。
             let BuiltProgram {
-                parsed,
+                mut parsed,
                 sources,
                 user_indices,
                 mut interner,
@@ -359,10 +359,10 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                 diags.extend(pf.diagnostics.iter().cloned());
             }
             if user_parse_ok {
-                let inputs = make_inputs(&parsed, &user_indices);
+                let mut inputs = make_inputs(&mut parsed, &user_indices);
                 let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
                 scoop2_hir::typecheck::run_typecheck(
-                    &inputs,
+                    &mut inputs,
                     &mut interner,
                     &mut diags,
                     args.target_platform.as_deref(),
@@ -383,14 +383,14 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
 
 /// 把解析好的文件集合构造为 resolve/typecheck 的 `InputFile` 列表。
 fn make_inputs<'a>(
-    parsed: &'a [scoop2_syntax::parser::ParsedFile],
+    parsed: &'a mut [scoop2_syntax::parser::ParsedFile],
     user_indices: &[usize],
 ) -> Vec<scoop2_hir::resolve::InputFile<'a>> {
     parsed
-        .iter()
+        .iter_mut()
         .enumerate()
         .map(|(i, pf)| scoop2_hir::resolve::InputFile {
-            file: &pf.file,
+            file: &mut pf.file,
             file_id: scoop2_base::FileId(i as u32),
             origin: if user_indices.contains(&i) {
                 scoop2_hir::resolve::InputOrigin::User
@@ -496,7 +496,7 @@ fn run_dump_hir(input: &std::path::Path) -> ExitCode {
         Err(code) => return code,
     };
     let BuiltProgram {
-        parsed,
+        mut parsed,
         sources,
         user_indices,
         mut interner,
@@ -509,10 +509,10 @@ fn run_dump_hir(input: &std::path::Path) -> ExitCode {
     if !user_parse_ok {
         return report_diagnostics(&source, &[], diags);
     }
-    let inputs = make_inputs(&parsed, &user_indices);
+    let mut inputs = make_inputs(&mut parsed, &user_indices);
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
     let hir = scoop2_hir::typecheck::run_typecheck(
-        &inputs,
+        &mut inputs,
         &mut interner,
         &mut diags,
         None,
@@ -553,7 +553,7 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
         Err(code) => return code,
     };
     let BuiltProgram {
-        parsed,
+        mut parsed,
         sources,
         user_indices,
         mut interner,
@@ -566,10 +566,10 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
     if !user_parse_ok {
         return report_diagnostics(&source, &[], diags);
     }
-    let inputs = make_inputs(&parsed, &user_indices);
+    let mut inputs = make_inputs(&mut parsed, &user_indices);
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
     let hir = scoop2_hir::typecheck::run_typecheck(
-        &inputs,
+        &mut inputs,
         &mut interner,
         &mut diags,
         None,
@@ -718,7 +718,7 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
         Err(code) => return code,
     };
     let BuiltProgram {
-        parsed,
+        mut parsed,
         sources,
         user_indices,
         mut interner,
@@ -731,10 +731,10 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
     if !user_parse_ok {
         return report_diagnostics(&source, &[], diags);
     }
-    let inputs = make_inputs(&parsed, &user_indices);
+    let mut inputs = make_inputs(&mut parsed, &user_indices);
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
     let hir = scoop2_hir::typecheck::run_typecheck(
-        &inputs,
+        &mut inputs,
         &mut interner,
         &mut diags,
         None,
@@ -813,7 +813,7 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
 /// 失败时打印诊断并返回 None。
 fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::LirProgram> {
     let BuiltProgram {
-        parsed,
+        mut parsed,
         sources,
         user_indices,
         mut interner,
@@ -827,11 +827,11 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
         report_diagnostics(source, &[], diags);
         return None;
     }
-    let inputs = make_inputs(&parsed, &user_indices);
+    let mut inputs = make_inputs(&mut parsed, &user_indices);
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
     // e2e：启用 sysroot 函数体 typecheck（println<String> 等库函数可单态化）。
     let hir = scoop2_hir::typecheck::run_typecheck_with_options(
-        &inputs,
+        &mut inputs,
         &mut interner,
         &mut diags,
         None,

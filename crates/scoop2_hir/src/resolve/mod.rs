@@ -39,9 +39,8 @@ use scoop2_base::diag::DiagnosticSink;
 use scoop2_base::{FileId, Interner};
 
 /// 一个待解析的输入文件。
-#[derive(Clone, Copy)]
 pub struct InputFile<'a> {
-    pub file: &'a crate::syntax::ast::File,
+    pub file: &'a mut crate::syntax::ast::File,
     pub file_id: FileId,
     pub origin: InputOrigin,
     /// 该文件是否属于受信任的 syslib cone（sysroot 或 fixture `.sysroot` overlay）。
@@ -107,12 +106,12 @@ pub fn run_program(inputs: &[InputFile], interner: &mut Interner, diags: &mut Di
 
 /// 单文件 resolve 管线（无 sysroot）；等价于只含一个用户文件的 [`run_program`]。
 pub fn run_file(
-    file: &crate::syntax::ast::File,
+    file: &mut crate::syntax::ast::File,
     interner: &mut Interner,
     diags: &mut DiagnosticSink,
 ) {
     run_program(
-        &[InputFile {
+        &mut [InputFile {
             file,
             file_id: FileId(0),
             origin: InputOrigin::User,

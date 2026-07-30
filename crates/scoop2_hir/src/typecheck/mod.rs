@@ -32,7 +32,7 @@ use scoop2_base::diag::DiagnosticSink;
 /// 返回自包含的 [`crate::hir::TypedHir`]（含 per-NodeId 表达式类型表），供
 /// `dump-hir` 与后续 lowering 消费。诊断仍通过 `diags` 汇报。
 pub fn run_typecheck(
-    inputs: &[crate::resolve::InputFile],
+    inputs: &mut [crate::resolve::InputFile],
     interner: &mut Interner,
     diags: &mut DiagnosticSink,
     target_platform: Option<&str>,
@@ -55,7 +55,7 @@ pub fn run_typecheck(
 /// - `lower_sysroot_bodies = true`（e2e build/run 路径）：sysroot 文件也产出 TypedFile，
 ///   其函数体可被后续 MIR lowering（为 println<String> 等库函数生成实例）。
 pub fn run_typecheck_with_options(
-    inputs: &[crate::resolve::InputFile],
+    inputs: &mut [crate::resolve::InputFile],
     interner: &mut Interner,
     diags: &mut DiagnosticSink,
     target_platform: Option<&str>,
@@ -69,7 +69,7 @@ pub fn run_typecheck_with_options(
 
     // ---- Phase 1：收集所有 header ----
     let mut index = Index::new();
-    for inp in inputs {
+    for inp in inputs.iter() {
         let cone_name = collect::package_prefix_of(inp.file, interner);
         let cone_kind = match inp.origin {
             InputOrigin::User => ConeKind::Bin,
@@ -89,9 +89,9 @@ pub fn run_typecheck_with_options(
     index.resolve_extensions(interner);
 
     // ---- Phase 2：解析用户文件 ----
-    struct UserFile<'a> {
+    struct UserFile {
+        file_idx: usize,
         file_id: scoop2_base::FileId,
-        file: &'a File,
         prefix: String,
         imports: imports::ImportTable,
         resolution: Resolution,
@@ -99,15 +99,16 @@ pub fn run_typecheck_with_options(
         trusted: bool,
     }
     let mut user_files: Vec<UserFile> = Vec::new();
-    for inp in inputs.iter() {
+    for (idx, inp) in inputs.iter().enumerate() {
         // 默认仅 User-origin 文件产出 TypedFile；lower_sysroot_bodies 时包含 sysroot。
         if !lower_sysroot_bodies && inp.origin != InputOrigin::User {
             continue;
         }
-        let prefix = collect::package_prefix_of(inp.file, interner);
+        let file: &File = &*inp.file;
+        let prefix = collect::package_prefix_of(file, interner);
         let is_sysroot = inp.origin == InputOrigin::Sysroot;
         let imports = imports::ImportTable::collect_with_origin(
-            inp.file,
+            file,
             inp.file_id,
             &index,
             interner,
@@ -115,10 +116,10 @@ pub fn run_typecheck_with_options(
             is_sysroot,
             declared_deps,
         );
-        type_refs::resolve_file_type_refs(inp.file, &index, &imports, interner, diags, &prefix);
+        type_refs::resolve_file_type_refs(file, &index, &imports, interner, diags, &prefix);
         let mut resolution = Resolution::new();
         body::resolve_file_bodies(
-            inp.file,
+            file,
             &index,
             &imports,
             interner,
@@ -127,8 +128,8 @@ pub fn run_typecheck_with_options(
             &prefix,
         );
         user_files.push(UserFile {
+            file_idx: idx,
             file_id: inp.file_id,
-            file: inp.file,
             prefix,
             imports,
             resolution,
@@ -181,8 +182,9 @@ pub fn run_typecheck_with_options(
         // 把 resolve 阶段的 value_refs 搬入 SemanticFacts（typed HIR 不再持有 Resolution）。
         let mut facts = crate::hir::SemanticFacts::new();
         facts.value_refs = uf.resolution.value_refs.clone();
+        let file: &mut File = &mut inputs[uf.file_idx].file;
         check_file_bodies(
-            uf.file,
+            file,
             &mut env,
             &uf.imports,
             &uf.resolution,
@@ -210,7 +212,7 @@ pub fn run_typecheck_with_options(
     let user_file_refs: Vec<(scoop2_base::FileId, &File)> = user_files
         .iter()
         .filter(|uf| !uf.is_sysroot)
-        .map(|uf| (uf.file_id, uf.file))
+        .map(|uf| (uf.file_id, &*inputs[uf.file_idx].file))
         .collect();
     crate::completeness::verify(&hir, &user_file_refs, diags);
     hir
@@ -219,7 +221,7 @@ pub fn run_typecheck_with_options(
 /// 检查一个文件的**顶层 + 成员**函数体 + 声明头语义检查。
 #[allow(clippy::too_many_arguments)]
 fn check_file_bodies(
-    file: &crate::syntax::ast::File,
+    file: &mut crate::syntax::ast::File,
     env: &mut TypeEnv,
     imports: &crate::resolve::imports::ImportTable,
     resolution: &crate::resolve::Resolution,
@@ -267,7 +269,7 @@ fn check_file_bodies(
         &mut anno_classes,
         &mut anno_targets,
     );
-    for item in &file.items {
+    for item in &mut file.items {
         // @Experimental / @Suppress 注解校验（item 级目标是合法的）。
         check_experimental_annotations(item_annotations(item), false, env.interner, diags);
         // 未知注解类型检查。
@@ -295,7 +297,7 @@ fn check_file_bodies(
         );
         // enum variant 字段类型必须可解析（`NotAType` 等报 unresolved_type）。
         check_enum_variant_field_types(item, env, imports, package_prefix, diags);
-        match &item.kind {
+        match &mut item.kind {
             ItemKind::Fun(d) => {
                 // `annotation` 修饰符只能用于 annotation class，不能用于函数。
                 if d.modifiers
@@ -768,7 +770,7 @@ fn check_file_bodies(
                         }
                     }
                 }
-                if let Some(body) = &d.body {
+                if let Some(body) = &mut d.body {
                     // enum variant 字段重名检查 + variant 重名检查。
                     if d.kind == crate::syntax::ast::TypeKind::Enum {
                         let mut seen_variants: HashSet<scoop2_base::Symbol> = HashSet::new();
@@ -791,7 +793,7 @@ fn check_file_bodies(
                     let mut tp_map = std::collections::HashMap::new();
                     merge_type_params(&mut tp_map, d.type_params.as_ref());
                     check_member_funs(
-                        &body.members,
+                        &mut body.members,
                         this_ty,
                         env,
                         imports,
@@ -833,7 +835,7 @@ fn check_file_bodies(
                         // 写回语义事实，供 MIR $init 合成时 lower super 调用实参消费。
                         if let Some(sym) = class_fqn_sym
                             && let Some(super_del) = env.super_ctor_delegations.get(&sym).cloned()
-                            && let Some(base_st) = d.supertypes.get(super_del.base_index)
+                            && let Some(base_st) = d.supertypes.get_mut(super_del.base_index)
                         {
                             expr::check_super_delegation_args(
                                 env,
@@ -842,15 +844,15 @@ fn check_file_bodies(
                                 diags,
                                 package_prefix,
                                 this_ty,
-                                &base_st.args,
+                                &mut base_st.args,
                                 expr_types,
                                 facts,
                                 &ctor_params,
                             );
                         }
-                        for m in &body.members {
+                        for m in &mut body.members {
                             use crate::syntax::ast::TypeMemberKind;
-                            match &m.kind {
+                            match &mut m.kind {
                                 TypeMemberKind::InitBlock(ib) => {
                                     let what = format!(
                                         "class `{}` init block",
@@ -864,7 +866,7 @@ fn check_file_bodies(
                                         package_prefix,
                                         this_ty,
                                         what,
-                                        expr::PureInitSite::Block(&ib.body),
+                                        expr::PureInitSite::Block(&mut ib.body),
                                         expr_types,
                                         facts,
                                         /* require_pure */ true,
@@ -877,7 +879,7 @@ fn check_file_bodies(
                                         "class `{}` 属性 `{pname}`",
                                         env.interner.resolve(d.name.symbol)
                                     );
-                                    if let Some(init) = &pd.init {
+                                    if let Some(init) = &mut pd.init {
                                         expr::check_init_body(
                                             env,
                                             imports,
@@ -915,7 +917,7 @@ fn check_file_bodies(
                                             .unwrap_or_default()
                                     };
                                     // delegation 实参（this(...)/super(...)）。
-                                    if let Some(del) = &sc.delegation {
+                                    if let Some(del) = &mut sc.delegation {
                                         expr::check_super_delegation_args(
                                             env,
                                             imports,
@@ -923,7 +925,7 @@ fn check_file_bodies(
                                             diags,
                                             package_prefix,
                                             this_ty,
-                                            &del.args,
+                                            &mut del.args,
                                             expr_types,
                                             facts,
                                             &sc_params,
@@ -942,7 +944,7 @@ fn check_file_bodies(
                                         package_prefix,
                                         this_ty,
                                         what,
-                                        expr::PureInitSite::Block(&sc.body),
+                                        expr::PureInitSite::Block(&mut sc.body),
                                         expr_types,
                                         facts,
                                         /* require_pure */ true,
@@ -966,9 +968,9 @@ fn check_file_bodies(
                     } else {
                         format!("{package_prefix}.{name_text}")
                     };
-                    if let Some(body) = &d.body {
+                    if let Some(body) = &mut d.body {
                         check_member_funs(
-                            &body.members,
+                            &mut body.members,
                             this_ty,
                             env,
                             imports,
@@ -980,9 +982,9 @@ fn check_file_bodies(
                             facts,
                         );
                         // object 的 init 块与属性初始化器必须 `Pure!`（静态初始化器）。
-                        for m in &body.members {
+                        for m in &mut body.members {
                             use crate::syntax::ast::TypeMemberKind;
-                            match &m.kind {
+                            match &mut m.kind {
                                 TypeMemberKind::InitBlock(ib) => {
                                     let what = format!("object `{obj_fqn}` init block");
                                     expr::check_pure_static_init(
@@ -993,7 +995,7 @@ fn check_file_bodies(
                                         package_prefix,
                                         this_ty,
                                         what,
-                                        expr::PureInitSite::Block(&ib.body),
+                                        expr::PureInitSite::Block(&mut ib.body),
                                         expr_types,
                                         facts,
                                     );
@@ -1001,7 +1003,7 @@ fn check_file_bodies(
                                 TypeMemberKind::Property(pd) if pd.init.is_some() => {
                                     let pname = env.interner.resolve(pd.name.symbol);
                                     let what = format!("object `{obj_fqn}` 属性 `{pname}`");
-                                    if let Some(init) = &pd.init {
+                                    if let Some(init) = &mut pd.init {
                                         expr::check_pure_static_init(
                                             env,
                                             imports,
@@ -3885,7 +3887,7 @@ fn check_interface_impl_complete(
 
 #[allow(clippy::too_many_arguments)]
 fn check_one_fun(
-    d: &crate::syntax::ast::FunDecl,
+    d: &mut crate::syntax::ast::FunDecl,
     env: &mut TypeEnv,
     imports: &crate::resolve::imports::ImportTable,
     resolution: &crate::resolve::Resolution,
@@ -3907,7 +3909,7 @@ fn check_one_fun(
             diags.push(diagnostics::missing_type_annotation(p.name.span));
         }
     }
-    let Some(body) = &d.body else {
+    let Some(body) = &mut d.body else {
         // 即便无 body，where 子句仍需校验（header 检查）。
         check_where_clause(
             d.where_clause.as_ref(),
@@ -4033,7 +4035,7 @@ fn check_one_fun(
 
 #[allow(clippy::too_many_arguments)]
 fn check_member_funs(
-    members: &[crate::syntax::ast::TypeMember],
+    members: &mut [crate::syntax::ast::TypeMember],
     this_ty: Option<crate::ty::TypeId>,
     env: &mut TypeEnv,
     imports: &crate::resolve::imports::ImportTable,
@@ -4048,8 +4050,8 @@ fn check_member_funs(
     facts: &mut crate::hir::SemanticFacts,
 ) {
     use crate::syntax::ast::TypeMemberKind;
-    for m in members {
-        match &m.kind {
+    for m in members.iter_mut() {
+        match &mut m.kind {
             TypeMemberKind::Fun(d) => {
                 check_one_fun(
                     d,
@@ -4066,11 +4068,11 @@ fn check_member_funs(
             }
             TypeMemberKind::Object(d) => {
                 if let Some(name) = &d.name
-                    && let Some(b) = &d.body
+                    && let Some(b) = &mut d.body
                 {
                     let nested = make_nominal_under(env, this_ty, name.symbol);
                     check_member_funs(
-                        &b.members,
+                        &mut b.members,
                         nested,
                         env,
                         imports,
@@ -4084,13 +4086,13 @@ fn check_member_funs(
                 }
             }
             TypeMemberKind::Type(d) => {
-                if let Some(b) = &d.body {
+                if let Some(b) = &mut d.body {
                     let nested = make_nominal_under(env, this_ty, d.name.symbol);
                     // 嵌套类型：合并外层 + 自身类型参数。
                     let mut merged = enclosing_type_params.clone();
                     merge_type_params(&mut merged, d.type_params.as_ref());
                     check_member_funs(
-                        &b.members,
+                        &mut b.members,
                         nested,
                         env,
                         imports,
