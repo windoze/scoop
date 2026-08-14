@@ -63,7 +63,8 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
                 | TreeCallee::FunValue { .. } => {}
                 TreeCallee::Method { .. } => {}
 
-                TreeCallee::EffectOp { .. } => return Some("EffectOp"),
+                TreeCallee::EffectOp { .. } => {}
+
                 TreeCallee::InitCall { .. } => return Some("InitCall"),
                 TreeCallee::Ctor { .. } | TreeCallee::Variant { .. } => {}
             }
@@ -937,8 +938,107 @@ fn lower_tree_call(
                 stable_key: None,
             }
         }
-        TreeCallee::EffectOp { .. } | TreeCallee::InitCall { .. } => {
-            unsupported!("effect/init 调用在支持集外")
+        TreeCallee::EffectOp { effect, op } => {
+            // 镜像 lower_effect_op：effect-op 调用 → Perform 终结符
+            let op_fqn = format!(
+                "{}.{}",
+                builder.hir.interner.resolve(*effect),
+                builder.hir.interner.resolve(*op)
+            );
+            let resume_local = builder.alloc_temp(ty, span);
+            let resume_target = builder.new_block();
+
+            // 从 args 构造 payload metadata
+            let payload_component_tys: Vec<scoop2_hir::ty::TypeId> =
+                arg_ops.iter().zip(args.iter()).map(|(op, e)| {
+                    body.exprs[e.0 as usize].ty
+                }).collect();
+            let payload_transport: Vec<crate::mir::transport::ValueTransportMetadata> =
+                payload_component_tys
+                    .iter()
+                    .map(|&t| {
+                        crate::mir::transport::value_transport(
+                            &builder.types,
+                            &builder.enum_fqns,
+                            t,
+                        )
+                    })
+                    .collect();
+            let payload_tuple_ty = if payload_component_tys.len() == 1 {
+                Some(payload_component_tys[0])
+            } else if payload_component_tys.is_empty() {
+                None
+            } else {
+                Some(builder.types.tuple(payload_component_tys.clone()))
+            };
+            let arg_mapping: Vec<usize> = (0..args.len()).collect();
+
+            // 解析 effect 类型
+            let eff_name = builder.hir.interner.resolve(*effect);
+            let effect_ty = {
+                let prefix = builder
+                    .hir
+                    .file(builder.file_id)
+                    .map(|f| f.package_prefix.as_str())
+                    .unwrap_or("");
+                let candidates = if prefix.is_empty() {
+                    vec![eff_name.to_string(), format!("scoop.core.{eff_name}")]
+                } else {
+                    vec![
+                        eff_name.to_string(),
+                        format!("{prefix}.{eff_name}"),
+                        format!("scoop.core.{eff_name}"),
+                    ]
+                };
+                candidates
+                    .iter()
+                    .filter_map(|c| builder.hir.interner.get(c))
+                    .filter(|f| {
+                        builder.hir.enum_variants.contains_key(f)
+                        || builder.hir.member_funs.contains_key(f)
+                    })
+                    .next()
+                    .map(|fqn| {
+                        builder.types.ref_nominal(scoop2_hir::ty::NominalType {
+                            fqn,
+                            args: vec![],
+                            eff: None,
+                        })
+                    })
+                    .unwrap_or_else(|| builder.types.any())
+            };
+
+            let metadata = crate::mir::PerformMetadata {
+                effect_ty,
+                op_type_args: vec![],
+                result_ty: ty,
+                payload_tuple_ty,
+                payload_component_tys,
+                payload_transport,
+                arg_mapping,
+            };
+            let site_id = Some(builder.next_site_id());
+
+            // EffectOp 不返回普通值，而是发射 Perform 终结符并返回 resume_local
+            builder.terminate(
+                crate::mir::Terminator {
+                    span,
+                    kind: crate::mir::TerminatorKind::Perform {
+                        site_id,
+                        op_fqn,
+                        metadata,
+                        args: mir_args,
+                        resume_local,
+                        resume_target,
+                    },
+                },
+                resume_target,
+            );
+            // resume_target 块：把 resume_local 作为结果
+            return Operand::Local(resume_local);
+        }
+        TreeCallee::InitCall { .. } => {
+            unsupported!("init 调用在支持集外")
         }
         TreeCallee::Method {
             is_virtual: true, ..
