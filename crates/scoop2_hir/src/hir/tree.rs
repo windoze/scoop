@@ -103,7 +103,9 @@ pub enum TreeExprKind {
     /// 局部绑定引用。
     LocalRef(LocalId),
     /// 顶层 `val`/`var` 引用。
-    TopLevelValRef { fqn: Symbol },
+    TopLevelValRef {
+        fqn: Symbol,
+    },
     /// 调用（普通 / 方法 / 构造 / variant / 函数值 / perform——`Binary`/`Unary`/
     /// `InfixCall`/`!!`/下标全部收敛于此）。
     Call {
@@ -111,7 +113,10 @@ pub enum TreeExprKind {
         args: Vec<ExprId>,
     },
     /// 成员读取（字段 / 元组下标）。
-    Member { recv: ExprId, member: TreeMember },
+    Member {
+        recv: ExprId,
+        member: TreeMember,
+    },
     /// 块表达式（含 `do` 块）。
     Block(BlockId),
     /// `if`（分支为块表达式）。
@@ -121,7 +126,10 @@ pub enum TreeExprKind {
         else_: Option<ExprId>,
     },
     /// `while`（Unit 值）。
-    While { cond: ExprId, body: BlockId },
+    While {
+        cond: ExprId,
+        body: BlockId,
+    },
     /// 元组字面量。
     Tuple(Vec<ExprId>),
     /// 数组字面量。
@@ -148,6 +156,29 @@ pub enum TreeExprKind {
         params: Vec<LocalId>,
         body: LambdaBodyTree,
     },
+    /// 短路逻辑与 / 或（控制流原语，非方法调用）。
+    LogicalAnd {
+        lhs: ExprId,
+        rhs: ExprId,
+    },
+    LogicalOr {
+        lhs: ExprId,
+        rhs: ExprId,
+    },
+    /// 插值字符串原语（与 MIR `InterpolatedString` 同构）。
+    InterpolatedString {
+        parts: Vec<InterpPart>,
+    },
+    /// `recv?.member`（安全访问原语；member 已决议）。
+    SafeMember {
+        recv: ExprId,
+        member: TreeMember,
+    },
+    /// struct 字面量 `Point { x: 1 }`（fqn 已解析）。
+    StructLit {
+        fqn: String,
+        fields: Vec<(Symbol, ExprId)>,
+    },
     /// `expr as T` / `expr as? T`（转换原语；目标已解析为 TypeId）。
     Cast {
         expr: ExprId,
@@ -162,6 +193,13 @@ pub enum TreeExprKind {
         /// `!is` 为 true。
         negated: bool,
     },
+}
+
+/// 插值字符串片段。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum InterpPart {
+    Lit(String),
+    Expr(ExprId),
 }
 
 /// lambda 主体（块或表达式）。
@@ -353,7 +391,22 @@ impl<'a> TreeBuilder<'a> {
                 }
                 Some(TreePattern::Tuple(out))
             }
-            PatternKind::Struct { .. } => self.gap_ret(pat.span, "struct 解构模式（M2 后续）"),
+            PatternKind::Struct { fields, .. } => {
+                // `Point { x, y }`：简写 `x` 等价 `x: x`；binder 类型来自
+                // pattern_bindings（按出现序）。
+                let mut out = Vec::with_capacity(fields.len());
+                for f in fields {
+                    match &f.pattern {
+                        Some(sub) => out.push(self.build_pattern(sub, bindings)?),
+                        None => {
+                            let b = bindings.next()?;
+                            let local = self.push_local(b.name, b.ty, false, b.span);
+                            out.push(TreePattern::Binder(local));
+                        }
+                    }
+                }
+                Some(TreePattern::Tuple(out))
+            }
             PatternKind::Variant { path, args } => {
                 let enum_fqn: String = path
                     .segments
@@ -698,8 +751,24 @@ impl<'a> TreeBuilder<'a> {
                 Some(self.push_expr(TreeExprKind::Lit(Lit::Str(l.value.clone())), ty, span))
             }
             ExprKind::Ident(id) => self.build_ident(expr, id),
-            ExprKind::Binary { lhs, rhs, .. }
-            | ExprKind::InfixCall {
+            ExprKind::Binary { lhs, op, rhs } => {
+                // `&&` / `||` 是短路控制流原语（非方法调用，无 call 决议）。
+                match op {
+                    crate::syntax::ast::BinaryOp::LogAnd | crate::syntax::ast::BinaryOp::LogOr => {
+                        let ty = self.ty_of(expr.id, span)?;
+                        let l = self.build_expr(lhs)?;
+                        let r = self.build_expr(rhs)?;
+                        let kind = if matches!(op, crate::syntax::ast::BinaryOp::LogAnd) {
+                            TreeExprKind::LogicalAnd { lhs: l, rhs: r }
+                        } else {
+                            TreeExprKind::LogicalOr { lhs: l, rhs: r }
+                        };
+                        Some(self.push_expr(kind, ty, span))
+                    }
+                    _ => self.build_desugared_call(expr, &[lhs, rhs]),
+                }
+            }
+            ExprKind::InfixCall {
                 receiver: lhs,
                 arg: rhs,
                 ..
@@ -912,7 +981,6 @@ impl<'a> TreeBuilder<'a> {
                     span,
                 ))
             }
-            ExprKind::Handle { .. } => self.gap_ret(span, "handle（M2 后续）"),
             ExprKind::Cast {
                 expr: inner,
                 op,
@@ -955,17 +1023,61 @@ impl<'a> TreeBuilder<'a> {
                     span,
                 ))
             }
-            ExprKind::TypeApply { .. } => self.gap_ret(span, "显式类型应用（M2 后续）"),
-            ExprKind::StructLit { .. } => self.gap_ret(span, "struct 字面量（M2 后续）"),
-            ExprKind::WithUpdate { .. } => self.gap_ret(span, "with 更新（M2 后续）"),
-            ExprKind::InterpolatedString { .. } => {
-                self.gap_ret(span, "f-string（desugar 至调用链，M2 后续）")
+            ExprKind::InterpolatedString { parts, .. } => {
+                let ty = self.ty_of(expr.id, span)?;
+                let mut tree_parts = Vec::with_capacity(parts.len());
+                for part in parts {
+                    match part {
+                        crate::syntax::ast::StringPart::Text(s) => {
+                            tree_parts.push(InterpPart::Lit(s.clone()))
+                        }
+                        crate::syntax::ast::StringPart::Expr(e) => {
+                            tree_parts.push(InterpPart::Expr(self.build_expr(e)?))
+                        }
+                    }
+                }
+                Some(self.push_expr(
+                    TreeExprKind::InterpolatedString { parts: tree_parts },
+                    ty,
+                    span,
+                ))
             }
-            ExprKind::SafeMemberAccess { .. } => {
-                self.gap_ret(span, "?. 安全访问（短路展开，M2 后续）")
+            ExprKind::SafeMemberAccess { receiver, .. } => {
+                // `?.` 原语（与 MIR lower_safe_member_access 同构；决议在 member_refs）。
+                self.build_member_expr(expr, receiver)
             }
-            ExprKind::UnsafeBlock(_) | ExprKind::SafeBlock(_) => {
-                self.gap_ret(span, "@Unsafe/@Safe 块（M2 后续）")
+            ExprKind::TypeApply { callee: inner, .. } => {
+                // 显式类型应用：类型已 baked 进 callee——树直接取内层（构造即 desugar）。
+                self.build_expr(inner)
+            }
+            ExprKind::StructLit { name, fields } => {
+                let ty = self.ty_of(expr.id, span)?;
+                let mut tree_fields = Vec::with_capacity(fields.len());
+                for f in fields {
+                    let v = self.build_expr(&f.value)?;
+                    tree_fields.push((f.name.symbol, v));
+                }
+                // FQN 解析与 MIR resolve_struct_fqn 同规则：裸名 → scoop.core 前缀。
+                let name_text = self.interner.resolve(name.symbol);
+                let fqn = [name_text.to_string(), format!("scoop.core.{name_text}")]
+                    .iter()
+                    .find_map(|c| self.interner.get(c))
+                    .unwrap_or(name.symbol);
+                let fqn_text = self.interner.resolve(fqn).to_string();
+                Some(self.push_expr(
+                    TreeExprKind::StructLit {
+                        fqn: fqn_text,
+                        fields: tree_fields,
+                    },
+                    ty,
+                    span,
+                ))
+            }
+            ExprKind::UnsafeBlock(b) | ExprKind::SafeBlock(b) => {
+                // MIR 对 @Unsafe/@Safe 块与普通块同构 lower——树同样折叠为 Block。
+                let ty = self.ty_of(expr.id, span)?;
+                let block = self.build_block(b);
+                Some(self.push_expr(TreeExprKind::Block(block), ty, span))
             }
             ExprKind::ClassLit { .. } => self.gap_ret(span, "T::class 反射字面量（M2 后续）"),
             ExprKind::SpliceField { .. } => self.gap_ret(span, "splice field（特性已移除）"),

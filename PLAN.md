@@ -206,7 +206,17 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第五刀，M2-1 起步）：**声明层 element 表落地**
+> 进度（2026-08-15，第六刀）：**gap 门禁语料拓宽**（mir2 全量 + run-pass/hir/
+> infer 采样，LIMIT=120，`SCOOP2_GAP_DIRS` 可覆盖）→ 89/89 可编译文件树
+> gap-free。词汇表新增：`LogicalAnd/Or`（短路原语）、`InterpolatedString`
+>（与 MIR Rvalue 同构——注：scoop2 MIR 的 f-string 是原语而非调用链 desugar，
+> PLAN 原「desugar 至调用链」表述按 scoop2 现实修正）、`SafeMember`（`?.` 原语）、
+> `StructLit`（fqn 按 MIR resolve_struct_fqn 同规则解析）、struct 解构模式、
+> TypeApply 透明展开、@Unsafe/@Safe 块折叠。修复 typecheck 泄漏：`?.` 的
+> member_refs 未按 Option 内层解析（derive_member_ref_opt）。已知边界：树仍只
+> 覆盖顶层 Fun——方法体 / 顶层 val init / class `$init` 的树构造是 M2-5 翻转的
+> 直接前置（下一刀）。
+> 第五刀（M2-1 起步）：**声明层 element 表落地**
 > （`scoop2_hir::hir::element`）：`ElementTable`（排序 element 列表 + 派生
 > `by_fqn` 索引，索引不序列化、加载重建）；`Element` 携带 fqn/name/种类化载荷
 > （Fun/Method/Ctor/EnumVariant/Global/Field/Type）/`decl_span`/`decl_file`/

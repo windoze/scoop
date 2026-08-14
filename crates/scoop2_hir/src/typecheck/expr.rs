@@ -2292,9 +2292,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn record_expr_facts(&mut self, expr: &Expr, ty: TypeId) {
         match &expr.kind {
             // 成员访问 → ResolvedMember（Field / Method / TupleIndex）。
-            ExprKind::MemberAccess { receiver, member }
-            | ExprKind::SafeMemberAccess { receiver, member } => {
+            ExprKind::MemberAccess { receiver, member } => {
                 if let Some(rm) = self.derive_member_ref(receiver, member, ty) {
+                    self.facts.member_refs.set(expr.id, rm);
+                }
+            }
+            ExprKind::SafeMemberAccess { receiver, member } => {
+                if let Some(rm) = self.derive_member_ref_opt(receiver, member, ty, true) {
                     self.facts.member_refs.set(expr.id, rm);
                 }
             }
@@ -2494,7 +2498,24 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         member: &MemberName,
         access_ty: TypeId,
     ) -> Option<crate::hir::ResolvedMember> {
+        self.derive_member_ref_opt(receiver, member, access_ty, false)
+    }
+
+    /// [`derive_member_ref`] 的 `?.` 变体：接收者按 Option 内层类型解析成员
+    ///（与 typing 路径的 `option_inner_of` 一致，否则 `?.` 的 member_refs 恒缺）。
+    fn derive_member_ref_opt(
+        &self,
+        receiver: &Expr,
+        member: &MemberName,
+        access_ty: TypeId,
+        unwrap_option: bool,
+    ) -> Option<crate::hir::ResolvedMember> {
         let receiver_ty = self.expr_ty(receiver)?;
+        let receiver_ty = if unwrap_option {
+            self.option_inner_of(receiver_ty).unwrap_or(receiver_ty)
+        } else {
+            receiver_ty
+        };
         match member {
             MemberName::TupleIndex { value, .. } => {
                 let element_ty =
