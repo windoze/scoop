@@ -342,8 +342,12 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             builder.current_bb = merge_bb;
             Operand::Local(result)
         }
-        TreeExprKind::LogicalAnd { lhs, rhs } => lower_logical(builder, body, *lhs, *rhs, ty, span),
-        TreeExprKind::LogicalOr { lhs, rhs } => lower_logical(builder, body, *lhs, *rhs, ty, span),
+        TreeExprKind::LogicalAnd { lhs, rhs } => {
+            lower_logical(builder, body, *lhs, *rhs, ty, span, true)
+        }
+        TreeExprKind::LogicalOr { lhs, rhs } => {
+            lower_logical(builder, body, *lhs, *rhs, ty, span, false)
+        }
         TreeExprKind::While {
             cond,
             body: loop_body,
@@ -507,6 +511,27 @@ fn lower_tree_call(
         TreeCallee::Method { recv, .. } => Some(lower_tree_expr(builder, body, *recv)),
         _ => None,
     };
+    // 限定名 variant 的 callee 死语句镜像（AST 路径先 lower `Color.Red` 的
+    // callee，产生 Unit temp + UnresolvedName(receiver 名)——字节一致保留；
+    // C1 清理时与 AST 路径一并删除）。
+    if let TreeCallee::Variant {
+        enum_fqn,
+        qualified: true,
+        ..
+    } = callee
+    {
+        let unit = builder.types.unit();
+        let dead = builder.alloc_temp(unit, span);
+        let recv_name = builder
+            .hir
+            .interner
+            .resolve(*enum_fqn)
+            .rsplit('.')
+            .next()
+            .unwrap_or_default()
+            .to_string();
+        builder.assign(dead, Rvalue::UnresolvedName { name: recv_name }, span);
+    }
     let arg_ops: Vec<Operand> = args
         .iter()
         .map(|&e| lower_tree_expr(builder, body, e))
@@ -641,7 +666,9 @@ fn lower_tree_call(
                 }
             }
         }
-        TreeCallee::Variant { enum_fqn, variant } => {
+        TreeCallee::Variant {
+            enum_fqn, variant, ..
+        } => {
             let payload = builder.aggregate_transport(ty, AggregateTransportKind::EnumPayload);
             Rvalue::EnumVariant {
                 enum_ty: ty,
@@ -668,9 +695,10 @@ fn lower_tree_call(
     Operand::Local(tmp)
 }
 
-/// 短路逻辑（`&&` / `||`）：**逐语句镜像** AST 路径 lower_binary 的 LogAnd/LogOr
-///（两臂同构：then=true / else=b；含 terminate 目标为 then_bb 的历史形态——
-/// 字节一致优先，语义修正属后续里程碑）。
+/// 短路逻辑：**逐语句镜像** lower_binary 的 LogAnd/LogOr。
+/// - `&&`：then = rhs，else = false；
+/// - `||`：then = true，else = rhs。
+/// （含 terminate 目标为 then_bb 的历史形态——字节一致优先。）
 fn lower_logical(
     builder: &mut FnLowering,
     body: &TreeBody,
@@ -678,6 +706,7 @@ fn lower_logical(
     rhs: ExprId,
     _ty: scoop2_hir::ty::TypeId,
     span: Span,
+    is_and: bool,
 ) -> Operand {
     let lv = lower_tree_expr(builder, body, lhs);
     let bool_ty = builder.types.bool();
@@ -697,15 +726,32 @@ fn lower_logical(
         then_bb,
     );
     builder.current_bb = then_bb;
-    builder.assign(
-        result,
-        Rvalue::Use(Operand::Const(ConstValue::Bool(true))),
-        span,
-    );
+    if is_and {
+        // then: rhs → result。
+        let bv = lower_tree_expr(builder, body, rhs);
+        builder.assign(result, Rvalue::Use(bv), span);
+    } else {
+        // then: result = true。
+        builder.assign(
+            result,
+            Rvalue::Use(Operand::Const(ConstValue::Bool(true))),
+            span,
+        );
+    }
     builder.goto(merge_bb, span);
     builder.current_bb = else_bb;
-    let bv = lower_tree_expr(builder, body, rhs);
-    builder.assign(result, Rvalue::Use(bv), span);
+    if is_and {
+        // else: result = false。
+        builder.assign(
+            result,
+            Rvalue::Use(Operand::Const(ConstValue::Bool(false))),
+            span,
+        );
+    } else {
+        // else: rhs → result。
+        let bv = lower_tree_expr(builder, body, rhs);
+        builder.assign(result, Rvalue::Use(bv), span);
+    }
     builder.goto(merge_bb, span);
     builder.current_bb = merge_bb;
     Operand::Local(result)

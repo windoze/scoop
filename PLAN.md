@@ -206,7 +206,15 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第十三刀）：**支持集扩展到 If/While/Ctor/Variant/Break/
+> 进度（2026-08-15，第十四刀）：**语料一致率 33/33（严格比对）**。修复：
+> (a) `&&`/`||` 语义纠正（此前读串两臂——LogAnd=then:rhs/else:false，
+> LogOr=then:true/else:rhs）；(b) 限定名 variant 的 callee 死语句镜像
+>（`Color.Red(42)` 先 lower callee 产生 Unit temp + UnresolvedName——字节
+> 一致保留，`TreeCallee::Variant.qualified` 标记裸名/限定形态；C1 清理时与
+> AST 路径一并删除）。翻转待办：余 29 函数的构造（When/Lambda/StructLit/
+> InterpolatedString/ArrayLit/Cast/TypeCheck/WithUpdate/虚分派/Handle/
+> Destructure）镜像到 62/62 后切默认。
+> 第十三刀：**支持集扩展到 If/While/Ctor/Variant/Break/
 > Continue**（全部逐语句镜像 AST lowering；Ctor 区分 struct-StructLit 与
 > class-ClassCtor，树 args 已含默认填充故跳过 expand_super_ctor_chain）。
 > 语料一致率 26/26 → **30/33**（新增 7 个支持函数）。余 3 处差异已定位：

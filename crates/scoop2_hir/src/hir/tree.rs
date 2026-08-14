@@ -309,7 +309,13 @@ pub enum TreeCallee {
     /// 构造器调用（`secondary` 区分 primary/secondary callable）。
     Ctor { type_fqn: Symbol, secondary: bool },
     /// enum variant 构造。
-    Variant { enum_fqn: Symbol, variant: Symbol },
+    Variant {
+        enum_fqn: Symbol,
+        variant: Symbol,
+        /// 限定名形态（`Color.Red(...)`）；裸名（`Some(x)`）为 false——
+        /// MIR AST 路径对限定形态先 lower callee 产生死语句，镜像需要。
+        qualified: bool,
+    },
     /// 局部函数值调用。
     LocalValue { local: LocalId },
     /// 任意函数值表达式调用（`f()(x)` / `fns[0](1)` / lambda 调用）。
@@ -1237,6 +1243,7 @@ impl<'a> TreeBuilder<'a> {
             } => TreeCallee::Variant {
                 enum_fqn: *enum_fqn,
                 variant: *variant_name,
+                qualified: false,
             },
             super::ResolvedCall::EffectOp {
                 effect_name,
@@ -1373,6 +1380,7 @@ impl<'a> TreeBuilder<'a> {
             } => Some(TreeCallee::Variant {
                 enum_fqn: *enum_fqn,
                 variant: *variant_name,
+                qualified: matches!(callee.kind, ExprKind::MemberAccess { .. }),
             }),
             super::ResolvedCall::LocalValue { local_name, .. } => {
                 match self.lookup_local(*local_name) {
