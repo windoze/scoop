@@ -40,6 +40,9 @@ pub struct ConeInfo {
     /// cone 名（如 `scoop.core`）。
     pub name: String,
     pub kind: ConeKind,
+    /// 跨构建稳定身份（从包名派生；PLAN.md C2——序列化/跨 cone 引用用它，
+    /// `id` 只是会话内注册表下标，不跨构建稳定）。
+    pub stable_key: scoop2_base::StableConeKey,
 }
 
 // ---------------------------------------------------------------------------

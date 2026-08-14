@@ -6,6 +6,8 @@
 //! - [`SourceFile`] / [`FileId`]：源文件身份、行表与行列映射；
 //! - [`Symbol`] / [`Interner`]：字符串 interning，AST/HIR 中的标识符一律使用 `Symbol`；
 //! - [`NodeId`]：AST 节点身份，语义阶段的致密侧表以它为键；
+//! - [`stable`]：阶段无关的稳定身份地基（scope 哈希、cone 稳定键、archive 版本
+//!   与指纹——PLAN.md C2/C3/C7）；
 //! - [`diag`]：数据驱动的诊断表示（稳定诊断码 + span + help）与纯文本渲染器。
 //!
 //! 本 crate 不依赖任何其他编译器 crate，也不依赖 miette/thiserror：
@@ -18,9 +20,14 @@ pub mod diag;
 mod node;
 mod source;
 mod span;
+mod stable;
 mod symbol;
 
 pub use node::{NodeId, NodeIdAllocator};
 pub use source::{FileId, SourceFile, SourceOrigin, SourceTrust};
 pub use span::Span;
+pub use stable::{
+    ArchiveFingerprintBuilder, ArchiveStage, StableConeKey, StableHashScope, archive_fingerprint,
+    archive_schema, compiler_version, stable_hash,
+};
 pub use symbol::{Interner, Symbol};

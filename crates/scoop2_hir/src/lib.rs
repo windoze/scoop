@@ -6,6 +6,8 @@
 //! - [`ty`]：类型存储（`TypeId` interning）与类型系统核心；
 //! - [`typecheck`]：声明头与表达式/语句的完整类型检查与推断；
 //! - [`hir`]：typed HIR 数据结构与 AST→HIR lowering（全部脱糖在此完成）；
+//! - [`stable_id`]：稳定身份（定义层）——canonical 类型文本编码 + `StableDefKey`
+//!   + 重载消歧 key（PLAN.md M0）；
 //! - [`completeness`]：typed HIR 交付前的完整性闸门（拒绝任何未解析引用/缺类型节点）。
 //!
 //! 阶段顺序：`parse → resolve(headers) → resolve(bodies) → typecheck → lower → verify`。
@@ -18,5 +20,6 @@ pub use scoop2_syntax as syntax;
 pub mod completeness;
 pub mod hir;
 pub mod resolve;
+pub mod stable_id;
 pub mod ty;
 pub mod typecheck;

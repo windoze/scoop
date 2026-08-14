@@ -70,6 +70,9 @@ impl Index {
     // ----- cone 注册 -----
 
     /// 注册或复用一个 cone（按名字幂等），返回其 [`ConeId`]。
+    ///
+    /// 注意：`ConeId` 按注册顺序分配，是会话内 dense 下标；跨构建 / 序列化身份
+    /// 用 [`ConeInfo::stable_key`]（从名字派生，与注册顺序无关）。
     pub fn intern_cone(&mut self, name: &str, kind: ConeKind) -> ConeId {
         if let Some(&id) = self.cone_by_name.get(name) {
             return id;
@@ -79,6 +82,7 @@ impl Index {
             id,
             name: name.to_string(),
             kind,
+            stable_key: scoop2_base::StableConeKey::from_cone_name(name),
         });
         self.cone_by_name.insert(name.to_string(), id);
         id
