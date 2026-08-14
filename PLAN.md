@@ -206,7 +206,17 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第四刀）：**mir2 15/15 fixture 全部 typecheck 通过且树
+> 进度（2026-08-15，第五刀，M2-1 起步）：**声明层 element 表落地**
+> （`scoop2_hir::hir::element`）：`ElementTable`（排序 element 列表 + 派生
+> `by_fqn` 索引，索引不序列化、加载重建）；`Element` 携带 fqn/name/种类化载荷
+> （Fun/Method/Ctor/EnumVariant/Global/Field/Type）/`decl_span`/`decl_file`/
+> `overload_key`（复用 M0 的 `overload_disambiguation_key`）。装配在
+> `into_typed_hir` 尾部（确定性排序）。顺带：顶层函数注册的 `decl_span` 从
+> 恒 `0..0` 修正为 `d.name.span`（成员方法本就正确），多重载函数的树构造从
+> 「单重载直取」升级为「按声明 span 精确匹配」。已知粗粒度：variant/global/
+> field/type element 的 span 暂为默认值（声明位登记待后续从 collect 阶段透出）；
+> String 形态 FQN 句柄化（StableDefKey）待 archive v1。
+> 第四刀：**mir2 15/15 fixture 全部 typecheck 通过且树
 > gap-free**（零跳过零缺口）。修复 effect_resuming 的根因链：(a)
 > `effect_op_resume_type` 对用户自定义 effect 的裸名 arm 路径查不到 FQN——补包
 > 前缀候选（Continuation 的 Resume 实参由此正确定型为 Int，先前的 receiver 实参

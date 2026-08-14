@@ -16,6 +16,7 @@
 //! - **per-file 表达式类型表**：每个用户文件一份 `expr_types: NodeIdTable<TypeId>`，
 //!   在 typecheck body 时由 `ExprChecker` 写回。
 
+pub mod element;
 pub mod facts;
 pub mod render;
 mod serde_impl;
@@ -203,8 +204,11 @@ pub struct TypedHir {
     ///
     /// 当前与上方 16 个旧字段并存（增量迁移阶段）；消费者仍用旧字段，此表待后续迁移。
     pub type_infos: HashMap<TypeId, type_info::TypeInfo>,
-    /// 每个用户文件的 typed 产物（含 expr_types + 语义事实）。
+    /// 每个用户文件的 typed 产物（含 expr_types + 语义事实 + body 树）。
     pub files: Vec<TypedFile>,
+    /// 声明层 element 表（M2-1 增量）：与上方旧字段并存，M2-5 翻转后成为
+    /// 声明的唯一表示。
+    pub elements: element::ElementTable,
 }
 
 impl TypedHir {
@@ -397,6 +401,7 @@ impl TypedHir {
             super_ctor_delegations: HashMap::new(),
             type_infos: HashMap::new(),
             files: Vec::new(),
+            elements: element::ElementTable::default(),
         }
     }
 }

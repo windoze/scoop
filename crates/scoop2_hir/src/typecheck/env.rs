@@ -618,7 +618,7 @@ impl<'i> TypeEnv<'i> {
             &self.class_ctor_params,
             &self.super_ctor_delegations,
         );
-        TypedHir {
+        let mut hir = TypedHir {
             store,
             interner,
             top_level_funs,
@@ -639,7 +639,11 @@ impl<'i> TypeEnv<'i> {
             super_ctor_delegations: self.super_ctor_delegations,
             type_infos,
             files,
-        }
+            elements: crate::hir::element::ElementTable::default(),
+        };
+        // 声明层 element 表：从上方散表装配（确定性排序）。
+        hir.elements = crate::hir::element::assemble(&hir);
+        hir
     }
 }
 
@@ -686,37 +690,63 @@ fn build_type_infos(
         let ty_id = nominal_type_id(store, fqn, is_ref);
         let info = match category {
             NominalCategory::Class | NominalCategory::Object => {
-                let (base_class, direct_implements, _) =
-                    split_supertypes(store, index, fqn);
+                let (base_class, direct_implements, _) = split_supertypes(store, index, fqn);
                 TypeInfo::Class(build_class_info(
-                    store, index, interner, fqn, base_class, direct_implements,
-                    member_funs, member_fun_order, members, member_order,
-                    ctor_signatures, class_ctor_params, super_ctor_delegations,
+                    store,
+                    index,
+                    interner,
+                    fqn,
+                    base_class,
+                    direct_implements,
+                    member_funs,
+                    member_fun_order,
+                    members,
+                    member_order,
+                    ctor_signatures,
+                    class_ctor_params,
+                    super_ctor_delegations,
                     !extensible_class_fqns.contains(&fqn),
                 ))
             }
             NominalCategory::Interface => {
                 let (_, _, direct_extends) = split_supertypes(store, index, fqn);
                 TypeInfo::Interface(build_interface_info(
-                    store, index, interner, fqn, direct_extends,
-                    member_funs, member_fun_order,
+                    store,
+                    index,
+                    interner,
+                    fqn,
+                    direct_extends,
+                    member_funs,
+                    member_fun_order,
                 ))
             }
             NominalCategory::Struct => {
                 let (_, direct_implements, _) = split_supertypes(store, index, fqn);
                 TypeInfo::Struct(build_struct_info(
-                    store, index, interner, fqn, direct_implements,
-                    member_funs, member_fun_order, members, member_order,
+                    store,
+                    index,
+                    interner,
+                    fqn,
+                    direct_implements,
+                    member_funs,
+                    member_fun_order,
+                    members,
+                    member_order,
                 ))
             }
             NominalCategory::Enum => {
                 let (_, direct_implements, _) = split_supertypes(store, index, fqn);
-                let variants = collect_enum_variants(
-                    interner, fqn, enum_variants, members, member_order,
-                );
+                let variants =
+                    collect_enum_variants(interner, fqn, enum_variants, members, member_order);
                 TypeInfo::Enum(build_enum_info(
-                    store, index, interner, fqn, variants, direct_implements,
-                    member_funs, member_fun_order,
+                    store,
+                    index,
+                    interner,
+                    fqn,
+                    variants,
+                    direct_implements,
+                    member_funs,
+                    member_fun_order,
                 ))
             }
             NominalCategory::Effect => TypeInfo::Effect,
@@ -743,10 +773,11 @@ fn build_type_infos(
         (store.float32(), PrimitiveKind::Float32),
         (store.float64(), PrimitiveKind::Float64),
     ] {
-        out.entry(ty).or_insert(TypeInfo::Primitive(PrimitiveTypeInfo {
-            kind,
-            direct_implements: Vec::new(),
-        }));
+        out.entry(ty)
+            .or_insert(TypeInfo::Primitive(PrimitiveTypeInfo {
+                kind,
+                direct_implements: Vec::new(),
+            }));
     }
 
     // Tuple / Function：这两类无具名声明，且 store 内具体元组/函数实例可能很多
@@ -890,20 +921,16 @@ fn build_class_ctor(
     // secondary = ctor_signatures 除首个（primary）外的签名。
     let secondary: Vec<crate::hir::type_info::Signature> = ctor_signatures
         .get(&fqn)
-        .map(|v| {
-            v.iter()
-                .skip(1)
-                .map(typed_sig_to_type_info_sig)
-                .collect()
-        })
+        .map(|v| v.iter().skip(1).map(typed_sig_to_type_info_sig).collect())
         .unwrap_or_default();
-    let super_delegation: Option<TiSuperCtorDelegation> = super_ctor_delegations
-        .get(&fqn)
-        .map(|d| TiSuperCtorDelegation {
-            super_fqn: d.super_fqn,
-            base_index: d.base_index,
-            arg_tys: d.arg_tys.clone(),
-        });
+    let super_delegation: Option<TiSuperCtorDelegation> =
+        super_ctor_delegations
+            .get(&fqn)
+            .map(|d| TiSuperCtorDelegation {
+                super_fqn: d.super_fqn,
+                base_index: d.base_index,
+                arg_tys: d.arg_tys.clone(),
+            });
     TiClassCtor {
         primary_params,
         secondary,
@@ -1053,9 +1080,7 @@ fn build_enum_info(
 /// [`crate::hir::type_info::Signature`]（两者字段同构，仅类型不同）。
 ///
 /// 用于在 `into_typed_hir` 末尾把已转换的签名重打包进 [`crate::hir::type_info::TypeInfo`]。
-fn typed_sig_to_type_info_sig(
-    ts: &crate::hir::TypedSignature,
-) -> crate::hir::type_info::Signature {
+fn typed_sig_to_type_info_sig(ts: &crate::hir::TypedSignature) -> crate::hir::type_info::Signature {
     crate::hir::type_info::Signature {
         param_types: ts.param_types.clone(),
         return_ty: ts.return_ty,
@@ -1157,13 +1182,8 @@ pub fn register_top_level_signatures(
             // 降级 receiver 类型 → FQN。
             let recv_fqn = {
                 let tp_map = build_tp_map(env, d.type_params.as_ref());
-                let mut lower = TypeLowering::new(
-                    env,
-                    imports,
-                    tp_map,
-                    package_prefix.to_string(),
-                    diags,
-                );
+                let mut lower =
+                    TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
                 let rt = lower.lower(receiver_ref);
                 let kind = env.store.kind(rt);
                 crate::typecheck::expr::nominal_fqn_of(kind)
@@ -1298,7 +1318,7 @@ pub fn register_top_level_signatures(
                 effect: d.effect.clone(),
                 eff_param_id,
                 has_body: d.body.is_some(),
-                decl_span: scoop2_base::Span::default(),
+                decl_span: d.name.span,
                 decl_file: file_id,
             }
         };
@@ -2173,7 +2193,7 @@ pub fn register_constructors(
                     type_param_bounds: tpb,
                     modifiers: crate::resolve::symbol::ModifierSet::from_modifiers(&c.modifiers),
                     effect: None,
-                        eff_param_id: None,
+                    eff_param_id: None,
                     has_body: true,
                     decl_span: c.span,
                     decl_file: file_id,
@@ -2213,13 +2233,8 @@ pub fn register_constructors(
                 }
                 let primary_tp_bounds = {
                     let tp_map = build_tp_map(env, d.type_params.as_ref());
-                    let mut lower = TypeLowering::new(
-                        env,
-                        imports,
-                        tp_map,
-                        package_prefix.to_string(),
-                        diags,
-                    );
+                    let mut lower =
+                        TypeLowering::new(env, imports, tp_map, package_prefix.to_string(), diags);
                     lower_type_param_bounds(d.type_params.as_ref(), &mut lower)
                 };
                 let primary_defaults: Vec<bool> = d
@@ -2288,7 +2303,7 @@ pub fn register_constructors(
                     type_param_bounds: primary_tp_bounds,
                     modifiers: crate::resolve::symbol::ModifierSet::default(),
                     effect: None,
-                        eff_param_id: None,
+                    eff_param_id: None,
                     has_body: true,
                     decl_span: d
                         .primary_ctor

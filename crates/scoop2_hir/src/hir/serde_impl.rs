@@ -52,6 +52,7 @@ struct TypedHirRepr {
     super_ctor_delegations: Vec<(Symbol, SuperCtorDelegation)>,
     type_infos: Vec<(TypeId, TypeInfo)>,
     files: Vec<TypedFile>,
+    elements: super::element::ElementTable,
 }
 
 impl From<&TypedHir> for TypedHirRepr {
@@ -83,6 +84,7 @@ impl From<&TypedHir> for TypedHirRepr {
             super_ctor_delegations: sorted_entries(&h.super_ctor_delegations),
             type_infos: sorted_entries(&h.type_infos),
             files: h.files.clone(),
+            elements: h.elements.clone(),
         }
     }
 }
@@ -118,6 +120,7 @@ impl From<TypedHirRepr> for TypedHir {
             super_ctor_delegations: r.super_ctor_delegations.into_iter().collect(),
             type_infos: r.type_infos.into_iter().collect(),
             files: r.files,
+            elements: r.elements,
         }
     }
 }

@@ -220,9 +220,12 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
             let Some(sigs) = hir.top_level_funs.get(&fqn_sym) else {
                 continue;
             };
-            // TypedSignature.decl_span 尚未填充；单重载函数直接取，多重载暂跳过
-            //（重载消歧 key 是已登记缺口，M2 element 体系一并解决）。
-            let [sig] = sigs.as_slice() else { continue };
+            // 重载消歧：按声明 span 精确匹配；单重载直取（span 兜底）。
+            let sig = sigs
+                .iter()
+                .find(|s| s.decl_span == d.name.span)
+                .or_else(|| (sigs.len() == 1).then(|| &sigs[0]));
+            let Some(sig) = sig else { continue };
             let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
                 .param_names
                 .iter()
