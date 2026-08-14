@@ -37,7 +37,8 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeExprKind::Block(_)
             | TreeExprKind::Tuple(_)
             | TreeExprKind::LogicalAnd { .. }
-            | TreeExprKind::LogicalOr { .. } => {}
+            | TreeExprKind::LogicalOr { .. }
+            | TreeExprKind::NotNullAssert { .. } => {}
             TreeExprKind::If { .. } => return Some("If"),
             TreeExprKind::While { .. } => return Some("While"),
             TreeExprKind::When { .. } => return Some("When"),
@@ -239,9 +240,37 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
         TreeExprKind::Call { callee, args } => {
             lower_tree_call(builder, body, callee, args, ty, span)
         }
-        TreeExprKind::Member { recv, member } | TreeExprKind::SafeMember { recv, member } => {
+        TreeExprKind::Member { recv, member } => {
             let recv_op = lower_tree_expr(builder, body, *recv);
             lower_tree_member(builder, recv_op, member, ty, span)
+        }
+        TreeExprKind::SafeMember { recv, member } => {
+            // 镜像 lower_safe_member_access：if null then null else recv.member。
+            let recv_op = lower_tree_expr(builder, body, *recv);
+            let result = builder.alloc_temp(ty, span);
+            let then_bb = builder.new_block();
+            let else_bb = builder.new_block();
+            let merge_bb = builder.new_block();
+            builder.terminate(
+                Terminator {
+                    span,
+                    kind: TerminatorKind::CondBr {
+                        cond: recv_op.clone(),
+                        then_target: then_bb,
+                        else_target: else_bb,
+                    },
+                },
+                then_bb,
+            );
+            builder.current_bb = then_bb;
+            let member_val = lower_tree_member(builder, recv_op, member, ty, span);
+            builder.assign(result, Rvalue::Use(member_val), span);
+            builder.goto(merge_bb, span);
+            builder.current_bb = else_bb;
+            builder.assign(result, Rvalue::Use(Operand::Const(ConstValue::Null)), span);
+            builder.goto(merge_bb, span);
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
         }
         TreeExprKind::Block(b) => lower_tree_block(builder, body, *b),
         TreeExprKind::Tuple(els) => {
@@ -261,11 +290,39 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             );
             Operand::Local(tmp)
         }
-        TreeExprKind::LogicalAnd { lhs, rhs } => {
-            lower_logical(builder, body, *lhs, *rhs, ty, span, true)
-        }
-        TreeExprKind::LogicalOr { lhs, rhs } => {
-            lower_logical(builder, body, *lhs, *rhs, ty, span, false)
+        TreeExprKind::LogicalAnd { lhs, rhs } => lower_logical(builder, body, *lhs, *rhs, ty, span),
+        TreeExprKind::LogicalOr { lhs, rhs } => lower_logical(builder, body, *lhs, *rhs, ty, span),
+        TreeExprKind::NotNullAssert { expr: inner } => {
+            // 镜像 lower_not_null_assert：CondBr + else panic 路径。
+            let v = lower_tree_expr(builder, body, *inner);
+            let result = builder.alloc_temp(ty, span);
+            let then_bb = builder.new_block();
+            let else_bb = builder.new_block();
+            let merge_bb = builder.new_block();
+            builder.terminate(
+                Terminator {
+                    span,
+                    kind: TerminatorKind::CondBr {
+                        cond: v.clone(),
+                        then_target: then_bb,
+                        else_target: else_bb,
+                    },
+                },
+                then_bb,
+            );
+            builder.current_bb = then_bb;
+            builder.assign(result, Rvalue::Use(v), span);
+            builder.goto(merge_bb, span);
+            builder.current_bb = else_bb;
+            builder.push_stmt(crate::mir::Statement {
+                span,
+                kind: crate::mir::StatementKind::Panic {
+                    message: "NotNullAssert 失败（值为 null）".to_string(),
+                },
+            });
+            builder.goto(merge_bb, span);
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
         }
         _ => unsupported!("本切片支持集外的表达式构造"),
     }
@@ -357,13 +414,19 @@ fn lower_tree_call(
     ty: scoop2_hir::ty::TypeId,
     span: Span,
 ) -> Operand {
-    let tmp = builder.alloc_temp(ty, span);
-    let call_site_id = Some(builder.next_site_id());
-    let call_transport = builder.call_transport(ty);
+    // 分配序镜像 AST 路径：先 receiver（Method）、再实参、最后结果 temp
+    //（emit_call_resolution 的 tmp 在实参 lower 完成后分配）。
+    let recv_op = match callee {
+        TreeCallee::Method { recv, .. } => Some(lower_tree_expr(builder, body, *recv)),
+        _ => None,
+    };
     let arg_ops: Vec<Operand> = args
         .iter()
         .map(|&e| lower_tree_expr(builder, body, e))
         .collect();
+    let tmp = builder.alloc_temp(ty, span);
+    let call_site_id = Some(builder.next_site_id());
+    let call_transport = builder.call_transport(ty);
     let mir_args: Vec<crate::mir::CallArg> = arg_ops
         .iter()
         .zip(args.iter())
@@ -395,7 +458,6 @@ fn lower_tree_call(
             }
         }
         TreeCallee::Method {
-            recv,
             owner_fqn,
             method,
             type_args,
@@ -403,7 +465,7 @@ fn lower_tree_call(
             ..
         } => {
             // direct 方法调用：receiver 前置（镜像 AST 路径的 final_args 构造）。
-            let recv_op = lower_tree_expr(builder, body, *recv);
+            let recv_op = recv_op.expect("Method 分支已预 lower receiver");
             let recv_ty = operand_ty_of(builder, &recv_op);
             let owner_str = builder.hir.interner.resolve(*owner_fqn).to_string();
             let method_str = builder.hir.interner.resolve(*method).to_string();
@@ -455,35 +517,44 @@ fn lower_tree_call(
     Operand::Local(tmp)
 }
 
-/// 短路逻辑（`&&` / `||`）：控制流展开。
+/// 短路逻辑（`&&` / `||`）：**逐语句镜像** AST 路径 lower_binary 的 LogAnd/LogOr
+///（两臂同构：then=true / else=b；含 terminate 目标为 then_bb 的历史形态——
+/// 字节一致优先，语义修正属后续里程碑）。
 fn lower_logical(
     builder: &mut FnLowering,
     body: &TreeBody,
     lhs: ExprId,
     rhs: ExprId,
-    ty: scoop2_hir::ty::TypeId,
+    _ty: scoop2_hir::ty::TypeId,
     span: Span,
-    _is_and: bool,
 ) -> Operand {
-    let l = lower_tree_expr(builder, body, lhs);
-    let result = builder.alloc_temp(ty, span);
-    builder.assign(result, Rvalue::Use(l.clone()), span);
-    let rhs_bb = builder.new_block();
+    let lv = lower_tree_expr(builder, body, lhs);
+    let bool_ty = builder.types.bool();
+    let result = builder.alloc_temp(bool_ty, span);
+    let then_bb = builder.new_block();
+    let else_bb = builder.new_block();
     let merge_bb = builder.new_block();
     builder.terminate(
         Terminator {
             span,
             kind: TerminatorKind::CondBr {
-                cond: l,
-                then_target: rhs_bb,
-                else_target: merge_bb,
+                cond: lv,
+                then_target: then_bb,
+                else_target: else_bb,
             },
         },
-        builder.current_bb,
+        then_bb,
     );
-    builder.current_bb = rhs_bb;
-    let r = lower_tree_expr(builder, body, rhs);
-    builder.assign(result, Rvalue::Use(r), span);
+    builder.current_bb = then_bb;
+    builder.assign(
+        result,
+        Rvalue::Use(Operand::Const(ConstValue::Bool(true))),
+        span,
+    );
+    builder.goto(merge_bb, span);
+    builder.current_bb = else_bb;
+    let bv = lower_tree_expr(builder, body, rhs);
+    builder.assign(result, Rvalue::Use(bv), span);
     builder.goto(merge_bb, span);
     builder.current_bb = merge_bb;
     Operand::Local(result)
@@ -552,9 +623,11 @@ pub fn lower_tree_fun_decl(
             (sig.return_ty, sig.effect_row)
         };
 
+    // fn_ty 的参数不含隐式 <this>（镜像 AST：fd.params 事后追加 this）。
     let param_tys: Vec<scoop2_hir::ty::TypeId> = tree
         .params
         .iter()
+        .filter(|&p| builder_this_check(hir, tree.body.locals[p.0 as usize].name))
         .map(|&p| tree.body.locals[p.0 as usize].ty)
         .collect();
     let fn_ty = types.function(scoop2_hir::ty::FunctionType {
@@ -593,15 +666,18 @@ pub fn lower_tree_fun_decl(
     );
     for &p in &tree.params {
         let decl = &tree.body.locals[p.0 as usize];
-        let lid = builder.alloc_named(
-            builder.hir.interner.resolve(decl.name).to_string(),
-            decl.ty,
-            decl.span,
-        );
+        let sym_text = builder.hir.interner.resolve(decl.name);
+        // 隐式接收者：MIR 参数名固定 `<this>`（符号表仍按 `this` 注册）。
+        let mir_name = if sym_text == "this" {
+            "<this>"
+        } else {
+            sym_text
+        };
+        let lid = builder.alloc_named(mir_name.to_string(), decl.ty, decl.span);
         builder.symbol_locals.insert(decl.name, lid);
         fd.params.push(crate::mir::Param {
             span: decl.span,
-            name: builder.hir.interner.resolve(decl.name).to_string(),
+            name: mir_name.to_string(),
             ty: decl.ty,
             local: lid,
         });
@@ -610,4 +686,9 @@ pub fn lower_tree_fun_decl(
     let (body, _nested, types_out) = builder.finish();
     fd.body = Some(body);
     Some((fd, types_out))
+}
+
+/// 局部是否是隐式 this（MIR fn_ty 排除）。
+fn builder_this_check(hir: &scoop2_hir::hir::TypedHir, name: scoop2_base::Symbol) -> bool {
+    hir.interner.resolve(name) != "this"
 }

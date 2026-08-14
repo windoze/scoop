@@ -186,6 +186,11 @@ pub enum TreeExprKind {
         /// `as?`（可空转换）为 true。
         nullable: bool,
     },
+    /// 非空断言 `expr!!`（控制流原语：CondBr + panic 路径——与 MIR
+    /// lower_not_null_assert 同构；typecheck 记录的 Option.unwrap 决议供他途）。
+    NotNullAssert {
+        expr: ExprId,
+    },
     /// `expr is T` / `expr !is T`（类型判断原语；目标已解析为 TypeId）。
     TypeCheck {
         expr: ExprId,
@@ -492,7 +497,12 @@ pub fn build_fn_tree(
         scopes: vec![std::collections::HashMap::new()],
         gaps: Vec::new(),
     };
-    let param_locals: Vec<LocalId> = params
+    // `this` 先于声明参数入 locals / params（MIR 方法参数序 [<this>, ...] 对齐）。
+    let this_local = this_ty.and_then(|ty| {
+        let sym = b.interner.get("this")?;
+        Some(b.push_local(sym, ty, false, Span::new(0, 0)))
+    });
+    let mut param_locals: Vec<LocalId> = params
         .iter()
         .map(|&(name, ty)| {
             b.push_local(
@@ -504,12 +514,8 @@ pub fn build_fn_tree(
             )
         })
         .collect();
-    // ：成员方法的隐式接收者绑定（resolve 有意不写 value_refs——body.rs
-    // defer 到 typecheck；树侧绑定为作用域内 local）。
-    if let Some(this_ty) = this_ty
-        && let Some(this_sym) = b.interner.get("this")
-    {
-        b.push_local(this_sym, this_ty, false, Span::new(0, 0));
+    if let Some(t) = this_local {
+        param_locals.insert(0, t);
     }
     let root = match body {
         crate::syntax::ast::FunBody::Block(block) => b.build_block(block),
@@ -802,8 +808,9 @@ impl<'a> TreeBuilder<'a> {
             }
             ExprKind::Unary { expr: inner, .. } => self.build_desugared_call(expr, &[inner]),
             ExprKind::NotNullAssert { expr: inner } => {
-                // `!!` → Option.unwrap 调用（决议已记录）。
-                self.build_desugared_call(expr, &[inner])
+                let ty = self.ty_of(expr.id, span)?;
+                let inner = self.build_expr(inner)?;
+                Some(self.push_expr(TreeExprKind::NotNullAssert { expr: inner }, ty, span))
             }
             ExprKind::Index { receiver, indices } => {
                 let mut args: Vec<&crate::syntax::ast::Expr> = vec![receiver];
@@ -1067,8 +1074,12 @@ impl<'a> TreeBuilder<'a> {
                 ))
             }
             ExprKind::SafeMemberAccess { receiver, .. } => {
-                // `?.` 原语（与 MIR lower_safe_member_access 同构；决议在 member_refs）。
-                self.build_member_expr(expr, receiver)
+                // `?.` 原语：null 短路路径（与 MIR lower_safe_member_access 同构；
+                // 决议在 member_refs，按 Option 内层解析——typecheck 已修）。
+                let ty = self.ty_of(expr.id, span)?;
+                let recv = self.build_expr(receiver)?;
+                let member = self.resolve_tree_member(expr, receiver)?;
+                Some(self.push_expr(TreeExprKind::SafeMember { recv, member }, ty, span))
             }
             ExprKind::TypeApply { callee: inner, .. } => {
                 // 显式类型应用：类型已 baked 进 callee——树直接取内层（构造即 desugar）。
@@ -1387,6 +1398,31 @@ impl<'a> TreeBuilder<'a> {
         }
     }
 
+    /// 成员决议 → TreeMember（Member/SafeMember 共用）。
+    fn resolve_tree_member(
+        &mut self,
+        expr: &crate::syntax::ast::Expr,
+        _receiver: &crate::syntax::ast::Expr,
+    ) -> Option<TreeMember> {
+        match self.facts.member_refs.get(expr.id) {
+            Some(super::ResolvedMember::Field {
+                owner_fqn,
+                member_name,
+                ..
+            }) => Some(TreeMember::Field {
+                owner_fqn: *owner_fqn,
+                name: *member_name,
+            }),
+            Some(super::ResolvedMember::TupleIndex { index, .. }) => Some(TreeMember::TupleIndex {
+                index: *index as u64,
+            }),
+            Some(super::ResolvedMember::Method { .. }) => {
+                self.gap_ret(expr.span, "方法引用做值（FunVal 变体，M2 后续）")
+            }
+            None => self.gap_ret(expr.span, "member 决议缺失（completeness 泄漏）"),
+        }
+    }
+
     fn build_member_expr(
         &mut self,
         expr: &crate::syntax::ast::Expr,
@@ -1395,37 +1431,8 @@ impl<'a> TreeBuilder<'a> {
         let span = expr.span;
         let ty = self.ty_of(expr.id, span)?;
         let recv = self.build_expr(receiver)?;
-        match self.facts.member_refs.get(expr.id) {
-            Some(super::ResolvedMember::Field {
-                owner_fqn,
-                member_name,
-                ..
-            }) => Some(self.push_expr(
-                TreeExprKind::Member {
-                    recv,
-                    member: TreeMember::Field {
-                        owner_fqn: *owner_fqn,
-                        name: *member_name,
-                    },
-                },
-                ty,
-                span,
-            )),
-            Some(super::ResolvedMember::TupleIndex { index, .. }) => Some(self.push_expr(
-                TreeExprKind::Member {
-                    recv,
-                    member: TreeMember::TupleIndex {
-                        index: *index as u64,
-                    },
-                },
-                ty,
-                span,
-            )),
-            Some(super::ResolvedMember::Method { .. }) => {
-                self.gap_ret(span, "方法引用做值（FunVal 变体，M2 后续）")
-            }
-            None => self.gap_ret(span, "member 决议缺失（completeness 泄漏）"),
-        }
+        let member = self.resolve_tree_member(expr, receiver)?;
+        Some(self.push_expr(TreeExprKind::Member { recv, member }, ty, span))
     }
 }
 

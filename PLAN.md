@@ -206,7 +206,16 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第十一刀，M2-5 破冰）：**双路径翻转方法论端到端验证成功**。
+> 进度（2026-08-15，第十二刀）：**双路径语料一致率 26/26**（mir2 + hir 两
+> 目录，全部树支持函数字节一致）。修复五类差异：(a) 分配序——receiver → 实参
+> → 结果 temp（镜像 emit_call_resolution）；(b) 方法 `<this>` 参数序 + fn_ty
+> 排除隐式接收者；(c) `&&`/`||` 逐语句镜像 AST 历史形态（含 terminate 目标为
+> then_bb 的 quirk——字节一致优先）；(d) `!!` 改为 NotNullAssert 控制流原语
+> （CondBr + panic 路径，替代错误的 Option.unwrap 糖展开）；(e) `?.` 树 builder
+> 实际产出 SafeMember 节点（null 短路镜像）。翻转语料扩至 hir 目录（62 函数、
+> 26 支持、26 一致）。下一步：If/When/While/Ctor/Variant 支持集扩展 → 全语料
+> 一致 → 切默认删 AST 路径。
+> 第十一刀（M2-5 破冰）：**双路径翻转方法论端到端验证成功**。
 > 新增 `scoop2_mir::mir::lower_tree`：从 `FnTree` 构造 MIR（复用 `FnLowering`
 > 机器，只有遍历不同）+ `lower_tree_fun_decl` 脚手架（签名数据从 hir 表取）。
 > oracle（`flip_oracle.rs`）：**arithmetic 双路径 dump 逐字节一致（2/2）**；

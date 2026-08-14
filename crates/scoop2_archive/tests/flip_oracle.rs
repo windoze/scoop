@@ -13,6 +13,10 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 /// 单文件双路径比对：返回 (总函数数, 树支持数, 一致数, 不一致列表)。
+thread_local! {
+    static CUR_FILE: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+}
+
 fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<String>) {
     let mut program = build_program(source);
     let hir = typecheck_program(&mut program, None).expect("typecheck");
@@ -47,6 +51,9 @@ fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<S
                 continue;
             };
             supported += 1;
+            if std::env::var("SCOOP2_FLIP_LIST").is_ok() {
+                eprintln!("    SUPPORTED-EQ {} ({} equal)", tree.fqn, 0);
+            }
             // AST 路径同名 FunDecl。
             let ast_fd = ast_module.module.items.iter().find_map(|it| match it {
                 scoop2_mir::mir::Item::Fun(fd) if fd.fqn == tree.fqn => Some(fd.clone()),
@@ -73,7 +80,7 @@ fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<S
             } else {
                 // 诊断输出：首处差异行。
                 let mut first = String::new();
-                for (la, lb) in a.lines().zip(b.lines()) {
+                for (i, (la, lb)) in a.lines().zip(b.lines()).enumerate() {
                     if la != lb {
                         first = format!("\n    ast:  {la}\n    tree: {lb}");
                         break;
@@ -82,7 +89,8 @@ fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<S
                 if first.is_empty() {
                     first = format!("\n    ast len={} tree len={}", a.len(), b.len());
                 }
-                diffs.push(format!("{}: dump 不一致{first}", tree.fqn));
+                let fname = CUR_FILE.with(|c| c.borrow().clone());
+                diffs.push(format!("{fname} {}: dump 不一致{first}", tree.fqn));
             }
         }
     }
@@ -102,13 +110,20 @@ fn flip_oracle_arithmetic() {
 /// 语料迁移统计（非断言——报告支持率与一致率；--nocapture 查看）。
 #[test]
 fn flip_oracle_corpus_stats() {
-    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/mir2");
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&base)
-        .unwrap()
-        .flatten()
-        .filter(|e| e.path().extension().is_some_and(|x| x == "scoop"))
-        .map(|e| e.path())
-        .collect();
+    let roots = ["mir2", "hir"];
+    let mut files: Vec<PathBuf> = Vec::new();
+    for r in roots {
+        let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures")
+            .join(r);
+        let mut fs: Vec<PathBuf> = std::fs::read_dir(&base)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|x| x == "scoop"))
+            .map(|e| e.path())
+            .collect();
+        files.extend(fs);
+    }
     files.sort();
     let mut total = 0usize;
     let mut supported = 0usize;
@@ -122,7 +137,11 @@ fn flip_oracle_corpus_stats() {
         if typecheck_program(&mut program, None).is_err() {
             continue;
         }
+        CUR_FILE.with(|c| *c.borrow_mut() = f.file_name().unwrap().to_string_lossy().into_owned());
         let (t, s, e, d) = flip_compare(&source);
+        if std::env::var("SCOOP2_FLIP_LIST").is_ok() {
+            eprintln!("  FILE {}", f.file_name().unwrap().to_string_lossy());
+        }
         total += t;
         supported += s;
         equal += e;
