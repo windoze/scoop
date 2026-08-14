@@ -293,15 +293,12 @@ pub fn lower_local_val(builder: &mut FnLowering, val: &ast::ValDecl) {
         .init
         .as_ref()
         .is_some_and(|e| matches!(&e.kind, ast::ExprKind::ArrayLit(els) if els.is_empty()));
-    let declared_ty = val
-        .ty
-        .as_ref()
-        .map(|t| {
-            builder
-                .hir
-                .type_ref_resolution(builder.file_id, t.id)
-                .unwrap_or_else(|| builder.types.unit())
-        });
+    let declared_ty = val.ty.as_ref().map(|t| {
+        builder
+            .hir
+            .type_ref_resolution(builder.file_id, t.id)
+            .unwrap_or_else(|| builder.types.unit())
+    });
     let init_ty_raw = val
         .init
         .as_ref()
@@ -425,13 +422,9 @@ pub fn bind_pattern(
                             let bty = builder
                                 .hir
                                 .pattern_bindings(builder.file_id, pat.id)
-                                .and_then(|bs| {
-                                    bs.iter().find(|b| b.name == n.symbol).map(|b| b.ty)
-                                })
+                                .and_then(|bs| bs.iter().find(|b| b.name == n.symbol).map(|b| b.ty))
                                 .or_else(|| {
-                                    super::expr::variant_payload_field_ty(
-                                        builder, src_ty, path, i,
-                                    )
+                                    super::expr::variant_payload_field_ty(builder, src_ty, path, i)
                                 })
                                 .unwrap_or(src_ty);
                             let lid = builder.alloc_named_mutable(
@@ -705,3 +698,11 @@ fn tuple_elem_ty(
 
 // 兼容：旧代码引用 lower_block 的别名。
 pub use lower_block as lower_stmt_block;
+
+/// 树消费路径（lower_tree）用的 operand 类型查询（公开包装）。
+pub fn operand_ty_public(
+    builder: &mut FnLowering,
+    op: &crate::mir::Operand,
+) -> scoop2_hir::ty::TypeId {
+    operand_ty(builder, op)
+}

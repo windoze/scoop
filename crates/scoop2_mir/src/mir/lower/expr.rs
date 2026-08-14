@@ -520,7 +520,12 @@ fn emit_call_resolution(
             };
             Rvalue::Call {
                 site_id: call_site_id,
-                kind: builder.make_direct_call_kind_with_params(callee_fqn.clone(), type_args, false, Some(param_types)),
+                kind: builder.make_direct_call_kind_with_params(
+                    callee_fqn.clone(),
+                    type_args,
+                    false,
+                    Some(param_types),
+                ),
                 args: final_args,
                 transport: call_transport,
             }
@@ -701,9 +706,7 @@ fn emit_call_resolution(
                     expand_super_ctor_chain(builder, type_fqn, args)
                 };
                 // 选中 ctor 的 span（区分 primary/secondary；secondary 时指向 constructor 关键字）。
-                let selected_ctor_span = builder
-                    .hir
-                    .ctor_selection(builder.file_id, call_node);
+                let selected_ctor_span = builder.hir.ctor_selection(builder.file_id, call_node);
                 Rvalue::ClassCtor {
                     site_id: call_site_id,
                     type_fqn: *type_fqn,
@@ -887,8 +890,10 @@ fn lower_resolved_call_args(
 ) -> Vec<CallArg> {
     // 第一遍：按源码顺序 lower 所有 Provided 实参（保留求值顺序）。
     // 收集 (param_position, value, value_ty, is_spread) 到临时 local。
-    let mut provided_vals: std::collections::HashMap<usize, (Operand, scoop2_hir::ty::TypeId, bool)> =
-        std::collections::HashMap::new();
+    let mut provided_vals: std::collections::HashMap<
+        usize,
+        (Operand, scoop2_hir::ty::TypeId, bool),
+    > = std::collections::HashMap::new();
     // 按源码序（original_index 升序）lower。
     let mut provided_indices: Vec<(usize, usize)> = resolved
         .iter()
@@ -1239,7 +1244,10 @@ fn lower_via_call_resolution(
     // 调用记录 call_resolutions）。此处为错误程序——不再自行构建 owner/callee FQN
     //（违反「MIR 不做 resolve」），仅 lower operands 并返回 Unit 临时值，让既有
     // 诊断使编译失败。
-    let _ = (super::stmt::operand_ty(builder, &lhs), super::stmt::operand_ty(builder, &rhs));
+    let _ = (
+        super::stmt::operand_ty(builder, &lhs),
+        super::stmt::operand_ty(builder, &rhs),
+    );
     let unit = builder.types.unit();
     Operand::Local(builder.alloc_temp(unit, span))
 }
@@ -2418,11 +2426,7 @@ fn lower_pattern_test(
                 ));
             }
             // 全部通过：result = 最后一个子测试的值。
-            builder.assign(
-                result,
-                Rvalue::Use(prev_test.expect("testable 非空")),
-                span,
-            );
+            builder.assign(result, Rvalue::Use(prev_test.expect("testable 非空")), span);
             builder.goto(merge_bb, span);
             builder.current_bb = merge_bb;
             Operand::Local(result)
@@ -2532,33 +2536,32 @@ fn lower_pattern_test(
                 builder.goto(merge_bb, span);
                 // 通过路径：提取第 i 个 payload 字段并递归测试。
                 builder.current_bb = cont_bb;
-                prev_test =
-                    if let Some(field_ty) = variant_payload_field_ty(builder, subj_ty, path, i) {
-                        let variant_name = path
-                            .segments
-                            .last()
-                            .map(|s| builder.hir.interner.resolve(s.symbol).to_string())
-                            .unwrap_or_default();
-                        let tmp = builder.alloc_temp(field_ty, span);
-                        builder.assign(
-                            tmp,
-                            Rvalue::PatternExtract {
-                                subject: subj.clone(),
-                                path: vec![
-                                    crate::mir::transport::PatternBindingStep::VariantField {
-                                        variant: variant_name,
-                                        field_index: i,
-                                    },
-                                ],
-                                result_ty: field_ty,
-                            },
-                            span,
-                        );
-                        lower_pattern_test(builder, sub_pat, Operand::Local(tmp), field_ty, _arm, span)
-                    } else {
-                        // 字段类型不可定位 → 保守视为命中（不阻断 tag 级语义）。
-                        Operand::Const(ConstValue::Bool(true))
-                    };
+                prev_test = if let Some(field_ty) =
+                    variant_payload_field_ty(builder, subj_ty, path, i)
+                {
+                    let variant_name = path
+                        .segments
+                        .last()
+                        .map(|s| builder.hir.interner.resolve(s.symbol).to_string())
+                        .unwrap_or_default();
+                    let tmp = builder.alloc_temp(field_ty, span);
+                    builder.assign(
+                        tmp,
+                        Rvalue::PatternExtract {
+                            subject: subj.clone(),
+                            path: vec![crate::mir::transport::PatternBindingStep::VariantField {
+                                variant: variant_name,
+                                field_index: i,
+                            }],
+                            result_ty: field_ty,
+                        },
+                        span,
+                    );
+                    lower_pattern_test(builder, sub_pat, Operand::Local(tmp), field_ty, _arm, span)
+                } else {
+                    // 字段类型不可定位 → 保守视为命中（不阻断 tag 级语义）。
+                    Operand::Const(ConstValue::Bool(true))
+                };
             }
             // 全部通过：result = 最后一个子测试的值。
             builder.assign(result, Rvalue::Use(prev_test), span);
@@ -2720,7 +2723,8 @@ fn nominal_field_index(
         .iter()
         .position(|(n, _)| *n == name)
 }
-fn lower_pattern_to_mir(builder: &mut FnLowering, pat: &ast::Pattern) -> crate::mir::Pattern {    match &pat.kind {
+fn lower_pattern_to_mir(builder: &mut FnLowering, pat: &ast::Pattern) -> crate::mir::Pattern {
+    match &pat.kind {
         ast::PatternKind::Wildcard => crate::mir::Pattern::Wildcard,
         ast::PatternKind::Bind(name) => {
             let ty = builder
@@ -2832,8 +2836,7 @@ fn bind_pattern_arm(
                         ast::PatternKind::Variant { .. }
                             | ast::PatternKind::Tuple(_)
                             | ast::PatternKind::Struct { .. }
-                    ) && let Some(field_ty) =
-                        variant_payload_field_ty(builder, subj_ty, path, i)
+                    ) && let Some(field_ty) = variant_payload_field_ty(builder, subj_ty, path, i)
                     {
                         let variant_name = path
                             .segments
@@ -2885,9 +2888,7 @@ fn bind_pattern_arm(
                         lid,
                         Rvalue::PatternExtract {
                             subject: subj.clone(),
-                            path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(
-                                pos,
-                            )],
+                            path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(pos)],
                             result_ty: b.ty,
                         },
                         b.span,
@@ -2935,9 +2936,7 @@ fn bind_pattern_arm(
                         lid,
                         Rvalue::PatternExtract {
                             subject: subj.clone(),
-                            path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(
-                                pos,
-                            )],
+                            path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(pos)],
                             result_ty: b.ty,
                         },
                         b.span,
@@ -3049,12 +3048,11 @@ pub fn lower_handle(
         let mut binder_pairs: Vec<(scoop2_base::Symbol, crate::mir::LocalId)> = Vec::new();
         let mut payload_component_tys: Vec<scoop2_hir::ty::TypeId> = Vec::new();
         for (bi, b) in arm.op.binders.iter().enumerate() {
-            let bty = b
-                .ty
-                .as_ref()
-                .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
-                .or_else(|| op_param_tys.get(bi).copied())
-                .unwrap_or_else(|| builder.types.any());
+            let bty =
+                b.ty.as_ref()
+                    .and_then(|t| builder.hir.expr_type(builder.file_id, t.id))
+                    .or_else(|| op_param_tys.get(bi).copied())
+                    .unwrap_or_else(|| builder.types.any());
             payload_component_tys.push(bty);
             let lid = builder.alloc_named(
                 builder.hir.interner.resolve(b.name.symbol).to_string(),
@@ -3232,7 +3230,7 @@ fn lower_if(
 // helpers
 // ---------------------------------------------------------------------------
 
-fn suffix_of(s: &Option<ast::IntSuffix>) -> Option<crate::mir::IntSuffix> {
+pub(crate) fn suffix_of(s: &Option<ast::IntSuffix>) -> Option<crate::mir::IntSuffix> {
     s.map(|s| match s {
         ast::IntSuffix::U => crate::mir::IntSuffix::U,
         ast::IntSuffix::L => crate::mir::IntSuffix::L,
@@ -3249,4 +3247,3 @@ fn resolve_struct_fqn(builder: &FnLowering, sym: Symbol) -> Symbol {
     }
     sym
 }
-

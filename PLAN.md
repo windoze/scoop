@@ -206,7 +206,14 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第十刀）：**TreeCallee 决议载荷补全**（M2-5 数据前置）：
+> 进度（2026-08-15，第十一刀，M2-5 破冰）：**双路径翻转方法论端到端验证成功**。
+> 新增 `scoop2_mir::mir::lower_tree`：从 `FnTree` 构造 MIR（复用 `FnLowering`
+> 机器，只有遍历不同）+ `lower_tree_fun_decl` 脚手架（签名数据从 hir 表取）。
+> oracle（`flip_oracle.rs`）：**arithmetic 双路径 dump 逐字节一致（2/2）**；
+> mir2 语料 13 函数树支持、8 函数字节一致（余 5 处差异已定位为下一切片
+> 工作项：temp 类型序 / 方法分派元数据）。顺带统一树实参约定：**Method 的
+> args 不含接收者**（recv 独立携带；糖调用同）——与 MIR final_args 构造对齐。
+> 第十刀：**TreeCallee 决议载荷补全**（M2-5 数据前置）：
 > TopLevel/Method 携带 `type_args`（显式优先/推断兜底——与 MIR 合并规则一致）、
 > `param_types`（overload_sig/stable key）、`is_virtual`/`is_interface`（CallKind
 > 分派选择）；Ctor 携带 `secondary` 标记位（暂保守 primary，element 体系后续

@@ -45,11 +45,11 @@ fn arithmetic_trees_are_gap_free() {
     let tail = add.body.blocks[add_root.0 as usize].tail.expect("add 尾值");
     match &add.body.exprs[tail.0 as usize].kind {
         TreeExprKind::Call { callee, args } => {
-            assert_eq!(args.len(), 2, "`a + b` 展开为接收者 + 1 实参");
-            // callee 是 Method（Int.plus）：receiver = args[0]（a）。
+            // Method 约定：args 不含接收者（recv 独立）——`a + b` → 1 实参。
+            assert_eq!(args.len(), 1, "`a + b` 展开为接收者 + 1 实参（args 去接收者）");
             match callee {
                 scoop2_hir::hir::tree::TreeCallee::Method { recv, method, .. } => {
-                    assert_eq!(*recv, args[0], "方法接收者 = 首实参");
+                    assert_ne!(*recv, args[0], "接收者独立于实参");
                     let name = hir.interner.resolve(*method);
                     assert!(
                         name.contains("plus") || name.contains("add") || name == "+",

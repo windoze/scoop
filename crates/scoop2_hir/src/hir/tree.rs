@@ -271,7 +271,8 @@ pub enum TreeFieldSeg {
 pub enum Lit {
     Unit,
     Bool(bool),
-    Int(u128),
+    /// 整型字面量（值 + 后缀——MIR Const 携带后缀物化语义）。
+    Int(u128, Option<crate::syntax::ast::IntSuffix>),
     Float(f64),
     Char(char),
     Str(String),
@@ -392,7 +393,7 @@ impl<'a> TreeBuilder<'a> {
             PatternKind::Literal(l) => {
                 use crate::syntax::ast::PatternLiteral;
                 let lit = match l {
-                    PatternLiteral::Int(v) => Lit::Int(v.value),
+                    PatternLiteral::Int(v) => Lit::Int(v.value, v.suffix),
                     PatternLiteral::Char(c) => Lit::Char(c.value),
                     PatternLiteral::String(s) => Lit::Str(s.value.clone()),
                     PatternLiteral::Bool { value, .. } => Lit::Bool(*value),
@@ -759,7 +760,7 @@ impl<'a> TreeBuilder<'a> {
             }
             ExprKind::IntLit(l) => {
                 let ty = self.ty_of(expr.id, span)?;
-                Some(self.push_expr(TreeExprKind::Lit(Lit::Int(l.value)), ty, span))
+                Some(self.push_expr(TreeExprKind::Lit(Lit::Int(l.value, l.suffix)), ty, span))
             }
             ExprKind::FloatLit(l) => {
                 let ty = self.ty_of(expr.id, span)?;
@@ -1161,11 +1162,11 @@ impl<'a> TreeBuilder<'a> {
             None => return self.gap_ret(span, "糖调用决议缺失（completeness 泄漏）"),
         };
         let ty = self.ty_of(expr.id, span)?;
-        let args: Vec<ExprId> = arg_exprs
+        let all_args: Vec<ExprId> = arg_exprs
             .iter()
             .filter_map(|e| self.build_expr(e))
             .collect();
-        if args.len() != arg_exprs.len() {
+        if all_args.len() != arg_exprs.len() {
             return None;
         }
         // 糖调用的 callee：Method 的接收者就是首个实参表达式（`a + b` → `a.plus(b)`）。
@@ -1175,6 +1176,14 @@ impl<'a> TreeBuilder<'a> {
             } else {
                 inferred.clone()
             }
+        };
+        // Method 糖：args 去接收者（recv 独立）；其余形态保持全表。
+        let is_method = matches!(resolution, super::ResolvedCall::Method { .. });
+        let recv_id = all_args.first().copied();
+        let args: Vec<ExprId> = if is_method {
+            all_args[1.min(all_args.len())..].to_vec()
+        } else {
+            all_args
         };
         let callee = match &resolution {
             super::ResolvedCall::Method {
@@ -1186,8 +1195,8 @@ impl<'a> TreeBuilder<'a> {
                 inferred_type_args,
                 param_types,
                 ..
-            } if !args.is_empty() => TreeCallee::Method {
-                recv: args[0],
+            } if recv_id.is_some() => TreeCallee::Method {
+                recv: recv_id.expect("guard 保证非空"),
                 owner_fqn: *owner_fqn,
                 method: *method_name,
                 is_virtual: *is_virtual,
