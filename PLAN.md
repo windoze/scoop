@@ -206,7 +206,15 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第三刀）：**可编译 fixture 14/14 树 gap-free**。修复 3 个
+> 进度（2026-08-15，第四刀）：**mir2 15/15 fixture 全部 typecheck 通过且树
+> gap-free**（零跳过零缺口）。修复 effect_resuming 的根因链：(a)
+> `effect_op_resume_type` 对用户自定义 effect 的裸名 arm 路径查不到 FQN——补包
+> 前缀候选（Continuation 的 Resume 实参由此正确定型为 Int，先前的 receiver 实参
+> 替换机制本身无恙）；(b) escape continuation binder（`, k ->`）的合成
+> Continuation 类型从 typecheck 中间态落入新侧表 `handle_escape_binders`，树的
+> Handle arm 补 `escape_cont` 消费。此前登记的「owner-param 注册重构」经查证
+> **不成立**（注册层 ParamId 化是正确的），已从遗留清单撤销。
+> 第三刀：**可编译 fixture 14/14 树 gap-free**。修复 3 个
 > 既有 typecheck 缺陷：(a) 限定名 enum variant 构造 `Color.Red(42)`——checker 与
 > derive 各补一条与裸名等价的路径（enum_when / variant_destructure 归零）；
 > (b) 参数位 lambda 的类型未写 expr_types（closure 归零）；词汇表新增

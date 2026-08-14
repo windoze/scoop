@@ -3660,6 +3660,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                             &body_effects,
                         );
                         self.locals.insert(k_ident.symbol, cont_ty);
+                        // 合成的 Continuation 类型入 facts（树构造需要；没有对应声明）。
+                        self.facts
+                            .handle_escape_binders
+                            .set(arm.id, vec![(k_ident.symbol, cont_ty)]);
                     }
                 }
                 // arm 体 + finally 的 effect 被 handle 捕获（不计入外层）。
@@ -5111,10 +5115,25 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .map(|s| self.env.interner.resolve(s.symbol))
             .collect::<Vec<_>>()
             .join(".");
-        let effect_fqn = self.env.interner.get(&effect_fqn_text)?;
-        let sigs = self.env.member_signatures(effect_fqn, op.op.symbol)?;
-        let sig = sigs.first()?;
-        Some(sig.return_ty)
+        // 候选：裸名 / 包前缀限定名（用户 effect 的 arm 路径是裸名，FQN 需按
+        // 当前包前缀补全——与 callee_type_fqn_symbol 同款策略）。
+        let mut candidates = vec![effect_fqn_text.clone()];
+        if !self.package_prefix.is_empty() {
+            candidates.push(format!("{}.{}", self.package_prefix, effect_fqn_text));
+        }
+        for c in candidates {
+            let Some(effect_fqn) = self.env.interner.get(&c) else {
+                continue;
+            };
+            if let Some(sig) = self
+                .env
+                .member_signatures(effect_fqn, op.op.symbol)
+                .and_then(|sigs| sigs.first())
+            {
+                return Some(sig.return_ty);
+            }
+        }
+        None
     }
 
     /// 构造 `Continuation<Resume, Answer, eff Pure>` 类型。

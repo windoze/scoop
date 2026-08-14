@@ -210,6 +210,8 @@ pub struct HandleTreeArm {
     pub op: Symbol,
     /// non-resuming binder（类型来自 ascription TypeRef 的 expr_types）。
     pub binder: Option<LocalId>,
+    /// escape continuation binder（`, k ->`；类型来自 handle_escape_binders）。
+    pub escape_cont: Option<LocalId>,
     pub body: ExprId,
 }
 
@@ -792,13 +794,11 @@ impl<'a> TreeBuilder<'a> {
                 let mut tree_arms = Vec::with_capacity(arms.len());
                 for arm in arms {
                     self.scopes.push(std::collections::HashMap::new());
-                    if let Some(_k) = &arm.escape_continuation {
-                        // escape continuation binder 的类型只在 typecheck 中间态，
-                        // 未入表——暂不覆盖（罕见形态）。
-                        self.gap(arm.span, "escape continuation arm（M2 后续）");
-                        self.scopes.pop();
-                        return None;
-                    }
+                    let escape_cont = arm.escape_continuation.as_ref().and_then(|k| {
+                        let binders = self.facts.handle_escape_binders.get(arm.id)?;
+                        let &(sym, ty) = binders.first()?;
+                        Some(self.push_local(sym, ty, false, k.span))
+                    });
                     let effect_path: String = arm
                         .op
                         .effect_path
@@ -820,6 +820,7 @@ impl<'a> TreeBuilder<'a> {
                         effect_path,
                         op: arm.op.op.symbol,
                         binder,
+                        escape_cont,
                         body: body_expr,
                     });
                 }

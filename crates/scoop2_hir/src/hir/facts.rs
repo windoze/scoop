@@ -241,6 +241,10 @@ pub struct SemanticFacts {
     /// Default(expr_node_id) = 用默认值表达式（需 MIR lower 该表达式）。
     /// 不写入 = 无默认值填充（全部位置实参，MIR 按原样使用）。
     pub resolved_call_args: NodeIdTable<Vec<ResolvedCallArg>>,
+    /// handle arm 的 escape continuation binder（`, k ->`）：arm NodeId →
+    /// (名字, Continuation<Resume, Answer, Row> 类型)。typecheck 构造后写入，
+    /// 树构造消费（该类型是合成类型，无法从声明侧表推导）。
+    pub handle_escape_binders: NodeIdTable<Vec<(Symbol, TypeId)>>,
     /// TypeRef 节点 → 解析后的 TypeId。
     ///
     /// `is`/`as`/`as?` 模式中的类型引用（TypeRef AST 节点）在 typecheck 时解析
