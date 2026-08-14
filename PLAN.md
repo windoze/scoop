@@ -206,7 +206,14 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第七刀）：**树覆盖扩展到全部声明位**：方法体
+> 进度（2026-08-15，第八刀）：**class `$init` 合成上移 HIR**（M2-3 核心）：
+> `tree::synthesize_class_init_tree` 复刻 MIR `lower_class_init_callable` 的
+> Kotlin 顺序（super 委托 → 属性参数赋值（首个初始化体前）→ property 初始化器 /
+> init 块源码序交错 → 无初始化体时末尾兜底）；词汇表新增 `TreeCallee::InitCall`
+> （合成的 `<Super>.$init` callable 无 Symbol，按 FQN 文本携带）。继承链 fixture
+> （A/B/C.$init）生成验证 gap-free。至此 M2-5 翻转的全部树前置就绪
+> （顶层 fun / 方法 / val init / $init 全覆盖，89/89 语料 gap-free）。
+> 第七刀：**树覆盖扩展到全部声明位**：方法体
 > （`<OwnerFqn>.<method>`，嵌套类型递归）、object 方法、顶层 val/var 初始化器；
 > `this` 作为隐式绑定进树的 local 作用域（类型 = owner 声明态 nominal，取自
 > `type_infos`）。语料内含方法的文件（如 interface_dispatch 6 棵树）全部

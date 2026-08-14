@@ -298,6 +298,9 @@ pub enum TreeCallee {
     FunValue { callee: ExprId },
     /// effect 操作（perform 站点）。
     EffectOp { effect: Symbol, op: Symbol },
+    /// 构造链 super `$init` 调用（目标是合成的 `<Class>.$init` callable——
+    /// 非源码声明，无 Symbol，按 FQN 文本携带；MIR 映射为 `<target>.$init`）。
+    InitCall { target_class: String },
 }
 
 /// 已解析的成员读取（从 [`super::ResolvedMember`] 折叠）。
@@ -1322,4 +1325,190 @@ impl<'a> TreeBuilder<'a> {
             None => self.gap_ret(span, "member 决议缺失（completeness 泄漏）"),
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// class `$init` 合成（M2-3：从 MIR lower_class_init_callable 上移）
+// ---------------------------------------------------------------------------
+
+/// 合成 class 的 `<Fqn>.$init` 树（无则 None）。
+///
+/// Kotlin 语义顺序（与 MIR lower_class_init_callable 一致，字节级对齐目标）：
+/// 1. super 委托 `: Super(args)` → `<Super>.$init(this, args...)`；
+/// 2. 首个 property 初始化器 / init 块之前：主构造 `val/var` 属性参数 →
+///    `this.field = param`（无任何初始化体时在末尾发出）；
+/// 3. property 初始化器 / init 块按源码顺序交错执行。
+#[allow(clippy::too_many_arguments)]
+pub fn synthesize_class_init_tree(
+    hir: &super::TypedHir,
+    tf: &super::TypedFile,
+    interner: &scoop2_base::Interner,
+    unit_ty: TypeId,
+    owner_fqn_text: &str,
+    owner_fqn_sym: Symbol,
+    d: &crate::syntax::ast::TypeDecl,
+) -> Option<FnTree> {
+    use crate::syntax::ast::TypeMemberKind;
+
+    if !matches!(d.kind, crate::syntax::ast::TypeKind::Class) {
+        return None;
+    }
+    let body = d.body.as_ref()?;
+    let has_init_block = body
+        .members
+        .iter()
+        .any(|m| matches!(m.kind, TypeMemberKind::InitBlock(_)));
+    let has_property_init = body
+        .members
+        .iter()
+        .any(|m| matches!(&m.kind, TypeMemberKind::Property(p) if p.init.is_some()));
+    let has_super = hir.super_ctor_delegations.contains_key(&owner_fqn_sym);
+    if !(has_init_block || has_property_init || has_super) {
+        return None;
+    }
+
+    let this_ty = super_decl_ty(hir, owner_fqn_sym)?;
+    let ctor_params: Vec<super::ClassCtorParamInfo> = hir
+        .class_ctor_params
+        .get(&owner_fqn_sym)
+        .cloned()
+        .unwrap_or_default();
+    let primary_param_names: Vec<Symbol> = d
+        .primary_ctor
+        .as_ref()
+        .map(|pc| pc.params.iter().map(|p| p.name.symbol).collect())
+        .unwrap_or_default();
+
+    let mut b = TreeBuilder {
+        expr_types: &tf.expr_types,
+        facts: &tf.facts,
+        unit_ty,
+        interner,
+        types: &hir.store,
+        out: TreeBody::default(),
+        scopes: vec![std::collections::HashMap::new()],
+        gaps: Vec::new(),
+    };
+
+    // this + 构造参数绑定（init 块 / 属性初始化器可引用参数名）。
+    let this_sym = interner.get("this")?;
+    let this_local = b.push_local(this_sym, this_ty, false, d.name.span);
+    let mut param_locals = Vec::with_capacity(ctor_params.len());
+    for (i, cp) in ctor_params.iter().enumerate() {
+        let name_sym = primary_param_names.get(i).copied().unwrap_or(cp.name);
+        param_locals.push(b.push_local(name_sym, cp.ty, false, d.name.span));
+    }
+
+    let root = b.fresh_block(d.name.span);
+    let this_ref = b.push_expr(TreeExprKind::LocalRef(this_local), this_ty, d.name.span);
+
+    // 1. super 委托。
+    if let Some(super_del) = hir.super_ctor_delegations.get(&owner_fqn_sym) {
+        let target_class = hir.interner.resolve(super_del.super_fqn).to_string();
+        let base_args: &[crate::syntax::ast::CallArg] = d
+            .supertypes
+            .get(super_del.base_index)
+            .map(|st| st.args.as_slice())
+            .unwrap_or(&[]);
+        let mut args = vec![this_ref];
+        for a in base_args {
+            if let Some(id) = b.build_expr(&a.value) {
+                args.push(id);
+            }
+        }
+        let call = b.push_expr(
+            TreeExprKind::Call {
+                callee: TreeCallee::InitCall { target_class },
+                args,
+            },
+            unit_ty,
+            d.name.span,
+        );
+        let stmt = b.push_stmt(TreeStmt::Expr(call));
+        b.out.blocks[root.idx()].stmts.push(stmt);
+    }
+
+    // 2+3. 属性参数赋值 + property 初始化器 / init 块（源码序交错）。
+    let mut emitted_param_props = false;
+    let mut emit_param_props = |b: &mut TreeBuilder, root: BlockId, this_ref: ExprId| {
+        if emitted_param_props {
+            return;
+        }
+        emitted_param_props = true;
+        for (i, cp) in ctor_params.iter().enumerate() {
+            if !cp.is_property {
+                continue;
+            }
+            let value = b.push_expr(TreeExprKind::LocalRef(param_locals[i]), cp.ty, d.name.span);
+            let stmt = b.push_stmt(TreeStmt::Assign {
+                place: TreePlace::MemberField {
+                    recv: this_ref,
+                    owner_fqn: owner_fqn_sym,
+                    name: cp.name,
+                },
+                value,
+            });
+            b.out.blocks[root.idx()].stmts.push(stmt);
+        }
+    };
+
+    for m in &body.members {
+        match &m.kind {
+            TypeMemberKind::Property(p) => {
+                let Some(init) = &p.init else { continue };
+                emit_param_props(&mut b, root, this_ref);
+                let Some(value) = b.build_expr(init) else {
+                    continue;
+                };
+                let field_ty = b.expr_types.get(init.id).copied().unwrap_or(unit_ty);
+                let stmt = b.push_stmt(TreeStmt::Assign {
+                    place: TreePlace::MemberField {
+                        recv: this_ref,
+                        owner_fqn: owner_fqn_sym,
+                        name: p.name.symbol,
+                    },
+                    value,
+                });
+                let _ = field_ty;
+                b.out.blocks[root.idx()].stmts.push(stmt);
+            }
+            TypeMemberKind::InitBlock(ib) => {
+                emit_param_props(&mut b, root, this_ref);
+                let block = b.build_block(&ib.body);
+                // init 块的内联：把块语句接到根（保留块内尾值丢弃语义）。
+                for s in b.out.blocks[block.idx()].stmts.clone() {
+                    b.out.blocks[root.idx()].stmts.push(s);
+                }
+            }
+            _ => {}
+        }
+    }
+    // 无任何初始化体时，属性参数赋值在末尾发出（保证字段已初始化）。
+    emit_param_props(&mut b, root, this_ref);
+
+    b.out.root = Some(root);
+    Some(FnTree {
+        fqn: format!("{owner_fqn_text}.$init"),
+        params: {
+            let _ = this_ref;
+            Vec::new()
+        },
+        body: b.out,
+        gaps: b.gaps,
+    })
+}
+
+/// owner 的声明态 nominal TypeId（`this` 类型）。
+fn super_decl_ty(hir: &super::TypedHir, owner_sym: Symbol) -> Option<TypeId> {
+    hir.type_infos
+        .iter()
+        .find(|(ty, _)| {
+            matches!(
+                hir.store.kind(**ty),
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
+                    if n.fqn == owner_sym && n.args.is_empty()
+            )
+        })
+        .map(|(&ty, _)| ty)
 }

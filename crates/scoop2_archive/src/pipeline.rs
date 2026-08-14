@@ -252,15 +252,30 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                 }
                 ItemKind::Type(d) => {
                     let Some(body) = &d.body else { continue };
+                    let owner_fqn = fqn_of(d.name.symbol);
                     build_member_trees(
                         &mut trees,
                         hir,
                         tf,
                         &program.interner,
                         unit_ty,
-                        &fqn_of(d.name.symbol),
+                        &owner_fqn,
                         &body.members,
                     );
+                    // class `<Fqn>.$init` 合成（M2-3：从 MIR 上移）。
+                    if let Some(owner_sym) = hir.interner.get(&owner_fqn) {
+                        if let Some(init_tree) = tree::synthesize_class_init_tree(
+                            hir,
+                            tf,
+                            &program.interner,
+                            unit_ty,
+                            &owner_fqn,
+                            owner_sym,
+                            d,
+                        ) {
+                            trees.push(init_tree);
+                        }
+                    }
                 }
                 ItemKind::Object(d) => {
                     let Some(body) = &d.body else { continue };
