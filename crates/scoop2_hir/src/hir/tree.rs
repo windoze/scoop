@@ -280,16 +280,28 @@ pub enum Lit {
 /// 已解析的被调用方（从 [`super::ResolvedCall`] 折叠）。
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TreeCallee {
-    /// 顶层函数直接调用。
-    TopLevel { fqn: Symbol },
+    /// 顶层函数直接调用（含解析为顶层函数的运算符糖——receiver 为隐式首参）。
+    TopLevel {
+        fqn: Symbol,
+        /// 类型实参（显式优先，否则推断——与 MIR 合并规则一致）。
+        type_args: Vec<TypeId>,
+        /// 选定重载的参数类型（overload_sig / stable key 用）。
+        param_types: Vec<TypeId>,
+    },
     /// 方法调用（含运算符糖展开；receiver 是参数 0 之前的接收者表达式）。
     Method {
         recv: ExprId,
         owner_fqn: Symbol,
         method: Symbol,
+        /// 虚分发候选（open/abstract/override）。
+        is_virtual: bool,
+        /// owner 是 interface（itable 分发）。
+        is_interface: bool,
+        type_args: Vec<TypeId>,
+        param_types: Vec<TypeId>,
     },
-    /// 构造器调用。
-    Ctor { type_fqn: Symbol },
+    /// 构造器调用（`secondary` 区分 primary/secondary callable）。
+    Ctor { type_fqn: Symbol, secondary: bool },
     /// enum variant 构造。
     Variant { enum_fqn: Symbol, variant: Symbol },
     /// 局部函数值调用。
@@ -1157,19 +1169,46 @@ impl<'a> TreeBuilder<'a> {
             return None;
         }
         // 糖调用的 callee：Method 的接收者就是首个实参表达式（`a + b` → `a.plus(b)`）。
+        let merged = |explicit: &Vec<TypeId>, inferred: &Vec<TypeId>| -> Vec<TypeId> {
+            if !explicit.is_empty() {
+                explicit.clone()
+            } else {
+                inferred.clone()
+            }
+        };
         let callee = match &resolution {
             super::ResolvedCall::Method {
                 owner_fqn,
                 method_name,
+                is_virtual,
+                is_interface,
+                explicit_type_args,
+                inferred_type_args,
+                param_types,
                 ..
             } if !args.is_empty() => TreeCallee::Method {
                 recv: args[0],
                 owner_fqn: *owner_fqn,
                 method: *method_name,
+                is_virtual: *is_virtual,
+                is_interface: *is_interface,
+                type_args: merged(explicit_type_args, inferred_type_args),
+                param_types: param_types.clone(),
             },
-            super::ResolvedCall::TopLevelFun { fqn, .. } => TreeCallee::TopLevel { fqn: *fqn },
+            super::ResolvedCall::TopLevelFun {
+                fqn,
+                explicit_type_args,
+                inferred_type_args,
+                param_types,
+                ..
+            } => TreeCallee::TopLevel {
+                fqn: *fqn,
+                type_args: merged(explicit_type_args, inferred_type_args),
+                param_types: param_types.clone(),
+            },
             super::ResolvedCall::Constructor { type_fqn, .. } => TreeCallee::Ctor {
                 type_fqn: *type_fqn,
+                secondary: false,
             },
             super::ResolvedCall::EnumVariant {
                 enum_fqn,
@@ -1256,13 +1295,34 @@ impl<'a> TreeBuilder<'a> {
         span: Span,
     ) -> Option<TreeCallee> {
         use crate::syntax::ast::ExprKind;
-        match resolution {
-            super::ResolvedCall::TopLevelFun { fqn, .. } => {
-                Some(TreeCallee::TopLevel { fqn: *fqn })
+        // 类型实参合并：显式优先，否则推断（与 MIR emit_call_resolution 一致）。
+        let merged = |explicit: &Vec<TypeId>, inferred: &Vec<TypeId>| -> Vec<TypeId> {
+            if !explicit.is_empty() {
+                explicit.clone()
+            } else {
+                inferred.clone()
             }
+        };
+        match resolution {
+            super::ResolvedCall::TopLevelFun {
+                fqn,
+                explicit_type_args,
+                inferred_type_args,
+                param_types,
+                ..
+            } => Some(TreeCallee::TopLevel {
+                fqn: *fqn,
+                type_args: merged(explicit_type_args, inferred_type_args),
+                param_types: param_types.clone(),
+            }),
             super::ResolvedCall::Method {
                 owner_fqn,
                 method_name,
+                is_virtual,
+                is_interface,
+                explicit_type_args,
+                inferred_type_args,
+                param_types,
                 ..
             } => {
                 // 接收者 = callee（MemberAccess）的 receiver 子表达式。
@@ -1274,10 +1334,17 @@ impl<'a> TreeBuilder<'a> {
                     recv,
                     owner_fqn: *owner_fqn,
                     method: *method_name,
+                    is_virtual: *is_virtual,
+                    is_interface: *is_interface,
+                    type_args: merged(explicit_type_args, inferred_type_args),
+                    param_types: param_types.clone(),
                 })
             }
+            // primary/secondary 区分：MIR 侧由 ctor_selections（声明 span）判定；
+            // element 体系后续携带显式标记，此处保守 primary。
             super::ResolvedCall::Constructor { type_fqn, .. } => Some(TreeCallee::Ctor {
                 type_fqn: *type_fqn,
+                secondary: false,
             }),
             super::ResolvedCall::EnumVariant {
                 enum_fqn,

@@ -206,7 +206,13 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第九刀）：**树 Call 携带最终实参列表**（默认值填充 +
+> 进度（2026-08-15，第十刀）：**TreeCallee 决议载荷补全**（M2-5 数据前置）：
+> TopLevel/Method 携带 `type_args`（显式优先/推断兜底——与 MIR 合并规则一致）、
+> `param_types`（overload_sig/stable key）、`is_virtual`/`is_interface`（CallKind
+> 分派选择）；Ctor 携带 `secondary` 标记位（暂保守 primary，element 体系后续
+> 显式化）。调研结论：MIR dump 的 local/block 标签是**索引派生 hash**
+>（`hash("l{i}")`）——字节一致只需分配序一致，双路径按函数迁移方案成立。
+> 第九刀：**树 Call 携带最终实参列表**（默认值填充 +
 > 位置排序，消费 `resolved_call_args`——M2-4 的 AST 残留清除关键步：MIR 翻转后
 > 不再做 resolution / default filling）。顺带修 typecheck 缺陷：`Default` 克隆的
 > 默认值表达式未定型（现于 `fill_resolved_args` 内 walk——与 MIR 调用方上下文
