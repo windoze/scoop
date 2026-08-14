@@ -38,9 +38,10 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeExprKind::Tuple(_)
             | TreeExprKind::LogicalAnd { .. }
             | TreeExprKind::LogicalOr { .. }
-            | TreeExprKind::NotNullAssert { .. } => {}
-            TreeExprKind::If { .. } => return Some("If"),
-            TreeExprKind::While { .. } => return Some("While"),
+            | TreeExprKind::NotNullAssert { .. }
+            | TreeExprKind::If { .. }
+            | TreeExprKind::While { .. } => {}
+
             TreeExprKind::When { .. } => return Some("When"),
             TreeExprKind::Handle { .. } => return Some("Handle"),
             TreeExprKind::WithUpdate { .. } => return Some("WithUpdate"),
@@ -65,10 +66,10 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
                     ..
                 } if !is_virtual && !is_interface => {}
                 TreeCallee::Method { .. } => return Some("Method-dispatch"),
-                TreeCallee::Ctor { .. } => return Some("Ctor"),
-                TreeCallee::Variant { .. } => return Some("Variant"),
+
                 TreeCallee::EffectOp { .. } => return Some("EffectOp"),
                 TreeCallee::InitCall { .. } => return Some("InitCall"),
+                TreeCallee::Ctor { .. } | TreeCallee::Variant { .. } => {}
             }
         }
     }
@@ -79,8 +80,7 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeStmt::Assign { .. }
             | TreeStmt::Return(_) => {}
             TreeStmt::Destructure { .. } => return Some("Destructure"),
-            TreeStmt::Break => return Some("Break"),
-            TreeStmt::Continue => return Some("Continue"),
+            TreeStmt::Break | TreeStmt::Continue => {}
         }
     }
     None
@@ -198,8 +198,22 @@ fn lower_tree_stmt(builder: &mut FnLowering, body: &TreeBody, sid: scoop2_hir::h
             let dead = builder.new_block();
             builder.current_bb = dead;
         }
-        TreeStmt::Destructure { .. } | TreeStmt::Break | TreeStmt::Continue => {
-            unsupported!("本切片支持集外")
+        TreeStmt::Break => {
+            if let Some(loop_ctx) = builder.loop_stack.last().copied() {
+                builder.goto(loop_ctx.break_target, Span::default());
+                let dead = builder.new_block();
+                builder.current_bb = dead;
+            }
+        }
+        TreeStmt::Continue => {
+            if let Some(loop_ctx) = builder.loop_stack.last().copied() {
+                builder.goto(loop_ctx.continue_target, Span::default());
+                let dead = builder.new_block();
+                builder.current_bb = dead;
+            }
+        }
+        TreeStmt::Destructure { .. } => {
+            unsupported!("Destructure 语句在支持集外")
         }
     }
 }
@@ -290,8 +304,81 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             );
             Operand::Local(tmp)
         }
+        TreeExprKind::If { cond, then, else_ } => {
+            // 镜像 lower_if：CondBr（target=then_bb 形态）+ 双臂赋值 + merge。
+            let c = lower_tree_expr(builder, body, *cond);
+            let result = builder.alloc_temp(ty, span);
+            let then_bb = builder.new_block();
+            let else_bb = builder.new_block();
+            let merge_bb = builder.new_block();
+            builder.terminate(
+                Terminator {
+                    span,
+                    kind: TerminatorKind::CondBr {
+                        cond: c,
+                        then_target: then_bb,
+                        else_target: else_bb,
+                    },
+                },
+                then_bb,
+            );
+            builder.current_bb = then_bb;
+            let tv = lower_tree_expr(builder, body, *then);
+            let then_span = body.exprs[then.0 as usize].span;
+            builder.assign(result, Rvalue::Use(tv), then_span);
+            builder.goto(merge_bb, span);
+            builder.current_bb = else_bb;
+            match else_ {
+                Some(eb) => {
+                    let ev = lower_tree_expr(builder, body, *eb);
+                    let else_span = body.exprs[eb.0 as usize].span;
+                    builder.assign(result, Rvalue::Use(ev), else_span);
+                }
+                None => {
+                    builder.assign(result, Rvalue::Use(Operand::Const(ConstValue::Unit)), span);
+                }
+            }
+            builder.goto(merge_bb, span);
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
+        }
         TreeExprKind::LogicalAnd { lhs, rhs } => lower_logical(builder, body, *lhs, *rhs, ty, span),
         TreeExprKind::LogicalOr { lhs, rhs } => lower_logical(builder, body, *lhs, *rhs, ty, span),
+        TreeExprKind::While {
+            cond,
+            body: loop_body,
+        } => {
+            // 镜像 lower_while：cond 块 → body（loop_stack 注册）→ 回 cond；exit。
+            let cond_bb = builder.new_block();
+            let body_bb = builder.new_block();
+            let exit_bb = builder.new_block();
+            builder.goto(cond_bb, span);
+            builder.current_bb = cond_bb;
+            let c = lower_tree_expr(builder, body, *cond);
+            let cond_span = body.exprs[cond.0 as usize].span;
+            builder.terminate(
+                Terminator {
+                    span: cond_span,
+                    kind: TerminatorKind::CondBr {
+                        cond: c,
+                        then_target: body_bb,
+                        else_target: exit_bb,
+                    },
+                },
+                body_bb,
+            );
+            builder
+                .loop_stack
+                .push(crate::mir::lower::builder::LoopContext {
+                    break_target: exit_bb,
+                    continue_target: body_bb,
+                });
+            lower_tree_block(builder, body, *loop_body);
+            builder.loop_stack.pop();
+            builder.goto(cond_bb, span);
+            builder.current_bb = exit_bb;
+            Operand::Const(ConstValue::Unit)
+        }
         TreeExprKind::NotNullAssert { expr: inner } => {
             // 镜像 lower_not_null_assert：CondBr + else panic 路径。
             let v = lower_tree_expr(builder, body, *inner);
@@ -511,7 +598,71 @@ fn lower_tree_call(
                 transport: call_transport,
             }
         }
-        _ => unsupported!("本切片支持集外的 callee 形态"),
+        TreeCallee::Ctor { type_fqn, .. } => {
+            if !builder.hir.class_fqns.contains(type_fqn) {
+                // struct：StructLit（值语义）；字段名按 member_order 位置对应。
+                let ordered_names: Vec<scoop2_base::Symbol> = builder
+                    .hir
+                    .member_order
+                    .get(type_fqn)
+                    .cloned()
+                    .unwrap_or_default();
+                let mut mir_fields: Vec<crate::mir::StructLitField> =
+                    Vec::with_capacity(mir_args.len());
+                for (i, arg) in mir_args.iter().enumerate() {
+                    let name = ordered_names.get(i).copied().unwrap_or_default();
+                    mir_fields.push(crate::mir::StructLitField {
+                        name,
+                        value: arg.value.clone(),
+                        value_ty: arg.value_ty,
+                    });
+                }
+                let transport = builder.aggregate_transport(ty, AggregateTransportKind::Struct);
+                Rvalue::StructLit {
+                    type_fqn: *type_fqn,
+                    fields: mir_fields,
+                    transport,
+                }
+            } else {
+                let type_fqn_str = builder.hir.interner.resolve(*type_fqn).to_string();
+                // 树的 args 已含默认填充（resolved_call_args 消费）——跳过
+                // expand_super_ctor_chain（与 resolved.is_some() 分支一致）。
+                Rvalue::ClassCtor {
+                    site_id: call_site_id,
+                    type_fqn: *type_fqn,
+                    ctor: crate::mir::transport::ClassCtorCallMetadata {
+                        target_init_class_fqn: type_fqn_str,
+                        selected_ctor_span: None,
+                        ordered_param_count: mir_args.len(),
+                        stable_template_key: None,
+                    },
+                    args: mir_args,
+                    hidden_effects: scoop2_hir::ty::EffectRow::pure(),
+                }
+            }
+        }
+        TreeCallee::Variant { enum_fqn, variant } => {
+            let payload = builder.aggregate_transport(ty, AggregateTransportKind::EnumPayload);
+            Rvalue::EnumVariant {
+                enum_ty: ty,
+                enum_fqn: *enum_fqn,
+                variant_name: *variant,
+                args: mir_args,
+                payload,
+                stable_key: None,
+            }
+        }
+        TreeCallee::EffectOp { .. } | TreeCallee::InitCall { .. } => {
+            unsupported!("effect/init 调用在支持集外")
+        }
+        TreeCallee::Method {
+            is_virtual: true, ..
+        }
+        | TreeCallee::Method {
+            is_interface: true, ..
+        } => {
+            unsupported!("虚/接口分派在支持集外")
+        }
     };
     builder.assign(tmp, rv, span);
     Operand::Local(tmp)

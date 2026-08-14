@@ -206,7 +206,13 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第十二刀）：**双路径语料一致率 26/26**（mir2 + hir 两
+> 进度（2026-08-15，第十三刀）：**支持集扩展到 If/While/Ctor/Variant/Break/
+> Continue**（全部逐语句镜像 AST lowering；Ctor 区分 struct-StructLit 与
+> class-ClassCtor，树 args 已含默认填充故跳过 expand_super_ctor_chain）。
+> 语料一致率 26/26 → **30/33**（新增 7 个支持函数）。余 3 处差异已定位：
+> `&&` 块序细节、enum variant 构造的首 temp 类型、variant 解构 main——下一
+> 刀逐个镜像后切默认路径。
+> 第十二刀：**双路径语料一致率 26/26**（mir2 + hir 两
 > 目录，全部树支持函数字节一致）。修复五类差异：(a) 分配序——receiver → 实参
 > → 结果 temp（镜像 emit_call_resolution）；(b) 方法 `<this>` 参数序 + fn_ty
 > 排除隐式接收者；(c) `&&`/`||` 逐语句镜像 AST 历史形态（含 terminate 目标为
