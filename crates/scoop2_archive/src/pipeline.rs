@@ -198,55 +198,187 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
             continue;
         };
         let mut trees = Vec::new();
-        for item in &pf.file.items {
-            let ItemKind::Fun(d) = &item.kind else {
-                continue;
-            };
-            let fqn_text = if tf.package_prefix.is_empty() {
-                program.interner.resolve(d.name.symbol).to_string()
+        let fqn_of = |simple: scoop2_base::Symbol| -> String {
+            let name = program.interner.resolve(simple);
+            if tf.package_prefix.is_empty() {
+                name.to_string()
             } else {
-                format!(
-                    "{}.{}",
-                    tf.package_prefix,
-                    program.interner.resolve(d.name.symbol)
-                )
-            };
-            // 参数 (名, 类型)：从 top_level_funs 匹配声明 span 的签名。
-            let fqn_sym = hir
-                .interner
-                .get(&fqn_text)
-                .or(Some(d.name.symbol))
-                .unwrap_or_default();
-            let Some(sigs) = hir.top_level_funs.get(&fqn_sym) else {
-                continue;
-            };
-            // 重载消歧：按声明 span 精确匹配；单重载直取（span 兜底）。
-            let sig = sigs
-                .iter()
-                .find(|s| s.decl_span == d.name.span)
-                .or_else(|| (sigs.len() == 1).then(|| &sigs[0]));
-            let Some(sig) = sig else { continue };
-            let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
-                .param_names
-                .iter()
-                .copied()
-                .zip(sig.param_types.iter().copied())
-                .collect();
-            let Some(body) = &d.body else { continue };
-            trees.push(tree::build_fn_tree(
-                fqn_text,
-                body,
-                &params,
-                unit_ty,
-                &tf.expr_types,
-                &tf.facts,
-                &program.interner,
-                &hir.store,
-            ));
+                format!("{}.{}", tf.package_prefix, name)
+            }
+        };
+        for item in &pf.file.items {
+            match &item.kind {
+                ItemKind::Fun(d) => {
+                    let Some(body) = &d.body else { continue };
+                    let fqn_text = fqn_of(d.name.symbol);
+                    let Some(sig) = lookup_sig(hir, &fqn_text, d.name.span) else {
+                        continue;
+                    };
+                    let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
+                        .param_names
+                        .iter()
+                        .copied()
+                        .zip(sig.param_types.iter().copied())
+                        .collect();
+                    trees.push(tree::build_fn_tree(
+                        fqn_text,
+                        body,
+                        &params,
+                        None,
+                        unit_ty,
+                        &tf.expr_types,
+                        &tf.facts,
+                        &program.interner,
+                        &hir.store,
+                    ));
+                }
+                ItemKind::Val(d) => {
+                    // 顶层 val/var 初始化器树（fqn = <prefix>.<name>）。
+                    let scoop2_syntax::ast::ValBinding::Name(name) = &d.binding else {
+                        continue;
+                    };
+                    let Some(init) = &d.init else { continue };
+                    trees.push(tree::build_fn_tree(
+                        fqn_of(name.symbol),
+                        &scoop2_syntax::ast::FunBody::Expr(Box::new(init.clone())),
+                        &[],
+                        None,
+                        unit_ty,
+                        &tf.expr_types,
+                        &tf.facts,
+                        &program.interner,
+                        &hir.store,
+                    ));
+                }
+                ItemKind::Type(d) => {
+                    let Some(body) = &d.body else { continue };
+                    build_member_trees(
+                        &mut trees,
+                        hir,
+                        tf,
+                        &program.interner,
+                        unit_ty,
+                        &fqn_of(d.name.symbol),
+                        &body.members,
+                    );
+                }
+                ItemKind::Object(d) => {
+                    let Some(body) = &d.body else { continue };
+                    let name_sym = d.name.as_ref().map(|n| n.symbol).unwrap_or_default();
+                    build_member_trees(
+                        &mut trees,
+                        hir,
+                        tf,
+                        &program.interner,
+                        unit_ty,
+                        &fqn_of(name_sym),
+                        &body.members,
+                    );
+                }
+                _ => {}
+            }
         }
         new_files.push((i, trees));
     }
     for (i, trees) in new_files {
         hir.files[i].trees = trees;
     }
+}
+
+/// 顶层函数签名查找：FQN symbol + 声明 span 匹配（多重载消歧；单重载兜底）。
+fn lookup_sig<'a>(
+    hir: &'a scoop2_hir::hir::TypedHir,
+    fqn_text: &str,
+    decl_span: scoop2_base::Span,
+) -> Option<&'a scoop2_hir::hir::TypedSignature> {
+    let sym = hir.interner.get(fqn_text)?;
+    let sigs = hir.top_level_funs.get(&sym)?;
+    sigs.iter()
+        .find(|s| s.decl_span == decl_span)
+        .or_else(|| (sigs.len() == 1).then(|| &sigs[0]))
+}
+
+/// 类型 / object 体的成员函数树（`<OwnerFqn>.<method>`；`this` 绑定为隐式参数）。
+#[allow(clippy::too_many_arguments)]
+fn build_member_trees(
+    trees: &mut Vec<scoop2_hir::hir::tree::FnTree>,
+    hir: &scoop2_hir::hir::TypedHir,
+    tf: &scoop2_hir::hir::TypedFile,
+    interner: &scoop2_base::Interner,
+    unit_ty: scoop2_hir::ty::TypeId,
+    owner_fqn: &str,
+    members: &[scoop2_syntax::ast::TypeMember],
+) {
+    use scoop2_syntax::ast::TypeMemberKind;
+    let owner_sym = hir.interner.get(owner_fqn).unwrap_or_default();
+    let this_ty = this_ty_of(hir, owner_sym);
+    for m in members {
+        match &m.kind {
+            TypeMemberKind::Fun(d) => {
+                let Some(body) = &d.body else { continue };
+                let method_fqn = format!("{}.{}", owner_fqn, interner.resolve(d.name.symbol));
+                let Some(sig) = hir
+                    .member_funs
+                    .get(&owner_sym)
+                    .and_then(|ms| ms.get(&d.name.symbol))
+                    .and_then(|sigs| {
+                        sigs.iter()
+                            .find(|s| s.decl_span == d.name.span)
+                            .or_else(|| (sigs.len() == 1).then(|| &sigs[0]))
+                    })
+                else {
+                    continue;
+                };
+                let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
+                    .param_names
+                    .iter()
+                    .copied()
+                    .zip(sig.param_types.iter().copied())
+                    .collect();
+                trees.push(scoop2_hir::hir::tree::build_fn_tree(
+                    method_fqn,
+                    body,
+                    &params,
+                    this_ty,
+                    unit_ty,
+                    &tf.expr_types,
+                    &tf.facts,
+                    interner,
+                    &hir.store,
+                ));
+            }
+            TypeMemberKind::Type(d) => {
+                if let Some(b) = &d.body {
+                    build_member_trees(
+                        trees,
+                        hir,
+                        tf,
+                        interner,
+                        unit_ty,
+                        &format!("{}.{}", owner_fqn, interner.resolve(d.name.symbol)),
+                        &b.members,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// `this` 的类型：owner 的声明态 nominal（ref class/interface / value struct/enum）。
+fn this_ty_of(
+    hir: &scoop2_hir::hir::TypedHir,
+    owner_sym: scoop2_base::Symbol,
+) -> Option<scoop2_hir::ty::TypeId> {
+    hir.type_infos
+        .iter()
+        .find(|(ty, _)| {
+            matches!(
+                hir.store.kind(**ty),
+                scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n))
+                    | scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Nominal(n))
+                    if n.fqn == owner_sym && n.args.is_empty()
+            )
+        })
+        .map(|(&ty, _)| ty)
 }

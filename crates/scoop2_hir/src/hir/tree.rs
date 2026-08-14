@@ -459,6 +459,7 @@ pub fn build_fn_tree(
     fqn: String,
     body: &crate::syntax::ast::FunBody,
     params: &[(Symbol, TypeId)],
+    this_ty: Option<TypeId>,
     unit_ty: TypeId,
     expr_types: &NodeIdTable<TypeId>,
     facts: &SemanticFacts,
@@ -487,6 +488,13 @@ pub fn build_fn_tree(
             )
         })
         .collect();
+    // ：成员方法的隐式接收者绑定（resolve 有意不写 value_refs——body.rs
+    // defer 到 typecheck；树侧绑定为作用域内 local）。
+    if let Some(this_ty) = this_ty
+        && let Some(this_sym) = b.interner.get("this")
+    {
+        b.push_local(this_sym, this_ty, false, Span::new(0, 0));
+    }
     let root = match body {
         crate::syntax::ast::FunBody::Block(block) => b.build_block(block),
         crate::syntax::ast::FunBody::Expr(e) => {

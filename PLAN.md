@@ -206,7 +206,13 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第六刀）：**gap 门禁语料拓宽**（mir2 全量 + run-pass/hir/
+> 进度（2026-08-15，第七刀）：**树覆盖扩展到全部声明位**：方法体
+> （`<OwnerFqn>.<method>`，嵌套类型递归）、object 方法、顶层 val/var 初始化器；
+> `this` 作为隐式绑定进树的 local 作用域（类型 = owner 声明态 nominal，取自
+> `type_infos`）。语料内含方法的文件（如 interface_dispatch 6 棵树）全部
+> gap-free。剩余 M2-5 翻转前置：class `$init` 合成上移（property 初始化器 +
+> init 块 + super 委托链的 HIR 化）。
+> 第六刀：**gap 门禁语料拓宽**（mir2 全量 + run-pass/hir/
 > infer 采样，LIMIT=120，`SCOOP2_GAP_DIRS` 可覆盖）→ 89/89 可编译文件树
 > gap-free。词汇表新增：`LogicalAnd/Or`（短路原语）、`InterpolatedString`
 >（与 MIR Rvalue 同构——注：scoop2 MIR 的 f-string 是原语而非调用链 desugar，
