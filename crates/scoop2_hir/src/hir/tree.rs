@@ -1213,10 +1213,36 @@ impl<'a> TreeBuilder<'a> {
             };
             arg_ids.push(id);
         }
+        // 默认值填充 + 位置排序（消费 resolved_call_args——MIR 不再做 resolution /
+        // default filling）：Provided → 源实参；Default → 构造默认值表达式。
+        let final_args = match self.facts.resolved_call_args.get(expr.id) {
+            Some(resolved) => {
+                let mut filled: Vec<ExprId> = Vec::with_capacity(resolved.len());
+                for ra in resolved {
+                    match ra {
+                        super::ResolvedCallArg::Provided { original_index } => {
+                            let Some(&id) = arg_ids.get(*original_index) else {
+                                return self
+                                    .gap_ret(span, "resolved_call_args 越界（completeness 泄漏）");
+                            };
+                            filled.push(id);
+                        }
+                        super::ResolvedCallArg::Default { expr } => {
+                            let Some(id) = self.build_expr(expr) else {
+                                return None;
+                            };
+                            filled.push(id);
+                        }
+                    }
+                }
+                filled
+            }
+            None => arg_ids,
+        };
         Some(self.push_expr(
             TreeExprKind::Call {
                 callee: callee_id,
-                args: arg_ids,
+                args: final_args,
             },
             ty,
             span,

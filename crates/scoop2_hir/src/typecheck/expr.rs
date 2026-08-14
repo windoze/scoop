@@ -3116,9 +3116,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     original_index: idx,
                 });
             } else {
-                // 默认值：直接从签名的 default_exprs 取克隆的 Expr。
+                // 默认值：从签名的 default_exprs 取克隆的 Expr，并就地 walk 定型
+                //（与 MIR 在调用方上下文 lower 默认值一致；否则克隆节点无
+                // expr_types，树构造报 completeness 泄漏）。
                 if let Some(Some(expr)) = sig.default_exprs.get(param_idx) {
-                    resolved.push(crate::hir::ResolvedCallArg::Default { expr: expr.clone() });
+                    let mut cloned = expr.clone();
+                    self.walk_expr(&mut cloned);
+                    resolved.push(crate::hir::ResolvedCallArg::Default { expr: cloned });
                 } else {
                     // 无默认值表达式（如 body-field 属性——它们是属性初始化器，
                     // 不是构造参数，不应出现在 resolved_call_args 中）。跳过。
