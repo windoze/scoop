@@ -2653,6 +2653,25 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         });
                     }
                 }
+                // enum 限定名 variant 构造（`Color.Red(42)`）：receiver 是 enum
+                // 类型名（非值，expr_types 无条目），与 type_call 的同名路径对应。
+                if let ExprKind::Ident(recv_ident) = &receiver.kind {
+                    if let Some(enum_fqn) =
+                        self.callee_type_fqn_symbol(recv_ident.symbol)
+                            .filter(|&fqn| {
+                                self.env
+                                    .enum_variants
+                                    .get(&fqn)
+                                    .is_some_and(|vs| vs.contains(&name.symbol))
+                            })
+                    {
+                        return Some(crate::hir::ResolvedCall::EnumVariant {
+                            enum_fqn,
+                            variant_name: name.symbol,
+                            return_ty,
+                        });
+                    }
+                }
                 let receiver_ty = self.expr_ty(receiver)?;
                 let owner_fqn = self.resolve_member_owner_fqn(receiver_ty)?;
                 // 继承方法：沿超类型链解析到声明 owner（`c.fromB()` → B.fromB）。
@@ -4050,6 +4069,43 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         // 3. 方法调用 `receiver.method(args)`。
         if let ExprKind::MemberAccess { receiver, member } = &mut callee.kind {
+            // enum 限定名 variant 构造：`Color.Red(42)` / `Result.Ok(x)`——receiver
+            // 是 enum 类型名（非值，walk 退化为 Unit 导致 no_such_method）。裸名形态
+            // （`Red(42)`）经 TopLevelValue 分支按 `<EnumFqn>.<Variant>` 定型；此处
+            // 补限定名形态的等价路径（语义一致：walk 实参 + 返回 enum nominal）。
+            let qualified_variant: Option<Symbol> = (|| {
+                let recv_ident = match &receiver.kind {
+                    ExprKind::Ident(id) => id,
+                    _ => return None,
+                };
+                let member_name = match member {
+                    MemberName::Named(n) => n,
+                    _ => return None,
+                };
+                self.callee_type_fqn_symbol(recv_ident.symbol)
+                    .filter(|&fqn| {
+                        self.env
+                            .enum_variants
+                            .get(&fqn)
+                            .is_some_and(|vs| vs.contains(&member_name.symbol))
+                    })
+            })();
+            if let Some(enum_fqn) = qualified_variant {
+                let _arg_tys: Vec<TypeId> = args
+                    .iter_mut()
+                    .map(|a| self.walk_expr(&mut a.value))
+                    .collect();
+                let nominal = NominalType {
+                    fqn: enum_fqn,
+                    args: vec![],
+                    eff: None,
+                };
+                return if self.env.is_reference_nominal(enum_fqn) {
+                    self.env.store.ref_nominal(nominal)
+                } else {
+                    self.env.store.value_nominal(nominal)
+                };
+            }
             // effect operation 检测：`Raise.raise(x)` 等 → 记录 effect。
             if let ExprKind::Ident(recv_ident) = &receiver.kind
                 && let MemberName::Named(_member_name) = member
@@ -6002,7 +6058,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     if let ast::ExprKind::Lambda(lam) = &mut a.value.kind
                         && lam.params.is_empty()
                     {
-                        return self.type_lambda_with_expected(lam, expected_pt);
+                        let t = self.type_lambda_with_expected(lam, expected_pt);
+                        self.expr_types.set(a.value.id, t);
+                        return t;
                     }
                     arg_types_default[i]
                 })
@@ -6186,7 +6244,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 .and_then(|&pt| self.extract_expected_param_type(pt));
             let at = if let ast::ExprKind::Lambda(lam) = &mut a.value.kind {
                 if lam.params.is_empty() {
-                    self.type_lambda_with_expected(lam, expected_pt)
+                    // 记录 lambda 节点类型（walk_expr 之外的路径要显式写表，
+                    // 否则 completeness gate 报 untyped_node）。
+                    let t = self.type_lambda_with_expected(lam, expected_pt);
+                    self.expr_types.set(a.value.id, t);
+                    t
                 } else {
                     self.walk_expr(&mut a.value)
                 }

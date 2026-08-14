@@ -206,7 +206,15 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第二刀）：**mir2 可编译 fixture 11/11 树 gap-free**（新增
+> 进度（2026-08-15，第三刀）：**可编译 fixture 14/14 树 gap-free**。修复 3 个
+> 既有 typecheck 缺陷：(a) 限定名 enum variant 构造 `Color.Red(42)`——checker 与
+> derive 各补一条与裸名等价的路径（enum_when / variant_destructure 归零）；
+> (b) 参数位 lambda 的类型未写 expr_types（closure 归零）；词汇表新增
+> `Lambda`（参数类型按位取自函数类型，隐式 `it`）、`Destructure` 语句（模式解构
+> 绑定）、`it` 注入绑定的作用域回退查找。已知遗留：effect_resuming 的
+> `k.resume(41)`——owner 类型参数在签名注册时被降级为 Unit（信息丢失），正确
+> 修复需重构签名注册（owner-param 上下文），与 M2-1 element 体系一并做。
+> 第二刀：**mir2 可编译 fixture 11/11 树 gap-free**（新增
 > when+全模式/is/as/with/true-false 字面量/Handle（non-resuming binder，类型取自
 > ascription 的 expr_types；escape-continuation arm 仍 gap））。顺带修复 typecheck
 > 真实缺陷：`derive_call_resolution` 的 MemberAccess 分支 `expr_ty(receiver)?` 在

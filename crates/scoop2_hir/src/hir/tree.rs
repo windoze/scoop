@@ -142,6 +142,12 @@ pub enum TreeExprKind {
         base: ExprId,
         updates: Vec<(TreeFieldPath, ExprId)>,
     },
+    /// lambda / 闭包字面量（参数类型按位取自函数类型 `ty`；隐式 `it` 为
+    /// 参数 0。env 捕获清单在 M2 后续上移——当前由 MIR 计算）。
+    Lambda {
+        params: Vec<LocalId>,
+        body: LambdaBodyTree,
+    },
     /// `expr as T` / `expr as? T`（转换原语；目标已解析为 TypeId）。
     Cast {
         expr: ExprId,
@@ -156,6 +162,13 @@ pub enum TreeExprKind {
         /// `!is` 为 true。
         negated: bool,
     },
+}
+
+/// lambda 主体（块或表达式）。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum LambdaBodyTree {
+    Block(BlockId),
+    Expr(ExprId),
 }
 
 /// when 分支：模式 + 可选 guard + 体。
@@ -262,8 +275,14 @@ pub enum TreeMember {
 pub enum TreeStmt {
     /// 表达式语句。
     Expr(ExprId),
-    /// 局部 `val`/`var`（`Name` 绑定；模式绑定见 `gaps`）。
+    /// 局部 `val`/`var`（`Name` 绑定）。
     LocalVal { local: LocalId, init: ExprId },
+    /// 模式解构绑定（`val Some(x) = ...`；binder 已解析为局部）。
+    Destructure {
+        pat: TreePattern,
+        init: ExprId,
+        mutable: bool,
+    },
     /// 赋值（LHS 已解析为 place）。
     Assign { place: TreePlace, value: ExprId },
     /// `return expr?`。
@@ -389,12 +408,14 @@ pub fn build_fn_tree(
     expr_types: &NodeIdTable<TypeId>,
     facts: &SemanticFacts,
     interner: &scoop2_base::Interner,
+    types: &crate::ty::TypeStore,
 ) -> FnTree {
     let mut b = TreeBuilder {
         expr_types,
         facts,
         unit_ty,
         interner,
+        types,
         out: TreeBody::default(),
         scopes: vec![std::collections::HashMap::new()],
         gaps: Vec::new(),
@@ -437,6 +458,7 @@ struct TreeBuilder<'a> {
     facts: &'a SemanticFacts,
     unit_ty: TypeId,
     interner: &'a scoop2_base::Interner,
+    types: &'a crate::ty::TypeStore,
     out: TreeBody,
     /// 词法作用域栈（块进栈/出栈）。
     scopes: Vec<std::collections::HashMap<Symbol, LocalId>>,
@@ -563,9 +585,25 @@ impl<'a> TreeBuilder<'a> {
                         let local = self.push_local(name.symbol, ty, mutable, name.span);
                         Some(self.push_stmt(TreeStmt::LocalVal { local, init }))
                     }
-                    crate::syntax::ast::ValBinding::Pattern(_) => {
-                        self.gap(stmt.span, "模式解构绑定（M2 后续覆盖）");
-                        None
+                    crate::syntax::ast::ValBinding::Pattern(pat) => {
+                        // 绑定类型：facts.pattern_bindings（Destructure 来源，
+                        // key = 根模式 NodeId，按出现序）。
+                        let bindings: Vec<super::PatternBinding> = self
+                            .facts
+                            .pattern_bindings
+                            .get(pat.id)
+                            .cloned()
+                            .unwrap_or_default();
+                        let mut iter = bindings.into_iter();
+                        let Some(tree_pat) = self.build_pattern(pat, &mut iter) else {
+                            return None;
+                        };
+                        let mutable = d.kind == crate::syntax::ast::ValKind::Var;
+                        Some(self.push_stmt(TreeStmt::Destructure {
+                            pat: tree_pat,
+                            init,
+                            mutable,
+                        }))
                     }
                 }
             }
@@ -826,7 +864,53 @@ impl<'a> TreeBuilder<'a> {
                     span,
                 ))
             }
-            ExprKind::Lambda(_) => self.gap_ret(span, "lambda/closure（M2 后续）"),
+            ExprKind::Lambda(lambda) => {
+                let ty = self.ty_of(expr.id, span)?;
+                // 参数类型按位取自函数类型；无标注参数（含隐式 `it`）由此定型。
+                let fn_params: Vec<TypeId> = match self.types.kind(ty) {
+                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Function(f)) => {
+                        f.params.clone()
+                    }
+                    _ => return self.gap_ret(span, "lambda 类型不是函数类型"),
+                };
+                self.scopes.push(std::collections::HashMap::new());
+                let mut param_locals = Vec::new();
+                if lambda.params.is_empty() {
+                    // 隐式 `it`：函数类型参数 0。
+                    if let Some(&it_ty) = fn_params.first() {
+                        if let Some(it_sym) = self.interner.get("it") {
+                            param_locals.push(self.push_local(it_sym, it_ty, false, span));
+                        }
+                    }
+                } else {
+                    for (i, prm) in lambda.params.iter().enumerate() {
+                        let pty = fn_params.get(i).copied().unwrap_or(self.unit_ty);
+                        param_locals.push(self.push_local(
+                            prm.name.symbol,
+                            pty,
+                            false,
+                            prm.name.span,
+                        ));
+                    }
+                }
+                let body = match &lambda.body {
+                    crate::syntax::ast::LambdaBody::Block(b) => {
+                        LambdaBodyTree::Block(self.build_block(b))
+                    }
+                    crate::syntax::ast::LambdaBody::Expr(e) => {
+                        LambdaBodyTree::Expr(self.build_expr(e)?)
+                    }
+                };
+                self.scopes.pop();
+                Some(self.push_expr(
+                    TreeExprKind::Lambda {
+                        params: param_locals,
+                        body,
+                    },
+                    ty,
+                    span,
+                ))
+            }
             ExprKind::Handle { .. } => self.gap_ret(span, "handle（M2 后续）"),
             ExprKind::Cast {
                 expr: inner,
@@ -920,8 +1004,12 @@ impl<'a> TreeBuilder<'a> {
             Some(super::ResolvedValue::TopLevelFun { .. }) => {
                 self.gap_ret(span, "函数名做值（FunVal 变体，M2 后续）")
             }
-            None => self.gap_ret(span, "value_refs 缺失（completeness 泄漏）"),
-            // NOTE(debug)：下方 unreachable 由 match 穷尽性保证不会到达。
+            None => match self.lookup_local(id.symbol) {
+                // typecheck 注入的绑定（隐式 `it` 等）不走 value_refs（body.rs
+                // 有意 defer 到 typecheck）——按词法作用域查找。
+                Some(local) => Some(self.push_expr(TreeExprKind::LocalRef(local), ty, span)),
+                None => self.gap_ret(span, "value_refs 缺失（completeness 泄漏）"),
+            },
         }
     }
 
