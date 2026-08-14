@@ -75,7 +75,8 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeStmt::LocalVal { .. }
             | TreeStmt::Assign { .. }
             | TreeStmt::Return(_) => {}
-            TreeStmt::Destructure { .. } => return Some("Destructure"),
+            TreeStmt::Destructure { .. } => {}
+
             TreeStmt::Break | TreeStmt::Continue => {}
         }
     }
@@ -208,8 +209,11 @@ fn lower_tree_stmt(builder: &mut FnLowering, body: &TreeBody, sid: scoop2_hir::h
                 builder.current_bb = dead;
             }
         }
-        TreeStmt::Destructure { .. } => {
-            unsupported!("Destructure 语句在支持集外")
+        TreeStmt::Destructure { pat, init, mutable } => {
+            // 镜像 bind_pattern：模式解构绑定
+            let v = lower_tree_expr(builder, body, *init);
+            let init_ty = operand_ty_of(builder, &v);
+            bind_tree_pattern(builder, body, pat, v, init_ty);
         }
     }
 }
