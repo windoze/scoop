@@ -17,7 +17,8 @@
 
 use scoop2_base::Span;
 use scoop2_hir::hir::tree::{
-    BlockId, ExprId, FnTree, TreeBody, TreeCallee, TreeExprKind, TreeMember, TreeStmt,
+    BlockId, ExprId, FnTree, TreeBody, TreeCallee, TreeExprKind, TreeMember, TreePattern,
+    TreeStmt, WhenTreeArm,
 };
 
 use crate::mir::lower::builder::FnLowering;
@@ -46,9 +47,9 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeExprKind::ArrayLit(_)
             | TreeExprKind::Cast { .. }
             | TreeExprKind::TypeCheck { .. }
-            | TreeExprKind::WithUpdate { .. } => {}
+            | TreeExprKind::WithUpdate { .. }
+            | TreeExprKind::When { .. } => {}
 
-            TreeExprKind::When { .. } => return Some("When"),
             TreeExprKind::Handle { .. } => return Some("Handle"),
 
             TreeExprKind::Lambda { .. } => return Some("Lambda"),
@@ -594,6 +595,10 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             builder.goto(merge_bb, span);
             builder.current_bb = merge_bb;
             Operand::Local(result)
+        }
+        TreeExprKind::When { subject, arms } => {
+            // 镜像 lower_when：逐 arm 测试模式 + guard，命中则赋值 result 并 goto merge。
+            lower_tree_when(builder, body, *subject, arms, ty, span)
         }
         _ => unsupported!("本切片支持集外的表达式构造"),
     }
@@ -1164,4 +1169,612 @@ fn tree_nominal_fqn_of(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> Stri
         }
         _ => String::new(),
     }
+}
+
+// ---------------------------------------------------------------------------
+// When 表达式 lowering（镜像 expr.rs 的 lower_when）
+// ---------------------------------------------------------------------------
+
+/// lower when 表达式（树版本）。
+fn lower_tree_when(
+    builder: &mut FnLowering,
+    body: &TreeBody,
+    subject: ExprId,
+    arms: &[WhenTreeArm],
+    ty: scoop2_hir::ty::TypeId,
+    span: Span,
+) -> Operand {
+    let subj = lower_tree_expr(builder, body, subject);
+    let subj_ty = operand_ty_of(builder, &subj);
+    let result = builder.alloc_temp(ty, span);
+    let merge_bb = builder.new_block();
+
+    for arm in arms {
+        let arm_bb = builder.new_block();
+        let next_bb = builder.new_block();
+
+        // 发射模式测试
+        let matches = lower_tree_pattern_test(builder, body, &arm.pat, subj.clone(), subj_ty);
+
+        // guard：模式命中后，若 arm 有 guard 则还需 guard 为真
+        let cond = if let Some(guard) = arm.guard {
+            // 先把 pattern bindings 引入（在 guard 和 arm body 之前）
+            bind_tree_pattern(builder, body, &arm.pat, subj.clone(), subj_ty);
+            lower_tree_expr(builder, body, guard)
+        } else {
+            matches
+        };
+
+        builder.terminate(
+            Terminator {
+                span: body.exprs[arm.body.0 as usize].span,
+                kind: TerminatorKind::CondBr {
+                    cond,
+                    then_target: arm_bb,
+                    else_target: next_bb,
+                },
+            },
+            arm_bb,
+        );
+
+        // arm body（bindings 在 guard 阶段已引入；若无 guard 则在此引入）
+        if arm.guard.is_none() {
+            bind_tree_pattern(builder, body, &arm.pat, subj.clone(), subj_ty);
+        }
+
+        builder.current_bb = arm_bb;
+        let v = lower_tree_expr(builder, body, arm.body);
+        let body_span = body.exprs[arm.body.0 as usize].span;
+        builder.assign(result, Rvalue::Use(v), body_span);
+        builder.goto(merge_bb, body_span);
+
+        builder.current_bb = next_bb;
+    }
+
+    // 无 arm 命中：result = Unit
+    builder.assign(result, Rvalue::Use(Operand::Const(ConstValue::Unit)), span);
+    builder.goto(merge_bb, span);
+    builder.current_bb = merge_bb;
+    Operand::Local(result)
+}
+
+/// 为树模式发射测试（树版本）。
+fn lower_tree_pattern_test(
+    builder: &mut FnLowering,
+    body: &TreeBody,
+    pat: &TreePattern,
+    subj: Operand,
+    subj_ty: scoop2_hir::ty::TypeId,
+) -> Operand {
+    let bool_ty = builder.types.bool();
+    match pat {
+        TreePattern::Wildcard | TreePattern::Else => Operand::Const(ConstValue::Bool(true)),
+        TreePattern::Binder(local) => {
+            // irrefutable 模式：类型已由 typecheck 保证匹配 → 总是命中
+            let _ = local;
+            Operand::Const(ConstValue::Bool(true))
+        }
+        TreePattern::Tuple(elems) => {
+            // tuple 模式：逐元素提取并递归测试（AND 链，short-circuit）
+            let testable: Vec<(usize, &TreePattern)> = elems
+                .iter()
+                .enumerate()
+                .filter(|(_, e)| {
+                    matches!(
+                        e,
+                        TreePattern::Literal(_)
+                            | TreePattern::Variant { .. }
+                            | TreePattern::Tuple(_)
+                            | TreePattern::Is { .. }
+                            | TreePattern::Or(_)
+                    )
+                })
+                .collect();
+
+            if testable.is_empty() {
+                return Operand::Const(ConstValue::Bool(true));
+            }
+
+            let result = builder.alloc_temp(bool_ty, subj_ty_of(builder, &subj));
+            let merge_bb = builder.new_block();
+            let mut prev_test: Option<Operand> = None;
+
+            for (i, sub_pat) in testable {
+                // 前置测试失败 → result = false，goto merge（首元素无前置条件）
+                if let Some(prev) = prev_test.take() {
+                    let cont_bb = builder.new_block();
+                    let fail_bb = builder.new_block();
+                    builder.terminate(
+                        Terminator {
+                            span: subj_ty_of(builder, &subj),
+                            kind: TerminatorKind::CondBr {
+                                cond: prev,
+                                then_target: cont_bb,
+                                else_target: fail_bb,
+                            },
+                        },
+                        cont_bb,
+                    );
+                    builder.current_bb = fail_bb;
+                    builder.assign(
+                        result,
+                        Rvalue::Use(Operand::Const(ConstValue::Bool(false))),
+                        subj_ty_of(builder, &subj),
+                    );
+                    builder.goto(merge_bb, subj_ty_of(builder, &subj));
+                    builder.current_bb = cont_bb;
+                }
+
+                let elem_ty = tree_tuple_elem_ty(builder, subj_ty, i).unwrap_or_else(|| builder.types.any());
+                let tmp = builder.alloc_temp(elem_ty, subj_ty_of(builder, &subj));
+                builder.assign(
+                    tmp,
+                    Rvalue::PatternExtract {
+                        subject: subj.clone(),
+                        path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(i)],
+                        result_ty: elem_ty,
+                    },
+                    subj_ty_of(builder, &subj),
+                );
+                prev_test = Some(lower_tree_pattern_test(
+                    builder,
+                    body,
+                    sub_pat,
+                    Operand::Local(tmp),
+                    elem_ty,
+                ));
+            }
+
+            // 全部通过：result = 最后一个子测试的值
+            builder.assign(result, Rvalue::Use(prev_test.expect("testable 非空")), subj_ty_of(builder, &subj));
+            builder.goto(merge_bb, subj_ty_of(builder, &subj));
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
+        }
+        TreePattern::Variant { enum_fqn, variant, args } => {
+            // variant 模式：发射 PatternMatch（镜像 AST 路径的 enum_fqn 解析逻辑）
+            let variant_name = *variant;
+            let variant_name_str = builder.hir.interner.resolve(variant_name).to_string();
+
+            // 解析 enum FQN（镜像 expr.rs:2438-2456 的逻辑）
+            let enum_fqn_sym = {
+                let prefix = builder
+                    .hir
+                    .file(builder.file_id)
+                    .map(|f| f.package_prefix.as_str())
+                    .unwrap_or("");
+                let candidates = if prefix.is_empty() {
+                    vec![enum_fqn.clone(), variant_name_str.clone()]
+                } else {
+                    vec![
+                        enum_fqn.clone(),
+                        format!("{prefix}.{enum_fqn}"),
+                        variant_name_str.clone(),
+                        format!("{prefix}.{variant_name_str}"),
+                    ]
+                };
+                // 解析 enum FQN（镜像 expr.rs:2438-2456 的逻辑）
+                let enum_fqn_result = candidates
+                    .iter()
+                    .filter_map(|c| builder.hir.interner.get(c))
+                    .filter(|f| builder.hir.enum_variants.contains_key(f))
+                    .next();
+                match enum_fqn_result {
+                    Some(sym) => sym,
+                    None => variant_name,
+                }
+            };
+
+            // tag 级测试的 args：嵌套子模式降级为 Wildcard
+            let tag_args: Vec<crate::mir::Pattern> = args
+                .iter()
+                .map(|a| match a {
+                    TreePattern::Binder(_) | TreePattern::Wildcard => {
+                        lower_tree_pattern_to_mir(builder, body, a)
+                    }
+                    _ => crate::mir::Pattern::Wildcard,
+                })
+                .collect();
+
+            let tag_tmp = builder.alloc_temp(bool_ty, subj_ty_of(builder, &subj));
+            builder.assign(
+                tag_tmp,
+                Rvalue::PatternMatch {
+                    subject: subj.clone(),
+                    pattern: crate::mir::Pattern::Variant {
+                        enum_fqn: enum_fqn_sym,
+                        variant_name,
+                        args: tag_args,
+                    },
+                },
+                subj_ty_of(builder, &subj),
+            );
+
+            // 嵌套子模式位置（需要提取 payload 字段后递归测试）
+            let nested: Vec<(usize, &TreePattern)> = args
+                .iter()
+                .enumerate()
+                .filter(|(_, a)| {
+                    matches!(
+                        a,
+                        TreePattern::Variant { .. }
+                            | TreePattern::Tuple(_)
+                            | TreePattern::Literal(_)
+                            | TreePattern::Is { .. }
+                            | TreePattern::Or(_)
+                    )
+                })
+                .collect();
+
+            if nested.is_empty() {
+                return Operand::Local(tag_tmp);
+            }
+
+            // AND 链：tag 测试通过后，逐位置提取 payload 字段并递归测试
+            let result = builder.alloc_temp(bool_ty, subj_ty_of(builder, &subj));
+            let merge_bb = builder.new_block();
+            let mut prev_test = Operand::Local(tag_tmp);
+
+            for (i, sub_pat) in nested {
+                let cont_bb = builder.new_block();
+                let fail_bb = builder.new_block();
+                builder.terminate(
+                    Terminator {
+                        span: subj_ty_of(builder, &subj),
+                        kind: TerminatorKind::CondBr {
+                            cond: prev_test.clone(),
+                            then_target: cont_bb,
+                            else_target: fail_bb,
+                        },
+                    },
+                    cont_bb,
+                );
+
+                // 失败路径：result = false，goto merge
+                builder.current_bb = fail_bb;
+                builder.assign(
+                    result,
+                    Rvalue::Use(Operand::Const(ConstValue::Bool(false))),
+                    subj_ty_of(builder, &subj),
+                );
+                builder.goto(merge_bb, subj_ty_of(builder, &subj));
+
+                // 通过路径：提取第 i 个 payload 字段并递归测试
+                builder.current_bb = cont_bb;
+                let field_ty = tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i);
+                prev_test = if let Some(field_ty) = field_ty {
+                    let tmp = builder.alloc_temp(field_ty, subj_ty_of(builder, &subj));
+                    let variant_str = builder.hir.interner.resolve(*variant).to_string();
+                    builder.assign(
+                        tmp,
+                        Rvalue::PatternExtract {
+                            subject: subj.clone(),
+                            path: vec![
+                                crate::mir::transport::PatternBindingStep::VariantField {
+                                    variant: variant_str,
+                                    field_index: i,
+                                },
+                            ],
+                            result_ty: field_ty,
+                        },
+                        subj_ty_of(builder, &subj),
+                    );
+                    lower_tree_pattern_test(builder, body, sub_pat, Operand::Local(tmp), field_ty)
+                } else {
+                    Operand::Const(ConstValue::Bool(true))
+                };
+            }
+
+            // 全部通过：result = 最后一个子测试的值
+            builder.assign(result, Rvalue::Use(prev_test), subj_ty_of(builder, &subj));
+            builder.goto(merge_bb, subj_ty_of(builder, &subj));
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
+        }
+        TreePattern::Literal(lit) => {
+            // 字面量模式：发射 PatternMatch
+            let mir_pat = match lit {
+                scoop2_hir::hir::tree::Lit::Unit => crate::mir::Pattern::Tuple { elements: vec![] },
+                scoop2_hir::hir::tree::Lit::Bool(b) => crate::mir::Pattern::BoolLit(*b),
+                scoop2_hir::hir::tree::Lit::Int(v, _) => crate::mir::Pattern::IntLit(*v as i128),
+                scoop2_hir::hir::tree::Lit::Char(c) => crate::mir::Pattern::CharLit(*c),
+                scoop2_hir::hir::tree::Lit::Str(s) => crate::mir::Pattern::StringLit(s.clone()),
+                scoop2_hir::hir::tree::Lit::Float(_) => crate::mir::Pattern::Wildcard, // Float 模式暂不支持
+            };
+            let span = subj_ty_of(builder, &subj);
+            let tmp = builder.alloc_temp(bool_ty, span);
+            builder.assign(
+                tmp,
+                Rvalue::PatternMatch {
+                    subject: subj,
+                    pattern: mir_pat,
+                },
+                span,
+            );
+            Operand::Local(tmp)
+        }
+        TreePattern::Is { ty } => {
+            // `is T` 模式：发射 PatternMatch{Is{ty, negated}}
+            let mir_pat = crate::mir::Pattern::Is {
+                ty: *ty,
+                negated: false,
+            };
+            let span = subj_ty_of(builder, &subj);
+            let tmp = builder.alloc_temp(bool_ty, span);
+            builder.assign(
+                tmp,
+                Rvalue::PatternMatch {
+                    subject: subj,
+                    pattern: mir_pat,
+                },
+                span,
+            );
+            Operand::Local(tmp)
+        }
+        TreePattern::Or(alts) => {
+            // or 模式：发射各子模式的 PatternMatch OR 链
+            if alts.is_empty() {
+                return Operand::Const(ConstValue::Bool(false));
+            }
+
+            let result = builder.alloc_temp(bool_ty, subj_ty_of(builder, &subj));
+            let merge_bb = builder.new_block();
+
+            for alt in alts {
+                let test = lower_tree_pattern_test(builder, body, alt, subj.clone(), subj_ty);
+                let match_bb = builder.new_block();
+                let next_bb = builder.new_block();
+
+                builder.terminate(
+                    Terminator {
+                        span: subj_ty_of(builder, &subj),
+                        kind: TerminatorKind::CondBr {
+                            cond: test,
+                            then_target: match_bb,
+                            else_target: next_bb,
+                        },
+                    },
+                    match_bb,
+                );
+
+                // 匹配成功：result = true，goto merge
+                builder.current_bb = match_bb;
+                builder.assign(
+                    result,
+                    Rvalue::Use(Operand::Const(ConstValue::Bool(true))),
+                    subj_ty_of(builder, &subj),
+                );
+                builder.goto(merge_bb, subj_ty_of(builder, &subj));
+                builder.current_bb = next_bb;
+            }
+
+            // 所有子模式都不匹配：result = false
+            builder.assign(
+                result,
+                Rvalue::Use(Operand::Const(ConstValue::Bool(false))),
+                subj_ty_of(builder, &subj),
+            );
+            builder.goto(merge_bb, subj_ty_of(builder, &subj));
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
+        }
+    }
+}
+
+/// 为树模式引入绑定（树版本）。
+fn bind_tree_pattern(
+    builder: &mut FnLowering,
+    body: &TreeBody,
+    pat: &TreePattern,
+    subj: Operand,
+    subj_ty: scoop2_hir::ty::TypeId,
+) {
+    match pat {
+        TreePattern::Wildcard | TreePattern::Else => {}
+        TreePattern::Binder(local) => {
+            let decl = &body.locals[local.0 as usize];
+            let lid = builder.alloc_named(
+                builder.hir.interner.resolve(decl.name).to_string(),
+                decl.ty,
+                decl.span,
+            );
+            builder.symbol_locals.insert(decl.name, lid);
+            builder.assign(lid, Rvalue::Use(subj), decl.span);
+        }
+        TreePattern::Tuple(elems) => {
+            // tuple 元素绑定：按元素位置提取
+            for (i, elem) in elems.iter().enumerate() {
+                if let TreePattern::Binder(local) = elem {
+                    let decl = &body.locals[local.0 as usize];
+                    let lid = builder.alloc_named(
+                        builder.hir.interner.resolve(decl.name).to_string(),
+                        decl.ty,
+                        decl.span,
+                    );
+                    builder.symbol_locals.insert(decl.name, lid);
+
+                    let elem_ty = tree_tuple_elem_ty(builder, subj_ty, i).unwrap_or_else(|| builder.types.any());
+                    builder.assign(
+                        lid,
+                        Rvalue::PatternExtract {
+                            subject: subj.clone(),
+                            path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(i)],
+                            result_ty: decl.ty,
+                        },
+                        decl.span,
+                    );
+                }
+            }
+
+            // 嵌套子模式：按元素位置提取后递归绑定
+            for (i, elem) in elems.iter().enumerate() {
+                if matches!(
+                    elem,
+                    TreePattern::Variant { .. } | TreePattern::Tuple(_) | TreePattern::Or(_)
+                ) {
+                    if let Some(elem_ty) = tree_tuple_elem_ty(builder, subj_ty, i) {
+                        let tmp = builder.alloc_temp(elem_ty, subj_ty_of(builder, &subj));
+                        builder.assign(
+                            tmp,
+                            Rvalue::PatternExtract {
+                                subject: subj.clone(),
+                                path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(i)],
+                                result_ty: elem_ty,
+                            },
+                            subj_ty_of(builder, &subj),
+                        );
+                        bind_tree_pattern(builder, body, elem, Operand::Local(tmp), elem_ty);
+                    }
+                }
+            }
+        }
+        TreePattern::Variant { enum_fqn, variant, args } => {
+            // variant 字段绑定：按字段位置提取
+            let variant_str = builder.hir.interner.resolve(*variant).to_string();
+
+            for (i, arg) in args.iter().enumerate() {
+                if let TreePattern::Binder(local) = arg {
+                    let decl = &body.locals[local.0 as usize];
+                    let lid = builder.alloc_named(
+                        builder.hir.interner.resolve(decl.name).to_string(),
+                        decl.ty,
+                        decl.span,
+                    );
+                    builder.symbol_locals.insert(decl.name, lid);
+
+                    if let Some(field_ty) = tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i) {
+                        builder.assign(
+                            lid,
+                            Rvalue::PatternExtract {
+                                subject: subj.clone(),
+                                path: vec![
+                                    crate::mir::transport::PatternBindingStep::VariantField {
+                                        variant: variant_str.clone(),
+                                        field_index: i,
+                                    },
+                                ],
+                                result_ty: decl.ty,
+                            },
+                            decl.span,
+                        );
+                    } else {
+                        builder.assign(lid, Rvalue::Use(subj.clone()), decl.span);
+                    }
+                }
+            }
+
+            // 嵌套子模式：按字段位置提取后递归绑定
+            for (i, arg) in args.iter().enumerate() {
+                if matches!(
+                    arg,
+                    TreePattern::Variant { .. } | TreePattern::Tuple(_) | TreePattern::Or(_)
+                ) {
+                    if let Some(field_ty) = tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i) {
+                        let tmp = builder.alloc_temp(field_ty, subj_ty_of(builder, &subj));
+                        builder.assign(
+                            tmp,
+                            Rvalue::PatternExtract {
+                                subject: subj.clone(),
+                                path: vec![
+                                    crate::mir::transport::PatternBindingStep::VariantField {
+                                        variant: variant_str.clone(),
+                                        field_index: i,
+                                    },
+                                ],
+                                result_ty: field_ty,
+                            },
+                            subj_ty_of(builder, &subj),
+                        );
+                        bind_tree_pattern(builder, body, arg, Operand::Local(tmp), field_ty);
+                    }
+                }
+            }
+        }
+        TreePattern::Literal(_) | TreePattern::Is { .. } => {}
+        TreePattern::Or(alts) => {
+            // or 模式的绑定只在第一个 alt 中引入（AST 路径的行为）
+            if let Some(first) = alts.first() {
+                bind_tree_pattern(builder, body, first, subj, subj_ty);
+            }
+        }
+    }
+}
+
+/// 树模式 → MIR 模式（用于 PatternMatch）。
+fn lower_tree_pattern_to_mir(
+    builder: &FnLowering,
+    body: &TreeBody,
+    pat: &TreePattern,
+) -> crate::mir::Pattern {
+    match pat {
+        TreePattern::Wildcard => crate::mir::Pattern::Wildcard,
+        TreePattern::Binder(local) => {
+            let decl = &body.locals[local.0 as usize];
+            crate::mir::Pattern::Bind {
+                name: decl.name,
+                ty: decl.ty,
+            }
+        }
+        TreePattern::Literal(lit) => match lit {
+            scoop2_hir::hir::tree::Lit::Unit => crate::mir::Pattern::Tuple { elements: vec![] },
+            scoop2_hir::hir::tree::Lit::Bool(b) => crate::mir::Pattern::BoolLit(*b),
+            scoop2_hir::hir::tree::Lit::Int(v, _) => crate::mir::Pattern::IntLit(*v as i128),
+            scoop2_hir::hir::tree::Lit::Char(c) => crate::mir::Pattern::CharLit(*c),
+            scoop2_hir::hir::tree::Lit::Str(s) => crate::mir::Pattern::StringLit(s.clone()),
+            scoop2_hir::hir::tree::Lit::Float(_) => crate::mir::Pattern::Wildcard,
+        },
+        TreePattern::Is { ty } => crate::mir::Pattern::Is {
+            ty: *ty,
+            negated: false,
+        },
+        _ => crate::mir::Pattern::Wildcard,
+    }
+}
+
+/// variant 模式第 `index` 个 payload 字段的类型（树版本）。
+fn tree_variant_payload_field_ty(
+    builder: &FnLowering,
+    subj_ty: scoop2_hir::ty::TypeId,
+    enum_fqn: &str,
+    index: usize,
+) -> Option<scoop2_hir::ty::TypeId> {
+    use scoop2_hir::ty::{TypeKind, ValueTypeKind};
+
+    // Option<T>：Some 的 payload = inner（index 0）
+    if let Some(inner) = builder
+        .types
+        .nominal_args_of_fqn(subj_ty, builder.types.option_fqn())
+        .and_then(|args| args.first().copied())
+    {
+        return if index == 0 { Some(inner) } else { None };
+    }
+
+    match builder.types.kind(subj_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => {
+            let vfqn = builder.hir.interner.get(enum_fqn)?;
+            let members = builder.hir.ordered_members(&vfqn);
+            members.get(index).map(|(_, ty)| *ty)
+        }
+        _ => None,
+    }
+}
+
+/// tuple 类型第 `index` 个元素的类型（树版本）。
+fn tree_tuple_elem_ty(
+    builder: &FnLowering,
+    tuple_ty: scoop2_hir::ty::TypeId,
+    index: usize,
+) -> Option<scoop2_hir::ty::TypeId> {
+    use scoop2_hir::ty::{TypeKind, ValueTypeKind};
+    match builder.types.kind(tuple_ty) {
+        TypeKind::Value(ValueTypeKind::Tuple(elems)) => elems.get(index).copied(),
+        _ => None,
+    }
+}
+
+/// operand 的类型（复用 stmt 模块的函数）。
+fn subj_ty_of(builder: &FnLowering, op: &Operand) -> Span {
+    // 对于模式测试，span 主要用于标记位置，使用默认值即可
+    Span::default()
 }
