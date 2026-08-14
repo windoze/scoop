@@ -6,14 +6,14 @@ use super::types::TypeRef;
 use super::{CharLit, Ident, IntLit, StringLit, TypePath};
 
 /// 模式节点。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Pattern {
     pub id: NodeId,
     pub span: Span,
     pub kind: PatternKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PatternKind {
     /// `_` 通配。
     Wildcard,
@@ -54,7 +54,7 @@ pub enum PatternKind {
 
 /// when 分支中的字面量模式（§9.2：int / char / string / bool，
 /// **float 字面量在模式中是 parse error**）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PatternLiteral {
     Int(IntLit),
     Char(CharLit),
@@ -67,7 +67,7 @@ pub enum PatternLiteral {
 }
 
 /// 结构体模式的一个字段：`name` 或 `name: pattern`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StructPatternField {
     pub id: NodeId,
     pub span: Span,

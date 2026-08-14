@@ -17,14 +17,14 @@ use super::types::{EffectRowExpr, TypeRef};
 use super::{AnnotationUse, Ident, Modifier};
 
 /// 顶层 item（§3 `item`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Item {
     pub id: NodeId,
     pub span: Span,
     pub kind: ItemKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ItemKind {
     TypeAlias(TypeAliasDecl),
     Fun(FunDecl),
@@ -37,7 +37,7 @@ pub enum ItemKind {
 }
 
 /// `val` / `var` 区分。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ValKind {
     Val,
     Var,
@@ -46,7 +46,7 @@ pub enum ValKind {
 /// `typealias Name<T> = TypeRef`（§3.1）。
 ///
 /// `eff` 行参数在 typealias 中会被 parser 拒绝（dedicated error）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeAliasDecl {
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
@@ -56,7 +56,7 @@ pub struct TypeAliasDecl {
 }
 
 /// 函数声明（§3.2），同时覆盖顶层函数、成员函数与 effect 操作（§3.5）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FunDecl {
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
@@ -80,14 +80,14 @@ pub struct FunDecl {
 }
 
 /// 函数体（§3.2 `funBody`）：块体或表达式体 `= expr`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum FunBody {
     Block(Block),
     Expr(Box<Expr>),
 }
 
 /// 函数参数（§3.8 `param`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Param {
     pub id: NodeId,
     pub span: Span,
@@ -102,7 +102,7 @@ pub struct Param {
 /// 顶层 / 局部共用的 `val` / `var` 声明（§3.3、§7）。
 ///
 /// `id` / `span` 由外层节点（[`Item`] 或 `Stmt`）承载。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ValDecl {
     pub annotations: Vec<AnnotationUse>,
     /// 顶层声明的修饰符；局部 `val/var` 恒为空。
@@ -115,7 +115,7 @@ pub struct ValDecl {
 }
 
 /// `val/var` 的绑定形态（§3.3 `valPattern`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ValBinding {
     Name(Ident),
     /// 解构模式（仅 `val`；`var` 解构是 parse error）。要求 `= expr` 初始化。
@@ -123,7 +123,7 @@ pub enum ValBinding {
 }
 
 /// 类型声明：`class` / `interface` / `struct` / `enum` / `effect`（§3.4）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeDecl {
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
@@ -140,7 +140,7 @@ pub struct TypeDecl {
 }
 
 /// 类型种类（§3.4 `typeKind`）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeKind {
     Class,
     Interface,
@@ -150,7 +150,7 @@ pub enum TypeKind {
 }
 
 /// 主构造参数列表（§3.4 `primaryCtor`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PrimaryCtorDecl {
     pub id: NodeId,
     pub span: Span,
@@ -158,7 +158,7 @@ pub struct PrimaryCtorDecl {
 }
 
 /// 主构造参数（§3.4 `ctorParam`）：`annotationUse* ('val'|'var'|'vararg')* IDENT ...`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtorParam {
     pub id: NodeId,
     pub span: Span,
@@ -172,7 +172,7 @@ pub struct CtorParam {
 }
 
 /// 超类型项：`typeRef callArgList?`（§3.4 `superType`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuperType {
     pub id: NodeId,
     pub span: Span,
@@ -182,7 +182,7 @@ pub struct SuperType {
 }
 
 /// 类型体（§3.4 `typeBody`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeBody {
     pub id: NodeId,
     pub span: Span,
@@ -190,14 +190,14 @@ pub struct TypeBody {
 }
 
 /// 类型体成员（§3.4 `typeMember`；孤立的 `;` 空成员不保留）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeMember {
     pub id: NodeId,
     pub span: Span,
     pub kind: TypeMemberKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TypeMemberKind {
     /// `init { ... }`（仅 class / object）。
     InitBlock(InitBlockDecl),
@@ -215,7 +215,7 @@ pub enum TypeMemberKind {
 }
 
 /// `init { ... }` 块（§3.4 `initBlock`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InitBlockDecl {
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
@@ -223,7 +223,7 @@ pub struct InitBlockDecl {
 }
 
 /// 次构造（§3.4 `secondaryCtor`）：body 块必有。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SecondaryCtorDecl {
     pub annotations: Vec<AnnotationUse>,
     /// `constructor` 关键字 span（成员定位用）。
@@ -238,21 +238,21 @@ pub struct SecondaryCtorDecl {
 }
 
 /// 构造委托调用（§3.4）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtorDelegation {
     pub span: Span,
     pub kind: CtorDelegationKind,
     pub args: Vec<CallArg>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CtorDelegationKind {
     This,
     Super,
 }
 
 /// enum variant（§3.4 `enumVariantDecl`）：`Name(val f: T, ...) = discriminant?`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnumVariantDecl {
     pub annotations: Vec<AnnotationUse>,
     pub name: Ident,
@@ -262,7 +262,7 @@ pub struct EnumVariantDecl {
 }
 
 /// enum variant 字段（必须 `val name: T`，无默认值、无 `var`，§3.4）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnumVariantField {
     pub id: NodeId,
     pub span: Span,
@@ -271,7 +271,7 @@ pub struct EnumVariantField {
 }
 
 /// 命名 object 或 companion object（§3.4 `objectDecl` / `companionObjectDecl`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ObjectDecl {
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
@@ -283,7 +283,7 @@ pub struct ObjectDecl {
 }
 
 /// 属性声明（§3.6 `propertyDecl`，类型体成员）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PropertyDecl {
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
@@ -299,7 +299,7 @@ pub struct PropertyDecl {
 }
 
 /// 属性访问器（§3.6 `accessor`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccessorDecl {
     pub id: NodeId,
     pub span: Span,
@@ -310,21 +310,21 @@ pub struct AccessorDecl {
     pub body: AccessorBody,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AccessorKind {
     Get,
     Set,
 }
 
 /// 访问器体（§3.6 `accessorBody`）：`= expr` 或块。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AccessorBody {
     Block(Block),
     Expr(Box<Expr>),
 }
 
 /// 扩展属性（§3.7 `extensionPropertyDecl`，仅顶层）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ExtensionPropertyDecl {
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
@@ -343,7 +343,7 @@ pub struct ExtensionPropertyDecl {
 // ---------------------------------------------------------------------------
 
 /// 类型参数列表（§5.1 `typeParamList`）：`<T: bound, eff E = Pure>`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeParamList {
     pub id: NodeId,
     pub span: Span,
@@ -353,7 +353,7 @@ pub struct TypeParamList {
 }
 
 /// 类型参数（§5.1 `typeParam`）：`variance? IDENT (':' genericBound)?`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeParam {
     pub id: NodeId,
     pub span: Span,
@@ -363,14 +363,14 @@ pub struct TypeParam {
 }
 
 /// 型变（§5.1；`in` / `out` 是硬关键字）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Variance {
     In,
     Out,
 }
 
 /// 泛型约束（§5.1 `genericBound`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum GenericBound {
     /// `ref` 约束（contextual keyword；span 记录其位置）。
     Ref(Span),
@@ -381,7 +381,7 @@ pub enum GenericBound {
 }
 
 /// effect 行参数（§5.1 `effRowParam`）：`eff E (= Row)?`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EffectRowParam {
     pub id: NodeId,
     pub span: Span,
@@ -391,7 +391,7 @@ pub struct EffectRowParam {
 }
 
 /// where 子句（§5.1 `whereClause`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WhereClause {
     pub id: NodeId,
     pub span: Span,
@@ -399,7 +399,7 @@ pub struct WhereClause {
 }
 
 /// where 约束：`IDENT ':' genericBound`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WhereConstraint {
     pub id: NodeId,
     pub span: Span,

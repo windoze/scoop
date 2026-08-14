@@ -27,9 +27,14 @@ members = [
     "crates/scoop2_mir",
     "crates/scoop2_lir",
     "crates/scoop2_codegen_llvm",
+    "crates/scoop2_archive",
     "crates/scoop2c",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+
+[workspace.dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+bincode = { version = "2", features = ["serde"] }

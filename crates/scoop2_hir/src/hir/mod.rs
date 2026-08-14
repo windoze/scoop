@@ -16,6 +16,7 @@
 //! - **per-file 表达式类型表**：每个用户文件一份 `expr_types: NodeIdTable<TypeId>`，
 //!   在 typecheck body 时由 `ExprChecker` 写回。
 
+mod serde_impl;
 pub mod facts;
 pub mod render;
 pub mod type_info;
@@ -33,7 +34,7 @@ pub use facts::{
 };
 
 /// 一个顶层函数 / 成员函数 / 构造器的类型化签名快照（render 用）。
-#[derive(Clone)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TypedSignature {
     /// 渲染后的参数类型文本列表（按声明顺序）。
     pub param_types: Vec<TypeId>,
@@ -59,7 +60,7 @@ pub struct TypedSignature {
 }
 
 /// 类型参数约束快照（导出 type_constraints 供 MIR 单态化用）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TypeConstraintsSnapshot {
     /// 类型参数名序列（按声明顺序）。
     pub type_params: Vec<Symbol>,
@@ -68,6 +69,7 @@ pub struct TypeConstraintsSnapshot {
 }
 
 /// 一个文件的 typed 产物：源 AST 句柄 + per-NodeId 表达式类型表。
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TypedFile {
     pub file_id: FileId,
     /// 该文件的包前缀（点分，可能为空）。
@@ -79,7 +81,7 @@ pub struct TypedFile {
 }
 
 /// class 主构造器参数布局（typecheck 记录；MIR 继承构造链展开用）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorParamInfo {
     /// 参数名。
     pub name: Symbol,
@@ -94,7 +96,7 @@ pub struct ClassCtorParamInfo {
 /// super 委托实参可以是任意表达式（函数调用、运算、ctor 参数引用、常量等），
 /// 在 MIR `<Class>.$init` 合成时从 `TypeDecl.supertypes[base_index].args` 直接
 /// lower（实参表达式已由 check_super_delegation_args typecheck，写回语义事实）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SuperCtorDelegation {
     /// 超类 FQN。
     pub super_fqn: Symbol,
@@ -106,7 +108,7 @@ pub struct SuperCtorDelegation {
 }
 
 /// super 委托实参。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SuperCtorArg {
     /// 引用本类主构造器第 index 个参数（`A(tag)`）。
     CtorParam {
@@ -125,7 +127,7 @@ pub enum SuperCtorArg {
 }
 
 /// super 委托支持的常量字面量。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SuperCtorConst {
     Int(u128),
     Float(f64),
@@ -140,6 +142,8 @@ pub enum SuperCtorConst {
 /// 由 [`crate::typecheck::run_typecheck`] 构造并返回。所有 `Symbol` 句柄通过内置
 /// [`interner`](Self::interner) 解析；所有 `TypeId` 句柄通过内置
 /// [`store`](Self::store) 查询。
+/// 手动 serde 见 [`serde_impl`]（HashMap 字段按 key 排序序列化）。
+#[derive(Clone, Debug)]
 pub struct TypedHir {
     /// 类型存储（从 `TypeEnv` move 出；所有 TypeId 的唯一来源）。
     pub store: TypeStore,

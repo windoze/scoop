@@ -15,7 +15,7 @@
 
 #![forbid(unsafe_code)]
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 mod cli {
@@ -31,6 +31,8 @@ mod cli {
         DumpLir { input: PathBuf },
         Build(BuildArgs),
         Run(RunArgs),
+        HirBuild { input: PathBuf, out: PathBuf },
+        MirBuild { dir: PathBuf },
     }
 
     #[derive(Debug)]
@@ -92,6 +94,8 @@ mod cli {
             "dump-lir" => parse_dump(rest).map(|input| Command::DumpLir { input }),
             "build" => parse_build(rest).map(Command::Build),
             "run" => parse_run(rest).map(Command::Run),
+            "hir-build" => parse_hir_build(rest),
+            "mir-build" => parse_mir_build(rest),
             "-h" | "--help" => Err(usage()),
             other => Err(format!("未知子命令 `{other}`\n\n{}", usage())),
         }
@@ -144,7 +148,49 @@ mod cli {
     }
 
     fn usage() -> String {
-        "用法：\n  scoop2c check-source --phase <parse|resolve|typecheck|infer|lower> --input <path> [--source <file>] [--target-platform <p>]\n  scoop2c dump-ast <file.scoop>\n  scoop2c dump-hir <file.scoop>\n  scoop2c dump-mir <file.scoop>\n  scoop2c dump-lir <file.scoop>".to_string()
+        "用法：\n  scoop2c check-source --phase <parse|resolve|typecheck|infer|lower> --input <path> [--source <file>] [--target-platform <p>]\n  scoop2c dump-ast <file.scoop>\n  scoop2c dump-hir <file.scoop>\n  scoop2c dump-mir <file.scoop>\n  scoop2c dump-lir <file.scoop>\n  scoop2c hir-build <file.scoop> -o <dir>\n  scoop2c mir-build <dir>".to_string()
+    }
+
+    fn parse_hir_build(args: &[String]) -> Result<Command, String> {
+        let mut input = None;
+        let mut out = None;
+        let mut i = 0;
+        while i < args.len() {
+            let flag = args[i].as_str();
+            match flag {
+                "-o" | "--output" => {
+                    i += 1;
+                    out = Some(PathBuf::from(
+                        args.get(i)
+                            .ok_or_else(|| "hir-build: -o 缺少参数值".to_string())?,
+                    ));
+                }
+                other if other.starts_with('-') => {
+                    return Err(format!("hir-build: 未知选项 `{other}`"));
+                }
+                other => {
+                    if input.is_none() {
+                        input = Some(PathBuf::from(other));
+                    } else {
+                        return Err(format!("hir-build: 多余的位置参数 `{other}`"));
+                    }
+                }
+            }
+            i += 1;
+        }
+        Ok(Command::HirBuild {
+            input: input.ok_or_else(|| "hir-build: 缺少输入文件".to_string())?,
+            out: out.ok_or_else(|| "hir-build: 缺少 -o 输出目录".to_string())?,
+        })
+    }
+
+    fn parse_mir_build(args: &[String]) -> Result<Command, String> {
+        match args {
+            [dir] => Ok(Command::MirBuild {
+                dir: PathBuf::from(dir),
+            }),
+            _ => Err("mir-build: 需要恰好一个 archive 目录路径（含 collection.hirv0）".to_string()),
+        }
     }
 
     fn parse_check_source(args: &[String]) -> Result<CheckSourceArgs, String> {
@@ -188,6 +234,11 @@ mod cli {
 
 use cli::Command;
 
+use scoop2_archive::pipeline::{
+    BuiltProgram, build_program, collect_overlay_files, locate_sysroot, make_inputs,
+    read_declared_deps, walk_scoop_files,
+};
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match cli::parse_args(&args) {
@@ -208,6 +259,58 @@ fn run(command: Command) -> ExitCode {
         Command::DumpLir { input } => run_dump_lir(&input),
         Command::Build(args) => run_build(&args),
         Command::Run(args) => run_run(&args),
+        Command::HirBuild { input, out } => run_hir_build(&input, &out),
+        Command::MirBuild { dir } => run_mir_build(&dir),
+    }
+}
+
+/// `hir-build`：parse → typecheck → 写出 v0 HIR archive collection（per-cone
+/// `.hirarch` + `collection.hirv0`）。之后 MIR 只需该目录即可工作（源文件可删）。
+fn run_hir_build(input: &std::path::Path, out: &std::path::Path) -> ExitCode {
+    let source = match load_source(input) {
+        Ok(source) => source,
+        Err(code) => return code,
+    };
+    let mut program = build_program(&source);
+    let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = program
+        .sources
+        .iter()
+        .enumerate()
+        .skip(1)
+        .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+        .collect();
+    match scoop2_archive::pipeline::typecheck_program(&mut program, None) {
+        Ok(hir) => match scoop2_archive::v0::write_hir_collection(out, &program, &hir, &[]) {
+            Ok(files) => {
+                for f in files {
+                    println!("{}", f.display());
+                }
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::from(1)
+            }
+        },
+        Err(diags) => report_diagnostics(&source, &extra_sources, diags),
+    }
+}
+
+/// `mir-build`：从 HIR archive collection 目录装配并走 MIR，输出 MIR dump。
+/// 只读目录内容（PLAN.md C1/C8——不读源文件 / 不重新 parse）。
+fn run_mir_build(dir: &std::path::Path) -> ExitCode {
+    let dump = scoop2_archive::v0::load_hir_collection(dir)
+        .map_err(scoop2_archive::v0::StageError::from)
+        .and_then(|loaded| scoop2_archive::v0::mir_dump_from_collection(&loaded));
+    match dump {
+        Ok(dump) => {
+            print!("{dump}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::from(1)
+        }
     }
 }
 
@@ -216,74 +319,6 @@ fn load_source(path: &std::path::Path) -> Result<scoop2_base::SourceFile, ExitCo
         eprintln!("error: {err}");
         ExitCode::from(1)
     })
-}
-
-/// 定位 sysroot 目录：优先环境变量 `SCOOP_SYSROOT`，否则相对当前可执行文件
-/// （`target/debug/scoop2c` → `<root>/sysroot`）。找不到返回 `None`（前端仍可对
-/// 不依赖内置类型的程序解析）。
-fn locate_sysroot() -> Option<PathBuf> {
-    if let Ok(s) = std::env::var("SCOOP_SYSROOT") {
-        let p = PathBuf::from(s);
-        if p.is_dir() {
-            return Some(p);
-        }
-    }
-    let exe = std::env::current_exe().ok()?;
-    // exe = <root>/target/<profile>/scoop2c
-    let root = exe.parent()?.parent()?.parent()?;
-    let p = root.join("sysroot");
-    if p.is_dir() { Some(p) } else { None }
-}
-
-/// 读取通过环境变量 `SCOOP_SYSROOT_DEPS` 声明的显式依赖（逗号分隔的包名）。
-/// 这些是用户显式声明的 sysroot 依赖（如 `scoop.thread`），允许通过 wildcard 导入。
-/// 未声明的非 auto-dependency 包（如 `scoop.sync`）不能隐式导入。
-fn read_declared_deps() -> std::collections::HashSet<String> {
-    let mut deps = std::collections::HashSet::new();
-    if let Ok(s) = std::env::var("SCOOP_SYSROOT_DEPS") {
-        for d in s.split(',') {
-            let d = d.trim();
-            if !d.is_empty() {
-                deps.insert(d.to_string());
-            }
-        }
-    }
-    deps
-}
-
-/// 收集 fixture 的 `.sysroot` overlay 目录中的 `.scoop` 文件。
-fn collect_overlay_files() -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    if let Ok(overlay) = std::env::var("SCOOP_SYSROOT_OVERLAY") {
-        let p = PathBuf::from(&overlay);
-        if p.is_dir() {
-            walk_inner(&p, &mut out);
-            out.sort();
-        }
-    }
-    out
-}
-
-/// 递归收集 `dir` 下的所有 `*.scoop` 文件路径（按路径排序，保证确定性）。
-fn walk_scoop_files(dir: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    walk_inner(dir, &mut out);
-    out.sort();
-    out
-}
-
-fn walk_inner(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            walk_inner(&path, out);
-        } else if path.extension().is_some_and(|ext| ext == "scoop") {
-            out.push(path);
-        }
-    }
 }
 
 fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
@@ -378,75 +413,6 @@ fn run_check_source(args: &cli::CheckSourceArgs) -> ExitCode {
                 .collect();
             report_diagnostics(&source, &extra_sources, diags)
         }
-    }
-}
-
-/// 把解析好的文件集合构造为 resolve/typecheck 的 `InputFile` 列表。
-fn make_inputs<'a>(
-    parsed: &'a mut [scoop2_syntax::parser::ParsedFile],
-    user_indices: &[usize],
-) -> Vec<scoop2_hir::resolve::InputFile<'a>> {
-    parsed
-        .iter_mut()
-        .enumerate()
-        .map(|(i, pf)| scoop2_hir::resolve::InputFile {
-            file: &mut pf.file,
-            file_id: scoop2_base::FileId(i as u32),
-            origin: if user_indices.contains(&i) {
-                scoop2_hir::resolve::InputOrigin::User
-            } else {
-                scoop2_hir::resolve::InputOrigin::Sysroot
-            },
-            // 主文件（i==0）非受信任；sysroot + `.sysroot` overlay 文件受信任。
-            trusted: i != 0,
-        })
-        .collect()
-}
-
-/// 解析主文件 + sysroot + `.sysroot` overlay，返回（解析文件、用户文件下标、
-/// interner、解析诊断）。主文件（index 0）始终是 user。
-struct BuiltProgram {
-    parsed: Vec<scoop2_syntax::parser::ParsedFile>,
-    /// 所有文件的 SourceFile（与 parsed 同序），供诊断渲染跨文件 label。
-    sources: Vec<scoop2_base::SourceFile>,
-    user_indices: Vec<usize>,
-    interner: scoop2_base::Interner,
-    diags: scoop2_base::diag::DiagnosticSink,
-}
-
-fn build_program(source: &scoop2_base::SourceFile) -> BuiltProgram {
-    let mut interner = scoop2_base::Interner::new();
-    let diags = scoop2_base::diag::DiagnosticSink::new();
-    let mut parsed: Vec<scoop2_syntax::parser::ParsedFile> = Vec::with_capacity(1 + 32);
-    let mut sources: Vec<scoop2_base::SourceFile> = Vec::with_capacity(1 + 32);
-    let mut user_indices: Vec<usize> = vec![0]; // 主文件始终是 user
-    parsed.push(scoop2_syntax::parser::parse_file_with(
-        source,
-        &mut interner,
-    ));
-    sources.push(source.clone());
-    if let Some(sysroot) = locate_sysroot() {
-        for path in walk_scoop_files(&sysroot.join("lib")) {
-            if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
-                parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
-                sources.push(src);
-            }
-        }
-    }
-    // Fixture sysroot overlay（`.sysroot` 目录中的 `.scoop` 文件）→ 当作用户代码检查。
-    for path in collect_overlay_files() {
-        if let Ok(src) = scoop2_base::SourceFile::load_sysroot(&path) {
-            user_indices.push(parsed.len());
-            parsed.push(scoop2_syntax::parser::parse_file_with(&src, &mut interner));
-            sources.push(src);
-        }
-    }
-    BuiltProgram {
-        parsed,
-        sources,
-        user_indices,
-        interner,
-        diags,
     }
 }
 

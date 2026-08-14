@@ -122,6 +122,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
+dependencies = [
+ "bincode_derive",
+ "serde",
+ "unty",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
+dependencies = [
+ "virtue",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -657,8 +677,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoop2_archive"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "scoop2_base",
+ "scoop2_hir",
+ "scoop2_mir",
+ "scoop2_syntax",
+ "serde",
+]
+
+[[package]]
 name = "scoop2_base"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "scoop2_codegen_llvm"
@@ -681,6 +716,7 @@ dependencies = [
  "hashbrown 0.15.5",
  "scoop2_base",
  "scoop2_syntax",
+ "serde",
 ]
 
 [[package]]
@@ -706,12 +742,14 @@ name = "scoop2_syntax"
 version = "0.1.0"
 dependencies = [
  "scoop2_base",
+ "serde",
 ]
 
 [[package]]
 name = "scoop2c"
 version = "0.1.0"
 dependencies = [
+ "scoop2_archive",
  "scoop2_base",
  "scoop2_codegen_llvm",
  "scoop2_hir",
@@ -804,7 +842,7 @@ dependencies = [
 name = "scoopc_cone"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "miette",
  "scoop_project_model",
  "scoopc_ast",
@@ -833,7 +871,7 @@ dependencies = [
 name = "scoopc_effect_facts"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "scoopc_ids",
  "scoopc_types",
  "serde",
@@ -879,7 +917,7 @@ dependencies = [
 name = "scoopc_hir_facts"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "scoop_project_model",
  "scoopc_ids",
  "scoopc_source",
@@ -902,7 +940,7 @@ dependencies = [
 name = "scoopc_lir"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "scoop_project_model",
  "scoopc_effect_facts",
  "scoopc_ids",
@@ -920,7 +958,7 @@ dependencies = [
 name = "scoopc_lir_facts"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "scoop_project_model",
  "scoopc_ids",
  "scoopc_types",
@@ -931,7 +969,7 @@ dependencies = [
 name = "scoopc_mir"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "miette",
  "scoop_project_model",
  "scoopc_ast",
@@ -952,7 +990,7 @@ dependencies = [
 name = "scoopc_mir_facts"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "scoop_project_model",
  "scoopc_ids",
  "scoopc_source",
@@ -982,7 +1020,7 @@ dependencies = [
 name = "scoopc_types"
 version = "0.1.0"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "scoopc_span",
  "serde",
 ]
@@ -1338,6 +1376,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
+name = "unty"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
+
+[[package]]
 name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1354,6 +1398,12 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "virtue"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "wasip2"

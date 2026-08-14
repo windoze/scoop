@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use crate::Span;
 
 /// 编译会话中某个源文件的稳定标识（在其所属文件列表中的下标）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct FileId(pub u32);
 
 impl FileId {

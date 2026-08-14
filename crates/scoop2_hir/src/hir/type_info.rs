@@ -14,7 +14,7 @@ use scoop2_base::{FileId, Span, Symbol};
 use crate::ty::{EffectRow, TypeId};
 
 /// 类型声明信息。freeze 后的 TypeDb 中每个 TypeId 对应一个。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum TypeInfo {
     Primitive(PrimitiveTypeInfo),
     Tuple(TupleTypeInfo),
@@ -30,7 +30,7 @@ pub enum TypeInfo {
 
 /// 基础值类型的声明信息。
 /// 标量类型可以 implement interface（如 Int : Hashable, ToString）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PrimitiveTypeInfo {
     pub kind: PrimitiveKind,
     /// 直接实现的 interface（如 Hashable/ToString/Comparable）。
@@ -38,7 +38,7 @@ pub struct PrimitiveTypeInfo {
 }
 
 /// 具体的基础标量种类。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum PrimitiveKind {
     Unit,
     Bool,
@@ -60,7 +60,7 @@ pub enum PrimitiveKind {
 // ---- Tuple ----
 
 /// 元组类型的声明信息。值结构类型（按位置），可 implement interface。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TupleTypeInfo {
     pub members: Vec<TypeId>,
     pub direct_implements: Vec<TypeId>,
@@ -69,7 +69,7 @@ pub struct TupleTypeInfo {
 // ---- Struct ----
 
 /// struct 类型的声明信息。值类型，无 ctor（`with` 是 memcpy + 字段写入）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct StructTypeInfo {
     pub type_params: Vec<TypeParamDecl>,
     pub fields: Vec<(Symbol, TypeId)>,
@@ -80,7 +80,7 @@ pub struct StructTypeInfo {
 // ---- Class ----
 
 /// class 类型的声明信息。引用类型，有继承/构造器。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClassTypeInfo {
     pub type_params: Vec<TypeParamDecl>,
     pub fields: Vec<(Symbol, TypeId)>,
@@ -95,7 +95,7 @@ pub struct ClassTypeInfo {
 }
 
 /// class 构造器信息（primary + secondary + super delegation）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtor {
     /// 主构造器参数布局（含非属性参数；MIR 构造链展开用）。
     pub primary_params: Vec<ClassCtorParamInfo>,
@@ -106,7 +106,7 @@ pub struct ClassCtor {
 }
 
 /// class 主构造器参数信息。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClassCtorParamInfo {
     pub name: Symbol,
     pub ty: TypeId,
@@ -115,7 +115,7 @@ pub struct ClassCtorParamInfo {
 }
 
 /// `: Super(args)` 主构造器委托的解析结果。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SuperCtorDelegation {
     /// 超类 FQN。
     pub super_fqn: Symbol,
@@ -128,7 +128,7 @@ pub struct SuperCtorDelegation {
 // ---- Interface ----
 
 /// interface 类型的声明信息。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct InterfaceTypeInfo {
     pub type_params: Vec<TypeParamDecl>,
     pub methods: Vec<(Symbol, Vec<Signature>)>,
@@ -139,7 +139,7 @@ pub struct InterfaceTypeInfo {
 // ---- Enum ----
 
 /// enum 类型的声明信息。值类型，可带 variant payload + 方法。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EnumTypeInfo {
     pub type_params: Vec<TypeParamDecl>,
     pub variants: Vec<EnumVariantInfo>,
@@ -148,7 +148,7 @@ pub struct EnumTypeInfo {
 }
 
 /// enum variant 的声明信息。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EnumVariantInfo {
     pub name: Symbol,
     /// variant payload 字段（无 payload 为空）。
@@ -161,7 +161,7 @@ pub struct EnumVariantInfo {
 /// HOF 参数/返回值为函数类型时，查 TypeInfo 得到此结构。
 ///
 /// TODO: 后续添加 ABI 信息（调用约定等）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct FunctionTypeInfo {
     /// 接收者函数类型 `T.(A) -> R` 的 `T`；普通函数为 None。
     pub receiver: Option<TypeId>,
@@ -176,7 +176,7 @@ pub struct FunctionTypeInfo {
 
 /// 类型参数声明信息（与 `crate::ty::TypeParamDecl` 同构，但 owned + 不含运行时 id）。
 /// TODO: 考虑直接复用 `crate::ty::TypeParamDecl`。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TypeParamDecl {
     /// 参数名（仅诊断/显示）。
     pub name: Symbol,
@@ -192,7 +192,7 @@ pub struct TypeParamDecl {
 
 /// 函数签名（freeze 后的 TypedSignature 等价物）。
 /// TODO: 后续考虑直接复用 `crate::hir::TypedSignature` 或统一。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Signature {
     pub param_types: Vec<TypeId>,
     pub return_ty: TypeId,

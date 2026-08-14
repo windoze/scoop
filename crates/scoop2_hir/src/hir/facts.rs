@@ -25,7 +25,7 @@ use crate::ty::{EffectRow, TypeId};
 /// 以及方法调用（member-access callee）。key 为**调用表达式自身的 NodeId**
 ///（`Call`/`InfixCall`/`Binary`/`Unary`/`Index` 节点；方法调用为承载
 /// `MemberAccess` 的 `Call` 节点）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ResolvedCall {
     /// 顶层函数直接调用（已选定重载）。
     TopLevelFun {
@@ -117,7 +117,7 @@ pub enum ResolvedCall {
 /// 一个成员访问（`receiver.member`）的决议结果。
 ///
 /// key 为 `ExprKind::MemberAccess` / `SafeMemberAccess` 节点的 NodeId。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ResolvedMember {
     /// 字段 / 属性（数据成员）。
     Field {
@@ -145,7 +145,7 @@ pub enum ResolvedMember {
 /// 一个赋值目标（`StmtKind::Assign` 的 LHS）的 place 分类。
 ///
 /// key 为 [`crate::syntax::ast::AssignTarget`] 的 NodeId（`AssignTarget.id`）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ResolvedPlace {
     /// 局部变量写。
     Local { name: Symbol, local_ty: TypeId },
@@ -169,7 +169,7 @@ pub enum ResolvedPlace {
 /// 一个 effect 站点的元数据。
 ///
 /// key 为承载 effect 操作的表达式 NodeId（perform 调用表达式）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EffectSite {
     /// effect 类型名 Symbol。
     pub effect_name: Symbol,
@@ -184,7 +184,7 @@ pub struct EffectSite {
 /// 模式绑定（`when` arm / 解构 `val`）引入的一个局部绑定。
 ///
 /// key 为合成键（见 [`PatternBindingKey`]）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PatternBinding {
     /// 绑定名。
     pub name: Symbol,
@@ -197,7 +197,7 @@ pub struct PatternBinding {
 }
 
 /// 模式绑定来源。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PatternBindingSource {
     /// `when` arm 模式绑定。
     WhenArm,
@@ -210,7 +210,7 @@ pub enum PatternBindingSource {
 /// per-file 的语义事实侧表集合。
 ///
 /// 与 [`crate::hir::TypedFile::expr_types`] 同生命周期，由 typecheck 在决议点填充。
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize, Clone)]
 pub struct SemanticFacts {
     /// 值引用（从 resolve `Resolution::value_refs` 搬入；`Ident`/callee 的值解析）。
     pub value_refs: NodeIdTable<ResolvedValue>,
@@ -249,7 +249,7 @@ pub struct SemanticFacts {
 }
 
 /// 解析后的调用实参（按 callee 参数位置排序 + 默认值填充）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ResolvedCallArg {
     /// 使用调用点提供的第 `original_index` 个实参。
     Provided { original_index: usize },
@@ -266,7 +266,7 @@ impl SemanticFacts {
 /// 模式绑定表专用键（pattern sub-binding 无独立 NodeId）。
 ///
 /// 由「父节点 NodeId + 绑定在该父节点中的序号」复合而成，保证稳定且无冲突。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct PatternBindingKey {
     pub parent: NodeId,
     pub index: u32,

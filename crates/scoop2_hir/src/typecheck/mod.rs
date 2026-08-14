@@ -70,20 +70,12 @@ pub fn run_typecheck_with_options(
     // ---- Phase 1：收集所有 header ----
     let mut index = Index::new();
     for inp in inputs.iter() {
-        let cone_name = collect::package_prefix_of(inp.file, interner);
+        let cone_name = crate::resolve::cone_name_of(inp.file, interner, inp.origin);
         let cone_kind = match inp.origin {
             InputOrigin::User => ConeKind::Bin,
             InputOrigin::Sysroot => ConeKind::Syslib,
         };
-        let cone = if cone_name.is_empty() {
-            let fallback = match inp.origin {
-                InputOrigin::User => "<user>",
-                InputOrigin::Sysroot => "<sysroot>",
-            };
-            index.intern_cone(fallback, cone_kind)
-        } else {
-            index.intern_cone(&cone_name, cone_kind)
-        };
+        let cone = index.intern_cone(&cone_name, cone_kind);
         collect::collect_file(inp.file, inp.file_id, cone, &mut index, interner, diags);
     }
     index.resolve_extensions(interner);

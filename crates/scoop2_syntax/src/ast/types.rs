@@ -5,14 +5,14 @@ use scoop2_base::{NodeId, Span};
 use super::TypePath;
 
 /// 类型引用（§6）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeRef {
     pub id: NodeId,
     pub span: Span,
     pub kind: TypeRefKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TypeRefKind {
     /// 路径类型：`List<Int>`、`scoop.core.Option<T>`。
     Path { path: TypePath, args: Vec<TypeArg> },
@@ -44,14 +44,14 @@ pub enum TypeRefKind {
 }
 
 /// 类型实参（§5.2，use site）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypeArg {
     pub id: NodeId,
     pub span: Span,
     pub kind: TypeArgKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TypeArgKind {
     Type(TypeRef),
     /// 星投影 `*`（仅存在于类型实参位置）。
@@ -61,7 +61,7 @@ pub enum TypeArgKind {
 }
 
 /// effect 行表达式（§6.1）：`A + B`、`Pure`、`(Row)!`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EffectRowExpr {
     pub id: NodeId,
     pub span: Span,
@@ -77,7 +77,7 @@ pub struct EffectRowExpr {
 }
 
 /// effect 行的一项：`pathType`（可带类型实参，如 `Raise<IOError>`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EffectRowTerm {
     pub id: NodeId,
     pub span: Span,

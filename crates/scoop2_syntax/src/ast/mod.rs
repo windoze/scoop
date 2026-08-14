@@ -40,7 +40,7 @@ pub use pattern::*;
 pub use types::*;
 
 /// 标识符：interned 符号 + 出现位置。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Ident {
     pub symbol: Symbol,
     pub span: Span,
@@ -50,14 +50,14 @@ pub struct Ident {
 ///
 /// 统一用于 package / import / 注解路径 / 类型路径 / handle effect 路径 /
 /// variant 模式路径。仅表达语法形态；哪一段是包、哪一段是类型由 resolve 决定。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TypePath {
     pub segments: Vec<Ident>,
     pub span: Span,
 }
 
 /// 源文件（§2）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct File {
     pub id: NodeId,
     pub span: Span,
@@ -69,7 +69,7 @@ pub struct File {
 }
 
 /// `package a.b.c`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PackageDecl {
     pub id: NodeId,
     pub span: Span,
@@ -77,7 +77,7 @@ pub struct PackageDecl {
 }
 
 /// `import a.b.* as c`（§2）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImportDecl {
     pub id: NodeId,
     pub span: Span,
@@ -88,7 +88,7 @@ pub struct ImportDecl {
 }
 
 /// 注解使用：`@target:path(args...)`（§4）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AnnotationUse {
     pub id: NodeId,
     pub span: Span,
@@ -99,7 +99,7 @@ pub struct AnnotationUse {
 }
 
 /// 注解实参：`(IDENT ('=' | ':'))? expr`（§4）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AnnotationArg {
     pub id: NodeId,
     pub span: Span,
@@ -112,7 +112,7 @@ pub struct AnnotationArg {
 ///
 /// `inline` 已被语言移除（§10）：parser 遇到会记录 dedicated 诊断，
 /// AST 不为其建模。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ModifierKind {
     Public,
     Internal,
@@ -127,14 +127,14 @@ pub enum ModifierKind {
 }
 
 /// 一个修饰符的出现（parser 会对修饰符集合排序去重，源码顺序不保留）。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Modifier {
     pub kind: ModifierKind,
     pub span: Span,
 }
 
 /// 整数字面量后缀（§1.2 `INT_SUFFIX`）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum IntSuffix {
     /// `u` / `U`
     U,
@@ -145,7 +145,7 @@ pub enum IntSuffix {
 }
 
 /// 已解码的整数字面量。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct IntLit {
     pub value: u128,
     pub suffix: Option<IntSuffix>,
@@ -173,14 +173,14 @@ impl IntLit {
 }
 
 /// 浮点字面量后缀（§1.2 `FLOAT_SUFFIX`）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FloatSuffix {
     /// `f` / `f32`（无后缀即 Float64，用 `None` 表示）。
     F32,
 }
 
 /// 已解码的浮点字面量。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct FloatLit {
     pub value: f64,
     pub suffix: Option<FloatSuffix>,
@@ -207,7 +207,7 @@ impl FloatLit {
 }
 
 /// 已解码的 Char 字面量。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct CharLit {
     pub value: char,
     pub span: Span,
@@ -227,7 +227,7 @@ impl CharLit {
 
 /// 已解码的字符串字面量（普通或 raw 三引号；f-string 见
 /// [`expr::ExprKind::InterpolatedString`]）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StringLit {
     pub value: String,
     pub span: Span,

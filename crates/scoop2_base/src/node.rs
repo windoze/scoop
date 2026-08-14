@@ -6,7 +6,9 @@ use std::fmt;
 ///
 /// 语义阶段（resolve/typecheck）的分析结果存放在以 `NodeId` 为下标的致密
 /// 侧表（`Vec<Option<T>>`）中，替代旧前端的 `HashMap<Span, _>` 写回模式。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct NodeId(u32);
 
 impl NodeId {

@@ -547,28 +547,48 @@ impl<'i> TypeEnv<'i> {
             }
             supertypes.insert(child, supers.to_vec());
         }
-        let top_level_funs = self
-            .signatures
-            .into_iter()
-            .map(|(k, v)| (k, convert_sigs(v, &mut store)))
-            .collect();
-        let member_funs = self
-            .member_signatures
-            .into_iter()
-            .map(|(k, m)| {
-                (
-                    k,
-                    m.into_iter()
-                        .map(|(mk, v)| (mk, convert_sigs(v, &mut store)))
-                        .collect(),
-                )
-            })
-            .collect();
-        let ctor_signatures = self
-            .ctor_signatures
-            .into_iter()
-            .map(|(k, v)| (k, convert_sigs(v, &mut store)))
-            .collect();
+        // 子类型列表按 Symbol 排序：来源是 HashMap 迭代（顺序不定），而 CHA 只做
+        // 成员判定——排序消除迭代序对下游字节流的影响（PLAN.md C7）。
+        for children in direct_subtypes.values_mut() {
+            children.sort_unstable();
+        }
+        // 签名表按 Symbol 排序后转换：convert_sigs 会铸造 effect-row TypeId，
+        // 迭代序必须确定（PLAN.md C7——HashMap 序不得影响 TypeStore 分配序）。
+        let top_level_funs = {
+            let mut entries: Vec<_> = self.signatures.into_iter().collect();
+            entries.sort_by_key(|(k, _)| *k);
+            entries
+                .into_iter()
+                .map(|(k, v)| (k, convert_sigs(v, &mut store)))
+                .collect()
+        };
+        let member_funs = {
+            let mut entries: Vec<_> = self
+                .member_signatures
+                .into_iter()
+                .map(|(k, m)| {
+                    let mut inner: Vec<_> = m.into_iter().collect();
+                    inner.sort_by_key(|(mk, _)| *mk);
+                    (
+                        k,
+                        inner
+                            .into_iter()
+                            .map(|(mk, v)| (mk, convert_sigs(v, &mut store)))
+                            .collect(),
+                    )
+                })
+                .collect();
+            entries.sort_by_key(|(k, _)| *k);
+            entries.into_iter().collect()
+        };
+        let ctor_signatures = {
+            let mut entries: Vec<_> = self.ctor_signatures.into_iter().collect();
+            entries.sort_by_key(|(k, _)| *k);
+            entries
+                .into_iter()
+                .map(|(k, v)| (k, convert_sigs(v, &mut store)))
+                .collect()
+        };
         let type_constraints = self
             .type_constraints
             .into_iter()
@@ -655,7 +675,13 @@ fn build_type_infos(
 
     let mut out: HashMap<TypeId, TypeInfo> = HashMap::new();
 
-    for (fqn, category) in index.categories_iter() {
+    // 按 Symbol（intern 序）排序后遍历：nominal TypeId 的铸造序必须确定
+    //（PLAN.md C7——HashMap 迭代序不得进入 TypeStore 分配序 / archive 字节流）。
+    let mut categories: Vec<(scoop2_base::Symbol, crate::resolve::symbol::NominalCategory)> =
+        index.categories_iter().collect();
+    categories.sort_by_key(|(fqn, _)| *fqn);
+
+    for (fqn, category) in categories {
         let is_ref = category.is_reference();
         let ty_id = nominal_type_id(store, fqn, is_ref);
         let info = match category {

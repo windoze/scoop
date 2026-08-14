@@ -19,7 +19,7 @@ use super::types::{TypeArg, TypeRef};
 use super::{AnnotationUse, CharLit, FloatLit, Ident, IntLit, StringLit, TypePath};
 
 /// 块：`{ stmt* }`（§7）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Block {
     pub id: NodeId,
     pub span: Span,
@@ -29,14 +29,14 @@ pub struct Block {
 }
 
 /// 语句（§7）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Stmt {
     pub id: NodeId,
     pub span: Span,
     pub kind: StmtKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum StmtKind {
     /// 空语句（孤立的 `;`）。
     Empty,
@@ -65,14 +65,14 @@ pub enum StmtKind {
 }
 
 /// 赋值目标（§7：合法 LHS 只有 `x`、`a.b`、`a[i, j]` 三种）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AssignTarget {
     pub id: NodeId,
     pub span: Span,
     pub kind: AssignTargetKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AssignTargetKind {
     /// `x = v`。
     Ident(Ident),
@@ -91,7 +91,7 @@ pub enum AssignTargetKind {
 /// 成员段名：`memberSeg ::= IDENT | INT_LIT`（§8.4）。
 ///
 /// 同时用于成员访问（`a.b`、`t.0`）与 `with` 更新的字段路径段。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum MemberName {
     Named(Ident),
     /// 元组索引段（`t.0` 的 `0`；值已由 lexer 校验）。
@@ -102,14 +102,14 @@ pub enum MemberName {
 }
 
 /// 表达式（§8）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Expr {
     pub id: NodeId,
     pub span: Span,
     pub kind: ExprKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ExprKind {
     /// 标识符引用（`true` / `false` 也是普通 Ident，由 typecheck 解析）。
     Ident(Ident),
@@ -254,7 +254,7 @@ pub enum ExprKind {
 }
 
 /// 插值字符串片段（§8.2：只有 `${ expr }` 是 hole，`$name` 不支持）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum StringPart {
     /// 已解码的文本片段。
     Text(String),
@@ -263,7 +263,7 @@ pub enum StringPart {
 }
 
 /// struct 字面量的字段初始化项：`name: expr`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StructLitField {
     pub id: NodeId,
     pub span: Span,
@@ -272,7 +272,7 @@ pub struct StructLitField {
 }
 
 /// lambda 表达式（§8.2）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LambdaExpr {
     /// 是否为 `@Safe` 闭包（`@Safe { ... }`）。
     pub is_safe: bool,
@@ -283,7 +283,7 @@ pub struct LambdaExpr {
 }
 
 /// lambda 参数：`name` 或 `name: Type`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LambdaParam {
     pub id: NodeId,
     pub span: Span,
@@ -292,14 +292,14 @@ pub struct LambdaParam {
 }
 
 /// lambda 主体（§8.2 解包规则的两种结果）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum LambdaBody {
     Block(Block),
     Expr(Box<Expr>),
 }
 
 /// 调用实参：`(IDENT '=')? ('*' expr | expr)`（§8.4 `callArg`）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CallArg {
     pub id: NodeId,
     pub span: Span,
@@ -311,7 +311,7 @@ pub struct CallArg {
 }
 
 /// `when` 分支：`pat (if guard)? -> body`（§8.5）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WhenArm {
     pub id: NodeId,
     pub span: Span,
@@ -322,7 +322,7 @@ pub struct WhenArm {
 }
 
 /// `handle` 的 handler arm（§8.6）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleArm {
     pub id: NodeId,
     pub span: Span,
@@ -337,7 +337,7 @@ pub struct HandleArm {
 
 /// handler arm 头部的 effect operation（§8.6）：
 /// `Path<Args>.op<Args>(binders...)`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleOp {
     pub id: NodeId,
     pub span: Span,
@@ -352,7 +352,7 @@ pub struct HandleOp {
 }
 
 /// handler arm 的一个参数绑定：`name` 或 `name: Type`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HandleBinder {
     pub id: NodeId,
     pub span: Span,
@@ -361,7 +361,7 @@ pub struct HandleBinder {
 }
 
 /// `with` 更新的一项：`path: value`。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WithUpdateField {
     pub id: NodeId,
     pub span: Span,
@@ -373,14 +373,14 @@ pub struct WithUpdateField {
 ///
 /// `with { 0.1: v }` 中的 float token 已由 parser 拆成两个整数段
 /// （[`MemberName::TupleIndex`]），AST 不保留 float 形态。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FieldPath {
     pub span: Span,
     pub segments: Vec<MemberName>,
 }
 
 /// 二元运算符（§8.1 完整表）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BinaryOp {
     Mul,
     Div,
@@ -407,7 +407,7 @@ pub enum BinaryOp {
 }
 
 /// 前缀一元运算符（§8.3）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum UnaryOp {
     /// `!x`
     Not,
@@ -418,7 +418,7 @@ pub enum UnaryOp {
 }
 
 /// 运行期类型判断运算符（§8.1）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeCheckOp {
     /// `is`
     Is,
@@ -427,7 +427,7 @@ pub enum TypeCheckOp {
 }
 
 /// 显式类型转换运算符（§8.1）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CastOp {
     /// `as`
     As,

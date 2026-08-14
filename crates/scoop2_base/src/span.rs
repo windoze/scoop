@@ -3,7 +3,9 @@
 use std::fmt;
 
 /// UTF-8 字节偏移区间（半开 `[start, end)`），相对于某一个 [`crate::SourceFile`]。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
 pub struct Span {
     pub start: usize,
     pub end: usize,

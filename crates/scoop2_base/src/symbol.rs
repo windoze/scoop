@@ -7,7 +7,9 @@ use std::fmt;
 ///
 /// `Symbol` 只在产出它的 [`Interner`] 内有意义；调试输出需要配合 interner
 /// 解析为文本（见 [`Interner::resolve`]）。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct Symbol(u32);
 
 impl Symbol {
@@ -91,6 +93,28 @@ impl Interner {
 
     pub fn is_empty(&self) -> bool {
         self.strings.is_empty()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// serde：只序列化 strings（Vec 序 = intern 序，确定性）；map 是派生索引，
+// 反序列化时重建。Symbol 句柄值在往返后保持不变。
+// ---------------------------------------------------------------------------
+
+impl serde::Serialize for Interner {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.strings.serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Interner {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let strings: Vec<Box<str>> = Vec::deserialize(deserializer)?;
+        let mut map = HashMap::with_capacity(strings.len());
+        for (i, s) in strings.iter().enumerate() {
+            map.insert(s.clone(), Symbol(i as u32));
+        }
+        Ok(Self { map, strings })
     }
 }
 

@@ -49,7 +49,7 @@ pub struct InputFile<'a> {
 }
 
 /// 输入来源：决定 cone 种类与是否解析 body。
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum InputOrigin {
     /// 用户文件（解析 body / 类型引用）。
     User,
@@ -63,24 +63,34 @@ pub enum InputOrigin {
 ///
 /// sysroot 文件**不**解析 body（受信任，仅提供符号）。cone 按各文件 `package`
 /// 声明归类（sysroot → [`ConeKind::Syslib`]，用户 → [`ConeKind::Bin`]）。
+/// 文件的 cone 名（单一事实源）：`package` 声明前缀；空包按 origin fallback
+/// `<user>` / `<sysroot>`。cone 归类与稳定 key（`StableConeKey`）都从这里派生。
+pub fn cone_name_of(
+    file: &crate::syntax::ast::File,
+    interner: &Interner,
+    origin: InputOrigin,
+) -> String {
+    let prefix = collect::package_prefix_of(file, interner);
+    if prefix.is_empty() {
+        match origin {
+            InputOrigin::User => "<user>".to_string(),
+            InputOrigin::Sysroot => "<sysroot>".to_string(),
+        }
+    } else {
+        prefix
+    }
+}
+
 pub fn run_program(inputs: &[InputFile], interner: &mut Interner, diags: &mut DiagnosticSink) {
     let mut index = Index::new();
     // Phase 1：收集所有 header。
     for inp in inputs {
-        let cone_name = collect::package_prefix_of(inp.file, interner);
+        let cone_name = cone_name_of(inp.file, interner, inp.origin);
         let cone_kind = match inp.origin {
             InputOrigin::User => ConeKind::Bin,
             InputOrigin::Sysroot => ConeKind::Syslib,
         };
-        let cone = if cone_name.is_empty() {
-            let fallback = match inp.origin {
-                InputOrigin::User => "<user>",
-                InputOrigin::Sysroot => "<sysroot>",
-            };
-            index.intern_cone(fallback, cone_kind)
-        } else {
-            index.intern_cone(&cone_name, cone_kind)
-        };
+        let cone = index.intern_cone(&cone_name, cone_kind);
         collect::collect_file(inp.file, inp.file_id, cone, &mut index, interner, diags);
     }
     // 解析待处理扩展（接收者 → FQN，登记为 `<receiver>.<name>` 成员）。

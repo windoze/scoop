@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use scoop2_base::{NodeId, Symbol};
 
 /// 一个值引用（`Ident` / 调用 callee）的解析结果。
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ResolvedValue {
     /// 局部绑定（参数 / 局部 `val`·`var`）；`decl` 为绑定声明节点（`for`/模式等
     /// 无专属节点的绑定为 `None`，待 typecheck 落地时改为合成 NodeId）。
@@ -51,7 +51,7 @@ impl Default for Resolution {
 ///
 /// 稀疏写入（`set` 自动扩展到足够容量）；读取返回 `Option`。
 /// typecheck 中间态使用（允许缺失）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NodeIdTable<T> {
     slots: Vec<Option<T>>,
 }

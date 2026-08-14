@@ -41,7 +41,7 @@ use scoop2_base::{FileId, Span, Symbol};
 /// 已 intern 的类型句柄：[`TypeStore`] 内 `Vec` 的下标。
 ///
 /// 只在产出它的 [`TypeStore`] 内有意义；比较与哈希是 O(1) 整数操作。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct TypeId(pub u32);
 
 impl std::fmt::Debug for TypeId {
@@ -56,7 +56,7 @@ impl std::fmt::Debug for TypeId {
 /// 用作 [`TypeKind::Param`] 的载体和 [`Subst`] / [`EffSubst`] 的替换键。
 /// 名字/位置/约束等元数据存于 [`TypeParamDecl`] 侧表（通过
 /// [`TypeStore::param_decl`] 查询），**不参与身份判定**。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct TypeParamId(pub u32);
 
 impl std::fmt::Debug for TypeParamId {
@@ -70,7 +70,7 @@ impl std::fmt::Debug for TypeParamId {
 /// 两者共享 [`TypeParamId`] 身份体系，但替换值域不同——普通参数替换为一个
 /// [`TypeId`]（见 [`Subst`]），effect 行参数替换为一个完整 [`EffectRow`]（见
 /// [`EffSubst`]），对应其出现在 [`EffectRow::tail`] 上。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum TypeParamKind {
     /// 普通类型参数 `<T: bound>`。
     Type,
@@ -82,7 +82,7 @@ pub enum TypeParamKind {
 ///
 /// 身份由 [`TypeParamDecl::id`]（[`TypeParamId`]）唯一确定；其余字段仅供诊断、
 /// 渲染与（将来的）协变/逆变子类型判定使用。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct TypeParamDecl {
     pub id: TypeParamId,
     /// 参数名，仅诊断/显示（不参与身份）。
@@ -101,7 +101,7 @@ pub struct TypeParamDecl {
 ///
 /// 与 AST 的 [`crate::syntax::ast::Variance`] 同构；独立定义以免 `ty` 模块
 /// 反向依赖 `scoop2_syntax::ast`。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Variance {
     In,
     Out,
@@ -114,7 +114,7 @@ pub enum Variance {
 ///
 /// 每个声明至多一个 `<eff E>`（由 parser 强制其为 `TypeParamList` 最后一项），
 /// 故 tail 永远是 `Option`，而非列表。
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum EffectTail {
     /// 闭合行：可观测 effect 恰为 `terms`。
     Empty,
@@ -141,7 +141,7 @@ impl Default for EffectTail {
 /// 具体 effect 不同。
 ///
 /// 闭合标记 `/ R!` 不在此处，而在 [`FunctionType::closed`]。
-#[derive(Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
 pub struct EffectRow {
     pub terms: Vec<TypeId>,
     pub tail: EffectTail,
@@ -295,7 +295,7 @@ impl std::fmt::Debug for EffectRow {
 /// `fqn` 是全限定点分名（interned），用作 nominal 身份键；具体声明信息（成员、
 /// 超类型、kind）由 resolve/typecheck 按 fqn 在 Index/TypeEnv 中查得。`eff` 是
 /// use-site effect-row 实参（仅对带 `<eff E>` 的 effect 类型有意义）。
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct NominalType {
     pub fqn: Symbol,
     pub args: Vec<TypeId>,
@@ -306,7 +306,7 @@ pub struct NominalType {
 ///
 /// 子类型规则（在 typecheck 的 assignability 中实现）：参数逆变 + 返回协变 +
 /// effect 行放宽（`R1 ⊆ R2 ⇒ (A)->B/R1 <: (A)->B/R2`）。
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FunctionType {
     /// 接收者函数类型 `T.(A) -> R` 的 `T`；普通函数为 `None`。
     pub receiver: Option<TypeId>,
@@ -320,7 +320,7 @@ pub struct FunctionType {
 /// 并类型（分支 LUB 细化用），规范形式（见 [`UnionType::from_variants`]）。
 ///
 /// 主要用于引用类型的 LUB；值类型若无公共上界需显式装箱，不进并类型。
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct UnionType {
     pub variants: Vec<TypeId>,
 }
@@ -350,7 +350,7 @@ impl UnionType {
 // ---------------------------------------------------------------------------
 
 /// 一切类型的顶层分类。
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TypeKind {
     /// 引用类型（GC 托管、按引用传递）。
     Ref(RefTypeKind),
@@ -365,7 +365,7 @@ pub enum TypeKind {
 }
 
 /// 引用类型分支。
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum RefTypeKind {
     /// class / interface / object / 数组 等 nominal 引用类型（含 `Any`、`String`：
     /// 它们是 sysroot 声明的普通 class/interface，FQN 固定 `scoop.core.Any`/`.String`）。
@@ -377,7 +377,7 @@ pub enum RefTypeKind {
 }
 
 /// 值类型分支。
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ValueTypeKind {
     /// `()`（0 元组），唯一值 `()`。
     Unit,
@@ -496,6 +496,69 @@ pub struct TypeStore {
     any_fqn: Symbol,
     /// `String` 的固定 FQN symbol（`scoop.core.String`）。
     string_fqn: Symbol,
+}
+
+
+// ---------------------------------------------------------------------------
+// serde：StoreRepr 镜像（dedup 不序列化——由 kinds 顺序重建；param_decls
+// 按 TypeParamId 排序，保证字节确定，PLAN.md C7）。
+// ---------------------------------------------------------------------------
+
+/// [`TypeStore`] 的可序列化镜像。
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct StoreRepr {
+    kinds: Vec<TypeKind>,
+    param_decls: Vec<(TypeParamId, TypeParamDecl)>,
+    next_param_id: u32,
+    option_fqn: Symbol,
+    any_fqn: Symbol,
+    string_fqn: Symbol,
+}
+
+impl From<&TypeStore> for StoreRepr {
+    fn from(s: &TypeStore) -> Self {
+        let mut decls: Vec<(TypeParamId, TypeParamDecl)> =
+            s.param_decls.iter().map(|(&k, v)| (k, v.clone())).collect();
+        decls.sort_by_key(|(id, _)| *id);
+        Self {
+            kinds: s.kinds.clone(),
+            param_decls: decls,
+            next_param_id: s.next_param_id,
+            option_fqn: s.option_fqn,
+            any_fqn: s.any_fqn,
+            string_fqn: s.string_fqn,
+        }
+    }
+}
+
+impl From<StoreRepr> for TypeStore {
+    fn from(r: StoreRepr) -> Self {
+        let mut dedup = HashMap::with_capacity(r.kinds.len());
+        for (i, kind) in r.kinds.iter().enumerate() {
+            dedup.insert(kind.clone(), i as u32);
+        }
+        Self {
+            kinds: r.kinds,
+            dedup,
+            param_decls: r.param_decls.into_iter().collect(),
+            next_param_id: r.next_param_id,
+            option_fqn: r.option_fqn,
+            any_fqn: r.any_fqn,
+            string_fqn: r.string_fqn,
+        }
+    }
+}
+
+impl serde::Serialize for TypeStore {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        StoreRepr::from(self).serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for TypeStore {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(TypeStore::from(StoreRepr::deserialize(deserializer)?))
+    }
 }
 
 impl TypeStore {
