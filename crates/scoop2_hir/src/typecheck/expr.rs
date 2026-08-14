@@ -654,7 +654,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .filter(|(_, id)| {
                 matches!(
                     self.env.store.param_decl_opt(**id),
-                    Some(crate::ty::TypeParamDecl { kind: crate::ty::TypeParamKind::Effect, .. })
+                    Some(crate::ty::TypeParamDecl {
+                        kind: crate::ty::TypeParamKind::Effect,
+                        ..
+                    })
                 )
             })
             .map(|(n, id)| (*n, *id))
@@ -738,7 +741,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let ek = self.env.store.kind(expected);
         // Any：所有类型可装箱赋值给 Any（spec P2 §2.1），**但**非闭合/非 Pure
         // 函数类型不可擦除到 Any（只有 Pure! 闭合函数是数据）。
-        if self.env.store.is_nominal_with_fqn(expected, self.env.store.any_fqn()) {
+        if self
+            .env
+            .store
+            .is_nominal_with_fqn(expected, self.env.store.any_fqn())
+        {
             if let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = fk {
                 return ft.closed && ft.effects.is_pure();
             }
@@ -853,7 +860,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return true;
         }
         // 隐式 Any 根：所有类型（ref + value）都是 Any 的子类型（O(1) 装箱，spec）。
-        if fqn_b == self.env.store.any_fqn() && self.env.store.any_fqn() != scoop2_base::Symbol::default() {
+        if fqn_b == self.env.store.any_fqn()
+            && self.env.store.any_fqn() != scoop2_base::Symbol::default()
+        {
             return true;
         }
         false
@@ -873,7 +882,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     fn check_assignable(&mut self, found: TypeId, expected: TypeId, span: Span) {
         // 函数值擦除到 Any：必须是闭合 Pure!（effectful 函数不可擦除为 Any）。
         // assignable_with 已拒绝，这里给精确诊断。
-        if self.env.store.is_nominal_with_fqn(expected, self.env.store.any_fqn())
+        if self
+            .env
+            .store
+            .is_nominal_with_fqn(expected, self.env.store.any_fqn())
             && let TypeKind::Ref(crate::ty::RefTypeKind::Function(ft)) = self.env.store.kind(found)
             && !(ft.closed && ft.effects.is_pure())
         {
@@ -985,7 +997,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             result
         }
     }
-
 
     fn walk_stmt(&mut self, stmt: &mut Stmt) {
         match &mut stmt.kind {
@@ -2191,7 +2202,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
     }
 
-
     /// 派生一个裸 ident 的类型（补 expr_types 用）。
     fn derive_ident_type(&mut self, sym: Symbol, node_id: scoop2_base::NodeId) -> Option<TypeId> {
         if let Some(&t) = self.locals.get(&sym) {
@@ -2311,7 +2321,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // 调用 → 调用决议（顶层函数 / 方法 / 构造器 / 局部值 / effect-op）。
             ExprKind::Call { callee, args } => {
                 // 收集实参类型（walk 时已定型）。
-                let arg_types: Vec<TypeId> = args.iter().map(|a| self.expr_types.get(a.value.id).copied().unwrap_or_else(|| self.env.store.unit())).collect();
+                let arg_types: Vec<TypeId> = args
+                    .iter()
+                    .map(|a| {
+                        self.expr_types
+                            .get(a.value.id)
+                            .copied()
+                            .unwrap_or_else(|| self.env.store.unit())
+                    })
+                    .collect();
                 if let Some(mut rc) = self.derive_call_resolution(callee, ty, expr.id) {
                     // 泛型调用推断类型实参（若 HIR 未显式填充）。
                     self.fill_inferred_type_args(&mut rc, &arg_types);
@@ -2356,7 +2374,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     /// `ty` 是否为 `Option<T>`。
     fn is_option_ty(&self, ty: TypeId) -> bool {
-        self.env.store.is_nominal_with_fqn(ty, self.env.store.option_fqn())
+        self.env
+            .store
+            .is_nominal_with_fqn(ty, self.env.store.option_fqn())
     }
 
     /// 为泛型调用推断类型实参（若未显式提供）。
@@ -2365,10 +2385,18 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 推断每个类型参数的绑定。消除 MIR 的 `infer_type_args_from_call`。
     fn fill_inferred_type_args(&self, rc: &mut crate::hir::ResolvedCall, arg_types: &[TypeId]) {
         let (fqn, explicit, inferred) = match rc {
-            crate::hir::ResolvedCall::TopLevelFun { fqn, explicit_type_args, inferred_type_args, .. } => {
-                (*fqn, explicit_type_args, inferred_type_args)
-            }
-            crate::hir::ResolvedCall::Method { owner_fqn, explicit_type_args, inferred_type_args, .. } => {
+            crate::hir::ResolvedCall::TopLevelFun {
+                fqn,
+                explicit_type_args,
+                inferred_type_args,
+                ..
+            } => (*fqn, explicit_type_args, inferred_type_args),
+            crate::hir::ResolvedCall::Method {
+                owner_fqn,
+                explicit_type_args,
+                inferred_type_args,
+                ..
+            } => {
                 // 方法的类型参数来自方法自身（而非 owner）。当前简化：不推断方法类型参数。
                 let _ = owner_fqn;
                 return;
@@ -2399,13 +2427,17 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             return;
         }
         // 推断：Param(name) → arg type。
-        let mut tp_map: std::collections::HashMap<scoop2_base::Symbol, TypeId> = std::collections::HashMap::new();
+        let mut tp_map: std::collections::HashMap<scoop2_base::Symbol, TypeId> =
+            std::collections::HashMap::new();
         for (i, sig_ty) in sig_param_tys.iter().enumerate() {
             if let Some(&arg_ty) = arg_types.get(i) {
                 self.infer_tp_recursive(*sig_ty, arg_ty, &mut tp_map);
             }
         }
-        let result: Vec<TypeId> = type_params.iter().filter_map(|&tp| tp_map.get(&tp).copied()).collect();
+        let result: Vec<TypeId> = type_params
+            .iter()
+            .filter_map(|&tp| tp_map.get(&tp).copied())
+            .collect();
         *inferred = result;
     }
 
@@ -2606,13 +2638,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let callee_ty = self.expr_types.get(callee.id).copied();
                     return callee_ty
                         .filter(|ty| self.function_type_of(*ty).is_some())
-                        .map(|fn_ty| crate::hir::ResolvedCall::FunValue {
-                            fn_ty,
-                            return_ty,
-                        });
+                        .map(|fn_ty| crate::hir::ResolvedCall::FunValue { fn_ty, return_ty });
                 };
-                let receiver_ty = self.expr_ty(receiver)?;
-                // effect-op 调用：`EffectPath.op(...)`。
+                // effect-op 调用：`EffectPath.op(...)`——receiver 是 effect 类型名
+                //（非值，expr_types 无条目），必须在 `expr_ty(receiver)?` 短路之前
+                // 判定（否则 perform 调用永远无决议，MIR 只能兜底 UnresolvedName）。
                 if let ExprKind::Ident(recv_ident) = &receiver.kind {
                     let recv_name = self.env.interner.resolve(recv_ident.symbol);
                     if self.is_effect_type_name(recv_name) {
@@ -2623,6 +2653,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         });
                     }
                 }
+                let receiver_ty = self.expr_ty(receiver)?;
                 let owner_fqn = self.resolve_member_owner_fqn(receiver_ty)?;
                 // 继承方法：沿超类型链解析到声明 owner（`c.fromB()` → B.fromB）。
                 let owner_fqn = self
@@ -2656,10 +2687,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let callee_ty = self.expr_types.get(callee.id).copied();
                 callee_ty
                     .filter(|ty| self.function_type_of(*ty).is_some())
-                    .map(|fn_ty| crate::hir::ResolvedCall::FunValue {
-                        fn_ty,
-                        return_ty,
-                    })
+                    .map(|fn_ty| crate::hir::ResolvedCall::FunValue { fn_ty, return_ty })
             }
         }
     }
@@ -2674,7 +2702,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         call_node_id: scoop2_base::NodeId,
     ) -> Option<crate::hir::ResolvedCall> {
         use crate::syntax::ast::{ExprKind, TypeArgKind};
-        let ExprKind::TypeApply { callee: inner, args: type_args } = &callee.kind else {
+        let ExprKind::TypeApply {
+            callee: inner,
+            args: type_args,
+        } = &callee.kind
+        else {
             return None;
         };
         // 降级显式类型实参为 TypeId 列表（从 expr_types 查——walk 时已定型）。
@@ -2689,17 +2721,20 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         let rc = self.derive_call_resolution(inner, return_ty, call_node_id)?;
         // 注入显式类型实参。
         match rc {
-            crate::hir::ResolvedCall::TopLevelFun { fqn, decl_span, decl_file, .. } => {
-                Some(crate::hir::ResolvedCall::TopLevelFun {
-                    fqn,
-                    decl_span,
-                    decl_file,
-                    explicit_type_args: explicit_type_args.clone(),
-                    inferred_type_args: explicit_type_args,
-                    param_types: self.first_overload_param_types(fqn),
-                    return_ty,
-                })
-            }
+            crate::hir::ResolvedCall::TopLevelFun {
+                fqn,
+                decl_span,
+                decl_file,
+                ..
+            } => Some(crate::hir::ResolvedCall::TopLevelFun {
+                fqn,
+                decl_span,
+                decl_file,
+                explicit_type_args: explicit_type_args.clone(),
+                inferred_type_args: explicit_type_args,
+                param_types: self.first_overload_param_types(fqn),
+                return_ty,
+            }),
             crate::hir::ResolvedCall::Method {
                 receiver_ty,
                 owner_fqn,
@@ -3031,11 +3066,15 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 .iter()
                 .position(|a| a.name.as_ref().is_some_and(|n| n.symbol == pname));
             if let Some(idx) = named_idx {
-                resolved.push(crate::hir::ResolvedCallArg::Provided { original_index: idx });
+                resolved.push(crate::hir::ResolvedCallArg::Provided {
+                    original_index: idx,
+                });
             } else if positional_iter.peek().is_some() {
                 // 位置实参。
                 let idx = positional_iter.next().unwrap();
-                resolved.push(crate::hir::ResolvedCallArg::Provided { original_index: idx });
+                resolved.push(crate::hir::ResolvedCallArg::Provided {
+                    original_index: idx,
+                });
             } else {
                 // 默认值：直接从签名的 default_exprs 取克隆的 Expr。
                 if let Some(Some(expr)) = sig.default_exprs.get(param_idx) {
@@ -3206,9 +3245,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     {
                         match self.env.store.kind(expected) {
                             TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n))
-                            | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
-                                n.args.clone()
-                            }
+                            | TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => n.args.clone(),
                             _ => Vec::new(),
                         }
                     } else {
@@ -3531,7 +3568,9 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     t
                 } else {
                     self.diags
-                        .push(diagnostics::not_null_assert_operand_not_nullable(outer_span));
+                        .push(diagnostics::not_null_assert_operand_not_nullable(
+                            outer_span,
+                        ));
                     t
                 }
             }
@@ -3619,7 +3658,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         self.expr_types.set(ty_ref.id, bt);
                     }
                 }
-                let arm_tys: Vec<TypeId> = arms.iter_mut().map(|a| self.walk_expr(&mut a.body)).collect();
+                let arm_tys: Vec<TypeId> = arms
+                    .iter_mut()
+                    .map(|a| self.walk_expr(&mut a.body))
+                    .collect();
                 if let Some(f) = finally {
                     self.walk_block(f);
                 }
@@ -3682,7 +3724,8 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             ExprKind::TypeApply { callee, .. } => self.walk_expr(callee),
             ExprKind::Index { receiver, indices } => {
                 let rt = self.walk_expr(receiver);
-                let idx_types: Vec<TypeId> = indices.iter_mut().map(|i| self.walk_expr(i)).collect();
+                let idx_types: Vec<TypeId> =
+                    indices.iter_mut().map(|i| self.walk_expr(i)).collect();
                 let Some(get_sym) = self.env.interner.get("get") else {
                     // prelude 未注册 `get` 操作符——编译环境错误（非用户程序错误）。
                     self.diags.push(diagnostics::prelude_symbol_missing(
@@ -3731,12 +3774,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                     let et = self.walk_expr(e);
                     // Float 字面量有吸收语义（Float64 默认可吸收为 Float32），跨 Float 类型
                     // 不做元素一致性检查；仅捕获明显的跨类别不匹配（如 Int vs String）。
-                    let both_float = scalar_cat(
-                        self.env.store.kind(elem_ty),
-                        self.env.store.string_fqn(),
-                    ) == ScalarCat::Float
-                        && scalar_cat(self.env.store.kind(et), self.env.store.string_fqn())
-                            == ScalarCat::Float;
+                    let both_float =
+                        scalar_cat(self.env.store.kind(elem_ty), self.env.store.string_fqn())
+                            == ScalarCat::Float
+                            && scalar_cat(self.env.store.kind(et), self.env.store.string_fqn())
+                                == ScalarCat::Float;
                     if !both_float
                         && !self.assignable(et, elem_ty)
                         && !self.env.store.is_nothing(et)
@@ -3811,7 +3853,13 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
 
     // ---- 调用（M2 单候选 + M3 多候选重载解析） ----
 
-    fn type_call(&mut self, callee: &mut Expr, args: &mut [CallArg], span: Span, call_id: scoop2_base::NodeId) -> TypeId {
+    fn type_call(
+        &mut self,
+        callee: &mut Expr,
+        args: &mut [CallArg],
+        span: Span,
+        call_id: scoop2_base::NodeId,
+    ) -> TypeId {
         // Unwrap explicit type args `f<T>(x)` / `obj.m<T>(x)`，保留类型实参供构造器调用。
         let (callee, explicit_type_args): (&mut Expr, &[crate::syntax::ast::TypeArg]) =
             match &mut callee.kind {
@@ -3896,8 +3944,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 // 优先用构造器（`MixedTarget(1)` 选 ctor(Int) 而非 ext fun(String)）。
                 if let Some(ctor_fqn) = self.callee_type_fqn(ident.symbol) {
                     // 快速检查：构造器是否适用（不产生诊断）。
-                    let arg_types: Vec<TypeId> =
-                        args.iter_mut().map(|a| self.walk_expr(&mut a.value)).collect();
+                    let arg_types: Vec<TypeId> = args
+                        .iter_mut()
+                        .map(|a| self.walk_expr(&mut a.value))
+                        .collect();
                     let ctor_applicable = self.env.ctor_signatures(ctor_fqn).is_some_and(|sigs| {
                         sigs.iter()
                             .any(|s| self.ctor_sig_applicable(s, args, &arg_types))
@@ -3967,8 +4017,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 {
                     // walk 实参：嵌套调用（如 `Wrap(Hit(7))` 中的 `Hit(7)`）需要
                     // 记录 expr 类型 / 调用决议，否则 MIR lowering 只能按未解析名兜底。
-                    let _arg_tys: Vec<TypeId> =
-                        args.iter_mut().map(|a| self.walk_expr(&mut a.value)).collect();
+                    let _arg_tys: Vec<TypeId> = args
+                        .iter_mut()
+                        .map(|a| self.walk_expr(&mut a.value))
+                        .collect();
                     // 泛型 enum variant 在无期望类型上下文时构造歧义（无法推断类型实参）。
                     // 有声明类型的 val（`val opt: Option<Int> = Some(1)`）不报（期望类型消歧）。
                     let enum_has_type_params = self
@@ -4027,7 +4079,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             } else {
                 self.walk_expr(receiver.as_mut())
             };
-            let arg_types: Vec<TypeId> = args.iter_mut().map(|a| self.walk_expr(&mut a.value)).collect();
+            let arg_types: Vec<TypeId> = args
+                .iter_mut()
+                .map(|a| self.walk_expr(&mut a.value))
+                .collect();
             // Continuation.resume 步骤 effect 传播：`k.resume(v)` 的 effect 行为仅为 `E`
             // （E 为 `Continuation<..., eff E>` 的第三类型实参）。第二次 resume 直接 panic，
             // 不再贡献 `Raise<RuntimeError>`。resume 在 handle arm 体内执行时也需传播 effect
@@ -4563,7 +4618,12 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// 对泛型调用：若签名声明了 `<eff E>`，从实参推断 E 的 effect 集，
     /// 并把 E 替换进返回类型（高阶：E 可能透传到返回的函数类型）。无 eff 参数或推断
     /// 为空时原样返回 `return_ty`。
-    fn apply_eff_inference(&mut self, sig: &Signature, arg_types: &[TypeId], return_ty: TypeId) -> TypeId {
+    fn apply_eff_inference(
+        &mut self,
+        sig: &Signature,
+        arg_types: &[TypeId],
+        return_ty: TypeId,
+    ) -> TypeId {
         let Some(ev) = self.eff_var_of_fqn_or_sig(sig) else {
             return return_ty;
         };
@@ -4756,10 +4816,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         inferred: &[TypeId],
     ) -> crate::ty::EffectRow {
         let mut eff_subst = crate::ty::EffSubst::new();
-        eff_subst.insert(
-            eff_var,
-            crate::ty::EffectRow::from_terms(inferred.to_vec()),
-        );
+        eff_subst.insert(eff_var, crate::ty::EffectRow::from_terms(inferred.to_vec()));
         self.env
             .store
             .apply_subst_row_full(row.clone(), &crate::ty::Subst::new(), Some(&eff_subst))
@@ -5191,7 +5248,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         } else {
             self.env.store.value_nominal(nominal)
         };
-        let arg_types: Vec<TypeId> = args.iter_mut().map(|a| self.walk_expr(&mut a.value)).collect();
+        let arg_types: Vec<TypeId> = args
+            .iter_mut()
+            .map(|a| self.walk_expr(&mut a.value))
+            .collect();
         let applicable: Vec<&Signature> = ctors
             .iter()
             .filter(|s| self.ctor_sig_applicable(s, args, &arg_types))
@@ -5218,7 +5278,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // 构建详细诊断消息：列出候选 + 不匹配原因。
             let fqn_text = self.env.interner.resolve(fqn).to_string();
             let fun_name = fqn_text.rsplit('.').next().unwrap_or(&fqn_text);
-            let arg_types: Vec<TypeId> = args.iter_mut().map(|a| self.walk_expr(&mut a.value)).collect();
+            let arg_types: Vec<TypeId> = args
+                .iter_mut()
+                .map(|a| self.walk_expr(&mut a.value))
+                .collect();
             let mut msg = "没有匹配的重载候选".to_string();
             for sig in ctors.iter() {
                 let params: Vec<String> = sig
@@ -5326,7 +5389,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 None
             };
             let is_primary = primary_span.is_some_and(|ps| ps == selected.decl_span);
-            let selected_span = if is_primary { None } else { Some(selected.decl_span) };
+            let selected_span = if is_primary {
+                None
+            } else {
+                Some(selected.decl_span)
+            };
             return (result, selected_span);
         }
         // 歧义（含 incomparable bounds）。
@@ -5693,7 +5760,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             .collect();
         if non_generic.is_empty() {
             // 泛型候选：按类型参数 bound 的适用性 + 特异性决议。
-            let arg_types: Vec<TypeId> = args.iter_mut().map(|a| self.walk_expr(&mut a.value)).collect();
+            let arg_types: Vec<TypeId> = args
+                .iter_mut()
+                .map(|a| self.walk_expr(&mut a.value))
+                .collect();
             let decls = self.env.index.lookup_funs(fqn);
             // applicable = (sig 在 sigs 中的下标, Signature)，下标用于关联 decl。
             let mut applicable: Vec<(usize, Signature)> = Vec::new();
@@ -5900,8 +5970,10 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
         }
         // 多候选：尝试每个候选的 expected param count 来降级 lambda 实参。
         // 先用默认方式走一遍实参类型（无 expected 感知），收集 arg_types。
-        let arg_types_default: Vec<TypeId> =
-            args.iter_mut().map(|a| self.walk_expr(&mut a.value)).collect();
+        let arg_types_default: Vec<TypeId> = args
+            .iter_mut()
+            .map(|a| self.walk_expr(&mut a.value))
+            .collect();
         // 尝试用每个候选的 expected param count 重新降级 lambda 实参。
         let mut best_applicable: Vec<(usize, Vec<TypeId>)> = Vec::new();
         for (sig_idx, s) in non_generic.iter().enumerate() {
@@ -6423,7 +6495,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     /// `with` 更新表达式 `base with { path: v, ... }`：返回 base 类型。
     /// 校验路径冲突、字段存在性、值类型匹配（短路：首个错误即返回）。
     /// enum base 的逐段校验暂未实现（variant payload 未在 Index 登记）。
-    fn type_with_update(&mut self, base: &mut Expr, updates: &mut [ast::WithUpdateField]) -> TypeId {
+    fn type_with_update(
+        &mut self,
+        base: &mut Expr,
+        updates: &mut [ast::WithUpdateField],
+    ) -> TypeId {
         let base_ty = self.walk_expr(base);
         let base_kind = self.with_update_aggregate_kind(base_ty);
         if base_kind.is_none() {
@@ -6520,9 +6596,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 } else if u.path.segments.len() < 2 {
                     let value_span = u.value.span;
                     self.diags
-                        .push(diagnostics::with_update_variant_field_required(
-                            value_span,
-                        ));
+                        .push(diagnostics::with_update_variant_field_required(value_span));
                 }
             }
             self.walk_expr(&mut u.value);
@@ -8228,8 +8302,9 @@ pub(super) fn scalar_fqn(kind: &TypeKind, interner: &scoop2_base::Interner) -> O
         TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
         // nominal 类型（ref 或 value）：含 `String`（Ref(Nominal{scoop.core.String})）、
         // `Option<T>` 等——FQN 直接来自声明，无后门。
-        TypeKind::Value(ValueTypeKind::Nominal(n))
-        | TypeKind::Ref(RefTypeKind::Nominal(n)) => return Some(n.fqn),
+        TypeKind::Value(ValueTypeKind::Nominal(n)) | TypeKind::Ref(RefTypeKind::Nominal(n)) => {
+            return Some(n.fqn);
+        }
         _ => return None,
     };
     interner.get(name)
@@ -8776,7 +8851,11 @@ impl<'a> SynthCx<'a> {
         }
     }
     /// 构造 Some(binder) variant 模式。
-    fn some_pattern(&mut self, binder: crate::syntax::ast::Ident, span: Span) -> crate::syntax::ast::Pattern {
+    fn some_pattern(
+        &mut self,
+        binder: crate::syntax::ast::Ident,
+        span: Span,
+    ) -> crate::syntax::ast::Pattern {
         crate::syntax::ast::Pattern {
             id: self.nid(),
             span,
@@ -8818,11 +8897,7 @@ fn desugar_for_stmt(stmt: &mut crate::syntax::ast::Stmt, cx: &mut SynthCx) -> bo
     };
     let (binder, iter_taken, body_stmts, body_span, body_trailing_semi, span, for_id) =
         match &mut stmt.kind {
-            StmtKind::For {
-                binder,
-                iter,
-                body,
-            } => {
+            StmtKind::For { binder, iter, body } => {
                 let binder = binder.clone();
                 let iter = std::mem::replace(iter, cx.expr(ExprKind::UnitLit, stmt.span));
                 let body_stmts = std::mem::take(&mut body.stmts);
@@ -8936,7 +9011,10 @@ fn desugar_for_in_block(block: &mut crate::syntax::ast::Block, cx: &mut SynthCx)
 }
 
 /// 对一个文件做 for-loop desugar pre-pass（递归所有函数体 / init 块）。
-pub fn desugar_for_loops(file: &mut crate::syntax::ast::File, interner: &mut scoop2_base::Interner) {
+pub fn desugar_for_loops(
+    file: &mut crate::syntax::ast::File,
+    interner: &mut scoop2_base::Interner,
+) {
     let mut cx = SynthCx {
         next_id: 0x4000_0000,
         interner,

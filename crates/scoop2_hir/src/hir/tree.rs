@@ -126,6 +126,91 @@ pub enum TreeExprKind {
     Tuple(Vec<ExprId>),
     /// 数组字面量。
     ArrayLit(Vec<ExprId>),
+    /// `when (subject) { arms }`（模式匹配原语，非糖）。
+    When {
+        subject: ExprId,
+        arms: Vec<WhenTreeArm>,
+    },
+    /// `handle { body } on { arms } finally?`（effect 处理原语）。
+    Handle {
+        body: BlockId,
+        arms: Vec<HandleTreeArm>,
+        finally_: Option<BlockId>,
+    },
+    /// `base with { path: value, ... }`（函数式更新原语）。
+    WithUpdate {
+        base: ExprId,
+        updates: Vec<(TreeFieldPath, ExprId)>,
+    },
+    /// `expr as T` / `expr as? T`（转换原语；目标已解析为 TypeId）。
+    Cast {
+        expr: ExprId,
+        target: TypeId,
+        /// `as?`（可空转换）为 true。
+        nullable: bool,
+    },
+    /// `expr is T` / `expr !is T`（类型判断原语；目标已解析为 TypeId）。
+    TypeCheck {
+        expr: ExprId,
+        target: TypeId,
+        /// `!is` 为 true。
+        negated: bool,
+    },
+}
+
+/// when 分支：模式 + 可选 guard + 体。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WhenTreeArm {
+    pub pat: TreePattern,
+    pub guard: Option<ExprId>,
+    pub body: ExprId,
+}
+
+/// 模式（binder 已解析为 [`LocalId`]，类型来自 `pattern_bindings`）。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum TreePattern {
+    Wildcard,
+    /// `_`-like 的 `else`。
+    Else,
+    Binder(LocalId),
+    Literal(Lit),
+    Tuple(Vec<TreePattern>),
+    /// variant 模式（fqn 文本 + variant 名；句柄化随 M2 element 体系）。
+    Variant {
+        enum_fqn: String,
+        variant: Symbol,
+        args: Vec<TreePattern>,
+    },
+    /// `is T`（T 已解析为 TypeId）。
+    Is {
+        ty: TypeId,
+    },
+    /// or 模式 `A | B`。
+    Or(Vec<TreePattern>),
+}
+
+/// handler arm（`Effect.op(binder: T) -> body`）。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HandleTreeArm {
+    /// effect 路径文本（如 `scoop.core.Raise`；句柄化随 M2 element 体系）。
+    pub effect_path: String,
+    pub op: Symbol,
+    /// non-resuming binder（类型来自 ascription TypeRef 的 expr_types）。
+    pub binder: Option<LocalId>,
+    pub body: ExprId,
+}
+
+/// `with` 更新的字段路径（`a.b` / `0.1`）。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TreeFieldPath {
+    pub segments: Vec<TreeFieldSeg>,
+}
+
+/// 路径段：具名或元组下标。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum TreeFieldSeg {
+    Named(Symbol),
+    TupleIndex(u64),
 }
 
 /// 字面量值。
@@ -208,6 +293,86 @@ pub enum TreePlace {
 // builder：AST + facts → 树
 // ---------------------------------------------------------------------------
 
+impl<'a> TreeBuilder<'a> {
+    /// 模式 AST → [`TreePattern`]；`bindings` 按出现序供给 Binder 的类型。
+    fn build_pattern(
+        &mut self,
+        pat: &crate::syntax::ast::Pattern,
+        bindings: &mut std::vec::IntoIter<super::PatternBinding>,
+    ) -> Option<TreePattern> {
+        use crate::syntax::ast::PatternKind;
+        match &pat.kind {
+            PatternKind::Wildcard => Some(TreePattern::Wildcard),
+            PatternKind::Else => Some(TreePattern::Else),
+            PatternKind::Rest => self.gap_ret(pat.span, "rest 模式（仅解构上下文）"),
+            PatternKind::Bind(ident) => {
+                let b = bindings.next().unwrap_or_else(|| super::PatternBinding {
+                    name: ident.symbol,
+                    ty: self.unit_ty,
+                    source: super::PatternBindingSource::WhenArm,
+                    span: ident.span,
+                });
+                let local = self.push_local(b.name, b.ty, false, b.span);
+                Some(TreePattern::Binder(local))
+            }
+            PatternKind::Literal(l) => {
+                use crate::syntax::ast::PatternLiteral;
+                let lit = match l {
+                    PatternLiteral::Int(v) => Lit::Int(v.value),
+                    PatternLiteral::Char(c) => Lit::Char(c.value),
+                    PatternLiteral::String(s) => Lit::Str(s.value.clone()),
+                    PatternLiteral::Bool { value, .. } => Lit::Bool(*value),
+                };
+                Some(TreePattern::Literal(lit))
+            }
+            PatternKind::Tuple(els) => {
+                let mut out = Vec::with_capacity(els.len());
+                for e in els {
+                    out.push(self.build_pattern(e, bindings)?);
+                }
+                Some(TreePattern::Tuple(out))
+            }
+            PatternKind::Struct { .. } => self.gap_ret(pat.span, "struct 解构模式（M2 后续）"),
+            PatternKind::Variant { path, args } => {
+                let enum_fqn: String = path
+                    .segments
+                    .iter()
+                    .map(|s| self.interner.resolve(s.symbol))
+                    .collect::<Vec<_>>()
+                    .join(".");
+                let variant = path.segments.last().map(|s| s.symbol).unwrap_or_default();
+                let mut tree_args = Vec::new();
+                if let Some(args) = args {
+                    for a in args {
+                        tree_args.push(self.build_pattern(a, bindings)?);
+                    }
+                }
+                Some(TreePattern::Variant {
+                    enum_fqn,
+                    variant,
+                    args: tree_args,
+                })
+            }
+            PatternKind::Is(ty_ref) => {
+                let ty = self
+                    .facts
+                    .type_ref_resolutions
+                    .get(ty_ref.id)
+                    .copied()
+                    .or_else(|| self.expr_types.get(ty_ref.id).copied())?;
+                Some(TreePattern::Is { ty })
+            }
+            PatternKind::Or(els) => {
+                let mut out = Vec::with_capacity(els.len());
+                for e in els {
+                    out.push(self.build_pattern(e, bindings)?);
+                }
+                Some(TreePattern::Or(out))
+            }
+        }
+    }
+}
+
 /// 从 typecheck 产物构造一个函数体的树。
 ///
 /// - `body`：函数体 AST（typecheck 后的形态——for-loop 等已在 typecheck desugar）。
@@ -223,11 +388,13 @@ pub fn build_fn_tree(
     unit_ty: TypeId,
     expr_types: &NodeIdTable<TypeId>,
     facts: &SemanticFacts,
+    interner: &scoop2_base::Interner,
 ) -> FnTree {
     let mut b = TreeBuilder {
         expr_types,
         facts,
         unit_ty,
+        interner,
         out: TreeBody::default(),
         scopes: vec![std::collections::HashMap::new()],
         gaps: Vec::new(),
@@ -269,6 +436,7 @@ struct TreeBuilder<'a> {
     expr_types: &'a NodeIdTable<TypeId>,
     facts: &'a SemanticFacts,
     unit_ty: TypeId,
+    interner: &'a scoop2_base::Interner,
     out: TreeBody,
     /// 词法作用域栈（块进栈/出栈）。
     scopes: Vec<std::collections::HashMap<Symbol, LocalId>>,
@@ -546,11 +714,162 @@ impl<'a> TreeBuilder<'a> {
             // 注解表达式：语义在 typecheck 消费（@Suppress 等），树取内层表达式。
             ExprKind::Annotated { expr: inner, .. } => self.build_expr(inner),
             // ---- 尚未覆盖（记 gap，不静默）----
-            ExprKind::When { .. } => self.gap_ret(span, "when（PatternMatch 词汇，M2 后续）"),
+            ExprKind::When { subject, arms } => {
+                let ty = self.ty_of(expr.id, span)?;
+                let subject = self.build_expr(subject)?;
+                let mut tree_arms = Vec::with_capacity(arms.len());
+                for arm in arms {
+                    self.scopes.push(std::collections::HashMap::new());
+                    // 绑定类型：facts.pattern_bindings 按「根模式 NodeId → 出现序
+                    // 绑定列表」记录；顺序消费。
+                    let bindings: Vec<super::PatternBinding> = self
+                        .facts
+                        .pattern_bindings
+                        .get(arm.pat.id)
+                        .cloned()
+                        .unwrap_or_default();
+                    let mut iter = bindings.into_iter();
+                    let pat = self.build_pattern(&arm.pat, &mut iter)?;
+                    let guard = arm.guard.as_ref().and_then(|g| self.build_expr(g));
+                    let body = self.build_expr(&arm.body)?;
+                    self.scopes.pop();
+                    tree_arms.push(WhenTreeArm { pat, guard, body });
+                }
+                Some(self.push_expr(
+                    TreeExprKind::When {
+                        subject,
+                        arms: tree_arms,
+                    },
+                    ty,
+                    span,
+                ))
+            }
+            ExprKind::Handle {
+                body,
+                arms,
+                finally,
+            } => {
+                let ty = self.ty_of(expr.id, span)?;
+                let body_block = self.build_block(body);
+                let mut tree_arms = Vec::with_capacity(arms.len());
+                for arm in arms {
+                    self.scopes.push(std::collections::HashMap::new());
+                    if let Some(_k) = &arm.escape_continuation {
+                        // escape continuation binder 的类型只在 typecheck 中间态，
+                        // 未入表——暂不覆盖（罕见形态）。
+                        self.gap(arm.span, "escape continuation arm（M2 后续）");
+                        self.scopes.pop();
+                        return None;
+                    }
+                    let effect_path: String = arm
+                        .op
+                        .effect_path
+                        .segments
+                        .iter()
+                        .map(|s| self.interner.resolve(s.symbol))
+                        .collect::<Vec<_>>()
+                        .join(".");
+                    // non-resuming binder：类型记录在 ascription TypeRef 的 expr_types。
+                    let binder = arm.op.binders.first().and_then(|b| {
+                        let ty =
+                            b.ty.as_ref()
+                                .and_then(|tr| self.expr_types.get(tr.id).copied())?;
+                        Some(self.push_local(b.name.symbol, ty, false, b.name.span))
+                    });
+                    let body_expr = self.build_expr(&arm.body)?;
+                    self.scopes.pop();
+                    tree_arms.push(HandleTreeArm {
+                        effect_path,
+                        op: arm.op.op.symbol,
+                        binder,
+                        body: body_expr,
+                    });
+                }
+                let finally_block = finally.as_ref().map(|f| self.build_block(f));
+                Some(self.push_expr(
+                    TreeExprKind::Handle {
+                        body: body_block,
+                        arms: tree_arms,
+                        finally_: finally_block,
+                    },
+                    ty,
+                    span,
+                ))
+            }
+            ExprKind::WithUpdate { base, updates } => {
+                let ty = self.ty_of(expr.id, span)?;
+                let base = self.build_expr(base)?;
+                let mut tree_updates = Vec::with_capacity(updates.len());
+                for u in updates {
+                    let value = self.build_expr(&u.value)?;
+                    let segments = u
+                        .path
+                        .segments
+                        .iter()
+                        .map(|s| match s {
+                            crate::syntax::ast::MemberName::Named(id) => {
+                                TreeFieldSeg::Named(id.symbol)
+                            }
+                            crate::syntax::ast::MemberName::TupleIndex { value, .. } => {
+                                TreeFieldSeg::TupleIndex(*value as u64)
+                            }
+                        })
+                        .collect();
+                    tree_updates.push((TreeFieldPath { segments }, value));
+                }
+                Some(self.push_expr(
+                    TreeExprKind::WithUpdate {
+                        base,
+                        updates: tree_updates,
+                    },
+                    ty,
+                    span,
+                ))
+            }
             ExprKind::Lambda(_) => self.gap_ret(span, "lambda/closure（M2 后续）"),
             ExprKind::Handle { .. } => self.gap_ret(span, "handle（M2 后续）"),
-            ExprKind::Cast { .. } => self.gap_ret(span, "as 转换（M2 后续）"),
-            ExprKind::TypeCheck { .. } => self.gap_ret(span, "is 类型判断（M2 后续）"),
+            ExprKind::Cast {
+                expr: inner,
+                op,
+                ty: ty_ref,
+            } => {
+                let ty = self.ty_of(expr.id, span)?;
+                let inner = self.build_expr(inner)?;
+                let Some(&target) = self.facts.type_ref_resolutions.get(ty_ref.id) else {
+                    return self.gap_ret(span, "as 目标类型未解析（completeness 泄漏）");
+                };
+                let nullable = matches!(op, crate::syntax::ast::CastOp::AsSafe);
+                Some(self.push_expr(
+                    TreeExprKind::Cast {
+                        expr: inner,
+                        target,
+                        nullable,
+                    },
+                    ty,
+                    span,
+                ))
+            }
+            ExprKind::TypeCheck {
+                expr: inner,
+                op,
+                ty: ty_ref,
+            } => {
+                let ty = self.ty_of(expr.id, span)?;
+                let inner = self.build_expr(inner)?;
+                let Some(&target) = self.facts.type_ref_resolutions.get(ty_ref.id) else {
+                    return self.gap_ret(span, "is 目标类型未解析（completeness 泄漏）");
+                };
+                let negated = matches!(op, crate::syntax::ast::TypeCheckOp::NotIs);
+                Some(self.push_expr(
+                    TreeExprKind::TypeCheck {
+                        expr: inner,
+                        target,
+                        negated,
+                    },
+                    ty,
+                    span,
+                ))
+            }
             ExprKind::TypeApply { .. } => self.gap_ret(span, "显式类型应用（M2 后续）"),
             ExprKind::StructLit { .. } => self.gap_ret(span, "struct 字面量（M2 后续）"),
             ExprKind::WithUpdate { .. } => self.gap_ret(span, "with 更新（M2 后续）"),
@@ -580,6 +899,16 @@ impl<'a> TreeBuilder<'a> {
     ) -> Option<ExprId> {
         let span = expr.span;
         let ty = self.ty_of(expr.id, span)?;
+        // `true`/`false`：resolve 有意不写 value_refs（body.rs：由 typecheck 解释
+        // 为 Bool 字面量）——树按字面量原语构造（lang-items 句柄化随 M2 后续）。
+        let name_text = self.interner.resolve(id.symbol);
+        if name_text == "true" || name_text == "false" {
+            return Some(self.push_expr(
+                TreeExprKind::Lit(Lit::Bool(name_text == "true")),
+                ty,
+                span,
+            ));
+        }
         match self.facts.value_refs.get(expr.id) {
             Some(super::ResolvedValue::Local { .. }) => match self.lookup_local(id.symbol) {
                 Some(local) => Some(self.push_expr(TreeExprKind::LocalRef(local), ty, span)),
@@ -592,6 +921,7 @@ impl<'a> TreeBuilder<'a> {
                 self.gap_ret(span, "函数名做值（FunVal 变体，M2 后续）")
             }
             None => self.gap_ret(span, "value_refs 缺失（completeness 泄漏）"),
+            // NOTE(debug)：下方 unreachable 由 match 穷尽性保证不会到达。
         }
     }
 

@@ -237,6 +237,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                 unit_ty,
                 &tf.expr_types,
                 &tf.facts,
+                &program.interner,
             ));
         }
         new_files.push((i, trees));

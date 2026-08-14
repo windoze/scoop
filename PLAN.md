@@ -206,7 +206,15 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15）：**M2-2 第一刀**——`scoop2_hir::hir::tree`：desugar 后封闭
+> 进度（2026-08-15，第二刀）：**mir2 可编译 fixture 11/11 树 gap-free**（新增
+> when+全模式/is/as/with/true-false 字面量/Handle（non-resuming binder，类型取自
+> ascription 的 expr_types；escape-continuation arm 仍 gap））。顺带修复 typecheck
+> 真实缺陷：`derive_call_resolution` 的 MemberAccess 分支 `expr_ty(receiver)?` 在
+> effect-op 判定前短路——`Effect.op(...)` perform 调用永远无决议（MIR 只能兜底
+> UnresolvedName 且 verify 报错）；调序后 5 个 effect/cast/with fixture 的
+> one-shot dump-mir 从失败恢复为正常输出。gap 普查测试升级为硬回归门（凡
+> typecheck 通过的 fixture 树必须 gap-free）。
+> 第一刀（2026-08-15）：`scoop2_hir::hir::tree`：desugar 后封闭
 > 节点词汇表（`TreeExprKind` 无糖变体：Binary/Unary/InfixCall/`!!`/Index 构造时
 > 展开为 `Call`，决议内联、类型裸非 Option）+ `build_fn_tree` builder（作用域栈、
 > 未覆盖构造记 `gaps` 不静默）+ `TypedFile.trees` 接线（v0 archive 往返保真）。
