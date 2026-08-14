@@ -204,7 +204,18 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
   为旧管线在当前环境下的既有失败（父提交 p7 失败更多：11 vs 5）；fixture 全套
   469/1643 失败同为旧管线基线（mir2 通道走旧 `scoopc` 子进程）。
 
-### M2 HIR 结构重建（最大件）
+### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
+
+> 进度（2026-08-15）：**M2-2 第一刀**——`scoop2_hir::hir::tree`：desugar 后封闭
+> 节点词汇表（`TreeExprKind` 无糖变体：Binary/Unary/InfixCall/`!!`/Index 构造时
+> 展开为 `Call`，决议内联、类型裸非 Option）+ `build_fn_tree` builder（作用域栈、
+> 未覆盖构造记 `gaps` 不静默）+ `TypedFile.trees` 接线（v0 archive 往返保真）。
+> 覆盖集：字面量/Local/TopLevelVal/Call（全 callee 形态）/Member/Block/If/While/
+> Tuple/ArrayLit/Annotated/LocalVal(Name)/Assign(place)/Return/Break/Continue。
+> 验收：arithmetic 树 gap-free + 糖展开断言 + archive 往返（2 测试）；oracle 持续
+> 绿。已知缺口（gaps 记录中）：when/lambda/handle/cast/is/TypeApply/StructLit/
+> WithUpdate/f-string/`?.`/Unsafe 块/模式绑定/下标赋值/FunVal；`TypedSignature.
+> decl_span` 未填充（多重载函数暂跳过构树——重载消歧缺口的又一体现）。
 
 1. **声明层 element 体系**：吸收 `TypedHir` 16 张散表 + `type_infos` 中间态（收口
    `hir/mod.rs:196` 注释的并存状态）。种类齐全：type（class/interface/struct/enum/

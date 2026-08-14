@@ -169,7 +169,7 @@ pub fn typecheck_program(
     }
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
     let mut inputs = make_inputs(&mut program.parsed, &program.user_indices);
-    let hir = scoop2_hir::typecheck::run_typecheck(
+    let mut hir = scoop2_hir::typecheck::run_typecheck(
         &mut inputs,
         &mut program.interner,
         &mut program.diags,
@@ -179,5 +179,69 @@ pub fn typecheck_program(
     if program.diags.has_errors() {
         return Err(std::mem::take(&mut program.diags));
     }
+    build_trees(&mut hir, program);
     Ok(hir)
+}
+
+/// M2 第一刀：为每个用户文件的顶层函数构造 HIR body 树。
+///
+/// gaps 记录未覆盖构造（不阻塞管线——树尚无消费者；MIR 翻转前必须清零）。
+/// 签名缺失（重载匹配失败等）的函数暂不构树。
+fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
+    use scoop2_hir::hir::tree;
+    use scoop2_syntax::ast::ItemKind;
+
+    let unit_ty = hir.store.unit();
+    let mut new_files: Vec<(usize, Vec<tree::FnTree>)> = Vec::new();
+    for (i, tf) in hir.files.iter().enumerate() {
+        let Some(pf) = program.parsed.get(tf.file_id.0 as usize) else {
+            continue;
+        };
+        let mut trees = Vec::new();
+        for item in &pf.file.items {
+            let ItemKind::Fun(d) = &item.kind else {
+                continue;
+            };
+            let fqn_text = if tf.package_prefix.is_empty() {
+                program.interner.resolve(d.name.symbol).to_string()
+            } else {
+                format!(
+                    "{}.{}",
+                    tf.package_prefix,
+                    program.interner.resolve(d.name.symbol)
+                )
+            };
+            // 参数 (名, 类型)：从 top_level_funs 匹配声明 span 的签名。
+            let fqn_sym = hir
+                .interner
+                .get(&fqn_text)
+                .or(Some(d.name.symbol))
+                .unwrap_or_default();
+            let Some(sigs) = hir.top_level_funs.get(&fqn_sym) else {
+                continue;
+            };
+            // TypedSignature.decl_span 尚未填充；单重载函数直接取，多重载暂跳过
+            //（重载消歧 key 是已登记缺口，M2 element 体系一并解决）。
+            let [sig] = sigs.as_slice() else { continue };
+            let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
+                .param_names
+                .iter()
+                .copied()
+                .zip(sig.param_types.iter().copied())
+                .collect();
+            let Some(body) = &d.body else { continue };
+            trees.push(tree::build_fn_tree(
+                fqn_text,
+                body,
+                &params,
+                unit_ty,
+                &tf.expr_types,
+                &tf.facts,
+            ));
+        }
+        new_files.push((i, trees));
+    }
+    for (i, trees) in new_files {
+        hir.files[i].trees = trees;
+    }
 }

@@ -16,9 +16,10 @@
 //! - **per-file 表达式类型表**：每个用户文件一份 `expr_types: NodeIdTable<TypeId>`，
 //!   在 typecheck body 时由 `ExprChecker` 写回。
 
-mod serde_impl;
 pub mod facts;
 pub mod render;
+mod serde_impl;
+pub mod tree;
 pub mod type_info;
 
 use std::collections::{HashMap, HashSet};
@@ -78,6 +79,9 @@ pub struct TypedFile {
     pub expr_types: NodeIdTable<TypeId>,
     /// 语义事实侧表（调用决议 / 成员 / place / effect / value_refs）。
     pub facts: SemanticFacts,
+    /// HIR body 树（M2，transitional 增量）：顶层函数的 desugar 后树。MIR 翻转
+    /// （M2-5）后成为唯一函数体表示，`gaps` 必须为空。
+    pub trees: Vec<tree::FnTree>,
 }
 
 /// class 主构造器参数布局（typecheck 记录；MIR 继承构造链展开用）。
