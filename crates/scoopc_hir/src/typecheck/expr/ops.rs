@@ -564,7 +564,6 @@ pub(super) fn try_extract_nominal_fqn_and_args(
     }
 }
 
-<<<<<<< Updated upstream:crates/scoopc_hir/src/typecheck/expr/ops.rs
 /// P4-T01l：把 builtin scalar / `String` 的 nominal FQN 提取统一进 typecheck member-call 主线。
 ///
 /// 说明：
@@ -576,35 +575,16 @@ pub(super) fn try_extract_nominal_fqn_and_args(
 /// - 本 helper 把以上 builtin 形态映射到 `scoop.core.X` FQN（无 type args），
 ///   让 builtin scalar receiver 也能进入 nominal member-call 主线。
 /// - 与 `try_extract_nominal_fqn_and_args` 保持同构：返回 `(fqn, args)`，args 为空 vec。
-=======
-/// P4-T01l：member call 路径的 receiver-type → nominal FQN 提取。
-///
-/// 与 [`try_extract_nominal_fqn_and_args`] 相比，对 `@Intrinsic struct/class`
-/// 持有的 builtin scalar / `String` receiver（`ValueTypeKind::Bool|Char|Int|Float32|Float64`、
-/// `RefTypeKind::String`）也补上对应 nominal FQN，使 `42.toString()` /
-/// `"hi".toString()` 等调用能够进入与 user-typed body method 同构的
-/// late-resolve / member-call dispatch 主线。
-///
-/// 仅在 member call resolution 内使用：for-loop / where-bound / spec §6.x 的
-/// nominal 检查仍走 [`try_extract_nominal_fqn_and_args`]，避免把内建 scalar
-/// 误归入"必须为 nominal"的 surface。
->>>>>>> Stashed changes:crates/scoopc/src/typecheck/expr/ops.rs
 pub(super) fn try_extract_member_call_receiver_fqn_and_args(
     ty: TypeId,
     lower: &TypeLowering<'_>,
 ) -> Option<(String, Vec<TypeId>)> {
-<<<<<<< Updated upstream:crates/scoopc_hir/src/typecheck/expr/ops.rs
     if let Some(found) = try_extract_nominal_fqn_and_args(ty, lower) {
         return Some(found);
-=======
-    if let Some(extracted) = try_extract_nominal_fqn_and_args(ty, lower) {
-        return Some(extracted);
->>>>>>> Stashed changes:crates/scoopc/src/typecheck/expr/ops.rs
     }
     let fqn = match lower.type_kind(ty) {
         TypeKind::Value(ValueTypeKind::Bool) => "scoop.core.Bool",
         TypeKind::Value(ValueTypeKind::Char) => "scoop.core.Char",
-<<<<<<< Updated upstream:crates/scoopc_hir/src/typecheck/expr/ops.rs
         TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int",
         TypeKind::Value(ValueTypeKind::UInt) => "scoop.core.UInt",
         TypeKind::Value(ValueTypeKind::IntN(8)) => "scoop.core.Int8",
@@ -617,11 +597,6 @@ pub(super) fn try_extract_member_call_receiver_fqn_and_args(
         TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.UInt64",
         TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32",
         TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64",
-=======
-        TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64",
-        TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32",
-        TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int",
->>>>>>> Stashed changes:crates/scoopc/src/typecheck/expr/ops.rs
         TypeKind::Ref(RefTypeKind::String) => "scoop.core.String",
         _ => return None,
     };
