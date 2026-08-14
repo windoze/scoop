@@ -41,7 +41,10 @@ fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<S
     for tf in &hir.files {
         for tree in &tf.trees {
             total += 1;
-            if scoop2_mir::mir::lower_tree::unsupported_construct(tree).is_some() {
+            if let Some(what) = scoop2_mir::mir::lower_tree::unsupported_construct(tree) {
+                if std::env::var("SCOOP2_FLIP_LIST").is_ok() {
+                    eprintln!("    UNSUPPORTED {} {}", tree.fqn, what);
+                }
                 continue;
             }
             // val 初始化器树暂不在脚手架支持内（无签名表项的 fqn 跳过）。

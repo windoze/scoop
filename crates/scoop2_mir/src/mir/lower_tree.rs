@@ -40,17 +40,18 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeExprKind::LogicalOr { .. }
             | TreeExprKind::NotNullAssert { .. }
             | TreeExprKind::If { .. }
-            | TreeExprKind::While { .. } => {}
+            | TreeExprKind::While { .. }
+            | TreeExprKind::StructLit { .. }
+            | TreeExprKind::InterpolatedString { .. }
+            | TreeExprKind::ArrayLit(_)
+            | TreeExprKind::Cast { .. }
+            | TreeExprKind::TypeCheck { .. }
+            | TreeExprKind::WithUpdate { .. } => {}
 
             TreeExprKind::When { .. } => return Some("When"),
             TreeExprKind::Handle { .. } => return Some("Handle"),
-            TreeExprKind::WithUpdate { .. } => return Some("WithUpdate"),
-            TreeExprKind::InterpolatedString { .. } => return Some("InterpolatedString"),
-            TreeExprKind::ArrayLit(_) => return Some("ArrayLit"),
-            TreeExprKind::StructLit { .. } => return Some("StructLit"),
+
             TreeExprKind::Lambda { .. } => return Some("Lambda"),
-            TreeExprKind::Cast { .. } => return Some("Cast"),
-            TreeExprKind::TypeCheck { .. } => return Some("TypeCheck"),
         }
     }
     for e in &tree.body.exprs {
@@ -59,13 +60,7 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
                 TreeCallee::TopLevel { .. }
                 | TreeCallee::LocalValue { .. }
                 | TreeCallee::FunValue { .. } => {}
-                // Method 仅支持 direct（非虚非接口）——分派元数据复刻在后续切片。
-                TreeCallee::Method {
-                    is_virtual,
-                    is_interface,
-                    ..
-                } if !is_virtual && !is_interface => {}
-                TreeCallee::Method { .. } => return Some("Method-dispatch"),
+                TreeCallee::Method { .. } => {}
 
                 TreeCallee::EffectOp { .. } => return Some("EffectOp"),
                 TreeCallee::InitCall { .. } => return Some("InitCall"),
@@ -285,6 +280,191 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             builder.goto(merge_bb, span);
             builder.current_bb = merge_bb;
             Operand::Local(result)
+        }
+        TreeExprKind::StructLit { fqn, fields } => {
+            // 镜像 StructLit lower：字段按源序 lower（值 + 类型），temp 后分配。
+            let mut mir_fields = Vec::with_capacity(fields.len());
+            for &(name, e) in fields {
+                let v = lower_tree_expr(builder, body, e);
+                let vty = operand_ty_of(builder, &v);
+                mir_fields.push(crate::mir::StructLitField {
+                    name,
+                    value: v,
+                    value_ty: vty,
+                });
+            }
+            let type_fqn = resolve_tree_struct_fqn(builder, fqn);
+            let tmp = builder.alloc_temp(ty, span);
+            let transport = builder.aggregate_transport(ty, AggregateTransportKind::Struct);
+            builder.assign(
+                tmp,
+                Rvalue::StructLit {
+                    type_fqn,
+                    fields: mir_fields,
+                    transport,
+                },
+                span,
+            );
+            Operand::Local(tmp)
+        }
+        TreeExprKind::InterpolatedString { parts } => {
+            // 镜像 lower_interpolated：parts lower 后 temp 分配。
+            let mut mir_parts = Vec::with_capacity(parts.len());
+            for part in parts {
+                match part {
+                    scoop2_hir::hir::tree::InterpPart::Lit(s) => {
+                        mir_parts.push(crate::mir::InterpolatedPart::Lit(s.clone()))
+                    }
+                    scoop2_hir::hir::tree::InterpPart::Expr(e) => {
+                        let v = lower_tree_expr(builder, body, *e);
+                        mir_parts.push(crate::mir::InterpolatedPart::Expr(v));
+                    }
+                }
+            }
+            let tmp = builder.alloc_temp(ty, span);
+            builder.assign(tmp, Rvalue::InterpolatedString { parts: mir_parts }, span);
+            Operand::Local(tmp)
+        }
+        TreeExprKind::ArrayLit(els) => {
+            // 镜像 lower_array_lit：Nothing 类型时用 Array 引用 temp。
+            let ops: Vec<Operand> = els
+                .iter()
+                .map(|&e| lower_tree_expr(builder, body, e))
+                .collect();
+            let arr_ty = if builder.types.is_nothing(ty) {
+                builder.array_ref_ty()
+            } else {
+                ty
+            };
+            let tmp = builder.alloc_temp(arr_ty, span);
+            builder.assign(
+                tmp,
+                Rvalue::MakeArray {
+                    elements: ops,
+                    result_ty: arr_ty,
+                },
+                span,
+            );
+            Operand::Local(tmp)
+        }
+        TreeExprKind::Cast {
+            expr: inner,
+            target,
+            nullable,
+        } => {
+            // 镜像 Cast lower：As 结果 = 表达式类型；AsSafe = 目标类型。
+            let v = lower_tree_expr(builder, body, *inner);
+            let operand_ty_id = operand_ty_of(builder, &v);
+            let result = if *nullable { *target } else { ty };
+            let tmp = builder.alloc_temp(result, span);
+            let type_fqn_str = tree_nominal_fqn_of(builder, *target);
+            let metadata = crate::mir::transport::RuntimeCastMetadata {
+                test: crate::mir::transport::RuntimeTypeTestMetadata {
+                    source_ty: operand_ty_id,
+                    target_ty: *target,
+                    descriptor: crate::mir::transport::RuntimeTypeDescriptorKey {
+                        ty: *target,
+                        kind: crate::mir::transport::RuntimeTypeDescriptorKind::Nominal {
+                            fqn: type_fqn_str,
+                            kind: None,
+                        },
+                    },
+                    static_fold: crate::mir::transport::RuntimeTypeStaticFold::Dynamic,
+                    parameterized: crate::mir::transport::RuntimeTypeParameterizedMatch::None,
+                },
+                failure: crate::mir::transport::RuntimeCastFailure::ReturnNone,
+                result: crate::mir::transport::RuntimeCastResult::Target { ty: *target },
+            };
+            let site_id = Some(builder.next_site_id());
+            let op = if *nullable {
+                crate::mir::CastOp::AsSafe
+            } else {
+                crate::mir::CastOp::As
+            };
+            builder.assign(
+                tmp,
+                Rvalue::Cast {
+                    site_id,
+                    value: v,
+                    op,
+                    metadata,
+                },
+                span,
+            );
+            Operand::Local(tmp)
+        }
+        TreeExprKind::TypeCheck {
+            expr: inner,
+            target,
+            ..
+        } => {
+            // 镜像 TypeCheck lower（`is`/`!is` 的差异由 verify/codegen 处理）。
+            let v = lower_tree_expr(builder, body, *inner);
+            let operand_ty_id = operand_ty_of(builder, &v);
+            let bool_ty = builder.types.bool();
+            let tmp = builder.alloc_temp(bool_ty, span);
+            let type_fqn_str = tree_nominal_fqn_of(builder, *target);
+            let metadata = crate::mir::transport::RuntimeTypeTestMetadata {
+                source_ty: operand_ty_id,
+                target_ty: *target,
+                descriptor: crate::mir::transport::RuntimeTypeDescriptorKey {
+                    ty: *target,
+                    kind: crate::mir::transport::RuntimeTypeDescriptorKind::Nominal {
+                        fqn: type_fqn_str,
+                        kind: None,
+                    },
+                },
+                static_fold: crate::mir::transport::RuntimeTypeStaticFold::Dynamic,
+                parameterized: crate::mir::transport::RuntimeTypeParameterizedMatch::None,
+            };
+            let site_id = Some(builder.next_site_id());
+            builder.assign(
+                tmp,
+                Rvalue::TypeTest {
+                    site_id,
+                    value: v,
+                    metadata,
+                },
+                span,
+            );
+            Operand::Local(tmp)
+        }
+        TreeExprKind::WithUpdate { base, updates } => {
+            // 镜像 lower_with_update：base → 各 update 值 → temp。
+            let base_op = lower_tree_expr(builder, body, *base);
+            let mut mir_updates = Vec::with_capacity(updates.len());
+            for (path, e) in updates {
+                let v = lower_tree_expr(builder, body, *e);
+                let value_ty = operand_ty_of(builder, &v);
+                let segs: Vec<crate::mir::WithUpdateSegment> = path
+                    .segments
+                    .iter()
+                    .map(|s| match s {
+                        scoop2_hir::hir::tree::TreeFieldSeg::Named(n) => {
+                            crate::mir::WithUpdateSegment::Named(*n)
+                        }
+                        scoop2_hir::hir::tree::TreeFieldSeg::TupleIndex(i) => {
+                            crate::mir::WithUpdateSegment::TupleIndex(*i as u128)
+                        }
+                    })
+                    .collect();
+                mir_updates.push(crate::mir::WithUpdateField {
+                    path: segs,
+                    value: v,
+                    value_ty,
+                });
+            }
+            let tmp = builder.alloc_temp(ty, span);
+            builder.assign(
+                tmp,
+                Rvalue::WithUpdate {
+                    base: base_op,
+                    updates: mir_updates,
+                    result_ty: ty,
+                },
+                span,
+            );
+            Operand::Local(tmp)
         }
         TreeExprKind::Block(b) => lower_tree_block(builder, body, *b),
         TreeExprKind::Tuple(els) => {
@@ -570,34 +750,103 @@ fn lower_tree_call(
             }
         }
         TreeCallee::Method {
+            recv,
             owner_fqn,
             method,
+            is_virtual,
+            is_interface,
             type_args,
             param_types,
-            ..
         } => {
-            // direct 方法调用：receiver 前置（镜像 AST 路径的 final_args 构造）。
             let recv_op = recv_op.expect("Method 分支已预 lower receiver");
             let recv_ty = operand_ty_of(builder, &recv_op);
             let owner_str = builder.hir.interner.resolve(*owner_fqn).to_string();
             let method_str = builder.hir.interner.resolve(*method).to_string();
-            let mut final_args = Vec::with_capacity(mir_args.len() + 1);
-            final_args.push(crate::mir::CallArg {
-                name: None,
-                is_spread: false,
-                value: recv_op,
-                value_ty: recv_ty,
-            });
-            final_args.extend(mir_args);
-            Rvalue::Call {
-                site_id: call_site_id,
-                kind: builder.make_direct_call_kind_with_params(
-                    format!("{owner_str}.{method_str}"),
+            let member_fqn = format!("{owner_str}.{method_str}");
+            // args 组装（先于 kind——direct 前置 receiver；虚分派不前置）。
+            let final_args = if *is_virtual {
+                mir_args
+            } else {
+                let mut fa = Vec::with_capacity(mir_args.len() + 1);
+                fa.push(crate::mir::CallArg {
+                    name: None,
+                    is_spread: false,
+                    value: recv_op.clone(),
+                    value_ty: recv_ty,
+                });
+                fa.extend(mir_args);
+                fa
+            };
+            let overload_sig = crate::mir::stable_id::build_overload_sig(
+                &builder.types,
+                &builder.hir.interner,
+                param_types,
+            );
+            let stk = crate::mir::stable_id::make_stable_template_key(
+                crate::mir::stable_id::StableHashScope::Dump,
+                &member_fqn,
+                &[],
+                &overload_sig,
+            );
+            // 特判：Continuation.resume → CallKind::Resume（镜像 AST 路径——
+            // resume 是 continuation 对象原语，不走 itable 分发）。
+            let kind = if method_str == "resume" && owner_str.ends_with("Continuation") {
+                let resume_value = final_args
+                    .iter()
+                    .next()
+                    .map(|a| a.value.clone())
+                    .unwrap_or(Operand::Const(ConstValue::Unit));
+                crate::mir::CallKind::Resume {
+                    continuation: recv_op.clone(),
+                    resume_value,
+                }
+            } else if *is_virtual {
+                let dispatch = crate::mir::transport::DispatchMetadata {
+                    owner_fqn: owner_str,
+                    member_name: method_str,
+                    member_fqn: member_fqn.clone(),
+                    member_decl_span: None,
+                    receiver_ty: recv_ty,
+                    stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(
+                        crate::mir::stable_id::StableHashScope::Dump,
+                        stk.clone(),
+                        &builder.types,
+                        &builder.hir.interner,
+                        &[],
+                        &[],
+                    )],
+                    stable_template_key: Some(stk),
+                    generic_type_args: type_args.clone(),
+                    generic_eff_args: vec![],
+                };
+                if *is_interface {
+                    crate::mir::CallKind::Interface {
+                        receiver: recv_op,
+                        dispatch,
+                    }
+                } else {
+                    crate::mir::CallKind::Virtual {
+                        receiver: recv_op,
+                        dispatch,
+                    }
+                }
+            } else {
+                builder.make_direct_call_kind_with_params(
+                    member_fqn,
                     type_args.clone(),
                     false,
                     Some(param_types),
-                ),
-                args: final_args,
+                )
+            };
+            let args_out = if matches!(kind, crate::mir::CallKind::Resume { .. }) {
+                Vec::new()
+            } else {
+                final_args
+            };
+            Rvalue::Call {
+                site_id: call_site_id,
+                kind,
+                args: args_out,
                 transport: call_transport,
             }
         }
@@ -888,4 +1137,31 @@ pub fn lower_tree_fun_decl(
 /// 局部是否是隐式 this（MIR fn_ty 排除）。
 fn builder_this_check(hir: &scoop2_hir::hir::TypedHir, name: scoop2_base::Symbol) -> bool {
     hir.interner.resolve(name) != "this"
+}
+
+/// struct 字面量 FQN 解析（镜像 resolve_struct_fqn：裸名 → scoop.core 前缀）。
+fn resolve_tree_struct_fqn(builder: &FnLowering, fqn_text: &str) -> scoop2_base::Symbol {
+    for cand in [fqn_text.to_string(), format!("scoop.core.{fqn_text}")] {
+        if let Some(f) = builder.hir.interner.get(&cand) {
+            return f;
+        }
+    }
+    scoop2_base::Symbol::default()
+}
+
+/// nominal FQN 文本（镜像 nominal_fqn_of：标量 → 内建 FQN）。
+fn tree_nominal_fqn_of(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> String {
+    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+    match builder.types.kind(ty) {
+        TypeKind::Value(ValueTypeKind::Int) => "scoop.core.Int".to_string(),
+        TypeKind::Value(ValueTypeKind::UInt) => "scoop.core.UInt".to_string(),
+        TypeKind::Value(ValueTypeKind::Bool) => "scoop.core.Bool".to_string(),
+        TypeKind::Value(ValueTypeKind::Char) => "scoop.core.Char".to_string(),
+        TypeKind::Value(ValueTypeKind::Float64) => "scoop.core.Float64".to_string(),
+        TypeKind::Value(ValueTypeKind::Float32) => "scoop.core.Float32".to_string(),
+        TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+            builder.hir.interner.resolve(n.fqn).to_string()
+        }
+        _ => String::new(),
+    }
 }

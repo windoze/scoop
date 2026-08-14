@@ -206,7 +206,14 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第十四刀）：**语料一致率 33/33（严格比对）**。修复：
+> 进度（2026-08-15，第十五刀）：**语料一致率 40/40**。新增镜像：StructLit /
+> InterpolatedString / ArrayLit（Nothing→Array ref temp）/ Cast（As/AsSafe 结果
+> 类型差异 + RuntimeCastMetadata）/ TypeCheck（RuntimeTypeTestMetadata）/
+> WithUpdate（路径段映射）；**虚/接口分派**（DispatchMetadata 含 stable keys +
+> template key 构造）；**Continuation.resume 特判**（CallKind::Resume，resume 值
+> 进 kind 不留 args）。余 22 函数：Handle(6)/Lambda(5)/When(4)/EffectOp(1)/
+> Destructure(1) + 复合 main——两大件（When/Lambda）与 effect 系列待镜像。
+> 第十四刀：**语料一致率 33/33（严格比对）**。修复：
 > (a) `&&`/`||` 语义纠正（此前读串两臂——LogAnd=then:rhs/else:false，
 > LogOr=then:true/else:rhs）；(b) 限定名 variant 的 callee 死语句镜像
 >（`Color.Red(42)` 先 lower callee 产生 Unit temp + UnresolvedName——字节
