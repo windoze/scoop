@@ -411,13 +411,16 @@ pub fn load_hir_collection(dir: &Path) -> Result<LoadedCollection, ArchiveError>
 /// 从装配好的 collection 走 MIR：lower → 门禁 → 单态化 → verify → dump。
 /// 不读任何源文件（M2-6 起 archive 不含 AST——树 + 骨架即全部输入）。
 pub fn mir_dump_from_collection(loaded: &LoadedCollection) -> Result<String, StageError> {
-    run_mir_and_dump(&loaded.hir)
+    run_mir_and_dump(&loaded.hir).map(|(dump, _)| dump)
 }
 
 /// MIR 阶段核心（one-shot 与 staged 共用同一序列，oracle 据此隔离序列化保真度）：
 /// lower → 门禁 → 单态化（entry=main）→ verify（module + materialized）→ dump。
-/// M2-5 翻转后只消费 `TypedHir` 的树 + 骨架（AST 不再是 MIR 输入）。
-pub fn run_mir_and_dump(hir: &TypedHir) -> Result<String, StageError> {
+/// M2-5 翻转后只消费 `TypedHir` 的树 + 骨架（AST 不再是 MIR 输入）；
+/// M3-6 起附带返回单态化整程序产物（MIR archive 载荷）。
+pub fn run_mir_and_dump(
+    hir: &TypedHir,
+) -> Result<(String, scoop2_mir::mir::materialize::MaterializedMir), StageError> {
     use scoop2_mir::mir;
 
     let mut lower_diags = scoop2_base::diag::DiagnosticSink::new();
@@ -472,11 +475,10 @@ pub fn run_mir_and_dump(hir: &TypedHir) -> Result<String, StageError> {
         }
         return Err(StageError::Mir(lower_diags.into_vec()));
     }
-    let monomorph = monomorph
-        .as_ref()
-        .expect("materialize 已成功（错误路径已 return）");
-    let mat_errors =
-        mir::verify::verify_materialized_with_external(&monomorph.module, &external_symbols);
+    let mat_errors = mir::verify::verify_materialized_with_external(
+        &monomorph.as_ref().expect("materialize 已成功（错误路径已 return）").module,
+        &external_symbols,
+    );
     if !mat_errors.is_empty() {
         for ve in &mat_errors {
             lower_diags.push(Diagnostic::error(ve.code, ve.message.clone()));
@@ -484,5 +486,106 @@ pub fn run_mir_and_dump(hir: &TypedHir) -> Result<String, StageError> {
         return Err(StageError::Mir(lower_diags.into_vec()));
     }
 
-    Ok(mir::dump::dump_module(&lower_result.module, &hir.interner))
+    let dump = mir::dump::dump_module(&lower_result.module, &hir.interner);
+    let mat = monomorph.expect("materialize 已成功（错误路径已 return）");
+    Ok((dump, mat))
+}
+
+// ---------------------------------------------------------------------------
+// MIR archive（M3-6）：单态化整程序产物落地
+// ---------------------------------------------------------------------------
+
+/// MIR archive（整程序——单态化产物无 per-cone 边界；自包含：interner 随行）。
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MirArchive {
+    pub header: ArchiveHeader,
+    pub module: scoop2_mir::mir::Module,
+    /// 实例化键（发现序）。
+    pub instance_keys: Vec<scoop2_mir::mir::materialize::InstanceKey>,
+    /// 语言级 backend contracts（分派表/布局唯一来源——M3-3）。
+    pub backend_contracts: scoop2_mir::mir::materialize::BackendContracts,
+    /// dump 渲染所需的 interner 快照（自包含）。
+    pub interner: scoop2_base::Interner,
+}
+
+/// MIR archive 文件名。
+pub const MIR_ARCHIVE_FILE: &str = "module.mirarch";
+
+/// 写 MIR archive：输入指纹 = 参与 HIR collection 的 cone 稳定 key + 全局参数
+///（C7/M3-5：新增 cone 声明子类 → 指纹变化 → 旧 MIR archive 失效）。
+pub fn write_mir_archive(
+    dir: &Path,
+    hir: &TypedHir,
+    mat: &scoop2_mir::mir::materialize::MaterializedMir,
+    members: &[String],
+    params: &[(String, String)],
+) -> Result<PathBuf, ArchiveError> {
+    std::fs::create_dir_all(dir).map_err(|e| ArchiveError::Io(dir.to_path_buf(), e))?;
+    let header = ArchiveHeader {
+        magic: MAGIC,
+        schema_version: archive_schema::V1,
+        stage: "mir".to_string(),
+        cone_key: "__program__".to_string(),
+        compiler_version: compiler_version().to_string(),
+        fingerprint: archive_fingerprint(
+            archive_schema::V1,
+            scoop2_base::ArchiveStage::Mir,
+            &StableConeKey::from_cone_name("__program__"),
+            members.iter().map(|s| s.as_str()),
+            params,
+        ),
+    };
+    let path = dir.join(MIR_ARCHIVE_FILE);
+    write_bytes(
+        &path,
+        &encode(&MirArchive {
+            header,
+            module: mat.module.clone(),
+            instance_keys: mat.instance_keys.clone(),
+            backend_contracts: mat.backend_contracts.clone(),
+            interner: hir.interner.clone(),
+        })?,
+    )?;
+    Ok(path)
+}
+
+/// 读 MIR archive（版本头校验——schema/compiler 不匹配即拒）。
+pub fn load_mir_archive(dir: &Path) -> Result<MirArchive, ArchiveError> {
+    let path = dir.join(MIR_ARCHIVE_FILE);
+    let bytes = std::fs::read(&path).map_err(|e| ArchiveError::Io(path.clone(), e))?;
+    let (archive, _): (MirArchive, usize) =
+        bincode::serde::decode_from_slice(&bytes, bincode::config::standard())
+            .map_err(|e| ArchiveError::Decode(path.clone(), e.to_string()))?;
+    if archive.header.magic != MAGIC {
+        return Err(ArchiveError::VersionMismatch {
+            path,
+            detail: "magic 不匹配".to_string(),
+        });
+    }
+    if archive.header.schema_version != archive_schema::V1 {
+        return Err(ArchiveError::VersionMismatch {
+            path,
+            detail: format!(
+                "schema {} ≠ {}（不支持迁移）",
+                archive.header.schema_version,
+                archive_schema::V1
+            ),
+        });
+    }
+    if archive.header.compiler_version != compiler_version() {
+        return Err(ArchiveError::VersionMismatch {
+            path,
+            detail: format!(
+                "compiler {} ≠ {}",
+                archive.header.compiler_version,
+                compiler_version()
+            ),
+        });
+    }
+    Ok(archive)
+}
+
+/// 从 MIR archive 渲染 dump（纯读——不回 HIR archive）。
+pub fn dump_from_mir_archive(archive: &MirArchive) -> String {
+    scoop2_mir::mir::dump::dump_module(&archive.module, &archive.interner)
 }

@@ -22,7 +22,7 @@ use crate::diagnostics::MonomorphError;
 use crate::mir::{Body, CallKind, FunDecl, Item, Module, Rvalue, StatementKind, TerminatorKind};
 
 /// 单态化实例化键：模板 FQN + overload signature + 类型实参。
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct InstanceKey {
     pub template_fqn: String,
     /// 重载签名 canonical 文本（区分同名重载；空表示非重载/无法解析）。
@@ -33,7 +33,7 @@ pub struct InstanceKey {
 /// 语言级 backend contract 发布（不含 LLVM-specific 信息）。
 ///
 /// 携带 per-type 的方法槽位映射和成员布局信息，供后端生成 vtable/itable/layout。
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BackendContracts {
     /// class vtable 契约：class FQN → 该 class 上的虚方法槽位列表。
     pub class_vtables: Vec<ClassVtableContract>,
@@ -52,7 +52,7 @@ pub struct BackendContracts {
 }
 
 /// class vtable 契约：class 上的虚方法（按声明顺序）。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClassVtableContract {
     pub class_fqn: String,
     /// 虚方法：(方法名, owner FQN, overload signature canonical)。
@@ -60,7 +60,7 @@ pub struct ClassVtableContract {
 }
 
 /// interface 契约：interface 的方法签名列表。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InterfaceContract {
     pub interface_fqn: String,
     /// (方法名, overload signature canonical)。
@@ -68,14 +68,14 @@ pub struct InterfaceContract {
 }
 
 /// class→interface itable 契约。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClassItableContract {
     pub class_fqn: String,
     pub interface_fqns: Vec<String>,
 }
 
 /// enum layout 契约。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct EnumLayoutContract {
     pub enum_fqn: String,
     /// variant 名列表。
@@ -83,7 +83,7 @@ pub struct EnumLayoutContract {
 }
 
 /// struct layout 契约。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct StructLayoutContract {
     pub struct_fqn: String,
     /// 字段名 + 类型 FQN。
@@ -91,13 +91,13 @@ pub struct StructLayoutContract {
 }
 
 /// class init 契约。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClassInitContract {
     pub class_fqn: String,
 }
 
 /// ctor call site 契约。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct CtorCallSiteContract {
     pub type_fqn: String,
     pub ordered_param_count: usize,

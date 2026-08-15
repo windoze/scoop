@@ -33,6 +33,7 @@ mod cli {
         Run(RunArgs),
         HirBuild { input: PathBuf, out: PathBuf },
         MirBuild { dir: PathBuf },
+    DumpMirArch { dir: PathBuf },
     }
 
     #[derive(Debug)]
@@ -96,6 +97,10 @@ mod cli {
             "run" => parse_run(rest).map(Command::Run),
             "hir-build" => parse_hir_build(rest),
             "mir-build" => parse_mir_build(rest),
+            "dump-mir-arch" => parse_mir_build(rest).map(|c| match c {
+                Command::MirBuild { dir } => Command::DumpMirArch { dir },
+                other => other,
+            }),
             "-h" | "--help" => Err(usage()),
             other => Err(format!("未知子命令 `{other}`\n\n{}", usage())),
         }
@@ -261,6 +266,7 @@ fn run(command: Command) -> ExitCode {
         Command::Run(args) => run_run(&args),
         Command::HirBuild { input, out } => run_hir_build(&input, &out),
         Command::MirBuild { dir } => run_mir_build(&dir),
+        Command::DumpMirArch { dir } => run_dump_mir_arch(&dir),
     }
 }
 
@@ -299,12 +305,33 @@ fn run_hir_build(input: &std::path::Path, out: &std::path::Path) -> ExitCode {
 /// `mir-build`：从 HIR archive collection 目录装配并走 MIR，输出 MIR dump。
 /// 只读目录内容（PLAN.md C1/C8——不读源文件 / 不重新 parse）。
 fn run_mir_build(dir: &std::path::Path) -> ExitCode {
-    let dump = scoop2_archive::v0::load_hir_collection(dir)
+    let outcome = scoop2_archive::v0::load_hir_collection(dir)
         .map_err(scoop2_archive::v0::StageError::from)
-        .and_then(|loaded| scoop2_archive::v0::mir_dump_from_collection(&loaded));
-    match dump {
+        .and_then(|loaded| {
+            let (dump, mat) = scoop2_archive::v0::run_mir_and_dump(&loaded.hir)?;
+            // M3-6：MIR archive 落地（指纹 = 成员 cone keys + 全局参数——C7）。
+            let members = loaded.members.clone();
+            let _archive_path =
+                scoop2_archive::v0::write_mir_archive(dir, &loaded.hir, &mat, &members, &[])?;
+            Ok(dump)
+        });
+    match outcome {
         Ok(dump) => {
             print!("{dump}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::from(1)
+        }
+    }
+}
+
+/// dump-mir-arch：从 MIR archive 渲染 dump（纯读——M3-6 往返验证）。
+fn run_dump_mir_arch(dir: &std::path::Path) -> ExitCode {
+    match scoop2_archive::v0::load_mir_archive(dir) {
+        Ok(archive) => {
+            print!("{}", scoop2_archive::v0::dump_from_mir_archive(&archive));
             ExitCode::SUCCESS
         }
         Err(e) => {

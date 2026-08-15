@@ -32,7 +32,7 @@ use scoop2_hir::ty::{EffectRow, TypeId};
 // ---------------------------------------------------------------------------
 
 /// 基本块 id（下标进 [`Body::blocks`]）。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BasicBlockId(pub u32);
 
 impl std::fmt::Display for BasicBlockId {
@@ -42,7 +42,7 @@ impl std::fmt::Display for BasicBlockId {
 }
 
 /// local id（下标进 [`Body::locals`]）。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
 
 impl std::fmt::Display for LocalId {
@@ -52,7 +52,7 @@ impl std::fmt::Display for LocalId {
 }
 
 /// 源程序调用点稳定身份（per-call-site；devirtualization / 诊断用）。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SiteId(pub u32);
 
 // ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ pub struct SiteId(pub u32);
 // ---------------------------------------------------------------------------
 
 /// 一个编译单元的 MIR 模块（generic 模板阶段；单态化产物也是 Module）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Module {
     pub items: Vec<Item>,
     /// 类型存储（与 HIR 共享句柄；lowering 时从 HIR move 或克隆）。
@@ -75,7 +75,7 @@ impl Module {
 }
 
 /// 顶层 MIR item。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum Item {
     /// 可调用函数（顶层 / 成员 / 闭包 / 次构造器）。
     Fun(FunDecl),
@@ -88,7 +88,7 @@ pub enum Item {
 }
 
 /// 函数声明 + 可选 body。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct FunDecl {
     pub span: Span,
     /// 全限定名（点分；闭包用合成名 `<owner>$closure<N>`）。
@@ -131,7 +131,7 @@ pub struct FunDecl {
 }
 
 /// EffectStep 函数的 ABI 信息。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct EffectStepAbi {
     /// Frame tuple 类型的 TypeId。
     pub frame_ty: TypeId,
@@ -168,7 +168,7 @@ pub struct EffectStepAbi {
 }
 
 /// 一个 resume 续点（escape continuation 捕获点对应的续行位置）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ResumePoint {
     /// state 编号（1-based，与 continuation 的 state 字段对应）。
     pub state: u128,
@@ -181,7 +181,7 @@ pub struct ResumePoint {
 }
 
 /// Step enum 的一个变体。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct StepVariant {
     /// 变体名称（如 "Complete"、"scoop_core_Raise_raise"）。
     pub name: String,
@@ -194,7 +194,7 @@ pub struct StepVariant {
 }
 
 /// 函数参数（同时也是一个 local）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Param {
     pub span: Span,
     pub name: String,
@@ -203,7 +203,7 @@ pub struct Param {
 }
 
 /// 顶层 val/var 初始化器根。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InitializerRoot {
     pub span: Span,
     pub fqn: String,
@@ -214,7 +214,7 @@ pub struct InitializerRoot {
 }
 
 /// extern 全局符号。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ExternGlobal {
     pub span: Span,
     pub fqn: String,
@@ -223,7 +223,7 @@ pub struct ExternGlobal {
 }
 
 /// 类型声明元数据根（class/interface/struct/enum/object/extension）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct MetadataRoot {
     pub span: Span,
     pub fqn: String,
@@ -231,7 +231,7 @@ pub struct MetadataRoot {
     pub file: FileId,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MetadataKind {
     Class,
     Interface,
@@ -248,7 +248,7 @@ pub enum MetadataKind {
 // ---------------------------------------------------------------------------
 
 /// 函数体：locals + 基本块图 + 入口块。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Body {
     pub locals: Vec<LocalDecl>,
     pub blocks: Vec<BasicBlock>,
@@ -318,7 +318,7 @@ impl Default for Body {
 }
 
 /// local 声明。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LocalDecl {
     pub span: Span,
     /// `Some(name)` = 源程序命名 local（参数 / val/var）；`None` = 编译器临时。
@@ -329,7 +329,7 @@ pub struct LocalDecl {
     pub mutable: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LocalSource {
     /// 源程序声明的 local（参数 / val / var / pattern binder）。
     Source,
@@ -338,7 +338,7 @@ pub enum LocalSource {
 }
 
 /// 基本块。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct BasicBlock {
     pub stmts: Vec<Statement>,
     pub terminator: Terminator,
@@ -398,13 +398,13 @@ impl Iterator for SmallSuccessors {
 // Statement
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Statement {
     pub span: Span,
     pub kind: StatementKind,
 }
 
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum StatementKind {
     /// 空操作（占位 / trailing）。
     Nop,
@@ -440,14 +440,14 @@ pub enum StatementKind {
 // ---------------------------------------------------------------------------
 
 /// 一个值操作数：local 引用或编译期常量。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum Operand {
     Local(LocalId),
     Const(ConstValue),
 }
 
 /// 编译期常量（保留载荷；不靠 span 重建）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum ConstValue {
     Bool(bool),
     Char(char),
@@ -458,14 +458,14 @@ pub enum ConstValue {
     Null, // `null` 字面量（可空类型的 null 值）。
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IntSuffix {
     U,
     L,
     UL,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FloatSuffix {
     F32,
 }
@@ -476,7 +476,7 @@ pub enum FloatSuffix {
 
 /// 一切「产出一个值」的 MIR 节点。每个表达式 lowering 为
 /// `StatementKind::Assign { target: tmp, value: Rvalue }`。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum Rvalue {
     /// 直接使用一个操作数（identity / 变量读取）。
     Use(Operand),
@@ -621,7 +621,7 @@ pub enum Rvalue {
 /// - 分配 state 编号：被本函数 escape arm 覆盖时有 N_cap（→ 克隆续点），
 ///   纯传播时有 N_prop（→ 原始续点）。
 /// phase B 按 (block_idx, stmt_idx) 匹配本记录重写调用点与路由块。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct CallChainSite {
     /// 调用语句所在块 / 语句下标（phase A 记录时的原始坐标，phase B 匹配用）。
     pub block_idx: usize,
@@ -656,7 +656,7 @@ pub struct CallChainSite {
 }
 
 /// 调用实参（可命名 / 可展开 `*expr`）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct CallArg {
     /// 命名实参名（`name = ...`）；None = 位置实参。
     pub name: Option<Symbol>,
@@ -667,7 +667,7 @@ pub struct CallArg {
 }
 
 /// struct 字面量字段。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct StructLitField {
     pub name: Symbol,
     pub value: Operand,
@@ -675,21 +675,21 @@ pub struct StructLitField {
 }
 
 /// f-string 拼接片段。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum InterpolatedPart {
     Lit(String),
     Expr(Operand),
 }
 
 /// `with` 更新字段（路径 segments + 值）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct WithUpdateField {
     pub path: Vec<WithUpdateSegment>,
     pub value: Operand,
     pub value_ty: TypeId,
 }
 
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum WithUpdateSegment {
     Named(Symbol),
     TupleIndex(u128),
@@ -699,7 +699,7 @@ pub enum WithUpdateSegment {
 // CallKind（分发类别）
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum CallKind {
     /// 静态已知 callee（顶层函数 / final 方法 / 构造器已选重载）。
     Direct {
@@ -740,7 +740,7 @@ pub enum CallKind {
 // Terminator
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Terminator {
     pub span: Span,
     pub kind: TerminatorKind,
@@ -782,7 +782,7 @@ impl Terminator {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum TerminatorKind {
     /// 函数返回（`None` = Unit/隐式 return）。
     Return { value: Option<Operand> },
@@ -822,7 +822,7 @@ pub enum TerminatorKind {
 // ---------------------------------------------------------------------------
 
 /// `when` arm 模式（lowering 用）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum Pattern {
     /// `_` / 命名 binder（无约束）。
     Wildcard,
@@ -862,7 +862,7 @@ pub enum Pattern {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct StructPatternField {
     pub name: Symbol,
     pub pattern: Pattern,
@@ -873,7 +873,7 @@ pub struct StructPatternField {
 // ---------------------------------------------------------------------------
 
 /// 附着在 lowering 产物上的源 AST 身份（可选）。
-#[derive(Clone, Copy, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug)]
 pub struct Metadata {
     pub source_node: Option<NodeId>,
     pub source_span: Span,
@@ -881,7 +881,7 @@ pub struct Metadata {
 }
 
 /// `as` / `as?` 转换操作（M2-5 删除 AST 路径后自有定义）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CastOp {
     As,
     AsSafe,

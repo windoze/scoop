@@ -4,5 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 scoop2_base = { path = "../scoop2_base" }
 scoop2_hir = { path = "../scoop2_hir" }

@@ -17,7 +17,7 @@ use super::LocalId;
 // ---------------------------------------------------------------------------
 
 /// 值穿越边界时的 backend-agnostic 分类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MirTransportKind {
     Scalar,
     Reference,
@@ -32,7 +32,7 @@ pub enum MirTransportKind {
 }
 
 /// 聚合值须装箱的原因。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MirBoxingReason {
     AnyErasure,
     RefErasure,
@@ -43,7 +43,7 @@ pub enum MirBoxingReason {
 }
 
 /// 装箱意图（source_ty → target_ty + reason）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct MirBoxingIntent {
     pub source_ty: TypeId,
     pub target_ty: Option<TypeId>,
@@ -51,7 +51,7 @@ pub struct MirBoxingIntent {
 }
 
 /// copy/drop/trace 义务。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MirTransportRequirements {
     pub trace: bool,
     pub copy: bool,
@@ -72,7 +72,7 @@ impl MirTransportRequirements {
 // ValueTransportMetadata
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ValueTransportMetadata {
     pub source_ty: TypeId,
     pub kind: MirTransportKind,
@@ -95,7 +95,7 @@ impl ValueTransportMetadata {
 // AggregateTransportMetadata
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AggregateTransportKind {
     Tuple,
     Struct,
@@ -103,7 +103,7 @@ pub enum AggregateTransportKind {
     ClosureEnv,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct AggregateTransportField {
     pub index: usize,
     pub name: Option<String>,
@@ -111,7 +111,7 @@ pub struct AggregateTransportField {
     pub transport: ValueTransportMetadata,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct AggregateTransportMetadata {
     pub aggregate_ty: TypeId,
     pub kind: AggregateTransportKind,
@@ -137,7 +137,7 @@ impl AggregateTransportMetadata {
 // ClosureEnvTransportMetadata
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ClosureCaptureTransportMetadata {
     pub name: String,
     pub decl_span: Span,
@@ -146,7 +146,7 @@ pub struct ClosureCaptureTransportMetadata {
     pub transport: ValueTransportMetadata,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ClosureEnvTransportMetadata {
     pub env_ty: TypeId,
     pub captures: Vec<ClosureCaptureTransportMetadata>,
@@ -165,7 +165,7 @@ impl ClosureEnvTransportMetadata {
 // ArrayElementTransportMetadata
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArrayTransportOperation {
     BuilderNew,
     BuilderPush,
@@ -175,7 +175,7 @@ pub enum ArrayTransportOperation {
     Set,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ArrayElementTransportMetadata {
     pub operation: ArrayTransportOperation,
     pub array_ty: TypeId,
@@ -188,7 +188,7 @@ pub struct ArrayElementTransportMetadata {
 // GcIntrinsicTransportMetadata
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GcIntrinsicOperation {
     Pin,
     Unpin,
@@ -197,7 +197,7 @@ pub enum GcIntrinsicOperation {
     HandleDrop,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GcRootLifetime {
     PinnedUntilUnpin,
     EndsPinnedRoot,
@@ -206,7 +206,7 @@ pub enum GcRootLifetime {
     EndsStableHandle,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GcIntrinsicPairing {
     PinMustPairUnpin,
     UnpinMatchesPin,
@@ -215,7 +215,7 @@ pub enum GcIntrinsicPairing {
     HandleDropMatchesHandleNew,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct GcIntrinsicTransportMetadata {
     pub callee_fqn: String,
     pub operation: GcIntrinsicOperation,
@@ -231,14 +231,14 @@ pub struct GcIntrinsicTransportMetadata {
 // CallAbiHandoffMetadata + CallTransportMetadata
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MirCallableAbiKind {
     Plain,
     EffectStep,
     DeferredToEffectFacts,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MirCallableImplPlan {
     NoOutward,
     SingleCase,
@@ -246,7 +246,7 @@ pub enum MirCallableImplPlan {
     DeferredToEffectFacts,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct CallAbiHandoffMetadata {
     pub callable_abi_kind: MirCallableAbiKind,
     pub resolved_outward_cases: Vec<String>,
@@ -274,7 +274,7 @@ impl CallAbiHandoffMetadata {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct CallTransportMetadata {
     pub result: ValueTransportMetadata,
     pub aggregate_return: Option<ValueTransportMetadata>,
@@ -300,7 +300,7 @@ impl CallTransportMetadata {
 // ---------------------------------------------------------------------------
 
 /// virtual/interface dispatch 的语言级 metadata（不含 vtable slot）。
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct DispatchMetadata {
     pub owner_fqn: String,
     pub member_name: String,
@@ -314,7 +314,7 @@ pub struct DispatchMetadata {
 }
 
 /// perform 调用点的 typed contract。
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct PerformMetadata {
     pub effect_ty: TypeId,
     pub op_type_args: Vec<TypeId>,
@@ -326,7 +326,7 @@ pub struct PerformMetadata {
 }
 
 /// handle 站点的 typed contract。
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct HandleMetadata {
     pub result_ty: TypeId,
     pub body_result_ty: TypeId,
@@ -337,7 +337,7 @@ pub struct HandleMetadata {
 }
 
 /// Continuation.resume 的语义 metadata。
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ResumeMetadata {
     pub continuation_ty: TypeId,
     pub resume_ty: TypeId,
@@ -349,7 +349,7 @@ pub struct ResumeMetadata {
 }
 
 /// class ctor call 的 selected ctor / ordered-args contract。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ClassCtorCallMetadata {
     pub target_init_class_fqn: String,
     pub selected_ctor_span: Option<Span>,
@@ -360,7 +360,7 @@ pub struct ClassCtorCallMetadata {
 }
 
 /// 成员访问的语言级 metadata。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct MemberAccessMetadata {
     pub name: String,
     pub receiver_ty: TypeId,
@@ -369,7 +369,7 @@ pub struct MemberAccessMetadata {
 }
 
 /// 已解析成员的稳定目标种类。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum MemberTarget {
     Value { fqn: String },
     Fun { fqn: String },
@@ -378,14 +378,14 @@ pub enum MemberTarget {
 }
 
 /// handle arm 的显式语义 kind。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HandlerArmKind {
     NonResuming,
     EscapeContinuation,
 }
 
 /// handle arm 的 typed contract。
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct HandlerArm {
     pub op_fqn: String,
     pub op_type_args: Vec<TypeId>,
@@ -400,13 +400,13 @@ pub struct HandlerArm {
 }
 
 /// 运行期类型检查 descriptor key。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeTypeDescriptorKey {
     pub ty: TypeId,
     pub kind: RuntimeTypeDescriptorKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeTypeDescriptorKind {
     Any,
     String,
@@ -420,14 +420,14 @@ pub enum RuntimeTypeDescriptorKind {
     Union,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeTypeStaticFold {
     AlwaysTrue,
     AlwaysFalse,
     Dynamic,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeTypeParameterizedMatch {
     None,
     Nominal {
@@ -455,7 +455,7 @@ pub enum RuntimeTypeParameterizedMatch {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeTypeTestMetadata {
     pub source_ty: TypeId,
     pub target_ty: TypeId,
@@ -464,19 +464,19 @@ pub struct RuntimeTypeTestMetadata {
     pub parameterized: RuntimeTypeParameterizedMatch,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeCastFailure {
     Panic { message: String },
     ReturnNone,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeCastResult {
     Target { ty: TypeId },
     Option { option_ty: TypeId, some_ty: TypeId },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeCastMetadata {
     pub test: RuntimeTypeTestMetadata,
     pub failure: RuntimeCastFailure,
@@ -487,20 +487,20 @@ pub struct RuntimeCastMetadata {
 // continuation route publication (member write)
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PatternBindingStep {
     TupleIndex(usize),
     VariantField { variant: String, field_index: usize },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct StoredContinuationValueRoute {
     pub source_local: LocalId,
     pub source_ty: TypeId,
     pub path: Vec<PatternBindingStep>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum StoredContinuationRoutePublication {
     None,
     Unique(StoredContinuationValueRoute),
@@ -512,14 +512,14 @@ pub enum StoredContinuationRoutePublication {
 // ---------------------------------------------------------------------------
 
 /// 稳定模板 key：cone + namespace + owner_path + decl_kind + overload_sig。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StableTemplateKey {
     pub canonical: String,
     pub hash: String,
 }
 
 /// 稳定实例 key：template key + canonical type/effect args。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StableInstanceKey {
     pub template: StableTemplateKey,
     pub canonical_type_args: Vec<String>,
@@ -528,7 +528,7 @@ pub struct StableInstanceKey {
 }
 
 /// 顶层值/函数引用的 provenance。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct TopLevelRef {
     pub fqn: String,
     pub hidden_effects: EffectRow,
