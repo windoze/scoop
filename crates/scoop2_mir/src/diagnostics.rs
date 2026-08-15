@@ -18,15 +18,12 @@ use crate::mir::{BasicBlockId, LocalId};
 // - 合法但 lowering 未覆盖 → 不允许存在（必须实现 lowering，不得报错）；
 // - prelude / 编译环境缺失 → internal_error（环境错误，非用户程序错误）。
 
-/// `break` 出现在循环体外（spec：break/continue 仅限循环内）。非法程序拒绝。
-pub const BREAK_OUTSIDE_LOOP: &str = "scoop::mir::break_outside_loop";
-/// `continue` 出现在循环体外。非法程序拒绝。
-pub const CONTINUE_OUTSIDE_LOOP: &str = "scoop::mir::continue_outside_loop";
-/// splice field `p.["x"]` / `p.[FieldMeta{...}]`：comptime 反射特性，已从语言移除，
-/// MIR 阶段明确拒绝（引导用户改用具体字段访问 `p.x`）。
+/// splice field `p.["x"]`（comptime 反射）：**B 类上移待办**——parser 仍接受
+/// 该语法（`parser/expr.rs` splice 分支），MIR 拒绝码保留至 parser/typecheck
+/// 拒绝路径就位（M5 清单）。
 pub const SPLICE_FIELD_REMOVED: &str = "scoop::mir::splice_field_removed";
-/// lowering 时引用了未解析的值（typecheck/resolve 失败的延续；正常不应到达，
-/// 到达表示 HIR 不完整——completeness 闸门应已拦截）。
+/// lowering 时引用了未解析的值——**C 类 ICE 待办**（M2-5 翻转后树路径不再
+/// 产生；保留常量供历史 fixture 断言迁移前兼容）。
 pub const LOWER_UNRESOLVED: &str = "scoop::mir::lower_unresolved";
 /// prelude / 编译环境必需符号缺失（如 `set` / `iterator` / `hasNext` / `next` 未注册）。
 /// 这是编译环境错误，非用户程序错误。

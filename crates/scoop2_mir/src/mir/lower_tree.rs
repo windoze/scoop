@@ -1271,17 +1271,6 @@ fn lower_tree_call(
             // resume_target 块：把 resume_local 作为结果
             return Operand::Local(resume_local);
         }
-        TreeCallee::InitCall { .. } => {
-            unsupported!("init 调用在支持集外")
-        }
-        TreeCallee::Method {
-            is_virtual: true, ..
-        }
-        | TreeCallee::Method {
-            is_interface: true, ..
-        } => {
-            unsupported!("虚/接口分派在支持集外")
-        }
     };
     builder.assign(tmp, rv, span);
     Operand::Local(tmp)
