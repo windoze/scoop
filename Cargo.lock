@@ -683,6 +683,7 @@ dependencies = [
  "bincode 2.0.1",
  "scoop2_base",
  "scoop2_hir",
+ "scoop2_lir",
  "scoop2_mir",
  "scoop2_syntax",
  "serde",
@@ -725,6 +726,7 @@ version = "0.1.0"
 dependencies = [
  "scoop2_base",
  "scoop2_mir",
+ "serde",
 ]
 
 [[package]]

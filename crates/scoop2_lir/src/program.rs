@@ -13,7 +13,7 @@ use scoop2_mir::ty::TypeId;
 
 /// LIR 操作数：local 引用或编译期常量。
 /// 替代 MIR 的 Operand，在所有需要值操作数的地方使用。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirOperand {
     /// 局部变量引用。
     Local(u32),
@@ -22,7 +22,7 @@ pub enum LirOperand {
 }
 
 /// LIR 编译期常量（从 MIR ConstValue 1:1 映射）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirConstValue {
     Bool(bool),
     Char(char),
@@ -34,7 +34,7 @@ pub enum LirConstValue {
 }
 
 /// 整数后缀。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum LirIntSuffix {
     U,
     L,
@@ -42,7 +42,7 @@ pub enum LirIntSuffix {
 }
 
 /// 浮点数后缀。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum LirFloatSuffix {
     F32,
 }
@@ -52,7 +52,7 @@ pub enum LirFloatSuffix {
 // =========================================================================
 
 /// LIR 顶层产物：自包含的编译单元，codegen 无需回查 HIR/MIR。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirProgram {
     /// 函数体列表（含 Plain 和 EffectStep）。
     pub callables: Vec<LirCallable>,
@@ -81,7 +81,7 @@ pub struct LirProgram {
 /// 闭包对象布局。
 /// 闭包对象 = { invoke_fn_ptr: ptr, env_ptr: ptr }
 /// env 布局由 captures 列表决定。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ClosureLayout {
     /// invoke 函数的 FQN。
     pub invoke_fqn: String,
@@ -94,7 +94,7 @@ pub struct ClosureLayout {
 }
 
 /// 闭包捕获变量布局。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ClosureCaptureLayout {
     /// 捕获变量名。
     pub name: String,
@@ -133,7 +133,7 @@ impl Default for LirProgram {
 }
 
 /// 合成类型声明（由 effect lowering 产生的合成类型的布局信息）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct SyntheticTypeDecl {
     /// 合成类型的 FQN（如 "pkg.f$step"、"pkg.f$continuation"）。
     pub fqn: String,
@@ -144,7 +144,7 @@ pub struct SyntheticTypeDecl {
 }
 
 /// 合成类型种类。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum SyntheticTypeKind {
     /// Step tagged union（EffectStep 函数的返回类型）。
     StepEnum,
@@ -159,7 +159,7 @@ pub enum SyntheticTypeKind {
 // =========================================================================
 
 /// 类型布局表：TypeId → TypeLayout 映射。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct TypeLayoutTable {
     pub entries: HashMap<TypeId, TypeLayout>,
 }
@@ -187,7 +187,7 @@ impl Default for TypeLayoutTable {
 }
 
 /// 一个类型的完整布局信息。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct TypeLayout {
     /// 类型大小（字节）。
     pub size: u64,
@@ -198,7 +198,7 @@ pub struct TypeLayout {
 }
 
 /// 布局种类。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum TypeLayoutKind {
     /// 标量值类型（Int/Bool/Char/Float/Unit）。
     Scalar {
@@ -249,7 +249,7 @@ pub enum TypeLayoutKind {
 }
 
 /// 标量种类。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum ScalarKind {
     Unit,
     Bool,
@@ -259,7 +259,7 @@ pub enum ScalarKind {
 }
 
 /// 引用种类。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum RefKind {
     /// class 引用（GC-managed）。
     Class,
@@ -274,7 +274,7 @@ pub enum RefKind {
 }
 
 /// Niche 存储方式（Option<T> 的空值编码）。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum NicheStorage {
     /// 指针 null niche（Option<引用> 用 null 表示 None）。
     Pointer,
@@ -285,7 +285,7 @@ pub enum NicheStorage {
 }
 
 /// 字段布局（struct/tuple 的字段）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct FieldLayout {
     /// 字节偏移。
     pub offset: u64,
@@ -296,7 +296,7 @@ pub struct FieldLayout {
 }
 
 /// Enum 变体布局。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct EnumVariantLayout {
     /// 变体名。
     pub name: String,
@@ -320,7 +320,7 @@ pub struct EnumVariantLayout {
 // =========================================================================
 
 /// 一个函数的 LIR 表示。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirCallable {
     /// 全限定名。
     pub fqn: String,
@@ -355,7 +355,7 @@ pub struct LirCallable {
 /// EffectStep 函数 codegen 为两个 LLVM 函数：`sym`（原始签名 wrapper：
 /// 堆分配 frame + 清零 + 写参数槽 + 调 `sym$step(frame, 0)` 并返回其 Step）
 /// 和 `sym$step(ptr frame, i64 word) -> Step`（LIR body 的编译目标）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirEffectInfo {
     /// body 内持有 frame 堆指针的 local id。
     pub frame_local: u32,
@@ -370,7 +370,7 @@ pub struct LirEffectInfo {
 }
 
 /// resume 续点：state 值 → 目标块 + resume 值投递 local。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirResumePoint {
     /// frame.state 中的 state 值。
     pub state: u64,
@@ -383,7 +383,7 @@ pub struct LirResumePoint {
 }
 
 /// 无函数体的声明。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirDeclaration {
     /// 全限定名。
     pub fqn: String,
@@ -407,7 +407,7 @@ pub struct LirDeclaration {
 }
 
 /// 函数 ABI 种类。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirCallableAbi {
     /// 普通函数 ABI：(args) -> R。
     Plain,
@@ -416,7 +416,7 @@ pub enum LirCallableAbi {
 }
 
 /// 参数。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirParam {
     /// 参数名。
     pub name: String,
@@ -430,7 +430,7 @@ pub struct LirParam {
 }
 
 /// 参数 ABI（每个参数的传递方式）。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum ParamAbi {
     /// 直接传递（标量/引用指针按值传）。
     Direct,
@@ -439,7 +439,7 @@ pub enum ParamAbi {
 }
 
 /// 函数体。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirBody {
     /// 局部变量声明。
     pub locals: Vec<LirLocalDecl>,
@@ -450,7 +450,7 @@ pub struct LirBody {
 }
 
 /// 局部变量声明。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirLocalDecl {
     /// local ID。
     pub id: u32,
@@ -465,7 +465,7 @@ pub struct LirLocalDecl {
 }
 
 /// 基本块。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirBlock {
     /// 块 ID。
     pub id: u32,
@@ -476,7 +476,7 @@ pub struct LirBlock {
 }
 
 /// LIR 语句（从 MIR StatementKind 1:1 映射，附加布局信息）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirStmt {
     /// 源 span。
     pub span: scoop2_base::Span,
@@ -485,7 +485,7 @@ pub struct LirStmt {
 }
 
 /// LIR 语句种类。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirStmtKind {
     /// 空操作。
     Nop,
@@ -518,7 +518,7 @@ pub enum LirStmtKind {
 }
 
 /// LIR Rvalue（从 MIR Rvalue 映射，简化为 local-only 操作数 + 布局信息）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirRvalue {
     /// 直接使用一个 local。
     Use(u32),
@@ -659,7 +659,7 @@ pub enum LirRvalue {
 }
 
 /// LIR 调用信息。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirCall {
     /// 调用种类。
     pub kind: LirCallKind,
@@ -670,7 +670,7 @@ pub struct LirCall {
 }
 
 /// LIR 调用种类。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirCallKind {
     /// 直接调用（已知 callee 符号名）。
     ///
@@ -720,7 +720,7 @@ pub enum LirCallKind {
 }
 
 /// LIR 模式。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirPattern {
     Wildcard,
     Bind {
@@ -754,7 +754,7 @@ pub enum LirPattern {
 }
 
 /// with 更新字段。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirWithUpdateField {
     /// enum variant 目标（`err with { Ok.point.x: 7 }` 的首段 `Ok`）：
     /// 运行时 tag 必须等于 `tag_value`，否则 panic（exit 3）。
@@ -771,7 +771,7 @@ pub struct LirWithUpdateField {
 }
 
 /// with 更新的 enum variant 目标（tag 运行时检查）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirWithUpdateVariantTarget {
     /// 变体名（诊断用）。
     pub name: String,
@@ -780,7 +780,7 @@ pub struct LirWithUpdateVariantTarget {
 }
 
 /// with 更新路径的一段。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct LirWithUpdateSegment {
     /// 字段名（tuple 段为 `_N`；仅用于诊断）。
     pub name: String,
@@ -791,14 +791,14 @@ pub struct LirWithUpdateSegment {
 }
 
 /// f-string 片段。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirInterpolatedPart {
     Lit(String),
     Expr(LirOperand),
 }
 
 /// LIR 终结符。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum LirTerminator {
     /// 函数返回。
     Return { value: Option<LirOperand> },
@@ -819,7 +819,7 @@ pub enum LirTerminator {
 // =========================================================================
 
 /// class vtable 布局。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct VtableLayout {
     /// class FQN。
     pub class_fqn: String,
@@ -828,7 +828,7 @@ pub struct VtableLayout {
 }
 
 /// vtable slot。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct VtableSlot {
     /// slot 索引（在 vtable 中的位置）。
     pub slot_index: u32,
@@ -843,7 +843,7 @@ pub struct VtableSlot {
 }
 
 /// interface itable 定义。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ItableLayout {
     /// interface FQN。
     pub interface_fqn: String,
@@ -854,7 +854,7 @@ pub struct ItableLayout {
 }
 
 /// itable slot。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ItableSlot {
     /// slot 索引。
     pub slot_index: u32,
@@ -865,7 +865,7 @@ pub struct ItableSlot {
 }
 
 /// class × interface 的 itable 实现映射。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ClassItableLayout {
     /// class FQN。
     pub class_fqn: String,
@@ -882,7 +882,7 @@ pub struct ClassItableLayout {
 // =========================================================================
 
 /// 函数的 GC 语义信息（LIR 产出，codegen 消费）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct GcInfo {
     /// 此函数中所有 GC-managed local 的列表。
     pub gc_locals: Vec<GcLocal>,
@@ -891,7 +891,7 @@ pub struct GcInfo {
 }
 
 /// 一个 GC-managed local。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct GcLocal {
     /// local ID。
     pub local_id: u32,
@@ -902,7 +902,7 @@ pub struct GcLocal {
 }
 
 /// 一个 safepoint。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct GcSafepoint {
     /// 块 ID。
     pub block_id: u32,
@@ -915,7 +915,7 @@ pub struct GcSafepoint {
 }
 
 /// safepoint 类型。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum SafepointKind {
     /// 函数调用。
     Call { callee_symbol: String },
@@ -926,7 +926,7 @@ pub enum SafepointKind {
 }
 
 /// 类型描述符（GC 运行时用）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct TypeDescriptor {
     /// 类型 FQN。
     pub type_fqn: String,
@@ -949,7 +949,7 @@ pub struct TypeDescriptor {
 // =========================================================================
 
 /// EffectStep 函数的 frame schema。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct FrameSchema {
     /// frame tuple 类型。
     pub frame_ty: TypeId,
@@ -959,7 +959,7 @@ pub struct FrameSchema {
 
 /// EffectStep 函数的 state dispatch 信息（resume-state → block-id 映射）。
 /// 供 codegen 生成分发代码（jump table 或 CondBr 链）。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct StateDispatch {
     /// state 值 → 重入块 ID 的映射。
     /// state 0 = 初始入口；state N = 第 N 个 Perform 的 resume 续点。
@@ -967,7 +967,7 @@ pub struct StateDispatch {
 }
 
 /// 单个 state dispatch 条目。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct StateDispatchEntry {
     /// state 值。
     pub state_value: u32,
@@ -976,7 +976,7 @@ pub struct StateDispatchEntry {
 }
 
 /// frame slot。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct FrameSlot {
     /// slot 索引。
     pub slot_index: u32,
@@ -989,7 +989,7 @@ pub struct FrameSlot {
 }
 
 /// frame slot 种类。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum FrameSlotKind {
     /// state 字段（Int）。
     State,
@@ -998,7 +998,7 @@ pub enum FrameSlotKind {
 }
 
 /// Step enum 布局。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct StepLayout {
     /// Step 类型。
     pub step_ty: TypeId,
@@ -1009,7 +1009,7 @@ pub struct StepLayout {
 }
 
 /// Step 变体布局。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct StepVariantLayout {
     /// 变体名。
     pub name: String,
@@ -1020,7 +1020,7 @@ pub struct StepVariantLayout {
 }
 
 /// Continuation 对象布局。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ContinuationLayout {
     /// continuation 类型 FQN。
     pub cont_fqn: String,
@@ -1029,7 +1029,7 @@ pub struct ContinuationLayout {
 }
 
 /// continuation 字段。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ContinuationField {
     /// 字段名。
     pub name: String,
@@ -1042,7 +1042,7 @@ pub struct ContinuationField {
 }
 
 /// continuation 字段种类。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum ContinuationFieldKind {
     /// GC 对象头。
     Header,
@@ -1063,14 +1063,14 @@ pub enum ContinuationFieldKind {
 // =========================================================================
 
 /// 全局初始化计划。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct GlobalInitPlan {
     /// 初始化条目（按执行顺序）。
     pub entries: Vec<GlobalInitEntry>,
 }
 
 /// 全局初始化条目。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct GlobalInitEntry {
     /// 全局变量 FQN。
     pub fqn: String,
@@ -1083,7 +1083,7 @@ pub struct GlobalInitEntry {
 }
 
 /// 类初始化计划。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ClassInitPlan {
     /// class FQN。
     pub class_fqn: String,
@@ -1098,14 +1098,14 @@ pub struct ClassInitPlan {
 }
 
 /// 类构造器的初始化块。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct InitBlock {
     /// 该初始化块对应的可调用函数符号（mangled）。
     pub body_callable: String,
 }
 
 /// 字段初始化。
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct FieldInit {
     /// 字段名。
     pub field_name: String,
@@ -1116,7 +1116,7 @@ pub struct FieldInit {
 }
 
 /// 字段初始化种类。
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum InitKind {
     /// 默认值（零初始化）。
     DefaultValue,

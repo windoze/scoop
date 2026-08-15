@@ -592,3 +592,70 @@ pub fn load_mir_archive(dir: &Path) -> Result<MirArchive, ArchiveError> {
 pub fn dump_from_mir_archive(archive: &MirArchive) -> String {
     scoop2_mir::mir::dump::dump_module(&archive.module, &archive.interner)
 }
+
+// ---------------------------------------------------------------------------
+// LIR archive（M4-3）：LIR 程序产物落地（自包含）
+// ---------------------------------------------------------------------------
+
+/// LIR archive（整程序；自包含：types + interner 随行——不回引用 MIR archive）。
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LirArchive {
+    pub header: ArchiveHeader,
+    pub program: scoop2_lir::LirProgram,
+    /// LIR 自包含的类型段（TypeId 渲染上下文）。
+    pub types: scoop2_mir::ty::TypeStore,
+    /// 符号文本解析依据。
+    pub interner: scoop2_base::Interner,
+}
+
+/// LIR archive 文件名。
+pub const LIR_ARCHIVE_FILE: &str = "program.lirarch";
+
+/// 写 LIR archive（指纹链 = MIR archive 指纹 + 本阶段参数——级联失效）。
+pub fn write_lir_archive(
+    dir: &Path,
+    lir_program: &scoop2_lir::LirProgram,
+    types: &scoop2_mir::ty::TypeStore,
+    interner: &scoop2_base::Interner,
+    mir_fingerprint: u64,
+) -> Result<PathBuf, ArchiveError> {
+    std::fs::create_dir_all(dir).map_err(|e| ArchiveError::Io(dir.to_path_buf(), e))?;
+    let header = ArchiveHeader {
+        magic: MAGIC,
+        schema_version: archive_schema::V1,
+        stage: "lir".to_string(),
+        cone_key: "__program__".to_string(),
+        compiler_version: compiler_version().to_string(),
+        fingerprint: mir_fingerprint,
+    };
+    let path = dir.join(LIR_ARCHIVE_FILE);
+    write_bytes(
+        &path,
+        &encode(&LirArchive {
+            header,
+            program: lir_program.clone(),
+            types: types.clone(),
+            interner: interner.clone(),
+        })?,
+    )?;
+    Ok(path)
+}
+
+/// 读 LIR archive（版本头校验）。
+pub fn load_lir_archive(dir: &Path) -> Result<LirArchive, ArchiveError> {
+    let path = dir.join(LIR_ARCHIVE_FILE);
+    let bytes = std::fs::read(&path).map_err(|e| ArchiveError::Io(path.clone(), e))?;
+    let (archive, _): (LirArchive, usize) =
+        bincode::serde::decode_from_slice(&bytes, bincode::config::standard())
+            .map_err(|e| ArchiveError::Decode(path.clone(), e.to_string()))?;
+    if archive.header.magic != MAGIC
+        || archive.header.schema_version != archive_schema::V1
+        || archive.header.compiler_version != compiler_version()
+    {
+        return Err(ArchiveError::VersionMismatch {
+            path,
+            detail: "版本头不匹配（magic/schema/compiler）".to_string(),
+        });
+    }
+    Ok(archive)
+}
