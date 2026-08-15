@@ -506,6 +506,8 @@ pub struct MirArchive {
     pub backend_contracts: scoop2_mir::mir::materialize::BackendContracts,
     /// dump 渲染所需的 interner 快照（自包含）。
     pub interner: scoop2_base::Interner,
+    /// 声明侧定稿（M4：LIR 输入切换的数据源——成员序/enum variant/class 集合）。
+    pub decls: scoop2_mir::mir::decls::MirDecls,
 }
 
 /// MIR archive 文件名。
@@ -544,6 +546,7 @@ pub fn write_mir_archive(
             instance_keys: mat.instance_keys.clone(),
             backend_contracts: mat.backend_contracts.clone(),
             interner: hir.interner.clone(),
+            decls: scoop2_mir::mir::decls::MirDecls::from_hir(hir),
         })?,
     )?;
     Ok(path)

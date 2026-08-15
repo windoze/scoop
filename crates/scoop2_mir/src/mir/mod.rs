@@ -17,6 +17,7 @@ pub mod effect_lower;
 pub mod inline;
 pub mod lower;
 pub mod lower_tree;
+pub mod decls;
 pub mod materialize;
 pub mod stable_id;
 pub mod transport;
