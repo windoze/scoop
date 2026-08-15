@@ -164,6 +164,10 @@ pub enum TreeExprKind {
         arg_names: Vec<Option<Symbol>>,
         /// 源实参 spread 标记（与 args 平行；语义同上）。
         arg_spread: Vec<bool>,
+        /// 实参槽位 → 求值下标置换（镜像 AST「先按源序 lower 实参、再按
+        /// resolved 序组装」的两遍分离；回退路径为恒等）。
+        #[serde(default)]
+        arg_order: Vec<u32>,
     },
     /// 成员读取（字段 / 元组下标）。
     Member {
@@ -1544,6 +1548,7 @@ impl<'a> TreeBuilder<'a> {
                 args,
                 arg_names: vec![None; n],
                 arg_spread: vec![false; n],
+                arg_order: (0..n as u32).collect(),
             },
             ty,
             span,
@@ -1575,44 +1580,53 @@ impl<'a> TreeBuilder<'a> {
         // default filling）：Provided → 源实参；Default → 构造默认值表达式。
         // 命名/spread 元数据只在回退路径携带（resolved 路径按位无名——镜像
         // AST lower_resolved_call_args）。
-        let (final_args, arg_names, arg_spread) = match self.facts.resolved_call_args.get(expr.id) {
-            Some(resolved) => {
-                let mut filled: Vec<ExprId> = Vec::with_capacity(resolved.len());
-                for ra in resolved {
-                    match ra {
-                        super::ResolvedCallArg::Provided { original_index } => {
-                            let Some(&id) = arg_ids.get(*original_index) else {
-                                return self
-                                    .gap_ret(span, "resolved_call_args 越界（completeness 泄漏）");
-                            };
-                            filled.push(id);
-                        }
-                        super::ResolvedCallArg::Default { expr } => {
-                            let Some(id) = self.build_expr(expr) else {
-                                return None;
-                            };
-                            filled.push(id);
+        // 求值序 = 源实参序 + 默认值（按 resolved 序追加）；组装序（槽位→
+        // 求值下标）镜像 lower_resolved_call_args 的两遍结构。
+        let (final_args, arg_names, arg_spread, arg_order) =
+            match self.facts.resolved_call_args.get(expr.id) {
+                Some(resolved) => {
+                    let mut evals = arg_ids;
+                    let mut order: Vec<u32> = Vec::with_capacity(resolved.len());
+                    for ra in resolved {
+                        match ra {
+                            super::ResolvedCallArg::Provided { original_index } => {
+                                if *original_index >= evals.len() {
+                                    return self.gap_ret(
+                                        span,
+                                        "resolved_call_args 越界（completeness 泄漏）",
+                                    );
+                                }
+                                order.push(*original_index as u32);
+                            }
+                            super::ResolvedCallArg::Default { expr } => {
+                                let Some(id) = self.build_expr(expr) else {
+                                    return None;
+                                };
+                                order.push(evals.len() as u32);
+                                evals.push(id);
+                            }
                         }
                     }
+                    let n = order.len();
+                    (evals, vec![None; n], vec![false; n], order)
                 }
-                let n = filled.len();
-                (filled, vec![None; n], vec![false; n])
-            }
-            None => {
-                let names = args
-                    .iter()
-                    .map(|a| a.name.as_ref().map(|n| n.symbol))
-                    .collect();
-                let spreads = args.iter().map(|a| a.is_spread).collect();
-                (arg_ids, names, spreads)
-            }
-        };
+                None => {
+                    let names = args
+                        .iter()
+                        .map(|a| a.name.as_ref().map(|n| n.symbol))
+                        .collect();
+                    let spreads = args.iter().map(|a| a.is_spread).collect();
+                    let order = (0..arg_ids.len() as u32).collect();
+                    (arg_ids, names, spreads, order)
+                }
+            };
         Some(self.push_expr(
             TreeExprKind::Call {
                 callee: callee_id,
                 args: final_args,
                 arg_names,
                 arg_spread,
+                arg_order,
             },
             ty,
             span,
@@ -1901,6 +1915,7 @@ pub fn synthesize_class_init_tree(
                 args,
                 arg_names: vec![None; n],
                 arg_spread: vec![false; n],
+                arg_order: (0..n as u32).collect(),
             },
             unit_ty,
             d.name.span,
@@ -2068,6 +2083,7 @@ pub fn synthesize_secondary_ctor_tree(
                     args,
                     arg_names: vec![None; n],
                     arg_spread: vec![false; n],
+                    arg_order: (0..n as u32).collect(),
                 },
                 unit_ty,
                 sc.span,

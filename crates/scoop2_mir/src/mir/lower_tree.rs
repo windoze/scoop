@@ -295,7 +295,10 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             args,
             arg_names,
             arg_spread,
-        } => lower_tree_call(builder, body, callee, args, arg_names, arg_spread, ty, span),
+            arg_order,
+        } => lower_tree_call(
+            builder, body, callee, args, arg_names, arg_spread, arg_order, ty, span,
+        ),
         TreeExprKind::Member { recv, member } => {
             let recv_op = lower_tree_expr(builder, body, *recv);
             lower_tree_member(builder, recv_op, member, ty, span)
@@ -860,6 +863,7 @@ fn lower_tree_call(
     args: &[ExprId],
     arg_names: &[Option<scoop2_base::Symbol>],
     arg_spread: &[bool],
+    arg_order: &[u32],
     ty: scoop2_hir::ty::TypeId,
     span: Span,
 ) -> Operand {
@@ -902,16 +906,21 @@ fn lower_tree_call(
         Some(builder.next_site_id())
     };
     let call_transport = builder.call_transport(ty);
-    let mir_args: Vec<crate::mir::CallArg> = arg_ops
+    // 组装序 = arg_order 置换（求值序驱动 lowering，槽位序驱动组装——镜像
+    // AST 两遍分离）。空置换（旧数据）按恒等处理。
+    let effective_order: Vec<usize> = if arg_order.is_empty() {
+        (0..args.len()).collect()
+    } else {
+        arg_order.iter().map(|&i| i as usize).collect()
+    };
+    let mir_args: Vec<crate::mir::CallArg> = effective_order
         .iter()
-        .zip(args.iter())
-        .zip(arg_names.iter().chain(std::iter::repeat(&None)))
-        .zip(arg_spread.iter().chain(std::iter::repeat(&false)))
-        .map(|(((op, &e), name), spread)| crate::mir::CallArg {
-            name: *name,
-            is_spread: *spread,
-            value: op.clone(),
-            value_ty: body.exprs[e.0 as usize].ty,
+        .enumerate()
+        .map(|(slot, &eval_idx)| crate::mir::CallArg {
+            name: arg_names.get(slot).copied().flatten(),
+            is_spread: arg_spread.get(slot).copied().unwrap_or(false),
+            value: arg_ops[eval_idx].clone(),
+            value_ty: body.exprs[args[eval_idx].0 as usize].ty,
         })
         .collect();
     let _ = &arg_ops;

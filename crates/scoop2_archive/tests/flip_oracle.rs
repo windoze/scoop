@@ -213,9 +213,7 @@ fn flip_oracle_corpus_stats() {
 ///
 /// 目录与单文件 dump 可由 `/tmp/scoop2_mod.cfg` 覆盖（两行：目录 csv、
 /// 文件名子串；不存在则默认全语料）——避免测试进程 env 传递的不稳定。
-/// 修复完成后移除 `ignore`（当前 run-pass 语料尚有差异——修复驱动门）。
 #[test]
-#[ignore = "M2-5 翻转验收门：run-pass 语料模块级差异修复中（显式 --ignored 运行）"]
 fn flip_oracle_module_level() {
     let (roots, one) = match std::fs::read_to_string("/tmp/scoop2_mod.cfg") {
         Ok(cfg) => {
