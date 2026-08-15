@@ -1,5 +1,6 @@
 //! 表达式解析（grammar §8）：Pratt 二元优先级 + postfix + 控制流 + handle/try。
 
+use scoop2_base::diag::Diagnostic;
 use scoop2_base::Span;
 
 use crate::ast::expr::*;
@@ -442,7 +443,10 @@ impl<'a> Parser<'a> {
     fn parse_member_access_expr(&mut self, receiver: Expr) -> PResult<Expr> {
         self.expect_sym(Symbol::Dot)?;
 
-        // splice 字段访问 `receiver.[field]`（§8.4，spec §6.4）。
+        // splice 字段访问 `receiver.[field]`（§8.4，spec §6.4）：comptime
+        // 反射特性，**已从语言移除**——parser 即拒绝（M5 B 类上移：此前
+        // typecheck 放行、MIR 阶段以 splice_field_removed 拒绝，违反 C5
+        // 「HIR 是唯一前端拒绝边界」）。
         if self.at_sym(Symbol::LBracket) {
             let open = self.bump();
             let field = self.expr()?;
@@ -450,14 +454,17 @@ impl<'a> Parser<'a> {
                 return Err(self.err_unclosed(open.span.start, "`]`"));
             }
             let close = self.expect_sym(Symbol::RBracket)?;
-            return Ok(Expr {
-                id: self.nid(),
-                span: Span::new(receiver.span.start, close.span.end),
-                kind: ExprKind::SpliceField {
-                    receiver: Box::new(receiver),
-                    field: Box::new(field),
-                },
-            });
+            self.record(
+                Diagnostic::error(
+                    "scoop::parse::splice_field_removed",
+                    "splice field（`receiver.[field]` comptime 反射）已从语言移除；请改用具体字段访问 `receiver.field`",
+                )
+                .with_primary(
+                    Span::new(open.span.start, close.span.end),
+                    "splice field 访问在此",
+                ),
+            );
+            return Err(super::Abort);
         }
 
         let member = self.parse_member_segment("成员名（标识符或 tuple 索引）")?;

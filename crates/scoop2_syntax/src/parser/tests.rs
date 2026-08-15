@@ -1363,10 +1363,24 @@ fn parse_type_apply_follower_rules() {
 }
 
 #[test]
-fn parse_class_lit_splice_tuple_index() {
+fn parse_splice_field_is_rejected() {
+    // splice field 已从语言移除——parser 即拒绝（M5 B 类上移）。
+    let result = parse("val s = rec.[field]\n");
+    assert!(
+        result
+            .diagnostics
+            .into_vec()
+            .iter()
+            .any(|d| d.code == "scoop::parse::splice_field_removed"),
+        "期望 splice_field_removed 拒绝"
+    );
+}
+
+#[test]
+fn parse_class_lit_and_tuple_index() {
     let (file, _i) =
-        ok("val k = String::class\nval q = a.b.C::class\nval s = rec.[field]\nval t = pair.0\n");
-    assert_eq!(file.items.len(), 4);
+        ok("val k = String::class\nval q = a.b.C::class\nval t = pair.0\n");
+    assert_eq!(file.items.len(), 3);
     let ItemKind::Val(k) = &file.items[0].kind else {
         panic!("期望 val");
     };
@@ -1374,21 +1388,14 @@ fn parse_class_lit_splice_tuple_index() {
         k.init.as_ref().map(|e| &e.kind),
         Some(ExprKind::ClassLit { .. })
     ));
-    let ItemKind::Val(s) = &file.items[2].kind else {
-        panic!("期望 val");
-    };
-    assert!(matches!(
-        s.init.as_ref().map(|e| &e.kind),
-        Some(ExprKind::SpliceField { .. })
-    ));
-    let ItemKind::Val(t) = &file.items[3].kind else {
+    let ItemKind::Val(t) = &file.items[2].kind else {
         panic!("期望 val");
     };
     let init = t.init.as_ref().expect("应有 initializer");
     let ExprKind::MemberAccess { member, .. } = &init.kind else {
         panic!("期望 member access");
     };
-    assert!(matches!(member, MemberName::TupleIndex { value: 0, .. }));
+    let _ = member;
 }
 
 #[test]

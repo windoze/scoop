@@ -1,8 +1,8 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::mir::splice_field_removed
+// EXPECT-ERROR-CODE: scoop::parse::splice_field_removed
 // splice field `p.["x"]` / `p.[FieldMeta{...}]` 是 comptime 反射特性，已从语言移除。
-// MIR 阶段明确拒绝（scoop::mir::splice_field_removed），引导用户改用具体字段访问 `p.x`。
-// typecheck 通过（splice field 在前端解析为字段访问），MIR lowering 阶段拒绝。
+// parser 即拒绝（scoop::parse::splice_field_removed——M5 B 类上移：前端唯一拒绝边界），引导用户改用具体字段访问 `p.x`。
+// parser 拒绝（不再构造 SpliceField AST 节点）。
 
 package fixtures.mir2_fail
 
