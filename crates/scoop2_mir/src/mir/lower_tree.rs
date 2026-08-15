@@ -2349,7 +2349,7 @@ fn lower_tree_pattern_test(
 
                 // 通过路径：提取第 i 个 payload 字段并递归测试
                 builder.current_bb = cont_bb;
-                let field_ty = tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i);
+                let field_ty = tree_variant_payload_field_ty(builder, subj_ty, *variant, i);
                 prev_test = if let Some(field_ty) = field_ty {
                     let tmp = builder.alloc_temp(field_ty, subj_ty_of(builder, &subj));
                     let variant_str = builder.hir.interner.resolve(*variant).to_string();
@@ -2549,7 +2549,7 @@ fn bind_tree_pattern(
                     | TreePattern::Struct { .. } => {
                         // 嵌套子模式：提取字段后递归绑定。
                         if let Some(field_ty) =
-                            tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i)
+                            tree_variant_payload_field_ty(builder, subj_ty, *variant, i)
                         {
                             let tmp = builder.alloc_temp(field_ty, Span::default());
                             builder.assign(
@@ -2722,7 +2722,7 @@ fn bind_tree_pattern_arm(
                     TreePattern::Variant { .. } | TreePattern::Tuple(_) | TreePattern::Or(_)
                 ) {
                     if let Some(field_ty) =
-                        tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i)
+                        tree_variant_payload_field_ty(builder, subj_ty, *variant, i)
                     {
                         let tmp = builder.alloc_temp(field_ty, subj_ty_of(builder, &subj));
                         builder.assign(
@@ -2827,7 +2827,7 @@ fn lower_tree_pattern_to_mir(
 fn tree_variant_payload_field_ty(
     builder: &FnLowering,
     subj_ty: scoop2_hir::ty::TypeId,
-    enum_fqn: &str,
+    variant: scoop2_base::Symbol,
     index: usize,
 ) -> Option<scoop2_hir::ty::TypeId> {
     use scoop2_hir::ty::{TypeKind, ValueTypeKind};
@@ -2844,7 +2844,11 @@ fn tree_variant_payload_field_ty(
     match builder.types.kind(subj_ty) {
         TypeKind::Value(ValueTypeKind::Nominal(n))
         | TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => {
-            let vfqn = builder.hir.interner.get(enum_fqn)?;
+            // 镜像 variant_payload_field_ty：variant FQN 文本 = subject nominal
+            // 的完整 FQN + variant 名（非模式路径文本——裸名/限定名统一）。
+            let variant_text = builder.hir.interner.resolve(variant);
+            let fqn_text = format!("{}.{}", builder.hir.interner.resolve(n.fqn), variant_text);
+            let vfqn = builder.hir.interner.get(&fqn_text)?;
             let members = builder.hir.ordered_members(&vfqn);
             members.get(index).map(|(_, ty)| *ty)
         }
