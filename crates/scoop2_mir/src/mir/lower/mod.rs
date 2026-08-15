@@ -1,196 +1,21 @@
-//! HIR → MIR lowering。
+//! MIR lowering 基建（M2-5 翻转后）。
 //!
-//! 入口 [`lower_module`]：消费 `ast::File` + `scoop2_hir::TypedHir`，产出
-//! [`crate::mir::Module`]。每个函数体由 [`FnLowering`] 构建器 lower 为
-//! [`crate::mir::Body`]（locals + 基本块图）。
-//!
-//! 表达式 lowering 是 ANF 风格：每个表达式 lower 为一个临时 local 的赋值
-//! （`StatementKind::Assign { target, value: Rvalue }`）。控制流（if/when/while/for/
-//! break/continue/try/handle/perform）lower 为基本块图。
-//!
-//! 覆盖全部 33 `ExprKind` + 8 `StmtKind`，无 fallback：合法构造全部 lower；
-//! 非法构造（如 `break` 出循环）报具体拒绝码（`scoop::mir::break_outside_loop` 等），
-//! comptime 反射特性（splice field）报 `scoop::mir::splice_field_removed`。
+//! AST lowering 路径已删除（双路径 oracle 325/325 字节一致后退役）——
+//! 唯一入口是 [`crate::mir::lower_tree::lower_module_from_trees`]（HIR 树 +
+//! item 骨架驱动）。本模块保留 [`FnLowering`] 构建器（树路径复用的机器）
+//! 与模块合并的 remap 助手、[`LowerResult`]。
 
 pub mod builder;
-pub mod expr;
-pub mod stmt;
-#[cfg(test)]
-mod tests;
 
 pub use builder::FnLowering;
 
-use scoop2_base::diag::DiagnosticSink;
-use scoop2_hir::hir::TypedHir;
-
 use crate::diagnostics::MirLowerError;
-use crate::mir::{Item, MetadataKind, MetadataRoot, Module};
+use crate::mir::{Item, Module};
 
-/// lowering 结果：Module + 错误列表（错误已 push 进 sink）。
+/// lowering 结果：Module + 错误列表。
 pub struct LowerResult {
     pub module: Module,
     pub errors: Vec<MirLowerError>,
-}
-
-/// 把一组用户文件 lower 为 MIR Module。
-///
-/// - `files`：与 typecheck 输入一致顺序的 (FileId, &ast::File)（仅 User 文件）。
-/// - `hir`：typed HIR（含 expr_types 与语义事实侧表）。
-/// - `diags`：诊断 sink（lowering 错误 push 进此）。
-pub fn lower_module<'f>(
-    files: impl Iterator<Item = (scoop2_base::FileId, &'f scoop2_syntax::ast::File)>,
-    hir: &TypedHir,
-    diags: &mut DiagnosticSink,
-) -> LowerResult {
-    let mut module = Module {
-        items: Vec::new(),
-        // lowering 过程中新 intern 的类型需要 store；从 hir 克隆（TypeStore 是 Clone 的）。
-        types: hir.store.clone(),
-    };
-    let mut errors: Vec<MirLowerError> = Vec::new();
-    for (file_id, file) in files {
-        lower_file(file_id, file, hir, &mut module, &mut errors);
-    }
-    // 把错误 push 进 sink。
-    for e in &errors {
-        diags.push(e.to_diagnostic());
-    }
-    LowerResult { module, errors }
-}
-
-/// lower 单个文件的顶层 items。
-fn lower_file(
-    file_id: scoop2_base::FileId,
-    file: &scoop2_syntax::ast::File,
-    hir: &TypedHir,
-    module: &mut Module,
-    errors: &mut Vec<MirLowerError>,
-) {
-    use scoop2_syntax::ast::ItemKind;
-    let package_prefix = hir
-        .file(file_id)
-        .map(|f| f.package_prefix.as_str())
-        .unwrap_or("");
-    let mut local_items: Vec<Item> = Vec::new();
-    for item in &file.items {
-        match &item.kind {
-            ItemKind::Fun(d) => {
-                let base = module.types.clone();
-                let (fd, nested, fn_store) =
-                    builder::lower_fun_decl(file_id, d, hir, package_prefix, &base, errors);
-                if let Some(fd) = fd {
-                    // 合并 per-function store 到 module.types，remap TypeId。
-                    let remap = module.types.extend_from(&fn_store);
-                    local_items.push(Item::Fun(remap_fun_decl(&remap, fd)));
-                    // 嵌套闭包函数作为 sibling items（同样 remap）。
-                    for nf in nested {
-                        local_items.push(Item::Fun(remap_fun_decl(&remap, nf)));
-                    }
-                }
-            }
-            ItemKind::Val(d) => {
-                let base = module.types.clone();
-                let (ir_opt, val_store) =
-                    builder::lower_top_level_val(file_id, d, hir, package_prefix, &base, errors);
-                if let Some(ir) = ir_opt {
-                    let remap = module.types.extend_from(&val_store);
-                    local_items.push(remap_item(&remap, ir));
-                }
-            }
-            ItemKind::Type(d) => {
-                let fqn = fqn_of(package_prefix, d.name.symbol, hir);
-                let owner_sym = hir.interner.get(&fqn).unwrap_or_default();
-                let kind = match d.kind {
-                    scoop2_syntax::ast::TypeKind::Class => MetadataKind::Class,
-                    scoop2_syntax::ast::TypeKind::Interface => MetadataKind::Interface,
-                    scoop2_syntax::ast::TypeKind::Struct => MetadataKind::Struct,
-                    scoop2_syntax::ast::TypeKind::Enum => MetadataKind::Enum,
-                    scoop2_syntax::ast::TypeKind::Effect => MetadataKind::Effect,
-                };
-                local_items.push(Item::Metadata(MetadataRoot {
-                    span: d.name.span,
-                    fqn,
-                    kind,
-                    file: file_id,
-                }));
-                // 类型体的成员函数也需 lower（method bodies）。
-                if let Some(body) = &d.body {
-                    let base = module.types.clone();
-                    let member_items = builder::lower_type_member_funs_with_stores(
-                        file_id,
-                        &body.members,
-                        Some(d),
-                        hir,
-                        package_prefix,
-                        &base,
-                        errors,
-                        owner_sym,
-                    );
-                    for (it, st) in member_items {
-                        let remap = module.types.extend_from(&st);
-                        local_items.push(remap_item(&remap, it));
-                    }
-                }
-                // class 初始化 callable（`<Class>.$init`）：仅当类有 init 块 / 属性初始化器 /
-                // 超类委托时合成。codegen 在 scoop_alloc_typed 之后调用它，执行 Kotlin 顺序
-                // 的 super 委托 / 属性参数赋值 / 属性初始化器 / init 块。
-                if let Some((init_fd, nested, init_store)) = builder::lower_class_init_callable(
-                    file_id,
-                    d,
-                    hir,
-                    package_prefix,
-                    &module.types.clone(),
-                    errors,
-                    owner_sym,
-                ) {
-                    let remap = module.types.extend_from(&init_store);
-                    local_items.push(remap_item(&remap, Item::Fun(init_fd)));
-                    for nf in nested {
-                        local_items.push(remap_item(&remap, Item::Fun(nf)));
-                    }
-                }
-            }
-            ItemKind::Object(d) => {
-                if let Some(name) = &d.name {
-                    let fqn = fqn_of(package_prefix, name.symbol, hir);
-                    local_items.push(Item::Metadata(MetadataRoot {
-                        span: name.span,
-                        fqn,
-                        kind: MetadataKind::Object,
-                        file: file_id,
-                    }));
-                }
-                if let Some(body) = &d.body {
-                    let base = module.types.clone();
-                    let owner_sym = d
-                        .name
-                        .and_then(|n| {
-                            let fqn = fqn_of(package_prefix, n.symbol, hir);
-                            hir.interner.get(&fqn)
-                        })
-                        .unwrap_or_default();
-                    let member_items = builder::lower_type_member_funs_with_stores(
-                        file_id,
-                        &body.members,
-                        None,
-                        hir,
-                        package_prefix,
-                        &base,
-                        errors,
-                        owner_sym,
-                    );
-                    for (it, st) in member_items {
-                        let remap = module.types.extend_from(&st);
-                        local_items.push(remap_item(&remap, it));
-                    }
-                }
-            }
-            ItemKind::ExtensionProperty(_) | ItemKind::TypeAlias(_) => {
-                // 扩展属性 / typealias：MIR 不单独建模（成员访问决议已在 HIR 侧表）。
-            }
-        }
-    }
-    module.items.extend(local_items);
 }
 
 /// 用 remap 表重写 FunDecl 中的所有 TypeId。
@@ -392,12 +217,3 @@ fn remap_terminator(
     }
 }
 
-/// 构造 FQN 文本。
-pub(crate) fn fqn_of(prefix: &str, simple: scoop2_base::Symbol, hir: &TypedHir) -> String {
-    let name = hir.interner.resolve(simple);
-    if prefix.is_empty() {
-        name.to_string()
-    } else {
-        format!("{}.{}", prefix, name)
-    }
-}

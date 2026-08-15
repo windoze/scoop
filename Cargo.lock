@@ -734,7 +734,6 @@ version = "0.1.0"
 dependencies = [
  "scoop2_base",
  "scoop2_hir",
- "scoop2_syntax",
 ]
 
 [[package]]

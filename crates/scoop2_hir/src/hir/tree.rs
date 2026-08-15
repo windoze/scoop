@@ -397,10 +397,18 @@ pub enum Lit {
     Unit,
     Bool(bool),
     /// 整型字面量（值 + 后缀——MIR Const 携带后缀物化语义）。
-    Int(u128, Option<crate::syntax::ast::IntSuffix>),
+    Int(u128, Option<TreeIntSuffix>),
     Float(f64),
     Char(char),
     Str(String),
+}
+
+/// 整型字面量后缀（自有枚举——下游 MIR 不依赖 syntax 类型）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum TreeIntSuffix {
+    U,
+    L,
+    Ul,
 }
 
 /// 已解析的被调用方（从 [`super::ResolvedCall`] 折叠）。
@@ -555,7 +563,7 @@ impl<'a> TreeBuilder<'a> {
             PatternKind::Literal(l) => {
                 use crate::syntax::ast::PatternLiteral;
                 let lit = match l {
-                    PatternLiteral::Int(v) => Lit::Int(v.value, v.suffix),
+                    PatternLiteral::Int(v) => Lit::Int(v.value, v.suffix.map(tree_int_suffix)),
                     PatternLiteral::Char(c) => Lit::Char(c.value),
                     PatternLiteral::String(s) => Lit::Str(s.value.clone()),
                     PatternLiteral::Bool { value, .. } => Lit::Bool(*value),
@@ -1002,7 +1010,11 @@ impl<'a> TreeBuilder<'a> {
         match &expr.kind {
             ExprKind::UnitLit => Some(self.push_expr(TreeExprKind::Lit(Lit::Unit), lit_ty, span)),
             ExprKind::IntLit(l) => {
-                Some(self.push_expr(TreeExprKind::Lit(Lit::Int(l.value, l.suffix)), lit_ty, span))
+                Some(self.push_expr(
+                    TreeExprKind::Lit(Lit::Int(l.value, l.suffix.map(tree_int_suffix))),
+                    lit_ty,
+                    span,
+                ))
             }
             ExprKind::FloatLit(l) => {
                 Some(self.push_expr(TreeExprKind::Lit(Lit::Float(l.value)), lit_ty, span))
@@ -2313,4 +2325,13 @@ fn super_decl_ty(hir: &super::TypedHir, owner_sym: Symbol) -> Option<TypeId> {
             )
         })
         .map(|(&ty, _)| ty)
+}
+
+/// AST 整型后缀 → 树后缀。
+fn tree_int_suffix(s: crate::syntax::ast::IntSuffix) -> TreeIntSuffix {
+    match s {
+        crate::syntax::ast::IntSuffix::U => TreeIntSuffix::U,
+        crate::syntax::ast::IntSuffix::L => TreeIntSuffix::L,
+        crate::syntax::ast::IntSuffix::UL => TreeIntSuffix::Ul,
+    }
 }

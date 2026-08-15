@@ -26,7 +26,6 @@
 
 pub use scoop2_base as base;
 pub use scoop2_hir as hir;
-pub use scoop2_syntax as syntax;
 
 pub mod diagnostics;
 pub mod mir;

@@ -701,7 +701,7 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             let site_id = Some(builder.next_site_id());
             let transport = builder.call_transport(bool_ty);
             let kind = builder.make_dispatch_call_kind(
-                crate::mir::lower::stmt::resolve_owner_fqn_from_operand(builder, &v),
+                crate::mir::lower::builder::resolve_owner_fqn_from_operand(builder, &v),
                 v.clone(),
                 dispatch,
             );
@@ -774,7 +774,6 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             // 镜像 lower_handle：Handle 终结符 + body/arm/finally 块 + binder 作用域管理。
             lower_tree_handle(builder, body, *hbody, arms, *finally_, ty, span)
         }
-        _ => unsupported!("本切片支持集外的表达式构造"),
     }
 }
 
@@ -790,7 +789,7 @@ fn lit_operand(
         Lit::Bool(b) => Operand::Const(ConstValue::Bool(*b)),
         Lit::Int(v, suffix) => Operand::Const(ConstValue::Int(
             *v,
-            crate::mir::lower::expr::suffix_of(suffix),
+            crate::mir::lower::builder::suffix_of(suffix),
         )),
         Lit::Float(v) => {
             let f32_expected = matches!(
@@ -1353,11 +1352,11 @@ fn lower_logical(
 // ---- 小工具（避免对 builder 内部布局的额外假设）----
 
 fn operand_ty_of(builder: &mut FnLowering, op: &Operand) -> scoop2_hir::ty::TypeId {
-    crate::mir::lower::stmt::operand_ty_public(builder, op)
+    crate::mir::lower::builder::operand_ty_public(builder, op)
 }
 
 fn recv_ty_of(builder: &mut FnLowering, op: &Operand) -> scoop2_hir::ty::TypeId {
-    crate::mir::lower::stmt::operand_ty_public(builder, op)
+    crate::mir::lower::builder::operand_ty_public(builder, op)
 }
 
 fn decl_span_of(body: &TreeBody, eid: ExprId) -> Span {

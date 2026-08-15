@@ -880,5 +880,9 @@ pub struct Metadata {
     pub source_file: FileId,
 }
 
-// 复用 AST 的 op 枚举（不重复定义）。
-pub use scoop2_syntax::ast::CastOp;
+/// `as` / `as?` 转换操作（M2-5 删除 AST 路径后自有定义）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CastOp {
+    As,
+    AsSafe,
+}
