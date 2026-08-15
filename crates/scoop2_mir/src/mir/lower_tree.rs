@@ -1474,7 +1474,21 @@ pub fn lower_tree_fun_decl(
         params: Vec::new(),
         return_ty,
         effect_row: effect_row.clone(),
-        type_params: Vec::new(),
+        type_params: {
+            // 泛型模板参数（按声明序）：type_constraints 的参数名 → store 的
+            // TypeParamId（镜像 AST 路径的 d.type_params 映射——单态化 subst
+            // 的键空间）。
+            hir.interner
+                .get(&tree.fqn)
+                .and_then(|sym| hir.type_constraints.get(&sym))
+                .map(|tc| {
+                    tc.type_params
+                        .iter()
+                        .filter_map(|&n| types.find_param_by_name(n))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        },
         body: None,
         file: file_id,
         stable_template_key: None,

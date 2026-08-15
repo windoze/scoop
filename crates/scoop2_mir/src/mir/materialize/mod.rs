@@ -397,7 +397,7 @@ pub fn materialize(
     }
     let mut result_module = Module {
         items,
-        types: work.store,
+        types: work.store.clone(),
     };
     // 去虚化 pass：final/单候选接收者的 Virtual/Interface 调用改写为 Direct。
     let devirt_ctx = crate::mir::devirtualize::DevirtContext {
@@ -417,11 +417,109 @@ pub fn materialize(
     crate::mir::effect_lower::lower_effects(&mut result_module, &hir.interner);
     // 为所有顶层函数计算 stable template key（供分离编译）。
     crate::mir::stable_id::compute_public_stable_keys(&mut result_module, &hir.interner);
+    // 无泛型出口 gate（M3-4，ICE 级）：实例体内不得残留 TypeParam——违反即
+    // materialize 类型替换不完备（编译器 bug，bug 通道而非用户诊断，C5）。
+    no_generics_gate(&result_module, &work.store);
     Ok(MaterializedMir {
         module: result_module,
         instance_keys: work.order,
         backend_contracts: work.backend_contracts,
     })
+}
+
+/// 无泛型出口 gate：扫描单态化模块的全部类型位点（签名/局部/语句/终结符
+/// 内嵌类型），发现 `TypeKind::Param` 残留即 panic（ICE）。
+fn no_generics_gate(module: &Module, store: &TypeStore) {
+    let is_param = |ty: scoop2_hir::ty::TypeId| {
+        matches!(store.kind(ty), scoop2_hir::ty::TypeKind::Param(_))
+    };
+    // debug 断言形态的 ICE（C9-4：verify 降级为 debug 断言——不进生产控制流）。
+    let mut check = |ty: scoop2_hir::ty::TypeId, where_: &str| {
+        debug_assert!(
+            !is_param(ty),
+            "ICE[no-generics-gate]: 单态化输出残留 TypeParam @ {where_}"
+        );
+    };
+    for item in &module.items {
+        if let Item::Fun(fd) = item {
+            debug_assert!(
+                fd.type_params.is_empty(),
+                "ICE[no-generics-gate]: {} type_params 非空",
+                fd.fqn
+            );
+            check(fd.ty, &format!("{}:fn_ty", fd.fqn));
+            check(fd.return_ty, &format!("{}:return", fd.fqn));
+            for p in &fd.params {
+                check(p.ty, &format!("{}:param {}", fd.fqn, p.name));
+            }
+            let Some(body) = &fd.body else { continue };
+            for (i, decl) in body.locals.iter().enumerate() {
+                check(
+                    decl.ty,
+                    &format!("{}:local[{i}]={:?}", fd.fqn, decl.name),
+                );
+            }
+            for block in &body.blocks {
+                for stmt in &block.stmts {
+                    if let crate::mir::StatementKind::Assign { value, .. } = &stmt.kind {
+                        gate_rvalue_types(value, &mut check);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// 收集 rvalue 内嵌类型位点并逐个检查（TupleIndex/EnumVariant/Cast/TypeTest/
+/// MakeArray/MemberAccess 等携带 TypeId 的变体）。
+fn gate_rvalue_types(
+    rv: &crate::mir::Rvalue,
+    check: &mut impl FnMut(scoop2_hir::ty::TypeId, &str),
+) {
+    use crate::mir::Rvalue;
+    match rv {
+        Rvalue::TupleIndex { element_ty, .. } => check(*element_ty, "rvalue:tuple_index"),
+        Rvalue::IndexAccess {
+            element_ty,
+            receiver_ty,
+            ..
+        } => {
+            check(*element_ty, "rvalue:index");
+            check(*receiver_ty, "rvalue:index_recv");
+        }
+        Rvalue::EnumVariant {
+            enum_ty, payload, ..
+        } => {
+            check(*enum_ty, "rvalue:enum");
+            check(payload.aggregate_ty, "rvalue:enum_payload");
+        }
+        Rvalue::TypeTest { metadata, .. } => {
+            check(metadata.descriptor.ty, "rvalue:type_test_desc");
+            check(metadata.target_ty, "rvalue:type_test_target");
+            check(metadata.source_ty, "rvalue:type_test_source");
+        }
+        Rvalue::Cast { metadata, .. } => {
+            check(metadata.test.source_ty, "rvalue:cast_src");
+            check(metadata.test.target_ty, "rvalue:cast_target");
+        }
+        Rvalue::MemberAccess { member, .. } => {
+            check(member.receiver_ty, "rvalue:member_recv");
+        }
+        Rvalue::MakeArray { result_ty, .. } => check(*result_ty, "rvalue:make_array"),
+        Rvalue::MakeTuple { transport, .. } => {
+            check(transport.aggregate_ty, "rvalue:make_tuple");
+        }
+        Rvalue::StructLit { transport, .. } => {
+            check(transport.aggregate_ty, "rvalue:struct_lit");
+        }
+        Rvalue::MakeClosure { env_contract, .. } => {
+            check(env_contract.env_ty, "rvalue:closure_env");
+            for cap in &env_contract.captures {
+                check(cap.transport.source_ty, "rvalue:closure_capture");
+            }
+        }
+        _ => {}
+    }
 }
 
 /// 从 generic.items 的 Class metadata 收集 class_itables contracts。
@@ -569,8 +667,16 @@ fn collect_templates(module: &Module) -> HashMap<String, Vec<FunDecl>> {
     let mut map: HashMap<String, Vec<FunDecl>> = HashMap::new();
     for item in &module.items {
         if let Item::Fun(fd) = item {
-            if fd.fqn.contains("$ctor") {}
-            map.entry(fd.fqn.clone()).or_default().push(fd.clone());
+            // 闭包（`<enclosing>$closure<N>`）并入**外层函数的 family**：其
+            // 体内的 Param 类型属于外层模板的参数空间——只有随外层同一
+            // subst 替换才完备（独立实例化 + 空实参会让 Param 残留——
+            // no-generics gate 抓到的真身）。
+            let key = if let Some(pos) = fd.fqn.find("$closure") {
+                fd.fqn[..pos].to_string()
+            } else {
+                fd.fqn.clone()
+            };
+            map.entry(key).or_default().push(fd.clone());
         }
     }
     map
@@ -626,6 +732,8 @@ fn subst_fun_decl(mut fd: FunDecl, subst: &Subst, store: &mut TypeStore) -> FunD
     if let Some(body) = fd.body.take() {
         fd.body = Some(subst_body(body, subst, store));
     }
+    // 实例是具体化的：模板参数清空（无泛型出口 gate 的契约）。
+    fd.type_params = Vec::new();
     fd
 }
 
@@ -1084,14 +1192,9 @@ fn scan_rvalue_calls(rv: &Rvalue, reqs: &mut Vec<InstanceKey>, interner: &scoop2
             // 递归进 CallArg（嵌套调用）。
             let _ = args;
         }
-        // 闭包构造：invoke_fqn 指向闭包 invoke 函数，需入队以单态化。
-        Rvalue::MakeClosure { invoke_fqn, .. } => {
-            reqs.push(InstanceKey {
-                template_fqn: invoke_fqn.clone(),
-                overload_sig: String::new(),
-                type_args: Vec::new(),
-            });
-        }
+        // 闭包构造：闭包并入外层 family（collect_templates）——随外层实例
+        // 一同替换/发射，不独立入队（其 Param 属外层参数空间）。
+        Rvalue::MakeClosure { .. } => {}
         // class 构造：强制实例化该类的初始化 callable。
         // primary ctor → `<Class>.$init`；secondary ctor → `<Class>.$ctor.s<span_start>`。
         // 两者都 push（$ctor 存在时实例化，不存在则 scan_calls 过滤）。
@@ -1147,13 +1250,8 @@ fn scan_call_kind(kind: &CallKind, reqs: &mut Vec<InstanceKey>) {
                 type_args: dispatch.generic_type_args.clone(),
             });
         }
-        // 闭包调用：invoke_fqn 指向闭包 invoke 函数，需入队以单态化。
-        CallKind::Closure { invoke_fqn, .. } => {
-            reqs.push(InstanceKey {
-                template_fqn: invoke_fqn.clone(),
-                overload_sig: String::new(),
-                type_args: Vec::new(),
-            });
+        // 闭包调用：同 MakeClosure——闭包随外层 family 实例化，不独立入队。
+        CallKind::Closure { .. } => {
         }
         // FunValue 调用：callee 是函数值 local，无静态 FQN 可扫描。
         // 若该 local 绑定到一个已知闭包，其 invoke_fqn 已在 MakeClosure 处入队。

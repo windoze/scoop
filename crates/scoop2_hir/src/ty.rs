@@ -829,6 +829,16 @@ impl TypeStore {
         self.param_decls.get(&id)
     }
 
+    /// 按参数名查类型参数 id（名字在单处声明语境内唯一；跨语境同名时取
+    /// id 最小者——声明序稳定）。下游（树路径 FunDecl.type_params 填充）用。
+    pub fn find_param_by_name(&self, name: scoop2_base::Symbol) -> Option<TypeParamId> {
+        self.param_decls
+            .iter()
+            .filter(|(_, d)| d.name == name)
+            .map(|(id, _)| *id)
+            .min()
+    }
+
     // ----- 结构替换 -----
 
     /// 把 [`Subst`]（普通类型参数）+ [`EffSubst`]（effect 行参数）应用到 `ty`，
