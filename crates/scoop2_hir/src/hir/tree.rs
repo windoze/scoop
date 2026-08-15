@@ -228,7 +228,14 @@ pub enum TreePattern {
     Wildcard,
     /// `_`-like 的 `else`。
     Else,
-    Binder(LocalId),
+    /// binder 绑定。`local.ty` 来自 pattern_bindings（绑定语义类型）；
+    /// `node_ty` 是模式节点自身的 expr_types 类型（镜像 AST 路径
+    /// `lower_pattern_to_mir` 对 `expr_type(pat.id)` 的取值——PatternMatch
+    /// tag args 的渲染用）。
+    Binder {
+        local: LocalId,
+        node_ty: TypeId,
+    },
     Literal(Lit),
     Tuple(Vec<TreePattern>),
     /// variant 模式（fqn 文本 + variant 名；句柄化随 M2 element 体系）。
@@ -237,12 +244,27 @@ pub enum TreePattern {
         variant: Symbol,
         args: Vec<TreePattern>,
     },
+    /// struct 解构模式 `Point { x, y: sub }`（字段按 pattern 序；简写 `x` 的
+    /// binder 与显式子模式分立——AST 路径两者 lowering 形态不同：简写走
+    /// MemberAccess / 声明序下标提取，显式子模式递归绑定）。
+    Struct {
+        fields: Vec<StructFieldPat>,
+    },
     /// `is T`（T 已解析为 TypeId）。
     Is {
         ty: TypeId,
     },
     /// or 模式 `A | B`。
     Or(Vec<TreePattern>),
+}
+
+/// struct 模式的字段：简写（`x` ≡ `x: x`）携带 binder；显式子模式携带
+/// `sub`（两者互斥——显式 `x: x` 走 Binder 子模式，lowering 与简写不同）。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct StructFieldPat {
+    pub name: Symbol,
+    pub binder: Option<LocalId>,
+    pub sub: Option<TreePattern>,
 }
 
 /// handler arm（`Effect.op(binder: T) -> body`）。
@@ -399,7 +421,21 @@ impl<'a> TreeBuilder<'a> {
                     span: ident.span,
                 });
                 let local = self.push_local(b.name, b.ty, false, b.span);
-                Some(TreePattern::Binder(local))
+                // 模式节点自身类型（PatternMatch tag args 的渲染用——镜像
+                // AST `expr_type(pat.id)` + any 回退；Any 已由 typecheck intern）。
+                let node_ty = self.expr_types.get(pat.id).copied().unwrap_or_else(|| {
+                    let n = crate::ty::NominalType {
+                        fqn: self.types.any_fqn(),
+                        args: vec![],
+                        eff: None,
+                    };
+                    self.types
+                        .find_interned(&crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(
+                            n,
+                        )))
+                        .unwrap_or(self.unit_ty)
+                });
+                Some(TreePattern::Binder { local, node_ty })
             }
             PatternKind::Literal(l) => {
                 use crate::syntax::ast::PatternLiteral;
@@ -419,20 +455,28 @@ impl<'a> TreeBuilder<'a> {
                 Some(TreePattern::Tuple(out))
             }
             PatternKind::Struct { fields, .. } => {
-                // `Point { x, y }`：简写 `x` 等价 `x: x`；binder 类型来自
-                // pattern_bindings（按出现序）。
+                // `Point { x, y }`：简写 `x` 等价 `x: x`（binder 类型来自
+                // pattern_bindings，按出现序）；显式子模式递归构造。
                 let mut out = Vec::with_capacity(fields.len());
                 for f in fields {
                     match &f.pattern {
-                        Some(sub) => out.push(self.build_pattern(sub, bindings)?),
+                        Some(sub) => out.push(StructFieldPat {
+                            name: f.name.symbol,
+                            binder: None,
+                            sub: Some(self.build_pattern(sub, bindings)?),
+                        }),
                         None => {
                             let b = bindings.next()?;
                             let local = self.push_local(b.name, b.ty, false, b.span);
-                            out.push(TreePattern::Binder(local));
+                            out.push(StructFieldPat {
+                                name: f.name.symbol,
+                                binder: Some(local),
+                                sub: None,
+                            });
                         }
                     }
                 }
-                Some(TreePattern::Tuple(out))
+                Some(TreePattern::Struct { fields: out })
             }
             PatternKind::Variant { path, args } => {
                 let enum_fqn: String = path

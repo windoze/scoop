@@ -379,10 +379,7 @@ fn check_file_bodies(
                 let ext_tp_map = if let Some(tp_list) = &d.type_params {
                     let mut m = empty_tp.clone();
                     for p in &tp_list.params {
-                        m.insert(
-                            p.name.symbol,
-                            crate::ty::TypeParamId(p.id.as_u32()),
-                        );
+                        m.insert(p.name.symbol, crate::ty::TypeParamId(p.id.as_u32()));
                     }
                     m
                 } else {
@@ -820,17 +817,11 @@ fn check_file_bodies(
                     if d.kind == crate::syntax::ast::TypeKind::Class {
                         // ctor 参数（name → ty），供 init 块 / property initializer / super
                         // 实参表达式 typecheck 时解析构造参数引用。
-                        let class_fqn_sym = env.interner.get(
-                            &if package_prefix.is_empty() {
-                                env.interner.resolve(d.name.symbol).to_string()
-                            } else {
-                                format!(
-                                    "{}.{}",
-                                    package_prefix,
-                                    env.interner.resolve(d.name.symbol)
-                                )
-                            },
-                        );
+                        let class_fqn_sym = env.interner.get(&if package_prefix.is_empty() {
+                            env.interner.resolve(d.name.symbol).to_string()
+                        } else {
+                            format!("{}.{}", package_prefix, env.interner.resolve(d.name.symbol))
+                        });
                         let ctor_params: Vec<(scoop2_base::Symbol, crate::ty::TypeId)> =
                             class_fqn_sym
                                 .and_then(|sym| env.class_ctor_params.get(&sym).cloned())
@@ -908,11 +899,11 @@ fn check_file_bodies(
                                     //（写回语义事实，供 MIR 合成 secondary ctor callable 消费）。
                                     // ctor 参数类型：从 ctor_signatures 按 span 匹配（已 typecheck）。
                                     let sc_params: Vec<(scoop2_base::Symbol, crate::ty::TypeId)> = {
-                                        let sigs = env.ctor_signatures(class_fqn_sym.unwrap_or_default());
-                                        let matched = sigs
-                                            .and_then(|ss| {
-                                                ss.iter().find(|s| s.decl_span == sc.span)
-                                            });
+                                        let sigs =
+                                            env.ctor_signatures(class_fqn_sym.unwrap_or_default());
+                                        let matched = sigs.and_then(|ss| {
+                                            ss.iter().find(|s| s.decl_span == sc.span)
+                                        });
                                         matched
                                             .map(|s| {
                                                 s.param_names
@@ -2308,10 +2299,7 @@ fn lint_size_of(env: &TypeEnv, ty: crate::ty::TypeId, depth: u32) -> u64 {
     }
     let kind = env.store.kind(ty);
     match kind {
-        TypeKind::Nothing
-        | TypeKind::Ref(_)
-        | TypeKind::Param(_)
-        | TypeKind::StarProjection => 8,
+        TypeKind::Nothing | TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection => 8,
         TypeKind::Value(v) => match v {
             ValueTypeKind::Unit => 0,
             ValueTypeKind::Bool => 1,
@@ -2342,8 +2330,7 @@ fn lint_size_of(env: &TypeEnv, ty: crate::ty::TypeId, depth: u32) -> u64 {
                     let max_payload = variants
                         .iter()
                         .map(|&v| {
-                            let text =
-                                format!("{enum_name}.{}", env.interner.resolve(v));
+                            let text = format!("{enum_name}.{}", env.interner.resolve(v));
                             env.interner
                                 .get(&text)
                                 .map(|vf| {
@@ -3897,10 +3884,7 @@ fn check_one_fun(
     resolution: &crate::resolve::Resolution,
     diags: &mut DiagnosticSink,
     package_prefix: &str,
-    enclosing_type_params: &std::collections::HashMap<
-        scoop2_base::Symbol,
-        crate::ty::TypeParamId,
-    >,
+    enclosing_type_params: &std::collections::HashMap<scoop2_base::Symbol, crate::ty::TypeParamId>,
     this_ty: Option<crate::ty::TypeId>,
     expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
     facts: &mut crate::hir::SemanticFacts,
@@ -3945,10 +3929,7 @@ fn check_one_fun(
         std::collections::HashSet::new();
     if let Some(type_params) = &d.type_params {
         for p in &type_params.params {
-            tp.insert(
-                p.name.symbol,
-                crate::ty::TypeParamId(p.id.as_u32()),
-            );
+            tp.insert(p.name.symbol, crate::ty::TypeParamId(p.id.as_u32()));
             // 内联 bound（§5.1 `T: ref` / `T: value`）。
             if let Some(bound) = &p.bound {
                 match bound {
@@ -4046,10 +4027,7 @@ fn check_member_funs(
     resolution: &crate::resolve::Resolution,
     diags: &mut DiagnosticSink,
     package_prefix: &str,
-    enclosing_type_params: &std::collections::HashMap<
-        scoop2_base::Symbol,
-        crate::ty::TypeParamId,
-    >,
+    enclosing_type_params: &std::collections::HashMap<scoop2_base::Symbol, crate::ty::TypeParamId>,
     expr_types: &mut crate::resolve::output::NodeIdTable<crate::ty::TypeId>,
     facts: &mut crate::hir::SemanticFacts,
 ) {
@@ -4121,10 +4099,7 @@ fn merge_type_params(
 ) {
     if let Some(tp) = tp {
         for p in &tp.params {
-            map.insert(
-                p.name.symbol,
-                crate::ty::TypeParamId(p.id.as_u32()),
-            );
+            map.insert(p.name.symbol, crate::ty::TypeParamId(p.id.as_u32()));
         }
     }
 }

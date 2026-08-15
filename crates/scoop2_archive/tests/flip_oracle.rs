@@ -51,6 +51,9 @@ fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<S
             let Some((tree_fd, tree_store)) = scoop2_mir::mir::lower_tree::lower_tree_fun_decl(
                 &hir, tf.file_id, tree, &hir.store,
             ) else {
+                if std::env::var("SCOOP2_FLIP_LIST").is_ok() {
+                    eprintln!("    SKIP-NO-SIG {} {}", tree.fqn, tf.file_id.as_u32());
+                }
                 continue;
             };
             supported += 1;

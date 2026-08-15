@@ -46,7 +46,11 @@ fn arithmetic_trees_are_gap_free() {
     match &add.body.exprs[tail.0 as usize].kind {
         TreeExprKind::Call { callee, args } => {
             // Method 约定：args 不含接收者（recv 独立）——`a + b` → 1 实参。
-            assert_eq!(args.len(), 1, "`a + b` 展开为接收者 + 1 实参（args 去接收者）");
+            assert_eq!(
+                args.len(),
+                1,
+                "`a + b` 展开为接收者 + 1 实参（args 去接收者）"
+            );
             match callee {
                 scoop2_hir::hir::tree::TreeCallee::Method { recv, method, .. } => {
                     assert_ne!(*recv, args[0], "接收者独立于实参");

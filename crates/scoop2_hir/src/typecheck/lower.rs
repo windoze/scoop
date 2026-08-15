@@ -15,9 +15,7 @@ use scoop2_base::{Interner, Span, Symbol};
 
 use crate::resolve::imports::ImportTable;
 use crate::syntax::ast::{TypeArg, TypeArgKind, TypePath, TypeRef, TypeRefKind};
-use crate::ty::{
-    EffectRow, EffectTail, FunctionType, NominalType, TypeId, TypeKind, TypeParamId,
-};
+use crate::ty::{EffectRow, EffectTail, FunctionType, NominalType, TypeId, TypeKind, TypeParamId};
 
 use super::diagnostics;
 use super::env::TypeEnv;

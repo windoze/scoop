@@ -211,10 +211,10 @@ fn lower_tree_stmt(builder: &mut FnLowering, body: &TreeBody, sid: scoop2_hir::h
             }
         }
         TreeStmt::Destructure { pat, init, mutable } => {
-            // 镜像 bind_pattern：模式解构绑定
+            // 镜像 bind_pattern：模式解构绑定（解构语义）
             let v = lower_tree_expr(builder, body, *init);
             let init_ty = operand_ty_of(builder, &v);
-            bind_tree_pattern(builder, body, pat, v, init_ty);
+            bind_tree_pattern(builder, body, pat, v, init_ty, *mutable);
         }
     }
 }
@@ -1311,7 +1311,7 @@ fn lower_tree_when(
         // guard：模式命中后，若 arm 有 guard 则还需 guard 为真
         let cond = if let Some(guard) = arm.guard {
             // 先把 pattern bindings 引入（在 guard 和 arm body 之前）
-            bind_tree_pattern(builder, body, &arm.pat, subj.clone(), subj_ty);
+            bind_tree_pattern_arm(builder, body, &arm.pat, subj.clone(), subj_ty);
             lower_tree_expr(builder, body, guard)
         } else {
             matches
@@ -1331,7 +1331,7 @@ fn lower_tree_when(
 
         // arm body（bindings 在 guard 阶段已引入；若无 guard 则在此引入）
         if arm.guard.is_none() {
-            bind_tree_pattern(builder, body, &arm.pat, subj.clone(), subj_ty);
+            bind_tree_pattern_arm(builder, body, &arm.pat, subj.clone(), subj_ty);
         }
 
         builder.current_bb = arm_bb;
@@ -1361,9 +1361,9 @@ fn lower_tree_pattern_test(
     let bool_ty = builder.types.bool();
     match pat {
         TreePattern::Wildcard | TreePattern::Else => Operand::Const(ConstValue::Bool(true)),
-        TreePattern::Binder(local) => {
+        TreePattern::Binder { .. } | TreePattern::Struct { .. } => {
             // irrefutable 模式：类型已由 typecheck 保证匹配 → 总是命中
-            let _ = local;
+            // （AST 路径 Bind/Struct 同 arm）。
             Operand::Const(ConstValue::Bool(true))
         }
         TreePattern::Tuple(elems) => {
@@ -1377,6 +1377,7 @@ fn lower_tree_pattern_test(
                         TreePattern::Literal(_)
                             | TreePattern::Variant { .. }
                             | TreePattern::Tuple(_)
+                            | TreePattern::Struct { .. }
                             | TreePattern::Is { .. }
                             | TreePattern::Or(_)
                     )
@@ -1490,7 +1491,7 @@ fn lower_tree_pattern_test(
             let tag_args: Vec<crate::mir::Pattern> = args
                 .iter()
                 .map(|a| match a {
-                    TreePattern::Binder(_) | TreePattern::Wildcard => {
+                    TreePattern::Binder { .. } | TreePattern::Wildcard => {
                         lower_tree_pattern_to_mir(builder, body, a)
                     }
                     _ => crate::mir::Pattern::Wildcard,
@@ -1520,6 +1521,7 @@ fn lower_tree_pattern_test(
                         a,
                         TreePattern::Variant { .. }
                             | TreePattern::Tuple(_)
+                            | TreePattern::Struct { .. }
                             | TreePattern::Literal(_)
                             | TreePattern::Is { .. }
                             | TreePattern::Or(_)
@@ -1680,8 +1682,154 @@ fn lower_tree_pattern_test(
     }
 }
 
-/// 为树模式引入绑定（树版本）。
+/// 按树模式绑定（**解构语义**——镜像 stmt.rs `bind_pattern`：`val (a,b) = pair` /
+/// `val Some(x) = opt` / `val Point { x, y } = p`）。
 fn bind_tree_pattern(
+    builder: &mut FnLowering,
+    body: &TreeBody,
+    pat: &TreePattern,
+    subj: Operand,
+    subj_ty: scoop2_hir::ty::TypeId,
+    mutable: bool,
+) {
+    match pat {
+        TreePattern::Wildcard | TreePattern::Else => {}
+        TreePattern::Binder { local, .. } => {
+            // 镜像 AST：binder 类型取 subject 类型（非 pattern_bindings）。
+            let decl = &body.locals[local.0 as usize];
+            let lid = builder.alloc_named_mutable(
+                builder.hir.interner.resolve(decl.name).to_string(),
+                subj_ty,
+                decl.span,
+                mutable,
+            );
+            builder.symbol_locals.insert(decl.name, lid);
+            builder.assign(lid, Rvalue::Use(subj), decl.span);
+        }
+        TreePattern::Tuple(elems) => {
+            // 逐元素：temp + TupleIndex + 递归绑定（分配序与 AST 交错一致；
+            // 元素提取用 Rvalue::TupleIndex——与 AST bind_pattern 相同）。
+            for (i, sub) in elems.iter().enumerate() {
+                let elem_ty =
+                    tree_tuple_elem_ty(builder, subj_ty, i).unwrap_or_else(|| builder.types.any());
+                let tmp = builder.alloc_temp(elem_ty, Span::default());
+                builder.assign(
+                    tmp,
+                    Rvalue::TupleIndex {
+                        receiver: subj.clone(),
+                        index: i as u128,
+                        element_ty: elem_ty,
+                    },
+                    Span::default(),
+                );
+                bind_tree_pattern(builder, body, sub, Operand::Local(tmp), elem_ty, mutable);
+            }
+        }
+        TreePattern::Variant {
+            enum_fqn,
+            variant,
+            args,
+        } => {
+            // variant 解构：binder 按字段位置经 PatternExtract（VariantField path）
+            // 从 payload 提取——binder 类型取 pattern_bindings（树 local ty）。
+            let variant_str = builder.hir.interner.resolve(*variant).to_string();
+            for (i, arg) in args.iter().enumerate() {
+                match arg {
+                    TreePattern::Binder { local, .. } => {
+                        let decl = &body.locals[local.0 as usize];
+                        let lid = builder.alloc_named_mutable(
+                            builder.hir.interner.resolve(decl.name).to_string(),
+                            decl.ty,
+                            decl.span,
+                            mutable,
+                        );
+                        builder.symbol_locals.insert(decl.name, lid);
+                        builder.assign(
+                            lid,
+                            Rvalue::PatternExtract {
+                                subject: subj.clone(),
+                                path: vec![
+                                    crate::mir::transport::PatternBindingStep::VariantField {
+                                        variant: variant_str.clone(),
+                                        field_index: i,
+                                    },
+                                ],
+                                result_ty: decl.ty,
+                            },
+                            decl.span,
+                        );
+                    }
+                    TreePattern::Variant { .. }
+                    | TreePattern::Tuple(_)
+                    | TreePattern::Struct { .. } => {
+                        // 嵌套子模式：提取字段后递归绑定。
+                        if let Some(field_ty) =
+                            tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i)
+                        {
+                            let tmp = builder.alloc_temp(field_ty, Span::default());
+                            builder.assign(
+                                tmp,
+                                Rvalue::PatternExtract {
+                                    subject: subj.clone(),
+                                    path: vec![
+                                        crate::mir::transport::PatternBindingStep::VariantField {
+                                            variant: variant_str.clone(),
+                                            field_index: i,
+                                        },
+                                    ],
+                                    result_ty: field_ty,
+                                },
+                                Span::default(),
+                            );
+                            bind_tree_pattern(
+                                builder,
+                                body,
+                                arg,
+                                Operand::Local(tmp),
+                                field_ty,
+                                mutable,
+                            );
+                        }
+                    }
+                    // Wildcard/Literal/Is/Or：不绑定。
+                    _ => {}
+                }
+            }
+        }
+        TreePattern::Struct { fields } => {
+            // struct 解构：简写字段经 MemberAccess 绑定；显式子模式递归。
+            for f in fields {
+                if let Some(sub) = &f.sub {
+                    bind_tree_pattern(builder, body, sub, subj.clone(), subj_ty, mutable);
+                    continue;
+                }
+                let Some(local) = f.binder else { continue };
+                let decl = &body.locals[local.0 as usize];
+                let fty = decl.ty;
+                let bname_str = builder.hir.interner.resolve(decl.name).to_string();
+                let lid = builder.alloc_named_mutable(bname_str.clone(), fty, decl.span, mutable);
+                builder.symbol_locals.insert(decl.name, lid);
+                let site_id = builder.next_site_id();
+                let member = builder.member_access_metadata(&bname_str, subj_ty);
+                builder.assign(
+                    lid,
+                    Rvalue::MemberAccess {
+                        site_id: Some(site_id),
+                        receiver: subj.clone(),
+                        member,
+                    },
+                    decl.span,
+                );
+            }
+        }
+        // refutable 模式在 val 解构上下文不合法（HIR 已拒绝）——无绑定。
+        TreePattern::Literal(_) | TreePattern::Is { .. } | TreePattern::Or(_) => {}
+    }
+}
+
+/// when arm 的模式绑定（**arm 语义**——镜像 expr.rs `bind_pattern_arm`：binder
+/// 直接从 subject 按位置提取，分配序 = pattern_bindings 出现序 = 树字段序）。
+fn bind_tree_pattern_arm(
     builder: &mut FnLowering,
     body: &TreeBody,
     pat: &TreePattern,
@@ -1690,11 +1838,12 @@ fn bind_tree_pattern(
 ) {
     match pat {
         TreePattern::Wildcard | TreePattern::Else => {}
-        TreePattern::Binder(local) => {
+        TreePattern::Binder { local, .. } => {
+            // 镜像 AST arm：binder 类型取 subject 类型。
             let decl = &body.locals[local.0 as usize];
             let lid = builder.alloc_named(
                 builder.hir.interner.resolve(decl.name).to_string(),
-                decl.ty,
+                subj_ty,
                 decl.span,
             );
             builder.symbol_locals.insert(decl.name, lid);
@@ -1703,7 +1852,7 @@ fn bind_tree_pattern(
         TreePattern::Tuple(elems) => {
             // tuple 元素绑定：按元素位置提取
             for (i, elem) in elems.iter().enumerate() {
-                if let TreePattern::Binder(local) = elem {
+                if let TreePattern::Binder { local, .. } = elem {
                     let decl = &body.locals[local.0 as usize];
                     let lid = builder.alloc_named(
                         builder.hir.interner.resolve(decl.name).to_string(),
@@ -1712,8 +1861,6 @@ fn bind_tree_pattern(
                     );
                     builder.symbol_locals.insert(decl.name, lid);
 
-                    let elem_ty = tree_tuple_elem_ty(builder, subj_ty, i)
-                        .unwrap_or_else(|| builder.types.any());
                     builder.assign(
                         lid,
                         Rvalue::PatternExtract {
@@ -1745,7 +1892,7 @@ fn bind_tree_pattern(
                             },
                             subj_ty_of(builder, &subj),
                         );
-                        bind_tree_pattern(builder, body, elem, Operand::Local(tmp), elem_ty);
+                        bind_tree_pattern_arm(builder, body, elem, Operand::Local(tmp), elem_ty);
                     }
                 }
             }
@@ -1759,7 +1906,7 @@ fn bind_tree_pattern(
             let variant_str = builder.hir.interner.resolve(*variant).to_string();
 
             for (i, arg) in args.iter().enumerate() {
-                if let TreePattern::Binder(local) = arg {
+                if let TreePattern::Binder { local, .. } = arg {
                     let decl = &body.locals[local.0 as usize];
                     let lid = builder.alloc_named(
                         builder.hir.interner.resolve(decl.name).to_string(),
@@ -1768,26 +1915,18 @@ fn bind_tree_pattern(
                     );
                     builder.symbol_locals.insert(decl.name, lid);
 
-                    if let Some(field_ty) =
-                        tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i)
-                    {
-                        builder.assign(
-                            lid,
-                            Rvalue::PatternExtract {
-                                subject: subj.clone(),
-                                path: vec![
-                                    crate::mir::transport::PatternBindingStep::VariantField {
-                                        variant: variant_str.clone(),
-                                        field_index: i,
-                                    },
-                                ],
-                                result_ty: decl.ty,
-                            },
-                            decl.span,
-                        );
-                    } else {
-                        builder.assign(lid, Rvalue::Use(subj.clone()), decl.span);
-                    }
+                    builder.assign(
+                        lid,
+                        Rvalue::PatternExtract {
+                            subject: subj.clone(),
+                            path: vec![crate::mir::transport::PatternBindingStep::VariantField {
+                                variant: variant_str.clone(),
+                                field_index: i,
+                            }],
+                            result_ty: decl.ty,
+                        },
+                        decl.span,
+                    );
                 }
             }
 
@@ -1815,19 +1954,57 @@ fn bind_tree_pattern(
                             },
                             subj_ty_of(builder, &subj),
                         );
-                        bind_tree_pattern(builder, body, arg, Operand::Local(tmp), field_ty);
+                        bind_tree_pattern_arm(builder, body, arg, Operand::Local(tmp), field_ty);
                     }
                 }
             }
         }
-        TreePattern::Literal(_) | TreePattern::Is { .. } => {}
-        TreePattern::Or(alts) => {
-            // or 模式的绑定只在第一个 alt 中引入（AST 路径的行为）
-            if let Some(first) = alts.first() {
-                bind_tree_pattern(builder, body, first, subj, subj_ty);
+        TreePattern::Struct { fields } => {
+            // struct 字段 binder：字段下标按 subject 声明序（ordered_members）
+            // 定位，与 pattern 书写序无关。
+            for (i, f) in fields.iter().enumerate() {
+                let Some(local) = f.binder else { continue };
+                let decl = &body.locals[local.0 as usize];
+                let lid = builder.alloc_named(
+                    builder.hir.interner.resolve(decl.name).to_string(),
+                    decl.ty,
+                    decl.span,
+                );
+                builder.symbol_locals.insert(decl.name, lid);
+                let pos = tree_nominal_field_index(builder, subj_ty, decl.name).unwrap_or(i);
+                builder.assign(
+                    lid,
+                    Rvalue::PatternExtract {
+                        subject: subj.clone(),
+                        path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(pos)],
+                        result_ty: decl.ty,
+                    },
+                    decl.span,
+                );
             }
         }
+        // is：subject 本身可用；literal / or：不绑定。
+        TreePattern::Is { .. } | TreePattern::Literal(_) | TreePattern::Or(_) => {}
     }
+}
+
+/// nominal 字段的声明序下标（`nominal_field_index` 的树版本）。
+fn tree_nominal_field_index(
+    builder: &FnLowering,
+    ty: scoop2_hir::ty::TypeId,
+    name: scoop2_base::Symbol,
+) -> Option<usize> {
+    use scoop2_hir::ty::{TypeKind, ValueTypeKind};
+    let fqn = match builder.types.kind(ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(n))
+        | TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => n.fqn,
+        _ => return None,
+    };
+    builder
+        .hir
+        .ordered_members(&fqn)
+        .iter()
+        .position(|(n, _)| *n == name)
 }
 
 /// 树模式 → MIR 模式（用于 PatternMatch）。
@@ -1838,11 +2015,11 @@ fn lower_tree_pattern_to_mir(
 ) -> crate::mir::Pattern {
     match pat {
         TreePattern::Wildcard => crate::mir::Pattern::Wildcard,
-        TreePattern::Binder(local) => {
+        TreePattern::Binder { local, node_ty } => {
             let decl = &body.locals[local.0 as usize];
             crate::mir::Pattern::Bind {
                 name: decl.name,
-                ty: decl.ty,
+                ty: *node_ty,
             }
         }
         TreePattern::Literal(lit) => match lit {
@@ -2418,7 +2595,7 @@ fn remove_tree_pattern_binders(
         | TreePattern::Else
         | TreePattern::Literal(_)
         | TreePattern::Is { .. } => {}
-        TreePattern::Binder(local) => {
+        TreePattern::Binder { local, .. } => {
             syms.remove(&body.locals[local.0 as usize].name);
         }
         TreePattern::Tuple(els) | TreePattern::Or(els) => {
@@ -2429,6 +2606,16 @@ fn remove_tree_pattern_binders(
         TreePattern::Variant { args, .. } => {
             for a in args {
                 remove_tree_pattern_binders(a, body, syms);
+            }
+        }
+        TreePattern::Struct { fields } => {
+            for f in fields {
+                if let Some(local) = f.binder {
+                    syms.remove(&body.locals[local.0 as usize].name);
+                }
+                if let Some(sub) = &f.sub {
+                    remove_tree_pattern_binders(sub, body, syms);
+                }
             }
         }
     }

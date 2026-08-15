@@ -41,7 +41,9 @@ use scoop2_base::{FileId, Span, Symbol};
 /// 已 intern 的类型句柄：[`TypeStore`] 内 `Vec` 的下标。
 ///
 /// 只在产出它的 [`TypeStore`] 内有意义；比较与哈希是 O(1) 整数操作。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct TypeId(pub u32);
 
 impl std::fmt::Debug for TypeId {
@@ -56,7 +58,9 @@ impl std::fmt::Debug for TypeId {
 /// 用作 [`TypeKind::Param`] 的载体和 [`Subst`] / [`EffSubst`] 的替换键。
 /// 名字/位置/约束等元数据存于 [`TypeParamDecl`] 侧表（通过
 /// [`TypeStore::param_decl`] 查询），**不参与身份判定**。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct TypeParamId(pub u32);
 
 impl std::fmt::Debug for TypeParamId {
@@ -498,7 +502,6 @@ pub struct TypeStore {
     string_fqn: Symbol,
 }
 
-
 // ---------------------------------------------------------------------------
 // serde：StoreRepr 镜像（dedup 不序列化——由 kinds 顺序重建；param_decls
 // 按 TypeParamId 排序，保证字节确定，PLAN.md C7）。
@@ -614,6 +617,12 @@ impl TypeStore {
         self.kinds.push(kind.clone());
         self.dedup.insert(kind, idx);
         TypeId(idx)
+    }
+
+    /// 只读查找已 intern 的同构类型（不创建）。只读上下文（树构造等）取
+    /// `any()` 等便利类型的途径。
+    pub fn find_interned(&self, kind: &TypeKind) -> Option<TypeId> {
+        self.dedup.get(kind).map(|&idx| TypeId(idx))
     }
 
     /// 取一个 id 的种类。`id` 必须由本 store 的 [`intern`][Self::intern] 产出。
@@ -798,7 +807,10 @@ impl TypeStore {
 
     /// 分配一个**新的** [`TypeParamId`]（自动递增），并登记元数据。用于不便预计算
     /// id 的场景（如合成参数）。返回新分配的 id。
-    pub fn fresh_param(&mut self, decl_init: impl FnOnce(TypeParamId) -> TypeParamDecl) -> TypeParamId {
+    pub fn fresh_param(
+        &mut self,
+        decl_init: impl FnOnce(TypeParamId) -> TypeParamDecl,
+    ) -> TypeParamId {
         let id = TypeParamId(self.next_param_id);
         self.next_param_id += 1;
         let decl = decl_init(id);
@@ -905,7 +917,9 @@ impl TypeStore {
         subst: &Subst,
         eff_subst: Option<&EffSubst>,
     ) -> FunctionType {
-        f.receiver = f.receiver.map(|r| self.apply_subst_full(r, subst, eff_subst));
+        f.receiver = f
+            .receiver
+            .map(|r| self.apply_subst_full(r, subst, eff_subst));
         f.params = f
             .params
             .iter()
@@ -1520,7 +1534,8 @@ mod tests {
     fn effect_row_is_pure_requires_no_tail() {
         let a = TypeStore::new().string();
         // 有 tail 的行不是 Pure，即便 terms 为空。
-        let row_with_tail = EffectRow::from_terms_with_tail(vec![], EffectTail::Var(TypeParamId(7)));
+        let row_with_tail =
+            EffectRow::from_terms_with_tail(vec![], EffectTail::Var(TypeParamId(7)));
         assert!(!row_with_tail.is_pure());
         // 真正的 Pure。
         assert!(EffectRow::pure().is_pure());
