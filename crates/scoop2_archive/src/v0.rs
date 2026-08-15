@@ -376,11 +376,10 @@ pub fn run_mir_and_dump(
     use scoop2_mir::mir;
 
     let mut lower_diags = scoop2_base::diag::DiagnosticSink::new();
-    let lower_result = mir::lower::lower_module(
-        mir_files.iter().map(|(id, f)| (*id, *f)),
-        &hir,
-        &mut lower_diags,
-    );
+    // M2-5 翻转：MIR 只消费 HIR 产出（树 + 骨架）。`mir_files` 参数保留
+    //（one-shot 与 staged 的签名一致性——AST 不再读取）。
+    let _ = mir_files;
+    let lower_result = mir::lower_tree::lower_module_from_trees(&hir, &mut lower_diags);
     if lower_diags.has_errors() || !lower_result.errors.is_empty() {
         return Err(StageError::Mir(lower_diags.into_vec()));
     }

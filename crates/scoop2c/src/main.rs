@@ -477,7 +477,7 @@ fn run_dump_hir(input: &std::path::Path) -> ExitCode {
     }
     let mut inputs = make_inputs(&mut parsed, &user_indices);
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
-    let hir = scoop2_hir::typecheck::run_typecheck(
+    let mut hir = scoop2_hir::typecheck::run_typecheck(
         &mut inputs,
         &mut interner,
         &mut diags,
@@ -534,7 +534,7 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
     }
     let mut inputs = make_inputs(&mut parsed, &user_indices);
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
-    let hir = scoop2_hir::typecheck::run_typecheck(
+    let mut hir = scoop2_hir::typecheck::run_typecheck(
         &mut inputs,
         &mut interner,
         &mut diags,
@@ -553,6 +553,8 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
     // 完整性闸门：run_typecheck 末尾已无条件启用 completeness::verify（untyped_node
     // 诊断已 push 进 diags）。此处无需再调用；有 untyped_node 时 diags.has_errors() 为真，
     // 报诊断退出（保证 MIR 只消费完整 HIR）。
+    // M2-5 翻转前置：补建 HIR 树 + 骨架（MIR 只消费树）。
+    scoop2_archive::pipeline::attach_trees(&mut hir, &parsed, &interner);
     let mir_files: Vec<(scoop2_base::FileId, &scoop2_syntax::ast::File)> = parsed
         .iter()
         .enumerate()
@@ -561,11 +563,8 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
         .collect();
     // MIR lowering。
     let mut lower_diags = scoop2_base::diag::DiagnosticSink::new();
-    let lower_result = scoop2_mir::mir::lower::lower_module(
-        mir_files.iter().map(|(id, f)| (*id, *f)),
-        &hir,
-        &mut lower_diags,
-    );
+    // M2-5 翻转：MIR 只消费 HIR 产出（树 + 骨架——lower_module_from_trees）。
+    let lower_result = scoop2_mir::mir::lower_tree::lower_module_from_trees(&hir, &mut lower_diags);
     if lower_diags.has_errors() || !lower_result.errors.is_empty() {
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
             .iter()
@@ -699,7 +698,7 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
     }
     let mut inputs = make_inputs(&mut parsed, &user_indices);
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
-    let hir = scoop2_hir::typecheck::run_typecheck(
+    let mut hir = scoop2_hir::typecheck::run_typecheck(
         &mut inputs,
         &mut interner,
         &mut diags,
@@ -715,15 +714,9 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
             .collect();
         return report_diagnostics(&source, &extra_sources, diags);
     }
-    // MIR lowering。
-    let mir_files: Vec<(scoop2_base::FileId, &scoop2_syntax::ast::File)> = parsed
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| user_indices.contains(i))
-        .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
-        .collect();
-    let lower_result =
-        scoop2_mir::mir::lower::lower_module(mir_files.into_iter(), &hir, &mut diags);
+    // M2-5 翻转：树驱动 lowering（用户文件树 + 骨架；先补建树）。
+    scoop2_archive::pipeline::attach_trees(&mut hir, &parsed, &interner);
+    let lower_result = scoop2_mir::mir::lower_tree::lower_module_from_trees(&hir, &mut diags);
     if diags.has_errors() {
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
             .iter()

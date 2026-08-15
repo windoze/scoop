@@ -179,15 +179,29 @@ pub fn typecheck_program(
     if program.diags.has_errors() {
         return Err(std::mem::take(&mut program.diags));
     }
-    build_trees(&mut hir, program);
+    build_trees(&mut hir, &program.parsed, &program.interner);
     Ok(hir)
+}
+
+/// 为 CLI 直连路径（自管 parse/typecheck 的命令）补建 HIR 树 + 骨架——
+/// M2-5 翻转后 MIR 只消费树，任何产出 `TypedHir` 的路径都必须先经过此处。
+pub fn attach_trees(
+    hir: &mut scoop2_hir::hir::TypedHir,
+    parsed: &[scoop2_syntax::parser::ParsedFile],
+    interner: &scoop2_base::Interner,
+) {
+    build_trees(hir, parsed, interner);
 }
 
 /// M2 第一刀：为每个用户文件的顶层函数构造 HIR body 树。
 ///
 /// gaps 记录未覆盖构造（不阻塞管线——树尚无消费者；MIR 翻转前必须清零）。
 /// 签名缺失（重载匹配失败等）的函数暂不构树。
-fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
+fn build_trees(
+    hir: &mut scoop2_hir::hir::TypedHir,
+    parsed: &[scoop2_syntax::parser::ParsedFile],
+    interner: &scoop2_base::Interner,
+) {
     use scoop2_hir::hir::element::TypeCategory;
     use scoop2_hir::hir::tree;
     use scoop2_syntax::ast::ItemKind;
@@ -195,13 +209,13 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
     let unit_ty = hir.store.unit();
     let mut new_files: Vec<(usize, Vec<tree::FnTree>, Vec<tree::FileItem>)> = Vec::new();
     for (i, tf) in hir.files.iter().enumerate() {
-        let Some(pf) = program.parsed.get(tf.file_id.0 as usize) else {
+        let Some(pf) = parsed.get(tf.file_id.0 as usize) else {
             continue;
         };
         let mut trees = Vec::new();
         let mut skeleton = Vec::new();
         let fqn_of = |simple: scoop2_base::Symbol| -> String {
-            let name = program.interner.resolve(simple);
+            let name = interner.resolve(simple);
             if tf.package_prefix.is_empty() {
                 name.to_string()
             } else {
@@ -235,7 +249,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                             unit_ty,
                             &tf.expr_types,
                             &tf.facts,
-                            &program.interner,
+                            &interner,
                             &hir.store,
                         ));
                     } else if let Some(body) = &d.body
@@ -259,7 +273,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                             unit_ty,
                             &tf.expr_types,
                             &tf.facts,
-                            &program.interner,
+                            &interner,
                             &hir.store,
                         ));
                     }
@@ -290,7 +304,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                             unit_ty,
                             &tf.expr_types,
                             &tf.facts,
-                            &program.interner,
+                            &interner,
                             &hir.store,
                         ));
                     }
@@ -317,7 +331,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                             &mut trees,
                             hir,
                             tf,
-                            &program.interner,
+                            &interner,
                             unit_ty,
                             &owner_fqn,
                             Some(d),
@@ -326,13 +340,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                         // class `<Fqn>.$init` 合成（M2-3：从 MIR 上移）。
                         if let Some(owner_sym) = hir.interner.get(&owner_fqn) {
                             if let Some(init_tree) = tree::synthesize_class_init_tree(
-                                hir,
-                                tf,
-                                &program.interner,
-                                unit_ty,
-                                &owner_fqn,
-                                owner_sym,
-                                d,
+                                hir, tf, &interner, unit_ty, &owner_fqn, owner_sym, d,
                             ) {
                                 trees.push(init_tree);
                             }
@@ -355,7 +363,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                             &mut trees,
                             hir,
                             tf,
-                            &program.interner,
+                            &interner,
                             unit_ty,
                             &owner_fqn,
                             None,
