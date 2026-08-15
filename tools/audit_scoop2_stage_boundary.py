@@ -66,6 +66,37 @@ lir_seg = v0[v0.find("// LIR archive"):]
 if "load_mir_archive" in lir_seg or ".mirarch" in lir_seg:
     violations.append("自包含: LIR archive 段引用了 MIR archive")
 
+# 5. linking 白名单纪律：MIR/LIR 源码不得产生 scoop::link::* 之外的
+#    用户错误码；且 link 码只允许出现在 driver/archive 装配层。
+ALLOWED_LINK_EMITTERS = {
+    "crates/scoop2c/src/main.rs",
+    "crates/scoop2_archive/src/v0.rs",
+}
+for crate in ("scoop2_mir", "scoop2_lir"):
+    for f in src_files(crate):
+        rel = str(f.relative_to(ROOT))
+        text = f.read_text()
+        for m in re.finditer(r'"(scoop::link::[a-z_]+)"', text):
+            violations.append(f"link 码越界: {rel}: {m.group(1)}")
+
+# 6. MIR 用户诊断码总量不增（C5 收口后允许集：monomorph 系 + lower_unresolved
+#    兜底 + prelude 环境错；verify 三码已转 ICE 但常量保留供历史断言）。
+mir_diag = (CRATES / "scoop2_mir" / "src/diagnostics.rs").read_text()
+user_codes = re.findall(r'pub const \w+: &str = "(scoop::mir::[a-z_]+)"', mir_diag)
+allowed = {
+    "scoop::mir::splice_field_removed",  # 历史 fixture 兼容（parser 已先行拒绝）
+    "scoop::mir::lower_unresolved",
+    "scoop::mir::prelude_symbol_missing",
+    "scoop::mir::monomorph_error",
+    "scoop::mir::monomorph_no_template",
+    "scoop::mir::verify_cfg",
+    "scoop::mir::verify_direct_style",
+    "scoop::mir::verify_semantic",
+}
+for c in user_codes:
+    if c not in allowed:
+        violations.append(f"MIR 用户诊断码超出允许集: {c}")
+
 if violations:
     print("审计违规：")
     for v in violations:
