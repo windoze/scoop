@@ -677,9 +677,15 @@ pub fn lower_fun_decl_inner(
     // 参数类型优先从 TypedSignature 获取（顶层函数或成员函数）。
     let sig_param_tys: Option<Vec<TypeId>> = {
         let fqn_sym = hir.interner.get(&owner_fqn);
+        // 多重载按声明 span 消歧（第 2+ 重载取 `.first()` 会拿错签名——
+        // 与 HIR 树构造的 lookup_sig 同规则）。
         let from_top = fqn_sym
             .and_then(|s| hir.top_level_funs.get(&s))
-            .and_then(|sigs| sigs.first())
+            .and_then(|sigs| {
+                sigs.iter()
+                    .find(|sig| sig.decl_span == d.name.span)
+                    .or_else(|| (sigs.len() == 1).then(|| &sigs[0]))
+            })
             .map(|sig| sig.param_types.clone());
         if from_top.is_some() {
             from_top
@@ -707,10 +713,14 @@ pub fn lower_fun_decl_inner(
     // 返回类型：优先从 TypedSignature 获取（顶层函数或成员函数）。
     let return_ty = {
         let fqn_sym = hir.interner.get(&owner_fqn);
-        // 1. 顶层函数签名。
+        // 1. 顶层函数签名（多重载按声明 span 消歧）。
         let from_top = fqn_sym
             .and_then(|s| hir.top_level_funs.get(&s))
-            .and_then(|sigs| sigs.first())
+            .and_then(|sigs| {
+                sigs.iter()
+                    .find(|sig| sig.decl_span == d.name.span)
+                    .or_else(|| (sigs.len() == 1).then(|| &sigs[0]))
+            })
             .map(|sig| sig.return_ty);
         // 2. 成员函数签名：按声明 owner 精确查 member_funs（同参数类型的查找）。
         let from_member = if from_top.is_none() {

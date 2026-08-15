@@ -206,12 +206,28 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第十六刀）：**语料一致率 48/62**。Lambda(5) 镜像到树
+> 进度（2026-08-15，第十九刀）：**模块级双路径 oracle 建立**——
+> `flip_oracle_module_level`（`scoop2_archive/tests/flip_oracle.rs`，暂 `#[ignore]`
+> 修复驱动门；配置文件 `/tmp/scoop2_mod.cfg` 两行：目录 csv + 文件名子串，
+> 匹配时 dump 双路径输出到 /tmp/mod_{ast,tree}.txt）。`lower_module_from_trees`
+> （树 + FileItem 骨架驱动，store 合并序/嵌套闭包 sibling/$init 演化基 全镜像）。
+> **mir2+hir 模块级 32/32 字节一致；全语料（含 run-pass）325 文件余 10 diff**：
+> (a) secondary ctor 合成（`<Class>.$ctor.<span_hash>` 树化——镜像
+> lower_secondary_ctor_callable）；(b) super 委托默认参数填充（InitCall 实参
+> lower_delegation_args 等价物）；(c) 顶层 val 模式绑定初始化器树
+> （top_level_val_pattern）；(d) when or-pattern variant payload；(e) `?.` 链
+> temp 类型（safe_member_access_ref）；(f) enum payload boxing 两例；
+> (g) escape continuation 间接 perform（effect_escape/gc_continuation 两例）；
+> (h) elvis（`?:`）树化。已修：pattern_bindings 按节点表+按名匹配（嵌套模式
+> binder 错位）、Rest 模式、init 块尾表达式副作用丢失、MutableArray 声明覆盖、
+> UnresolvedName/BoolNot 原语、扩展函数（owner 全集签名 + FileItem.fun_sig）、
+> 重载签名 span 消歧（AST 侧同步修）、effect 行 lookup_effect_row quirk 全路径
+> 镜像、bodyless 成员（接口/效应 op）签名-only FunDecl。
+> 第十七刀：**语料一致率 62/62（函数级）**。Handle 镜像到树
 > （env tuple + 嵌套 `$closure` FunDecl + 捕获 transport，逐句镜像 AST 路径）；
 > 顺带修 AST 路径 `collect_lambda_free_vars` 的 **HashSet 迭代序泄漏**（env 布局
 > 跨进程漂移——C7 确定性纪律，捕获序改为按 Symbol 排序，树路径同序对齐）。
-> 余 14 函数 = 3 diff（destructuring 系列遗留：temp/binder 分配序、PatternMatch
-> Bind 的 ty# 渲染、PatternExtract vs Use）+ 11 unsupported（Handle(6) + 复合 main(5)）。
+> 第十六刀：**语料一致率 48/62**。Lambda(5) 镜像到树。
 > 第十五刀：**语料一致率 40/40**。新增镜像：StructLit /
 > InterpolatedString / ArrayLit（Nothing→Array ref temp）/ Cast（As/AsSafe 结果
 > 类型差异 + RuntimeCastMetadata）/ TypeCheck（RuntimeTypeTestMetadata）/

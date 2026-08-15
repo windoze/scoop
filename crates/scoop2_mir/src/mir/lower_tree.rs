@@ -1359,7 +1359,28 @@ pub fn lower_tree_fun_decl(
                         .first()
                         .cloned()
                 })?;
-            (sig.return_ty, sig.effect_row)
+            // effect 行镜像 AST `lookup_effect_row` quirk：按「包前缀.简名」查
+            // top_level_funs 的 `.first()`（方法/扩展通常 miss → pure——即使
+            // 签名本身带 effect 参数）。
+            let eff = {
+                let name = tree.fqn.rsplit('.').next().unwrap_or_default();
+                let prefix = hir
+                    .file(file_id)
+                    .map(|f| f.package_prefix.as_str())
+                    .unwrap_or("");
+                let fqn_text = if prefix.is_empty() {
+                    name.to_string()
+                } else {
+                    format!("{prefix}.{name}")
+                };
+                hir.interner
+                    .get(&fqn_text)
+                    .and_then(|s| hir.top_level_funs.get(&s))
+                    .and_then(|sigs| sigs.first())
+                    .map(|s| s.effect_row.clone())
+                    .unwrap_or_else(scoop2_hir::ty::EffectRow::pure)
+            };
+            (sig.return_ty, eff)
         };
 
     // fn_ty 的参数不含隐式 <this>（镜像 AST：fd.params 事后追加 this）。
@@ -1715,11 +1736,31 @@ fn signature_only_fun_item(
         })?;
     let mut types = base_types.clone();
     let param_tys: Vec<scoop2_hir::ty::TypeId> = sig.param_types.clone();
+    // effect 行镜像 AST `lookup_effect_row` quirk（包前缀.简名 → top_level_funs
+    // `.first()`；接口/效应 op 通常 miss → pure）。
+    let eff = {
+        let name = fqn.rsplit('.').next().unwrap_or_default();
+        let prefix = hir
+            .file(file_id)
+            .map(|f| f.package_prefix.as_str())
+            .unwrap_or("");
+        let fqn_text = if prefix.is_empty() {
+            name.to_string()
+        } else {
+            format!("{prefix}.{name}")
+        };
+        hir.interner
+            .get(&fqn_text)
+            .and_then(|s| hir.top_level_funs.get(&s))
+            .and_then(|sigs| sigs.first())
+            .map(|s| s.effect_row.clone())
+            .unwrap_or_else(scoop2_hir::ty::EffectRow::pure)
+    };
     let fn_ty = types.function(scoop2_hir::ty::FunctionType {
         receiver: None,
         params: param_tys.clone(),
         return_ty: sig.return_ty,
-        effects: sig.effect_row.clone(),
+        effects: eff.clone(),
         closed: false,
     });
     let name = fqn.rsplit('.').next().unwrap_or(fqn).to_string();
@@ -1730,7 +1771,7 @@ fn signature_only_fun_item(
         ty: fn_ty,
         params: Vec::new(),
         return_ty: sig.return_ty,
-        effect_row: sig.effect_row.clone(),
+        effect_row: eff,
         type_params: Vec::new(),
         body: None,
         file: file_id,

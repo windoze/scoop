@@ -218,7 +218,9 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                     if let Some(body) = &d.body
                         && let Some(sig) = lookup_sig(hir, &fqn_text, d.name.span)
                     {
-                        fun_sig = Some((sig.return_ty, sig.effect_row.clone()));
+                        // effect 行镜像 AST `lookup_effect_row` 的 quirk：按
+                        // prefix-fqn 取 `.first()` 签名（非 span 匹配），缺失 pure。
+                        fun_sig = Some((sig.return_ty, effect_row_quirk(hir, &fqn_text)));
                         let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
                             .param_names
                             .iter()
@@ -241,8 +243,8 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                     {
                         // 扩展函数（`fun Receiver.name`）：fqn 仍是简名（AST quirk），
                         // 签名按 owner 全集解析（镜像 lookup_member_sig 的
-                        // None-owner 回退——含确定性排序）。
-                        fun_sig = Some((sig.return_ty, sig.effect_row.clone()));
+                        // None-owner 回退——含确定性排序）；effect 行同 quirk。
+                        fun_sig = Some((sig.return_ty, effect_row_quirk(hir, &fqn_text)));
                         let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
                             .param_names
                             .iter()
@@ -389,6 +391,18 @@ fn lookup_sig<'a>(
     sigs.iter()
         .find(|s| s.decl_span == decl_span)
         .or_else(|| (sigs.len() == 1).then(|| &sigs[0]))
+}
+
+/// effect 行的 AST quirk 查询（镜像 `lookup_effect_row`：prefix-fqn 的
+/// `.first()` 签名 effect 行，缺失 pure）。
+fn effect_row_quirk(hir: &scoop2_hir::hir::TypedHir, fqn_text: &str) -> scoop2_hir::ty::EffectRow {
+    if let Some(fqn) = hir.interner.get(fqn_text)
+        && let Some(sigs) = hir.top_level_funs.get(&fqn)
+        && let Some(first) = sigs.first()
+    {
+        return first.effect_row.clone();
+    }
+    scoop2_hir::ty::EffectRow::pure()
 }
 
 /// 扩展函数签名查找：owner 全集按名搜索（镜像 MIR `lookup_member_sig` 的
