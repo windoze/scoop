@@ -320,6 +320,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                             &program.interner,
                             unit_ty,
                             &owner_fqn,
+                            Some(d),
                             &body.members,
                         );
                         // class `<Fqn>.$init` 合成（M2-3：从 MIR 上移）。
@@ -357,6 +358,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                             &program.interner,
                             unit_ty,
                             &owner_fqn,
+                            None,
                             &body.members,
                         );
                     }
@@ -439,6 +441,7 @@ fn build_member_trees(
     interner: &scoop2_base::Interner,
     unit_ty: scoop2_hir::ty::TypeId,
     owner_fqn: &str,
+    type_decl: Option<&scoop2_syntax::ast::TypeDecl>,
     members: &[scoop2_syntax::ast::TypeMember],
 ) -> Vec<scoop2_hir::hir::tree::MemberSlot> {
     use scoop2_syntax::ast::TypeMemberKind;
@@ -487,16 +490,37 @@ fn build_member_trees(
             }
             TypeMemberKind::Type(d) => {
                 if let Some(b) = &d.body {
+                    let nested_fqn = format!("{}.{}", owner_fqn, interner.resolve(d.name.symbol));
                     let nested = build_member_trees(
                         trees,
                         hir,
                         tf,
                         interner,
                         unit_ty,
-                        &format!("{}.{}", owner_fqn, interner.resolve(d.name.symbol)),
+                        &nested_fqn,
+                        Some(d),
                         &b.members,
                     );
                     slots.extend(nested);
+                }
+            }
+            // secondary ctor：合成 `<Class>.$ctor.s<span.start>` callable 树
+            //（镜像 lower_secondary_ctor_callable 的 item 发射位）。
+            TypeMemberKind::SecondaryCtor(sc) => {
+                if let Some(d) = type_decl
+                    && let Some(tree) = scoop2_hir::hir::tree::synthesize_secondary_ctor_tree(
+                        hir,
+                        tf,
+                        interner,
+                        unit_ty,
+                        owner_fqn,
+                        hir.interner.get(owner_fqn).unwrap_or_default(),
+                        d,
+                        sc,
+                    )
+                {
+                    trees.push(tree);
+                    slots.push(scoop2_hir::hir::tree::MemberSlot::Tree);
                 }
             }
             _ => {}

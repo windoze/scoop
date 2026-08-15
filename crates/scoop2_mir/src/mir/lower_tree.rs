@@ -1138,15 +1138,15 @@ fn lower_tree_call(
                 stable_key: None,
             }
         }
-        TreeCallee::InitCall { target_class } => {
-            // super 委托：`[this, ...实参]` 直调 `<Super>.$init`（镜像
-            // emit_super_init_call——plain_no_outward transport、无 site_id）。
-            let callee_fqn = format!("{}.$init", target_class);
+        TreeCallee::InitCall { callee_fqn } => {
+            // 构造链委托：`[this, ...实参]` 直调目标 callable（`<Super>.$init` /
+            // secondary `<Class>.$ctor.s<N>`——镜像 emit_super_init_call /
+            // emit_plain_init_call：plain_no_outward transport、无 site_id）。
             let unit = builder.types.unit();
             Rvalue::Call {
                 site_id: None,
                 kind: crate::mir::CallKind::Direct {
-                    callee_fqn,
+                    callee_fqn: callee_fqn.clone(),
                     type_args: vec![],
                     is_intrinsic: false,
                     stable_template_key: None,
@@ -1386,7 +1386,8 @@ pub fn lower_tree_fun_decl(
     // 签名数据（return/effect/参数类型）：$init 合成 → unit/pure；其余按 FQN 查表
     //（扩展函数无 top_level_funs 表项——用骨架携带的 sig_hint）。
     let (return_ty, effect_row): (scoop2_hir::ty::TypeId, scoop2_hir::ty::EffectRow) =
-        if tree.fqn.ends_with(".$init") {
+        if tree.fqn.ends_with(".$init") || tree.fqn.contains(".$ctor.") {
+            // $init / $ctor 合成 callable：unit / pure。
             (types.unit(), scoop2_hir::ty::EffectRow::pure())
         } else if let Some((ret, eff)) = sig_hint {
             (ret, eff)
@@ -1436,7 +1437,7 @@ pub fn lower_tree_fun_decl(
     // fn_ty 的参数不含隐式 <this>（镜像 AST：fd.params 事后追加 this）。
     // 例外：`$init` 合成的 fn_ty **含** this（镜像 lower_class_init_callable：
     // [this, ctor_params...]）。
-    let is_init = tree.fqn.ends_with(".$init");
+    let is_init = tree.fqn.ends_with(".$init") || tree.fqn.contains(".$ctor.");
     let param_tys: Vec<scoop2_hir::ty::TypeId> = tree
         .params
         .iter()
@@ -1450,7 +1451,12 @@ pub fn lower_tree_fun_decl(
         effects: effect_row.clone(),
         closed: false,
     });
-    let name = tree.fqn.rsplit('.').next().unwrap_or(&tree.fqn).to_string();
+    // secondary ctor callable 的 name 恒为 `$ctor`（FQN 尾段是 span key）。
+    let name = if tree.fqn.contains(".$ctor.") {
+        "$ctor".to_string()
+    } else {
+        tree.fqn.rsplit('.').next().unwrap_or(&tree.fqn).to_string()
+    };
     let mut fd = crate::mir::FunDecl {
         span: scoop2_base::Span::default(),
         fqn: tree.fqn.clone(),
