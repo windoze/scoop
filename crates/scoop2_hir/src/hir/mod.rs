@@ -20,6 +20,7 @@ pub mod element;
 pub mod facts;
 pub mod render;
 mod serde_impl;
+pub mod lang_items;
 pub mod tree;
 pub mod type_info;
 
@@ -161,6 +162,8 @@ pub struct TypedHir {
     pub store: TypeStore,
     /// interner 副本（解析 Symbol → 文本）。
     pub interner: Interner,
+    /// lang-items 注册表（core 周知条目句柄——typecheck 启动解析）。
+    pub lang_items: crate::hir::lang_items::LangItems,
     /// 顶层函数 FQN → 签名重载集。
     pub top_level_funs: HashMap<Symbol, Vec<TypedSignature>>,
     /// 类型 FQN → (方法名 → 签名重载集)。成员函数 / 扩展。
@@ -387,9 +390,11 @@ impl TypedHir {
 impl TypedHir {
     /// 空 HIR（测试 / 无用户文件时用）。
     pub fn empty(interner: Interner) -> Self {
+        let lang_items = crate::hir::lang_items::LangItems::resolve(&interner);
         Self {
             store: TypeStore::new(),
             interner,
+            lang_items,
             top_level_funs: HashMap::new(),
             member_funs: HashMap::new(),
             member_fun_order: HashMap::new(),

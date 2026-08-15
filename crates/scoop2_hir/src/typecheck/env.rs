@@ -618,6 +618,7 @@ impl<'i> TypeEnv<'i> {
             &self.class_ctor_params,
             &self.super_ctor_delegations,
         );
+        let lang_items = crate::hir::lang_items::LangItems::resolve(&interner);
         let mut hir = TypedHir {
             store,
             interner,
@@ -640,6 +641,7 @@ impl<'i> TypeEnv<'i> {
             type_infos,
             files,
             elements: crate::hir::element::ElementTable::default(),
+            lang_items,
         };
         // 声明层 element 表：从上方散表装配（确定性排序）。
         hir.elements = crate::hir::element::assemble(&hir);

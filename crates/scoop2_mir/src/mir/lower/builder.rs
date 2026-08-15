@@ -166,11 +166,7 @@ impl<'hir> FnLowering<'hir> {
     /// Array 引用类型（`Ref(scoop.core.Array)`，无类型实参）。
     /// 用于空数组字面量 `[]` 的 MakeArray 临时（表达式类型为 Nothing 时回退）。
     pub fn array_ref_ty(&mut self) -> scoop2_hir::ty::TypeId {
-        let array_fqn = self
-            .hir
-            .interner
-            .get("scoop.core.Array")
-            .unwrap_or_default();
+        let array_fqn = self.hir.lang_items.array;
         self.types.ref_nominal(scoop2_hir::ty::NominalType {
             fqn: array_fqn,
             args: Vec::new(),
@@ -640,26 +636,10 @@ pub fn owner_fqn_of_type(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> sc
     match builder.types.kind(ty) {
         TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn,
         TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn,
-        TypeKind::Value(ValueTypeKind::Bool) => builder
-            .hir
-            .interner
-            .get("scoop.core.Bool")
-            .unwrap_or_default(),
-        TypeKind::Value(ValueTypeKind::Char) => builder
-            .hir
-            .interner
-            .get("scoop.core.Char")
-            .unwrap_or_default(),
-        TypeKind::Value(ValueTypeKind::Int) => builder
-            .hir
-            .interner
-            .get("scoop.core.Int")
-            .unwrap_or_default(),
-        TypeKind::Value(ValueTypeKind::UInt) => builder
-            .hir
-            .interner
-            .get("scoop.core.UInt")
-            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::Bool) => builder.hir.lang_items.bool_,
+        TypeKind::Value(ValueTypeKind::Char) => builder.hir.lang_items.char_,
+        TypeKind::Value(ValueTypeKind::Int) => builder.hir.lang_items.int,
+        TypeKind::Value(ValueTypeKind::UInt) => builder.hir.lang_items.uint,
         TypeKind::Value(ValueTypeKind::IntN(bits)) => builder
             .hir
             .interner
@@ -670,16 +650,8 @@ pub fn owner_fqn_of_type(builder: &FnLowering, ty: scoop2_hir::ty::TypeId) -> sc
             .interner
             .get(&format!("scoop.core.UInt{bits}"))
             .unwrap_or_default(),
-        TypeKind::Value(ValueTypeKind::Float32) => builder
-            .hir
-            .interner
-            .get("scoop.core.Float32")
-            .unwrap_or_default(),
-        TypeKind::Value(ValueTypeKind::Float64) => builder
-            .hir
-            .interner
-            .get("scoop.core.Float64")
-            .unwrap_or_default(),
+        TypeKind::Value(ValueTypeKind::Float32) => builder.hir.lang_items.float32,
+        TypeKind::Value(ValueTypeKind::Float64) => builder.hir.lang_items.float64,
         _ => scoop2_base::Symbol::default(),
     }
 }
@@ -694,20 +666,19 @@ pub fn resolve_owner_fqn_from_operand(
 ) -> scoop2_base::Symbol {
     let ty = match op {
         Operand::Local(l) => builder.body.locals.get(l.0 as usize).map(|d| d.ty),
-        // 常量 operand：按常量种类映射到内建 owner 类型 FQN。
+        // 常量 operand：按常量种类映射到内建 owner（lang-items 句柄）。
         Operand::Const(c) => {
-            let fqn = match c {
-                crate::mir::ConstValue::String(_) => Some("scoop.core.String"),
-                crate::mir::ConstValue::Bool(_) => Some("scoop.core.Bool"),
-                crate::mir::ConstValue::Char(_) => Some("scoop.core.Char"),
-                crate::mir::ConstValue::Int(_, _) => Some("scoop.core.Int"),
-                crate::mir::ConstValue::Float(_, None) => Some("scoop.core.Float64"),
-                crate::mir::ConstValue::Float(_, Some(_)) => Some("scoop.core.Float32"),
-                crate::mir::ConstValue::Unit | crate::mir::ConstValue::Null => None,
+            return match c {
+                crate::mir::ConstValue::String(_) => builder.hir.lang_items.string,
+                crate::mir::ConstValue::Bool(_) => builder.hir.lang_items.bool_,
+                crate::mir::ConstValue::Char(_) => builder.hir.lang_items.char_,
+                crate::mir::ConstValue::Int(_, _) => builder.hir.lang_items.int,
+                crate::mir::ConstValue::Float(_, None) => builder.hir.lang_items.float64,
+                crate::mir::ConstValue::Float(_, Some(_)) => builder.hir.lang_items.float32,
+                crate::mir::ConstValue::Unit | crate::mir::ConstValue::Null => {
+                    scoop2_base::Symbol::default()
+                }
             };
-            return fqn
-                .and_then(|f| builder.hir.interner.get(f))
-                .unwrap_or_default();
         }
     };
     let Some(ty) = ty else {
