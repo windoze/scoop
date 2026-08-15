@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use scoop2_base::diag::Diagnostic;
 use scoop2_base::{FileId, StableConeKey, archive_fingerprint, archive_schema, compiler_version};
 use scoop2_hir::hir::TypedHir;
+use scoop2_hir::hir::TypedFile;
 use scoop2_hir::resolve::{InputOrigin, cone_name_of};
 
 use crate::pipeline::BuiltProgram;
@@ -54,11 +55,15 @@ pub struct ArchivedFile {
     pub trusted: bool,
 }
 
-/// per-cone HIR archive（v1：AST 片段移除，schema 升版不迁移）。
+/// per-cone HIR archive（v1：AST 片段移除；per-cone 分区——本 cone 的
+/// TypedFile（树 + 骨架 + per-file 表）随 archive 携带，符号/类型表在
+/// collection 共享段）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HirConeArchive {
     pub header: ArchiveHeader,
     pub files: Vec<ArchivedFile>,
+    /// 本 cone 的 typed 文件（per-cone 分区；装配时按 file_id 归并）。
+    pub typed_files: Vec<TypedFile>,
 }
 
 /// collection 清单 + 共享段（v0）。
@@ -192,6 +197,28 @@ pub fn write_hir_collection(
             });
     }
 
+    // per-cone 分区：TypedFile（file_id → 所属 cone）随 cone archive 携带。
+    let mut typed_by_cone: BTreeMap<String, Vec<TypedFile>> = BTreeMap::new();
+    {
+        let mut id_to_cone: std::collections::HashMap<FileId, String> =
+            std::collections::HashMap::new();
+        for (cone_key, files) in &by_cone {
+            for f in files {
+                id_to_cone.insert(f.file_id, cone_key.clone());
+            }
+        }
+        for tf in &hir.files {
+            let cone = id_to_cone.get(&tf.file_id).cloned().unwrap_or_else(|| {
+                // 树未覆盖的文件（sysroot body 双态等）留在共享段——装配时归位。
+                String::new()
+            });
+            if cone.is_empty() {
+                continue;
+            }
+            typed_by_cone.entry(cone).or_default().push(tf.clone());
+        }
+    }
+
     let mut written = Vec::new();
     for (cone_key, files) in &by_cone {
         let header = ArchiveHeader {
@@ -214,15 +241,25 @@ pub fn write_hir_collection(
             &encode(&HirConeArchive {
                 header,
                 files: files.clone(),
+                typed_files: typed_by_cone.get(cone_key).cloned().unwrap_or_default(),
             })?,
         )?;
         written.push(path);
     }
 
+    // 共享段剔除已分区文件（v1：共享段只剩符号/类型表 + 未分区残余）。
+    let mut shared_hir = hir.clone();
+    let partitioned: std::collections::HashSet<FileId> = typed_by_cone
+        .values()
+        .flat_map(|v| v.iter().map(|tf| tf.file_id))
+        .collect();
+    shared_hir
+        .files
+        .retain(|tf| !partitioned.contains(&tf.file_id));
     let collection = HirCollection {
         members: by_cone.keys().cloned().collect(),
         params: params.to_vec(),
-        hir: hir.clone(),
+        hir: shared_hir,
     };
     let manifest_path = dir.join(COLLECTION_FILE);
     write_bytes(&manifest_path, &encode(&collection)?)?;
@@ -294,6 +331,8 @@ pub fn load_hir_collection(dir: &Path) -> Result<LoadedCollection, ArchiveError>
     }
 
     let mut files: Vec<ArchivedFile> = Vec::new();
+    let mut cone_typed_files: Vec<TypedFile> = Vec::new();
+    let mut hir = collection.hir;
     for member in &collection.members {
         let path = dir.join(format!("{member}.{CONE_EXT}"));
         let bytes = std::fs::read(&path).map_err(|e| ArchiveError::Io(path.clone(), e))?;
@@ -336,6 +375,7 @@ pub fn load_hir_collection(dir: &Path) -> Result<LoadedCollection, ArchiveError>
             });
         }
         files.extend(archive.files);
+        cone_typed_files.extend(archive.typed_files);
     }
 
     // file_id 去重 + 排序（恢复原 parse 序）。
@@ -347,8 +387,22 @@ pub fn load_hir_collection(dir: &Path) -> Result<LoadedCollection, ArchiveError>
     }
     files.sort_by_key(|f| f.file_id);
 
+    // per-cone 分区归并：TypedFile 按 file_id 升序回到 hir.files（与写出前
+    // 的 parse 序一致）。
+    {
+        let mut seen_t = std::collections::HashSet::new();
+        for tf in &cone_typed_files {
+            if !seen_t.insert(tf.file_id) {
+                return Err(ArchiveError::DuplicateFileId(tf.file_id));
+            }
+        }
+        cone_typed_files.sort_by_key(|tf| tf.file_id);
+        hir.files.extend(cone_typed_files);
+        hir.files.sort_by_key(|tf| tf.file_id);
+    }
+
     Ok(LoadedCollection {
-        hir: collection.hir,
+        hir,
         files,
         members: collection.members,
     })
