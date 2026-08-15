@@ -206,7 +206,16 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第二十刀）：**M2-5 翻转落地（含 sysroot）**——模块级双
+> 进度（2026-08-16，第二十一刀）：**M2-6 三切片落地**——(1) archive 去 AST
+> 片段（per-cone archive 只存文件元信息；TypedHir 序列化面 serde-skip 三处
+> AST 携带字段；schema V0→V1 不迁移）；(2) lang-items 注册表（`TypedHir.
+> lang_items` 周知句柄 + archive 携带；MIR lowering 固定 FQN 注入替换完毕；
+> devirtualize 侧留 M3）；(3) per-cone TypedFile 分区（树+骨架随 cone
+> archive，装配归并去重）。M1 oracle 4/4 绿。**M2-6 余留（C2 深水区）**：
+> per-cone 符号/类型 id 空间（typecheck 输出的 store/interner 会话全局——
+> 需 per-cone store + 树 cone-local id + 跨 cone (ConeId, stable id) 的系统性
+> 重写；共享段 interner/store 的最终切分随之完成）。
+> 第二十刀：**M2-5 翻转落地（含 sysroot）**——模块级双
 > 路径 oracle **325/325 全语料（mir2+hir+run-pass）完整模块 dump 逐字节一致**；
 > 四条生产 MIR 路径（dump-mir / v0 one-shot+staged / CLI 检查 / e2e build-run
 > 含 sysroot 全量）全部切 `lower_module_from_trees`（`pipeline::attach_trees`
