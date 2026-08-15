@@ -283,11 +283,25 @@ pub struct HandleTreeArm {
     /// effect 路径文本（如 `scoop.core.Raise`；句柄化随 M2 element 体系）。
     pub effect_path: String,
     pub op: Symbol,
-    /// non-resuming binder（类型来自 ascription TypeRef 的 expr_types）。
-    pub binder: Option<LocalId>,
-    /// escape continuation binder（`, k ->`；类型来自 handle_escape_binders）。
+    /// op binders（出现序）。`ascription_ty` 是 binder 标注类型；缺失时
+    /// lower 期回退 op 签名参数类型 / Any（镜像 AST 的 bty 链）。`local` 是
+    /// arm body 作用域 token（MIR binder local 在 lower 期分配）。
+    pub binders: Vec<HandleBinderSpec>,
+    /// escape continuation binder（`, k ->`；类型 Any——effect lowering pass
+    /// 后续替换，镜像 AST）。
     pub escape_cont: Option<LocalId>,
     pub body: ExprId,
+}
+
+/// handle arm 的 op binder 规格。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HandleBinderSpec {
+    pub name: Symbol,
+    /// arm body 作用域 token。
+    pub local: LocalId,
+    /// binder 标注类型（`e: Int` 的 ascription）；无标注为 None。
+    pub ascription_ty: Option<TypeId>,
+    pub span: Span,
 }
 
 /// `with` 更新的字段路径（`a.b` / `0.1`）。
@@ -1005,19 +1019,33 @@ impl<'a> TreeBuilder<'a> {
                         .map(|s| self.interner.resolve(s.symbol))
                         .collect::<Vec<_>>()
                         .join(".");
-                    // non-resuming binder：类型记录在 ascription TypeRef 的 expr_types。
-                    let binder = arm.op.binders.first().and_then(|b| {
-                        let ty =
+                    // op binders（出现序）：ascription 类型缺失为 None（lower 期
+                    // 回退 op 签名 / Any——镜像 AST bty 链）；local 的 ty 只是
+                    // 作用域 token 占位（MIR binder local 在 lower 期按 bty 链分配）。
+                    let mut binders = Vec::with_capacity(arm.op.binders.len());
+                    for b in &arm.op.binders {
+                        let ascription_ty =
                             b.ty.as_ref()
-                                .and_then(|tr| self.expr_types.get(tr.id).copied())?;
-                        Some(self.push_local(b.name.symbol, ty, false, b.name.span))
-                    });
+                                .and_then(|tr| self.expr_types.get(tr.id).copied());
+                        let local = self.push_local(
+                            b.name.symbol,
+                            ascription_ty.unwrap_or(self.unit_ty),
+                            false,
+                            b.name.span,
+                        );
+                        binders.push(HandleBinderSpec {
+                            name: b.name.symbol,
+                            local,
+                            ascription_ty,
+                            span: b.name.span,
+                        });
+                    }
                     let body_expr = self.build_expr(&arm.body)?;
                     self.scopes.pop();
                     tree_arms.push(HandleTreeArm {
                         effect_path,
                         op: arm.op.op.symbol,
-                        binder,
+                        binders,
                         escape_cont,
                         body: body_expr,
                     });

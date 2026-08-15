@@ -17,8 +17,8 @@
 
 use scoop2_base::Span;
 use scoop2_hir::hir::tree::{
-    BlockId, ExprId, FnTree, TreeBody, TreeCallee, TreeExprKind, TreeMember, TreePattern, TreeStmt,
-    WhenTreeArm,
+    BlockId, ExprId, FnTree, HandleTreeArm, TreeBody, TreeCallee, TreeExprKind, TreeMember,
+    TreePattern, TreeStmt, WhenTreeArm,
 };
 
 use crate::mir::lower::builder::FnLowering;
@@ -48,11 +48,9 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeExprKind::Cast { .. }
             | TreeExprKind::TypeCheck { .. }
             | TreeExprKind::WithUpdate { .. }
-            | TreeExprKind::When { .. } => {}
-
-            TreeExprKind::Handle { .. } => return Some("Handle"),
-
-            TreeExprKind::Lambda { .. } => {}
+            | TreeExprKind::When { .. }
+            | TreeExprKind::Lambda { .. }
+            | TreeExprKind::Handle { .. } => {}
         }
     }
     for e in &tree.body.exprs {
@@ -629,6 +627,14 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
         } => {
             // 镜像 lower_lambda：生成 env tuple + 嵌套 Item::Fun
             lower_tree_lambda(builder, body, params, lambda_body, ty, span)
+        }
+        TreeExprKind::Handle {
+            body: hbody,
+            arms,
+            finally_,
+        } => {
+            // 镜像 lower_handle：Handle 终结符 + body/arm/finally 块 + binder 作用域管理。
+            lower_tree_handle(builder, body, *hbody, arms, *finally_, ty, span)
         }
         _ => unsupported!("本切片支持集外的表达式构造"),
     }
@@ -1448,6 +1454,228 @@ fn lower_tree_when(
 }
 
 /// 为树模式发射测试（树版本）。
+/// handle 表达式 lowering（镜像 expr.rs 的 lower_handle）。
+fn lower_tree_handle(
+    builder: &mut FnLowering,
+    body: &TreeBody,
+    hbody: BlockId,
+    arms: &[HandleTreeArm],
+    finally_: Option<BlockId>,
+    ty: scoop2_hir::ty::TypeId,
+    span: Span,
+) -> Operand {
+    let result = builder.alloc_temp(ty, span);
+    let body_bb = builder.new_block();
+    let exit_bb = builder.new_block();
+    let arm_bbs: Vec<_> = arms.iter().map(|_| builder.new_block()).collect();
+    let finally_bb = finally_.map(|_| builder.new_block());
+    // binder 符号注册会遮盖外层同名绑定；嵌套 handle 的 arm body 在本 handle
+    // 之后 lower——快照旧值，结束时恢复（镜像 AST）。
+    let mut saved_binder_bindings: std::collections::HashMap<
+        scoop2_base::Symbol,
+        Option<crate::mir::LocalId>,
+    > = std::collections::HashMap::new();
+    let mut handler_arms: Vec<crate::mir::transport::HandlerArm> = Vec::with_capacity(arms.len());
+    let mut arm_binder_pairs: Vec<Vec<(scoop2_base::Symbol, crate::mir::LocalId)>> =
+        Vec::with_capacity(arms.len());
+    for arm in arms {
+        // op_fqn = effect 简名 . op 名（镜像 AST 的 last_segment 规则）。
+        let effect_name = arm
+            .effect_path
+            .rsplit('.')
+            .next()
+            .unwrap_or_default()
+            .to_string();
+        let op_name = builder.hir.interner.resolve(arm.op).to_string();
+        let op_fqn = if effect_name.is_empty() {
+            op_name.clone()
+        } else {
+            format!("{}.{}", effect_name, op_name)
+        };
+        // 解析 handled effect 类型（enum 登记则为 effect nominal，否则 Any）。
+        let handled_effect_ty = builder
+            .hir
+            .interner
+            .get(&effect_name)
+            .and_then(|fqn| {
+                if builder.hir.enum_variants.contains_key(&fqn) {
+                    Some(builder.types.ref_nominal(scoop2_hir::ty::NominalType {
+                        fqn,
+                        args: vec![],
+                        eff: None,
+                    }))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| builder.types.any());
+        // binder 类型的回退源：op 声明签名参数类型（member_funs，包前缀候选）。
+        let op_param_tys: Vec<scoop2_hir::ty::TypeId> = {
+            let prefix = builder
+                .hir
+                .file(builder.file_id)
+                .map(|f| f.package_prefix.as_str())
+                .unwrap_or("");
+            let candidates = if prefix.is_empty() {
+                vec![effect_name.clone(), format!("scoop.core.{effect_name}")]
+            } else {
+                vec![
+                    effect_name.clone(),
+                    format!("{prefix}.{effect_name}"),
+                    format!("scoop.core.{effect_name}"),
+                ]
+            };
+            candidates
+                .iter()
+                .filter_map(|c| builder.hir.interner.get(c))
+                .find_map(|eff| {
+                    builder
+                        .hir
+                        .member_funs
+                        .get(&eff)
+                        .and_then(|m| m.get(&arm.op))
+                })
+                .and_then(|sigs| sigs.first())
+                .map(|sig| sig.param_types.clone())
+                .unwrap_or_default()
+        };
+        let mut binder_locals: Vec<crate::mir::LocalId> = Vec::new();
+        let mut binder_pairs: Vec<(scoop2_base::Symbol, crate::mir::LocalId)> = Vec::new();
+        let mut payload_component_tys: Vec<scoop2_hir::ty::TypeId> = Vec::new();
+        for (bi, bspec) in arm.binders.iter().enumerate() {
+            // bty 链：ascription → op 签名参数类型 → Any（镜像 AST）。
+            let bty = bspec
+                .ascription_ty
+                .or_else(|| op_param_tys.get(bi).copied())
+                .unwrap_or_else(|| builder.types.any());
+            payload_component_tys.push(bty);
+            let lid = builder.alloc_named(
+                builder.hir.interner.resolve(bspec.name).to_string(),
+                bty,
+                bspec.span,
+            );
+            saved_binder_bindings
+                .entry(bspec.name)
+                .or_insert_with(|| builder.symbol_locals.get(&bspec.name).copied());
+            builder.symbol_locals.insert(bspec.name, lid);
+            binder_locals.push(lid);
+            binder_pairs.push((bspec.name, lid));
+        }
+        // resuming arm 的 escape continuation binder（Any 类型——effect lowering
+        // pass 用精确类型替换，镜像 AST）。
+        let (continuation_local, kind) = if let Some(k_local) = arm.escape_cont {
+            let k_decl = &body.locals[k_local.0 as usize];
+            let cont_ty = builder.types.any();
+            let lid = builder.alloc_named(
+                builder.hir.interner.resolve(k_decl.name).to_string(),
+                cont_ty,
+                k_decl.span,
+            );
+            saved_binder_bindings
+                .entry(k_decl.name)
+                .or_insert_with(|| builder.symbol_locals.get(&k_decl.name).copied());
+            builder.symbol_locals.insert(k_decl.name, lid);
+            binder_pairs.push((k_decl.name, lid));
+            (
+                Some(lid),
+                crate::mir::transport::HandlerArmKind::EscapeContinuation,
+            )
+        } else {
+            (None, crate::mir::transport::HandlerArmKind::NonResuming)
+        };
+        handler_arms.push(crate::mir::transport::HandlerArm {
+            op_fqn,
+            op_type_args: Vec::new(),
+            binder_count: arm.binders.len(),
+            binder_locals: binder_locals.clone(),
+            continuation_local,
+            handled_effect_ty,
+            payload_tuple_ty: if payload_component_tys.len() == 1 {
+                Some(payload_component_tys[0])
+            } else if payload_component_tys.is_empty() {
+                None
+            } else {
+                Some(builder.types.tuple(payload_component_tys.clone()))
+            },
+            payload_component_tys: payload_component_tys.clone(),
+            body_ty: ty,
+            kind,
+        });
+        arm_binder_pairs.push(binder_pairs);
+    }
+    // 发射 Handle 终结符。
+    let handle_metadata = crate::mir::transport::HandleMetadata {
+        result_ty: ty,
+        body_result_ty: ty,
+        finally_result_ty: None,
+        result_local: result,
+    };
+    let handle_site_id = Some(builder.next_site_id());
+    builder.terminate(
+        Terminator {
+            span,
+            kind: TerminatorKind::Handle {
+                site_id: handle_site_id,
+                metadata: handle_metadata,
+                arms: handler_arms,
+                body_target: body_bb,
+                arm_targets: arm_bbs.clone(),
+                finally_target: finally_bb,
+                exit_target: exit_bb,
+            },
+        },
+        body_bb,
+    );
+    // body。
+    builder.current_bb = body_bb;
+    let bv = lower_tree_block(builder, body, hbody);
+    builder.assign(result, Rvalue::Use(bv), span);
+    builder.goto(exit_bb, span);
+    // arms（lower 各 arm body 到对应块，结果写 result；binder 作用域先重装后恢复）。
+    for (i, arm) in arms.iter().enumerate() {
+        builder.current_bb = arm_bbs[i];
+        let mut arm_saved: Vec<(scoop2_base::Symbol, Option<crate::mir::LocalId>)> =
+            Vec::with_capacity(arm_binder_pairs[i].len());
+        for &(sym, lid) in &arm_binder_pairs[i] {
+            arm_saved.push((sym, builder.symbol_locals.get(&sym).copied()));
+            builder.symbol_locals.insert(sym, lid);
+        }
+        let v = lower_tree_expr(builder, body, arm.body);
+        for (sym, old) in arm_saved {
+            match old {
+                Some(lid) => {
+                    builder.symbol_locals.insert(sym, lid);
+                }
+                None => {
+                    builder.symbol_locals.remove(&sym);
+                }
+            }
+        }
+        let body_span = body.exprs[arm.body.0 as usize].span;
+        builder.assign(result, Rvalue::Use(v), body_span);
+        builder.goto(exit_bb, span);
+    }
+    // finally。
+    if let (Some(fb), Some(fblock)) = (finally_bb, finally_) {
+        builder.current_bb = fb;
+        lower_tree_block(builder, body, fblock);
+        builder.goto(exit_bb, span);
+    }
+    // 恢复 handle 之前的同名绑定（嵌套 handle 不泄漏 binder）。
+    for (sym, old) in saved_binder_bindings {
+        match old {
+            Some(lid) => {
+                builder.symbol_locals.insert(sym, lid);
+            }
+            None => {
+                builder.symbol_locals.remove(&sym);
+            }
+        }
+    }
+    builder.current_bb = exit_bb;
+    Operand::Local(result)
+}
+
 fn lower_tree_pattern_test(
     builder: &mut FnLowering,
     body: &TreeBody,
