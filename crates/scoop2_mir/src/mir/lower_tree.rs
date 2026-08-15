@@ -52,6 +52,7 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeExprKind::Lambda { .. }
             | TreeExprKind::Handle { .. }
             | TreeExprKind::UnresolvedName { .. }
+            | TreeExprKind::UnresolvedCall { .. }
             | TreeExprKind::BoolNot { .. } => {}
         }
     }
@@ -251,7 +252,8 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
         TreeExprKind::TopLevelValRef { fqn } => {
             // 镜像 AST lower_ident 的 top_level_vals 回退分支：fqn 文本用**简名**
             //（AST 的 value_ref 查询是 u32::MAX 哨兵节点，恒走回退——简名 quirk
-            // 字节一致保留；C1 清理时与 AST 路径一并统一）。
+            // 字节一致保留；C1 清理时与 AST 路径一并统一）。表 miss（顶层 val
+            // 模式绑定名等未登记形态）→ UnresolvedName 回退（AST 同）。
             let simple = builder
                 .hir
                 .interner
@@ -260,21 +262,30 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
                 .next()
                 .unwrap_or_default()
                 .to_string();
-            let tl = crate::mir::TopLevelRef {
-                fqn: simple.clone(),
-                hidden_effects: scoop2_hir::ty::EffectRow::pure(),
-                stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(
-                    crate::mir::stable_id::StableHashScope::Dump,
-                    &simple,
-                    &[],
-                    "",
-                )),
-                stable_instance_key: None,
-                generic_type_args: vec![],
-                generic_eff_args: vec![],
-            };
+            let in_top_level_vals = builder
+                .hir
+                .interner
+                .get(&simple)
+                .is_some_and(|sym| builder.hir.top_level_vals.contains_key(&sym));
             let tmp = builder.alloc_temp(ty, span);
-            builder.assign(tmp, Rvalue::TopLevelRef(tl), span);
+            if in_top_level_vals {
+                let tl = crate::mir::TopLevelRef {
+                    fqn: simple.clone(),
+                    hidden_effects: scoop2_hir::ty::EffectRow::pure(),
+                    stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(
+                        crate::mir::stable_id::StableHashScope::Dump,
+                        &simple,
+                        &[],
+                        "",
+                    )),
+                    stable_instance_key: None,
+                    generic_type_args: vec![],
+                    generic_eff_args: vec![],
+                };
+                builder.assign(tmp, Rvalue::TopLevelRef(tl), span);
+            } else {
+                builder.assign(tmp, Rvalue::UnresolvedName { name: simple }, span);
+            }
             Operand::Local(tmp)
         }
         TreeExprKind::Call {
@@ -596,6 +607,15 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             builder.goto(cond_bb, span);
             builder.current_bb = exit_bb;
             Operand::Const(ConstValue::Unit)
+        }
+        TreeExprKind::UnresolvedCall { args } => {
+            // 镜像 lower_via_call_resolution 的无决议回退：lower 实参（副作用）
+            // 后返回 Unit temp。
+            for &a in args {
+                let _ = lower_tree_expr(builder, body, a);
+            }
+            let unit = builder.types.unit();
+            Operand::Local(builder.alloc_temp(unit, span))
         }
         TreeExprKind::UnresolvedName { name } => {
             // 镜像 lower_ident 的未解析回退：Unit-temp + UnresolvedName 赋值。
@@ -3233,6 +3253,11 @@ fn collect_tree_expr_idents(
         TreeExprKind::UnresolvedName { .. } => {}
         TreeExprKind::BoolNot { expr } => {
             collect_tree_expr_idents(body, *expr, syms);
+        }
+        TreeExprKind::UnresolvedCall { args } => {
+            for &a in args {
+                collect_tree_expr_idents(body, a, syms);
+            }
         }
         TreeExprKind::LocalRef(local) => {
             syms.insert(body.locals[local.0 as usize].name);

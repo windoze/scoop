@@ -259,6 +259,11 @@ pub enum TreeExprKind {
     BoolNot {
         expr: ExprId,
     },
+    /// 无决议调用回退（transitional 镜像：AST 路径对 call_resolutions 缺失的
+    /// 错误程序形态——lower 实参后返回 Unit temp；C1 清理时一并消灭）。
+    UnresolvedCall {
+        args: Vec<ExprId>,
+    },
     /// `expr is T` / `expr !is T`（类型判断原语；目标已解析为 TypeId）。
     TypeCheck {
         expr: ExprId,
@@ -1378,7 +1383,15 @@ impl<'a> TreeBuilder<'a> {
         match self.facts.value_refs.get(expr.id) {
             Some(super::ResolvedValue::Local { .. }) => match self.lookup_local(id.symbol) {
                 Some(local) => Some(self.push_expr(TreeExprKind::LocalRef(local), ty, span)),
-                None => self.gap_ret(span, "局部引用超出词法作用域"),
+                // 作用域未命中（顶层 val 模式绑定跨初始化器引用等）：镜像
+                // AST lower_ident 的回退链终态——UnresolvedName。
+                None => Some(self.push_expr(
+                    TreeExprKind::UnresolvedName {
+                        name: name_text.to_string(),
+                    },
+                    ty,
+                    span,
+                )),
             },
             Some(super::ResolvedValue::TopLevelValue { fqn }) => {
                 Some(self.push_expr(TreeExprKind::TopLevelValRef { fqn: *fqn }, ty, span))
@@ -1410,7 +1423,16 @@ impl<'a> TreeBuilder<'a> {
         let span = expr.span;
         let resolution = match self.facts.call_resolutions.get(expr.id) {
             Some(r) => r.clone(),
-            None => return self.gap_ret(span, "糖调用决议缺失（completeness 泄漏）"),
+            // 无决议（错误程序形态——顶层 val 模式绑定上下文的运算符等）：
+            // 镜像 AST 回退——lower 实参后返回 Unit temp。
+            None => {
+                let ty = self.ty_of(expr.id, span)?;
+                let mut ids = Vec::with_capacity(arg_exprs.len());
+                for e in arg_exprs {
+                    ids.push(self.build_expr(e)?);
+                }
+                return Some(self.push_expr(TreeExprKind::UnresolvedCall { args: ids }, ty, span));
+            }
         };
         let ty = self.ty_of(expr.id, span)?;
         let all_args: Vec<ExprId> = arg_exprs
