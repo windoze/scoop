@@ -984,26 +984,26 @@ impl<'a> TreeBuilder<'a> {
     fn build_expr(&mut self, expr: &crate::syntax::ast::Expr) -> Option<ExprId> {
         use crate::syntax::ast::ExprKind;
         let span = expr.span;
+        // 字面量的类型缺失时回退 Unit（构造器默认值等未走 typecheck 的字面量
+        // ——镜像 AST expr_ty 的 unit 回退；Const operand 不消费类型）。
+        let lit_ty = self
+            .expr_types
+            .get(expr.id)
+            .copied()
+            .unwrap_or(self.unit_ty);
         match &expr.kind {
-            ExprKind::UnitLit => {
-                let ty = self.ty_of(expr.id, span)?;
-                Some(self.push_expr(TreeExprKind::Lit(Lit::Unit), ty, span))
-            }
+            ExprKind::UnitLit => Some(self.push_expr(TreeExprKind::Lit(Lit::Unit), lit_ty, span)),
             ExprKind::IntLit(l) => {
-                let ty = self.ty_of(expr.id, span)?;
-                Some(self.push_expr(TreeExprKind::Lit(Lit::Int(l.value, l.suffix)), ty, span))
+                Some(self.push_expr(TreeExprKind::Lit(Lit::Int(l.value, l.suffix)), lit_ty, span))
             }
             ExprKind::FloatLit(l) => {
-                let ty = self.ty_of(expr.id, span)?;
-                Some(self.push_expr(TreeExprKind::Lit(Lit::Float(l.value)), ty, span))
+                Some(self.push_expr(TreeExprKind::Lit(Lit::Float(l.value)), lit_ty, span))
             }
             ExprKind::CharLit(l) => {
-                let ty = self.ty_of(expr.id, span)?;
-                Some(self.push_expr(TreeExprKind::Lit(Lit::Char(l.value)), ty, span))
+                Some(self.push_expr(TreeExprKind::Lit(Lit::Char(l.value)), lit_ty, span))
             }
             ExprKind::StringLit(l) => {
-                let ty = self.ty_of(expr.id, span)?;
-                Some(self.push_expr(TreeExprKind::Lit(Lit::Str(l.value.clone())), ty, span))
+                Some(self.push_expr(TreeExprKind::Lit(Lit::Str(l.value.clone())), lit_ty, span))
             }
             ExprKind::Ident(id) => self.build_ident(expr, id),
             ExprKind::Binary { lhs, op, rhs } => {
@@ -1830,10 +1830,62 @@ pub fn synthesize_class_init_tree(
             .get(super_del.base_index)
             .map(|st| st.args.as_slice())
             .unwrap_or(&[]);
+        // 超类 ctor 签名（按参数数匹配——镜像 emit_super_init_call）+
+        // 默认值填充 / 命名实参排序（镜像 lower_delegation_args）。
+        let super_sig = hir
+            .ctor_signatures
+            .get(&super_del.super_fqn)
+            .and_then(|sigs| {
+                let n_args = base_args.len();
+                sigs.iter()
+                    .find(|sg| {
+                        let min_arity = sg
+                            .has_defaults
+                            .iter()
+                            .position(|d| *d)
+                            .unwrap_or(sg.param_types.len());
+                        n_args >= min_arity && n_args <= sg.param_types.len()
+                    })
+                    .or_else(|| sigs.first())
+            });
         let mut args = vec![this_ref];
-        for a in base_args {
-            if let Some(id) = b.build_expr(&a.value) {
-                args.push(id);
+        match super_sig {
+            Some(sig) => {
+                let all_positional = base_args.iter().all(|a| a.name.is_none());
+                if all_positional && base_args.len() == sig.param_types.len() {
+                    for a in base_args {
+                        if let Some(id) = b.build_expr(&a.value) {
+                            args.push(id);
+                        }
+                    }
+                } else {
+                    let mut positional = base_args.iter().filter(|a| a.name.is_none());
+                    for (param_idx, &pname) in sig.param_names.iter().enumerate() {
+                        let named = base_args
+                            .iter()
+                            .find(|a| a.name.as_ref().is_some_and(|n| n.symbol == pname));
+                        if let Some(a) = named {
+                            if let Some(id) = b.build_expr(&a.value) {
+                                args.push(id);
+                            }
+                        } else if let Some(a) = positional.next() {
+                            if let Some(id) = b.build_expr(&a.value) {
+                                args.push(id);
+                            }
+                        } else if let Some(Some(default_expr)) = sig.default_exprs.get(param_idx)
+                            && let Some(id) = b.build_expr(default_expr)
+                        {
+                            args.push(id);
+                        }
+                    }
+                }
+            }
+            None => {
+                for a in base_args {
+                    if let Some(id) = b.build_expr(&a.value) {
+                        args.push(id);
+                    }
+                }
             }
         }
         let n = args.len();
