@@ -218,6 +218,11 @@ pub enum TreeExprKind {
         lhs: ExprId,
         rhs: ExprId,
     },
+    /// Elvis `a ?: b`（控制流原语：lhs 求值后非 null 取 lhs 否则 rhs）。
+    Elvis {
+        lhs: ExprId,
+        rhs: ExprId,
+    },
     LogicalOr {
         lhs: ExprId,
         rhs: ExprId,
@@ -1002,7 +1007,7 @@ impl<'a> TreeBuilder<'a> {
             }
             ExprKind::Ident(id) => self.build_ident(expr, id),
             ExprKind::Binary { lhs, op, rhs } => {
-                // `&&` / `||` 是短路控制流原语（非方法调用，无 call 决议）。
+                // `&&` / `||` / `?:` 是控制流原语（非方法调用，无 call 决议）。
                 match op {
                     crate::syntax::ast::BinaryOp::LogAnd | crate::syntax::ast::BinaryOp::LogOr => {
                         let ty = self.ty_of(expr.id, span)?;
@@ -1014,6 +1019,12 @@ impl<'a> TreeBuilder<'a> {
                             TreeExprKind::LogicalOr { lhs: l, rhs: r }
                         };
                         Some(self.push_expr(kind, ty, span))
+                    }
+                    crate::syntax::ast::BinaryOp::Elvis => {
+                        let ty = self.ty_of(expr.id, span)?;
+                        let l = self.build_expr(lhs)?;
+                        let r = self.build_expr(rhs)?;
+                        Some(self.push_expr(TreeExprKind::Elvis { lhs: l, rhs: r }, ty, span))
                     }
                     _ => self.build_desugared_call(expr, &[lhs, rhs]),
                 }
@@ -1312,12 +1323,23 @@ impl<'a> TreeBuilder<'a> {
                     span,
                 ))
             }
-            ExprKind::SafeMemberAccess { receiver, .. } => {
+            ExprKind::SafeMemberAccess { receiver, member } => {
                 // `?.` 原语：null 短路路径（与 MIR lower_safe_member_access 同构；
                 // 决议在 member_refs，按 Option 内层解析——typecheck 已修）。
                 let ty = self.ty_of(expr.id, span)?;
                 let recv = self.build_expr(receiver)?;
-                let member = self.resolve_tree_member(expr, receiver)?;
+                let member = match self.resolve_tree_member(expr, receiver) {
+                    Some(m) => m,
+                    // member_refs 缺失（`?.` 扩展成员等）：镜像 AST——按名构造
+                    //（MIR 元数据只消费名与 receiver 类型）。
+                    None => match &member {
+                        crate::syntax::ast::MemberName::Named(id) => TreeMember::Field {
+                            owner_fqn: Symbol::default(),
+                            name: id.symbol,
+                        },
+                        _ => return self.gap_ret(span, "?. 元组下标无决议"),
+                    },
+                };
                 Some(self.push_expr(TreeExprKind::SafeMember { recv, member }, ty, span))
             }
             ExprKind::TypeApply { callee: inner, .. } => {

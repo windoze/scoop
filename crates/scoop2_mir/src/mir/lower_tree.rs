@@ -39,6 +39,7 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeExprKind::Tuple(_)
             | TreeExprKind::LogicalAnd { .. }
             | TreeExprKind::LogicalOr { .. }
+            | TreeExprKind::Elvis { .. }
             | TreeExprKind::NotNullAssert { .. }
             | TreeExprKind::If { .. }
             | TreeExprKind::While { .. }
@@ -563,6 +564,35 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
                     builder.assign(result, Rvalue::Use(Operand::Const(ConstValue::Unit)), span);
                 }
             }
+            builder.goto(merge_bb, span);
+            builder.current_bb = merge_bb;
+            Operand::Local(result)
+        }
+        TreeExprKind::Elvis { lhs, rhs } => {
+            // 镜像 lower_binary 的 Elvis 分支：lhs → result；CondBr(result)
+            // then goto merge；else rhs → result。
+            let lv = lower_tree_expr(builder, body, *lhs);
+            let result = builder.alloc_temp(ty, span);
+            builder.assign(result, Rvalue::Use(lv), span);
+            let then_bb = builder.new_block();
+            let else_bb = builder.new_block();
+            let merge_bb = builder.new_block();
+            builder.terminate(
+                Terminator {
+                    span,
+                    kind: TerminatorKind::CondBr {
+                        cond: Operand::Local(result),
+                        then_target: then_bb,
+                        else_target: else_bb,
+                    },
+                },
+                then_bb,
+            );
+            builder.current_bb = then_bb;
+            builder.goto(merge_bb, span);
+            builder.current_bb = else_bb;
+            let bv = lower_tree_expr(builder, body, *rhs);
+            builder.assign(result, Rvalue::Use(bv), span);
             builder.goto(merge_bb, span);
             builder.current_bb = merge_bb;
             Operand::Local(result)
@@ -3332,6 +3362,10 @@ fn collect_tree_expr_idents(
             }
         }
         TreeExprKind::LogicalAnd { lhs, rhs } | TreeExprKind::LogicalOr { lhs, rhs } => {
+            collect_tree_expr_idents(body, *lhs, syms);
+            collect_tree_expr_idents(body, *rhs, syms);
+        }
+        TreeExprKind::Elvis { lhs, rhs } => {
             collect_tree_expr_idents(body, *lhs, syms);
             collect_tree_expr_idents(body, *rhs, syms);
         }
