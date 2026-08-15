@@ -206,7 +206,17 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第十九刀）：**模块级双路径 oracle 建立**——
+> 进度（2026-08-15，第二十刀）：**M2-5 翻转落地**——模块级双路径 oracle
+> **325/325 全语料（mir2+hir+run-pass）完整模块 dump 逐字节一致**；
+> `dump-mir` / v0 `run_mir_and_dump`（one-shot+staged）/ CLI 检查路径已切
+> `lower_module_from_trees`（`pipeline::attach_trees` 供 CLI 直连路径补建树）。
+> **余留**：(a) sysroot 全量 build/run 路径暂走 AST lowering（`scoop2c
+> main.rs:825` 一处——sysroot 文件无树/骨架，待 sysroot TypedFile 化后翻转，
+> M6 前置）；(b) AST 路径删除 + 防御分支清理（For「不应到达」`stmt.rs:51`、
+> splice_field_removed、`_ =>` 兜底臂——依赖 (a) 先行）；(c) 函数级 flip
+> oracle（flip_oracle_arithmetic/corpus_stats）在 AST 路径删除时一并退役，
+> 模块级 oracle 转为「树路径 vs 固化基线」或确定性回归。
+> 第十九刀：**模块级双路径 oracle 建立**——
 > `flip_oracle_module_level`（`scoop2_archive/tests/flip_oracle.rs`，暂 `#[ignore]`
 > 修复驱动门；配置文件 `/tmp/scoop2_mod.cfg` 两行：目录 csv + 文件名子串，
 > 匹配时 dump 双路径输出到 /tmp/mod_{ast,tree}.txt）。`lower_module_from_trees`
