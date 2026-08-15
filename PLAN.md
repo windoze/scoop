@@ -1,6 +1,10 @@
 # PLAN — scoop2 分阶段编译管线：HIR/MIR/LIR archive 化
 
-> 状态：计划（设计经评审定型，未动代码）。
+> 状态（2026-08-16）：**M0–M5 主体落地**（各里程碑进度注记见下）。
+> 余留深水区：(a) C2 per-cone 符号/类型 id 空间（M2-6 尾巴——typecheck 输出
+> 的 store/interner 会话全局，需系统性重写）；(b) M3 实例句柄化/mangling
+> 定稿/分派定稿三件（M3-4/5/6 已完成——gate/指纹/archive）；(c) M5 的
+> splice_field B 类上移（parser 拒绝路径）与 linking 白名单定义；(d) M6 远期。
 > 范围：`crates/scoop2_*`（旧 `scoopc_*` 管线不动）。
 > 关联文档：`HIR-REDESIGN.md`（HIR 完整性/无 panic/目标 C）、`FACT_REFACTOR.md`（旧管线
 > 「扁平 fact 袋」教训与树/句柄/接口面方法论）、`NEW-HIR-FIX.md`（已完成的前置硬化）。
@@ -204,7 +208,7 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
   为旧管线在当前环境下的既有失败（父提交 p7 失败更多：11 vs 5）；fixture 全套
   469/1643 失败同为旧管线基线（mir2 通道走旧 `scoopc` 子进程）。
 
-### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
+### M2 HIR 结构重建（最大件）✅ 主体完成（余 C2 per-cone id 空间）
 
 > 进度（2026-08-16，第二十一刀）：**M2-6 三切片落地**——(1) archive 去 AST
 > 片段（per-cone archive 只存文件元信息；TypedHir 序列化面 serde-skip 三处
@@ -398,7 +402,7 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 验收：dump-hir 渲染新结构；oracle 绿；`cargo test --all` + fixtures 全绿。
 
-### M3 MIR 加工收口 + MIR archive
+### M3 MIR 加工收口 + MIR archive ✅ 4/6（余实例句柄化/mangling 定稿/分派定稿）
 
 1. 实例句柄化：call callee 从「模板 FQN + 实参」改为实例 id（**非 Option**——
    模板缺失/未实例化在类型上不可表示，C9-2）；`InstanceKey` /
@@ -414,7 +418,15 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 验收：mir fixtures 全绿；切换前后 LIR dump 一致（为 M4 基准）。
 
-### M4 LIR 输入切换 + LIR archive
+> 落地记录（2026-08-16）：M3-4 无泛型出口 gate（debug 断言 ICE——C9-4）+
+> 驱动三处真修复（闭包并入外层 family 随同替换 / 树路径 type_params 填充 /
+> 实例 type_params 清空——generic_monomorph 由既有失败恢复）；M3-5 指纹
+> 含成员 cone keys；M3-6 MIR archive（MirArchive 自包含：module/instance_
+> keys/backend_contracts/interner/decls + CLI dump-mir-arch 纯读 + oracle
+> 往返字节一致）。余 1/2/3（实例句柄化/mangling 定稿/分派定稿）——LIR 已
+> 经消费 MirDecls + BackendContracts，剩余为 CallKind 携带实例句柄的深化。
+
+### M4 LIR 输入切换 + LIR archive ✅ 全部完成
 
 1. 7 子系统（layout/dispatch/abi/gc/effect/global_init/body 映射）改吃 MIR archive
    字段（`lib.rs:52-62` 的 7 处 `&hir` 逐一消除）。
@@ -423,7 +435,13 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 验收：run-pass 全绿；LIR dump 一致性；`scoop2_lir` 不再依赖 `scoop2_hir`。
 
-### M5 诊断边界收口
+> 落地记录（2026-08-16）：(1) MirDecls 声明段定稿进 MIR archive（28 查询点
+> 重接线，`scoop2_lir` 摘除 `scoop2_hir`——ty 经 `scoop2_mir` re-export）；
+> (2) slot 0 占位 + backfill_call_sites 删除（DispatchSlotTables map 期定稿）；
+> (3) LirArchive 落地（program/types/interner 自包含 + 版本头 + 指纹级联）。
+> e2e 既有失败（typecheck 缺陷）经 stash 对照确认非本批回归。
+
+### M5 诊断边界收口 🚧 进行中（A 类删+审计+where 缺口已落；余 splice 上移/linking 白名单/fixture 断言迁移）
 
 1. MIR 10 码处置：A 类直删（`break/continue_outside_loop`——typecheck 已有同款；
   `monomorph_error`/`monomorph_no_template`——前置：补齐 `explicit_type_args` 路径的
@@ -440,6 +458,13 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
    评审清单（无糖变体，C9-1）。
 
 验收：审计零违规；fixtures 全绿。
+
+> 落地记录（2026-08-16，第一刀）：A 类直删（break/continue_outside_loop）；
+> `tools/audit_scoop2_stage_boundary.py` 落地（依赖边/诊断码泄漏/C9-4
+> 穷尽性/LIR 自包含——零违规，顺带删 lower_tree 两处死 unsupported 兜底）；
+> where 约束 explicit_type_args 缺口修复（check_generic_call_constraints_ex）。
+> 余：splice_field B 类上移（parser 拒绝路径）、verify 三码 C 类转 ICE、
+> linking 白名单定义 + driver 归属、fixture 断言迁移。
 
 ### M6 远期占位（不在本批）
 
