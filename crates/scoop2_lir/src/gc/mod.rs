@@ -1,8 +1,7 @@
 //! GC 信息生成：safepoint root map + 类型描述符。
 
 use scoop2_base::Interner;
-use scoop2_hir::hir::TypedHir;
-use scoop2_hir::ty::TypeId;
+use scoop2_mir::ty::TypeId;
 use scoop2_mir::mir::{Body, Rvalue, StatementKind, TerminatorKind, materialize::MaterializedMir};
 
 use crate::*;
@@ -131,7 +130,7 @@ fn collect_ref_leaf_offsets(
 pub fn generate_gc_info(
     program: &mut LirProgram,
     mir: &MaterializedMir,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
 ) {
     let mut next_type_id: u64 = 1;
@@ -146,15 +145,15 @@ pub fn generate_gc_info(
 
         // 计算 trace_offsets：遍历 class 的字段，找出 GC 引用字段的偏移。
         let trace_offsets =
-            compute_class_trace_offsets(&cv.class_fqn, hir, interner, &program.type_layouts);
+            compute_class_trace_offsets(&cv.class_fqn, decls, interner, &program.type_layouts);
         // 计算 class 布局大小。
         let (size, align) =
-            compute_class_layout_size(&cv.class_fqn, hir, interner, &program.type_layouts);
+            compute_class_layout_size(&cv.class_fqn, decls, interner, &program.type_layouts);
         // 查找父类 type_id：HIR 的 `direct_subtypes` 映射是「父类 → 子类列表」，
         // 无法直接反查「子类 → 父类」。要恢复父类需要在 typecheck 阶段额外导出
         // `supertypes`（当前 TypedHir 未暴露）。此处先填 None；后续若 HIR 暴露
         // supertypes，可在此查 `class_type_ids[父类 FQN]` 写入 parent_type_id。
-        let parent_type_id = compute_parent_type_id(&cv.class_fqn, hir, interner, &class_type_ids);
+        let parent_type_id = compute_parent_type_id(&cv.class_fqn, decls, interner, &class_type_ids);
 
         program.type_descriptors.push(TypeDescriptor {
             type_fqn: cv.class_fqn.clone(),
@@ -197,7 +196,7 @@ pub fn generate_gc_info(
 /// 计算 class 的 GC 指针字段偏移列表。
 fn compute_class_trace_offsets(
     class_fqn: &str,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     layouts: &TypeLayoutTable,
 ) -> Vec<u64> {
@@ -210,7 +209,7 @@ fn compute_class_trace_offsets(
     // 8 字节——与 codegen 的 class ctor 布局严格一致。
     let header_size: u64 = 32;
     let ptr_size: u64 = 8;
-    let ordered = hir.ordered_class_fields(sym);
+    let ordered = decls.ordered_class_fields(sym);
     let mut field_offset: u64 = header_size;
     for (_, member_ty) in &ordered {
         field_offset = align_to(field_offset, ptr_size);
@@ -241,7 +240,7 @@ fn align_to(offset: u64, align: u64) -> u64 {
 /// 计算 class 的布局大小（GC 对象头 + 字段）。
 fn compute_class_layout_size(
     class_fqn: &str,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     layouts: &TypeLayoutTable,
 ) -> (u64, u64) {
@@ -252,7 +251,7 @@ fn compute_class_layout_size(
     let ptr_size: u64 = 8;
     let mut total: u64 = header_size;
     if let Some(sym) = interner.get(class_fqn) {
-        for (_, member_ty) in &hir.ordered_class_fields(sym) {
+        for (_, member_ty) in &decls.ordered_class_fields(sym) {
             total = align_to(total, ptr_size);
             let field_size = layouts
                 .get(*member_ty)
@@ -273,14 +272,14 @@ fn compute_class_layout_size(
 /// 未发布）返回 None。
 fn compute_parent_type_id(
     class_fqn: &str,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     class_type_ids: &std::collections::HashMap<String, u64>,
 ) -> Option<u64> {
     let child_sym = interner.get(class_fqn)?;
-    for (&parent_sym, children) in &hir.direct_subtypes {
+    for (parent_sym, children) in &decls.direct_subtypes {
         if children.contains(&child_sym) {
-            let parent_fqn = interner.resolve(parent_sym);
+            let parent_fqn = interner.resolve(*parent_sym);
             return class_type_ids.get(parent_fqn).copied();
         }
     }
@@ -296,7 +295,7 @@ pub fn compute_gc_info_for_body(
     body: &Body,
     _fqn: &str,
     layouts: &TypeLayoutTable,
-    frame_ty: Option<(scoop2_hir::ty::TypeId, scoop2_mir::mir::LocalId)>,
+    frame_ty: Option<(scoop2_mir::ty::TypeId, scoop2_mir::mir::LocalId)>,
 ) -> GcInfo {
     // 1. GC local 列表。
     let mut gc_locals: Vec<GcLocal> = body

@@ -1,7 +1,6 @@
 //! 全局初始化规划：读取 `Item::Initializer`，构建 GlobalInitPlan + ClassInitPlan。
 
 use scoop2_base::Interner;
-use scoop2_hir::hir::TypedHir;
 use scoop2_mir::mir::Item;
 use scoop2_mir::mir::materialize::MaterializedMir;
 
@@ -11,7 +10,7 @@ use crate::*;
 pub fn plan_global_init(
     program: &mut LirProgram,
     mir: &MaterializedMir,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
 ) {
     // 7a: 顶层 val/var 初始化。
@@ -45,7 +44,7 @@ pub fn plan_global_init(
         let fqn_sym = interner.get(class_fqn_text);
         let mut field_inits: Vec<FieldInit> = Vec::new();
         if let Some(sym) = fqn_sym {
-            for (member_name_sym, member_ty) in hir.ordered_class_fields(sym) {
+            for (member_name_sym, member_ty) in decls.ordered_class_fields(sym) {
                 let field_name = interner.resolve(member_name_sym).to_string();
                 // InitKind 区分：理想情况下，主构造器参数对应的字段应为
                 // PropertyParam，声明处带初始化器的属性应为 PropertyInitializer，
@@ -63,12 +62,11 @@ pub fn plan_global_init(
         // `ordered_class_fields` 的超类链同源；替代旧的 vtable 启发式——
         // 超类无虚方法可继承时 vtable 推断会丢失 super_init）。
         let super_init = fqn_sym.and_then(|sym| {
-            hir.supertypes.get(&sym).and_then(|supers| {
-                supers
-                    .iter()
-                    .find(|s| hir.class_fqns.contains(s))
-                    .map(|s| hir.interner.resolve(*s).to_string())
-            })
+            decls
+                .supertypes_of(&sym)
+                .iter()
+                .find(|s| decls.is_class(s))
+                .map(|s| interner.resolve(*s).to_string())
         });
         program.class_inits.push(ClassInitPlan {
             class_fqn: class_fqn_text.clone(),

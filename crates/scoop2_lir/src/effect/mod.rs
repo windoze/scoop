@@ -4,8 +4,7 @@
 //! step layout（Step tagged union 的变体表）和 continuation layout（resuming continuation 对象布局）。
 
 use scoop2_base::Interner;
-use scoop2_hir::hir::TypedHir;
-use scoop2_hir::ty::TypeId;
+use scoop2_mir::ty::TypeId;
 use scoop2_mir::mir::{EffectStepAbi, materialize::MaterializedMir};
 
 use crate::gc::is_gc_traceable_type;
@@ -118,7 +117,7 @@ pub fn canonical_continuation_fields(
 pub fn prepare_effect_steps(
     _program: &mut LirProgram,
     _mir: &MaterializedMir,
-    _hir: &TypedHir,
+    _decls: &scoop2_mir::mir::decls::MirDecls,
     _interner: &Interner,
 ) {
     // synthetic_types 已在 layout::compute_type_layouts 中通过 prepare_effect_synthetic_layouts 填充。
@@ -132,7 +131,7 @@ pub fn prepare_effect_abi(
     abi: &EffectStepAbi,
     fqn: &str,
     layouts: &TypeLayoutTable,
-    _hir: &TypedHir,
+    _decls: &scoop2_mir::mir::decls::MirDecls,
     _interner: &Interner,
 ) -> (
     Option<FrameSchema>,

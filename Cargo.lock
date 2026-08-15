@@ -724,7 +724,6 @@ name = "scoop2_lir"
 version = "0.1.0"
 dependencies = [
  "scoop2_base",
- "scoop2_hir",
  "scoop2_mir",
 ]
 

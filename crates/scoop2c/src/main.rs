@@ -778,7 +778,8 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
     }
     let monomorph = monomorph_result.as_ref().expect("materialize 已成功");
     // LIR lowering。
-    let lir_program = match scoop2_lir::lower_to_lir(monomorph, &hir, &interner) {
+    let lir_decls = scoop2_mir::mir::decls::MirDecls::from_hir(&hir);
+    let lir_program = match scoop2_lir::lower_to_lir(monomorph, &lir_decls, &interner) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("error: {e}");
@@ -874,7 +875,8 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
         return None;
     }
     let monomorph = monomorph_result.as_ref().expect("materialize 已成功");
-    let lir_program = match scoop2_lir::lower_to_lir(monomorph, &hir, &interner) {
+    let lir_decls = scoop2_mir::mir::decls::MirDecls::from_hir(&hir);
+    let lir_program = match scoop2_lir::lower_to_lir(monomorph, &lir_decls, &interner) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("error: {e}");

@@ -13,7 +13,6 @@ pub mod verify;
 pub use program::*;
 
 use scoop2_base::Interner;
-use scoop2_hir::hir::TypedHir;
 use scoop2_mir::mir::materialize::MaterializedMir;
 
 /// LIR lowering 错误（字段解析失败等不可恢复不一致）。
@@ -44,24 +43,24 @@ impl std::error::Error for LirError {}
 /// 主入口：将 MaterializedMir + TypedHir 降级为 LirProgram。
 pub fn lower_to_lir(
     mir: &MaterializedMir,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
 ) -> Result<LirProgram, LirError> {
     let mut program = LirProgram::new();
     // 1. 类型布局计算
-    layout::compute_type_layouts(&mut program, mir, hir, interner);
+    layout::compute_type_layouts(&mut program, mir, decls, interner);
     // 2. 分发表生成
-    dispatch::generate_dispatch_tables(&mut program, mir, hir, interner);
+    dispatch::generate_dispatch_tables(&mut program, mir, decls, interner);
     // 3. ABI 决策
-    abi::decide_abi(&mut program, mir, hir, interner);
+    abi::decide_abi(&mut program, mir, decls, interner);
     // 4. GC 类型描述符
-    gc::generate_gc_info(&mut program, mir, hir, interner);
+    gc::generate_gc_info(&mut program, mir, decls, interner);
     // 5. Effect step 合成类型布局
-    effect::prepare_effect_steps(&mut program, mir, hir, interner);
+    effect::prepare_effect_steps(&mut program, mir, decls, interner);
     // 6. 全局初始化规划
-    global_init::plan_global_init(&mut program, mir, hir, interner);
+    global_init::plan_global_init(&mut program, mir, decls, interner);
     // 顶层 val/var 的 fqn → 真实类型映射（供 TopLevelRef.ty 查真实类型）。
-    let global_types: std::collections::HashMap<String, scoop2_hir::ty::TypeId> = program
+    let global_types: std::collections::HashMap<String, scoop2_mir::ty::TypeId> = program
         .global_init
         .entries
         .iter()
@@ -69,7 +68,7 @@ pub fn lower_to_lir(
         .collect();
     // 7. MIR→LIR body 映射（含 GC info + effect schema 挂载）
     let step_tags = build_step_tag_tables(mir, interner);
-    map_bodies(&mut program, mir, hir, interner, &step_tags, &global_types)?;
+    map_bodies(&mut program, mir, decls, interner, &step_tags, &global_types)?;
     // 8. 回填分发表信息到调用点
     dispatch::backfill_call_sites(&mut program);
     // 9. 验证
@@ -89,7 +88,7 @@ pub fn lower_to_lir(
 #[derive(Default)]
 struct StepTagTables {
     /// (step_ty, variant_name_sym) → tag：用于 `Rvalue::EnumVariant` 构造点。
-    rvalue_tags: std::collections::HashMap<(scoop2_hir::ty::TypeId, scoop2_base::Symbol), u64>,
+    rvalue_tags: std::collections::HashMap<(scoop2_mir::ty::TypeId, scoop2_base::Symbol), u64>,
     /// (enum_fqn_sym, variant_name_sym) → tag：用于 `Pattern::Variant` 匹配点
     ///（enum_fqn_sym = 合成 Step 所属函数的 FQN Symbol）。
     pattern_tags: std::collections::HashMap<(scoop2_base::Symbol, scoop2_base::Symbol), u64>,
@@ -138,10 +137,10 @@ fn build_step_tag_tables(mir: &MaterializedMir, interner: &Interner) -> StepTagT
 fn map_bodies(
     program: &mut LirProgram,
     mir: &MaterializedMir,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     step_tags: &StepTagTables,
-    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
+    global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
 ) -> Result<(), LirError> {
     for item in &mir.module.items {
         match item {
@@ -151,7 +150,7 @@ fn map_bodies(
                     program.callables.push(map_callable(
                         fd,
                         mir,
-                        hir,
+                        decls,
                         &program.type_layouts,
                         interner,
                         step_tags,
@@ -193,7 +192,7 @@ fn map_bodies(
                     ir,
                     &program.type_layouts,
                     &mir.module.types,
-                    hir,
+                    decls,
                     interner,
                     step_tags,
                     global_types,
@@ -220,11 +219,11 @@ fn map_bodies(
 fn map_callable(
     fd: &scoop2_mir::mir::FunDecl,
     mir: &MaterializedMir,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     layouts: &TypeLayoutTable,
     interner: &Interner,
     step_tags: &StepTagTables,
-    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
+    global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = fd
         .instance_symbol
@@ -255,7 +254,7 @@ fn map_callable(
                 mir_body,
                 layouts,
                 &mir.module.types,
-                hir,
+                decls,
                 interner,
                 step_tags,
                 frame_local,
@@ -267,7 +266,7 @@ fn map_callable(
                 .map(|ea| (ea.frame_ty, ea.frame_local));
             let gc = gc::compute_gc_info_for_body(mir_body, &fd.fqn, layouts, frame_for_gc);
             let (fs, sl, sd, cl) = if let Some(ref eff_abi) = fd.effect_abi {
-                effect::prepare_effect_abi(eff_abi, &fd.fqn, layouts, hir, interner)
+                effect::prepare_effect_abi(eff_abi, &fd.fqn, layouts, decls, interner)
             } else {
                 (None, None, None, None)
             };
@@ -317,14 +316,14 @@ fn map_callable(
 fn map_initializer(
     ir: &scoop2_mir::mir::InitializerRoot,
     layouts: &TypeLayoutTable,
-    types: &scoop2_hir::ty::TypeStore,
-    hir: &TypedHir,
+    types: &scoop2_mir::ty::TypeStore,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     step_tags: &StepTagTables,
-    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
+    global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = abi::mangle_symbol(&ir.fqn, &None);
-    let body = map_body(&ir.body, layouts, types, hir, interner, step_tags, None, global_types)?;
+    let body = map_body(&ir.body, layouts, types, decls, interner, step_tags, None, global_types)?;
     Ok(LirCallable {
         fqn: ir.fqn.clone(),
         symbol_name,
@@ -345,12 +344,12 @@ fn map_initializer(
 fn map_body(
     body: &scoop2_mir::mir::Body,
     layouts: &TypeLayoutTable,
-    types: &scoop2_hir::ty::TypeStore,
-    hir: &TypedHir,
+    types: &scoop2_mir::ty::TypeStore,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     step_tags: &StepTagTables,
     frame_local: Option<scoop2_mir::mir::LocalId>,
-    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
+    global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
 ) -> Result<LirBody, LirError> {
     let locals = body
         .locals
@@ -372,7 +371,7 @@ fn map_body(
     for (bi, blk) in body.blocks.iter().enumerate() {
         let mut stmts = Vec::with_capacity(blk.stmts.len());
         for s in &blk.stmts {
-            stmts.push(map_stmt(s, layouts, types, hir, interner, step_tags, global_types)?);
+            stmts.push(map_stmt(s, layouts, types, decls, interner, step_tags, global_types)?);
         }
         blocks.push(LirBlock {
             id: bi as u32,
@@ -390,18 +389,18 @@ fn map_body(
 fn map_stmt(
     stmt: &scoop2_mir::mir::Statement,
     layouts: &TypeLayoutTable,
-    types: &scoop2_hir::ty::TypeStore,
-    hir: &TypedHir,
+    types: &scoop2_mir::ty::TypeStore,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     step_tags: &StepTagTables,
-    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
+    global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
 ) -> Result<LirStmt, LirError> {
     use scoop2_mir::mir::StatementKind;
     let kind = match &stmt.kind {
         StatementKind::Nop => LirStmtKind::Nop,
         StatementKind::Assign { target, value } => LirStmtKind::Assign {
             target: target.0,
-            value: map_rvalue(value, layouts, types, hir, interner, step_tags, global_types)?,
+            value: map_rvalue(value, layouts, types, decls, interner, step_tags, global_types)?,
         },
         StatementKind::StoreMember {
             receiver,
@@ -420,7 +419,7 @@ fn map_stmt(
                     &member.name,
                     layouts,
                     types,
-                    hir,
+                    decls,
                     interner,
                 )?,
                 value_local: map_operand(value),
@@ -460,11 +459,11 @@ fn map_stmt(
 fn map_rvalue(
     rv: &scoop2_mir::mir::Rvalue,
     layouts: &TypeLayoutTable,
-    types: &scoop2_hir::ty::TypeStore,
-    hir: &TypedHir,
+    types: &scoop2_mir::ty::TypeStore,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     step_tags: &StepTagTables,
-    global_types: &std::collections::HashMap<String, scoop2_hir::ty::TypeId>,
+    global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
 ) -> Result<LirRvalue, LirError> {
     use scoop2_mir::mir::{CallKind, Operand, Rvalue};
     let out = match rv {
@@ -520,7 +519,7 @@ fn map_rvalue(
             // 旧实现把 result_ty 设为 receiver_ty，对 codegen 解析成员类型是错误的：
             // 例如 `animal.sound` 的结果应是 Int，而非 Animal 引用类型本身。
             let result_ty = {
-                use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+                use scoop2_mir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
                 let fqn = match types.kind(member.receiver_ty) {
                     TypeKind::Ref(RefTypeKind::Nominal(n)) => Some(n.fqn),
                     TypeKind::Value(ValueTypeKind::Nominal(n)) => Some(n.fqn),
@@ -531,7 +530,7 @@ fn map_rvalue(
                 // （class 自身无字段时 members 无条目，仅查 members 会漏掉继承字段）。
                 fqn.and_then(|f| {
                     member_sym.and_then(|s| {
-                        hir.ordered_class_fields(f)
+                        decls.ordered_class_fields(f)
                             .into_iter()
                             .find(|(n, _)| *n == s)
                             .map(|(_, t)| t)
@@ -548,7 +547,7 @@ fn map_rvalue(
                     &member.name,
                     layouts,
                     types,
-                    hir,
+                    decls,
                     interner,
                 )?,
                 result_ty,
@@ -588,7 +587,7 @@ fn map_rvalue(
             // enum_ty 同样成立——Option 的 enum_ty 是 Value(Option(_))，
             // 走 Nominal 分支会漏掉，导致 Some/None tag 都为 0）。
             let tag_from = |fqn: &scoop2_base::Symbol| -> Option<u64> {
-                hir.enum_variants.get(fqn).and_then(|variants| {
+                decls.variants_of(fqn).and_then(|variants| {
                     variants
                         .iter()
                         .position(|&v| interner.resolve(v) == vname)
@@ -600,8 +599,8 @@ fn map_rvalue(
             let step_tag = step_tags.rvalue_tags.get(&(*enum_ty, *variant_name)).copied();
             let tag_value = step_tag.or_else(|| {
                 tag_from(enum_fqn).or_else(|| {
-                    if let scoop2_hir::ty::TypeKind::Value(
-                        scoop2_hir::ty::ValueTypeKind::Nominal(n),
+                    if let scoop2_mir::ty::TypeKind::Value(
+                        scoop2_mir::ty::ValueTypeKind::Nominal(n),
                     ) = types.kind(*enum_ty)
                     {
                         tag_from(&n.fqn)
@@ -615,7 +614,7 @@ fn map_rvalue(
                 None => {
                     // enum_variants 中有该 enum 但找不到变体 = 编译器内部不一致，报错；
                     // enum 完全未注册（外部/未知 enum）保持旧回退 0。
-                    let known = hir.enum_variants.contains_key(enum_fqn);
+                    let known = decls.is_enum(enum_fqn);
                     if known {
                         return Err(LirError::new(format!(
                             "EnumVariant {}.{} 在 enum_variants 中找不到变体序号",
@@ -632,11 +631,11 @@ fn map_rvalue(
             // payload_fields 逐字段写入，不得回退 aggregate_ty——那会把首实参
             // 按 enum 自身类型误写）；其余（合成 Step enum / 内建 Option 等）
             // 从 transport 的 aggregate 获取。
-            let variant_fields: Vec<scoop2_hir::ty::TypeId> = (|| {
+            let variant_fields: Vec<scoop2_mir::ty::TypeId> = (|| {
                 let variant_fqn_text = format!("{}.{}", interner.resolve(*enum_fqn), vname);
                 let vf = interner.get(&variant_fqn_text)?;
                 Some(
-                    hir.ordered_members(&vf)
+                    decls.ordered_members(&vf)
                         .into_iter()
                         .map(|(_, t)| t)
                         .collect(),
@@ -788,7 +787,7 @@ fn map_rvalue(
                 .iter()
                 .map(|u| {
                     let (variant, path) = resolve_with_update_path(
-                        *result_ty, &u.path, layouts, types, hir, interner,
+                        *result_ty, &u.path, layouts, types, decls, interner,
                     )?;
                     Ok(LirWithUpdateField {
                         variant,
@@ -816,7 +815,7 @@ fn map_rvalue(
         }
         Rvalue::PatternMatch { subject, pattern } => LirRvalue::PatternMatch {
             subject_local: map_operand(subject),
-            pattern: map_pattern(pattern, types, hir, interner, step_tags),
+            pattern: map_pattern(pattern, types, decls, interner, step_tags),
         },
         Rvalue::PatternExtract {
             subject,
@@ -853,8 +852,8 @@ fn map_rvalue(
 
 fn map_pattern(
     p: &scoop2_mir::mir::Pattern,
-    types: &scoop2_hir::ty::TypeStore,
-    hir: &TypedHir,
+    types: &scoop2_mir::ty::TypeStore,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     step_tags: &StepTagTables,
 ) -> LirPattern {
@@ -869,10 +868,10 @@ fn map_pattern(
         Pattern::Is { ty, negated } => {
             // 解析目标类型的 FQN（供 codegen 计算 type_id）。
             let target_fqn = match types.kind(*ty) {
-                scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Nominal(n)) => {
+                scoop2_mir::ty::TypeKind::Ref(scoop2_mir::ty::RefTypeKind::Nominal(n)) => {
                     Some(interner.resolve(n.fqn).to_string())
                 }
-                scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Nominal(n)) => {
+                scoop2_mir::ty::TypeKind::Value(scoop2_mir::ty::ValueTypeKind::Nominal(n)) => {
                     Some(interner.resolve(n.fqn).to_string())
                 }
                 _ => None,
@@ -886,7 +885,7 @@ fn map_pattern(
         Pattern::Tuple { elements } => LirPattern::Tuple {
             elements: elements
                 .iter()
-                .map(|p| map_pattern(p, types, hir, interner, step_tags))
+                .map(|p| map_pattern(p, types, decls, interner, step_tags))
                 .collect(),
         },
         Pattern::Struct { type_fqn, fields } => LirPattern::Struct {
@@ -896,7 +895,7 @@ fn map_pattern(
                 .map(|f| {
                     (
                         interner.resolve(f.name).to_string(),
-                        map_pattern(&f.pattern, types, hir, interner, step_tags),
+                        map_pattern(&f.pattern, types, decls, interner, step_tags),
                     )
                 })
                 .collect(),
@@ -915,7 +914,7 @@ fn map_pattern(
                 .get(&(*enum_fqn, *variant_name))
                 .copied()
                 .or_else(|| {
-                    hir.enum_variants.get(enum_fqn).and_then(|variants| {
+                    decls.variants_of(enum_fqn).and_then(|variants| {
                         variants
                             .iter()
                             .position(|&v| interner.resolve(v) == vname)
@@ -927,14 +926,14 @@ fn map_pattern(
                 tag_value,
                 args: args
                     .iter()
-                    .map(|p| map_pattern(p, types, hir, interner, step_tags))
+                    .map(|p| map_pattern(p, types, decls, interner, step_tags))
                     .collect(),
             }
         }
         Pattern::Or { patterns } => LirPattern::Or {
             patterns: patterns
                 .iter()
-                .map(|p| map_pattern(p, types, hir, interner, step_tags))
+                .map(|p| map_pattern(p, types, decls, interner, step_tags))
                 .collect(),
         },
     }
@@ -1010,14 +1009,14 @@ fn map_const(c: &scoop2_mir::mir::ConstValue) -> LirConstValue {
 /// （或布局表字段数与声明数不一致）时返回 [`LirError`]——绝不静默返回 0。
 /// receiver 完全未知（内建 / 外部类型的固有成员，如 String.length）保持旧回退 0。
 fn compute_field_offset(
-    receiver_ty: scoop2_hir::ty::TypeId,
+    receiver_ty: scoop2_mir::ty::TypeId,
     member_name: &str,
     layouts: &TypeLayoutTable,
-    types: &scoop2_hir::ty::TypeStore,
-    hir: &TypedHir,
+    types: &scoop2_mir::ty::TypeStore,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
 ) -> Result<u64, LirError> {
-    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+    use scoop2_mir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
     // 解析 receiver 类型到 nominal FQN。
     let (fqn_sym, is_ref) = match types.kind(receiver_ty) {
         TypeKind::Ref(RefTypeKind::Nominal(n)) => (n.fqn, true),
@@ -1027,8 +1026,8 @@ fn compute_field_offset(
     // HIR 完全未知该类型（内建 / 外部 opaque 类型，如 String.length）：旧回退。
     // 已知 class（class_fqns 登记）不走此回退：class 可能自身无字段（members
     // 无条目）但沿超类链继承字段，由下方 ordered_class_fields 解析。
-    let known_class = is_ref && hir.class_fqns.contains(&fqn_sym);
-    if !known_class && !hir.members.contains_key(&fqn_sym) {
+    let known_class = is_ref && decls.is_class(&fqn_sym);
+    if !known_class && !decls.is_member_fqn(&fqn_sym) {
         return Ok(0);
     }
     let fqn_text = interner.resolve(fqn_sym);
@@ -1042,7 +1041,7 @@ fn compute_field_offset(
         // class：超类字段在前 + 自身字段按声明序，ptr_size 对齐打包。
         let header_size: u64 = 32;
         let ptr_size: u64 = 8;
-        let ordered = hir.ordered_class_fields(fqn_sym);
+        let ordered = decls.ordered_class_fields(fqn_sym);
         let mut offset: u64 = header_size;
         for (name_sym, member_ty) in &ordered {
             offset = align_up_u64(offset, ptr_size);
@@ -1059,7 +1058,7 @@ fn compute_field_offset(
         Err(not_found())
     } else {
         // value struct：优先读 TypeLayoutTable 的 Struct fields（与 codegen 同源）。
-        let ordered = hir.ordered_members(&fqn_sym);
+        let ordered = decls.ordered_members(&fqn_sym);
         let layout_fields = layouts.get(receiver_ty).and_then(|l| match &l.kind {
             TypeLayoutKind::Struct { fields } => Some(fields),
             _ => None,
@@ -1107,11 +1106,11 @@ fn align_up_u64(val: u64, align: u64) -> u64 {
 
 /// 类型是否为 `scoop.core.MutableArray<T>` 引用（决定数组布局分派与 MakeArray 是否 freeze）。
 fn is_mutable_array_ty(
-    ty: scoop2_hir::ty::TypeId,
-    types: &scoop2_hir::ty::TypeStore,
+    ty: scoop2_mir::ty::TypeId,
+    types: &scoop2_mir::ty::TypeStore,
     interner: &Interner,
 ) -> bool {
-    use scoop2_hir::ty::{RefTypeKind, TypeKind};
+    use scoop2_mir::ty::{RefTypeKind, TypeKind};
     match types.kind(ty) {
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
             interner.resolve(n.fqn) == "scoop.core.MutableArray"
@@ -1123,16 +1122,16 @@ fn is_mutable_array_ty(
 /// 解析 nominal receiver 的命名字段类型（与 compute_field_offset 的字段定位同源：
 /// value struct 用 `ordered_members`，class 用 `ordered_class_fields`，均按声明序）。
 fn resolve_named_field_ty(
-    receiver_ty: scoop2_hir::ty::TypeId,
+    receiver_ty: scoop2_mir::ty::TypeId,
     member_name: &str,
-    types: &scoop2_hir::ty::TypeStore,
-    hir: &TypedHir,
+    types: &scoop2_mir::ty::TypeStore,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
-) -> Result<scoop2_hir::ty::TypeId, LirError> {
-    use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+) -> Result<scoop2_mir::ty::TypeId, LirError> {
+    use scoop2_mir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
     let ordered = match types.kind(receiver_ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(n)) => hir.ordered_class_fields(n.fqn),
-        TypeKind::Value(ValueTypeKind::Nominal(n)) => hir.ordered_members(&n.fqn),
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => decls.ordered_class_fields(n.fqn),
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => decls.ordered_members(&n.fqn),
         _ => {
             return Err(LirError::new(format!(
                 "with 更新的 receiver 不是 nominal 类型（字段 {member_name}）"
@@ -1157,11 +1156,11 @@ fn resolve_named_field_ty(
 /// 且之后各段的 offset 是 enum 值内的绝对字节偏移（variant slot 起点累计，
 /// 首字段段按 `<enum>.<variant>` 名义下登记的 payload 成员定位）。
 fn resolve_with_update_path(
-    result_ty: scoop2_hir::ty::TypeId,
+    result_ty: scoop2_mir::ty::TypeId,
     segments: &[scoop2_mir::mir::WithUpdateSegment],
     layouts: &TypeLayoutTable,
-    types: &scoop2_hir::ty::TypeStore,
-    hir: &TypedHir,
+    types: &scoop2_mir::ty::TypeStore,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
 ) -> Result<
     (
@@ -1170,7 +1169,7 @@ fn resolve_with_update_path(
     ),
     LirError,
 > {
-    use scoop2_hir::ty::{TypeKind, ValueTypeKind};
+    use scoop2_mir::ty::{TypeKind, ValueTypeKind};
     let mut out = Vec::with_capacity(segments.len());
     let mut variant_target = None;
     let mut cur_ty = result_ty;
@@ -1211,7 +1210,7 @@ fn resolve_with_update_path(
             let owner = interner
                 .get(&owner_text)
                 .ok_or_else(|| LirError::new(format!("with 更新找不到 variant 类型 {owner_text}")))?;
-            let ordered = hir.ordered_members(&owner);
+            let ordered = decls.ordered_members(&owner);
             let idx = ordered
                 .iter()
                 .position(|(n, _)| interner.resolve(*n) == field_name)
@@ -1242,8 +1241,8 @@ fn resolve_with_update_path(
         match seg {
             scoop2_mir::mir::WithUpdateSegment::Named(sym) => {
                 let name = interner.resolve(*sym).to_string();
-                let rel = compute_field_offset(cur_ty, &name, layouts, types, hir, interner)?;
-                let field_ty = resolve_named_field_ty(cur_ty, &name, types, hir, interner)?;
+                let rel = compute_field_offset(cur_ty, &name, layouts, types, decls, interner)?;
+                let field_ty = resolve_named_field_ty(cur_ty, &name, types, decls, interner)?;
                 let offset = abs_acc.map(|b| b + rel).unwrap_or(rel);
                 if abs_acc.is_some() {
                     abs_acc = Some(offset);
@@ -1282,21 +1281,21 @@ fn resolve_with_update_path(
 }
 
 /// 在 TypeStore 中查找 Any 引用类型的 TypeId（不修改 store）。
-fn find_any_type(types: &scoop2_hir::ty::TypeStore) -> scoop2_hir::ty::TypeId {
+fn find_any_type(types: &scoop2_mir::ty::TypeStore) -> scoop2_mir::ty::TypeId {
     // Any 现为 ref nominal{scoop.core.Any}：按 FQN 查找其已 intern 的 TypeId。
     let any_fqn = types.any_fqn();
     for i in 0..100u32 {
-        let tid = scoop2_hir::ty::TypeId(i);
+        let tid = scoop2_mir::ty::TypeId(i);
         if types.is_nominal_with_fqn(tid, any_fqn) {
             return tid;
         }
     }
     // 回退：返回 Nothing（size 0）。
     for i in 0..100u32 {
-        let tid = scoop2_hir::ty::TypeId(i);
-        if matches!(types.kind(tid), scoop2_hir::ty::TypeKind::Nothing) {
+        let tid = scoop2_mir::ty::TypeId(i);
+        if matches!(types.kind(tid), scoop2_mir::ty::TypeKind::Nothing) {
             return tid;
         }
     }
-    scoop2_hir::ty::TypeId(0)
+    scoop2_mir::ty::TypeId(0)
 }

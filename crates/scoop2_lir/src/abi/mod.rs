@@ -5,8 +5,7 @@
 //! - `decide_abi`：整体 ABI pass，当前是 no-op（per-callable ABI 在 map_callable 中计算）。
 
 use scoop2_base::Interner;
-use scoop2_hir::hir::TypedHir;
-use scoop2_hir::ty::TypeId;
+use scoop2_mir::ty::TypeId;
 use scoop2_mir::mir::materialize::MaterializedMir;
 use scoop2_mir::mir::transport::StableTemplateKey;
 
@@ -63,7 +62,7 @@ pub fn param_abi_for_type(ty: TypeId, layouts: &TypeLayoutTable) -> ParamAbi {
 pub fn decide_abi(
     program: &mut LirProgram,
     mir: &MaterializedMir,
-    _hir: &TypedHir,
+    _decls: &scoop2_mir::mir::decls::MirDecls,
     _interner: &Interner,
 ) {
     // 1. extern 函数：保留原始符号名。

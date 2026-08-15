@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use scoop2_hir::ty::TypeId;
+use scoop2_mir::ty::TypeId;
 
 // =========================================================================
 // 操作数（LirOperand）

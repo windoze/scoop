@@ -28,6 +28,8 @@ pub use scoop2_base as base;
 pub use scoop2_hir as hir;
 
 pub mod diagnostics;
+pub use scoop2_hir::ty;
+
 pub mod mir;
 
 pub use mir::{Module, dump, lower, materialize, verify};

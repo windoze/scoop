@@ -7,8 +7,7 @@
 use std::collections::HashSet;
 
 use scoop2_base::Interner;
-use scoop2_hir::hir::TypedHir;
-use scoop2_hir::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use scoop2_mir::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoop2_mir::mir::materialize::MaterializedMir;
 
 use crate::*;
@@ -17,7 +16,7 @@ use crate::*;
 pub fn compute_type_layouts(
     program: &mut LirProgram,
     mir: &MaterializedMir,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
 ) {
     let types = &mir.module.types;
@@ -79,7 +78,7 @@ pub fn compute_type_layouts(
         if program.type_layouts.get(ty).is_some() {
             continue;
         }
-        let layout = compute_layout(ty, types, hir, interner, 0, &mut |t| {
+        let layout = compute_layout(ty, types, decls, interner, 0, &mut |t| {
             enqueue(t, &mut worklist, &mut seen)
         });
         program.type_layouts.insert(ty, layout);
@@ -100,14 +99,14 @@ pub fn compute_type_layouts(
                 while let Some(t) = pending.pop() {
                     if program.type_layouts.get(t).is_none() {
                         let mut sub_pending: Vec<TypeId> = Vec::new();
-                        let l = compute_layout(t, types, hir, interner, 0, &mut |st| {
+                        let l = compute_layout(t, types, decls, interner, 0, &mut |st| {
                             sub_pending.push(st)
                         });
                         program.type_layouts.insert(t, l);
                         pending.extend(sub_pending);
                     }
                 }
-                prepare_effect_synthetic_layouts(program, types, hir, interner, fd, eff_abi);
+                prepare_effect_synthetic_layouts(program, types, decls, interner, fd, eff_abi);
             }
         }
     }
@@ -123,7 +122,7 @@ pub fn compute_type_layouts(
 fn compute_layout(
     ty: TypeId,
     types: &TypeStore,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     depth: u32,
     enqueue: &mut impl FnMut(TypeId),
@@ -217,7 +216,7 @@ fn compute_layout(
             for &elem in elems {
                 // 先确保子类型布局存在（入队）。
                 enqueue(elem);
-                let (esize, ealign) = sub_size_align(elem, types, hir, interner, depth);
+                let (esize, ealign) = sub_size_align(elem, types, decls, interner, depth);
                 offset = align_to(offset, ealign);
                 fields.push(FieldLayout {
                     offset,
@@ -249,19 +248,19 @@ fn compute_layout(
                 && let Some(inner) = n.args.first().copied()
             {
                 enqueue(inner);
-                return compute_option_layout(inner, types, hir, interner, depth);
+                return compute_option_layout(inner, types, decls, interner, depth);
             }
             // struct / enum 值类型。查询 HIR 获取字段列表。
             // 尝试 struct 布局：查 HIR members（按 member_order 声明序迭代——
             // HashMap 迭代序不确定，直接用会破坏字段布局确定性）。
-            if hir.members.contains_key(&n.fqn) {
-                let ordered = hir.ordered_members(&n.fqn);
+            if decls.is_member_fqn(&n.fqn) {
+                let ordered = decls.ordered_members(&n.fqn);
                 let mut offset: u64 = 0;
                 let mut max_align: u64 = 1;
                 let mut fields: Vec<FieldLayout> = Vec::new();
                 for (_member_name_sym, member_ty) in ordered {
                     enqueue(member_ty);
-                    let (fsize, falign) = sub_size_align(member_ty, types, hir, interner, depth);
+                    let (fsize, falign) = sub_size_align(member_ty, types, decls, interner, depth);
                     offset = align_to(offset, falign);
                     fields.push(FieldLayout {
                         offset,
@@ -281,7 +280,7 @@ fn compute_layout(
                 };
             }
             // 尝试 enum 布局：查 HIR enum_variants。
-            if let Some(variants) = hir.enum_variants.get(&n.fqn) {
+            if let Some(variants) = decls.variants_of(&n.fqn) {
                 // 布局规则（NEW-LLVM-CODEGEN.md §3.1 Enum）：
                 // - 不含 ref 的 variant（深层判定）共用一个 scalar union slot；
                 // - 每个含 ref 的 variant 各占独立 slot（其 payload 的自然 struct
@@ -305,7 +304,7 @@ fn compute_layout(
                     let variant_fqn_text = format!("{fqn_text}.{variant_name}");
                     let ordered = interner
                         .get(&variant_fqn_text)
-                        .map(|vf| hir.ordered_members(&vf))
+                        .map(|vf| decls.ordered_members(&vf))
                         .unwrap_or_default();
                     let mut offset: u64 = 0;
                     let mut align: u64 = 1;
@@ -314,7 +313,7 @@ fn compute_layout(
                     for (_field_name_sym, field_ty) in &ordered {
                         enqueue(*field_ty);
                         let (fsize, falign) =
-                            sub_size_align(*field_ty, types, hir, interner, depth);
+                            sub_size_align(*field_ty, types, decls, interner, depth);
                         let field_offset = align_to(offset, falign);
                         fields.push(FieldLayout {
                             offset: field_offset,
@@ -329,7 +328,7 @@ fn compute_layout(
                             && type_contains_ref(
                                 *field_ty,
                                 types,
-                                hir,
+                                decls,
                                 interner,
                                 &mut std::collections::HashSet::new(),
                             )
@@ -429,7 +428,7 @@ fn compute_layout(
                         // 区分 interface 引用与 class 引用：interface 走 itable 分发，
                         // class 走 vtable 分发。HIR 的 interface_fqns 集合记录所有 interface
                         // 类型的 FQN，据此选择 RefKind。
-                        let is_interface = hir.interface_fqns.contains(&n.fqn);
+                        let is_interface = decls.is_interface(&n.fqn);
                         let rk = if is_interface {
                             RefKind::Interface
                         } else {
@@ -478,7 +477,7 @@ fn compute_layout(
 fn compute_option_layout(
     inner: TypeId,
     types: &TypeStore,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     depth: u32,
 ) -> TypeLayout {
@@ -498,7 +497,7 @@ fn compute_option_layout(
         }
     } else {
         // 标量/聚合 inner：tag 字节 + payload（带 padding）。
-        let (psize, palign) = sub_size_align(inner, types, hir, interner, depth);
+        let (psize, palign) = sub_size_align(inner, types, decls, interner, depth);
         let tag_size: u64 = 1;
         let total_align = palign.max(1);
         let payload_offset = align_to(tag_size, palign);
@@ -523,7 +522,7 @@ fn compute_option_layout(
 fn type_contains_ref(
     ty: TypeId,
     types: &TypeStore,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     seen: &mut std::collections::HashSet<TypeId>,
 ) -> bool {
@@ -537,7 +536,7 @@ fn type_contains_ref(
         TypeKind::Param(_) | TypeKind::StarProjection => true,
         TypeKind::Value(ValueTypeKind::Tuple(elems)) => elems
             .iter()
-            .any(|&e| type_contains_ref(e, types, hir, interner, seen)),
+            .any(|&e| type_contains_ref(e, types, decls, interner, seen)),
         TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             let fqn_text = interner.resolve(n.fqn);
             let simple = fqn_text.rsplit('.').next().unwrap_or("");
@@ -548,25 +547,25 @@ fn type_contains_ref(
             if n.fqn == types.option_fqn()
                 && let Some(inner) = n.args.first().copied()
             {
-                return type_contains_ref(inner, types, hir, interner, seen);
+                return type_contains_ref(inner, types, decls, interner, seen);
             }
             // struct 值类型：任一成员深层含 ref 即含 ref。
-            if hir.members.contains_key(&n.fqn) {
-                return hir
+            if decls.is_member_fqn(&n.fqn) {
+                return decls
                     .ordered_members(&n.fqn)
                     .iter()
-                    .any(|(_, mt)| type_contains_ref(*mt, types, hir, interner, seen));
+                    .any(|(_, mt)| type_contains_ref(*mt, types, decls, interner, seen));
             }
             // enum 值类型：任一 variant 的任一 payload 字段深层含 ref 即含 ref。
-            if let Some(variants) = hir.enum_variants.get(&n.fqn) {
+            if let Some(variants) = decls.variants_of(&n.fqn) {
                 return variants.iter().any(|&v| {
                     let variant_fqn_text = format!("{fqn_text}.{}", interner.resolve(v));
                     interner
                         .get(&variant_fqn_text)
-                        .map(|vf| hir.ordered_members(&vf))
+                        .map(|vf| decls.ordered_members(&vf))
                         .unwrap_or_default()
                         .iter()
-                        .any(|(_, mt)| type_contains_ref(*mt, types, hir, interner, seen))
+                        .any(|(_, mt)| type_contains_ref(*mt, types, decls, interner, seen))
                 });
             }
             false
@@ -583,7 +582,7 @@ fn type_contains_ref(
 fn sub_size_align(
     ty: TypeId,
     types: &TypeStore,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     depth: u32,
 ) -> (u64, u64) {
@@ -606,7 +605,7 @@ fn sub_size_align(
             let mut offset: u64 = 0;
             let mut max_align: u64 = 1;
             for &e in elems {
-                let (s, a) = sub_size_align(e, types, hir, interner, depth);
+                let (s, a) = sub_size_align(e, types, decls, interner, depth);
                 offset = align_to(offset, a) + s;
                 if a > max_align {
                     max_align = a;
@@ -619,7 +618,7 @@ fn sub_size_align(
             if n.fqn == types.option_fqn()
                 && let Some(inner) = n.args.first().copied()
             {
-                let l = compute_option_layout(inner, types, hir, interner, depth);
+                let l = compute_option_layout(inner, types, decls, interner, depth);
                 return (l.size, l.align);
             }
             // Nominal value struct/enum：就地递归计算真实布局取 (size, align)。
@@ -629,7 +628,7 @@ fn sub_size_align(
             if depth >= MAX_NEST_DEPTH {
                 return (8, 8);
             }
-            let l = compute_layout(ty, types, hir, interner, depth + 1, &mut |_| {});
+            let l = compute_layout(ty, types, decls, interner, depth + 1, &mut |_| {});
             (l.size, l.align)
         }
     }
@@ -843,7 +842,7 @@ fn collect_nominal_value_types(_types: &TypeStore, _emit: &mut impl FnMut(TypeId
 fn prepare_effect_synthetic_layouts(
     program: &mut LirProgram,
     types: &TypeStore,
-    hir: &TypedHir,
+    decls: &scoop2_mir::mir::decls::MirDecls,
     interner: &Interner,
     fd: &scoop2_mir::mir::FunDecl,
     eff_abi: &scoop2_mir::mir::EffectStepAbi,
@@ -885,7 +884,7 @@ fn prepare_effect_synthetic_layouts(
         let mut max_payload_size: u64 = 0;
         let mut max_payload_align: u64 = 1;
         for v in &eff_abi.step_variants {
-            let (s, a) = sub_size_align(v.payload_ty, types, hir, interner, 0);
+            let (s, a) = sub_size_align(v.payload_ty, types, decls, interner, 0);
             if s > max_payload_size {
                 max_payload_size = s;
             }
@@ -894,7 +893,7 @@ fn prepare_effect_synthetic_layouts(
             }
         }
         for &ty in &eff_abi.escape_answer_tys {
-            let (s, a) = sub_size_align(ty, types, hir, interner, 0);
+            let (s, a) = sub_size_align(ty, types, decls, interner, 0);
             if s > max_payload_size {
                 max_payload_size = s;
             }
@@ -959,7 +958,7 @@ fn prepare_effect_synthetic_layouts(
         let mut max_payload_size: u64 = 0;
         let mut max_payload_align: u64 = 1;
         for v in &site.step_variants {
-            let (s, a) = sub_size_align(v.payload_ty, types, hir, interner, 0);
+            let (s, a) = sub_size_align(v.payload_ty, types, decls, interner, 0);
             if s > max_payload_size {
                 max_payload_size = s;
             }

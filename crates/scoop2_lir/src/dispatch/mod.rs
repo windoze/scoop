@@ -4,7 +4,6 @@
 //! 构建 `VtableLayout` / `ItableLayout` / `ClassItableLayout` 写入 LirProgram。
 
 use scoop2_base::Interner;
-use scoop2_hir::hir::TypedHir;
 use scoop2_mir::mir::materialize::MaterializedMir;
 
 use crate::*;
@@ -13,7 +12,7 @@ use crate::*;
 pub fn generate_dispatch_tables(
     program: &mut LirProgram,
     mir: &MaterializedMir,
-    _hir: &TypedHir,
+    _decls: &scoop2_mir::mir::decls::MirDecls,
     _interner: &Interner,
 ) {
     let contracts = &mir.backend_contracts;

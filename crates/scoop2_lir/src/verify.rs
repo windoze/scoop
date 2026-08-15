@@ -10,7 +10,7 @@ use crate::*;
 
 /// 主入口：验证 LirProgram 结构完整性。
 pub fn verify_lir(program: &LirProgram) {
-    let known_types: HashSet<scoop2_hir::ty::TypeId> =
+    let known_types: HashSet<scoop2_mir::ty::TypeId> =
         program.type_layouts.entries.keys().copied().collect();
     let mut warnings: Vec<String> = Vec::new();
 

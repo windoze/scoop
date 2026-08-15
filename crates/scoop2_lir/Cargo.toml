@@ -5,5 +5,4 @@ edition.workspace = true
 
 [dependencies]
 scoop2_base = { path = "../scoop2_base" }
-scoop2_hir = { path = "../scoop2_hir" }
 scoop2_mir = { path = "../scoop2_mir" }
