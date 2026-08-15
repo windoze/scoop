@@ -211,18 +211,23 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 > 修复驱动门；配置文件 `/tmp/scoop2_mod.cfg` 两行：目录 csv + 文件名子串，
 > 匹配时 dump 双路径输出到 /tmp/mod_{ast,tree}.txt）。`lower_module_from_trees`
 > （树 + FileItem 骨架驱动，store 合并序/嵌套闭包 sibling/$init 演化基 全镜像）。
-> **mir2+hir 模块级 32/32 字节一致；全语料（含 run-pass）325 文件余 10 diff**：
-> (a) secondary ctor 合成（`<Class>.$ctor.<span_hash>` 树化——镜像
-> lower_secondary_ctor_callable）；(b) super 委托默认参数填充（InitCall 实参
-> lower_delegation_args 等价物）；(c) 顶层 val 模式绑定初始化器树
-> （top_level_val_pattern）；(d) when or-pattern variant payload；(e) `?.` 链
-> temp 类型（safe_member_access_ref）；(f) enum payload boxing 两例；
-> (g) escape continuation 间接 perform（effect_escape/gc_continuation 两例）；
-> (h) elvis（`?:`）树化。已修：pattern_bindings 按节点表+按名匹配（嵌套模式
-> binder 错位）、Rest 模式、init 块尾表达式副作用丢失、MutableArray 声明覆盖、
-> UnresolvedName/BoolNot 原语、扩展函数（owner 全集签名 + FileItem.fun_sig）、
-> 重载签名 span 消歧（AST 侧同步修）、effect 行 lookup_effect_row quirk 全路径
-> 镜像、bodyless 成员（接口/效应 op）签名-only FunDecl。
+> **mir2+hir 模块级 32/32 字节一致；全语料（含 run-pass）325 文件余 3 diff**：
+> (a) secondary ctor 合成树化 ×2（`<Class>.$ctor.s<span.start>`——镜像
+> `lower_secondary_ctor_callable`：delegation 实参默认填充 `lower_delegation_args`
+> / this|super 目标解析 `resolve_this_delegation_target` / super 路径的
+> `emit_class_init_steps` / body lowering；构造入口在 build_trees 的 Type 分支
+> + MemberSlot 增加 SecondaryCtor 槽位）；(b) escape continuation 深对象图 ×1
+> （gc_continuation_escape_deep_object_graph——Continuation temp 类型细节，
+> AST 侧 Unit temp vs 树侧精确类型的分配序）。
+> 已修（本刀累计 172→3）：pattern_bindings 按节点表+按名匹配（嵌套模式
+> binder 错位）、Rest 模式、init 块尾表达式副作用丢失、MutableArray 声明
+> 覆盖、UnresolvedName/BoolNot/UnresolvedCall 原语（扩展函数 this / !x /
+> 无决议糖调用）、扩展函数（owner 全集签名 + FileItem.fun_sig）、重载签名
+> span 消歧（AST 侧同步修）、effect 行 lookup_effect_row quirk 全路径镜像、
+> bodyless 成员（接口/效应 op）签名-only FunDecl、顶层 val 模式绑定引用
+> （TopLevelValRef 按 top_level_vals 成员判定 miss→UnresolvedName）、
+> tree_variant_payload_field_ty 用 subject nominal 完整 FQN、Elvis 原语树化、
+> SafeMember member_refs 缺失回退（?. 扩展成员）。
 > 第十七刀：**语料一致率 62/62（函数级）**。Handle 镜像到树
 > （env tuple + 嵌套 `$closure` FunDecl + 捕获 transport，逐句镜像 AST 路径）；
 > 顺带修 AST 路径 `collect_lambda_free_vars` 的 **HashSet 迭代序泄漏**（env 布局
