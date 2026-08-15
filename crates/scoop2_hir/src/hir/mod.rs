@@ -49,7 +49,9 @@ pub struct TypedSignature {
     /// 是否带默认值（与 param_types 平行）。
     pub has_defaults: Vec<bool>,
     /// 各参数默认值表达式（与 param_types 平行；None = 无默认值）。
-    /// 供 MIR lower 在 delegation 调用点填充缺失参数时 lower。
+    /// 树构造在 hir-build 期消费（默认值填充已 baking 进树）；携带 AST Expr，
+    /// **不序列化**进 archive。
+    #[serde(skip)]
     pub default_exprs: Vec<Option<crate::syntax::ast::Expr>>,
     /// effect 行（`/ Row`）；`Pure`（空行）若未声明。
     pub effect_row: EffectRow,
@@ -66,7 +68,9 @@ pub struct TypedSignature {
 pub struct TypeConstraintsSnapshot {
     /// 类型参数名序列（按声明顺序）。
     pub type_params: Vec<Symbol>,
-    /// where 约束（参数名, bound 文本）。
+    /// where 约束（参数名, bound）。MIR 只消费 `type_params`；约束携带 AST
+    /// 类型，**不序列化**进 archive（M5 的 where 校验上移后由 HIR 化字段替代）。
+    #[serde(skip)]
     pub constraints: Vec<(Symbol, crate::syntax::ast::GenericBound)>,
 }
 

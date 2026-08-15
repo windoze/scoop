@@ -35,7 +35,7 @@ fn one_shot(source: &scoop2_base::SourceFile) -> String {
         .filter(|(i, _)| program.user_indices.contains(i))
         .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
         .collect();
-    v0::run_mir_and_dump(&hir, &mir_files).expect("one-shot MIR 应成功")
+    v0::run_mir_and_dump(&hir).expect("one-shot MIR 应成功")
 }
 
 /// staged：parse → typecheck → 写 archive → 【只读目录】装配 → MIR。

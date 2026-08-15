@@ -238,8 +238,10 @@ pub struct SemanticFacts {
     /// HIR 层完整解析每个 call site 后，把实参按参数位置排序 + 填充默认值，
     /// 写入此表。MIR lower 直接消费（不再做任何 resolution / default filling）。
     /// 每个元素：Provided(original_idx) = 用调用点第 original_idx 个实参；
-    /// Default(expr_node_id) = 用默认值表达式（需 MIR lower 该表达式）。
-    /// 不写入 = 无默认值填充（全部位置实参，MIR 按原样使用）。
+    /// Default(expr) = 用默认值表达式（树构造在 hir-build 期消费——M2-5 翻转后
+    /// MIR 不再读；`Default` 变体携带 AST Expr，**不序列化**进 archive）。
+    /// 不写入 = 无默认值填充（全部位置实参）。
+    #[serde(skip)]
     pub resolved_call_args: NodeIdTable<Vec<ResolvedCallArg>>,
     /// handle arm 的 escape continuation binder（`, k ->`）：arm NodeId →
     /// (名字, Continuation<Resume, Answer, Row> 类型)。typecheck 构造后写入，

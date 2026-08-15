@@ -45,16 +45,16 @@ pub struct ArchiveHeader {
     pub fingerprint: u64,
 }
 
-/// 一个用户文件的归档条目（AST + 来源信息）。
+/// 一个用户文件的归档条目（来源元信息——M2-6 起 **不含 AST**：MIR 只消费
+/// HIR 树 + 骨架，body 语义在 hir-build 期已 baking 进树）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ArchivedFile {
     pub file_id: FileId,
     pub origin: InputOrigin,
     pub trusted: bool,
-    pub ast: scoop2_syntax::ast::File,
 }
 
-/// per-cone HIR archive（v0）。
+/// per-cone HIR archive（v1：AST 片段移除，schema 升版不迁移）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HirConeArchive {
     pub header: ArchiveHeader,
@@ -189,7 +189,6 @@ pub fn write_hir_collection(
                 file_id: FileId(i as u32),
                 origin,
                 trusted: i != 0,
-                ast: pf.file.clone(),
             });
     }
 
@@ -197,12 +196,12 @@ pub fn write_hir_collection(
     for (cone_key, files) in &by_cone {
         let header = ArchiveHeader {
             magic: MAGIC,
-            schema_version: archive_schema::V0,
+            schema_version: archive_schema::V1,
             stage: "hir".to_string(),
             cone_key: cone_key.clone(),
             compiler_version: compiler_version().to_string(),
             fingerprint: archive_fingerprint(
-                archive_schema::V0,
+                archive_schema::V1,
                 scoop2_base::ArchiveStage::Hir,
                 &StableConeKey::from_cone_name(cone_key),
                 std::iter::empty::<&str>(),
@@ -307,13 +306,13 @@ pub fn load_hir_collection(dir: &Path) -> Result<LoadedCollection, ArchiveError>
                 detail: "magic 不匹配".to_string(),
             });
         }
-        if archive.header.schema_version != archive_schema::V0 {
+        if archive.header.schema_version != archive_schema::V1 {
             return Err(ArchiveError::VersionMismatch {
                 path,
                 detail: format!(
                     "schema {} ≠ {}（不支持迁移）",
                     archive.header.schema_version,
-                    archive_schema::V0
+                    archive_schema::V1
                 ),
             });
         }
@@ -356,29 +355,18 @@ pub fn load_hir_collection(dir: &Path) -> Result<LoadedCollection, ArchiveError>
 }
 
 /// 从装配好的 collection 走 MIR：lower → 门禁 → 单态化 → verify → dump。
-/// 不读任何源文件。
+/// 不读任何源文件（M2-6 起 archive 不含 AST——树 + 骨架即全部输入）。
 pub fn mir_dump_from_collection(loaded: &LoadedCollection) -> Result<String, StageError> {
-    let mir_files: Vec<(FileId, &scoop2_syntax::ast::File)> = loaded
-        .files
-        .iter()
-        .filter(|f| f.origin == InputOrigin::User)
-        .map(|f| (f.file_id, &f.ast))
-        .collect();
-    run_mir_and_dump(&loaded.hir, &mir_files)
+    run_mir_and_dump(&loaded.hir)
 }
 
 /// MIR 阶段核心（one-shot 与 staged 共用同一序列，oracle 据此隔离序列化保真度）：
 /// lower → 门禁 → 单态化（entry=main）→ verify（module + materialized）→ dump。
-pub fn run_mir_and_dump(
-    hir: &TypedHir,
-    mir_files: &[(FileId, &scoop2_syntax::ast::File)],
-) -> Result<String, StageError> {
+/// M2-5 翻转后只消费 `TypedHir` 的树 + 骨架（AST 不再是 MIR 输入）。
+pub fn run_mir_and_dump(hir: &TypedHir) -> Result<String, StageError> {
     use scoop2_mir::mir;
 
     let mut lower_diags = scoop2_base::diag::DiagnosticSink::new();
-    // M2-5 翻转：MIR 只消费 HIR 产出（树 + 骨架）。`mir_files` 参数保留
-    //（one-shot 与 staged 的签名一致性——AST 不再读取）。
-    let _ = mir_files;
     let lower_result = mir::lower_tree::lower_module_from_trees(&hir, &mut lower_diags);
     if lower_diags.has_errors() || !lower_result.errors.is_empty() {
         return Err(StageError::Mir(lower_diags.into_vec()));
