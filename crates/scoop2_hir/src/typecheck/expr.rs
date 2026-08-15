@@ -1436,11 +1436,26 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
     }
 
     /// 泛型函数调用的 where 约束检查：从位置实参推断类型实参，检查每个约束。
+    /// `explicit_type_args`：显式类型实参（`f<Int>(...)`）——按声明序绑定到
+    /// 类型参数后**覆盖**位置推断（M5：补齐本路径的约束校验缺口——此前显式
+    /// 实参调用不做 where 检查，违反约束的程序漏到 MIR 才以 monomorph_error
+    /// 暴露，违反 C5 诊断边界）。
     fn check_generic_call_constraints(
         &mut self,
         fqn: Symbol,
         sig: &Signature,
         arg_types: &[TypeId],
+        span: Span,
+    ) {
+        self.check_generic_call_constraints_ex(fqn, sig, arg_types, &[], span);
+    }
+
+    fn check_generic_call_constraints_ex(
+        &mut self,
+        fqn: Symbol,
+        sig: &Signature,
+        arg_types: &[TypeId],
+        explicit_type_args: &[TypeId],
         span: Span,
     ) {
         use crate::syntax::ast::GenericBound;
@@ -1452,6 +1467,14 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             {
                 let name = self.env.store.param_decl(*tp).name;
                 subst.insert(name, arg);
+            }
+        }
+        // 显式类型实参覆盖：按类型参数声明序绑定（M5 缺口修复）。
+        if !explicit_type_args.is_empty()
+            && let Some((tp_names, _)) = self.env.type_constraints(fqn)
+        {
+            for (name, ty) in tp_names.iter().zip(explicit_type_args.iter()) {
+                subst.insert(*name, *ty);
             }
         }
         // 也从显式类型实参推断（`RefBox<U>` 中的 U → explicit_type_args）。
@@ -5888,7 +5911,23 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             if applicable.len() < 2 {
                 let (idx, sig) = applicable.into_iter().next().expect("non-empty");
                 let _ = idx;
-                self.check_generic_call_constraints(fqn, &sig, &arg_types, span);
+                // 显式类型实参（TypeArg → TypeId 解析后参与 where 约束——M5 缺口）。
+                let explicit_tys: Vec<TypeId> = explicit_type_args
+                    .iter()
+                    .filter_map(|a| match &a.kind {
+                        crate::syntax::ast::TypeArgKind::Type(t) => {
+                            Some(self.lower_type(t))
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                self.check_generic_call_constraints_ex(
+                    fqn,
+                    &sig,
+                    &arg_types,
+                    &explicit_tys,
+                    span,
+                );
                 self.check_eff_param_args(&sig, &arg_types, args, span);
                 self.record_callee_effects(&sig, args, span);
                 // 显式类型实参优先替换返回类型中的类型参数。
