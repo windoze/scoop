@@ -206,16 +206,17 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第二十刀）：**M2-5 翻转落地**——模块级双路径 oracle
-> **325/325 全语料（mir2+hir+run-pass）完整模块 dump 逐字节一致**；
-> `dump-mir` / v0 `run_mir_and_dump`（one-shot+staged）/ CLI 检查路径已切
-> `lower_module_from_trees`（`pipeline::attach_trees` 供 CLI 直连路径补建树）。
-> **余留**：(a) sysroot 全量 build/run 路径暂走 AST lowering（`scoop2c
-> main.rs:825` 一处——sysroot 文件无树/骨架，待 sysroot TypedFile 化后翻转，
-> M6 前置）；(b) AST 路径删除 + 防御分支清理（For「不应到达」`stmt.rs:51`、
-> splice_field_removed、`_ =>` 兜底臂——依赖 (a) 先行）；(c) 函数级 flip
-> oracle（flip_oracle_arithmetic/corpus_stats）在 AST 路径删除时一并退役，
-> 模块级 oracle 转为「树路径 vs 固化基线」或确定性回归。
+> 进度（2026-08-15，第二十刀）：**M2-5 翻转落地（含 sysroot）**——模块级双
+> 路径 oracle **325/325 全语料（mir2+hir+run-pass）完整模块 dump 逐字节一致**；
+> 四条生产 MIR 路径（dump-mir / v0 one-shot+staged / CLI 检查 / e2e build-run
+> 含 sysroot 全量）全部切 `lower_module_from_trees`（`pipeline::attach_trees`
+> 补建树——sysroot TypedFile 由 `lower_sysroot_bodies=true` 产出）。验证：
+> e2e 既有失败（`scoop.core.Bool.equals` 等 codegen 符号缺失）为翻转前既有
+> 缺陷（stash 对照确认），非翻转回归。
+> **余留（M2-5 收官）**：AST 路径删除 + 防御分支清理（For「不应到达」
+> `lower/stmt.rs:51`、`splice_field_removed`、`_ =>` 兜底臂）——AST lowering
+> 已是纯 oracle 基线死代码；删除时函数级 flip oracle 退役、模块级 oracle 转
+> 确定性回归；`scoop2_mir` 的 `scoop2_syntax` 依赖随删除摘除（M5 审计项）。
 > 第十九刀：**模块级双路径 oracle 建立**——
 > `flip_oracle_module_level`（`scoop2_archive/tests/flip_oracle.rs`，暂 `#[ignore]`
 > 修复驱动门；配置文件 `/tmp/scoop2_mod.cfg` 两行：目录 csv + 文件名子串，
