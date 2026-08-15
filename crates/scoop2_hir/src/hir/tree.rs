@@ -15,6 +15,7 @@
 
 use scoop2_base::{NodeId, Span, Symbol};
 
+use crate::hir::element::TypeCategory;
 use crate::resolve::output::NodeIdTable;
 use crate::ty::TypeId;
 
@@ -69,6 +70,44 @@ pub struct FnTree {
     /// lower 为 `InitializerRoot` 而非 `FunDecl`；函数/方法/$init 树为 None）。
     #[serde(default)]
     pub val_init: Option<bool>,
+}
+
+/// 文件顶层 item 骨架（源码序）：MIR 模块 lowering 的驱动序列——树本身无
+/// 声明层信息（类型类别 / 无初始化器 val），骨架补齐模块级产出所需的声明
+/// 元数据，并定位每个 item 产生的树区间。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FileItem {
+    pub kind: FileItemKind,
+    /// item FQN 文本。
+    pub fqn: String,
+    /// 本 item 产生的树区间 [`start`, `end`)（`trees` 下标；无树 item 为空区间）。
+    pub tree_range: (u32, u32),
+    /// Type/Object 的成员槽位（源码序；`$init` 合成树固定在区间尾，不入列）。
+    #[serde(default)]
+    pub members: Vec<MemberSlot>,
+}
+
+/// 顶层 item 种类（MIR 模块产出对应）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum FileItemKind {
+    Fun,
+    /// 顶层 `val`/`var`（有初始化器 → Initializer 树；无 → ExternGlobal）。
+    Val,
+    /// 类型声明（metadata + 成员方法树 + `$init` 合成树）。
+    Type(TypeCategory),
+    Object,
+}
+
+/// 类型成员槽位（源码序）。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum MemberSlot {
+    /// 有 body 的方法（消费 tree_range 内按本槽位出现序排列的下一棵树）。
+    Tree,
+    /// 无 body 方法（接口 / 效应 op / abstract：签名-only FunDecl）。
+    Bodyless {
+        /// 方法 FQN 文本（`<owner>.<method>`）。
+        fqn: String,
+    },
 }
 
 /// 局部绑定（参数 / `val`/`var` / 模式子绑定）。
@@ -165,6 +204,10 @@ pub enum TreeExprKind {
     Lambda {
         params: Vec<LocalId>,
         body: LambdaBodyTree,
+        /// 隐式 `it` 形态（无显式参数；params[0] 是注入的 it 绑定）。MIR 的
+        /// 嵌套 fn_ty **不含** it 参数（AST 路径的历史形态——fn_ty 与 Param
+        /// 列表不一致的 quirk，字节一致保留）。
+        implicit_it: bool,
     },
     /// 短路逻辑与 / 或（控制流原语，非方法调用）。
     LogicalAnd {
@@ -1102,11 +1145,13 @@ impl<'a> TreeBuilder<'a> {
                 };
                 self.scopes.push(std::collections::HashMap::new());
                 let mut param_locals = Vec::new();
+                let mut implicit_it = false;
                 if lambda.params.is_empty() {
                     // 隐式 `it`：函数类型参数 0。
                     if let Some(&it_ty) = fn_params.first() {
                         if let Some(it_sym) = self.interner.get("it") {
                             param_locals.push(self.push_local(it_sym, it_ty, false, span));
+                            implicit_it = true;
                         }
                     }
                 } else {
@@ -1133,6 +1178,7 @@ impl<'a> TreeBuilder<'a> {
                     TreeExprKind::Lambda {
                         params: param_locals,
                         body,
+                        implicit_it,
                     },
                     ty,
                     span,
@@ -1652,7 +1698,10 @@ pub fn synthesize_class_init_tree(
     // this + 构造参数绑定（init 块 / 属性初始化器可引用参数名）。
     let this_sym = interner.get("this")?;
     let this_local = b.push_local(this_sym, this_ty, false, d.name.span);
-    let mut param_locals = Vec::with_capacity(ctor_params.len());
+    let mut param_locals = Vec::with_capacity(ctor_params.len() + 1);
+    // $init 树的 params = [this, ctor_params...]（镜像 lower_class_init_callable
+    // 的参数序——MIR fn_ty 与 FunDecl.params 都含 this）。
+    param_locals.push(this_local);
     for (i, cp) in ctor_params.iter().enumerate() {
         let name_sym = primary_param_names.get(i).copied().unwrap_or(cp.name);
         param_locals.push(b.push_local(name_sym, cp.ty, false, d.name.span));
@@ -1701,7 +1750,11 @@ pub fn synthesize_class_init_tree(
             if !cp.is_property {
                 continue;
             }
-            let value = b.push_expr(TreeExprKind::LocalRef(param_locals[i]), cp.ty, d.name.span);
+            let value = b.push_expr(
+                TreeExprKind::LocalRef(param_locals[i + 1]),
+                cp.ty,
+                d.name.span,
+            );
             let stmt = b.push_stmt(TreeStmt::Assign {
                 place: TreePlace::MemberField {
                     recv: this_ref,
@@ -1751,10 +1804,7 @@ pub fn synthesize_class_init_tree(
     b.out.root = Some(root);
     Some(FnTree {
         fqn: format!("{owner_fqn_text}.$init"),
-        params: {
-            let _ = this_ref;
-            Vec::new()
-        },
+        params: param_locals,
         body: b.out,
         gaps: b.gaps,
         val_init: None,

@@ -63,8 +63,9 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
 
                 TreeCallee::EffectOp { .. } => {}
 
-                TreeCallee::InitCall { .. } => return Some("InitCall"),
-                TreeCallee::Ctor { .. } | TreeCallee::Variant { .. } => {}
+                TreeCallee::InitCall { .. }
+                | TreeCallee::Ctor { .. }
+                | TreeCallee::Variant { .. } => {}
             }
         }
     }
@@ -175,8 +176,17 @@ fn lower_tree_stmt(builder: &mut FnLowering, body: &TreeBody, sid: scoop2_hir::h
                         },
                     });
                 }
-                TreePlace::TopLevelVar { .. } => {
-                    unsupported!("TopLevelVar place 在本切片支持集外")
+                TreePlace::TopLevelVar { fqn } => {
+                    // 镜像 lower_assign 的 TopLevelVar 分支：StoreTopLevelVar。
+                    let val_ty = operand_ty_of(builder, &v);
+                    builder.push_stmt(crate::mir::Statement {
+                        span: decl_span_of(body, *value),
+                        kind: crate::mir::StatementKind::StoreTopLevelVar {
+                            fqn: *fqn,
+                            value: v,
+                            value_ty: val_ty,
+                        },
+                    });
                 }
             }
         }
@@ -624,9 +634,10 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
         TreeExprKind::Lambda {
             params,
             body: lambda_body,
+            implicit_it,
         } => {
             // 镜像 lower_lambda：生成 env tuple + 嵌套 Item::Fun
-            lower_tree_lambda(builder, body, params, lambda_body, ty, span)
+            lower_tree_lambda(builder, body, params, lambda_body, *implicit_it, ty, span)
         }
         TreeExprKind::Handle {
             body: hbody,
@@ -760,7 +771,12 @@ fn lower_tree_call(
         .map(|&e| lower_tree_expr(builder, body, e))
         .collect();
     let tmp = builder.alloc_temp(ty, span);
-    let call_site_id = Some(builder.next_site_id());
+    // super `$init` 委托调用无 site_id（镜像 emit_super_init_call）。
+    let call_site_id = if matches!(callee, TreeCallee::InitCall { .. }) {
+        None
+    } else {
+        Some(builder.next_site_id())
+    };
     let call_transport = builder.call_transport(ty);
     let mir_args: Vec<crate::mir::CallArg> = arg_ops
         .iter()
@@ -999,6 +1015,30 @@ fn lower_tree_call(
                 stable_key: None,
             }
         }
+        TreeCallee::InitCall { target_class } => {
+            // super 委托：`[this, ...实参]` 直调 `<Super>.$init`（镜像
+            // emit_super_init_call——plain_no_outward transport、无 site_id）。
+            let callee_fqn = format!("{}.$init", target_class);
+            let unit = builder.types.unit();
+            Rvalue::Call {
+                site_id: None,
+                kind: crate::mir::CallKind::Direct {
+                    callee_fqn,
+                    type_args: vec![],
+                    is_intrinsic: false,
+                    stable_template_key: None,
+                    stable_instance_key: None,
+                    generic_type_args: vec![],
+                    generic_eff_args: vec![],
+                    intrinsic_name: None,
+                },
+                args: mir_args,
+                transport: crate::mir::transport::CallTransportMetadata::plain_no_outward(
+                    unit,
+                    crate::mir::transport::MirTransportKind::Scalar,
+                ),
+            }
+        }
         TreeCallee::EffectOp { effect, op } => {
             // 镜像 lower_effect_op：effect-op 调用 → Perform 终结符
             let op_fqn = format!(
@@ -1201,16 +1241,21 @@ use unsupported;
 // 函数级脚手架：FnTree → FunDecl（签名数据从 hir 表取，不经 AST）
 // ---------------------------------------------------------------------------
 
-/// 从树构造完整 `FunDecl`（顶层函数 / 方法 / `$init`；val 初始化器树暂不支持——
-/// 其签名语义由 Initializer item 承载，后续切片接入）。
+/// 从树构造完整 `FunDecl`（顶层函数 / 方法 / `$init`；val 初始化器树走
+/// [`lower_tree_initializer`]）。
 ///
-/// 返回 `(FunDecl, 私有 store)`；嵌套闭包在直线子集下不产生。
+/// 返回 `(FunDecl, 嵌套闭包 sibling 列表, 私有 store)`；嵌套闭包与主函数共用
+/// 同一 store（模块合并时统一 remap——镜像 AST）。
 pub fn lower_tree_fun_decl(
     hir: &scoop2_hir::hir::TypedHir,
     file_id: scoop2_base::FileId,
     tree: &FnTree,
     base_types: &scoop2_hir::ty::TypeStore,
-) -> Option<(crate::mir::FunDecl, scoop2_hir::ty::TypeStore)> {
+) -> Option<(
+    crate::mir::FunDecl,
+    Vec<crate::mir::FunDecl>,
+    scoop2_hir::ty::TypeStore,
+)> {
     let mut errors: Vec<crate::diagnostics::MirLowerError> = Vec::new();
     let mut types = base_types.clone();
 
@@ -1241,10 +1286,13 @@ pub fn lower_tree_fun_decl(
         };
 
     // fn_ty 的参数不含隐式 <this>（镜像 AST：fd.params 事后追加 this）。
+    // 例外：`$init` 合成的 fn_ty **含** this（镜像 lower_class_init_callable：
+    // [this, ctor_params...]）。
+    let is_init = tree.fqn.ends_with(".$init");
     let param_tys: Vec<scoop2_hir::ty::TypeId> = tree
         .params
         .iter()
-        .filter(|&p| builder_this_check(hir, tree.body.locals[p.0 as usize].name))
+        .filter(|&p| is_init || builder_this_check(hir, tree.body.locals[p.0 as usize].name))
         .map(|&p| tree.body.locals[p.0 as usize].ty)
         .collect();
     let fn_ty = types.function(scoop2_hir::ty::FunctionType {
@@ -1300,9 +1348,9 @@ pub fn lower_tree_fun_decl(
         });
     }
     lower_tree_fn_body(&mut builder, tree);
-    let (body, _nested, types_out) = builder.finish();
+    let (body, nested, types_out) = builder.finish();
     fd.body = Some(body);
-    Some((fd, types_out))
+    Some((fd, nested, types_out))
 }
 
 /// 顶层 `val`/`var` 初始化器树 → `InitializerRoot`（镜像 builder.rs 的
@@ -1352,6 +1400,276 @@ pub fn lower_tree_initializer(
         },
         types_out,
     ))
+}
+
+// ---------------------------------------------------------------------------
+// 模块级树驱动 lowering（M2-5 翻转：MIR 只消费 HIR 产出——树 + 骨架，不读 AST）
+// ---------------------------------------------------------------------------
+
+/// 把整个 TypedHir（用户文件的树 + item 骨架）lower 为 MIR Module。
+///
+/// 镜像 `lower::lower_module` 的产出序与 store 合并序（逐 item：base 克隆 →
+/// per-item store → extend_from + remap）；`$init` 树在成员方法合并**之后**
+/// 以演化后的 module.types 为基（与 AST 的 lower_class_init_callable 调用位
+/// 一致）。
+pub fn lower_module_from_trees(
+    hir: &scoop2_hir::hir::TypedHir,
+    diags: &mut scoop2_base::diag::DiagnosticSink,
+) -> crate::mir::lower::LowerResult {
+    let mut module = crate::mir::Module {
+        items: Vec::new(),
+        types: hir.store.clone(),
+    };
+    let mut errors: Vec<crate::diagnostics::MirLowerError> = Vec::new();
+    for tf in &hir.files {
+        lower_file_from_skeleton(hir, tf, &mut module, &mut errors);
+    }
+    for e in &errors {
+        diags.push(e.to_diagnostic());
+    }
+    crate::mir::lower::LowerResult { module, errors }
+}
+
+/// 单文件：按 item 骨架（源码序）产出模块 items。
+fn lower_file_from_skeleton(
+    hir: &scoop2_hir::hir::TypedHir,
+    tf: &scoop2_hir::hir::TypedFile,
+    module: &mut crate::mir::Module,
+    _errors: &mut Vec<crate::diagnostics::MirLowerError>,
+) {
+    use scoop2_hir::hir::element::TypeCategory;
+    use scoop2_hir::hir::tree::{FileItemKind, TreeBody};
+
+    let file_id = tf.file_id;
+    for entry in &tf.item_skeleton {
+        let (start, end) = entry.tree_range;
+        let trees = &tf.trees[start as usize..end as usize];
+        match entry.kind {
+            FileItemKind::Fun => {
+                if trees.is_empty() {
+                    // 无 body 声明（extern / abstract / intrinsic）：签名-only
+                    // FunDecl（参数 local 0——镜像 AST 无 body 分支）。
+                    let base = module.types.clone();
+                    if let Some((item, st)) =
+                        signature_only_fun_item(hir, file_id, &entry.fqn, &base)
+                    {
+                        let remap = module.types.extend_from(&st);
+                        module
+                            .items
+                            .push(crate::mir::lower::remap_item(&remap, item));
+                    }
+                    continue;
+                }
+                let base = module.types.clone();
+                for tree in trees {
+                    if let Some((fd, nested, st)) = lower_tree_fun_decl(hir, file_id, tree, &base) {
+                        let remap = module.types.extend_from(&st);
+                        module.items.push(crate::mir::Item::Fun(
+                            crate::mir::lower::remap_fun_decl(&remap, fd),
+                        ));
+                        for nf in nested {
+                            module.items.push(crate::mir::Item::Fun(
+                                crate::mir::lower::remap_fun_decl(&remap, nf),
+                            ));
+                        }
+                    }
+                }
+            }
+            FileItemKind::Val => {
+                if trees.is_empty() {
+                    // @Extern 顶层 var（无初始化器）→ ExternGlobal。
+                    let nothing_ty = module.types.nothing();
+                    let name_sym = entry
+                        .fqn
+                        .rsplit('.')
+                        .next()
+                        .and_then(|n| hir.interner.get(n));
+                    let ty = name_sym
+                        .and_then(|s| hir.top_level_vals.get(&s).copied())
+                        .unwrap_or(nothing_ty);
+                    module
+                        .items
+                        .push(crate::mir::Item::ExternGlobal(crate::mir::ExternGlobal {
+                            span: Span::default(),
+                            fqn: entry.fqn.clone(),
+                            ty,
+                            file: file_id,
+                        }));
+                    continue;
+                }
+                let base = module.types.clone();
+                if let Some(tree) = trees.first()
+                    && let Some((ir, st)) = lower_tree_initializer(hir, file_id, tree, &base)
+                {
+                    let remap = module.types.extend_from(&st);
+                    module.items.push(crate::mir::lower::remap_item(
+                        &remap,
+                        crate::mir::Item::Initializer(ir),
+                    ));
+                }
+            }
+            FileItemKind::Type(category) => {
+                module
+                    .items
+                    .push(crate::mir::Item::Metadata(crate::mir::MetadataRoot {
+                        span: Span::default(),
+                        fqn: entry.fqn.clone(),
+                        kind: match category {
+                            TypeCategory::Class => crate::mir::MetadataKind::Class,
+                            TypeCategory::Interface => crate::mir::MetadataKind::Interface,
+                            TypeCategory::Struct => crate::mir::MetadataKind::Struct,
+                            TypeCategory::Enum => crate::mir::MetadataKind::Enum,
+                            TypeCategory::Effect => crate::mir::MetadataKind::Effect,
+                            TypeCategory::Object => crate::mir::MetadataKind::Object,
+                        },
+                        file: file_id,
+                    }));
+                // 成员方法树：同一 base（镜像 lower_type_member_funs_with_stores
+                // 的共享 base）；`$init` 合成树在成员合并后以演化 store 为基；
+                // 无 body 成员（接口/效应 op）发签名-only FunDecl。
+                lower_type_members_from_slots(hir, file_id, entry, trees, module);
+            }
+            FileItemKind::Object => {
+                module
+                    .items
+                    .push(crate::mir::Item::Metadata(crate::mir::MetadataRoot {
+                        span: Span::default(),
+                        fqn: entry.fqn.clone(),
+                        kind: crate::mir::MetadataKind::Object,
+                        file: file_id,
+                    }));
+                lower_type_members_from_slots(hir, file_id, entry, trees, module);
+            }
+        }
+    }
+}
+
+/// Type/Object 的成员发射：按成员槽位（源码序）逐一产出——Tree 槽消费区间内
+/// 的下一棵树（方法树共享 base；`$init` 树在成员之后以演化 store 为基），
+/// Bodyless 槽发签名-only FunDecl。
+fn lower_type_members_from_slots(
+    hir: &scoop2_hir::hir::TypedHir,
+    file_id: scoop2_base::FileId,
+    entry: &scoop2_hir::hir::tree::FileItem,
+    trees: &[FnTree],
+    module: &mut crate::mir::Module,
+) {
+    use scoop2_hir::hir::tree::MemberSlot;
+    let mut tree_iter = trees.iter();
+    // $init 合成树固定在区间尾（无槽位）：先定位，成员槽位只消费方法树。
+    let init_tree = trees
+        .iter()
+        .rev()
+        .find(|t| t.fqn.ends_with(".$init"))
+        .map(|t| t.fqn.clone());
+    let base = module.types.clone();
+    let mut emit_tree =
+        |tree: &FnTree, module: &mut crate::mir::Module, base: &scoop2_hir::ty::TypeStore| {
+            if let Some((fd, nested, st)) = lower_tree_fun_decl(hir, file_id, tree, base) {
+                let remap = module.types.extend_from(&st);
+                module
+                    .items
+                    .push(crate::mir::Item::Fun(crate::mir::lower::remap_fun_decl(
+                        &remap, fd,
+                    )));
+                for nf in nested {
+                    module
+                        .items
+                        .push(crate::mir::Item::Fun(crate::mir::lower::remap_fun_decl(
+                            &remap, nf,
+                        )));
+                }
+            }
+        };
+    for slot in &entry.members {
+        match slot {
+            MemberSlot::Tree => {
+                if let Some(tree) = tree_iter.next() {
+                    emit_tree(tree, module, &base);
+                }
+            }
+            MemberSlot::Bodyless { fqn } => {
+                if let Some((item, st)) = signature_only_fun_item(hir, file_id, fqn, &base) {
+                    let remap = module.types.extend_from(&st);
+                    module
+                        .items
+                        .push(crate::mir::lower::remap_item(&remap, item));
+                }
+            }
+        }
+    }
+    // 成员合并后：$init 合成树以演化 store 为基（镜像 AST 调用位）。
+    if let Some(init_fqn) = init_tree
+        && let Some(tree) = trees.iter().rev().find(|t| t.fqn == init_fqn)
+    {
+        let evolved = module.types.clone();
+        emit_tree(tree, module, &evolved);
+    }
+}
+
+/// 无 body 函数声明的签名-only FunDecl（extern / abstract / intrinsic / 接口与
+/// 效应 op）。参数类型按 FQN 查签名表（顶层 / 成员），缺失回退 Unit——镜像
+/// AST 无 body 分支；`intrinsic_name` 的注解提取暂不镜像（语料内无该形态）。
+/// 返回 (Item, 私有 store)——调用方合并（fn_ty 的 intern 需要进模块 store）。
+fn signature_only_fun_item(
+    hir: &scoop2_hir::hir::TypedHir,
+    file_id: scoop2_base::FileId,
+    fqn: &str,
+    base_types: &scoop2_hir::ty::TypeStore,
+) -> Option<(crate::mir::Item, scoop2_hir::ty::TypeStore)> {
+    let fqn_sym = hir.interner.get(fqn)?;
+    let sig = hir
+        .top_level_funs
+        .get(&fqn_sym)
+        .and_then(|s| s.first())
+        .cloned()
+        .or_else(|| {
+            let dot = fqn.rfind('.')?;
+            let (owner, method) = fqn.split_at(dot);
+            let owner_sym = hir.interner.get(owner)?;
+            let method_sym = hir.interner.get(&method[1..])?;
+            hir.member_funs
+                .get(&owner_sym)?
+                .get(&method_sym)?
+                .first()
+                .cloned()
+        })?;
+    let mut types = base_types.clone();
+    let param_tys: Vec<scoop2_hir::ty::TypeId> = sig.param_types.clone();
+    let fn_ty = types.function(scoop2_hir::ty::FunctionType {
+        receiver: None,
+        params: param_tys.clone(),
+        return_ty: sig.return_ty,
+        effects: sig.effect_row.clone(),
+        closed: false,
+    });
+    let name = fqn.rsplit('.').next().unwrap_or(fqn).to_string();
+    let mut fd = crate::mir::FunDecl {
+        span: Span::default(),
+        fqn: fqn.to_string(),
+        name,
+        ty: fn_ty,
+        params: Vec::new(),
+        return_ty: sig.return_ty,
+        effect_row: sig.effect_row.clone(),
+        type_params: Vec::new(),
+        body: None,
+        file: file_id,
+        stable_template_key: None,
+        instance_symbol: None,
+        effect_abi: None,
+        intrinsic_name: None,
+    };
+    for (i, pname) in sig.param_names.iter().enumerate() {
+        let pty = param_tys.get(i).copied().unwrap_or_else(|| types.unit());
+        fd.params.push(crate::mir::Param {
+            span: Span::default(),
+            name: hir.interner.resolve(*pname).to_string(),
+            ty: pty,
+            local: crate::mir::LocalId(0),
+        });
+    }
+    Some((crate::mir::Item::Fun(fd), types))
 }
 
 /// 局部是否是隐式 this（MIR fn_ty 排除）。
@@ -2421,6 +2739,7 @@ fn lower_tree_lambda(
     body: &TreeBody,
     params: &[scoop2_hir::hir::tree::LocalId],
     lambda_body: &scoop2_hir::hir::tree::LambdaBodyTree,
+    implicit_it: bool,
     ty: scoop2_hir::ty::TypeId,
     span: Span,
 ) -> Operand {
@@ -2552,8 +2871,12 @@ fn lower_tree_lambda(
         }
         _ => (builder.types.any(), scoop2_hir::ty::EffectRow::pure()),
     };
+    // fn_ty = [env] + 显式参数类型。隐式 `it` 形态下 AST 路径的 fn_ty **不含**
+    // it 参数（fn_ty 与 Param 列表不一致的历史 quirk——字节一致保留）。
     let mut all_param_tys = vec![env_ty];
-    all_param_tys.extend(lambda_param_tys.iter().copied());
+    if !implicit_it {
+        all_param_tys.extend(lambda_param_tys.iter().copied());
+    }
 
     let mut nested_store = builder.types.clone();
     let nested_fn_ty = nested_store.function(scoop2_hir::ty::FunctionType {
@@ -2831,7 +3154,9 @@ fn collect_tree_expr_idents(
                 collect_tree_expr_idents(body, arm.body, syms);
             }
         }
-        TreeExprKind::Lambda { params, body: lb } => {
+        TreeExprKind::Lambda {
+            params, body: lb, ..
+        } => {
             // 嵌套 lambda：收集其自由变量后减去其自身参数。
             for s in collect_tree_lambda_free_vars(body, params, lb) {
                 syms.insert(s);

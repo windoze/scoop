@@ -83,6 +83,9 @@ pub struct TypedFile {
     /// HIR body 树（M2，transitional 增量）：顶层函数的 desugar 后树。MIR 翻转
     /// （M2-5）后成为唯一函数体表示，`gaps` 必须为空。
     pub trees: Vec<tree::FnTree>,
+    /// 顶层 item 骨架（源码序 + 树区间；M2-5 模块级树 lowering 驱动）。
+    #[serde(default)]
+    pub item_skeleton: Vec<tree::FileItem>,
 }
 
 /// class 主构造器参数布局（typecheck 记录；MIR 继承构造链展开用）。

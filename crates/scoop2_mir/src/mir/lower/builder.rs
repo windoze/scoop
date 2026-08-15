@@ -799,8 +799,11 @@ pub fn lower_fun_decl_inner(
             },
         );
     }
+    let unit_fallback = builder.types.unit();
     for (i, p) in d.params.iter().enumerate() {
-        let pty = param_tys[i];
+        // 签名表未覆盖的参数位（多重载 `.first()` 取错签名的既有形态）：
+        // Unit 回退——与无 body 分支的兜底一致，不 panic（C5：MIR 只 ICE 不崩）。
+        let pty = param_tys.get(i).copied().unwrap_or(unit_fallback);
         let lid = builder.alloc_named(
             hir.interner.resolve(p.name.symbol).to_string(),
             pty,

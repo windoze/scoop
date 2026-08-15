@@ -209,6 +209,7 @@ pub fn run_typecheck_with_options(
             expr_types,
             facts,
             trees: Vec::new(),
+            item_skeleton: Vec::new(),
         });
     }
     // 把 typecheck 产出 move 进自包含的 TypedHir（含 interner 副本，解耦借用）。

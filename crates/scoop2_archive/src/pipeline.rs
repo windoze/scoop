@@ -188,16 +188,18 @@ pub fn typecheck_program(
 /// gaps 记录未覆盖构造（不阻塞管线——树尚无消费者；MIR 翻转前必须清零）。
 /// 签名缺失（重载匹配失败等）的函数暂不构树。
 fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
+    use scoop2_hir::hir::element::TypeCategory;
     use scoop2_hir::hir::tree;
     use scoop2_syntax::ast::ItemKind;
 
     let unit_ty = hir.store.unit();
-    let mut new_files: Vec<(usize, Vec<tree::FnTree>)> = Vec::new();
+    let mut new_files: Vec<(usize, Vec<tree::FnTree>, Vec<tree::FileItem>)> = Vec::new();
     for (i, tf) in hir.files.iter().enumerate() {
         let Some(pf) = program.parsed.get(tf.file_id.0 as usize) else {
             continue;
         };
         let mut trees = Vec::new();
+        let mut skeleton = Vec::new();
         let fqn_of = |simple: scoop2_base::Symbol| -> String {
             let name = program.interner.resolve(simple);
             if tf.package_prefix.is_empty() {
@@ -207,96 +209,141 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
             }
         };
         for item in &pf.file.items {
+            let range_start = trees.len() as u32;
             match &item.kind {
                 ItemKind::Fun(d) => {
-                    let Some(body) = &d.body else { continue };
                     let fqn_text = fqn_of(d.name.symbol);
-                    let Some(sig) = lookup_sig(hir, &fqn_text, d.name.span) else {
-                        continue;
-                    };
-                    let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
-                        .param_names
-                        .iter()
-                        .copied()
-                        .zip(sig.param_types.iter().copied())
-                        .collect();
-                    trees.push(tree::build_fn_tree(
-                        fqn_text,
-                        body,
-                        &params,
-                        None,
-                        unit_ty,
-                        &tf.expr_types,
-                        &tf.facts,
-                        &program.interner,
-                        &hir.store,
-                    ));
+                    if let Some(body) = &d.body
+                        && let Some(sig) = lookup_sig(hir, &fqn_text, d.name.span)
+                    {
+                        let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
+                            .param_names
+                            .iter()
+                            .copied()
+                            .zip(sig.param_types.iter().copied())
+                            .collect();
+                        trees.push(tree::build_fn_tree(
+                            fqn_text.clone(),
+                            body,
+                            &params,
+                            None,
+                            unit_ty,
+                            &tf.expr_types,
+                            &tf.facts,
+                            &program.interner,
+                            &hir.store,
+                        ));
+                    }
+                    // 无 body / 签名缺失：空树区间（模块 lowering 发签名-only
+                    // FunDecl——extern/abstract/intrinsic 形态）。
+                    skeleton.push(tree::FileItem {
+                        kind: tree::FileItemKind::Fun,
+                        fqn: fqn_text,
+                        tree_range: (range_start, trees.len() as u32),
+                        members: Vec::new(),
+                    });
                 }
                 ItemKind::Val(d) => {
-                    // 顶层 val/var 初始化器树（fqn = <prefix>.<name>；根块为尾
-                    // 表达式——lower 为 InitializerRoot）。
-                    let scoop2_syntax::ast::ValBinding::Name(name) = &d.binding else {
-                        continue;
+                    let fqn_text = match &d.binding {
+                        scoop2_syntax::ast::ValBinding::Name(name) => fqn_of(name.symbol),
+                        // 顶层解构是 parse error。
+                        scoop2_syntax::ast::ValBinding::Pattern(_) => continue,
                     };
-                    let Some(init) = &d.init else { continue };
-                    trees.push(tree::build_val_init_tree(
-                        fqn_of(name.symbol),
-                        init,
-                        d.kind == scoop2_syntax::ast::ValKind::Var,
-                        unit_ty,
-                        &tf.expr_types,
-                        &tf.facts,
-                        &program.interner,
-                        &hir.store,
-                    ));
+                    // 顶层 val/var 初始化器树（fqn = <prefix>.<name>；根块为尾
+                    // 表达式——lower 为 InitializerRoot）。无初始化器（@Extern）：
+                    // 空区间 → 模块 lowering 发 ExternGlobal。
+                    if let Some(init) = &d.init {
+                        trees.push(tree::build_val_init_tree(
+                            fqn_text.clone(),
+                            init,
+                            d.kind == scoop2_syntax::ast::ValKind::Var,
+                            unit_ty,
+                            &tf.expr_types,
+                            &tf.facts,
+                            &program.interner,
+                            &hir.store,
+                        ));
+                    }
+                    skeleton.push(tree::FileItem {
+                        kind: tree::FileItemKind::Val,
+                        fqn: fqn_text,
+                        tree_range: (range_start, trees.len() as u32),
+                        members: Vec::new(),
+                    });
                 }
                 ItemKind::Type(d) => {
-                    let Some(body) = &d.body else { continue };
                     let owner_fqn = fqn_of(d.name.symbol);
-                    build_member_trees(
-                        &mut trees,
-                        hir,
-                        tf,
-                        &program.interner,
-                        unit_ty,
-                        &owner_fqn,
-                        &body.members,
-                    );
-                    // class `<Fqn>.$init` 合成（M2-3：从 MIR 上移）。
-                    if let Some(owner_sym) = hir.interner.get(&owner_fqn) {
-                        if let Some(init_tree) = tree::synthesize_class_init_tree(
+                    let category = match d.kind {
+                        scoop2_syntax::ast::TypeKind::Class => TypeCategory::Class,
+                        scoop2_syntax::ast::TypeKind::Interface => TypeCategory::Interface,
+                        scoop2_syntax::ast::TypeKind::Struct => TypeCategory::Struct,
+                        scoop2_syntax::ast::TypeKind::Enum => TypeCategory::Enum,
+                        scoop2_syntax::ast::TypeKind::Effect => TypeCategory::Effect,
+                    };
+                    let mut members = Vec::new();
+                    if let Some(body) = &d.body {
+                        members = build_member_trees(
+                            &mut trees,
                             hir,
                             tf,
                             &program.interner,
                             unit_ty,
                             &owner_fqn,
-                            owner_sym,
-                            d,
-                        ) {
-                            trees.push(init_tree);
+                            &body.members,
+                        );
+                        // class `<Fqn>.$init` 合成（M2-3：从 MIR 上移）。
+                        if let Some(owner_sym) = hir.interner.get(&owner_fqn) {
+                            if let Some(init_tree) = tree::synthesize_class_init_tree(
+                                hir,
+                                tf,
+                                &program.interner,
+                                unit_ty,
+                                &owner_fqn,
+                                owner_sym,
+                                d,
+                            ) {
+                                trees.push(init_tree);
+                            }
                         }
                     }
+                    skeleton.push(tree::FileItem {
+                        kind: tree::FileItemKind::Type(category),
+                        fqn: owner_fqn,
+                        tree_range: (range_start, trees.len() as u32),
+                        members,
+                    });
                 }
                 ItemKind::Object(d) => {
-                    let Some(body) = &d.body else { continue };
                     let name_sym = d.name.as_ref().map(|n| n.symbol).unwrap_or_default();
-                    build_member_trees(
-                        &mut trees,
-                        hir,
-                        tf,
-                        &program.interner,
-                        unit_ty,
-                        &fqn_of(name_sym),
-                        &body.members,
-                    );
+                    let owner_fqn = fqn_of(name_sym);
+                    let mut members = Vec::new();
+                    if let Some(body) = &d.body {
+                        members = build_member_trees(
+                            &mut trees,
+                            hir,
+                            tf,
+                            &program.interner,
+                            unit_ty,
+                            &owner_fqn,
+                            &body.members,
+                        );
+                    }
+                    skeleton.push(tree::FileItem {
+                        kind: tree::FileItemKind::Object,
+                        fqn: owner_fqn,
+                        tree_range: (range_start, trees.len() as u32),
+                        members,
+                    });
                 }
+                // Extension/TypeAlias：MIR 不单独建模（无 item 无树）。
                 _ => {}
             }
         }
-        new_files.push((i, trees));
+        new_files.push((i, trees, skeleton));
     }
-    for (i, trees) in new_files {
+    for (i, trees, skeleton) in new_files {
         hir.files[i].trees = trees;
+        hir.files[i].item_skeleton = skeleton;
     }
 }
 
@@ -323,15 +370,20 @@ fn build_member_trees(
     unit_ty: scoop2_hir::ty::TypeId,
     owner_fqn: &str,
     members: &[scoop2_syntax::ast::TypeMember],
-) {
+) -> Vec<scoop2_hir::hir::tree::MemberSlot> {
     use scoop2_syntax::ast::TypeMemberKind;
+    let mut slots = Vec::new();
     let owner_sym = hir.interner.get(owner_fqn).unwrap_or_default();
     let this_ty = this_ty_of(hir, owner_sym);
     for m in members {
         match &m.kind {
             TypeMemberKind::Fun(d) => {
-                let Some(body) = &d.body else { continue };
                 let method_fqn = format!("{}.{}", owner_fqn, interner.resolve(d.name.symbol));
+                let Some(body) = &d.body else {
+                    // 无 body 方法（接口 / 效应 op / abstract）：签名-only FunDecl。
+                    slots.push(scoop2_hir::hir::tree::MemberSlot::Bodyless { fqn: method_fqn });
+                    continue;
+                };
                 let Some(sig) = hir
                     .member_funs
                     .get(&owner_sym)
@@ -361,10 +413,11 @@ fn build_member_trees(
                     interner,
                     &hir.store,
                 ));
+                slots.push(scoop2_hir::hir::tree::MemberSlot::Tree);
             }
             TypeMemberKind::Type(d) => {
                 if let Some(b) = &d.body {
-                    build_member_trees(
+                    let nested = build_member_trees(
                         trees,
                         hir,
                         tf,
@@ -373,11 +426,13 @@ fn build_member_trees(
                         &format!("{}.{}", owner_fqn, interner.resolve(d.name.symbol)),
                         &b.members,
                     );
+                    slots.extend(nested);
                 }
             }
             _ => {}
         }
     }
+    slots
 }
 
 /// `this` 的类型：owner 的声明态 nominal（ref class/interface / value struct/enum）。

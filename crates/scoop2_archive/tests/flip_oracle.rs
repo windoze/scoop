@@ -94,9 +94,11 @@ fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<S
                 continue;
             }
             // val 初始化器树暂不在脚手架支持内（无签名表项的 fqn 跳过）。
-            let Some((tree_fd, tree_store)) = scoop2_mir::mir::lower_tree::lower_tree_fun_decl(
-                &hir, tf.file_id, tree, &hir.store,
-            ) else {
+            let Some((tree_fd, _tree_nested, tree_store)) =
+                scoop2_mir::mir::lower_tree::lower_tree_fun_decl(
+                    &hir, tf.file_id, tree, &hir.store,
+                )
+            else {
                 if std::env::var("SCOOP2_FLIP_LIST").is_ok() {
                     eprintln!("    SKIP-NO-SIG {} {}", tree.fqn, tf.file_id.as_u32());
                 }
@@ -203,4 +205,110 @@ fn flip_oracle_corpus_stats() {
     for d in diff_examples.iter().take(8) {
         eprintln!("  DIFF {d}");
     }
+}
+
+/// **模块级**双路径 oracle（M2-5 翻转验收门）：树驱动 `lower_module_from_trees`
+/// 与 AST 路径 `lower_module` 的**完整模块 dump** 逐字节一致（含 item 序 /
+/// metadata / initializer / extern-global / store 合并序）。
+///
+/// 目录可用 `SCOOP2_MOD_DIRS` 覆盖（默认 `mir2,hir,run-pass`；迭代用子集）。
+/// 修复完成后移除 `ignore`（当前 run-pass 语料尚有差异——修复驱动门）。
+#[test]
+#[ignore = "M2-5 翻转验收门：run-pass 语料模块级差异修复中（显式 --ignored 运行）"]
+fn flip_oracle_module_level() {
+    let roots: Vec<String> = std::env::var("SCOOP2_MOD_DIRS")
+        .unwrap_or_else(|_| "mir2,hir,run-pass".to_string())
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    let mut files: Vec<PathBuf> = Vec::new();
+    for r in &roots {
+        let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures")
+            .join(r);
+        if !base.is_dir() {
+            continue;
+        }
+        let mut fs: Vec<PathBuf> = std::fs::read_dir(&base)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|x| x == "scoop"))
+            .map(|e| e.path())
+            .collect();
+        fs.sort();
+        files.extend(fs);
+    }
+    let mut compared = 0usize;
+    let mut diffs: Vec<String> = Vec::new();
+    for f in files {
+        let Ok(source) = scoop2_base::SourceFile::load(&f) else {
+            continue;
+        };
+        let mut program = build_program(&source);
+        let hir = match typecheck_program(&mut program, None) {
+            Ok(h) => h,
+            Err(_) => continue,
+        };
+        let mut sink = scoop2_base::diag::DiagnosticSink::new();
+        // AST 路径（现行基准）。
+        let ast_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            scoop2_mir::mir::lower::lower_module(
+                program
+                    .parsed
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, _)| program.user_indices.contains(i))
+                    .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file)),
+                &hir,
+                &mut sink,
+            )
+        }));
+        let ast_module = match ast_result {
+            Ok(m) => m,
+            Err(_) => {
+                eprintln!("  MPANIC-AST {}", f.file_name().unwrap().to_string_lossy());
+                continue;
+            }
+        };
+        // 树路径（M2-5 翻转目标）。
+        let tree_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            scoop2_mir::mir::lower_tree::lower_module_from_trees(&hir, &mut sink)
+        }));
+        let tree_module = match tree_result {
+            Ok(m) => m,
+            Err(_) => {
+                eprintln!("  MPANIC-TREE {}", f.file_name().unwrap().to_string_lossy());
+                continue;
+            }
+        };
+        let a = scoop2_mir::mir::dump::dump_module(&ast_module.module, &hir.interner);
+        let b = scoop2_mir::mir::dump::dump_module(&tree_module.module, &hir.interner);
+        compared += 1;
+        if a != b {
+            let mut first = String::new();
+            for (la, lb) in a.lines().zip(b.lines()) {
+                if la != lb {
+                    first = format!("\n    ast:  {la}\n    tree: {lb}");
+                    break;
+                }
+            }
+            if first.is_empty() {
+                first = format!("\n    ast len={} tree len={}", a.len(), b.len());
+            }
+            diffs.push(format!(
+                "{}: 模块 dump 不一致{first}",
+                f.file_name().unwrap().to_string_lossy()
+            ));
+        }
+    }
+    eprintln!("module-level: compared={compared} diffs={}", diffs.len());
+    for d in diffs.iter().take(10) {
+        eprintln!("  MDIFF {d}");
+    }
+    assert!(compared > 20, "语料应覆盖至少 20 个可编译文件");
+    assert!(
+        diffs.is_empty(),
+        "模块级双路径 dump 应逐字节一致: {diffs:#?}"
+    );
 }

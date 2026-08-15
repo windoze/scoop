@@ -194,7 +194,7 @@ fn lower_file(
 }
 
 /// 用 remap 表重写 FunDecl 中的所有 TypeId。
-fn remap_fun_decl(
+pub(crate) fn remap_fun_decl(
     remap: &std::collections::HashMap<scoop2_hir::ty::TypeId, scoop2_hir::ty::TypeId>,
     mut fd: crate::mir::FunDecl,
 ) -> crate::mir::FunDecl {
@@ -211,7 +211,7 @@ fn remap_fun_decl(
 }
 
 /// 用 remap 表重写任意 Item 中的 TypeId（Fun / Initializer）。
-fn remap_item(
+pub(crate) fn remap_item(
     remap: &std::collections::HashMap<scoop2_hir::ty::TypeId, scoop2_hir::ty::TypeId>,
     item: Item,
 ) -> Item {
