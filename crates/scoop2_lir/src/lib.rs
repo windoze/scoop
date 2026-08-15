@@ -66,11 +66,19 @@ pub fn lower_to_lir(
         .iter()
         .map(|e| (e.fqn.clone(), e.ty))
         .collect();
-    // 7. MIR→LIR body 映射（含 GC info + effect schema 挂载）
+    // 7. MIR→LIR body 映射（含 GC info + effect schema 挂载；分派 slot 定稿——
+    // M4-2 起 map 时直接解析，无占位回填）。
     let step_tags = build_step_tag_tables(mir, interner);
-    map_bodies(&mut program, mir, decls, interner, &step_tags, &global_types)?;
-    // 8. 回填分发表信息到调用点
-    dispatch::backfill_call_sites(&mut program);
+    let dispatch_slots = DispatchSlotTables::from_program(&program);
+    map_bodies(
+        &mut program,
+        mir,
+        decls,
+        interner,
+        &step_tags,
+        &global_types,
+        &dispatch_slots,
+    )?;
     // 9. 验证
     verify::verify_lir(&program);
     Ok(program)
@@ -134,6 +142,52 @@ fn build_step_tag_tables(mir: &MaterializedMir, interner: &Interner) -> StepTagT
 // MIR→LIR body 映射
 // =========================================================================
 
+/// 分派槽位查找表（M4-2：map 期定稿——替代旧「slot 0 占位 + backfill」）。
+struct DispatchSlotTables {
+    vtable: std::collections::HashMap<(String, String), u32>,
+    itable: std::collections::HashMap<(String, String), (u64, u32)>,
+}
+
+impl DispatchSlotTables {
+    fn from_program(program: &LirProgram) -> Self {
+        let mut vtable = std::collections::HashMap::new();
+        for vt in &program.vtables {
+            for slot in &vt.slots {
+                vtable.insert(
+                    (vt.class_fqn.clone(), slot.method_name.clone()),
+                    slot.slot_index,
+                );
+            }
+        }
+        let mut itable = std::collections::HashMap::new();
+        for il in &program.itables {
+            for slot in &il.slots {
+                itable.insert(
+                    (il.interface_fqn.clone(), slot.method_name.clone()),
+                    (il.interface_id, slot.slot_index),
+                );
+            }
+        }
+        Self { vtable, itable }
+    }
+
+    /// vtable slot：精确 (owner, method) 优先；缺失沿超类链上溯（继承方法
+    /// 占超类 slot 位——与 backfill 时代的查找语义一致）。
+    fn vtable_slot(&self, owner: &str, method: &str) -> u32 {
+        self.vtable
+            .get(&(owner.to_string(), method.to_string()))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    fn itable_slot(&self, iface: &str, method: &str) -> (u64, u32) {
+        self.itable
+            .get(&(iface.to_string(), method.to_string()))
+            .copied()
+            .unwrap_or((0, 0))
+    }
+}
+
 fn map_bodies(
     program: &mut LirProgram,
     mir: &MaterializedMir,
@@ -141,6 +195,7 @@ fn map_bodies(
     interner: &Interner,
     step_tags: &StepTagTables,
     global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
+    dispatch_slots: &DispatchSlotTables,
 ) -> Result<(), LirError> {
     for item in &mir.module.items {
         match item {
@@ -155,6 +210,7 @@ fn map_bodies(
                         interner,
                         step_tags,
                         global_types,
+                        dispatch_slots,
                     )?);
                 } else {
                     // 无函数体（extern / abstract / intrinsic）：放入 declarations。
@@ -196,6 +252,7 @@ fn map_bodies(
                     interner,
                     step_tags,
                     global_types,
+                    dispatch_slots,
                 )?);
             }
             scoop2_mir::mir::Item::ExternGlobal(eg) => {
@@ -224,6 +281,7 @@ fn map_callable(
     interner: &Interner,
     step_tags: &StepTagTables,
     global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
+    dispatch_slots: &DispatchSlotTables,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = fd
         .instance_symbol
@@ -259,6 +317,7 @@ fn map_callable(
                 step_tags,
                 frame_local,
                 global_types,
+                dispatch_slots,
             )?;
             let frame_for_gc = fd
                 .effect_abi
@@ -321,9 +380,20 @@ fn map_initializer(
     interner: &Interner,
     step_tags: &StepTagTables,
     global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
+    dispatch_slots: &DispatchSlotTables,
 ) -> Result<LirCallable, LirError> {
     let symbol_name = abi::mangle_symbol(&ir.fqn, &None);
-    let body = map_body(&ir.body, layouts, types, decls, interner, step_tags, None, global_types)?;
+    let body = map_body(
+        &ir.body,
+        layouts,
+        types,
+        decls,
+        interner,
+        step_tags,
+        None,
+        global_types,
+        dispatch_slots,
+    )?;
     Ok(LirCallable {
         fqn: ir.fqn.clone(),
         symbol_name,
@@ -350,6 +420,7 @@ fn map_body(
     step_tags: &StepTagTables,
     frame_local: Option<scoop2_mir::mir::LocalId>,
     global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
+    dispatch_slots: &DispatchSlotTables,
 ) -> Result<LirBody, LirError> {
     let locals = body
         .locals
@@ -371,7 +442,16 @@ fn map_body(
     for (bi, blk) in body.blocks.iter().enumerate() {
         let mut stmts = Vec::with_capacity(blk.stmts.len());
         for s in &blk.stmts {
-            stmts.push(map_stmt(s, layouts, types, decls, interner, step_tags, global_types)?);
+            stmts.push(map_stmt(
+                s,
+                layouts,
+                types,
+                decls,
+                interner,
+                step_tags,
+                global_types,
+                dispatch_slots,
+            )?);
         }
         blocks.push(LirBlock {
             id: bi as u32,
@@ -394,13 +474,14 @@ fn map_stmt(
     interner: &Interner,
     step_tags: &StepTagTables,
     global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
+    dispatch_slots: &DispatchSlotTables,
 ) -> Result<LirStmt, LirError> {
     use scoop2_mir::mir::StatementKind;
     let kind = match &stmt.kind {
         StatementKind::Nop => LirStmtKind::Nop,
         StatementKind::Assign { target, value } => LirStmtKind::Assign {
             target: target.0,
-            value: map_rvalue(value, layouts, types, decls, interner, step_tags, global_types)?,
+            value: map_rvalue(value, layouts, types, decls, interner, step_tags, global_types, dispatch_slots)?,
         },
         StatementKind::StoreMember {
             receiver,
@@ -464,6 +545,7 @@ fn map_rvalue(
     interner: &Interner,
     step_tags: &StepTagTables,
     global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
+    dispatch_slots: &DispatchSlotTables,
 ) -> Result<LirRvalue, LirError> {
     use scoop2_mir::mir::{CallKind, Operand, Rvalue};
     let out = match rv {
@@ -701,20 +783,35 @@ fn map_rvalue(
                 }
                 CallKind::Virtual {
                     receiver, dispatch, ..
-                } => LirCallKind::Virtual {
-                    receiver_local: map_operand(receiver),
-                    owner_fqn: dispatch.owner_fqn.clone(),
-                    method_name: dispatch.member_name.clone(),
-                    vtable_slot: 0,
-                },
+                } => {
+                    // 分派定稿（M4-2）：slot 直接从本 pass 生成的分派表解析——
+                    // 无占位回填。按 (owner_fqn, method) 精确匹配；命中失败
+                    // 沿超类链上溯（继承的虚方法占用超类 slot 位）。
+                    let owner_text: &str = &dispatch.owner_fqn;
+                    let method_text: &str = &dispatch.member_name;
+                    let slot = dispatch_slots.vtable_slot(owner_text, method_text);
+                    LirCallKind::Virtual {
+                        receiver_local: map_operand(receiver),
+                        owner_fqn: dispatch.owner_fqn.clone(),
+                        method_name: dispatch.member_name.clone(),
+                        vtable_slot: slot,
+                    }
+                }
                 CallKind::Interface {
                     receiver, dispatch, ..
-                } => LirCallKind::Interface {
-                    receiver_local: map_operand(receiver),
-                    interface_fqn: dispatch.owner_fqn.clone(),
-                    method_name: dispatch.member_name.clone(),
-                    interface_id: 0,
-                    itable_slot: 0,
+                } => {
+                    // 同上：interface_id + itable_slot 定稿值。
+                    let iface_text: &str = &dispatch.owner_fqn;
+                    let method_text: &str = &dispatch.member_name;
+                    let (interface_id, slot) =
+                        dispatch_slots.itable_slot(iface_text, method_text);
+                    LirCallKind::Interface {
+                        receiver_local: map_operand(receiver),
+                        interface_fqn: dispatch.owner_fqn.clone(),
+                        method_name: dispatch.member_name.clone(),
+                        interface_id,
+                        itable_slot: slot,
+                    }
                 },
                 CallKind::Closure { callee, .. } => LirCallKind::Closure {
                     callee_local: map_operand(callee),
