@@ -96,7 +96,7 @@ fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<S
             // val 初始化器树暂不在脚手架支持内（无签名表项的 fqn 跳过）。
             let Some((tree_fd, _tree_nested, tree_store)) =
                 scoop2_mir::mir::lower_tree::lower_tree_fun_decl(
-                    &hir, tf.file_id, tree, &hir.store,
+                    &hir, tf.file_id, tree, &hir.store, None,
                 )
             else {
                 if std::env::var("SCOOP2_FLIP_LIST").is_ok() {
@@ -211,17 +211,29 @@ fn flip_oracle_corpus_stats() {
 /// 与 AST 路径 `lower_module` 的**完整模块 dump** 逐字节一致（含 item 序 /
 /// metadata / initializer / extern-global / store 合并序）。
 ///
-/// 目录可用 `SCOOP2_MOD_DIRS` 覆盖（默认 `mir2,hir,run-pass`；迭代用子集）。
+/// 目录与单文件 dump 可由 `/tmp/scoop2_mod.cfg` 覆盖（两行：目录 csv、
+/// 文件名子串；不存在则默认全语料）——避免测试进程 env 传递的不稳定。
 /// 修复完成后移除 `ignore`（当前 run-pass 语料尚有差异——修复驱动门）。
 #[test]
 #[ignore = "M2-5 翻转验收门：run-pass 语料模块级差异修复中（显式 --ignored 运行）"]
 fn flip_oracle_module_level() {
-    let roots: Vec<String> = std::env::var("SCOOP2_MOD_DIRS")
-        .unwrap_or_else(|_| "mir2,hir,run-pass".to_string())
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
+    let (roots, one) = match std::fs::read_to_string("/tmp/scoop2_mod.cfg") {
+        Ok(cfg) => {
+            let mut lines = cfg.lines();
+            let dirs = lines.next().unwrap_or("").trim();
+            let roots: Vec<String> = if dirs.is_empty() {
+                vec!["mir2".into(), "hir".into(), "run-pass".into()]
+            } else {
+                dirs.split(',').map(|s| s.trim().to_string()).collect()
+            };
+            let one = lines.next().unwrap_or("").trim().to_string();
+            (roots, one)
+        }
+        Err(_) => (
+            vec!["mir2".into(), "hir".into(), "run-pass".into()],
+            String::new(),
+        ),
+    };
     let mut files: Vec<PathBuf> = Vec::new();
     for r in &roots {
         let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -284,14 +296,40 @@ fn flip_oracle_module_level() {
         };
         let a = scoop2_mir::mir::dump::dump_module(&ast_module.module, &hir.interner);
         let b = scoop2_mir::mir::dump::dump_module(&tree_module.module, &hir.interner);
+        if !one.is_empty() && f.file_name().unwrap().to_string_lossy().contains(&one) {
+            std::fs::write("/tmp/mod_ast.txt", &a).unwrap();
+            std::fs::write("/tmp/mod_tree.txt", &b).unwrap();
+            for tf in &hir.files {
+                for t in &tf.trees {
+                    if !t.gaps.is_empty() {
+                        eprintln!("    TREE-GAPS {} {:?}", t.fqn, t.gaps);
+                    }
+                }
+                eprintln!(
+                    "    SKELETON {}",
+                    tf.item_skeleton
+                        .iter()
+                        .map(|e| format!(
+                            "{}{:?}[{}..{}]",
+                            e.fqn, e.kind, e.tree_range.0, e.tree_range.1
+                        ))
+                        .collect::<Vec<_>>()
+                        .join(" | ")
+                );
+            }
+        }
         compared += 1;
         if a != b {
+            // 差异上下文：首差异行 ± 若干行（迭代定位用）。
             let mut first = String::new();
-            for (la, lb) in a.lines().zip(b.lines()) {
-                if la != lb {
-                    first = format!("\n    ast:  {la}\n    tree: {lb}");
-                    break;
+            let mut ctx: Vec<(usize, &str, &str)> = Vec::new();
+            for (i, (la, lb)) in a.lines().zip(b.lines()).enumerate() {
+                if la != lb && ctx.len() < 8 {
+                    ctx.push((i, la, lb));
                 }
+            }
+            for (i, la, lb) in ctx {
+                first.push_str(&format!("\n    L{i} ast:  {la}\n       tree: {lb}"));
             }
             if first.is_empty() {
                 first = format!("\n    ast len={} tree len={}", a.len(), b.len());

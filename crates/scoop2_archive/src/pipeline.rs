@@ -213,9 +213,36 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
             match &item.kind {
                 ItemKind::Fun(d) => {
                     let fqn_text = fqn_of(d.name.symbol);
+                    let mut fun_sig: Option<(scoop2_hir::ty::TypeId, scoop2_hir::ty::EffectRow)> =
+                        None;
                     if let Some(body) = &d.body
                         && let Some(sig) = lookup_sig(hir, &fqn_text, d.name.span)
                     {
+                        fun_sig = Some((sig.return_ty, sig.effect_row.clone()));
+                        let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
+                            .param_names
+                            .iter()
+                            .copied()
+                            .zip(sig.param_types.iter().copied())
+                            .collect();
+                        trees.push(tree::build_fn_tree(
+                            fqn_text.clone(),
+                            body,
+                            &params,
+                            None,
+                            unit_ty,
+                            &tf.expr_types,
+                            &tf.facts,
+                            &program.interner,
+                            &hir.store,
+                        ));
+                    } else if let Some(body) = &d.body
+                        && let Some(sig) = lookup_extension_sig(hir, d.name.symbol, d.params.len())
+                    {
+                        // 扩展函数（`fun Receiver.name`）：fqn 仍是简名（AST quirk），
+                        // 签名按 owner 全集解析（镜像 lookup_member_sig 的
+                        // None-owner 回退——含确定性排序）。
+                        fun_sig = Some((sig.return_ty, sig.effect_row.clone()));
                         let params: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = sig
                             .param_names
                             .iter()
@@ -241,6 +268,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                         fqn: fqn_text,
                         tree_range: (range_start, trees.len() as u32),
                         members: Vec::new(),
+                        fun_sig,
                     });
                 }
                 ItemKind::Val(d) => {
@@ -269,6 +297,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                         fqn: fqn_text,
                         tree_range: (range_start, trees.len() as u32),
                         members: Vec::new(),
+                        fun_sig: None,
                     });
                 }
                 ItemKind::Type(d) => {
@@ -311,6 +340,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                         fqn: owner_fqn,
                         tree_range: (range_start, trees.len() as u32),
                         members,
+                        fun_sig: None,
                     });
                 }
                 ItemKind::Object(d) => {
@@ -333,6 +363,7 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                         fqn: owner_fqn,
                         tree_range: (range_start, trees.len() as u32),
                         members,
+                        fun_sig: None,
                     });
                 }
                 // Extension/TypeAlias：MIR 不单独建模（无 item 无树）。
@@ -358,6 +389,31 @@ fn lookup_sig<'a>(
     sigs.iter()
         .find(|s| s.decl_span == decl_span)
         .or_else(|| (sigs.len() == 1).then(|| &sigs[0]))
+}
+
+/// 扩展函数签名查找：owner 全集按名搜索（镜像 MIR `lookup_member_sig` 的
+/// None-owner 回退——owner 按文本排序保证确定性，arity 匹配优先）。
+fn lookup_extension_sig<'a>(
+    hir: &'a scoop2_hir::hir::TypedHir,
+    method_sym: scoop2_base::Symbol,
+    arity: usize,
+) -> Option<&'a scoop2_hir::hir::TypedSignature> {
+    let pick = |sigs: &'a [scoop2_hir::hir::TypedSignature]| {
+        sigs.iter()
+            .find(|s| s.param_types.len() == arity)
+            .or_else(|| sigs.first())
+    };
+    let mut owners: Vec<scoop2_base::Symbol> = hir.member_funs.keys().copied().collect();
+    owners.sort_by(|a, b| hir.interner.resolve(*a).cmp(hir.interner.resolve(*b)));
+    owners
+        .into_iter()
+        .filter_map(|o| {
+            hir.member_funs
+                .get(&o)
+                .and_then(|ms| ms.get(&method_sym))
+                .and_then(|sigs| pick(sigs))
+        })
+        .next()
 }
 
 /// 类型 / object 体的成员函数树（`<OwnerFqn>.<method>`；`this` 绑定为隐式参数）。

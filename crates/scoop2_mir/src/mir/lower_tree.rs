@@ -50,7 +50,9 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
             | TreeExprKind::WithUpdate { .. }
             | TreeExprKind::When { .. }
             | TreeExprKind::Lambda { .. }
-            | TreeExprKind::Handle { .. } => {}
+            | TreeExprKind::Handle { .. }
+            | TreeExprKind::UnresolvedName { .. }
+            | TreeExprKind::BoolNot { .. } => {}
         }
     }
     for e in &tree.body.exprs {
@@ -594,6 +596,77 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             builder.goto(cond_bb, span);
             builder.current_bb = exit_bb;
             Operand::Const(ConstValue::Unit)
+        }
+        TreeExprKind::UnresolvedName { name } => {
+            // 镜像 lower_ident 的未解析回退：Unit-temp + UnresolvedName 赋值。
+            let tmp = builder.alloc_temp(ty, span);
+            builder.assign(tmp, Rvalue::UnresolvedName { name: name.clone() }, span);
+            Operand::Local(tmp)
+        }
+        TreeExprKind::BoolNot { expr: inner } => {
+            // 镜像 lower_unary 的 Not 分支：`v == false` 分派调用形态
+            //（owner 文本来自默认符号——AST quirk 字节一致保留）。
+            let v = lower_tree_expr(builder, body, *inner);
+            let inner_ty = operand_ty_of(builder, &v);
+            let bool_ty = builder.types.bool();
+            let equals_sym = builder.hir.interner.get("equals").unwrap_or_default();
+            let false_op = Operand::Const(ConstValue::Bool(false));
+            let tmp = builder.alloc_temp(bool_ty, span);
+            let owner_str = builder
+                .hir
+                .interner
+                .resolve(scoop2_base::Symbol::default())
+                .to_string();
+            let method_str = builder.hir.interner.resolve(equals_sym).to_string();
+            let member_fqn = format!("{}.{}", owner_str, method_str);
+            let overload_sig = String::new();
+            let stk = crate::mir::stable_id::make_stable_template_key(
+                crate::mir::stable_id::StableHashScope::Dump,
+                &member_fqn,
+                &[],
+                &overload_sig,
+            );
+            let dispatch = crate::mir::transport::DispatchMetadata {
+                owner_fqn: owner_str.clone(),
+                member_name: method_str.clone(),
+                member_fqn: member_fqn.clone(),
+                member_decl_span: None,
+                receiver_ty: inner_ty,
+                stable_candidate_keys: vec![crate::mir::stable_id::make_stable_instance_key(
+                    crate::mir::stable_id::StableHashScope::Dump,
+                    stk.clone(),
+                    &builder.types,
+                    &builder.hir.interner,
+                    &[],
+                    &[],
+                )],
+                stable_template_key: Some(stk),
+                generic_type_args: vec![],
+                generic_eff_args: vec![],
+            };
+            let site_id = Some(builder.next_site_id());
+            let transport = builder.call_transport(bool_ty);
+            let kind = builder.make_dispatch_call_kind(
+                crate::mir::lower::stmt::resolve_owner_fqn_from_operand(builder, &v),
+                v.clone(),
+                dispatch,
+            );
+            builder.assign(
+                tmp,
+                Rvalue::Call {
+                    site_id,
+                    kind,
+                    args: vec![crate::mir::CallArg {
+                        name: None,
+                        is_spread: false,
+                        value: false_op,
+                        value_ty: bool_ty,
+                    }],
+                    transport,
+                },
+                span,
+            );
+            Operand::Local(tmp)
         }
         TreeExprKind::NotNullAssert { expr: inner } => {
             // 镜像 lower_not_null_assert：CondBr + else panic 路径。
@@ -1251,6 +1324,7 @@ pub fn lower_tree_fun_decl(
     file_id: scoop2_base::FileId,
     tree: &FnTree,
     base_types: &scoop2_hir::ty::TypeStore,
+    sig_hint: Option<(scoop2_hir::ty::TypeId, scoop2_hir::ty::EffectRow)>,
 ) -> Option<(
     crate::mir::FunDecl,
     Vec<crate::mir::FunDecl>,
@@ -1259,10 +1333,13 @@ pub fn lower_tree_fun_decl(
     let mut errors: Vec<crate::diagnostics::MirLowerError> = Vec::new();
     let mut types = base_types.clone();
 
-    // 签名数据（return/effect/参数类型）：$init 合成 → unit/pure；其余按 FQN 查表。
+    // 签名数据（return/effect/参数类型）：$init 合成 → unit/pure；其余按 FQN 查表
+    //（扩展函数无 top_level_funs 表项——用骨架携带的 sig_hint）。
     let (return_ty, effect_row): (scoop2_hir::ty::TypeId, scoop2_hir::ty::EffectRow) =
         if tree.fqn.ends_with(".$init") {
             (types.unit(), scoop2_hir::ty::EffectRow::pure())
+        } else if let Some((ret, eff)) = sig_hint {
+            (ret, eff)
         } else {
             let fqn_sym = hir.interner.get(&tree.fqn)?;
             let sig = hir
@@ -1462,7 +1539,9 @@ fn lower_file_from_skeleton(
                 }
                 let base = module.types.clone();
                 for tree in trees {
-                    if let Some((fd, nested, st)) = lower_tree_fun_decl(hir, file_id, tree, &base) {
+                    if let Some((fd, nested, st)) =
+                        lower_tree_fun_decl(hir, file_id, tree, &base, entry.fun_sig.clone())
+                    {
                         let remap = module.types.extend_from(&st);
                         module.items.push(crate::mir::Item::Fun(
                             crate::mir::lower::remap_fun_decl(&remap, fd),
@@ -1565,7 +1644,7 @@ fn lower_type_members_from_slots(
     let base = module.types.clone();
     let mut emit_tree =
         |tree: &FnTree, module: &mut crate::mir::Module, base: &scoop2_hir::ty::TypeStore| {
-            if let Some((fd, nested, st)) = lower_tree_fun_decl(hir, file_id, tree, base) {
+            if let Some((fd, nested, st)) = lower_tree_fun_decl(hir, file_id, tree, base, None) {
                 let remap = module.types.extend_from(&st);
                 module
                     .items
@@ -2003,7 +2082,9 @@ fn lower_tree_pattern_test(
 ) -> Operand {
     let bool_ty = builder.types.bool();
     match pat {
-        TreePattern::Wildcard | TreePattern::Else => Operand::Const(ConstValue::Bool(true)),
+        TreePattern::Wildcard | TreePattern::Else | TreePattern::Rest => {
+            Operand::Const(ConstValue::Bool(true))
+        }
         TreePattern::Binder { .. } | TreePattern::Struct { .. } => {
             // irrefutable 模式：类型已由 typecheck 保证匹配 → 总是命中
             // （AST 路径 Bind/Struct 同 arm）。
@@ -2336,7 +2417,7 @@ fn bind_tree_pattern(
     mutable: bool,
 ) {
     match pat {
-        TreePattern::Wildcard | TreePattern::Else => {}
+        TreePattern::Wildcard | TreePattern::Else | TreePattern::Rest => {}
         TreePattern::Binder { local, .. } => {
             // 镜像 AST：binder 类型取 subject 类型（非 pattern_bindings）。
             let decl = &body.locals[local.0 as usize];
@@ -2480,7 +2561,7 @@ fn bind_tree_pattern_arm(
     subj_ty: scoop2_hir::ty::TypeId,
 ) {
     match pat {
-        TreePattern::Wildcard | TreePattern::Else => {}
+        TreePattern::Wildcard | TreePattern::Else | TreePattern::Rest => {}
         TreePattern::Binder { local, .. } => {
             // 镜像 AST arm：binder 类型取 subject 类型。
             let decl = &body.locals[local.0 as usize];
@@ -2657,7 +2738,7 @@ fn lower_tree_pattern_to_mir(
     pat: &TreePattern,
 ) -> crate::mir::Pattern {
     match pat {
-        TreePattern::Wildcard => crate::mir::Pattern::Wildcard,
+        TreePattern::Wildcard | TreePattern::Rest => crate::mir::Pattern::Wildcard,
         TreePattern::Binder { local, node_ty } => {
             let decl = &body.locals[local.0 as usize];
             crate::mir::Pattern::Bind {
@@ -3108,6 +3189,10 @@ fn collect_tree_expr_idents(
 ) {
     match &body.exprs[expr.0 as usize].kind {
         TreeExprKind::Lit(_) => {}
+        TreeExprKind::UnresolvedName { .. } => {}
+        TreeExprKind::BoolNot { expr } => {
+            collect_tree_expr_idents(body, *expr, syms);
+        }
         TreeExprKind::LocalRef(local) => {
             syms.insert(body.locals[local.0 as usize].name);
         }
@@ -3243,6 +3328,7 @@ fn remove_tree_pattern_binders(
     match pat {
         TreePattern::Wildcard
         | TreePattern::Else
+        | TreePattern::Rest
         | TreePattern::Literal(_)
         | TreePattern::Is { .. } => {}
         TreePattern::Binder { local, .. } => {

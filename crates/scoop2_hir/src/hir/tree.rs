@@ -85,6 +85,10 @@ pub struct FileItem {
     /// Type/Object 的成员槽位（源码序；`$init` 合成树固定在区间尾，不入列）。
     #[serde(default)]
     pub members: Vec<MemberSlot>,
+    /// Fun 的签名提示 (return, effect)：扩展函数（fqn 无 top_level_funs 表项）
+    /// lower 期查不到签名时使用——构建期按 owner 全集解析。
+    #[serde(default)]
+    pub fun_sig: Option<(TypeId, crate::ty::EffectRow)>,
 }
 
 /// 顶层 item 种类（MIR 模块产出对应）。
@@ -244,6 +248,17 @@ pub enum TreeExprKind {
     NotNullAssert {
         expr: ExprId,
     },
+    /// 未解析标识符（transitional 镜像：AST 路径对无决议 ident 的回退——
+    /// 扩展函数体的 `this` 等历史形态；MIR UnresolvedName 同构，C1 清理时
+    /// 与 AST 路径一并消灭）。
+    UnresolvedName {
+        name: String,
+    },
+    /// Bool 取反 `!x`（原语：AST 路径不走方法决议，发射 `v.equals(false)`
+    /// 形态的分派调用——quirk 字节一致保留）。
+    BoolNot {
+        expr: ExprId,
+    },
     /// `expr is T` / `expr !is T`（类型判断原语；目标已解析为 TypeId）。
     TypeCheck {
         expr: ExprId,
@@ -281,6 +296,8 @@ pub enum TreePattern {
     Wildcard,
     /// `_`-like 的 `else`。
     Else,
+    /// `..` rest（解构上下文的剩余位置占位；不绑定）。
+    Rest,
     /// binder 绑定。`local.ty` 来自 pattern_bindings（绑定语义类型）；
     /// `node_ty` 是模式节点自身的 expr_types 类型（镜像 AST 路径
     /// `lower_pattern_to_mir` 对 `expr_type(pat.id)` 的取值——PatternMatch
@@ -470,23 +487,37 @@ pub enum TreePlace {
 
 impl<'a> TreeBuilder<'a> {
     /// 模式 AST → [`TreePattern`]；`bindings` 按出现序供给 Binder 的类型。
+    /// 构造模式树。binder 类型取自 pattern_bindings 侧表——**表是每节点的**
+    ///（父节点的表只含直属 binder；嵌套 binder 记在嵌套节点自己的表里），
+    /// 因此递归时按「父节点表 + 按名匹配」取类型，表缺失回退 Unit。
     fn build_pattern(
         &mut self,
         pat: &crate::syntax::ast::Pattern,
-        bindings: &mut std::vec::IntoIter<super::PatternBinding>,
+        parent_bindings: &[super::PatternBinding],
     ) -> Option<TreePattern> {
         use crate::syntax::ast::PatternKind;
+        // 本节点的直属 binder 表（嵌套子模式递归时以它为父表）。
+        let own_bindings: Vec<super::PatternBinding> = self
+            .facts
+            .pattern_bindings
+            .get(pat.id)
+            .cloned()
+            .unwrap_or_default();
         match &pat.kind {
             PatternKind::Wildcard => Some(TreePattern::Wildcard),
             PatternKind::Else => Some(TreePattern::Else),
-            PatternKind::Rest => self.gap_ret(pat.span, "rest 模式（仅解构上下文）"),
+            PatternKind::Rest => Some(TreePattern::Rest),
             PatternKind::Bind(ident) => {
-                let b = bindings.next().unwrap_or_else(|| super::PatternBinding {
-                    name: ident.symbol,
-                    ty: self.unit_ty,
-                    source: super::PatternBindingSource::WhenArm,
-                    span: ident.span,
-                });
+                let b = parent_bindings
+                    .iter()
+                    .find(|b| b.name == ident.symbol)
+                    .cloned()
+                    .unwrap_or(super::PatternBinding {
+                        name: ident.symbol,
+                        ty: self.unit_ty,
+                        source: super::PatternBindingSource::WhenArm,
+                        span: ident.span,
+                    });
                 let local = self.push_local(b.name, b.ty, false, b.span);
                 // 模式节点自身类型（PatternMatch tag args 的渲染用——镜像
                 // AST `expr_type(pat.id)` + any 回退；Any 已由 typecheck intern）。
@@ -517,23 +548,26 @@ impl<'a> TreeBuilder<'a> {
             PatternKind::Tuple(els) => {
                 let mut out = Vec::with_capacity(els.len());
                 for e in els {
-                    out.push(self.build_pattern(e, bindings)?);
+                    out.push(self.build_pattern(e, &own_bindings)?);
                 }
                 Some(TreePattern::Tuple(out))
             }
             PatternKind::Struct { fields, .. } => {
-                // `Point { x, y }`：简写 `x` 等价 `x: x`（binder 类型来自
-                // pattern_bindings，按出现序）；显式子模式递归构造。
+                // `Point { x, y }`：简写 `x` 等价 `x: x`（binder 类型来自本节点
+                // 表，按名匹配）；显式子模式递归构造。
                 let mut out = Vec::with_capacity(fields.len());
                 for f in fields {
                     match &f.pattern {
                         Some(sub) => out.push(StructFieldPat {
                             name: f.name.symbol,
                             binder: None,
-                            sub: Some(self.build_pattern(sub, bindings)?),
+                            sub: Some(self.build_pattern(sub, &own_bindings)?),
                         }),
                         None => {
-                            let b = bindings.next()?;
+                            let b = own_bindings
+                                .iter()
+                                .find(|b| b.name == f.name.symbol)
+                                .cloned()?;
                             let local = self.push_local(b.name, b.ty, false, b.span);
                             out.push(StructFieldPat {
                                 name: f.name.symbol,
@@ -556,7 +590,7 @@ impl<'a> TreeBuilder<'a> {
                 let mut tree_args = Vec::new();
                 if let Some(args) = args {
                     for a in args {
-                        tree_args.push(self.build_pattern(a, bindings)?);
+                        tree_args.push(self.build_pattern(a, &own_bindings)?);
                     }
                 }
                 Some(TreePattern::Variant {
@@ -577,7 +611,7 @@ impl<'a> TreeBuilder<'a> {
             PatternKind::Or(els) => {
                 let mut out = Vec::with_capacity(els.len());
                 for e in els {
-                    out.push(self.build_pattern(e, bindings)?);
+                    out.push(self.build_pattern(e, &own_bindings)?);
                 }
                 Some(TreePattern::Or(out))
             }
@@ -817,27 +851,53 @@ impl<'a> TreeBuilder<'a> {
                 };
                 match &d.binding {
                     crate::syntax::ast::ValBinding::Name(name) => {
-                        let Some(&ty) = self.expr_types.get(init_ast.id) else {
+                        let Some(&init_ty_raw) = self.expr_types.get(init_ast.id) else {
                             self.gap(stmt.span, "局部声明类型缺失（completeness 泄漏）");
                             return None;
+                        };
+                        // `val ys: MutableArray<T> = [a, b]` / 空数组 `val a: T = []`：
+                        // 声明类型覆盖字面量类型（镜像 lower_local_val 的上下文
+                        // 转换——MakeArray 不 freeze / local 与 set 分派布局一致）。
+                        let declared_ty =
+                            d.ty.as_ref()
+                                .and_then(|t| self.facts.type_ref_resolutions.get(t.id).copied());
+                        let init_is_array_lit =
+                            matches!(&init_ast.kind, crate::syntax::ast::ExprKind::ArrayLit(_));
+                        let init_is_empty_array = matches!(
+                            &init_ast.kind,
+                            crate::syntax::ast::ExprKind::ArrayLit(els) if els.is_empty()
+                        );
+                        let declared_is_mutable_array = declared_ty.is_some_and(|t| {
+                            let fqn = match self.types.kind(t) {
+                                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n)) => {
+                                    self.interner.resolve(n.fqn)
+                                }
+                                _ => "",
+                            };
+                            fqn.ends_with(".MutableArray")
+                        });
+                        let use_declared_for_lit = declared_ty.is_some()
+                            && (init_is_empty_array
+                                || (init_is_array_lit && declared_is_mutable_array));
+                        let ty = if use_declared_for_lit {
+                            let decl = declared_ty.expect("use_declared_for_lit 蕴含 Some");
+                            if init_is_array_lit {
+                                // 字面量节点类型同步覆盖（MakeArray temp 与结果
+                                // 类型在 lowering 取节点 ty）。
+                                self.out.exprs[init.idx()].ty = decl;
+                            }
+                            decl
+                        } else {
+                            init_ty_raw
                         };
                         let mutable = d.kind == crate::syntax::ast::ValKind::Var;
                         let local = self.push_local(name.symbol, ty, mutable, name.span);
                         Some(self.push_stmt(TreeStmt::LocalVal { local, init }))
                     }
                     crate::syntax::ast::ValBinding::Pattern(pat) => {
-                        // 绑定类型：facts.pattern_bindings（Destructure 来源，
-                        // key = 根模式 NodeId，按出现序）。
-                        let bindings: Vec<super::PatternBinding> = self
-                            .facts
-                            .pattern_bindings
-                            .get(pat.id)
-                            .cloned()
-                            .unwrap_or_default();
-                        let mut iter = bindings.into_iter();
-                        let Some(tree_pat) = self.build_pattern(pat, &mut iter) else {
-                            return None;
-                        };
+                        // 绑定类型：facts.pattern_bindings（每节点表，父表含直属
+                        // binder——build_pattern 内部按节点取表）。
+                        let tree_pat = self.build_pattern(pat, &[])?;
                         let mutable = d.kind == crate::syntax::ast::ValKind::Var;
                         Some(self.push_stmt(TreeStmt::Destructure {
                             pat: tree_pat,
@@ -961,7 +1021,16 @@ impl<'a> TreeBuilder<'a> {
                 // 运算符糖 → 方法调用（决议已由 typecheck 写入 call_resolutions）。
                 self.build_desugared_call(expr, &[lhs, rhs])
             }
-            ExprKind::Unary { expr: inner, .. } => self.build_desugared_call(expr, &[inner]),
+            ExprKind::Unary { op, expr: inner } => {
+                if matches!(op, crate::syntax::ast::UnaryOp::Not) {
+                    // `!x`：Bool 取反原语（AST 路径不走方法决议）。
+                    let ty = self.ty_of(expr.id, span)?;
+                    let inner_id = self.build_expr(inner)?;
+                    Some(self.push_expr(TreeExprKind::BoolNot { expr: inner_id }, ty, span))
+                } else {
+                    self.build_desugared_call(expr, &[inner])
+                }
+            }
             ExprKind::NotNullAssert { expr: inner } => {
                 let ty = self.ty_of(expr.id, span)?;
                 let inner = self.build_expr(inner)?;
@@ -1015,16 +1084,9 @@ impl<'a> TreeBuilder<'a> {
                 let mut tree_arms = Vec::with_capacity(arms.len());
                 for arm in arms {
                     self.scopes.push(std::collections::HashMap::new());
-                    // 绑定类型：facts.pattern_bindings 按「根模式 NodeId → 出现序
-                    // 绑定列表」记录；顺序消费。
-                    let bindings: Vec<super::PatternBinding> = self
-                        .facts
-                        .pattern_bindings
-                        .get(arm.pat.id)
-                        .cloned()
-                        .unwrap_or_default();
-                    let mut iter = bindings.into_iter();
-                    let pat = self.build_pattern(&arm.pat, &mut iter)?;
+                    // 绑定类型：facts.pattern_bindings 每节点表（build_pattern
+                    // 内部按节点取表、按名匹配）。
+                    let pat = self.build_pattern(&arm.pat, &[])?;
                     let guard = arm.guard.as_ref().and_then(|g| self.build_expr(g));
                     let body = self.build_expr(&arm.body)?;
                     self.scopes.pop();
@@ -1328,7 +1390,13 @@ impl<'a> TreeBuilder<'a> {
                 // typecheck 注入的绑定（隐式 `it` 等）不走 value_refs（body.rs
                 // 有意 defer 到 typecheck）——按词法作用域查找。
                 Some(local) => Some(self.push_expr(TreeExprKind::LocalRef(local), ty, span)),
-                None => self.gap_ret(span, "value_refs 缺失（completeness 泄漏）"),
+                None => Some(self.push_expr(
+                    TreeExprKind::UnresolvedName {
+                        name: name_text.to_string(),
+                    },
+                    ty,
+                    span,
+                )),
             },
         }
     }
@@ -1790,9 +1858,15 @@ pub fn synthesize_class_init_tree(
             TypeMemberKind::InitBlock(ib) => {
                 emit_param_props(&mut b, root, this_ref);
                 let block = b.build_block(&ib.body);
-                // init 块的内联：把块语句接到根（保留块内尾值丢弃语义）。
+                // init 块的内联：把块语句接到根（保留块内尾值丢弃语义——
+                // build_block 会把末尾表达式语句提升为 tail，此处作为表达式
+                // 语句回填，值丢弃但副作用发生）。
                 for s in b.out.blocks[block.idx()].stmts.clone() {
                     b.out.blocks[root.idx()].stmts.push(s);
+                }
+                if let Some(tail) = b.out.blocks[block.idx()].tail {
+                    let stmt = b.push_stmt(TreeStmt::Expr(tail));
+                    b.out.blocks[root.idx()].stmts.push(stmt);
                 }
             }
             _ => {}
