@@ -233,16 +233,16 @@ fn build_trees(hir: &mut scoop2_hir::hir::TypedHir, program: &BuiltProgram) {
                     ));
                 }
                 ItemKind::Val(d) => {
-                    // 顶层 val/var 初始化器树（fqn = <prefix>.<name>）。
+                    // 顶层 val/var 初始化器树（fqn = <prefix>.<name>；根块为尾
+                    // 表达式——lower 为 InitializerRoot）。
                     let scoop2_syntax::ast::ValBinding::Name(name) = &d.binding else {
                         continue;
                     };
                     let Some(init) = &d.init else { continue };
-                    trees.push(tree::build_fn_tree(
+                    trees.push(tree::build_val_init_tree(
                         fqn_of(name.symbol),
-                        &scoop2_syntax::ast::FunBody::Expr(Box::new(init.clone())),
-                        &[],
-                        None,
+                        init,
+                        d.kind == scoop2_syntax::ast::ValKind::Var,
                         unit_ty,
                         &tf.expr_types,
                         &tf.facts,

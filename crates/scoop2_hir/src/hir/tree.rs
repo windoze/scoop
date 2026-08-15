@@ -65,6 +65,10 @@ pub struct FnTree {
     /// 构造缺口（transitional）：未能构造的构造点（span + 描述）。MIR 翻转前
     /// 必须清空；非空表示该函数的树不可消费。
     pub gaps: Vec<(Span, String)>,
+    /// 顶层 `val`/`var` 初始化器树标记（Some(is_var) 表示该树是初始化器——
+    /// lower 为 `InitializerRoot` 而非 `FunDecl`；函数/方法/$init 树为 None）。
+    #[serde(default)]
+    pub val_init: Option<bool>,
 }
 
 /// 局部绑定（参数 / `val`/`var` / 模式子绑定）。
@@ -111,6 +115,12 @@ pub enum TreeExprKind {
     Call {
         callee: TreeCallee,
         args: Vec<ExprId>,
+        /// 源实参命名标记（与 args 平行）：`resolved_call_args` 路径恒 None；
+        /// 无该记录的回退路径携带源命名（ctor 字段映射 + CallArg 渲染用——
+        /// 镜像 AST `lower_call_args`）。
+        arg_names: Vec<Option<Symbol>>,
+        /// 源实参 spread 标记（与 args 平行；语义同上）。
+        arg_spread: Vec<bool>,
     },
     /// 成员读取（字段 / 元组下标）。
     Member {
@@ -585,6 +595,44 @@ pub fn build_fn_tree(
         params: param_locals,
         body: b.out,
         gaps: b.gaps,
+        val_init: None,
+    }
+}
+
+/// 顶层 `val`/`var` 初始化器的树（fqn = val FQN；根块为**尾表达式**——与
+/// MIR `InitializerRoot` 的「lower init + Return 终结」结构同构，不包
+/// Return 语句）。
+pub fn build_val_init_tree(
+    fqn: String,
+    init: &crate::syntax::ast::Expr,
+    is_var: bool,
+    unit_ty: TypeId,
+    expr_types: &NodeIdTable<TypeId>,
+    facts: &SemanticFacts,
+    interner: &scoop2_base::Interner,
+    types: &crate::ty::TypeStore,
+) -> FnTree {
+    let mut b = TreeBuilder {
+        expr_types,
+        facts,
+        unit_ty,
+        interner,
+        types,
+        out: TreeBody::default(),
+        scopes: vec![std::collections::HashMap::new()],
+        gaps: Vec::new(),
+    };
+    let root = b.fresh_block(init.span);
+    if let Some(expr) = b.build_expr(init) {
+        b.out.blocks[root.idx()].tail = Some(expr);
+    }
+    b.out.root = Some(root);
+    FnTree {
+        fqn,
+        params: Vec::new(),
+        body: b.out,
+        gaps: b.gaps,
+        val_init: Some(is_var),
     }
 }
 
@@ -1299,7 +1347,17 @@ impl<'a> TreeBuilder<'a> {
             },
             _ => return self.gap_ret(span, "糖调用出现非预期决议形态"),
         };
-        Some(self.push_expr(TreeExprKind::Call { callee, args }, ty, span))
+        let n = args.len();
+        Some(self.push_expr(
+            TreeExprKind::Call {
+                callee,
+                args,
+                arg_names: vec![None; n],
+                arg_spread: vec![false; n],
+            },
+            ty,
+            span,
+        ))
     }
 
     fn build_call_expr(
@@ -1325,7 +1383,9 @@ impl<'a> TreeBuilder<'a> {
         }
         // 默认值填充 + 位置排序（消费 resolved_call_args——MIR 不再做 resolution /
         // default filling）：Provided → 源实参；Default → 构造默认值表达式。
-        let final_args = match self.facts.resolved_call_args.get(expr.id) {
+        // 命名/spread 元数据只在回退路径携带（resolved 路径按位无名——镜像
+        // AST lower_resolved_call_args）。
+        let (final_args, arg_names, arg_spread) = match self.facts.resolved_call_args.get(expr.id) {
             Some(resolved) => {
                 let mut filled: Vec<ExprId> = Vec::with_capacity(resolved.len());
                 for ra in resolved {
@@ -1345,14 +1405,24 @@ impl<'a> TreeBuilder<'a> {
                         }
                     }
                 }
-                filled
+                let n = filled.len();
+                (filled, vec![None; n], vec![false; n])
             }
-            None => arg_ids,
+            None => {
+                let names = args
+                    .iter()
+                    .map(|a| a.name.as_ref().map(|n| n.symbol))
+                    .collect();
+                let spreads = args.iter().map(|a| a.is_spread).collect();
+                (arg_ids, names, spreads)
+            }
         };
         Some(self.push_expr(
             TreeExprKind::Call {
                 callee: callee_id,
                 args: final_args,
+                arg_names,
+                arg_spread,
             },
             ty,
             span,
@@ -1577,10 +1647,13 @@ pub fn synthesize_class_init_tree(
                 args.push(id);
             }
         }
+        let n = args.len();
         let call = b.push_expr(
             TreeExprKind::Call {
                 callee: TreeCallee::InitCall { target_class },
                 args,
+                arg_names: vec![None; n],
+                arg_spread: vec![false; n],
             },
             unit_ty,
             d.name.span,
@@ -1656,6 +1729,7 @@ pub fn synthesize_class_init_tree(
         },
         body: b.out,
         gaps: b.gaps,
+        val_init: None,
     })
 }
 

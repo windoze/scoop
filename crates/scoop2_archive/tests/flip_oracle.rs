@@ -47,6 +47,52 @@ fn flip_compare(source: &scoop2_base::SourceFile) -> (usize, usize, usize, Vec<S
                 }
                 continue;
             }
+            // 顶层 val/var 初始化器树 → InitializerRoot 对比。
+            if tree.val_init.is_some() {
+                if let Some((tree_ir, tree_store)) =
+                    scoop2_mir::mir::lower_tree::lower_tree_initializer(
+                        &hir, tf.file_id, tree, &hir.store,
+                    )
+                {
+                    supported += 1;
+                    let ast_ir = ast_module.module.items.iter().find_map(|it| match it {
+                        scoop2_mir::mir::Item::Initializer(ir) if ir.fqn == tree.fqn => {
+                            Some(ir.clone())
+                        }
+                        _ => None,
+                    });
+                    let Some(ast_ir) = ast_ir else {
+                        diffs.push(format!("{}: AST 路径无对应 InitializerRoot", tree.fqn));
+                        continue;
+                    };
+                    let dump_with = |ir: &scoop2_mir::mir::InitializerRoot, types| {
+                        let module = scoop2_mir::mir::Module {
+                            items: vec![scoop2_mir::mir::Item::Initializer(ir.clone())],
+                            types,
+                        };
+                        scoop2_mir::mir::dump::dump_module(&module, &hir.interner)
+                    };
+                    let a = dump_with(&ast_ir, ast_module.module.types.clone());
+                    let b = dump_with(&tree_ir, tree_store);
+                    if a == b {
+                        equal += 1;
+                    } else {
+                        let mut first = String::new();
+                        for (la, lb) in a.lines().zip(b.lines()) {
+                            if la != lb {
+                                first = format!("\n    ast:  {la}\n    tree: {lb}");
+                                break;
+                            }
+                        }
+                        if first.is_empty() {
+                            first = format!("\n    ast len={} tree len={}", a.len(), b.len());
+                        }
+                        let fname = CUR_FILE.with(|c| c.borrow().clone());
+                        diffs.push(format!("{fname} {}: dump 不一致{first}", tree.fqn));
+                    }
+                }
+                continue;
+            }
             // val 初始化器树暂不在脚手架支持内（无签名表项的 fqn 跳过）。
             let Some((tree_fd, tree_store)) = scoop2_mir::mir::lower_tree::lower_tree_fun_decl(
                 &hir, tf.file_id, tree, &hir.store,

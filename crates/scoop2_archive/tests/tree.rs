@@ -44,7 +44,7 @@ fn arithmetic_trees_are_gap_free() {
     let add_root = add.body.root.expect("root");
     let tail = add.body.blocks[add_root.0 as usize].tail.expect("add 尾值");
     match &add.body.exprs[tail.0 as usize].kind {
-        TreeExprKind::Call { callee, args } => {
+        TreeExprKind::Call { callee, args, .. } => {
             // Method 约定：args 不含接收者（recv 独立）——`a + b` → 1 实参。
             assert_eq!(
                 args.len(),
@@ -77,7 +77,7 @@ fn arithmetic_trees_are_gap_free() {
                 .resolve(main.body.locals[local.0 as usize].name);
             assert_eq!(name, "r");
             match &main.body.exprs[init.0 as usize].kind {
-                TreeExprKind::Call { callee, args } => {
+                TreeExprKind::Call { callee, args, .. } => {
                     assert!(matches!(
                         callee,
                         scoop2_hir::hir::tree::TreeCallee::TopLevel { .. }

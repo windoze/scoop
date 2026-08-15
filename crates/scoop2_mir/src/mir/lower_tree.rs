@@ -239,11 +239,26 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             }
         }
         TreeExprKind::TopLevelValRef { fqn } => {
-            let text = builder.hir.interner.resolve(*fqn).to_string();
+            // 镜像 AST lower_ident 的 top_level_vals 回退分支：fqn 文本用**简名**
+            //（AST 的 value_ref 查询是 u32::MAX 哨兵节点，恒走回退——简名 quirk
+            // 字节一致保留；C1 清理时与 AST 路径一并统一）。
+            let simple = builder
+                .hir
+                .interner
+                .resolve(*fqn)
+                .rsplit('.')
+                .next()
+                .unwrap_or_default()
+                .to_string();
             let tl = crate::mir::TopLevelRef {
-                fqn: text,
+                fqn: simple.clone(),
                 hidden_effects: scoop2_hir::ty::EffectRow::pure(),
-                stable_template_key: None,
+                stable_template_key: Some(crate::mir::stable_id::make_stable_template_key(
+                    crate::mir::stable_id::StableHashScope::Dump,
+                    &simple,
+                    &[],
+                    "",
+                )),
                 stable_instance_key: None,
                 generic_type_args: vec![],
                 generic_eff_args: vec![],
@@ -252,9 +267,12 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             builder.assign(tmp, Rvalue::TopLevelRef(tl), span);
             Operand::Local(tmp)
         }
-        TreeExprKind::Call { callee, args } => {
-            lower_tree_call(builder, body, callee, args, ty, span)
-        }
+        TreeExprKind::Call {
+            callee,
+            args,
+            arg_names,
+            arg_spread,
+        } => lower_tree_call(builder, body, callee, args, arg_names, arg_spread, ty, span),
         TreeExprKind::Member { recv, member } => {
             let recv_op = lower_tree_expr(builder, body, *recv);
             lower_tree_member(builder, recv_op, member, ty, span)
@@ -699,6 +717,8 @@ fn lower_tree_call(
     body: &TreeBody,
     callee: &TreeCallee,
     args: &[ExprId],
+    arg_names: &[Option<scoop2_base::Symbol>],
+    arg_spread: &[bool],
     ty: scoop2_hir::ty::TypeId,
     span: Span,
 ) -> Operand {
@@ -739,9 +759,11 @@ fn lower_tree_call(
     let mir_args: Vec<crate::mir::CallArg> = arg_ops
         .iter()
         .zip(args.iter())
-        .map(|(op, &e)| crate::mir::CallArg {
-            name: None,
-            is_spread: false,
+        .zip(arg_names.iter().chain(std::iter::repeat(&None)))
+        .zip(arg_spread.iter().chain(std::iter::repeat(&false)))
+        .map(|(((op, &e), name), spread)| crate::mir::CallArg {
+            name: *name,
+            is_spread: *spread,
             value: op.clone(),
             value_ty: body.exprs[e.0 as usize].ty,
         })
@@ -891,22 +913,48 @@ fn lower_tree_call(
         }
         TreeCallee::Ctor { type_fqn, .. } => {
             if !builder.hir.class_fqns.contains(type_fqn) {
-                // struct：StructLit（值语义）；字段名按 member_order 位置对应。
+                // struct：StructLit（值语义）。命名实参按 member_order 声明序
+                // 重排（镜像 AST Constructor 分支）；位置实参按位对应。
                 let ordered_names: Vec<scoop2_base::Symbol> = builder
                     .hir
                     .member_order
                     .get(type_fqn)
                     .cloned()
                     .unwrap_or_default();
+                let any_named = mir_args.iter().any(|a| a.name.is_some());
                 let mut mir_fields: Vec<crate::mir::StructLitField> =
                     Vec::with_capacity(mir_args.len());
-                for (i, arg) in mir_args.iter().enumerate() {
-                    let name = ordered_names.get(i).copied().unwrap_or_default();
-                    mir_fields.push(crate::mir::StructLitField {
-                        name,
-                        value: arg.value.clone(),
-                        value_ty: arg.value_ty,
-                    });
+                if any_named {
+                    for &mname in &ordered_names {
+                        if let Some(arg) = mir_args.iter().find(|a| a.name == Some(mname)) {
+                            mir_fields.push(crate::mir::StructLitField {
+                                name: mname,
+                                value: arg.value.clone(),
+                                value_ty: arg.value_ty,
+                            });
+                        }
+                    }
+                    // member_order 未覆盖的命名实参：按原顺序追加。
+                    for arg in &mir_args {
+                        if let Some(n) = arg.name
+                            && !ordered_names.contains(&n)
+                        {
+                            mir_fields.push(crate::mir::StructLitField {
+                                name: n,
+                                value: arg.value.clone(),
+                                value_ty: arg.value_ty,
+                            });
+                        }
+                    }
+                } else {
+                    for (i, arg) in mir_args.iter().enumerate() {
+                        let name = ordered_names.get(i).copied().unwrap_or_default();
+                        mir_fields.push(crate::mir::StructLitField {
+                            name,
+                            value: arg.value.clone(),
+                            value_ty: arg.value_ty,
+                        });
+                    }
                 }
                 let transport = builder.aggregate_transport(ty, AggregateTransportKind::Struct);
                 Rvalue::StructLit {
@@ -1249,6 +1297,55 @@ pub fn lower_tree_fun_decl(
     let (body, _nested, types_out) = builder.finish();
     fd.body = Some(body);
     Some((fd, types_out))
+}
+
+/// 顶层 `val`/`var` 初始化器树 → `InitializerRoot`（镜像 builder.rs 的
+/// `lower_top_level_val`：owner `#init`、lower init、Return 终结）。
+pub fn lower_tree_initializer(
+    hir: &scoop2_hir::hir::TypedHir,
+    file_id: scoop2_base::FileId,
+    tree: &FnTree,
+    base_types: &scoop2_hir::ty::TypeStore,
+) -> Option<(crate::mir::InitializerRoot, scoop2_hir::ty::TypeStore)> {
+    let mut types = base_types.clone();
+    let nothing_ty = types.nothing();
+    // 类型从 top_level_vals（按简名符号——与 AST 路径一致）。
+    let name_sym = tree
+        .fqn
+        .rsplit('.')
+        .next()
+        .and_then(|n| hir.interner.get(n))?;
+    let ty = hir
+        .top_level_vals
+        .get(&name_sym)
+        .copied()
+        .unwrap_or(nothing_ty);
+    let effect_row = scoop2_hir::ty::EffectRow::pure();
+    let owner_fqn = format!("{}#init", tree.fqn);
+    let mut errors: Vec<crate::diagnostics::MirLowerError> = Vec::new();
+    let mut builder = FnLowering::new(hir, types, file_id, owner_fqn, ty, effect_row, &mut errors);
+    // 根块为尾表达式（build_val_init_tree）——lower 后以 Return 终结。
+    let root = tree.body.root?;
+    let val = lower_tree_block(&mut builder, &tree.body, root);
+    builder.terminate(
+        Terminator {
+            span: Span::default(),
+            kind: TerminatorKind::Return { value: Some(val) },
+        },
+        builder.current_bb,
+    );
+    let (body, _, types_out) = builder.finish();
+    Some((
+        crate::mir::InitializerRoot {
+            span: Span::default(),
+            fqn: tree.fqn.clone(),
+            ty,
+            is_var: tree.val_init.unwrap_or(false),
+            body,
+            file: file_id,
+        },
+        types_out,
+    ))
 }
 
 /// 局部是否是隐式 this（MIR fn_ty 排除）。
@@ -2468,7 +2565,7 @@ fn collect_tree_expr_idents(
         TreeExprKind::TopLevelValRef { fqn } => {
             syms.insert(*fqn);
         }
-        TreeExprKind::Call { callee, args } => {
+        TreeExprKind::Call { callee, args, .. } => {
             collect_tree_callee_idents(body, callee, syms);
             for &arg in args {
                 collect_tree_expr_idents(body, arg, syms);
