@@ -429,16 +429,45 @@ pub fn run_mir_and_dump(
         return Err(StageError::Mir(lower_diags.into_vec()));
     }
 
-    // 单态化（触发单态化阶段错误检测；dump 输出仍是 generic 模板模块）。
-    let entry = lower_result
-        .module
-        .items
-        .iter()
-        .find_map(|it| match it {
-            mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| "main".to_string());
+    // 符号重复检测（M5-2 linking 白名单：入口缺失 / 符号重复 / archive 缺员
+    // ——archive 缺员由 load 的 MissingMember 承担）。目标符号 = mangle(fqn)
+    // + instance_symbol；同符号双定义即 link 错误。
+    {
+        use std::collections::HashSet;
+        let mut seen: HashSet<String> = HashSet::new();
+        for it in &lower_result.module.items {
+            let sym = match it {
+                mir::Item::Fun(fd) => fd
+                    .instance_symbol
+                    .clone()
+                    .unwrap_or_else(|| fd.fqn.replace('.', "_")),
+                mir::Item::Initializer(ir) => format!("{}#init", ir.fqn.replace('.', "_")),
+                mir::Item::ExternGlobal(g) => g.fqn.replace('.', "_"),
+                mir::Item::Metadata(_) => continue,
+            };
+            if !seen.insert(sym.clone()) {
+                lower_diags.push(Diagnostic::error(
+                    "scoop::link::duplicate_symbol",
+                    format!("链接失败：符号 `{sym}` 重复定义"),
+                ));
+                return Err(StageError::Mir(lower_diags.into_vec()));
+            }
+        }
+    }
+
+    // 入口解析（M5-2 linking 白名单——入口缺失归 driver/link 阶段，非 MIR
+    // 诊断）：模块无 `main` 即报 scoop::link::missing_entry。
+    let entry = lower_result.module.items.iter().find_map(|it| match it {
+        mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
+        _ => None,
+    });
+    let Some(entry) = entry else {
+        lower_diags.push(Diagnostic::error(
+            "scoop::link::missing_entry",
+            "链接失败：程序缺少入口函数 `main`".to_string(),
+        ));
+        return Err(StageError::Mir(lower_diags.into_vec()));
+    };
     let monomorph = mir::materialize::materialize(lower_result.module.clone(), Some(&entry), hir);
     if let Err(merr) = monomorph {
         lower_diags.push(merr.to_diagnostic());

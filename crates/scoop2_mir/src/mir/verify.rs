@@ -47,6 +47,8 @@ pub fn verify_module_with_external(
     external_symbols: &HashSet<String>,
 ) -> Vec<VerifyError> {
     let mut errors = Vec::new();
+    // M5（C 类转 ICE）：verify 是编译器自检——对合法程序失败即 bug。返回值
+    // 仍为错误列表（调用方决定通道），但 debug 构建先断言（不静默吞）。
     let known_fqns = collect_known_fqns(module);
     let known_types = collect_known_types(module);
     // 全部已知符号 = 模块自身 + 外部（sysroot/prelude）。
@@ -76,7 +78,16 @@ pub fn verify_module_with_external(
             verify_body(&ir.body, &mut errors);
         }
     }
-    errors
+{
+        // M5 C 类 ICE：verify 对合法程序失败 = 编译器 bug（debug 断言暴露；
+        // release 返回错误列表交由调用方走 bug 通道，不进用户诊断）。
+        debug_assert!(
+            errors.is_empty(),
+            "ICE[verify]: MIR 自检失败（编译器 bug）：{:?}",
+            errors
+        );
+        errors
+    }
 }
 
 /// 兼容入口：不带外部符号集的验证（仅检查模块自身符号）。
@@ -101,7 +112,16 @@ pub fn verify_materialized(module: &Module) -> Vec<VerifyError> {
             verify_no_generic_residue(&ir.body, store, &mut errors);
         }
     }
-    errors
+{
+        // M5 C 类 ICE：verify 对合法程序失败 = 编译器 bug（debug 断言暴露；
+        // release 返回错误列表交由调用方走 bug 通道，不进用户诊断）。
+        debug_assert!(
+            errors.is_empty(),
+            "ICE[verify]: MIR 自检失败（编译器 bug）：{:?}",
+            errors
+        );
+        errors
+    }
 }
 
 /// 验证 materialized MIR（带外部符号集，用于跨模块/外部函数解析性检查）。
@@ -125,7 +145,16 @@ pub fn verify_materialized_with_external(
             verify_no_effect_residue(&ir.body, &mut errors);
         }
     }
-    errors
+{
+        // M5 C 类 ICE：verify 对合法程序失败 = 编译器 bug（debug 断言暴露；
+        // release 返回错误列表交由调用方走 bug 通道，不进用户诊断）。
+        debug_assert!(
+            errors.is_empty(),
+            "ICE[verify]: MIR 自检失败（编译器 bug）：{:?}",
+            errors
+        );
+        errors
+    }
 }
 
 /// 验证 effect lowering 后无 Perform/Handle 终结符残留。

@@ -605,18 +605,31 @@ fn run_dump_mir(input: &std::path::Path) -> ExitCode {
     // 注意：dump 输出仍是 generic 模板模块（与 mir2 golden 一致）；materialize 仅用于
     // 触发单态化阶段错误检测。
     //
-    // dump-mir 模拟可执行程序的 MIR，需要 entry `main`：从模块中查找名为 main 的函数 FQN
-    // 作为种子。若无 main（库 / 缺入口），materialize 以 `Some("main")` 为种子但模板集合
-    // 无 `main` → 报 `scoop::mir::monomorph_no_template`（单态化阶段明确拒绝缺入口的程序）。
-    let entry = lower_result
-        .module
-        .items
-        .iter()
-        .find_map(|it| match it {
-            scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| "main".to_string());
+    // dump-mir 模拟可执行程序的 MIR，需要 entry `main`。若无 main（库 / 缺入口）→
+    // 报 `scoop::link::missing_entry`（M5-2 linking 白名单——非 MIR 诊断）。
+    // 入口解析（M5-2 linking 白名单——入口缺失归 link 阶段）。
+    let entry = lower_result.module.items.iter().find_map(|it| match it {
+        scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
+        _ => None,
+    });
+    let entry = match entry {
+        Some(e) => e,
+        None => {
+            let mut sink = scoop2_base::diag::DiagnosticSink::new();
+            sink.push(scoop2_base::diag::Diagnostic::error(
+                "scoop::link::missing_entry",
+                "链接失败：程序缺少入口函数 `main`",
+            ));
+            let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+                .iter()
+                .enumerate()
+                .skip(1)
+                .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+                .collect();
+            report_diagnostics(&source, &extra_sources, sink);
+            return std::process::ExitCode::from(1);
+        }
+    };
     let monomorph_result =
         scoop2_mir::mir::materialize::materialize(lower_result.module.clone(), Some(&entry), &hir);
     if let Err(merr) = monomorph_result {
@@ -754,15 +767,29 @@ fn run_dump_lir(input: &std::path::Path) -> ExitCode {
         return report_diagnostics(&source, &extra_sources, diags);
     }
     // 查找 entry。
-    let entry = lower_result
-        .module
-        .items
-        .iter()
-        .find_map(|it| match it {
-            scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| "main".to_string());
+    // 入口解析（M5-2 linking 白名单——入口缺失归 link 阶段）。
+    let entry = lower_result.module.items.iter().find_map(|it| match it {
+        scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
+        _ => None,
+    });
+    let entry = match entry {
+        Some(e) => e,
+        None => {
+            let mut sink = scoop2_base::diag::DiagnosticSink::new();
+            sink.push(scoop2_base::diag::Diagnostic::error(
+                "scoop::link::missing_entry",
+                "链接失败：程序缺少入口函数 `main`",
+            ));
+            let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+                .iter()
+                .enumerate()
+                .skip(1)
+                .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+                .collect();
+            report_diagnostics(&source, &extra_sources, sink);
+            return std::process::ExitCode::from(1);
+        }
+    };
     // materialize。
     let monomorph_result =
         scoop2_mir::mir::materialize::materialize(lower_result.module.clone(), Some(&entry), &hir);
@@ -852,15 +879,29 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
         return None;
     }
     // 查找 entry main。
-    let entry = lower_result
-        .module
-        .items
-        .iter()
-        .find_map(|it| match it {
-            scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| "main".to_string());
+    // 入口解析（M5-2 linking 白名单——入口缺失归 link 阶段）。
+    let entry = lower_result.module.items.iter().find_map(|it| match it {
+        scoop2_mir::mir::Item::Fun(fd) if fd.name == "main" => Some(fd.fqn.clone()),
+        _ => None,
+    });
+    let entry = match entry {
+        Some(e) => e,
+        None => {
+            let mut sink = scoop2_base::diag::DiagnosticSink::new();
+            sink.push(scoop2_base::diag::Diagnostic::error(
+                "scoop::link::missing_entry",
+                "链接失败：程序缺少入口函数 `main`",
+            ));
+            let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
+                .iter()
+                .enumerate()
+                .skip(1)
+                .map(|(i, s)| (scoop2_base::FileId(i as u32), s.clone()))
+                .collect();
+            report_diagnostics(source, &extra_sources, sink);
+            return None;
+        }
+    };
     let monomorph_result =
         scoop2_mir::mir::materialize::materialize(lower_result.module.clone(), Some(&entry), &hir);
     if let Err(merr) = monomorph_result {
