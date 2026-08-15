@@ -789,7 +789,7 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
     let mut inputs = make_inputs(&mut parsed, &user_indices);
     let declared_deps: Vec<String> = read_declared_deps().into_iter().collect();
     // e2e：启用 sysroot 函数体 typecheck（println<String> 等库函数可单态化）。
-    let hir = scoop2_hir::typecheck::run_typecheck_with_options(
+    let mut hir = scoop2_hir::typecheck::run_typecheck_with_options(
         &mut inputs,
         &mut interner,
         &mut diags,
@@ -807,15 +807,12 @@ fn build_lir_program(source: &scoop2_base::SourceFile) -> Option<scoop2_lir::Lir
         report_diagnostics(source, &extra_sources, diags);
         return None;
     }
-    // MIR lowering：包含 sysroot 全量（库函数体）。
-    let mir_files: Vec<(scoop2_base::FileId, &scoop2_syntax::ast::File)> = parsed
-        .iter()
-        .enumerate()
-        .map(|(i, pf)| (scoop2_base::FileId(i as u32), &pf.file))
-        .collect();
+    // MIR lowering：sysroot 全量（库函数体）——M2-5 翻转：树驱动（sysroot
+    // TypedFile 在 lower_sysroot_bodies=true 时产出，attach_trees 覆盖全量）。
+    scoop2_archive::pipeline::attach_trees(&mut hir, &parsed, &interner);
     let mut lower_diags = scoop2_base::diag::DiagnosticSink::new();
     let lower_result =
-        scoop2_mir::mir::lower::lower_module(mir_files.into_iter(), &hir, &mut lower_diags);
+        scoop2_mir::mir::lower_tree::lower_module_from_trees(&hir, &mut lower_diags);
     if lower_diags.has_errors() {
         let extra_sources: Vec<(scoop2_base::FileId, scoop2_base::SourceFile)> = sources
             .iter()
