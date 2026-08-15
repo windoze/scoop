@@ -156,9 +156,10 @@ fn lower_tree_stmt(builder: &mut FnLowering, body: &TreeBody, sid: scoop2_hir::h
                     recv,
                     owner_fqn,
                     name,
+                    value_ty_hint,
                 } => {
                     let recv_op = lower_tree_expr(builder, body, *recv);
-                    let val_ty = operand_ty_of(builder, &v);
+                    let val_ty = value_ty_hint.unwrap_or_else(|| operand_ty_of(builder, &v));
                     let owner_text = builder.hir.interner.resolve(*owner_fqn).to_string();
                     let name_text = builder.hir.interner.resolve(*name).to_string();
                     let _ = owner_text;

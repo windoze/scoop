@@ -483,11 +483,14 @@ pub enum TreePlace {
     TopLevelVar {
         fqn: Symbol,
     },
-    /// `recv.name = v`。
+    /// `recv.name = v`。`value_ty_hint`：字段声明类型（$init/$ctor 合成的
+    /// 属性赋值用——镜像 AST 的 field_ty；普通赋取 None → 值操作数类型）。
     MemberField {
         recv: ExprId,
         owner_fqn: Symbol,
         name: Symbol,
+        #[serde(default)]
+        value_ty_hint: Option<TypeId>,
     },
 }
 
@@ -973,6 +976,7 @@ impl<'a> TreeBuilder<'a> {
                     recv,
                     owner_fqn,
                     name: member_name,
+                    value_ty_hint: None,
                 })
             }
             super::ResolvedPlace::Index { .. } => {
@@ -1926,6 +1930,7 @@ pub fn synthesize_class_init_tree(
                     recv: this_ref,
                     owner_fqn: owner_fqn_sym,
                     name: cp.name,
+                    value_ty_hint: Some(cp.ty),
                 },
                 value,
             });
@@ -1942,11 +1947,19 @@ pub fn synthesize_class_init_tree(
                     continue;
                 };
                 let field_ty = b.expr_types.get(init.id).copied().unwrap_or(unit_ty);
+                // 字段声明类型（HIR members——镜像 AST 的 field_ty 查询）。
+                let field_ty = hir
+                    .members
+                    .get(&owner_fqn_sym)
+                    .and_then(|mm| mm.get(&p.name.symbol))
+                    .copied()
+                    .unwrap_or(unit_ty);
                 let stmt = b.push_stmt(TreeStmt::Assign {
                     place: TreePlace::MemberField {
                         recv: this_ref,
                         owner_fqn: owner_fqn_sym,
                         name: p.name.symbol,
+                        value_ty_hint: Some(field_ty),
                     },
                     value,
                 });
@@ -2124,6 +2137,7 @@ pub fn synthesize_secondary_ctor_tree(
                         recv: this_ref,
                         owner_fqn: owner_fqn_sym,
                         name: cp.name,
+                        value_ty_hint: Some(cp.ty),
                     },
                     value,
                 });
@@ -2140,11 +2154,18 @@ pub fn synthesize_secondary_ctor_tree(
                     let Some(init) = &p.init else { continue };
                     emit_props(b, root);
                     if let Some(value) = b.build_expr(init) {
+                        let field_ty = hir
+                            .members
+                            .get(&owner_fqn_sym)
+                            .and_then(|mm| mm.get(&p.name.symbol))
+                            .copied()
+                            .unwrap_or(unit_ty);
                         let stmt = b.push_stmt(TreeStmt::Assign {
                             place: TreePlace::MemberField {
                                 recv: this_ref,
                                 owner_fqn: owner_fqn_sym,
                                 name: p.name.symbol,
+                                value_ty_hint: Some(field_ty),
                             },
                             value,
                         });
