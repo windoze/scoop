@@ -312,11 +312,8 @@ impl<'hir> FnLowering<'hir> {
     ) -> crate::mir::CallKind {
         let stk = if let Some(pts) = param_types {
             // 用 HIR 携带的 param_types 构建 overload_sig（不再查 HIR 表）。
-            let overload_sig = crate::mir::stable_id::build_overload_sig(
-                &self.types,
-                &self.hir.interner,
-                pts,
-            );
+            let overload_sig =
+                crate::mir::stable_id::build_overload_sig(&self.types, &self.hir.interner, pts);
             // type_params 仍需从 hir.type_constraints 查（这是声明信息，非 resolution）。
             let fqn_sym = self.hir.interner.get(&callee_fqn);
             let type_params: Vec<String> = if let Some(fqn) = fqn_sym {
@@ -471,34 +468,33 @@ impl<'hir> FnLowering<'hir> {
     ) -> crate::mir::AggregateTransportMetadata {
         use scoop2_hir::ty::{RefTypeKind, TypeKind, ValueTypeKind};
         // Option<T>：payload 为单个 inner 类型（走 FQN 判定）。
-        let element_tys: Vec<TypeId> =
-            if let Some(args) = self
-                .types
-                .nominal_args_of_fqn(aggregate_ty, self.types.option_fqn())
-            {
-                args.to_vec()
-            } else {
-                match self.types.kind(aggregate_ty) {
-                    TypeKind::Value(ValueTypeKind::Tuple(els)) => els.clone(),
-                    TypeKind::Value(ValueTypeKind::Nominal(n)) => {
-                // struct/enum 的字段类型：从 HIR members 查询。
-                let fqn = n.fqn;
-                if let Some(members) = self.hir.members.get(&fqn) {
-                    members.values().copied().collect()
-                } else {
-                    Vec::new()
+        let element_tys: Vec<TypeId> = if let Some(args) = self
+            .types
+            .nominal_args_of_fqn(aggregate_ty, self.types.option_fqn())
+        {
+            args.to_vec()
+        } else {
+            match self.types.kind(aggregate_ty) {
+                TypeKind::Value(ValueTypeKind::Tuple(els)) => els.clone(),
+                TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+                    // struct/enum 的字段类型：从 HIR members 查询。
+                    let fqn = n.fqn;
+                    if let Some(members) = self.hir.members.get(&fqn) {
+                        members.values().copied().collect()
+                    } else {
+                        Vec::new()
+                    }
                 }
-            }
-            TypeKind::Ref(RefTypeKind::Nominal(n)) => {
-                let fqn = n.fqn;
-                if let Some(members) = self.hir.members.get(&fqn) {
-                    members.values().copied().collect()
-                } else {
-                    Vec::new()
+                TypeKind::Ref(RefTypeKind::Nominal(n)) => {
+                    let fqn = n.fqn;
+                    if let Some(members) = self.hir.members.get(&fqn) {
+                        members.values().copied().collect()
+                    } else {
+                        Vec::new()
+                    }
                 }
+                _ => Vec::new(),
             }
-            _ => Vec::new(),
-        }
         };
         let fields: Vec<crate::mir::AggregateTransportField> = element_tys
             .iter()
@@ -1159,9 +1155,7 @@ pub fn lower_class_init_callable(
         intrinsic_name: None,
     };
 
-    let mut builder = FnLowering::new(
-        hir, types, file_id, init_fqn, unit_ty, effect_row, errors,
-    );
+    let mut builder = FnLowering::new(hir, types, file_id, init_fqn, unit_ty, effect_row, errors);
 
     // 分配 this local 并注册为参数（首参）。
     let this_lid = builder.alloc_named("<this>".to_string(), this_ty, d.name.span);
@@ -1205,7 +1199,14 @@ pub fn lower_class_init_callable(
             .get(super_del.base_index)
             .map(|st| st.args.as_slice())
             .unwrap_or(&[]);
-        emit_super_init_call(&mut builder, this_lid, this_ty, super_del, base_args, d.name.span);
+        emit_super_init_call(
+            &mut builder,
+            this_lid,
+            this_ty,
+            super_del,
+            base_args,
+            d.name.span,
+        );
     }
 
     // 2 + 3. 按源码顺序交错执行：
@@ -1259,11 +1260,7 @@ pub fn lower_class_init_callable(
                     // 第一个初始化步骤前先发 property-param 赋值。
                     emit_param_props(&mut builder);
                     // property initializer：this.field = init_expr。
-                    let field_name = builder
-                        .hir
-                        .interner
-                        .resolve(p.name.symbol)
-                        .to_string();
+                    let field_name = builder.hir.interner.resolve(p.name.symbol).to_string();
                     let val = crate::mir::lower::expr::lower_expr(&mut builder, init_expr);
                     // property 字段类型：从 HIR members 查（owner.member）。
                     let field_ty = builder
@@ -1316,7 +1313,11 @@ fn emit_super_init_call(
     span: scoop2_base::Span,
 ) {
     // 超类引用类型（this 的静态类型即子类引用，super init 接收同一 this）。
-    let super_fqn_text = builder.hir.interner.resolve(super_del.super_fqn).to_string();
+    let super_fqn_text = builder
+        .hir
+        .interner
+        .resolve(super_del.super_fqn)
+        .to_string();
     // 构造调用实参：[this, ...填充后的参数]。
     let mut args: Vec<crate::mir::CallArg> = Vec::new();
     args.push(crate::mir::CallArg {
@@ -1332,10 +1333,16 @@ fn emit_super_init_call(
         .get(&super_del.super_fqn)
         .and_then(|sigs| {
             let n_args = base_args.len();
-            sigs.iter().find(|s| {
-                let min_arity = s.has_defaults.iter().position(|d| *d).unwrap_or(s.param_types.len());
-                n_args >= min_arity && n_args <= s.param_types.len()
-            }).or_else(|| sigs.first())
+            sigs.iter()
+                .find(|s| {
+                    let min_arity = s
+                        .has_defaults
+                        .iter()
+                        .position(|d| *d)
+                        .unwrap_or(s.param_types.len());
+                    n_args >= min_arity && n_args <= s.param_types.len()
+                })
+                .or_else(|| sigs.first())
         });
     // 用 lower_delegation_args 填充默认值 + 排序命名实参。
     // base_args 是 d.supertypes[base_index].args（AST CallArg 列表）。
@@ -1452,9 +1459,7 @@ pub fn lower_secondary_ctor_callable(
         intrinsic_name: None,
     };
 
-    let mut builder = FnLowering::new(
-        hir, types, file_id, ctor_fqn, unit_ty, effect_row, errors,
-    );
+    let mut builder = FnLowering::new(hir, types, file_id, ctor_fqn, unit_ty, effect_row, errors);
 
     // 分配 this local（首参）。
     let this_lid = builder.alloc_named("<this>".to_string(), this_ty, sc.span);
@@ -1471,7 +1476,10 @@ pub fn lower_secondary_ctor_callable(
 
     // 分配 secondary ctor 参数 local。
     for (i, p) in sc.params.iter().enumerate() {
-        let pty = sig_params.get(i).copied().unwrap_or_else(|| builder.types.unit());
+        let pty = sig_params
+            .get(i)
+            .copied()
+            .unwrap_or_else(|| builder.types.unit());
         let name_text = builder.hir.interner.resolve(p.name.symbol).to_string();
         let lid = builder.alloc_named(name_text.clone(), pty, p.name.span);
         builder.symbol_locals.insert(p.name.symbol, lid);
@@ -1504,7 +1512,8 @@ pub fn lower_secondary_ctor_callable(
             let (target_fqn, target_sig_owner) = match del.kind {
                 CtorDelegationKind::This => {
                     let n_args = del.args.len();
-                    let fqn = resolve_this_delegation_target(hir, owner_fqn_sym, &owner_fqn, n_args);
+                    let fqn =
+                        resolve_this_delegation_target(hir, owner_fqn_sym, &owner_fqn, n_args);
                     (fqn, owner_fqn_sym)
                 }
                 CtorDelegationKind::Super => {
@@ -1518,17 +1527,20 @@ pub fn lower_secondary_ctor_callable(
                 }
             };
             // 查目标 ctor 签名（按参数数匹配）。
-            let target_sig = hir
-                .ctor_signatures
-                .get(&target_sig_owner)
-                .and_then(|sigs| {
-                    // 找参数数匹配（考虑默认值：n_args <= n_params）的签名。
-                    let n_args = del.args.len();
-                    sigs.iter().find(|s| {
-                        let min_arity = s.has_defaults.iter().position(|d| *d).unwrap_or(s.param_types.len());
+            let target_sig = hir.ctor_signatures.get(&target_sig_owner).and_then(|sigs| {
+                // 找参数数匹配（考虑默认值：n_args <= n_params）的签名。
+                let n_args = del.args.len();
+                sigs.iter()
+                    .find(|s| {
+                        let min_arity = s
+                            .has_defaults
+                            .iter()
+                            .position(|d| *d)
+                            .unwrap_or(s.param_types.len());
                         n_args >= min_arity && n_args <= s.param_types.len()
-                    }).or_else(|| sigs.first())
-                });
+                    })
+                    .or_else(|| sigs.first())
+            });
             // 构建实参列表（this + 填充后的参数）。
             let mut del_ops: Vec<crate::mir::CallArg> = Vec::new();
             del_ops.push(crate::mir::CallArg {
@@ -1546,7 +1558,18 @@ pub fn lower_secondary_ctor_callable(
                 CtorDelegationKind::Super => {
                     emit_plain_init_call(&mut builder, &target_fqn, del_ops, sc.span);
                     // 本类 property-param + initializer + init-block（从 d.body.members 发射）。
-                    emit_class_init_steps(&mut builder, d, hir, owner_fqn_sym, this_lid, this_ty, &ctor_params, &primary_param_names, &owner_fqn, sc.span);
+                    emit_class_init_steps(
+                        &mut builder,
+                        d,
+                        hir,
+                        owner_fqn_sym,
+                        this_lid,
+                        this_ty,
+                        &ctor_params,
+                        &primary_param_names,
+                        &owner_fqn,
+                        sc.span,
+                    );
                 }
             }
         }
@@ -1589,7 +1612,8 @@ fn resolve_this_delegation_target(
     let has_primary = hir.class_ctor_params.contains_key(&owner_fqn_sym);
     for (i, sig) in sigs.iter().enumerate() {
         let applicable = n_args <= sig.param_types.len()
-            && sig.param_types.len() - n_args <= sig.has_defaults.iter().skip(n_args).filter(|d| **d).count();
+            && sig.param_types.len() - n_args
+                <= sig.has_defaults.iter().skip(n_args).filter(|d| **d).count();
         if !applicable {
             continue;
         }
@@ -1742,10 +1766,7 @@ fn lower_delegation_args(
     // 按签名参数位置排序 + 填充默认值。
     let n_params = sig.param_types.len();
     let mut out: Vec<crate::mir::CallArg> = Vec::with_capacity(n_params);
-    let mut positional_iter = args
-        .iter()
-        .filter(|a| a.name.is_none())
-        .map(|a| &a.value);
+    let mut positional_iter = args.iter().filter(|a| a.name.is_none()).map(|a| &a.value);
     for (param_idx, &pname) in sig.param_names.iter().enumerate() {
         // 先查命名实参。
         let named = args
@@ -1857,10 +1878,7 @@ fn resolve_member_receiver_ty(
 /// 不在此处理——它只标记「类型是内建标量」，具体方法名由方法级 `@Intrinsic("xxx")` 给出）。
 ///
 /// 返回 None 表示：无 `@Intrinsic` 注解，或注解无字符串字面量实参（无参 `@Intrinsic`）。
-fn extract_intrinsic_name(
-    d: &scoop2_syntax::ast::FunDecl,
-    hir: &TypedHir,
-) -> Option<String> {
+fn extract_intrinsic_name(d: &scoop2_syntax::ast::FunDecl, hir: &TypedHir) -> Option<String> {
     use scoop2_syntax::ast::{AnnotationUse, ExprKind};
     let intrinsic_sym = hir.interner.get("Intrinsic")?;
     fn is_intrinsic_ann(ann: &AnnotationUse, intrinsic_sym: scoop2_base::Symbol) -> bool {

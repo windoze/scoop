@@ -1746,7 +1746,10 @@ fn collect_lambda_free_vars(l: &ast::LambdaExpr) -> Vec<scoop2_base::Symbol> {
     for p in &l.params {
         syms.remove(&p.name.symbol);
     }
-    syms.into_iter().collect()
+    // env 布局参与 MIR dump：捕获序必须确定（C7——HashSet 迭代序会跨进程漂移）。
+    let mut ordered: Vec<scoop2_base::Symbol> = syms.into_iter().collect();
+    ordered.sort();
+    ordered
 }
 
 fn scan_block_idents(b: &ast::Block, syms: &mut std::collections::HashSet<scoop2_base::Symbol>) {

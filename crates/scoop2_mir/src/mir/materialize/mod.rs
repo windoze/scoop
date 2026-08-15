@@ -569,8 +569,7 @@ fn collect_templates(module: &Module) -> HashMap<String, Vec<FunDecl>> {
     let mut map: HashMap<String, Vec<FunDecl>> = HashMap::new();
     for item in &module.items {
         if let Item::Fun(fd) = item {
-            if fd.fqn.contains("$ctor") {
-            }
+            if fd.fqn.contains("$ctor") {}
             map.entry(fd.fqn.clone()).or_default().push(fd.clone());
         }
     }
@@ -1067,11 +1066,7 @@ fn subst_pattern(pat: &mut crate::mir::Pattern, subst: &Subst, store: &mut TypeS
 // 可达性扫描（递归进实例化后的 body）
 // ---------------------------------------------------------------------------
 
-fn scan_body_calls(
-    body: &Body,
-    reqs: &mut Vec<InstanceKey>,
-    interner: &scoop2_base::Interner,
-) {
+fn scan_body_calls(body: &Body, reqs: &mut Vec<InstanceKey>, interner: &scoop2_base::Interner) {
     for block in &body.blocks {
         for stmt in &block.stmts {
             if let StatementKind::Assign { value, .. } = &stmt.kind {
@@ -1082,11 +1077,7 @@ fn scan_body_calls(
     }
 }
 
-fn scan_rvalue_calls(
-    rv: &Rvalue,
-    reqs: &mut Vec<InstanceKey>,
-    interner: &scoop2_base::Interner,
-) {
+fn scan_rvalue_calls(rv: &Rvalue, reqs: &mut Vec<InstanceKey>, interner: &scoop2_base::Interner) {
     match rv {
         Rvalue::Call { kind, args, .. } => {
             scan_call_kind(kind, reqs);

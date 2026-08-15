@@ -206,7 +206,13 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 ### M2 HIR 结构重建（最大件）🚧 进行中（第一刀已落地）
 
-> 进度（2026-08-15，第十五刀）：**语料一致率 40/40**。新增镜像：StructLit /
+> 进度（2026-08-15，第十六刀）：**语料一致率 48/62**。Lambda(5) 镜像到树
+> （env tuple + 嵌套 `$closure` FunDecl + 捕获 transport，逐句镜像 AST 路径）；
+> 顺带修 AST 路径 `collect_lambda_free_vars` 的 **HashSet 迭代序泄漏**（env 布局
+> 跨进程漂移——C7 确定性纪律，捕获序改为按 Symbol 排序，树路径同序对齐）。
+> 余 14 函数 = 3 diff（destructuring 系列遗留：temp/binder 分配序、PatternMatch
+> Bind 的 ty# 渲染、PatternExtract vs Use）+ 11 unsupported（Handle(6) + 复合 main(5)）。
+> 第十五刀：**语料一致率 40/40**。新增镜像：StructLit /
 > InterpolatedString / ArrayLit（Nothing→Array ref temp）/ Cast（As/AsSafe 结果
 > 类型差异 + RuntimeCastMetadata）/ TypeCheck（RuntimeTypeTestMetadata）/
 > WithUpdate（路径段映射）；**虚/接口分派**（DispatchMetadata 含 stable keys +

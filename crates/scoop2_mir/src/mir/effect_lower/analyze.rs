@@ -114,7 +114,8 @@ pub fn compute_live_in(body: &Body) -> Vec<HashSet<LocalId>> {
 }
 
 /// 计算一个 basic block 的 use/def 集合。
-fn compute_use_def(block: &crate::mir::BasicBlock) -> (HashSet<LocalId>, HashSet<LocalId>) {    let mut uses = HashSet::new();
+fn compute_use_def(block: &crate::mir::BasicBlock) -> (HashSet<LocalId>, HashSet<LocalId>) {
+    let mut uses = HashSet::new();
     let mut defs = HashSet::new();
     // 语句中的 use/def。
     for stmt in &block.stmts {
@@ -131,7 +132,11 @@ fn compute_use_def(block: &crate::mir::BasicBlock) -> (HashSet<LocalId>, HashSet
 }
 
 /// 收集 Rvalue 中使用的 locals（在 def 之前使用的）。
-pub(crate) fn collect_rvalue_uses(rv: &Rvalue, uses: &mut HashSet<LocalId>, defs: &HashSet<LocalId>) {
+pub(crate) fn collect_rvalue_uses(
+    rv: &Rvalue,
+    uses: &mut HashSet<LocalId>,
+    defs: &HashSet<LocalId>,
+) {
     match rv {
         Rvalue::Use(op) => collect_operand_uses(op, uses, defs),
         Rvalue::Call { kind, args, .. } => {

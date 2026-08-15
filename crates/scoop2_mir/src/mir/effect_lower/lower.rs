@@ -380,9 +380,7 @@ fn classify_module(module: &mut Module, interner: &Interner) -> HashMap<String, 
                 let covered = f.handle_regions.iter().any(|(region, ops, _)| {
                     region.contains(bi)
                         && (ops.contains(op)
-                            || ops
-                                .iter()
-                                .any(|a| canonical_op_fqn(module, a) == *op))
+                            || ops.iter().any(|a| canonical_op_fqn(module, a) == *op))
                 });
                 if !covered && !cls.outward_ops.iter().any(|(o, _)| o == op) {
                     cls.outward_ops.push((op.clone(), *payload_ty));
@@ -817,8 +815,7 @@ fn adapt_calls_in_body(
         let act_block_ids: Vec<BasicBlockId> = (0..num_routes)
             .map(|i| BasicBlockId(body.blocks.len() as u32 + 2 + (i * 2) as u32))
             .collect();
-        let panic_block_id =
-            BasicBlockId(body.blocks.len() as u32 + 1 + (num_routes * 2) as u32);
+        let panic_block_id = BasicBlockId(body.blocks.len() as u32 + 1 + (num_routes * 2) as u32);
 
         // 重写当前块：before_stmts + step_local = call(...) + cond = PatternMatch(Complete) + CondBr
         let bool_ty = store.bool();
@@ -1268,10 +1265,7 @@ fn body_has_escape_call_site(
                 let variant_name = op.replace('.', "_");
                 h.arm_dispatch.iter().any(|(aop, route)| {
                     route.continuation_local.is_some()
-                        && (canon_map
-                            .get(aop)
-                            .map(|c| c.replace('.', "_"))
-                            .as_deref()
+                        && (canon_map.get(aop).map(|c| c.replace('.', "_")).as_deref()
                             == Some(variant_name.as_str())
                             || aop.replace('.', "_") == variant_name)
                 })
@@ -1548,11 +1542,7 @@ fn handle_extent(body: &Body, handle: &HandleInfo) -> HashSet<usize> {
 /// 克隆 handle 的 finally 区用于逃逸路径：区域内指向 exit_target 的边改接
 /// `after`（下一跳 finally 克隆或路由目标 arm），内部边重映射到克隆块。
 /// 返回克隆区入口块 id。
-fn clone_finally_region(
-    body: &mut Body,
-    handle: &HandleInfo,
-    after: BasicBlockId,
-) -> BasicBlockId {
+fn clone_finally_region(body: &mut Body, handle: &HandleInfo, after: BasicBlockId) -> BasicBlockId {
     let Some(fb) = handle.finally_target else {
         return after;
     };
@@ -1604,17 +1594,16 @@ fn rewrite_handles(body: &mut Body) {
     // 边界不经 finally——resume 完成路径不重复执行 finally。
     let mut rewrites: Vec<(usize, BasicBlockId, BasicBlockId)> = Vec::new();
     for block in body.blocks.iter() {
-        let (body_target, arm_targets, finally_target, exit_target) =
-            match &block.terminator.kind {
-                TerminatorKind::Handle {
-                    body_target,
-                    arm_targets,
-                    finally_target: Some(fb),
-                    exit_target,
-                    ..
-                } => (*body_target, arm_targets.clone(), *fb, *exit_target),
-                _ => continue,
-            };
+        let (body_target, arm_targets, finally_target, exit_target) = match &block.terminator.kind {
+            TerminatorKind::Handle {
+                body_target,
+                arm_targets,
+                finally_target: Some(fb),
+                exit_target,
+                ..
+            } => (*body_target, arm_targets.clone(), *fb, *exit_target),
+            _ => continue,
+        };
         // BFS 收集 handle 区域（body + arms，不越过 exit_target / finally 块）。
         let mut region: HashSet<usize> = HashSet::new();
         let mut queue: std::collections::VecDeque<usize> =
@@ -1644,11 +1633,7 @@ fn rewrite_handles(body: &mut Body) {
     }
     for (b, exit_target, finally_target) in rewrites {
         remap_terminator_targets(&mut body.blocks[b].terminator.kind, &mut |t| {
-            if t == exit_target {
-                finally_target
-            } else {
-                t
-            }
+            if t == exit_target { finally_target } else { t }
         });
     }
     for block in &mut body.blocks {
@@ -1740,9 +1725,10 @@ fn lower_to_effect_step(
                             ..
                         } = value
                         && matches!(continuation, Operand::Local(c) if *c == esc.continuation_local)
-                        && body.locals.get(target.0 as usize).is_some_and(|d| {
-                            is_imprecise(store, d.ty)
-                        })
+                        && body
+                            .locals
+                            .get(target.0 as usize)
+                            .is_some_and(|d| is_imprecise(store, d.ty))
                     {
                         resume_retype.push((bi, si, target.0 as usize, answer_ty));
                     }
@@ -2500,7 +2486,17 @@ fn adapt_call_chain_sites(
     let int_ty = store.int();
     for pi in order {
         // 先取出需要的计划字段（避免与 body 的可变借用冲突）。
-        let (bi, si, step_ty, step_fqn_sym, link_slot, state_cap, state_prop, result_ty, target_local) = {
+        let (
+            bi,
+            si,
+            step_ty,
+            step_fqn_sym,
+            link_slot,
+            state_cap,
+            state_prop,
+            result_ty,
+            target_local,
+        ) = {
             let p = &plans[pi];
             (
                 p.block_idx,
@@ -2636,65 +2632,63 @@ fn adapt_call_chain_sites(
         // payload 解构语句（与阶段 B 的多/单 binder 逻辑一致）。
         let variants = plans[pi].variants.clone();
         let routes = plans[pi].routes.clone();
-        let bind_payload = |body: &mut Body,
-                            payload_ty: TypeId,
-                            binder_locals: &[LocalId]|
-         -> Vec<Statement> {
-            let mut stmts = Vec::new();
-            if binder_locals.is_empty() {
-                return stmts;
-            }
-            let payload_local = {
-                let id = LocalId(body.locals.len() as u32);
-                body.locals.push(LocalDecl {
-                    span,
-                    name: None,
-                    ty: payload_ty,
-                    source: crate::mir::LocalSource::Temp,
-                    mutable: false,
-                });
-                id
-            };
-            stmts.push(Statement {
-                span,
-                kind: StatementKind::Assign {
-                    target: payload_local,
-                    value: Rvalue::PatternExtract {
-                        subject: Operand::Local(step_local),
-                        path: vec![],
-                        result_ty: payload_ty,
-                    },
-                },
-            });
-            let tuple_elems: Option<Vec<TypeId>> = if binder_locals.len() > 1 {
-                match store.kind(payload_ty) {
-                    scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Tuple(
-                        elems,
-                    )) => Some(elems.clone()),
-                    _ => None,
+        let bind_payload =
+            |body: &mut Body, payload_ty: TypeId, binder_locals: &[LocalId]| -> Vec<Statement> {
+                let mut stmts = Vec::new();
+                if binder_locals.is_empty() {
+                    return stmts;
                 }
-            } else {
-                None
-            };
-            for (bii, binder) in binder_locals.iter().enumerate() {
-                let value = match &tuple_elems {
-                    Some(elems) => Rvalue::TupleIndex {
-                        receiver: Operand::Local(payload_local),
-                        index: bii as u128,
-                        element_ty: elems.get(bii).copied().unwrap_or(payload_ty),
-                    },
-                    None => Rvalue::Use(Operand::Local(payload_local)),
+                let payload_local = {
+                    let id = LocalId(body.locals.len() as u32);
+                    body.locals.push(LocalDecl {
+                        span,
+                        name: None,
+                        ty: payload_ty,
+                        source: crate::mir::LocalSource::Temp,
+                        mutable: false,
+                    });
+                    id
                 };
                 stmts.push(Statement {
                     span,
                     kind: StatementKind::Assign {
-                        target: *binder,
-                        value,
+                        target: payload_local,
+                        value: Rvalue::PatternExtract {
+                            subject: Operand::Local(step_local),
+                            path: vec![],
+                            result_ty: payload_ty,
+                        },
                     },
                 });
-            }
-            stmts
-        };
+                let tuple_elems: Option<Vec<TypeId>> = if binder_locals.len() > 1 {
+                    match store.kind(payload_ty) {
+                        scoop2_hir::ty::TypeKind::Value(scoop2_hir::ty::ValueTypeKind::Tuple(
+                            elems,
+                        )) => Some(elems.clone()),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                for (bii, binder) in binder_locals.iter().enumerate() {
+                    let value = match &tuple_elems {
+                        Some(elems) => Rvalue::TupleIndex {
+                            receiver: Operand::Local(payload_local),
+                            index: bii as u128,
+                            element_ty: elems.get(bii).copied().unwrap_or(payload_ty),
+                        },
+                        None => Rvalue::Use(Operand::Local(payload_local)),
+                    };
+                    stmts.push(Statement {
+                        span,
+                        kind: StatementKind::Assign {
+                            target: *binder,
+                            value,
+                        },
+                    });
+                }
+                stmts
+            };
         // 块 id 布局（追加顺序）：R_N, B_N, complete, (check_i, act_i)*, panic。
         let base = body.blocks.len();
         let resume_bid = BasicBlockId(base as u32);
@@ -3072,7 +3066,10 @@ fn rewrite_perform_sites(
         // escape 捕获：构造 continuation → k，绑定实参 → arm binder，goto arm。
         // resume_local 保持原类型（它是 resume 值投递目标，不是 Step 载体）。
         if let Some(route) = escape_route {
-            let esc = route.escape.as_ref().expect("escape 路由必有 EscapeCapture");
+            let esc = route
+                .escape
+                .as_ref()
+                .expect("escape 路由必有 EscapeCapture");
             block.stmts.push(Statement {
                 span,
                 kind: StatementKind::Assign {
@@ -3297,8 +3294,7 @@ fn clone_escape_suffixes(
                 },
             },
         });
-        site.resume_target =
-            BasicBlockId(id_map[&(site.resume_target.0 as usize)] as u32);
+        site.resume_target = BasicBlockId(id_map[&(site.resume_target.0 as usize)] as u32);
     }
     // call-chain 站点的克隆（有 escape 覆盖的站点）。
     for pi in 0..call_plans.len() {
@@ -3430,7 +3426,10 @@ fn terminator_targets(kind: &TerminatorKind) -> Vec<BasicBlockId> {
 }
 
 /// 对终结符的所有跳转目标应用映射函数。
-fn remap_terminator_targets(kind: &mut TerminatorKind, map: &mut impl FnMut(BasicBlockId) -> BasicBlockId) {
+fn remap_terminator_targets(
+    kind: &mut TerminatorKind,
+    map: &mut impl FnMut(BasicBlockId) -> BasicBlockId,
+) {
     match kind {
         TerminatorKind::Goto { target } => *target = map(*target),
         TerminatorKind::CondBr {

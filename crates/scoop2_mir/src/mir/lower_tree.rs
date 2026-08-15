@@ -17,8 +17,8 @@
 
 use scoop2_base::Span;
 use scoop2_hir::hir::tree::{
-    BlockId, ExprId, FnTree, TreeBody, TreeCallee, TreeExprKind, TreeMember, TreePattern,
-    TreeStmt, WhenTreeArm,
+    BlockId, ExprId, FnTree, TreeBody, TreeCallee, TreeExprKind, TreeMember, TreePattern, TreeStmt,
+    WhenTreeArm,
 };
 
 use crate::mir::lower::builder::FnLowering;
@@ -52,7 +52,7 @@ pub fn unsupported_construct(tree: &FnTree) -> Option<&'static str> {
 
             TreeExprKind::Handle { .. } => return Some("Handle"),
 
-            TreeExprKind::Lambda { .. } => return Some("Lambda"),
+            TreeExprKind::Lambda { .. } => {}
         }
     }
     for e in &tree.body.exprs {
@@ -605,6 +605,13 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
             // 镜像 lower_when：逐 arm 测试模式 + guard，命中则赋值 result 并 goto merge。
             lower_tree_when(builder, body, *subject, arms, ty, span)
         }
+        TreeExprKind::Lambda {
+            params,
+            body: lambda_body,
+        } => {
+            // 镜像 lower_lambda：生成 env tuple + 嵌套 Item::Fun
+            lower_tree_lambda(builder, body, params, lambda_body, ty, span)
+        }
         _ => unsupported!("本切片支持集外的表达式构造"),
     }
 }
@@ -949,10 +956,11 @@ fn lower_tree_call(
             let resume_target = builder.new_block();
 
             // 从 args 构造 payload metadata
-            let payload_component_tys: Vec<scoop2_hir::ty::TypeId> =
-                arg_ops.iter().zip(args.iter()).map(|(op, e)| {
-                    body.exprs[e.0 as usize].ty
-                }).collect();
+            let payload_component_tys: Vec<scoop2_hir::ty::TypeId> = arg_ops
+                .iter()
+                .zip(args.iter())
+                .map(|(op, e)| body.exprs[e.0 as usize].ty)
+                .collect();
             let payload_transport: Vec<crate::mir::transport::ValueTransportMetadata> =
                 payload_component_tys
                     .iter()
@@ -995,7 +1003,7 @@ fn lower_tree_call(
                     .filter_map(|c| builder.hir.interner.get(c))
                     .filter(|f| {
                         builder.hir.enum_variants.contains_key(f)
-                        || builder.hir.member_funs.contains_key(f)
+                            || builder.hir.member_funs.contains_key(f)
                     })
                     .next()
                     .map(|fqn| {
@@ -1409,7 +1417,8 @@ fn lower_tree_pattern_test(
                     builder.current_bb = cont_bb;
                 }
 
-                let elem_ty = tree_tuple_elem_ty(builder, subj_ty, i).unwrap_or_else(|| builder.types.any());
+                let elem_ty =
+                    tree_tuple_elem_ty(builder, subj_ty, i).unwrap_or_else(|| builder.types.any());
                 let tmp = builder.alloc_temp(elem_ty, subj_ty_of(builder, &subj));
                 builder.assign(
                     tmp,
@@ -1430,12 +1439,20 @@ fn lower_tree_pattern_test(
             }
 
             // 全部通过：result = 最后一个子测试的值
-            builder.assign(result, Rvalue::Use(prev_test.expect("testable 非空")), subj_ty_of(builder, &subj));
+            builder.assign(
+                result,
+                Rvalue::Use(prev_test.expect("testable 非空")),
+                subj_ty_of(builder, &subj),
+            );
             builder.goto(merge_bb, subj_ty_of(builder, &subj));
             builder.current_bb = merge_bb;
             Operand::Local(result)
         }
-        TreePattern::Variant { enum_fqn, variant, args } => {
+        TreePattern::Variant {
+            enum_fqn,
+            variant,
+            args,
+        } => {
             // variant 模式：发射 PatternMatch（镜像 AST 路径的 enum_fqn 解析逻辑）
             let variant_name = *variant;
             let variant_name_str = builder.hir.interner.resolve(variant_name).to_string();
@@ -1553,12 +1570,10 @@ fn lower_tree_pattern_test(
                         tmp,
                         Rvalue::PatternExtract {
                             subject: subj.clone(),
-                            path: vec![
-                                crate::mir::transport::PatternBindingStep::VariantField {
-                                    variant: variant_str,
-                                    field_index: i,
-                                },
-                            ],
+                            path: vec![crate::mir::transport::PatternBindingStep::VariantField {
+                                variant: variant_str,
+                                field_index: i,
+                            }],
                             result_ty: field_ty,
                         },
                         subj_ty_of(builder, &subj),
@@ -1697,7 +1712,8 @@ fn bind_tree_pattern(
                     );
                     builder.symbol_locals.insert(decl.name, lid);
 
-                    let elem_ty = tree_tuple_elem_ty(builder, subj_ty, i).unwrap_or_else(|| builder.types.any());
+                    let elem_ty = tree_tuple_elem_ty(builder, subj_ty, i)
+                        .unwrap_or_else(|| builder.types.any());
                     builder.assign(
                         lid,
                         Rvalue::PatternExtract {
@@ -1722,7 +1738,9 @@ fn bind_tree_pattern(
                             tmp,
                             Rvalue::PatternExtract {
                                 subject: subj.clone(),
-                                path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(i)],
+                                path: vec![crate::mir::transport::PatternBindingStep::TupleIndex(
+                                    i,
+                                )],
                                 result_ty: elem_ty,
                             },
                             subj_ty_of(builder, &subj),
@@ -1732,7 +1750,11 @@ fn bind_tree_pattern(
                 }
             }
         }
-        TreePattern::Variant { enum_fqn, variant, args } => {
+        TreePattern::Variant {
+            enum_fqn,
+            variant,
+            args,
+        } => {
             // variant 字段绑定：按字段位置提取
             let variant_str = builder.hir.interner.resolve(*variant).to_string();
 
@@ -1746,7 +1768,9 @@ fn bind_tree_pattern(
                     );
                     builder.symbol_locals.insert(decl.name, lid);
 
-                    if let Some(field_ty) = tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i) {
+                    if let Some(field_ty) =
+                        tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i)
+                    {
                         builder.assign(
                             lid,
                             Rvalue::PatternExtract {
@@ -1773,7 +1797,9 @@ fn bind_tree_pattern(
                     arg,
                     TreePattern::Variant { .. } | TreePattern::Tuple(_) | TreePattern::Or(_)
                 ) {
-                    if let Some(field_ty) = tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i) {
+                    if let Some(field_ty) =
+                        tree_variant_payload_field_ty(builder, subj_ty, enum_fqn, i)
+                    {
                         let tmp = builder.alloc_temp(field_ty, subj_ty_of(builder, &subj));
                         builder.assign(
                             tmp,
@@ -1881,4 +1907,529 @@ fn tree_tuple_elem_ty(
 fn subj_ty_of(builder: &FnLowering, op: &Operand) -> Span {
     // 对于模式测试，span 主要用于标记位置，使用默认值即可
     Span::default()
+}
+
+// ---------------------------------------------------------------------------
+// Lambda 表达式 lowering（镜像 lower/expr.rs 的 lower_lambda）
+// ---------------------------------------------------------------------------
+
+/// lower lambda（闭包）：生成 env tuple + 嵌套 Item::Fun（树版本）。
+fn lower_tree_lambda(
+    builder: &mut FnLowering,
+    body: &TreeBody,
+    params: &[scoop2_hir::hir::tree::LocalId],
+    lambda_body: &scoop2_hir::hir::tree::LambdaBodyTree,
+    ty: scoop2_hir::ty::TypeId,
+    span: Span,
+) -> Operand {
+    use scoop2_hir::hir::tree::LambdaBodyTree;
+
+    // 真实自由变量（lambda body 内引用且在外层 symbol_locals 有对应 local 的名字）。
+    let free_vars = collect_tree_lambda_free_vars(body, params, lambda_body);
+    let captured: Vec<(scoop2_base::Symbol, scoop2_hir::ty::TypeId)> = free_vars
+        .iter()
+        .filter_map(|&sym| {
+            builder.symbol_locals.get(&sym).map(|lid| {
+                let t = builder
+                    .body
+                    .locals
+                    .get(lid.0 as usize)
+                    .map(|d| d.ty)
+                    .unwrap_or_else(|| builder.types.any());
+                (sym, t)
+            })
+        })
+        .collect();
+
+    // env tuple（外层构造）。
+    let env_elems: Vec<Operand> = captured
+        .iter()
+        .map(|(s, _)| {
+            builder
+                .symbol_locals
+                .get(s)
+                .map(|lid| Operand::Local(*lid))
+                .unwrap_or(Operand::Const(ConstValue::Unit))
+        })
+        .collect();
+    let env_ty = builder
+        .types
+        .tuple(captured.iter().map(|(_, t)| *t).collect());
+    let env_tmp = builder.alloc_temp(env_ty, span);
+    let env_transport = builder.aggregate_transport(env_ty, AggregateTransportKind::Tuple);
+    builder.assign(
+        env_tmp,
+        Rvalue::MakeTuple {
+            elements: env_elems,
+            transport: env_transport,
+        },
+        span,
+    );
+
+    // 嵌套函数名。
+    builder.closure_counter += 1;
+    let invoke_fqn = format!("{}$closure{}", builder.owner_fqn, builder.closure_counter);
+
+    // captures metadata（闭包捕获 transport：值类型捕获到 Any 边界标记 boxing）。
+    let mut captures_meta = Vec::new();
+    for (cap_sym, cap_ty) in captured.iter() {
+        let cap_lid = builder
+            .symbol_locals
+            .get(cap_sym)
+            .copied()
+            .unwrap_or(crate::mir::LocalId(0));
+        let cap_name = builder.hir.interner.resolve(*cap_sym).to_string();
+        let mutable = builder
+            .body
+            .locals
+            .get(cap_lid.0 as usize)
+            .map(|d| d.mutable)
+            .unwrap_or(false);
+        let any_ty = builder.types.any();
+        let cap_transport = if *cap_ty != any_ty
+            && matches!(
+                builder.types.kind(*cap_ty),
+                scoop2_hir::ty::TypeKind::Value(_)
+            ) {
+            crate::mir::transport::ValueTransportMetadata {
+                source_ty: *cap_ty,
+                kind: crate::mir::transport::mir_transport_kind_for_ty(
+                    &builder.types,
+                    *cap_ty,
+                    &builder.enum_fqns,
+                ),
+                requirements: crate::mir::transport::mir_transport_requirements(
+                    &builder.types,
+                    *cap_ty,
+                ),
+                boxing: Some(crate::mir::transport::MirBoxingIntent {
+                    source_ty: *cap_ty,
+                    target_ty: Some(any_ty),
+                    reason: crate::mir::transport::MirBoxingReason::ClosureCapture,
+                }),
+            }
+        } else {
+            crate::mir::transport::value_transport(&builder.types, &builder.enum_fqns, *cap_ty)
+        };
+        captures_meta.push(crate::mir::transport::ClosureCaptureTransportMetadata {
+            name: cap_name,
+            decl_span: span,
+            mutable,
+            source_local: cap_lid,
+            transport: cap_transport,
+        });
+    }
+    let env_contract = crate::mir::transport::ClosureEnvTransportMetadata {
+        env_ty,
+        captures: captures_meta,
+    };
+
+    // 闭包值。
+    let tmp = builder.alloc_temp(ty, span);
+    builder.assign(
+        tmp,
+        Rvalue::MakeClosure {
+            env: Operand::Local(env_tmp),
+            invoke_fqn: invoke_fqn.clone(),
+            env_contract,
+        },
+        span,
+    );
+
+    // 嵌套函数签名：第一个参数是 env tuple，其后是 lambda 参数（类型按位取自
+    // 函数类型——树 local 的 ty 即由此而来）。
+    let lambda_param_tys: Vec<scoop2_hir::ty::TypeId> = match builder.types.kind(ty) {
+        scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Function(ft)) => {
+            ft.params.clone()
+        }
+        _ => Vec::new(),
+    };
+    let (return_ty, fn_effect_row) = match builder.types.kind(ty) {
+        scoop2_hir::ty::TypeKind::Ref(scoop2_hir::ty::RefTypeKind::Function(ft)) => {
+            (ft.return_ty, ft.effects.clone())
+        }
+        _ => (builder.types.any(), scoop2_hir::ty::EffectRow::pure()),
+    };
+    let mut all_param_tys = vec![env_ty];
+    all_param_tys.extend(lambda_param_tys.iter().copied());
+
+    let mut nested_store = builder.types.clone();
+    let nested_fn_ty = nested_store.function(scoop2_hir::ty::FunctionType {
+        receiver: None,
+        params: all_param_tys.clone(),
+        return_ty,
+        effects: fn_effect_row.clone(),
+        closed: false,
+    });
+    let mut errors: Vec<crate::diagnostics::MirLowerError> = Vec::new();
+    let mut nested_builder = FnLowering::new(
+        builder.hir,
+        nested_store,
+        builder.file_id,
+        invoke_fqn.clone(),
+        return_ty,
+        fn_effect_row.clone(),
+        &mut errors,
+    );
+
+    // env 参数（local 0）：解包捕获到 nested_builder.symbol_locals。
+    let env_param = crate::mir::LocalDecl {
+        span,
+        name: Some("$env".to_string()),
+        ty: env_ty,
+        source: crate::mir::LocalSource::Source,
+        mutable: false,
+    };
+    let env_lid = nested_builder.alloc_local(env_param);
+    for (i, (cap_sym, cap_ty)) in captured.iter().enumerate() {
+        let cap_lid = nested_builder.alloc_named(
+            builder.hir.interner.resolve(*cap_sym).to_string(),
+            *cap_ty,
+            span,
+        );
+        nested_builder.symbol_locals.insert(*cap_sym, cap_lid);
+        nested_builder.assign(
+            cap_lid,
+            Rvalue::TupleIndex {
+                receiver: Operand::Local(env_lid),
+                index: i as u128,
+                element_ty: *cap_ty,
+            },
+            span,
+        );
+    }
+
+    // lambda 参数 → locals（树的 params 已含隐式 `it`——AST 路径的无参补 it
+    // 分支在此不适用）。
+    let mut nested_params: Vec<crate::mir::Param> = Vec::new();
+    nested_params.push(crate::mir::Param {
+        span,
+        name: "$env".to_string(),
+        ty: env_ty,
+        local: env_lid,
+    });
+    for (i, &param_id) in params.iter().enumerate() {
+        let decl = &body.locals[param_id.0 as usize];
+        let pty = if i < lambda_param_tys.len() {
+            lambda_param_tys[i]
+        } else {
+            decl.ty
+        };
+        let lid = nested_builder.alloc_named(
+            builder.hir.interner.resolve(decl.name).to_string(),
+            pty,
+            decl.span,
+        );
+        nested_builder.symbol_locals.insert(decl.name, lid);
+        nested_params.push(crate::mir::Param {
+            span: decl.span,
+            name: builder.hir.interner.resolve(decl.name).to_string(),
+            ty: pty,
+            local: lid,
+        });
+    }
+
+    // lower lambda body（Block 或 Expr；块尾隐式返回与 lower_fun_body 同构）。
+    match lambda_body {
+        LambdaBodyTree::Block(block_id) => {
+            let tail = lower_tree_block(&mut nested_builder, body, *block_id);
+            let tail_is_unit = matches!(tail, Operand::Const(ConstValue::Unit));
+            let bb = nested_builder.current_bb;
+            if !tail_is_unit
+                && matches!(
+                    nested_builder.body.blocks[bb.0 as usize].terminator.kind,
+                    TerminatorKind::Unreachable
+                )
+            {
+                nested_builder.terminate(
+                    Terminator {
+                        span: body.blocks[block_id.0 as usize].span,
+                        kind: TerminatorKind::Return { value: Some(tail) },
+                    },
+                    bb,
+                );
+            }
+        }
+        LambdaBodyTree::Expr(expr_id) => {
+            let val = lower_tree_expr(&mut nested_builder, body, *expr_id);
+            let cur_bb = nested_builder.current_bb;
+            nested_builder.terminate(
+                Terminator {
+                    span: body.exprs[expr_id.0 as usize].span,
+                    kind: TerminatorKind::Return { value: Some(val) },
+                },
+                cur_bb,
+            );
+        }
+    }
+
+    let (nested_body, nested_more, store_out) = nested_builder.finish();
+
+    builder.nested_funs.push(crate::mir::FunDecl {
+        span,
+        fqn: invoke_fqn.clone(),
+        name: format!("$closure{}", builder.closure_counter),
+        ty: nested_fn_ty,
+        params: nested_params,
+        return_ty,
+        effect_row: fn_effect_row,
+        type_params: vec![],
+        body: Some(nested_body),
+        file: builder.file_id,
+        stable_template_key: None,
+        instance_symbol: None,
+        effect_abi: None,
+        intrinsic_name: None,
+    });
+    builder.nested_funs.extend(nested_more);
+    // nested 的类型 / 错误合并回外层（与 AST 路径一致——TypeId 一致性）。
+    let _remap = builder.types.extend_from(&store_out);
+    builder.errors.extend(errors);
+    Operand::Local(tmp)
+}
+
+// ---------------------------------------------------------------------------
+// lambda 自由变量扫描（镜像 lower/expr.rs 的 scan_*_idents 家族）
+// ---------------------------------------------------------------------------
+
+/// 收集树 lambda 的自由变量（按 Symbol 排序的确定序——与 AST 路径的排序一致）。
+/// 树的 `params` 已含隐式 `it`，一并排除（AST 无参 lambda 不排除 `it`，仅在
+/// 外层恰有同名 local 时才会被 symbol_locals 过滤捕获——语料内无此形态）。
+fn collect_tree_lambda_free_vars(
+    body: &TreeBody,
+    params: &[scoop2_hir::hir::tree::LocalId],
+    lambda_body: &scoop2_hir::hir::tree::LambdaBodyTree,
+) -> Vec<scoop2_base::Symbol> {
+    use scoop2_hir::hir::tree::LambdaBodyTree;
+    let mut syms = std::collections::HashSet::new();
+    match lambda_body {
+        LambdaBodyTree::Block(b) => collect_tree_block_idents(body, *b, &mut syms),
+        LambdaBodyTree::Expr(e) => collect_tree_expr_idents(body, *e, &mut syms),
+    }
+    for &p in params {
+        syms.remove(&body.locals[p.0 as usize].name);
+    }
+    let mut ordered: Vec<scoop2_base::Symbol> = syms.into_iter().collect();
+    ordered.sort();
+    ordered
+}
+
+fn collect_tree_block_idents(
+    body: &TreeBody,
+    block: BlockId,
+    syms: &mut std::collections::HashSet<scoop2_base::Symbol>,
+) {
+    let blk = &body.blocks[block.0 as usize];
+    for &sid in &blk.stmts {
+        collect_tree_stmt_idents(body, sid, syms);
+    }
+    if let Some(tail) = blk.tail {
+        collect_tree_expr_idents(body, tail, syms);
+    }
+}
+
+fn collect_tree_stmt_idents(
+    body: &TreeBody,
+    stmt_id: scoop2_hir::hir::tree::StmtId,
+    syms: &mut std::collections::HashSet<scoop2_base::Symbol>,
+) {
+    match &body.stmts[stmt_id.0 as usize] {
+        TreeStmt::Expr(e) => collect_tree_expr_idents(body, *e, syms),
+        TreeStmt::LocalVal { local, init } => {
+            // 扫描 init 后排除声明的绑定名（它是新局部，不是自由变量）。
+            collect_tree_expr_idents(body, *init, syms);
+            syms.remove(&body.locals[local.0 as usize].name);
+        }
+        TreeStmt::Destructure { pat, init, .. } => {
+            collect_tree_expr_idents(body, *init, syms);
+            remove_tree_pattern_binders(pat, body, syms);
+        }
+        TreeStmt::Assign { place, value } => {
+            collect_tree_place_idents(body, place, syms);
+            collect_tree_expr_idents(body, *value, syms);
+        }
+        TreeStmt::Return(v) => {
+            if let Some(e) = v {
+                collect_tree_expr_idents(body, *e, syms);
+            }
+        }
+        TreeStmt::Break | TreeStmt::Continue => {}
+    }
+}
+
+/// 赋值目标中的标识符（AST 路径 scan_assign_target_idents 的镜像：Ident 目标
+/// 计入自由变量——对外层变量的赋值即捕获）。
+fn collect_tree_place_idents(
+    body: &TreeBody,
+    place: &scoop2_hir::hir::tree::TreePlace,
+    syms: &mut std::collections::HashSet<scoop2_base::Symbol>,
+) {
+    use scoop2_hir::hir::tree::TreePlace;
+    match place {
+        TreePlace::Local(local) => {
+            syms.insert(body.locals[local.0 as usize].name);
+        }
+        TreePlace::TopLevelVar { fqn } => {
+            syms.insert(*fqn);
+        }
+        TreePlace::MemberField { recv, .. } => collect_tree_expr_idents(body, *recv, syms),
+    }
+}
+
+fn collect_tree_expr_idents(
+    body: &TreeBody,
+    expr: ExprId,
+    syms: &mut std::collections::HashSet<scoop2_base::Symbol>,
+) {
+    match &body.exprs[expr.0 as usize].kind {
+        TreeExprKind::Lit(_) => {}
+        TreeExprKind::LocalRef(local) => {
+            syms.insert(body.locals[local.0 as usize].name);
+        }
+        // 顶层 val 引用在 AST 路径以 Ident 形态入集（随后被 symbol_locals 过滤）；
+        // 插入 fqn 符号以镜像该集合语义（遮蔽形态的过捕获 quirk 一并保留）。
+        TreeExprKind::TopLevelValRef { fqn } => {
+            syms.insert(*fqn);
+        }
+        TreeExprKind::Call { callee, args } => {
+            collect_tree_callee_idents(body, callee, syms);
+            for &arg in args {
+                collect_tree_expr_idents(body, arg, syms);
+            }
+        }
+        TreeExprKind::Member { recv, .. } | TreeExprKind::SafeMember { recv, .. } => {
+            collect_tree_expr_idents(body, *recv, syms);
+        }
+        TreeExprKind::Block(b) => collect_tree_block_idents(body, *b, syms),
+        TreeExprKind::If { cond, then, else_ } => {
+            collect_tree_expr_idents(body, *cond, syms);
+            collect_tree_expr_idents(body, *then, syms);
+            if let Some(eb) = else_ {
+                collect_tree_expr_idents(body, *eb, syms);
+            }
+        }
+        TreeExprKind::While {
+            cond,
+            body: loop_body,
+        } => {
+            collect_tree_expr_idents(body, *cond, syms);
+            collect_tree_block_idents(body, *loop_body, syms);
+        }
+        TreeExprKind::Tuple(els) | TreeExprKind::ArrayLit(els) => {
+            for &e in els {
+                collect_tree_expr_idents(body, e, syms);
+            }
+        }
+        TreeExprKind::When { subject, arms } => {
+            collect_tree_expr_idents(body, *subject, syms);
+            for arm in arms {
+                if let Some(guard) = arm.guard {
+                    collect_tree_expr_idents(body, guard, syms);
+                }
+                collect_tree_expr_idents(body, arm.body, syms);
+            }
+        }
+        TreeExprKind::Lambda { params, body: lb } => {
+            // 嵌套 lambda：收集其自由变量后减去其自身参数。
+            for s in collect_tree_lambda_free_vars(body, params, lb) {
+                syms.insert(s);
+            }
+        }
+        TreeExprKind::Handle {
+            body: hb, finally_, ..
+        } => {
+            collect_tree_block_idents(body, *hb, syms);
+            if let Some(f) = finally_ {
+                collect_tree_block_idents(body, *f, syms);
+            }
+        }
+        TreeExprKind::WithUpdate { base, updates } => {
+            collect_tree_expr_idents(body, *base, syms);
+            for (_, v) in updates {
+                collect_tree_expr_idents(body, *v, syms);
+            }
+        }
+        TreeExprKind::LogicalAnd { lhs, rhs } | TreeExprKind::LogicalOr { lhs, rhs } => {
+            collect_tree_expr_idents(body, *lhs, syms);
+            collect_tree_expr_idents(body, *rhs, syms);
+        }
+        TreeExprKind::InterpolatedString { parts } => {
+            for p in parts {
+                if let scoop2_hir::hir::tree::InterpPart::Expr(e) = p {
+                    collect_tree_expr_idents(body, *e, syms);
+                }
+            }
+        }
+        TreeExprKind::StructLit { fields, .. } => {
+            for (_, v) in fields {
+                collect_tree_expr_idents(body, *v, syms);
+            }
+        }
+        TreeExprKind::Cast { expr, .. }
+        | TreeExprKind::NotNullAssert { expr }
+        | TreeExprKind::TypeCheck { expr, .. } => {
+            collect_tree_expr_idents(body, *expr, syms);
+        }
+    }
+}
+
+/// callee 中的标识符（AST 路径扫描 callee 表达式的镜像：以 Ident/MemberAccess
+/// 形态出现后经 symbol_locals 过滤——保留同样的集合语义）。
+fn collect_tree_callee_idents(
+    body: &TreeBody,
+    callee: &TreeCallee,
+    syms: &mut std::collections::HashSet<scoop2_base::Symbol>,
+) {
+    match callee {
+        TreeCallee::TopLevel { fqn, .. } | TreeCallee::Ctor { type_fqn: fqn, .. } => {
+            syms.insert(*fqn);
+        }
+        TreeCallee::Method { recv, .. } => collect_tree_expr_idents(body, *recv, syms),
+        TreeCallee::Variant {
+            enum_fqn,
+            variant,
+            qualified,
+        } => {
+            if *qualified {
+                syms.insert(*enum_fqn);
+            } else {
+                syms.insert(*variant);
+            }
+        }
+        TreeCallee::LocalValue { local } => {
+            syms.insert(body.locals[local.0 as usize].name);
+        }
+        TreeCallee::FunValue { callee } => collect_tree_expr_idents(body, *callee, syms),
+        TreeCallee::EffectOp { effect, .. } => {
+            syms.insert(*effect);
+        }
+        TreeCallee::InitCall { .. } => {}
+    }
+}
+
+/// 模式绑定名从自由变量集合中移除（AST 路径 remove_pattern_binders 的镜像）。
+fn remove_tree_pattern_binders(
+    pat: &TreePattern,
+    body: &TreeBody,
+    syms: &mut std::collections::HashSet<scoop2_base::Symbol>,
+) {
+    match pat {
+        TreePattern::Wildcard
+        | TreePattern::Else
+        | TreePattern::Literal(_)
+        | TreePattern::Is { .. } => {}
+        TreePattern::Binder(local) => {
+            syms.remove(&body.locals[local.0 as usize].name);
+        }
+        TreePattern::Tuple(els) | TreePattern::Or(els) => {
+            for e in els {
+                remove_tree_pattern_binders(e, body, syms);
+            }
+        }
+        TreePattern::Variant { args, .. } => {
+            for a in args {
+                remove_tree_pattern_binders(a, body, syms);
+            }
+        }
+    }
 }
