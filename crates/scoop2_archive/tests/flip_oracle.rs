@@ -96,7 +96,10 @@ fn tree_module_determinism_corpus() {
             ));
         }
     }
-    eprintln!("tree-determinism: compared={compared} diffs={}", diffs.len());
+    eprintln!(
+        "tree-determinism: compared={compared} diffs={}",
+        diffs.len()
+    );
     for d in diffs.iter().take(8) {
         eprintln!("  NDIFF {d}");
     }

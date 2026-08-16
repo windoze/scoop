@@ -154,17 +154,13 @@ fn sorted_file_names(dir: &std::path::Path) -> Vec<String> {
 ///（序列化保真 + 字节确定）。
 #[test]
 fn mir_archive_round_trip() {
-    let source =
-        scoop2_base::SourceFile::load(&fixture("arithmetic.scoop")).expect("fixture 存在");
+    let source = scoop2_base::SourceFile::load(&fixture("arithmetic.scoop")).expect("fixture 存在");
     let mut program = build_program(&source);
     let hir = typecheck_program(&mut program, None).expect("typecheck");
 
     let (_, mat) = v0::run_mir_and_dump(&hir).expect("MIR 阶段应成功");
     let members = vec!["test.cone".to_string()];
-    let dir = std::env::temp_dir().join(format!(
-        "scoop2-mirarch-{}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("scoop2-mirarch-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     v0::write_mir_archive(&dir, &hir, &mat, &members, &[]).expect("写 MIR archive");
 

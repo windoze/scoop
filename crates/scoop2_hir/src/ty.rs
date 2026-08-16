@@ -625,6 +625,36 @@ impl TypeStore {
         self.dedup.get(kind).map(|&idx| TypeId(idx))
     }
 
+    /// 写侧切分（C2）：剥离全部类型 kinds（dedup 同步清空），保留
+    /// param_decls / lang FQN 注入——共享段序列化面由此缩到纯表数据；
+    /// 装配重放（[`Self::replay_type`]）按 archive 的 cone 空间重建 kinds。
+    pub fn strip_kinds(&mut self) {
+        self.kinds.clear();
+        self.dedup.clear();
+    }
+
+    /// 装配重放（C2 per-cone arena）：在**指定下标**恢复一个类型——要求
+    /// `id == kinds.len()`（升序重放；组合类型只引用更小 id 的不变量保证
+    /// kind 内嵌 id 已有效）。同构已存在时校验指向同一 id（否则 archive
+    /// 损坏）。跨会话漂移由调用方（装配器）以 global id 对齐保证。
+    pub fn replay_type(&mut self, id: TypeId, kind: TypeKind) {
+        if let Some(&existing) = self.dedup.get(&kind) {
+            if existing == id.0 {
+                return;
+            }
+            // 同构但 id 不同：写出会话的 id 分配与当前重放态不一致——
+        }
+        assert_eq!(
+            id.0 as usize,
+            self.kinds.len(),
+            "archive 重放漂移：TypeId {} 不连续（当前长度 {}）",
+            id.0,
+            self.kinds.len()
+        );
+        self.kinds.push(kind.clone());
+        self.dedup.insert(kind, id.0);
+    }
+
     /// 取一个 id 的种类。`id` 必须由本 store 的 [`intern`][Self::intern] 产出。
     pub fn kind(&self, id: TypeId) -> &TypeKind {
         &self.kinds[id.0 as usize]

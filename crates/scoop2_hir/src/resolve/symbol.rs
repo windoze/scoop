@@ -22,8 +22,8 @@ use crate::syntax::ast::{Modifier, ModifierKind};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct ConeId(pub u32);
 
-/// Cone 种类（影响可见性与链接语义）。
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+/// Cone 种类（影响可见性与链接语义）。派生 Ord 供稳定排序（C2 ConeId 派生）。
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum ConeKind {
     /// 可执行二进制（含 entry point）。
     Bin,

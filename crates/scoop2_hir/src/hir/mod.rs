@@ -18,9 +18,9 @@
 
 pub mod element;
 pub mod facts;
+pub mod lang_items;
 pub mod render;
 mod serde_impl;
-pub mod lang_items;
 pub mod tree;
 pub mod type_info;
 

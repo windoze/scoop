@@ -8,5 +8,6 @@
 //! 本 crate 是「每阶段只依赖上一阶段产出」纪律（PLAN.md C1/C8）的落地点：
 //! `mir build` 只读取 HIR archive collection，不读源文件 / 不重新 parse。
 
+pub mod cone_arena;
 pub mod pipeline;
 pub mod v0;

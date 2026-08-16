@@ -94,6 +94,11 @@ impl<T> NodeIdTable<T> {
         self.slots.iter().filter(|o| o.is_some()).count()
     }
 
+    /// 全部值迭代（per-cone arena 收集用——不暴露 NodeId）。
+    pub fn values(&self) -> impl Iterator<Item = &T> {
+        self.slots.iter().flatten()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }

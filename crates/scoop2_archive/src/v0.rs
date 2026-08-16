@@ -23,8 +23,8 @@ use serde::{Deserialize, Serialize};
 
 use scoop2_base::diag::Diagnostic;
 use scoop2_base::{FileId, StableConeKey, archive_fingerprint, archive_schema, compiler_version};
-use scoop2_hir::hir::TypedHir;
 use scoop2_hir::hir::TypedFile;
+use scoop2_hir::hir::TypedHir;
 use scoop2_hir::resolve::{InputOrigin, cone_name_of};
 
 use crate::pipeline::BuiltProgram;
@@ -64,17 +64,25 @@ pub struct HirConeArchive {
     pub files: Vec<ArchivedFile>,
     /// 本 cone 的 typed 文件（per-cone 分区；装配时按 file_id 归并）。
     pub typed_files: Vec<TypedFile>,
+    /// 本 cone 的符号/类型 id 空间（C2：per-cone arena——条目带稳定 key；
+    /// 跨 cone 引用 = (cone_key, 稳定 key)，装配期按稳定 key 合并）。
+    pub arena: crate::cone_arena::ConeArena,
 }
 
-/// collection 清单 + 共享段（v0）。
+/// collection 清单 + 共享段（v1.1：**interner/store 已切分**——各 cone 的
+/// 符号/类型空间在 cone archive；共享段只保留声明表 + 表自身用量的
+/// 符号/类型迷你空间，装配期与 cone 空间合并重放）。
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HirCollection {
     /// 成员 cone 稳定 key（升序）。
     pub members: Vec<String>,
     /// 影响产出的全局参数（键值对，按键排序参与指纹）。
     pub params: Vec<(String, String)>,
-    /// 共享段：完整 TypedHir（内含 interner 与 per-file 表）。
+    /// 共享段：TypedHir（**interner 已清空、store kinds 已剥离**——序列化面
+    /// 不含全局 arena；声明表 id 在装配重放后有效）。
     pub hir: TypedHir,
+    /// 共享表用量的符号/类型空间（与 cone arena 同构；装配合并重放）。
+    pub shared_arena: crate::cone_arena::ConeArena,
 }
 
 /// archive 装配 / 读写错误。
@@ -93,6 +101,8 @@ pub enum ArchiveError {
     UnlistedMember(String),
     /// file_id 冲突（同一 FileId 出现在多个文件中）。
     DuplicateFileId(FileId),
+    /// 装配重放失败（id 空间冲突 / 跨会话漂移——C2）。
+    Replay(String),
 }
 
 impl std::fmt::Display for ArchiveError {
@@ -108,6 +118,9 @@ impl std::fmt::Display for ArchiveError {
                 write!(f, "目录存在清单未声明的 archive: {m}.hirarch")
             }
             ArchiveError::DuplicateFileId(id) => write!(f, "file_id 冲突: {}", id.0),
+            ArchiveError::Replay(detail) => {
+                write!(f, "装配重放失败（id 空间冲突/漂移）: {detail}")
+            }
         }
     }
 }
@@ -198,6 +211,11 @@ pub fn write_hir_collection(
     }
 
     // per-cone 分区：TypedFile（file_id → 所属 cone）随 cone archive 携带。
+    // covered_*：cone 空间累计覆盖（共享 arena 承担补集——重放连续性）。
+    let mut covered_syms: std::collections::BTreeSet<scoop2_base::Symbol> =
+        std::collections::BTreeSet::new();
+    let mut covered_tys: std::collections::BTreeSet<scoop2_hir::ty::TypeId> =
+        std::collections::BTreeSet::new();
     let mut typed_by_cone: BTreeMap<String, Vec<TypedFile>> = BTreeMap::new();
     {
         let mut id_to_cone: std::collections::HashMap<FileId, String> =
@@ -235,6 +253,22 @@ pub fn write_hir_collection(
                 params,
             ),
         };
+        // C2：本 cone 的符号/类型 id 空间（typed 文件用量 + 类型结构闭包）。
+        let (usage_syms, usage_tys) = {
+            let mut syms = std::collections::BTreeSet::new();
+            let mut tys = std::collections::BTreeSet::new();
+            for tf in typed_by_cone.get(cone_key).into_iter().flatten() {
+                let (fs, ft) =
+                    crate::cone_arena::collect_typed_file_usage(tf, &hir.store, &hir.interner);
+                syms.extend(fs);
+                tys.extend(ft);
+            }
+            covered_syms.extend(syms.iter().copied());
+            covered_tys.extend(tys.iter().copied());
+            (syms, tys)
+        };
+        let arena =
+            crate::cone_arena::build_cone_arena(&usage_syms, &usage_tys, &hir.store, &hir.interner);
         let path = dir.join(format!("{cone_key}.{CONE_EXT}"));
         write_bytes(
             &path,
@@ -242,12 +276,15 @@ pub fn write_hir_collection(
                 header,
                 files: files.clone(),
                 typed_files: typed_by_cone.get(cone_key).cloned().unwrap_or_default(),
+                arena,
             })?,
         )?;
         written.push(path);
     }
 
-    // 共享段剔除已分区文件（v1：共享段只剩符号/类型表 + 未分区残余）。
+    // 共享段剔除已分区文件（v1.1：共享段只剩声明表 + 未分区残余；**interner
+    // 与 store kinds 切出**——各 cone 的符号/类型空间在 cone archive，共享表
+    // 用量由 shared arena 承载；装配重放重建后回填）。
     let mut shared_hir = hir.clone();
     let partitioned: std::collections::HashSet<FileId> = typed_by_cone
         .values()
@@ -256,10 +293,21 @@ pub fn write_hir_collection(
     shared_hir
         .files
         .retain(|tf| !partitioned.contains(&tf.file_id));
+    let (shared_syms, shared_tys) = crate::cone_arena::collect_shared_usage(
+        hir,
+        &shared_hir.files,
+        &covered_syms,
+        &covered_tys,
+    );
+    let shared_arena =
+        crate::cone_arena::build_cone_arena(&shared_syms, &shared_tys, &hir.store, &hir.interner);
+    shared_hir.store.strip_kinds();
+    shared_hir.interner = scoop2_base::Interner::new();
     let collection = HirCollection {
         members: by_cone.keys().cloned().collect(),
         params: params.to_vec(),
         hir: shared_hir,
+        shared_arena,
     };
     let manifest_path = dir.join(COLLECTION_FILE);
     write_bytes(&manifest_path, &encode(&collection)?)?;
@@ -332,6 +380,7 @@ pub fn load_hir_collection(dir: &Path) -> Result<LoadedCollection, ArchiveError>
 
     let mut files: Vec<ArchivedFile> = Vec::new();
     let mut cone_typed_files: Vec<TypedFile> = Vec::new();
+    let mut cone_arenas: Vec<crate::cone_arena::ConeArena> = Vec::new();
     let mut hir = collection.hir;
     for member in &collection.members {
         let path = dir.join(format!("{member}.{CONE_EXT}"));
@@ -376,6 +425,19 @@ pub fn load_hir_collection(dir: &Path) -> Result<LoadedCollection, ArchiveError>
         }
         files.extend(archive.files);
         cone_typed_files.extend(archive.typed_files);
+        cone_arenas.push(archive.arena);
+    }
+
+    // C2 装配重放：全部 id 空间（cone + 共享表）按 global id 升序重放进
+    // merged interner/store——跨 cone 稳定 key 一致性在此校验（冲突即
+    // archive 损坏，装配是全管线唯一可失败解析点）。
+    {
+        let mut arenas: Vec<&crate::cone_arena::ConeArena> = cone_arenas.iter().collect();
+        arenas.push(&collection.shared_arena);
+        let mut keys: Vec<String> = collection.members.clone();
+        keys.push("__shared__".to_string());
+        crate::cone_arena::replay_arenas(&arenas, &keys, &mut hir.interner, &mut hir.store)
+            .map_err(ArchiveError::Replay)?;
     }
 
     // file_id 去重 + 排序（恢复原 parse 序）。
@@ -505,7 +567,10 @@ pub fn run_mir_and_dump(
         return Err(StageError::Mir(lower_diags.into_vec()));
     }
     let mat_errors = mir::verify::verify_materialized_with_external(
-        &monomorph.as_ref().expect("materialize 已成功（错误路径已 return）").module,
+        &monomorph
+            .as_ref()
+            .expect("materialize 已成功（错误路径已 return）")
+            .module,
         &external_symbols,
     );
     if !mat_errors.is_empty() {

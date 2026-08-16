@@ -3882,8 +3882,7 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                         self.env.store.unit()
                     }
                 }
-            }
-            // 反射形式 `value.["field"]` / `value.[name]`。
+            } // 反射形式 `value.["field"]` / `value.[name]`。
         }
     }
 
@@ -5880,19 +5879,11 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 let explicit_tys: Vec<TypeId> = explicit_type_args
                     .iter()
                     .filter_map(|a| match &a.kind {
-                        crate::syntax::ast::TypeArgKind::Type(t) => {
-                            Some(self.lower_type(t))
-                        }
+                        crate::syntax::ast::TypeArgKind::Type(t) => Some(self.lower_type(t)),
                         _ => None,
                     })
                     .collect();
-                self.check_generic_call_constraints_ex(
-                    fqn,
-                    &sig,
-                    &arg_types,
-                    &explicit_tys,
-                    span,
-                );
+                self.check_generic_call_constraints_ex(fqn, &sig, &arg_types, &explicit_tys, span);
                 self.check_eff_param_args(&sig, &arg_types, args, span);
                 self.record_callee_effects(&sig, args, span);
                 // 显式类型实参优先替换返回类型中的类型参数。

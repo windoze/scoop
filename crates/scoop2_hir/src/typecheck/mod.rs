@@ -67,8 +67,18 @@ pub fn run_typecheck_with_options(
     };
     use crate::syntax::ast::File;
 
-    // ---- Phase 1：收集所有 header ----
+    // ---- Phase 0：cone 注册（C2：按稳定 key 排序——ConeId 从包名派生，
+    // 与文件顺序无关；跨构建同输入集分配一致）----
     let mut index = Index::new();
+    index.intern_cones_sorted(inputs.iter().map(|inp| {
+        let cone_name = crate::resolve::cone_name_of(inp.file, interner, inp.origin);
+        let cone_kind = match inp.origin {
+            InputOrigin::User => ConeKind::Bin,
+            InputOrigin::Sysroot => ConeKind::Syslib,
+        };
+        (cone_name, cone_kind)
+    }));
+    // ---- Phase 1：收集所有 header（intern_cone 幂等复用 Phase 0 的稳定 id）----
     for inp in inputs.iter() {
         let cone_name = crate::resolve::cone_name_of(inp.file, interner, inp.origin);
         let cone_kind = match inp.origin {

@@ -93,6 +93,33 @@ impl Index {
         &self.cones[id.0 as usize]
     }
 
+    /// 按稳定 key 排序批量预注册 cone（C2：**ConeId 从包名等稳定输入派生，
+    /// 禁止注册顺序**——PLAN 点名的 `intern_cone` 顺序分配违反在此修复）。
+    ///
+    /// 排序键 =（StableConeKey, 名字, ConeKind 序）——同一输入集合无论文件
+    /// 顺序如何，ConeId 分配一致；后续 `intern_cone` 调用按名复用（幂等）。
+    /// 同名冲突时 kind 取首次出现（与单序注册语义一致）。
+    pub fn intern_cones_sorted<I: IntoIterator<Item = (String, ConeKind)>>(&mut self, cones: I) {
+        // 去重（保首见 kind）。
+        let mut seen: std::collections::HashMap<String, ConeKind> =
+            std::collections::HashMap::new();
+        for (name, kind) in cones {
+            seen.entry(name).or_insert(kind);
+        }
+        let mut list: Vec<(String, ConeKind)> = seen.into_iter().collect();
+        list.sort_by(|(a, ka), (b, kb)| {
+            let sa = scoop2_base::StableConeKey::from_cone_name(a);
+            let sb = scoop2_base::StableConeKey::from_cone_name(b);
+            sa.as_str()
+                .cmp(sb.as_str())
+                .then_with(|| a.cmp(b))
+                .then_with(|| ka.cmp(kb))
+        });
+        for (name, kind) in list {
+            self.intern_cone(&name, kind);
+        }
+    }
+
     /// 记录文件所属 cone。
     pub fn set_file_cone(&mut self, file: FileId, cone: ConeId) {
         self.file_cone.insert(file, cone);
@@ -394,6 +421,27 @@ mod tests {
             visibility: Visibility::Public,
             modifiers: ModifierSet::default(),
         }
+    }
+
+    #[test]
+    fn cone_ids_derive_from_stable_keys_not_order() {
+        // C2：ConeId 从包名派生——不同注册顺序（文件顺序）得到相同分配。
+        use super::*;
+        let a = ["alpha", "zeta", "mid"];
+        let b = ["zeta", "mid", "alpha"];
+        let mut idx1 = Index::new();
+        idx1.intern_cones_sorted(a.iter().map(|&n| (n.to_string(), ConeKind::Bin)));
+        let mut idx2 = Index::new();
+        idx2.intern_cones_sorted(b.iter().map(|&n| (n.to_string(), ConeKind::Bin)));
+        for name in a {
+            let id1 = idx1.cone_by_name[name];
+            let id2 = idx2.cone_by_name[name];
+            assert_eq!(id1, id2, "cone {name} 的 ConeId 应与注册顺序无关");
+        }
+        // 分配按 stable key 排序：alpha < mid < zeta → 0,1,2。
+        assert_eq!(idx1.cone_by_name["alpha"], ConeId(0));
+        assert_eq!(idx1.cone_by_name["mid"], ConeId(1));
+        assert_eq!(idx1.cone_by_name["zeta"], ConeId(2));
     }
 
     #[test]

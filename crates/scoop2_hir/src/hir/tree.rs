@@ -1009,13 +1009,11 @@ impl<'a> TreeBuilder<'a> {
             .unwrap_or(self.unit_ty);
         match &expr.kind {
             ExprKind::UnitLit => Some(self.push_expr(TreeExprKind::Lit(Lit::Unit), lit_ty, span)),
-            ExprKind::IntLit(l) => {
-                Some(self.push_expr(
-                    TreeExprKind::Lit(Lit::Int(l.value, l.suffix.map(tree_int_suffix))),
-                    lit_ty,
-                    span,
-                ))
-            }
+            ExprKind::IntLit(l) => Some(self.push_expr(
+                TreeExprKind::Lit(Lit::Int(l.value, l.suffix.map(tree_int_suffix))),
+                lit_ty,
+                span,
+            )),
             ExprKind::FloatLit(l) => {
                 Some(self.push_expr(TreeExprKind::Lit(Lit::Float(l.value)), lit_ty, span))
             }

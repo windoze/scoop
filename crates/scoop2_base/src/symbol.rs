@@ -87,6 +87,14 @@ impl Interner {
         self.strings.get(sym.as_usize()).map(|s| &**s)
     }
 
+    /// 全部 (id, 文本) 按 id 升序迭代（archive 补集计算用——C2）。
+    pub fn iter_by_id(&self) -> impl Iterator<Item = (Symbol, &str)> {
+        self.strings
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (Symbol(i as u32), t.as_ref()))
+    }
+
     pub fn len(&self) -> usize {
         self.strings.len()
     }
