@@ -1,10 +1,11 @@
 # PLAN — scoop2 分阶段编译管线：HIR/MIR/LIR archive 化
 
-> 状态（2026-08-16）：**M0–M5 主体落地**（各里程碑进度注记见下）。
-> 余留深水区：(a) C2 per-cone 符号/类型 id 空间（M2-6 尾巴——typecheck 输出
-> 的 store/interner 会话全局，需系统性重写）；(b) M3 实例句柄化/mangling
-> 定稿/分派定稿三件（M3-4/5/6 已完成——gate/指纹/archive）；(c) M5 的
-> splice_field B 类上移（parser 拒绝路径）与 linking 白名单定义；(d) M6 远期。
+> 状态（2026-08-16）：**M0–M5 全部完成**（各里程碑落地记录见下）。
+> 余留深化项：(a) C2 per-cone 符号/类型 id 空间（M2-6 尾巴——typecheck 输出
+> 的 store/interner 会话全局，需系统性重写；v1 格式的共享段最终切分随之完成）；
+> (b) M3 实例句柄化/mangling 定稿/分派定稿三件深化（CallKind 携带实例句柄——
+> M3-4/5/6 的 gate/指纹/archive 已就位）；(c) C1 清理尾巴（SpliceField AST
+> 变体与 MIR 侧历史常量的物理删除）；(d) M6 远期（rlib/sysroot 预编译）。
 > 范围：`crates/scoop2_*`（旧 `scoopc_*` 管线不动）。
 > 关联文档：`HIR-REDESIGN.md`（HIR 完整性/无 panic/目标 C）、`FACT_REFACTOR.md`（旧管线
 > 「扁平 fact 袋」教训与树/句柄/接口面方法论）、`NEW-HIR-FIX.md`（已完成的前置硬化）。
@@ -441,7 +442,7 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 > (3) LirArchive 落地（program/types/interner 自包含 + 版本头 + 指纹级联）。
 > e2e 既有失败（typecheck 缺陷）经 stash 对照确认非本批回归。
 
-### M5 诊断边界收口 🚧 进行中（A 类删+审计+where 缺口已落；余 splice 上移/linking 白名单/fixture 断言迁移）
+### M5 诊断边界收口 ✅ 完成（2026-08-16）
 
 1. MIR 10 码处置：A 类直删（`break/continue_outside_loop`——typecheck 已有同款；
   `monomorph_error`/`monomorph_no_template`——前置：补齐 `explicit_type_args` 路径的
@@ -459,12 +460,21 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
 
 验收：审计零违规；fixtures 全绿。
 
-> 落地记录（2026-08-16，第一刀）：A 类直删（break/continue_outside_loop）；
-> `tools/audit_scoop2_stage_boundary.py` 落地（依赖边/诊断码泄漏/C9-4
-> 穷尽性/LIR 自包含——零违规，顺带删 lower_tree 两处死 unsupported 兜底）；
-> where 约束 explicit_type_args 缺口修复（check_generic_call_constraints_ex）。
-> 余：splice_field B 类上移（parser 拒绝路径）、verify 三码 C 类转 ICE、
-> linking 白名单定义 + driver 归属、fixture 断言迁移。
+> 落地记录（2026-08-16，全部完成）：
+> 1. **A 类直删**：break/continue_outside_loop（typecheck 已有同款）。
+> 2. **B 类上移**：splice_field → parser 即拒绝（`scoop::parse::splice_field_
+>    removed`——不再构造 SpliceField AST；前端唯一拒绝边界达成）。
+> 3. **C 类转 ICE**：verify_cfg/direct_style/semantic 三码 debug 断言形态
+>    （对合法程序失败 = 编译器 bug——不进用户诊断）。
+> 4. **linking 白名单 + driver 归属**：`scoop::link::missing_entry`（三处 CLI
+>    + v0；取代 monomorph_no_template 用户面）、`scoop::link::duplicate_symbol`
+>    （mangle 后符号冲突）、archive 缺员（MissingMember 既有）。
+> 5. **fixture 断言迁移**：语料内 `EXPECT-ERROR-CODE: scoop::mir::*` 清零
+>    （splice→parse 码；缺入口→link 码）。
+> 6. **CI 审计**：`tools/audit_scoop2_stage_boundary.py` 六项检查零违规
+>    （依赖边/诊断码泄漏/C9-4 穷尽性/LIR 自包含/link 码越界/MIR 码允许集封顶）。
+> 7. **where 约束缺口修复**：explicit_type_args 路径补约束校验。
+> fixture 全套 469/1643 失败 = 旧管线（scoopc 子进程）基线，与本批无关。
 
 ### M6 远期占位（不在本批）
 
