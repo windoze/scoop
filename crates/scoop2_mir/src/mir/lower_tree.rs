@@ -873,27 +873,6 @@ fn lower_tree_call(
         TreeCallee::Method { recv, .. } => Some(lower_tree_expr(builder, body, *recv)),
         _ => None,
     };
-    // 限定名 variant 的 callee 死语句镜像（AST 路径先 lower `Color.Red` 的
-    // callee，产生 Unit temp + UnresolvedName(receiver 名)——字节一致保留；
-    // C1 清理时与 AST 路径一并删除）。
-    if let TreeCallee::Variant {
-        enum_fqn,
-        qualified: true,
-        ..
-    } = callee
-    {
-        let unit = builder.types.unit();
-        let dead = builder.alloc_temp(unit, span);
-        let recv_name = builder
-            .hir
-            .interner
-            .resolve(*enum_fqn)
-            .rsplit('.')
-            .next()
-            .unwrap_or_default()
-            .to_string();
-        builder.assign(dead, Rvalue::UnresolvedName { name: recv_name }, span);
-    }
     let arg_ops: Vec<Operand> = args
         .iter()
         .map(|&e| lower_tree_expr(builder, body, e))
