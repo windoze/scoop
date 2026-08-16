@@ -1563,6 +1563,8 @@ pub fn lower_tree_initializer(
             is_var: tree.val_init.unwrap_or(false),
             body,
             file: file_id,
+            // lowering 阶段留空；materialize 定稿（M3-2）。
+            symbol: String::new(),
         },
         types_out,
     ))

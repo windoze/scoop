@@ -449,7 +449,7 @@ impl<'a> Parser<'a> {
         // 「HIR 是唯一前端拒绝边界」）。
         if self.at_sym(Symbol::LBracket) {
             let open = self.bump();
-            let field = self.expr()?;
+            let _field = self.expr()?;
             if self.at_eof() {
                 return Err(self.err_unclosed(open.span.start, "`]`"));
             }

@@ -417,6 +417,27 @@ pub fn materialize(
     crate::mir::effect_lower::lower_effects(&mut result_module, &hir.interner);
     // 为所有顶层函数计算 stable template key（供分离编译）。
     crate::mir::stable_id::compute_public_stable_keys(&mut result_module, &hir.interner);
+    // mangling 定稿（M3-2）：非泛型实例补 `mangle(fqn, stable_template_key)`；
+    // 泛型实例已带 `compute_instance_symbol`。Initializer 符号一并定稿——
+    // LIR/codegen 从此纯读（archive 携带定稿值）。
+    for item in &mut result_module.items {
+        match item {
+            crate::mir::Item::Fun(fd) => {
+                if fd.instance_symbol.is_none() {
+                    fd.instance_symbol = Some(crate::mir::stable_id::mangle_symbol(
+                        &fd.fqn,
+                        &fd.stable_template_key,
+                    ));
+                }
+            }
+            crate::mir::Item::Initializer(ir) => {
+                if ir.symbol.is_empty() {
+                    ir.symbol = crate::mir::stable_id::mangle_symbol(&ir.fqn, &None);
+                }
+            }
+            _ => {}
+        }
+    }
     // 无泛型出口 gate（M3-4，ICE 级）：实例体内不得残留 TypeParam——违反即
     // materialize 类型替换不完备（编译器 bug，bug 通道而非用户诊断，C5）。
     no_generics_gate(&result_module, &work.store);

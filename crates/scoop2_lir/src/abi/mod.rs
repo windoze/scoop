@@ -19,14 +19,6 @@ const INDIRECT_THRESHOLD: u64 = 16;
 /// 规则：
 /// - FQN 中的点 `.` 替换为下划线 `_`；
 /// - 若存在 stable_template_key，追加 stable key 的 hash（去重）。
-pub fn mangle_symbol(fqn: &str, stable_key: &Option<StableTemplateKey>) -> String {
-    let base = fqn.replace('.', "_");
-    match stable_key {
-        Some(key) if !key.hash.is_empty() => format!("{}_{}", base, key.hash),
-        _ => base,
-    }
-}
-
 /// 计算单个类型的参数 ABI。
 ///
 /// - 标量 / 引用 / 函数值：Direct（按值传）。

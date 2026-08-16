@@ -212,6 +212,10 @@ pub struct InitializerRoot {
     pub is_var: bool,
     pub body: Body,
     pub file: FileId,
+    /// 定稿 codegen 符号（M3-2：mangle 结果由 MIR materialize 写入——
+    /// LIR/codegen 纯读，不重算）。
+    #[serde(default)]
+    pub symbol: String,
 }
 
 /// extern 全局符号。

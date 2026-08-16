@@ -283,10 +283,9 @@ fn map_callable(
     global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
     dispatch_slots: &DispatchSlotTables,
 ) -> Result<LirCallable, LirError> {
-    let symbol_name = fd
-        .instance_symbol
-        .clone()
-        .unwrap_or_else(|| abi::mangle_symbol(&fd.fqn, &fd.stable_template_key));
+    // M3-2：mangling 已在 MIR 定稿（instance_symbol 必有值——无泛型出口
+    // gate 之后 materialize 全量补齐）；LIR 纯读。
+    let symbol_name = fd.instance_symbol.clone().unwrap_or_else(|| fd.fqn.replace('.', "_"));
     let abi_kind = if fd.effect_abi.is_some() {
         LirCallableAbi::EffectStep
     } else {
@@ -382,7 +381,11 @@ fn map_initializer(
     global_types: &std::collections::HashMap<String, scoop2_mir::ty::TypeId>,
     dispatch_slots: &DispatchSlotTables,
 ) -> Result<LirCallable, LirError> {
-    let symbol_name = abi::mangle_symbol(&ir.fqn, &None);
+    let symbol_name = if ir.symbol.is_empty() {
+        ir.fqn.replace('.', "_")
+    } else {
+        ir.symbol.clone()
+    };
     let body = map_body(
         &ir.body,
         layouts,

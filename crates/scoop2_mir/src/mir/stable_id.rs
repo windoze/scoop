@@ -104,6 +104,17 @@ pub fn build_overload_sig(
 /// 4. 填充 `FunDecl.stable_template_key`。
 ///
 /// 这确保即使函数未被调用（public API），也有 stable key 供分离编译使用。
+/// mangle 定稿（M3-2）：FQN → codegen 符号名（点 → 下划线 + stable key
+/// hash 后缀）。**MIR 侧唯一计算点**——结果经 `instance_symbol` 进 archive，
+/// LIR/codegen 纯读。
+pub fn mangle_symbol(fqn: &str, stable_key: &Option<StableTemplateKey>) -> String {
+    let base = fqn.replace('.', "_");
+    match stable_key {
+        Some(key) if !key.hash.is_empty() => format!("{}_{}", base, key.hash),
+        _ => base,
+    }
+}
+
 pub fn compute_public_stable_keys(module: &mut crate::mir::Module, interner: &Interner) {
     let store = &module.types;
     for item in &mut module.items {

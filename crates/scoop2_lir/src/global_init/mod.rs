@@ -24,7 +24,12 @@ pub fn plan_global_init(
     let mut entries: Vec<GlobalInitEntry> = Vec::new();
     for item in &mir.module.items {
         if let Item::Initializer(ir) = item {
-            let init_callable = abi::mangle_symbol(&ir.fqn, &None);
+            // M3-2：MIR 定稿符号（纯读）。
+            let init_callable = if ir.symbol.is_empty() {
+                ir.fqn.replace('.', "_")
+            } else {
+                ir.symbol.clone()
+            };
             entries.push(GlobalInitEntry {
                 fqn: ir.fqn.clone(),
                 ty: ir.ty,
