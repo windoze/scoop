@@ -1,11 +1,9 @@
 # PLAN — scoop2 分阶段编译管线：HIR/MIR/LIR archive 化
 
-> 状态（2026-08-16）：**M0–M5 全部完成**（各里程碑落地记录见下）。
-> 余留深化项：(a) C2 per-cone 符号/类型 id 空间（M2-6 尾巴——typecheck 输出
-> 的 store/interner 会话全局，需系统性重写；v1 格式的共享段最终切分随之完成）；
-> (b) C1 清理尾巴（SpliceField AST 变体、UnresolvedName/UnresolvedCall 镜像
-> 词汇与 MIR 侧历史常量的物理删除——parser 拒绝后死路径）；(c) M6 远期
->（rlib/sysroot 预编译）。
+> 状态（2026-08-16）：**M0–M5 全部完成，深化项 C1/C2 亦已落地**（记录见下）。
+> 余留：(a) UnresolvedName-for-extension-`this` 的语言级建模（扩展接收者
+> 隐式参数化——当前 UnresolvedName 镜像该缺口，属语言特性工作非管线工作）；
+> (b) M6 远期（rlib/sysroot 预编译，明确不在本批）。
 > 范围：`crates/scoop2_*`（旧 `scoopc_*` 管线不动）。
 > 关联文档：`HIR-REDESIGN.md`（HIR 完整性/无 panic/目标 C）、`FACT_REFACTOR.md`（旧管线
 > 「扁平 fact 袋」教训与树/句柄/接口面方法论）、`NEW-HIR-FIX.md`（已完成的前置硬化）。
@@ -209,9 +207,23 @@ transitional 的前端捆绑（per-cone 序列化「AST + TypedHir 现状」）�
   为旧管线在当前环境下的既有失败（父提交 p7 失败更多：11 vs 5）；fixture 全套
   469/1643 失败同为旧管线基线（mir2 通道走旧 `scoopc` 子进程）。
 
-### M2 HIR 结构重建（最大件）✅ 主体完成（余 C2 per-cone id 空间）
+### M2 HIR 结构重建（最大件）✅ 全部完成（含 C2 per-cone id 空间）
 
-> 进度（2026-08-16，第二十一刀）：**M2-6 三切片落地**——(1) archive 去 AST
+> 进度（2026-08-16，第二十二刀）：**C2 per-cone id 空间落地（M2-6 收官）**——
+> (1) ConeId 稳定派生：`intern_cones_sorted`（Phase 0 按 (StableConeKey,
+> name, kind) 排序预注册——ConeId 从包名等稳定输入派生，与文件顺序无关；
+> 顺序无关单测）；(2) `cone_arena` 模块：per-cone 符号/类型空间
+>（`ConeArena{symbols, types}`——条目带稳定 key：符号=文本、类型=canonical
+> 文本；TypedFile/共享表用量收集器 + 类型结构闭包）；(3) archive v1.1：
+> cone archive 携带 id 空间；共享段 **interner 清空 + `store.strip_kinds`**
+>（序列化面只剩声明表 + shared arena）；共享 arena 承担补集（重放连续性）；
+> (4) 装配重放：全部空间按 global id 升序重放进 merged interner/store
+>（hash-cons + 组合类型只引用更小 id 的不变量 → 精确复现写出会话 id；
+> 跨 cone 稳定 key 冲突 / 漂移拒绝——装配唯一可失败点）。**跨 cone 引用 =
+> (cone_key, 稳定 key)**：两 cone 空间中同一稳定 key 即同一实体。验收：
+> oracle 5/5（staged 往返）+ 确定性 325/325 + CLI hir→mir 链路 + 重放单测
+>（冲突拒绝 / id 复现）。
+> 第二十一刀：**M2-6 三切片落地**——(1) archive 去 AST
 > 片段（per-cone archive 只存文件元信息；TypedHir 序列化面 serde-skip 三处
 > AST 携带字段；schema V0→V1 不迁移）；(2) lang-items 注册表（`TypedHir.
 > lang_items` 周知句柄 + archive 携带；MIR lowering 固定 FQN 注入替换完毕；
