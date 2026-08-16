@@ -2206,9 +2206,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
             // 透传 receiver 的 effect。
             ExprKind::MemberAccess { receiver, .. }
             | ExprKind::SafeMemberAccess { receiver, .. } => child_row(receiver),
-            ExprKind::SpliceField { receiver, field } => {
-                child_row(receiver).union(&child_row(field))
-            }
             ExprKind::Index { receiver, indices } => {
                 let mut row = child_row(receiver);
                 for i in indices {
@@ -3887,38 +3884,6 @@ impl<'a, 'i> ExprChecker<'a, 'i> {
                 }
             }
             // 反射形式 `value.["field"]` / `value.[name]`。
-            ExprKind::SpliceField { receiver, field } => {
-                let rt = self.walk_expr(receiver);
-                // field 必须是字符串字面量（静态名）。
-                if let ExprKind::StringLit(s) = &field.kind {
-                    if let Some(fqn) = nominal_fqn_of(self.env.store.kind(rt)) {
-                        let field_sym = self.env.interner.get(&s.value);
-                        if let Some(sym) = field_sym
-                            && self.env.member_type(fqn, sym).is_some()
-                        {
-                            // 已知字段：返回其类型。
-                            return self
-                                .env
-                                .member_type(fqn, sym)
-                                .unwrap_or_else(|| self.env.store.unit());
-                        }
-                        // 未知字段（spec §6.5：unknown field is a compile error）。
-                        let type_name = self.env.interner.resolve(fqn).to_string();
-                        self.diags
-                            .push(diagnostics::unknown_field(&type_name, &s.value, field.span));
-                    }
-                    // 未知接收者类型 → lenient。
-                    return self.env.store.unit();
-                }
-                // 非字符串字面量（动态名）→ splice_field_name_not_static（但 StructLit 不报——它不是 splice field）。
-                let is_struct_lit = matches!(field.kind, ExprKind::StructLit { .. });
-                self.walk_expr(field);
-                if !is_struct_lit {
-                    self.diags
-                        .push(diagnostics::splice_field_name_not_static(field.span));
-                }
-                self.env.store.unit()
-            }
         }
     }
 
@@ -8339,10 +8304,6 @@ fn collect_direct_expr_children(kind: &ExprKind, out: &mut Vec<Expr>) {
         }
         ExprKind::MemberAccess { receiver, .. } | ExprKind::SafeMemberAccess { receiver, .. } => {
             out.push((**receiver).clone())
-        }
-        ExprKind::SpliceField { receiver, field } => {
-            out.push((**receiver).clone());
-            out.push((**field).clone());
         }
         ExprKind::Index { receiver, indices } => {
             out.push((**receiver).clone());

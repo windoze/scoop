@@ -14,14 +14,10 @@ use crate::mir::{BasicBlockId, LocalId};
 // ---------------------------------------------------------------------------
 //
 // 设计原则：**不使用笼统的「unsupported」码**。每个码必须反映具体语义：
-// - 非法程序 → 具体拒绝码（如 break_outside_loop、splice_field_removed）；
+// - 非法程序 → 已全部上移前端（splice_field/parser 拒绝、break-continue/typecheck）；
 // - 合法但 lowering 未覆盖 → 不允许存在（必须实现 lowering，不得报错）；
 // - prelude / 编译环境缺失 → internal_error（环境错误，非用户程序错误）。
 
-/// splice field `p.["x"]`（comptime 反射）：**B 类上移待办**——parser 仍接受
-/// 该语法（`parser/expr.rs` splice 分支），MIR 拒绝码保留至 parser/typecheck
-/// 拒绝路径就位（M5 清单）。
-pub const SPLICE_FIELD_REMOVED: &str = "scoop::mir::splice_field_removed";
 /// lowering 时引用了未解析的值——**C 类 ICE 待办**（M2-5 翻转后树路径不再
 /// 产生；保留常量供历史 fixture 断言迁移前兼容）。
 pub const LOWER_UNRESOLVED: &str = "scoop::mir::lower_unresolved";

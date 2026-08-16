@@ -246,10 +246,6 @@ impl<'a> Walker<'a> {
             }
             ExprKind::MemberAccess { receiver, .. }
             | ExprKind::SafeMemberAccess { receiver, .. } => self.expr(receiver),
-            ExprKind::SpliceField { receiver, field } => {
-                self.expr(receiver);
-                self.expr(field);
-            }
             ExprKind::Index { receiver, indices } => {
                 self.expr(receiver);
                 for i in indices {

@@ -411,10 +411,6 @@ impl<'a> BodyResolver<'a> {
                 self.walk_expr(receiver);
                 self.resolve_member_access(receiver, *member, expr.id);
             }
-            ExprKind::SpliceField { receiver, field } => {
-                self.walk_expr(receiver);
-                self.walk_expr(field);
-            }
             ExprKind::Index { receiver, indices } => {
                 self.walk_expr(receiver);
                 for i in indices {

@@ -177,11 +177,7 @@ pub enum ExprKind {
         receiver: Box<Expr>,
         member: MemberName,
     },
-    /// splice 字段访问 `receiver.[field]`（§8.4，spec §6.4）。
-    SpliceField {
-        receiver: Box<Expr>,
-        field: Box<Expr>,
-    },
+    // SpliceField 已删除（parser 拒绝——M5 B 类上移后无构造点）。
     /// 下标读取 `a[i, j]`（§8.4 `indexPostfix`，多下标；
     /// operator get 解析是 typecheck 的事）。
     Index {

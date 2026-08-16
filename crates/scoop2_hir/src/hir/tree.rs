@@ -1396,7 +1396,6 @@ impl<'a> TreeBuilder<'a> {
                 Some(self.push_expr(TreeExprKind::Block(block), ty, span))
             }
             ExprKind::ClassLit { .. } => self.gap_ret(span, "T::class 反射字面量（M2 后续）"),
-            ExprKind::SpliceField { .. } => self.gap_ret(span, "splice field（特性已移除）"),
         }
     }
 

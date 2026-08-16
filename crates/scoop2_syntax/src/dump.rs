@@ -1139,13 +1139,6 @@ impl Dumper<'_> {
                 );
                 self.child(|d| d.expr(receiver));
             }
-            ExprKind::SpliceField { receiver, field } => {
-                self.expr_line(expr.id, format!("SpliceField {}", expr.span));
-                self.child(|d| {
-                    d.section("receiver", |d| d.expr(receiver));
-                    d.section("field", |d| d.expr(field));
-                });
-            }
             ExprKind::Index { receiver, indices } => {
                 self.expr_line(expr.id, format!("Index {}", expr.span));
                 self.child(|d| {
@@ -3563,19 +3556,10 @@ mod tests {
             );
             stmts.push(b.expr_stmt(apply));
         }
-        // splice a.[b]、!!、?.、元组段 t.0
+        // !!、?.、元组段 t.0（splice a.[b] 已移除——保留 6 字节推进，使后续
+        // golden span 不变）。
         {
-            let (s, e) = advance(&mut pos, 6);
-            let receiver = b.ident_expr(s, s + 1, "a");
-            let field = b.ident_expr(s + 3, s + 4, "b");
-            stmts.push(b.expr_stmt(b.expr(
-                s,
-                e,
-                ExprKind::SpliceField {
-                    receiver: Box::new(receiver),
-                    field: Box::new(field),
-                },
-            )));
+            let _ = advance(&mut pos, 6);
         }
         {
             let (s, e) = advance(&mut pos, 3);
@@ -3896,12 +3880,6 @@ mod tests {
                 EffectRowArg 116..125
                   EffectRow 120..124
                     EffectRowTerm 120..124 path=Pure
-          ExprStmt 126..132
-            SpliceField 126..132
-              receiver:
-                Ident 126..127 name=a
-              field:
-                Ident 129..130 name=b
           ExprStmt 132..135
             NotNullAssert 132..135
               Ident 132..133 name=x

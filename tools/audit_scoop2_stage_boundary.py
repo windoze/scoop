@@ -84,7 +84,6 @@ for crate in ("scoop2_mir", "scoop2_lir"):
 mir_diag = (CRATES / "scoop2_mir" / "src/diagnostics.rs").read_text()
 user_codes = re.findall(r'pub const \w+: &str = "(scoop::mir::[a-z_]+)"', mir_diag)
 allowed = {
-    "scoop::mir::splice_field_removed",  # 历史 fixture 兼容（parser 已先行拒绝）
     "scoop::mir::lower_unresolved",
     "scoop::mir::prelude_symbol_missing",
     "scoop::mir::monomorph_error",
