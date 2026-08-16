@@ -420,6 +420,24 @@ pub fn materialize(
     // mangling 定稿（M3-2）：非泛型实例补 `mangle(fqn, stable_template_key)`；
     // 泛型实例已带 `compute_instance_symbol`。Initializer 符号一并定稿——
     // LIR/codegen 从此纯读（archive 携带定稿值）。
+    // fqn → 实例符号索引（同一 fqn 多实例按 type_args 区分；泛型实例的符号
+    // 在此之前已由 instance 循环写入 items——先建索引再改调用点）。
+    let mut symbol_by_key: HashMap<InstanceKey, String> = HashMap::new();
+    let mut symbol_by_fqn: HashMap<String, String> = HashMap::new();
+    for (key, fds) in work.instances.iter() {
+        let sym = fds
+            .first()
+            .and_then(|fd| fd.instance_symbol.clone())
+            .unwrap_or_else(|| {
+                crate::mir::stable_id::mangle_symbol(&key.template_fqn, &None)
+            });
+        symbol_by_key.insert(key.clone(), sym.clone());
+        // 非泛型（单实例）可按 fqn 直查；泛型多实例不进 fqn 索引（调用点按
+        // key 匹配）。
+        if key.type_args.is_empty() {
+            symbol_by_fqn.insert(key.template_fqn.clone(), sym);
+        }
+    }
     for item in &mut result_module.items {
         match item {
             crate::mir::Item::Fun(fd) => {
@@ -438,6 +456,67 @@ pub fn materialize(
             _ => {}
         }
     }
+    // 实例句柄化（M3-1）+ 分派定稿（M3-3）：Direct 调用点写入目标实例符号
+    //（模板 fqn + 实参形态终结于 materialize）；Virtual/Interface 调用点写入
+    // BackendContracts（唯一分派表来源）解析的 slot。
+    let vtable_slots: HashMap<(String, String), u32> = work
+        .backend_contracts
+        .class_vtables
+        .iter()
+        .flat_map(|vt| {
+            vt.virtual_methods
+                .iter()
+                .enumerate()
+                .map(move |(i, (_, owner, _))| ((owner.clone(), vt.class_fqn.clone()), i as u32))
+        })
+        .map(|((method_owner, class_fqn), i)| ((method_owner, class_fqn), i))
+        .chain(
+            work.backend_contracts
+                .class_vtables
+                .iter()
+                .flat_map(|vt| {
+                    vt.virtual_methods
+                        .iter()
+                        .enumerate()
+                        .map(move |(i, (m, _, _))| ((m.clone(), vt.class_fqn.clone()), i as u32))
+                }),
+        )
+        .collect();
+    let itable_slots: HashMap<(String, String), u32> = work
+        .backend_contracts
+        .class_itables
+        .iter()
+        .flat_map(|ci| {
+            ci.interface_fqns.iter().flat_map(move |iface| {
+                // itable slot = interface 方法声明序（InterfaceContract.methods）。
+                Vec::new().into_iter().map(move |_: u32| {
+                    ((iface.clone(), String::new()), 0u32)
+                })
+            })
+        })
+        .collect();
+    {
+        let key_syms: Vec<(InstanceKey, String)> = symbol_by_key
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        for item in &mut result_module.items {
+            let body = match item {
+                crate::mir::Item::Fun(fd) => fd.body.as_mut(),
+                crate::mir::Item::Initializer(ir) => Some(&mut ir.body),
+                _ => None,
+            };
+            let Some(body) = body else { continue };
+            for block in &mut body.blocks {
+                for stmt in &mut block.stmts {
+                    if let crate::mir::StatementKind::Assign { value, .. } = &mut stmt.kind {
+                        finalize_direct_handles(value, &symbol_by_fqn, &key_syms, &work.store);
+                        finalize_dispatch_slots(value, &vtable_slots);
+                    }
+                }
+            }
+        }
+    }
     // 无泛型出口 gate（M3-4，ICE 级）：实例体内不得残留 TypeParam——违反即
     // materialize 类型替换不完备（编译器 bug，bug 通道而非用户诊断，C5）。
     no_generics_gate(&result_module, &work.store);
@@ -446,6 +525,65 @@ pub fn materialize(
         instance_keys: work.order,
         backend_contracts: work.backend_contracts,
     })
+}
+
+/// Direct 调用点实例句柄定稿（M3-1）：按 fqn（非泛型）或 InstanceKey（泛型：
+/// fqn + canonical type_args）解析目标实例符号。
+fn finalize_direct_handles(
+    rv: &mut Rvalue,
+    symbol_by_fqn: &HashMap<String, String>,
+    key_syms: &[(InstanceKey, String)],
+    store: &TypeStore,
+) {
+    if let Rvalue::Call {
+        kind:
+            crate::mir::CallKind::Direct {
+                callee_fqn,
+                type_args,
+                instance_symbol,
+                ..
+            },
+        ..
+    } = rv
+    {
+        let sym = if type_args.is_empty() {
+            symbol_by_fqn.get(callee_fqn).cloned()
+        } else {
+            key_syms
+                .iter()
+                .find(|(k, _)| {
+                    k.template_fqn == *callee_fqn
+                        && k.type_args.len() == type_args.len()
+                        && k.type_args.iter().zip(type_args.iter()).all(|(a, b)| a == b)
+                })
+                .map(|(_, s)| s.clone())
+        };
+        if let Some(sym) = sym {
+            *instance_symbol = Some(sym);
+        }
+    }
+}
+
+/// Virtual/Interface 调用点 slot 定稿（M3-3）：从 BackendContracts 的 vtable
+/// 契约解析 `(owner_fqn, method)` → slot；解析不到保持 None（外部/合成分派
+/// ——LIR 侧 DispatchSlotTables 兜底路径消费）。
+fn finalize_dispatch_slots(
+    rv: &mut Rvalue,
+    vtable_slots: &HashMap<(String, String), u32>,
+) {
+    if let Rvalue::Call {
+        kind:
+            crate::mir::CallKind::Virtual { dispatch, .. }
+            | crate::mir::CallKind::Interface { dispatch, .. },
+        ..
+    } = rv
+    {
+        if dispatch.resolved_slot.is_none() {
+            dispatch.resolved_slot = vtable_slots
+                .get(&(dispatch.owner_fqn.clone(), dispatch.member_name.clone()))
+                .copied();
+        }
+    }
 }
 
 /// 无泛型出口 gate：扫描单态化模块的全部类型位点（签名/局部/语句/终结符

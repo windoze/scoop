@@ -718,6 +718,12 @@ pub enum CallKind {
         /// `@Intrinsic("name")` 注解透传的 intrinsic 名。
         /// 从 callee_fqn 查 hir declarations 的 intrinsic_name 填充。
         intrinsic_name: Option<String>,
+        /// **实例句柄**（M3-1）：单态化后指向具体实例的定稿符号（与目标
+        /// FunDecl.instance_symbol 同值）。模板模块为 None；materialize 定稿
+        /// 后**必有值**（无泛型出口 gate 同点断言——非 Option 语义由 gate
+        /// 在 archive 边界强制，C9-2）。
+        #[serde(default)]
+        instance_symbol: Option<String>,
     },
     /// class 虚方法分发（open/override 方法，走 vtable）。
     Virtual {

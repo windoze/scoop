@@ -356,7 +356,8 @@ impl<'hir> FnLowering<'hir> {
             generic_type_args: type_args,
             generic_eff_args: vec![],
             intrinsic_name: self.lookup_intrinsic_name_for_fqn(&callee_fqn),
-        }
+            instance_symbol: None,
+            }
     }
 
     /// 从 callee FQN 查找 @Intrinsic 注解名（从 hir declarations 表）。

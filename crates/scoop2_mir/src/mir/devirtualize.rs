@@ -282,7 +282,8 @@ fn devirtualize_call_kind(
         generic_type_args: dispatch.generic_type_args.clone(),
         generic_eff_args: dispatch.generic_eff_args.clone(),
         intrinsic_name: None,
-    };
+            instance_symbol: None,
+            };
 }
 
 /// 查找实现某 interface 的唯一具体 class（单候选）。

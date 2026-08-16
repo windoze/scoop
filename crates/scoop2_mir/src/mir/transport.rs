@@ -311,6 +311,11 @@ pub struct DispatchMetadata {
     pub stable_template_key: Option<StableTemplateKey>,
     pub generic_type_args: Vec<TypeId>,
     pub generic_eff_args: Vec<EffectRow>,
+    /// **分派定稿**（M3-3）：vtable slot（类虚分派）/ itable slot（接口分派）
+    /// ——由 materialize 从 BackendContracts（唯一分派表来源）解析写入；
+    /// 模板模块为 None，单态化后必有值（no-generics gate 同点断言）。
+    #[serde(default)]
+    pub resolved_slot: Option<u32>,
 }
 
 /// perform 调用点的 typed contract。

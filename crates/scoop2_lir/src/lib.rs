@@ -759,24 +759,20 @@ fn map_rvalue(
                 CallKind::Direct {
                     callee_fqn,
                     stable_instance_key,
-                    generic_type_args,
                     intrinsic_name,
+                    instance_symbol,
                     ..
                 } => {
-                    // 对带类型实参的 Direct 调用，解析到目标实例的唯一符号名
-                    // （与 materialize 的 compute_instance_symbol 同公式），确保
-                    // 同 FQN 不同实参的重载（println<Int>/println<String>）指向正确实例。
-                    // 无类型实参时保留 FQN（由 backfill/codegen 解析）。
-                    let callee_symbol = if generic_type_args.is_empty() {
-                        callee_fqn.clone()
-                    } else {
-                        scoop2_mir::mir::materialize::compute_instance_symbol(
-                            callee_fqn,
-                            generic_type_args,
-                            types,
-                            interner,
-                        )
+                    // M3-1 实例句柄：materialize 已在调用点定稿目标实例符号
+                    //（模板 fqn + 实参形态终结于 MIR）——LIR 纯读；句柄缺失
+                    // （未经 materialize 的模板模块）回退 mangle 公式（兼容
+                    // verify 等模板级消费）。
+                    let callee_symbol = match instance_symbol {
+                        Some(sym) => sym.clone(),
+                        None => callee_fqn.replace('.', "_"),
                     };
+                    let _ = types;
+                    let _ = interner;
                     LirCallKind::Direct {
                         callee_symbol,
                         callee_fqn: callee_fqn.clone(),

@@ -697,6 +697,7 @@ fn lower_tree_expr(builder: &mut FnLowering, body: &TreeBody, eid: ExprId) -> Op
                 stable_template_key: Some(stk),
                 generic_type_args: vec![],
                 generic_eff_args: vec![],
+                resolved_slot: None,
             };
             let site_id = Some(builder.next_site_id());
             let transport = builder.call_transport(bool_ty);
@@ -1011,6 +1012,7 @@ fn lower_tree_call(
                     stable_template_key: Some(stk),
                     generic_type_args: type_args.clone(),
                     generic_eff_args: vec![],
+                    resolved_slot: None,
                 };
                 if *is_interface {
                     crate::mir::CallKind::Interface {
@@ -1163,7 +1165,8 @@ fn lower_tree_call(
                     generic_type_args: vec![],
                     generic_eff_args: vec![],
                     intrinsic_name: None,
-                },
+            instance_symbol: None,
+            },
                 args: mir_args,
                 transport: crate::mir::transport::CallTransportMetadata::plain_no_outward(
                     unit,
