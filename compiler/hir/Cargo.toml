@@ -1,0 +1,7 @@
+[package]
+name = "scoop-hir"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-parser.workspace = true

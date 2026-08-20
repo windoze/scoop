@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "compiler/parser",
+    "compiler/hir",
+    "compiler/mir",
+    "compiler/lir",
+    "compiler/codegen",
+    "compiler/slib",
+    "compiler/driver",
+]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+
+[workspace.dependencies]
+# LLVM 22.1（与当前 Rust 工具链自带的 LLVM 版本一致）
+inkwell = { version = "0.10", features = ["llvm22-1"] }
+
+scoop-parser = { path = "compiler/parser" }
+scoop-hir = { path = "compiler/hir" }
+scoop-mir = { path = "compiler/mir" }
+scoop-lir = { path = "compiler/lir" }
+scoop-codegen = { path = "compiler/codegen" }
+scoop-slib = { path = "compiler/slib" }

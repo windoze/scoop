@@ -1,0 +1,8 @@
+[package]
+name = "scoop-codegen"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+inkwell.workspace = true
+scoop-lir.workspace = true

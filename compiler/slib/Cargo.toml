@@ -1,0 +1,6 @@
+[package]
+name = "scoop-slib"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]

@@ -1,0 +1,16 @@
+[package]
+name = "scoopc"
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "scoopc"
+path = "src/main.rs"
+
+[dependencies]
+scoop-parser.workspace = true
+scoop-hir.workspace = true
+scoop-mir.workspace = true
+scoop-lir.workspace = true
+scoop-codegen.workspace = true
+scoop-slib.workspace = true
