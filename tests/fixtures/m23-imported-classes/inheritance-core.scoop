@@ -1,0 +1,6 @@
+import dependency.classes.Counter
+
+public class Derived public constructor(): RebuiltParent() {
+    public override fun read(): Long = super.read()
+}
+public fun primary(): Counter = Counter(Derived().read())

@@ -1,0 +1,28 @@
+struct Wide(val first: Long, val second: Long, val third: Long)
+struct BoxedWide(val text: String, val left: Long, val right: Long)
+
+@Extern(lib = "m36_results", name = "m36_result_wide", abi = "scoop")
+fun wide(): Wide
+@Extern(lib = "m36_results", name = "m36_result_boxed", abi = "scoop")
+fun boxed(value: String): BoxedWide
+
+fun <T> apply(value: T, transform: (T) -> BoxedWide): BoxedWide = transform(value)
+
+fun main() {
+    val values = wide()
+    println(values.first + values.second + values.third)
+    try {
+        val produced = apply("result" + values.first.toString()) { text -> boxed(text) }
+        val optional: BoxedWide? = Some(produced)
+        gcCollect()
+        when (optional) {
+            case Some(value) -> {
+                println(value.text)
+                println(value.left + value.right)
+            }
+            case None -> println("missing")
+        }
+    } finally {
+        println("finished")
+    }
+}

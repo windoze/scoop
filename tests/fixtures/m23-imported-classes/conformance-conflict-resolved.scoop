@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.FirstChoice
+import dependency.classes.SecondChoice
+
+public class LocalChoice public constructor(): FirstChoice, SecondChoice {
+    public override fun choose(): Long = 21
+}
+public fun primary(): Counter {
+    val choice: SecondChoice = LocalChoice()
+    return Counter(choice.choose())
+}

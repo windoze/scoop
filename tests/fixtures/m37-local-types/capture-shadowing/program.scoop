@@ -1,0 +1,9 @@
+fun main() {
+    val value = 40
+    class First { fun read(): Int = value }
+    if (true) {
+        val value = 2
+        class Second { fun read(): Int = First().read() + value }
+        println(Second().read())
+    }
+}

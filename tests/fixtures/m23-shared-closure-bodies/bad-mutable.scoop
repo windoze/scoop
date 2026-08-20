@@ -1,0 +1,8 @@
+package consumer.closures
+import upstream.closures.*
+
+public fun result(): Int {
+    var state = 42
+    val read: () -> Int = fun (): Int { return state }
+    return read()
+}

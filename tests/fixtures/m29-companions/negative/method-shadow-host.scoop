@@ -1,0 +1,4 @@
+struct Box<T>(val value: T) {
+    companion object { fun <T> echo(value: T): T = value }
+}
+fun main() {}

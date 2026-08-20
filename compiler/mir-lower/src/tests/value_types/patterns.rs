@@ -1,0 +1,1042 @@
+use super::super::*;
+
+/// Shared `when` statement builder for the pattern-lowering tests.
+fn when_stmt(
+    subject: hir::Expr,
+    arms: Vec<hir::WhenArm>,
+    fallback: hir::WhenFallback,
+) -> hir::Statement {
+    stmt(hir::StatementKind::When(hir::When::Subject {
+        subject,
+        arms,
+        fallback,
+    }))
+}
+
+fn arm(pattern: hir::Pattern, guard: Option<hir::Expr>, body: Vec<hir::Statement>) -> hir::WhenArm {
+    hir::WhenArm {
+        condition: hir::WhenCondition::Case(pattern),
+        guard: guard.map(|condition| hir::WhenGuard {
+            setup: Vec::new(),
+            condition,
+        }),
+        body,
+        span: SPAN,
+    }
+}
+
+#[test]
+fn when_lowers_to_a_decision_sequence() {
+    // val o = Some(1); when (o) { Some(x) -> print(x); None -> println("none") }
+    let mut h = Harness::new();
+    let print_int = h.print_int();
+    let println_string = h.println_string();
+    let int = h.int;
+    let option_int = h.option(int);
+    let option_application = h.enum_application_of(option_int);
+    let mut locals = Arena::new();
+    let o = locals.alloc(local("o", option_int));
+    let x = locals.alloc(local("x", int));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![
+                val_decl(
+                    o,
+                    expr(
+                        hir::ExprKind::SomeWrap(Box::new(int_lit(&h, 1))),
+                        option_int,
+                    ),
+                ),
+                when_stmt(
+                    local_ref(o, option_int),
+                    vec![
+                        arm(
+                            hir::Pattern::Variant {
+                                application: h.enum_variant_ref(option_application, 0),
+                                fields: vec![(0, hir::Pattern::Binding { local: x })],
+                            },
+                            None,
+                            vec![expr_stmt(call(&h, print_int, vec![local_ref(x, int)]))],
+                        ),
+                        arm(
+                            hir::Pattern::Variant {
+                                application: h.enum_variant_ref(option_application, 1),
+                                fields: Vec::new(),
+                            },
+                            None,
+                            vec![expr_stmt(call(
+                                &h,
+                                println_string,
+                                vec![str_lit(&h, "none")],
+                            ))],
+                        ),
+                    ],
+                    hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix),
+                ),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+
+    // The subject is evaluated once into `$when.1`; each arm is a typed
+    // variant test, then the payload bindings, then the body. A failed test
+    // falls through to the next arm, and the proof marks only the final false
+    // edge unreachable. (`print` /
+    // `println` are ordinary core functions — M7 — so the arms
+    // call the overloads, not runtime shims.)
+    check_mir_snapshot("when_lowers_to_a_decision_sequence", &module);
+    assert_eq!(module.validate(), Ok(()));
+}
+
+#[test]
+fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
+    let mut h = Harness::new();
+    let int = h.int;
+    let inner = h.option(int);
+    let inner_application = h.enum_application_of(inner);
+    let record = h.strukt("Record", &[("nested", inner), ("ignored", int)]);
+    let record_ty = h.struct_ty(record);
+    let outer = h.option(record_ty);
+    let outer_application = h.enum_application_of(outer);
+
+    let mut producer_locals = Arena::new();
+    let input = producer_locals.alloc(local("input", outer));
+    let producer = h.user_fn_full(
+        "subject",
+        Vec::new(),
+        vec![param("input", outer, input)],
+        outer,
+        hir::Body {
+            locals: producer_locals,
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: local_ref(input, outer),
+            })],
+        },
+    );
+
+    let mut locals = Arena::new();
+    let source = locals.alloc(local("source", outer));
+    let value = locals.alloc(local("value", int));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                call_typed(producer, vec![local_ref(source, outer)], outer),
+                vec![arm(
+                    hir::Pattern::Variant {
+                        application: h.enum_variant_ref(outer_application, 0),
+                        fields: vec![(
+                            0,
+                            hir::Pattern::Struct {
+                                owner: record_ty,
+                                fields: vec![
+                                    (
+                                        0,
+                                        hir::Pattern::Variant {
+                                            application: h.enum_variant_ref(inner_application, 0),
+                                            fields: vec![(
+                                                0,
+                                                hir::Pattern::Binding { local: value },
+                                            )],
+                                        },
+                                    ),
+                                    (1, hir::Pattern::Wildcard),
+                                ],
+                            },
+                        )],
+                    },
+                    None,
+                    Vec::new(),
+                )],
+                hir::WhenFallback::Else(Vec::new()),
+            )],
+        },
+    );
+    let module = lower(&h.finish(main));
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
+    let producer = module
+        .functions
+        .iter()
+        .find_map(|(id, function)| (function.name == "subject").then_some(id))
+        .expect("subject producer must lower");
+
+    let subject_calls = body
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| &block.statements)
+        .filter(|statement| {
+            let mir::StatementKind::Call(mir::CallEffect::Value { call, .. }) = &statement.kind
+            else {
+                return false;
+            };
+            matches!(&call.target, mir::CallTarget::Direct(mir::Callee::User(function)) if *function == producer)
+        })
+        .count();
+    assert_eq!(subject_calls, 1, "the when subject call is emitted once");
+
+    let entry = &body.blocks[body.entry];
+    let mir::Terminator::Branch {
+        cond,
+        then_block: outer_match,
+        ..
+    } = &entry.terminator
+    else {
+        panic!("the outer variant test must control its matching edge")
+    };
+    let mir::ExprKind::VariantTest {
+        operand,
+        variant: outer_variant,
+    } = &cond.kind
+    else {
+        panic!("the outer enum pattern uses VariantTest")
+    };
+    let mir::ExprKind::Local(outer_local) = operand.kind else {
+        panic!("the outer VariantTest consumes the stable when subject")
+    };
+    assert!(!body.locals[outer_local].mutable);
+
+    let outer_match = &body.blocks[*outer_match];
+    let (nested_local, nested_init) = outer_match
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let mir::StatementKind::ValDecl { local, init } = &statement.kind else {
+                return None;
+            };
+            body.locals[*local]
+                .name
+                .starts_with("$pattern.")
+                .then_some((*local, init))
+        })
+        .expect("the nested enum value is materialized on the outer true edge");
+    assert!(!body.locals[nested_local].mutable);
+    let mir::ExprKind::FieldAccess { receiver, index: 0 } = &nested_init.kind else {
+        panic!("the nested enum is reached through its enclosing struct field")
+    };
+    let mir::ExprKind::VariantPayloadProject { operand, field } = &receiver.kind else {
+        panic!("the outer payload uses a typed projection")
+    };
+    assert_eq!(field.variant(), *outer_variant);
+    assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == outer_local));
+
+    let mir::Terminator::Branch {
+        cond,
+        then_block: nested_match,
+        ..
+    } = &outer_match.terminator
+    else {
+        panic!("the materialized nested value is tested in the same block")
+    };
+    let mir::ExprKind::VariantTest {
+        operand,
+        variant: nested_variant,
+    } = &cond.kind
+    else {
+        panic!("the nested enum pattern uses VariantTest")
+    };
+    assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == nested_local));
+
+    let nested_match = &body.blocks[*nested_match];
+    let binding_init = nested_match
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let mir::StatementKind::ValDecl { local, init } = &statement.kind else {
+                return None;
+            };
+            (body.locals[*local].name == "value").then_some(init)
+        })
+        .expect("the binding is committed only after the full pattern succeeds");
+    let mir::ExprKind::VariantPayloadProject { operand, field } = &binding_init.kind else {
+        panic!("the nested binding uses a typed payload projection")
+    };
+    assert_eq!(field.variant(), *nested_variant);
+    assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == nested_local));
+    assert_eq!(module.validate(), Ok(()));
+    let rendered = dump(&module);
+    let main = rendered
+        .split("  fun ")
+        .find(|function| function.starts_with("main "))
+        .unwrap();
+    assert!(!main.contains("MachineEq(EnumTag)"));
+    assert!(!main.contains("EnumField v"));
+}
+
+#[test]
+fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreachable() {
+    fn lower_case(explicit_else: bool) -> mir::Module {
+        let mut h = Harness::new();
+        let int = h.int;
+        let option_int = h.option(int);
+        let application = h.enum_application_of(option_int);
+        let mut locals = Arena::new();
+        let subject = locals.alloc(local("subject", option_int));
+        let value = locals.alloc(local("value", int));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![when_stmt(
+                    local_ref(subject, option_int),
+                    vec![
+                        arm(
+                            hir::Pattern::Variant {
+                                application: h.enum_variant_ref(application, 1),
+                                fields: Vec::new(),
+                            },
+                            None,
+                            Vec::new(),
+                        ),
+                        arm(
+                            hir::Pattern::Variant {
+                                application: h.enum_variant_ref(application, 0),
+                                fields: vec![(0, hir::Pattern::Binding { local: value })],
+                            },
+                            None,
+                            Vec::new(),
+                        ),
+                    ],
+                    if explicit_else {
+                        hir::WhenFallback::Else(Vec::new())
+                    } else {
+                        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix)
+                    },
+                )],
+            },
+        );
+        lower(&h.finish(main))
+    }
+
+    for explicit_else in [false, true] {
+        let module = lower_case(explicit_else);
+        assert_eq!(module.validate(), Ok(()));
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
+        let branches = body
+            .blocks
+            .iter()
+            .filter(|(_, block)| matches!(&block.terminator, mir::Terminator::Branch { .. }))
+            .count();
+        assert_eq!(branches, 2, "both refutable arms retain their tests");
+
+        let (_, final_test) = body
+            .blocks
+            .iter()
+            .find(|(_, block)| {
+                matches!(
+                    &block.terminator,
+                    mir::Terminator::Branch { cond, .. }
+                        if matches!(
+                            &cond.kind,
+                            mir::ExprKind::VariantTest { variant, .. }
+                                if variant.variant_index() == 0
+                        )
+                )
+            })
+            .expect("the final Some pattern retains its VariantTest");
+        let mir::Terminator::Branch {
+            cond,
+            then_block,
+            else_block,
+        } = &final_test.terminator
+        else {
+            unreachable!("selected a branch terminator")
+        };
+        let mir::ExprKind::VariantTest { operand, variant } = &cond.kind else {
+            unreachable!("selected the final variant test")
+        };
+        let mir::ExprKind::Local(tested_local) = operand.kind else {
+            panic!("the final variant test consumes the stable subject")
+        };
+        let projection = body.blocks[*then_block]
+            .statements
+            .iter()
+            .find_map(|statement| {
+                let mir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                    return None;
+                };
+                let mir::ExprKind::VariantPayloadProject { operand, field } = &init.kind else {
+                    return None;
+                };
+                Some((operand, field))
+            })
+            .expect("the final arm binds its payload on the test's true edge");
+        assert_eq!(projection.1.variant(), *variant);
+        assert!(matches!(projection.0.kind, mir::ExprKind::Local(local) if local == tested_local));
+
+        assert_eq!(
+            matches!(
+                body.blocks[*else_block].terminator,
+                mir::Terminator::Unreachable
+            ),
+            !explicit_else,
+            "only an Impossible fallback turns the final false edge unreachable",
+        );
+    }
+}
+
+#[test]
+fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
+    let mut h = Harness::new();
+    let boolean = h.boolean;
+    let single = h.declare_enum(
+        "Single",
+        Vec::new(),
+        Vec::new(),
+        vec![hir::Variant {
+            name: "V".to_string(),
+            style: hir::VariantStyle::Named,
+            fields: vec![hir::Field {
+                name: "value".to_string(),
+                ty: boolean,
+            }],
+        }],
+    );
+    let single_ty = h.enum_ty(single);
+    let application = h.enum_application_of(single_ty);
+
+    let mut equality_locals = Arena::new();
+    let left = equality_locals.alloc(local("left", boolean));
+    let right = equality_locals.alloc(local("right", boolean));
+    let equality = h.user_fn_full(
+        "Boolean.equals",
+        Vec::new(),
+        vec![param("left", boolean, left), param("right", boolean, right)],
+        boolean,
+        hir::Body {
+            locals: equality_locals,
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: bool_lit(&h, true),
+            })],
+        },
+    );
+    let matched = h.user_fn(
+        "matched",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
+    let fallback = h.user_fn(
+        "fallback",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
+
+    let mut locals = Arena::new();
+    let subject = locals.alloc(local("subject", single_ty));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                local_ref(subject, single_ty),
+                vec![arm(
+                    hir::Pattern::Variant {
+                        application: h.enum_variant_ref(application, 0),
+                        fields: vec![(
+                            0,
+                            hir::Pattern::Literal {
+                                value: bool_lit(&h, true),
+                                equality: hir::LiteralPatternEquality::Ordinary {
+                                    equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                        equality,
+                                    )),
+                                },
+                                subject_ty: boolean,
+                            },
+                        )],
+                    },
+                    None,
+                    vec![expr_stmt(call(&h, matched, Vec::new()))],
+                )],
+                hir::WhenFallback::Else(vec![expr_stmt(call(&h, fallback, Vec::new()))]),
+            )],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
+
+    let function_named = |name: &str| {
+        module
+            .functions
+            .iter()
+            .find_map(|(id, function)| (function.name == name).then_some(id))
+            .unwrap_or_else(|| panic!("missing MIR function `{name}`"))
+    };
+    let equality = function_named("Boolean.equals");
+    let matched = function_named("matched");
+    let fallback = function_named("fallback");
+
+    let mir::Terminator::Branch {
+        cond,
+        then_block: variant_pass,
+        else_block: variant_false,
+    } = &body.blocks[body.entry].terminator
+    else {
+        panic!("the single-variant pattern must retain its VariantTest")
+    };
+    let mir::ExprKind::VariantTest { operand, variant } = &cond.kind else {
+        panic!("the first decision tests the enum variant")
+    };
+    assert_eq!(variant.variant_index(), 0);
+    let mir::ExprKind::Local(tested_subject) = operand.kind else {
+        panic!("the variant test consumes the stable when subject")
+    };
+
+    let variant_pass = &body.blocks[*variant_pass];
+    let (equality_call, equality_result) = variant_pass
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let mir::StatementKind::Call(mir::CallEffect::Value { destination, call }) =
+                &statement.kind
+            else {
+                return None;
+            };
+            matches!(call.target, mir::CallTarget::Direct(mir::Callee::User(function)) if function == equality)
+                .then_some((call, *destination))
+        })
+        .expect("the nested Boolean literal retains its selected equality call");
+    let [payload, literal] = equality_call.args.as_slice() else {
+        panic!("Boolean.equals receives the payload and literal")
+    };
+    let mir::ExprKind::VariantPayloadProject { operand, field } = &payload.kind else {
+        panic!("Boolean.equals receives the checked variant payload")
+    };
+    assert_eq!(field.variant(), *variant);
+    assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == tested_subject));
+    assert!(matches!(literal.kind, mir::ExprKind::BoolLiteral(true)));
+
+    let mir::Terminator::Branch {
+        cond,
+        then_block: literal_pass,
+        else_block: literal_false,
+    } = &variant_pass.terminator
+    else {
+        panic!("the Boolean equality result must remain a refutable branch")
+    };
+    assert!(matches!(cond.kind, mir::ExprKind::Local(local) if local == equality_result));
+    assert_eq!(
+        literal_false, variant_false,
+        "either failed test must route to the fallback",
+    );
+
+    let user_calls = |block: mir::BlockId| {
+        body.blocks[block]
+            .statements
+            .iter()
+            .filter_map(|statement| {
+                let mir::StatementKind::Call(effect) = &statement.kind else {
+                    return None;
+                };
+                let call = match effect {
+                    mir::CallEffect::Unit(call) => call,
+                    mir::CallEffect::Value { call, .. } => call,
+                };
+                let mir::CallTarget::Direct(mir::Callee::User(function)) = call.target else {
+                    return None;
+                };
+                Some(function)
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(user_calls(*literal_pass), [matched]);
+    assert_eq!(user_calls(*variant_false), [fallback]);
+}
+
+#[test]
+fn zero_arm_impossible_when_terminates_with_unreachable() {
+    let mut h = Harness::new();
+    let never = h.declare_enum("Never", Vec::new(), Vec::new(), Vec::new());
+    let never_ty = h.enum_ty(never);
+    let mut locals = Arena::new();
+    let subject = locals.alloc(local("subject", never_ty));
+    let impossible_name = "zeroArmImpossible";
+    h.user_fn_full(
+        impossible_name,
+        Vec::new(),
+        vec![param("subject", never_ty, subject)],
+        h.unit,
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                local_ref(subject, never_ty),
+                Vec::new(),
+                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix),
+            )],
+        },
+    );
+    let main = empty_main(&mut h);
+    let module = lower(&h.finish(main));
+    let body = &module
+        .functions
+        .iter()
+        .find_map(|(_, function)| (function.name == impossible_name).then_some(function))
+        .expect("the ordinary zero-arm test function reaches MIR")
+        .body;
+
+    assert!(matches!(
+        body.blocks[body.entry].terminator,
+        mir::Terminator::Unreachable
+    ));
+}
+
+#[test]
+fn a_failed_guard_falls_through_to_the_next_arm() {
+    // when (o) { Some(x) if (x > 0) -> print(x); else -> println("neg") }
+    let mut h = Harness::new();
+    let print_int = h.print_int();
+    let println_string = h.println_string();
+    let int = h.int;
+    let option_int = h.option(int);
+    let option_application = h.enum_application_of(option_int);
+    let mut locals = Arena::new();
+    let o = locals.alloc(local("o", option_int));
+    let x = locals.alloc(local("x", int));
+    let threshold = locals.alloc(local("threshold", int));
+    let compared = integer_binary(
+        &mut h,
+        hir::IntegerKind::SIGNED_32,
+        hir::IntegerBinaryOperator::CompareTo,
+        local_ref(x, int),
+        local_ref(threshold, int),
+    );
+    let mut guarded_arm = arm(
+        hir::Pattern::Variant {
+            application: h.enum_variant_ref(option_application, 0),
+            fields: vec![(0, hir::Pattern::Binding { local: x })],
+        },
+        Some(binary(
+            hir::BinOp::Gt,
+            compared,
+            integer_lit(&h, hir::IntegerKind::SIGNED_64, 0),
+            h.boolean,
+        )),
+        vec![expr_stmt(call(&h, print_int, vec![local_ref(x, int)]))],
+    );
+    guarded_arm
+        .guard
+        .as_mut()
+        .expect("guard")
+        .setup
+        .push(val_decl(threshold, int_lit(&h, 0)));
+    let else_body = || {
+        vec![expr_stmt(call(
+            &h,
+            println_string,
+            vec![str_lit(&h, "neg")],
+        ))]
+    };
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                local_ref(o, option_int),
+                vec![guarded_arm],
+                hir::WhenFallback::Else(else_body()),
+            )],
+        },
+    );
+    let module = lower(&h.finish(main));
+
+    // The guard nests inside the typed variant test's then branch; failing
+    // it falls through to the next arm — the `else` body here,
+    // which is lowered once per fallthrough edge.
+    check_mir_snapshot("a_failed_guard_falls_through_to_the_next_arm", &module);
+    assert_eq!(module.validate(), Ok(()));
+}
+
+#[test]
+fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
+    fn boolean_equality(h: &mut Harness, name: &str) -> hir::FunctionId {
+        let boolean = h.boolean;
+        let mut locals = Arena::new();
+        let lhs = locals.alloc(local("lhs", boolean));
+        let rhs = locals.alloc(local("rhs", boolean));
+        h.user_fn_full(
+            name,
+            Vec::new(),
+            vec![param("lhs", boolean, lhs), param("rhs", boolean, rhs)],
+            boolean,
+            hir::Body {
+                locals,
+                statements: vec![stmt(hir::StatementKind::Return {
+                    value: bool_lit(h, true),
+                })],
+            },
+        )
+    }
+
+    let mut h = Harness::new();
+    let boolean = h.boolean;
+    let int = h.int;
+    let first_equals = boolean_equality(&mut h, "firstEquals");
+    let second_equals = boolean_equality(&mut h, "secondEquals");
+    let tuple_ty = h.tuple(&[boolean, boolean, int]);
+    let subject = h.user_fn_full(
+        "subject",
+        Vec::new(),
+        Vec::new(),
+        tuple_ty,
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: expr(
+                    hir::ExprKind::TupleLiteral(vec![
+                        bool_lit(&h, true),
+                        bool_lit(&h, false),
+                        int_lit(&h, 7),
+                    ]),
+                    tuple_ty,
+                ),
+            })],
+        },
+    );
+    let mut guard_locals = Arena::new();
+    let guard_value = guard_locals.alloc(local("value", int));
+    let guard = h.user_fn_full(
+        "guard",
+        Vec::new(),
+        vec![param("value", int, guard_value)],
+        boolean,
+        hir::Body {
+            locals: guard_locals,
+            statements: vec![stmt(hir::StatementKind::Return {
+                value: bool_lit(&h, true),
+            })],
+        },
+    );
+
+    let mut locals = Arena::new();
+    let value = locals.alloc(local("value", int));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![when_stmt(
+                call_typed(subject, Vec::new(), tuple_ty),
+                vec![arm(
+                    hir::Pattern::Tuple(vec![
+                        hir::Pattern::Literal {
+                            value: bool_lit(&h, true),
+                            equality: hir::LiteralPatternEquality::Ordinary {
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                    first_equals,
+                                )),
+                            },
+                            subject_ty: boolean,
+                        },
+                        hir::Pattern::Literal {
+                            value: bool_lit(&h, false),
+                            equality: hir::LiteralPatternEquality::Ordinary {
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                    second_equals,
+                                )),
+                            },
+                            subject_ty: boolean,
+                        },
+                        hir::Pattern::Binding { local: value },
+                    ]),
+                    Some(call_typed(guard, vec![local_ref(value, int)], boolean)),
+                    Vec::new(),
+                )],
+                hir::WhenFallback::Else(Vec::new()),
+            )],
+        },
+    );
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
+
+    let mut current = body.entry;
+    let mut calls = Vec::new();
+    let mut binding_visible = false;
+    for _ in 0..8 {
+        let block = &body.blocks[current];
+        for statement in &block.statements {
+            if let mir::StatementKind::ValDecl { local, .. } = &statement.kind
+                && body.locals[*local].name == "value"
+            {
+                binding_visible = true;
+            }
+            let mir::StatementKind::Call(effect) = &statement.kind else {
+                continue;
+            };
+            let call = match effect {
+                mir::CallEffect::Value { call, .. } | mir::CallEffect::Unit(call) => call,
+            };
+            let mir::CallTarget::Direct(mir::Callee::User(function)) = call.target else {
+                continue;
+            };
+            let name = module.functions[function].name.as_str();
+            if name == "guard" {
+                assert!(
+                    binding_visible,
+                    "bindings are visible before guard evaluation"
+                );
+            }
+            calls.push(name);
+        }
+        if calls.len() == 4 {
+            break;
+        }
+        current = match block.terminator {
+            mir::Terminator::Branch { then_block, .. } => then_block,
+            mir::Terminator::Goto(next) => next,
+            _ => break,
+        };
+    }
+    assert_eq!(
+        calls,
+        ["subject", "firstEquals", "secondEquals", "guard"],
+        "subject, field tests, bindings, and guard retain source evaluation order",
+    );
+
+    for expected in ["subject", "firstEquals", "secondEquals", "guard"] {
+        let count = body
+            .blocks
+            .iter()
+            .flat_map(|(_, block)| &block.statements)
+            .filter(|statement| {
+                let mir::StatementKind::Call(effect) = &statement.kind else {
+                    return false;
+                };
+                let call = match effect {
+                    mir::CallEffect::Value { call, .. } | mir::CallEffect::Unit(call) => call,
+                };
+                matches!(
+                    call.target,
+                    mir::CallTarget::Direct(mir::Callee::User(function)) if module.functions[function].name == expected
+                )
+            })
+            .count();
+        assert_eq!(count, 1, "{expected} is emitted exactly once");
+    }
+}
+
+#[test]
+fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
+    fn lower_case(string: bool) -> (mir::Module, &'static str) {
+        let mut h = Harness::new();
+        let ty = if string { h.string } else { h.boolean };
+        let name = if string {
+            "String.equals"
+        } else {
+            "Boolean.equals"
+        };
+        let literal = if string {
+            str_lit(&h, "one")
+        } else {
+            bool_lit(&h, true)
+        };
+        let mut equals_locals = Arena::new();
+        let left = equals_locals.alloc(local("left", ty));
+        let right = equals_locals.alloc(local("right", ty));
+        let equals = h.user_fn_full(
+            name,
+            Vec::new(),
+            vec![param("left", ty, left), param("right", ty, right)],
+            h.boolean,
+            hir::Body {
+                locals: equals_locals,
+                statements: vec![hir::Statement {
+                    kind: hir::StatementKind::Return {
+                        value: bool_lit(&h, true),
+                    },
+                    span: SPAN,
+                }],
+            },
+        );
+        let mut locals = Arena::new();
+        let subject = locals.alloc(local("subject", ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![when_stmt(
+                    local_ref(subject, ty),
+                    vec![arm(
+                        hir::Pattern::Literal {
+                            value: literal,
+                            equality: hir::LiteralPatternEquality::Ordinary {
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(equals)),
+                            },
+                            subject_ty: ty,
+                        },
+                        None,
+                        Vec::new(),
+                    )],
+                    hir::WhenFallback::Else(Vec::new()),
+                )],
+            },
+        );
+        (lower(&h.finish(main)), name)
+    }
+
+    for string in [false, true] {
+        let (module, expected_name) = lower_case(string);
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
+        let (call, result) = entry_statements(body)
+            .iter()
+            .find_map(|statement| {
+                matches!(statement.kind, mir::StatementKind::Call(_))
+                    .then(|| statement_call(statement))
+            })
+            .expect("ordinary literal pattern calls its HIR-selected equality target");
+        assert!(matches!(call.target, mir::CallTarget::Direct(_)));
+        let mir::CallTarget::Direct(mir::Callee::User(equals)) = call.target else {
+            panic!("the ordinary equality target is a user function");
+        };
+        assert_eq!(module.functions[equals].name, expected_name);
+        assert!(matches!(call.args.as_slice(), [scrutinee, _]
+            if matches!(scrutinee.kind, mir::ExprKind::Local(_))));
+        let result = result.expect("equals returns Boolean");
+        let mir::Terminator::Branch { cond, .. } = &body.blocks[body.entry].terminator else {
+            panic!("literal equality result controls the pattern branch")
+        };
+        assert!(matches!(cond.kind, mir::ExprKind::Local(local) if local == result));
+    }
+}
+
+#[test]
+fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
+    for source_kind in hir::IntegerKind::ALL {
+        let mut h = Harness::new();
+        let ty = h.integer(source_kind);
+        let literal = integer_lit(&h, source_kind, 1);
+        let mut locals = Arena::new();
+        let subject = locals.alloc(local("subject", ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![when_stmt(
+                    local_ref(subject, ty),
+                    vec![arm(
+                        hir::Pattern::Literal {
+                            value: literal,
+                            equality: hir::LiteralPatternEquality::Integer { kind: source_kind },
+                            subject_ty: ty,
+                        },
+                        None,
+                        Vec::new(),
+                    )],
+                    hir::WhenFallback::Else(Vec::new()),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
+        assert!(
+            body.locals
+                .iter()
+                .all(|(_, local)| !local.name.starts_with("$pattern.subject.")),
+            "literal-only arms do not need stable variant subject copies",
+        );
+        assert!(
+            entry_statements(body)
+                .iter()
+                .all(|statement| !matches!(statement.kind, mir::StatementKind::Call(_))),
+            "integer pattern equality is not lowered as a function call",
+        );
+        let mir::Terminator::Branch { cond, .. } = &body.blocks[body.entry].terminator else {
+            panic!("a refutable integer literal branches");
+        };
+        let mir::ExprKind::IntegerCompare {
+            operation,
+            lhs,
+            rhs,
+        } = &cond.kind
+        else {
+            panic!("integer literal pattern lowers directly to IntegerCompare");
+        };
+        let expected_kind = lower_integer_kind(source_kind);
+        assert_eq!(operation.operand_kind(), expected_kind);
+        assert_eq!(operation.operator(), mir::IntegerComparisonOperator::Equal);
+        assert!(matches!(lhs.kind, mir::ExprKind::Local(_)));
+        assert!(matches!(
+            rhs.kind,
+            mir::ExprKind::IntegerLiteral(value) if value.kind() == expected_kind
+        ));
+    }
+}
+
+#[test]
+fn destructuring_val_declarations_extract_bindings() {
+    // val (a, b) = (1, "x"); val Point { x, .. } = p
+    let mut h = Harness::new();
+    let (int, string) = (h.int, h.string);
+    let point = h.strukt("Point", &[("x", int), ("y", int)]);
+    let point_ty = h.struct_ty(point);
+    let pair = h.tuple(&[int, string]);
+    let mut locals = Arena::new();
+    let a = locals.alloc(local("a", int));
+    let b = locals.alloc(local("b", string));
+    let p = locals.alloc(local("p", point_ty));
+    let x = locals.alloc(local("x", int));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![
+                stmt(hir::StatementKind::ValDecl {
+                    pattern: hir::Pattern::Tuple(vec![
+                        hir::Pattern::Binding { local: a },
+                        hir::Pattern::Binding { local: b },
+                    ]),
+                    init: expr(
+                        hir::ExprKind::TupleLiteral(vec![int_lit(&h, 1), str_lit(&h, "x")]),
+                        pair,
+                    ),
+                }),
+                val_decl(
+                    p,
+                    struct_init(&h, point_ty, vec![int_lit(&h, 3), int_lit(&h, 4)]),
+                ),
+                stmt(hir::StatementKind::ValDecl {
+                    pattern: hir::Pattern::Struct {
+                        owner: point_ty,
+                        fields: vec![(0, hir::Pattern::Binding { local: x })],
+                    },
+                    init: local_ref(p, point_ty),
+                }),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+
+    // Each destructuring declaration evaluates its init once into
+    // a hidden local, then binds the extracted fields.
+    check_mir_snapshot("destructuring_val_declarations_extract_bindings", &module);
+}

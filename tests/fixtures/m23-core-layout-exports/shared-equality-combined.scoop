@@ -1,0 +1,25 @@
+public struct SharedEqualityLeaf()
+public struct SharedEqualityPair(val first: SharedEqualityLeaf, val second: SharedEqualityLeaf)
+public enum SharedEqualityChoice { Empty, Full(SharedEqualityPair) }
+
+public struct SharedEqualityManual() {
+    public operator fun equals(other: SharedEqualityManual): Boolean = false
+}
+public struct SharedEqualityUsesManual(val value: SharedEqualityManual)
+public struct SharedEqualityOverloaded() {
+    public operator fun equals(other: SharedEqualityLeaf): Boolean = true
+}
+public interface SharedEqualityMarker {
+    public fun leaf(): SharedEqualityLeaf = SharedEqualityLeaf()
+}
+public struct SharedEqualityWithMarker(val value: SharedEqualityLeaf): SharedEqualityMarker
+public class SharedEqualityReference {}
+public struct SharedEqualityNotComparable(val value: SharedEqualityReference)
+
+public fun sharedEqualityChoice(left: SharedEqualityChoice, right: SharedEqualityChoice): Boolean = left == right
+public fun sharedEqualityManual(left: SharedEqualityUsesManual, right: SharedEqualityUsesManual): Boolean = left == right
+public fun sharedEqualityOverloaded(left: SharedEqualityOverloaded, right: SharedEqualityOverloaded): Boolean = left == right
+public fun sharedEqualityWithMarker(left: SharedEqualityWithMarker, right: SharedEqualityWithMarker): Boolean = left == right
+public object SharedEqualitySingleton {
+    public val same: Boolean = SharedEqualityPair(SharedEqualityLeaf(), SharedEqualityLeaf()) == SharedEqualityPair(SharedEqualityLeaf(), SharedEqualityLeaf())
+}

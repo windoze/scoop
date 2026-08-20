@@ -1,0 +1,21 @@
+import releaseaggregate.*
+
+@Extern(lib = "m24_release", name = "m24_release_wide_count")
+private fun count(): Long
+
+private fun allocate() {
+    val first = Wide(1, 2, 3)
+    val second = Wide(4, 5, 6)
+    val third = Wide(6, 7, 8)
+    val value = ordinary(7, first)
+    val owner = Owner(value, first, second, third)
+    val zero = Wide(0, 0, 0)
+    val empty = Owner(Unit, zero, zero, zero)
+}
+
+fun main() {
+    allocate()
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(count()) }
+}

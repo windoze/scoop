@@ -1,0 +1,26 @@
+enum E {
+    Num(Int),
+    Pair(Int, Int),
+    Empty
+}
+
+fun main() {
+    val v = E.Num(42)
+    when (v) {
+        case Num(n) if (n > 100) -> println("big")
+        case Num(n) -> println(n)
+        case Pair(a, b) -> println(a + b)
+        case Empty -> println("empty")
+    }
+    val w = E.Pair(3, 4)
+    when (w) {
+        case Num(n) -> println(n)
+        case Pair(a, _) if (a > 10) -> println("big pair")
+        else -> println("other")
+    }
+    val e = E.Empty
+    when (e) {
+        case Empty -> println("empty")
+        else -> println("not empty")
+    }
+}

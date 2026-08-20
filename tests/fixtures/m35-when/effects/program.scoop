@@ -1,0 +1,47 @@
+class Node(val text: String)
+class Store {
+    operator fun contains(value: Node): Boolean {
+        gcCollect()
+        println("contains")
+        if (value.text == "boom") { throw IllegalStateException() }
+        return value.text == "match"
+    }
+}
+
+fun subject(label: String): Node { println("subject-" + label); return Node(label) }
+fun reject(): Boolean { println("guard"); gcCollect(); return false }
+fun stop(): Nothing { println("stop"); throw IllegalStateException() }
+fun allAbort(): Int = when { stop() -> 1; else -> 2 }
+
+fun main() {
+    val store = Store()
+    when (val node = subject("match")) {
+        in store if reject() -> println("wrong")
+        is Node -> println(node.text)
+    }
+    try {
+        when (subject("boom")) { in store -> println("wrong") }
+        println("wrong")
+    } catch (error: IllegalStateException) {
+        println("contains-caught")
+    } finally {
+        println("contains-finally")
+    }
+    try {
+        println(allAbort())
+    } catch (error: IllegalStateException) {
+        println("condition-caught")
+    } finally {
+        println("condition-finally")
+    }
+    try {
+        when (val node = subject("live")) {
+            is Node if stop() -> println(node.text)
+            else -> println("wrong")
+        }
+    } catch (error: IllegalStateException) {
+        println("guard-caught")
+    } finally {
+        println("guard-finally")
+    }
+}

@@ -1,0 +1,18 @@
+private fun check(value: Boolean) { if (!value) { exit(99) } }
+
+typealias Text = String
+typealias Arguments = Array<Text>
+
+fun main(values: Arguments) {
+    check(values.size == 5L)
+    check(values[1] == "two words")
+    check(values[2] == "")
+    check(values[3] == "中文🙂")
+    check(values[4] == "--literal")
+    gcCollect()
+    println(values[0])
+    println(values[1])
+    println(values[2])
+    println(values[3])
+    println(values[4])
+}

@@ -1,0 +1,2 @@
+fun bad(cell: Atomic<Int>) { cell.store(true) }
+fun main() {}

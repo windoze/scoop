@@ -1,0 +1,4 @@
+@Extern(name = "m23_add")
+fun add(left: Int, right: Int): Int
+
+fun main() { @Unsafe { println(add(20, 22)) } }

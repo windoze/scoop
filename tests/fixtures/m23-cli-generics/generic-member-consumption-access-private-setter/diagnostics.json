@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "setter of property `restricted` is not accessible",
+    "notes": [],
+    "origin": {
+      "cone": "48e5e083b20ab1f94f712eaf9c6ef12b80e1c233e0216ed5b07ad0819951070e",
+      "end": 163,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 153
+    },
+    "severity": "error"
+  }
+]

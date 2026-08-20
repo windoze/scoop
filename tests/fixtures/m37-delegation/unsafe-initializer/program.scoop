@@ -1,0 +1,5 @@
+interface I {}
+class Impl : I
+@Unsafe fun make(): I = Impl()
+class Host : I by make()
+fun main() {}

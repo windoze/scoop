@@ -1,0 +1,6 @@
+private fun hidden(): String = "hidden"
+public fun externalDefault(value: String = if (true) {
+    fun copy(): String { return "local" }
+    copy()
+    hidden()
+} else { "fallback" }): String = value

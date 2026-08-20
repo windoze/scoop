@@ -1,0 +1,2 @@
+class Key
+fun main() { when (Key()) { case _ -> {} } }

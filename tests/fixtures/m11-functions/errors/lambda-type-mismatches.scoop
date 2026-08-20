@@ -1,0 +1,5 @@
+fun main() {
+    val explicit: (Int) -> Int = { value: String -> 1 }
+    val result: (Int) -> String = { value -> value }
+    val omitted: (Int, Int) -> Int = { it }
+}

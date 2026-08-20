@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "cxx-middle"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"dev.m33:cxx-provider" = "0.1.0"

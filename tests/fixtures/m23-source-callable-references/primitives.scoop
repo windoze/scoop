@@ -1,0 +1,36 @@
+package consumer.references
+
+public fun equalsDefault(check: (Int) -> Boolean = 42::equals): Boolean = check(42)
+
+public fun <T> exercise(value: T): Int {
+    var number: Int = 41
+    val add: (Int) -> Int = number::plus
+    number = 0
+    val negate = 42::unaryMinus
+    val compare: (Int) -> Long = 42::compareTo
+    val widen = 42::toInt64
+    val shift: (Long) -> Int = 21::shl
+    val divide: (Int) -> Int = 84::div
+    val remainder: (Int) -> Int = 85::rem
+    val minimum: Int = -2147483648
+    val boundary: (Int) -> Int = minimum::div
+    val unsigned: UInt = 84u
+    val unsignedDivide: (UInt) -> UInt = unsigned::div
+    val invert = false::not
+    val concat: (String) -> String = "scoop"::plus
+    val compareString: (String) -> Long = "scoop"::compareTo
+    if (add(1) != 42 || number != 0 || negate() != -42) { return 1 }
+    if (compare(42) != 0L || compare(1) <= 0L || widen() != 42L) { return 2 }
+    if (shift(33L) != 42 || divide(2) != 42 || remainder(2) != 1) { return 3 }
+    if (boundary(-1) != minimum || unsignedDivide(2u) != 42u) { return 4 }
+    if (!invert() || concat("!") != "scoop!" || compareString("scoop") != 0L) { return 5 }
+    if (!equalsDefault()) { return 6 }
+    try {
+        divide(0)
+    } catch (error: ArithmeticException) {
+        return 42
+    }
+    return 7
+}
+
+public fun result(): Int = exercise<Int>(0)

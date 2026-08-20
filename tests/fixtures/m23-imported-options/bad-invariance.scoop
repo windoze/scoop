@@ -1,0 +1,8 @@
+package consumer.options
+
+private class Cell()
+
+public fun result(): Any? {
+    val narrow: Cell? = Some(Cell())
+    return narrow
+}

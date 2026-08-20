@@ -1,0 +1,1 @@
+public fun consume(value: dependency.paths.Outer.Generic<Int, Long>): Int = 42

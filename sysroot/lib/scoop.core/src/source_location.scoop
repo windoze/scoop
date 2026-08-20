@@ -1,0 +1,10 @@
+public struct SourceLocation(
+    val file: String,
+    val line: Long,
+    val column: Long,
+    val functionName: String,
+    val typeName: String
+)
+
+@Intrinsic("current_source_location")
+public fun getCurrentSourceLocation(): SourceLocation

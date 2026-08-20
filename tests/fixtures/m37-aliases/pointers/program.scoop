@@ -1,0 +1,12 @@
+typealias Pointer<T: value> = Ptr<T>
+fun main() {
+    var value = 42
+    @Unsafe {
+        val raw = addressOf(value).toULong()
+        val first: Pointer<Int> = Pointer(raw)
+        val second = Pointer<Int>(raw)
+        println(first.load())
+        second.store(7)
+        println(value)
+    }
+}

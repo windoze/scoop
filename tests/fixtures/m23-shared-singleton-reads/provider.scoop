@@ -1,0 +1,24 @@
+package upstream.singletons
+
+private var starts: Int = 0
+
+private fun initialized(): Int {
+    starts = starts + 1
+    return 42
+}
+
+public class State public constructor(public var value: Int)
+
+public object Registry {
+    public val state: State = State(initialized())
+    public val label: String = "ready"
+}
+
+public fun readRegistry(): Registry = Registry
+public fun initializationCount(): Int = starts
+
+public fun <T> selected(
+    seed: T,
+    inspect: (T) -> Int,
+    registry: Registry = Registry
+): Int = inspect(seed) + registry.state.value - 42

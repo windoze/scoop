@@ -1,0 +1,14 @@
+class Node(val value: Long, var next: Node?)
+
+fun main() {
+    val owner = Node(0L, None)
+    val first = Node(7L, None)
+    val second = Node(9L, None)
+    gcCollect()
+    var index = 0L
+    while (index < 8000000L) {
+        owner.next = if (index % 2L == 0L) { Some(first) } else { Some(second) }
+        index += 1L
+    }
+    println(owner.next!!.value)
+}

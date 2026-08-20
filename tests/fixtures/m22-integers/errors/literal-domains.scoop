@@ -1,0 +1,5 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val signedPositiveOverflow: Long = 9223372036854775808
+}

@@ -1,0 +1,10 @@
+// EXPECT-TRAP
+fun readLeft(): Int = left
+fun readRight(): Int = right
+
+val left: Int = readRight()
+val right: Int = readLeft()
+
+fun main() {
+    println("main-must-not-run")
+}

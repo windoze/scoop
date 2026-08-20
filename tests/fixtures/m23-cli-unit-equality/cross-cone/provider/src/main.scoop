@@ -1,0 +1,2 @@
+public fun unitDefault(left: Unit, right: Unit, value: Boolean = left == right): Boolean = value
+public fun inProvider(left: Unit, right: Unit): Boolean = left == right

@@ -1,0 +1,7 @@
+import templates.equality.Counter
+
+public fun check(): Boolean {
+    val left = Counter<Int>(42)
+    val right = Counter<String>(42)
+    return left == right
+}

@@ -1,0 +1,12 @@
+interface I {
+    fun m(): Int
+}
+
+class C(val x: Int) : I {
+    fun g(): Int = x
+}
+
+fun main() {
+    val c = C(1)
+    println(c.x)
+}

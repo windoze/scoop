@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "namespace-companions"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:namespace-first" = "0.1.0"
+"dev.example:namespace-second" = "0.1.0"

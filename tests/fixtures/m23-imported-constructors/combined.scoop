@@ -1,0 +1,12 @@
+package consumer.constructors
+
+import dependency.constructors.Token
+import dependency.constructors.Wide
+import dependency.constructors.Wide as Packet
+import dependency.constructors.defaultWide
+
+@NoGC public fun token(): Token = Token()
+@NoGC public fun primary(): Wide = Packet(marker = Token(), third = 53, first = 17, second = -29)
+@NoGC public fun secondary(): Wide = Packet(seed = Wide(seed = 3).first + 2, step = 3)
+@NoGC public fun defaults(): Long = defaultWide(value = Wide(first = 3, second = 4, third = 5))
+@NoGC public fun republished(value: Wide = Wide(seed = 1, step = 1)): Long = value.sum()

@@ -1,0 +1,2 @@
+context(a: FunPtr<() -> Unit>) fun read() {}
+fun main() {}

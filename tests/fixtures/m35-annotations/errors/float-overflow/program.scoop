@@ -1,0 +1,3 @@
+annotation class Mark(val values: Array<Float>)
+@Mark([1f, 1e999, 2f]) struct Item()
+fun main() {}

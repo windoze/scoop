@@ -1,0 +1,14 @@
+package upstream.calls
+
+private var count: Int = 0
+public fun calls(): Int = count
+public fun mark(): Unit { count += 1 }
+
+public fun <T> identity(value: T): T = value
+public fun <T> nested(value: T): T = identity<T>(value)
+public fun <T> defaulted(value: T, other: T = nested<T>(value)): T = other
+
+public fun <T> action(value: T, read: (T) -> Int): Int {
+    val callback = { read(nested<T>(value)) }
+    return callback()
+}

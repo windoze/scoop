@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object 81ad60f3c8474867921527db40f9a02075582cb75691733323e113fccc8c9c61 selected by direct input (dev.m33:native-right:0.1.0:native.c) conflicts with dev.m33:native-left:0.1.0:native.c at m33_duplicate",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

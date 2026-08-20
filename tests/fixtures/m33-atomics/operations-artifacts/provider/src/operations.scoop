@@ -1,0 +1,23 @@
+package atomicoperations
+
+public class Payload public constructor(public val id: Int)
+
+public fun <T : ref> read(cell: AtomicRef<T>, value: T = cell.load()): T = value
+public fun exchanged(cell: AtomicInt, value: Int = cell.exchange(5)): Int = value
+public fun fetched(cell: AtomicInt, old: Int = cell.fetchAdd(2, MemoryOrder.Relaxed)): Int = old
+public fun <T : ref> stored(cell: AtomicRef<T>, value: T, done: Unit = cell.store(value)) {}
+public fun <T : ref> compared(
+    cell: AtomicRef<T>, expected: T, value: T,
+    old: T = cell.compareAndExchange(expected, value, MemoryOrder.AcqRel, MemoryOrder.Acquire)
+): T = old
+
+public fun <T : ref> swap(cell: AtomicRef<T>, value: T): T = cell.exchange(value)
+public fun <T : ref> publish(cell: AtomicRef<T>, value: T) {
+    cell.store(value, MemoryOrder.Release)
+}
+public fun <T : ref> acquire(cell: AtomicRef<T>): T = cell.load(MemoryOrder.Acquire)
+public fun <T : ref> replace(cell: AtomicRef<T>, old: T, value: T): Boolean =
+    cell.compareAndSet(old, value, MemoryOrder.AcqRel, MemoryOrder.Relaxed)
+
+public fun readFlag(cell: AtomicBoolean): Boolean = cell.load()
+public fun addLong(cell: AtomicLong, value: Long): Long = cell.fetchAdd(value)

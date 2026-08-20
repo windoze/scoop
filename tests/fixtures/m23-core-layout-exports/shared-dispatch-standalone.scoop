@@ -1,0 +1,24 @@
+public struct SharedDispatchToken()
+public open class SharedDispatchOrder {
+    public open fun zeta(): SharedDispatchToken = SharedDispatchToken()
+    public open fun alpha(): SharedDispatchToken = SharedDispatchToken()
+}
+public open class SharedDispatchBase {
+    public open fun first(value: SharedDispatchToken): SharedDispatchToken = value
+    protected open val copy: SharedDispatchToken get() = SharedDispatchToken()
+}
+public class SharedDispatchChild: SharedDispatchBase() {
+    public override fun first(value: SharedDispatchToken): SharedDispatchToken = value
+    protected final override val copy: SharedDispatchToken get() = SharedDispatchToken()
+}
+public abstract class SharedDispatchAbstract {
+    public abstract fun pending(): SharedDispatchToken
+}
+public abstract class SharedDispatchAgain: SharedDispatchAbstract() {
+    public abstract override fun pending(): SharedDispatchToken
+}
+public abstract class SharedDispatchInherited: SharedDispatchAgain()
+public object SharedDispatchObject: SharedDispatchBase() {
+    public override fun first(value: SharedDispatchToken): SharedDispatchToken = value
+    public override val copy: SharedDispatchToken get() = SharedDispatchToken()
+}

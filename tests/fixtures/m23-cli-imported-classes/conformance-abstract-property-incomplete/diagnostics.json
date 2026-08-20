@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `LocalReader` does not implement abstract method `LocalBase.$get$value`",
+    "notes": [],
+    "origin": {
+      "cone": "a151ec506a6e35ee1311716802d58447aa414f3245194392550bc76603a0fe18",
+      "end": 217,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 156
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `LocalReader` does not implement abstract method `LocalBase.$set$value`",
+    "notes": [],
+    "origin": {
+      "cone": "a151ec506a6e35ee1311716802d58447aa414f3245194392550bc76603a0fe18",
+      "end": 217,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 156
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `LocalReader` leaves interface method `MutableValue.$get$value` abstract",
+    "notes": [],
+    "origin": {
+      "cone": "a151ec506a6e35ee1311716802d58447aa414f3245194392550bc76603a0fe18",
+      "end": 217,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 156
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `LocalReader` leaves interface method `MutableValue.$set$value` abstract",
+    "notes": [],
+    "origin": {
+      "cone": "a151ec506a6e35ee1311716802d58447aa414f3245194392550bc76603a0fe18",
+      "end": 217,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 156
+    },
+    "severity": "error"
+  }
+]

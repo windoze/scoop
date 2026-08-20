@@ -1,0 +1,4 @@
+public fun result(): Int {
+    val copied = Array([])
+    return 42
+}

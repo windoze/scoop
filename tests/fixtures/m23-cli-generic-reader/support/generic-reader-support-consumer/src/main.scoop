@@ -1,0 +1,1 @@
+public fun check(): Int = fromSupport<Int>(42)

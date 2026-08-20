@@ -1,0 +1,10 @@
+package consumer.members
+
+import templates.members.*
+
+private object Saved: ProtectedBox<Int>(42) {
+    public fun read(): Int = this.secret()
+}
+
+public fun result(): Int = Saved.read()
+public fun <T> make(value: T): T = ProtectedChild<T>(value).read()

@@ -1,0 +1,26 @@
+package m34.direct
+
+@CLayout public struct Hfa4(val a: Double, val b: Double, val c: Double, val d: Double)
+@CLayout public struct Wrap<T>(val value: T)
+@CLayout public struct Big(val a: Long, val b: Long, val c: Long, val d: Long, val e: Long)
+
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_art_hfa")
+public fun leaf(value: Hfa4): Hfa4
+@Extern(lib = "fixture_direct_c", name = "m34_art_hfa")
+public fun safe(value: Hfa4): Hfa4
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_art_word")
+public fun word(value: Wrap<Long>): Wrap<Long>
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_art_nested")
+public fun nested(value: Wrap<Hfa4>): Wrap<Hfa4>
+@Extern(lib = "fixture_direct_c", name = "m34_art_big")
+public fun large(value: Big): Big
+
+public interface Transform { public fun apply(value: Hfa4): Hfa4 }
+public class Worker public constructor() : Transform {
+    public override fun apply(value: Hfa4): Hfa4 { @Unsafe { return leaf(value) } }
+}
+public fun <T> retained(value: T): T {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return value }
+}
+public fun wrapped(value: Hfa4): Hfa4 { gcCollect(); @Unsafe { return safe(value) } }

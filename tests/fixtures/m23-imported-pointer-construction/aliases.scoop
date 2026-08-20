@@ -1,0 +1,21 @@
+package consumer.construction
+
+import Ptr as Raw
+import dependency.construction.IntPointer as External
+
+private typealias Local = Raw<Int>
+
+public fun <T> exercise(value: T): Int {
+    var number = 40
+    @Unsafe {
+        val raw = addressOf(number).toULong()
+        val imported = External(raw = raw)
+        val local = Local(raw)
+        val renamed = Raw<Int>(raw)
+        imported.store(local.load() + 1)
+        renamed.store(imported.load() + 1)
+        return number
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

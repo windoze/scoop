@@ -1,0 +1,5 @@
+package 组合.转发
+
+public import 组合.提供.*
+public typealias `跨 库 值`<T> = @`位置 标记` Container<@`位置 标记` T>
+public fun <T> boxed(value: @`位置 标记` T) = `跨 库 值`(`保留 值`(`入 参` = value))

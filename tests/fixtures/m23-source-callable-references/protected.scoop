@@ -1,0 +1,17 @@
+package consumer.references
+
+import templates.references.*
+
+public class LocalChild<T> public constructor(value: T): Protected<T>(value) {
+    public fun reference(): () -> T = this::read
+    public fun chosen(read: () -> T = this::read): T = read()
+}
+
+public fun <T> exercise(value: T): Int {
+    val child = LocalChild<T>(value)
+    val read = child.reference()
+    val values = (read(), child.chosen())
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(0)

@@ -1,0 +1,419 @@
+//! Hand-written lexer with a shared token stream for nested string interpolation.
+//!
+//! Produces a flat token vector for the parser. Invalid characters and
+//! recoverable literal errors become diagnostic-only error tokens so parser
+//! recovery retains declaration boundaries while one pass reports multiple
+//! independent lexical diagnostics. An unterminated block comment consumes
+//! the rest of the file and therefore ends recovery naturally.
+
+use scoop_ast::{Diagnostic, IntegerRadix, IntegerSuffix, Span};
+
+mod floating;
+mod identifiers;
+mod integers;
+mod interpolation;
+mod literals;
+mod token;
+
+use interpolation::InterpolationMode;
+pub(crate) use token::{IntegerLiteralLexeme, Token, TokenKind};
+
+pub(crate) fn lex(source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
+    Lexer::new(source).run()
+}
+
+struct Lexer<'a> {
+    source: &'a str,
+    pos: usize,
+    newline_before: bool,
+    interpolations: Vec<InterpolationMode>,
+}
+
+impl<'a> Lexer<'a> {
+    fn new(source: &'a str) -> Self {
+        Lexer {
+            source,
+            pos: 0,
+            newline_before: false,
+            interpolations: Vec::new(),
+        }
+    }
+
+    fn run(mut self) -> (Vec<Token>, Vec<Diagnostic>) {
+        let mut tokens = Vec::new();
+        let mut diagnostics = Vec::new();
+        loop {
+            if let Some(InterpolationMode::Text {
+                raw,
+                start: opening,
+            }) = self.interpolations.last().copied()
+            {
+                let start = self.pos;
+                let kind = match self.lex_fstring_text(raw, opening) {
+                    Ok(kind) => kind,
+                    Err(diagnostic) => {
+                        diagnostics.push(diagnostic);
+                        self.skip_fstring_remainder(raw);
+                        TokenKind::Error
+                    }
+                };
+                tokens.push(Token {
+                    kind,
+                    span: self.span_from(start),
+                    newline_before: false,
+                });
+                continue;
+            }
+            if let Err(diagnostic) = self.skip_trivia() {
+                diagnostics.push(diagnostic);
+                tokens.push(Token {
+                    kind: TokenKind::Eof,
+                    span: self.span_from(self.pos),
+                    newline_before: std::mem::take(&mut self.newline_before),
+                });
+                return (tokens, diagnostics);
+            }
+            let start = self.pos;
+            let newline_before = std::mem::take(&mut self.newline_before);
+            let Some(c) = self.peek_char() else {
+                if let Some(InterpolationMode::Expression { start, .. }) =
+                    self.interpolations.last()
+                {
+                    diagnostics.push(Diagnostic::at(
+                        self.span_from(*start),
+                        "unterminated string interpolation",
+                    ));
+                }
+                tokens.push(Token {
+                    kind: TokenKind::Eof,
+                    span: self.span_from(start),
+                    newline_before,
+                });
+                return (tokens, diagnostics);
+            };
+            let kind = match self.lex_token(c, start) {
+                Ok(kind) => kind,
+                Err(diagnostic) => {
+                    diagnostics.push(diagnostic);
+                    TokenKind::Error
+                }
+            };
+            tokens.push(Token {
+                kind,
+                span: self.span_from(start),
+                newline_before,
+            });
+        }
+    }
+
+    fn lex_token(&mut self, c: char, start: usize) -> Result<TokenKind, Diagnostic> {
+        let kind = match c {
+            '(' => {
+                self.pos += 1;
+                TokenKind::LParen
+            }
+            ')' => {
+                self.pos += 1;
+                TokenKind::RParen
+            }
+            '{' => self.opening_brace(),
+            '}' => self.closing_brace(),
+            '[' => {
+                self.pos += 1;
+                TokenKind::LBracket
+            }
+            ']' => {
+                self.pos += 1;
+                TokenKind::RBracket
+            }
+            ',' => {
+                self.pos += 1;
+                TokenKind::Comma
+            }
+            ';' => {
+                self.pos += 1;
+                TokenKind::Semicolon
+            }
+            ':' => {
+                self.pos += 1;
+                if self.peek_char() == Some(':') {
+                    self.pos += 1;
+                    TokenKind::DoubleColon
+                } else {
+                    TokenKind::Colon
+                }
+            }
+            '@' => {
+                self.pos += 1;
+                TokenKind::At
+            }
+            // `..` is the rest marker in pattern positions (spec 4.6);
+            // the range operator shares the token but only appears in
+            // expression positions (a dedicated diagnostic in M5).
+            '.' if self.starts_float() => return self.lex_float(),
+            '.' => {
+                self.pos += 1;
+                if self.eat('.') {
+                    if self.eat('<') {
+                        TokenKind::DotDotLess
+                    } else {
+                        TokenKind::DotDot
+                    }
+                } else {
+                    TokenKind::Dot
+                }
+            }
+            '?' => {
+                self.pos += 1;
+                if self.eat('.') {
+                    TokenKind::QuestionDot
+                } else if self.eat(':') {
+                    TokenKind::QuestionColon
+                } else {
+                    TokenKind::Question
+                }
+            }
+            '+' => {
+                self.pos += 1;
+                if self.eat('+') {
+                    TokenKind::PlusPlus
+                } else if self.eat('=') {
+                    TokenKind::PlusEqual
+                } else {
+                    TokenKind::Plus
+                }
+            }
+            '-' => {
+                self.pos += 1;
+                // `->` separates a `when` arm's pattern from its body.
+                // No valid expression has `-` immediately before `>`.
+                if self.eat('>') {
+                    TokenKind::Arrow
+                } else if self.eat('-') {
+                    TokenKind::MinusMinus
+                } else if self.eat('=') {
+                    TokenKind::MinusEqual
+                } else {
+                    TokenKind::Minus
+                }
+            }
+            '*' => {
+                self.pos += 1;
+                if self.eat('=') {
+                    TokenKind::StarEqual
+                } else {
+                    TokenKind::Star
+                }
+            }
+            // No `/*` ambiguity: comment openers are consumed by
+            // `skip_trivia`, so a `/` reaching here is always division.
+            '/' => {
+                self.pos += 1;
+                if self.eat('=') {
+                    TokenKind::SlashEqual
+                } else {
+                    TokenKind::Slash
+                }
+            }
+            '%' => {
+                self.pos += 1;
+                if self.eat('=') {
+                    TokenKind::PercentEqual
+                } else {
+                    TokenKind::Percent
+                }
+            }
+            '!' => {
+                self.pos += 1;
+                if self.source[self.pos..].starts_with("in")
+                    && self.source[self.pos + 2..]
+                        .chars()
+                        .next()
+                        .is_none_or(|next| !is_ident_continue(next))
+                {
+                    self.pos += 2;
+                    TokenKind::BangIn
+                } else if self.eat('=') {
+                    if self.eat('=') {
+                        TokenKind::BangEqualEqual
+                    } else {
+                        TokenKind::BangEqual
+                    }
+                } else {
+                    TokenKind::Bang
+                }
+            }
+            '=' => {
+                self.pos += 1;
+                if self.eat('=') {
+                    if self.eat('=') {
+                        TokenKind::EqualEqualEqual
+                    } else {
+                        TokenKind::EqualEqual
+                    }
+                } else {
+                    TokenKind::Equal
+                }
+            }
+            '<' => {
+                self.pos += 1;
+                if self.eat('=') {
+                    TokenKind::LessEqual
+                } else {
+                    TokenKind::Less
+                }
+            }
+            '>' => {
+                self.pos += 1;
+                if self.eat('=') {
+                    TokenKind::GreaterEqual
+                } else {
+                    TokenKind::Greater
+                }
+            }
+            '&' if self.source[self.pos + 1..].starts_with('&') => {
+                self.pos += 2;
+                TokenKind::AmpAmp
+            }
+            '|' if self.source[self.pos + 1..].starts_with('|') => {
+                self.pos += 2;
+                TokenKind::PipePipe
+            }
+            '"' => return self.lex_string(),
+            '\'' => return self.lex_character(),
+            '`' => return self.lex_escaped_ident(),
+            c if c.is_ascii_digit() => return self.lex_int(),
+            c if is_ident_start(c) => return self.lex_ident(),
+            c => {
+                self.pos += c.len_utf8();
+                return Err(Diagnostic::at(
+                    self.span_from(start),
+                    format!("unexpected character `{c}`"),
+                ));
+            }
+        };
+        Ok(kind)
+    }
+
+    fn peek_char(&self) -> Option<char> {
+        self.source[self.pos..].chars().next()
+    }
+
+    /// Consumes `expected` if it is the next char; returns whether it did.
+    fn eat(&mut self, expected: char) -> bool {
+        if self.peek_char() == Some(expected) {
+            self.pos += expected.len_utf8();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn span_from(&self, start: usize) -> Span {
+        Span::new(start as u32, self.pos as u32)
+    }
+
+    /// Skips whitespace and comments, recording newlines in
+    /// `newline_before`.
+    fn skip_trivia(&mut self) -> Result<(), Diagnostic> {
+        loop {
+            match self.peek_char() {
+                Some(' ' | '\t' | '\r') => self.pos += 1,
+                Some('\n') => {
+                    self.pos += 1;
+                    self.newline_before = true;
+                }
+                Some('/') if self.source[self.pos + 1..].starts_with('/') => {
+                    while let Some(c) = self.peek_char() {
+                        if c == '\n' {
+                            break;
+                        }
+                        self.pos += c.len_utf8();
+                    }
+                }
+                Some('/') if self.source[self.pos + 1..].starts_with('*') => {
+                    self.skip_block_comment()?;
+                }
+                _ => return Ok(()),
+            }
+        }
+    }
+
+    /// `pos` is at the opening `/*`. M2 block comments do not nest.
+    fn skip_block_comment(&mut self) -> Result<(), Diagnostic> {
+        let start = self.pos;
+        self.pos += 2;
+        loop {
+            match self.peek_char() {
+                None => {
+                    return Err(Diagnostic::at(
+                        self.span_from(start),
+                        "unterminated block comment",
+                    ));
+                }
+                Some('*') if self.source[self.pos + 1..].starts_with('/') => {
+                    self.pos += 2;
+                    return Ok(());
+                }
+                Some('\n') => {
+                    self.pos += 1;
+                    self.newline_before = true;
+                }
+                Some(c) => self.pos += c.len_utf8(),
+            }
+        }
+    }
+
+    fn lex_ident(&mut self) -> Result<TokenKind, Diagnostic> {
+        let start = self.pos;
+        while let Some(c) = self.peek_char() {
+            if !is_ident_continue(c) {
+                break;
+            }
+            self.pos += c.len_utf8();
+        }
+        let text = &self.source[start..self.pos];
+        if text == "f" && self.peek_char() == Some('"') {
+            return Ok(self.start_fstring(start));
+        }
+        let kind = match text {
+            "package" => TokenKind::Package,
+            "import" => TokenKind::Import,
+            "suspend" => TokenKind::Suspend,
+            "vararg" => TokenKind::Vararg,
+            "fun" => TokenKind::Fun,
+            "struct" => TokenKind::Struct,
+            "enum" => TokenKind::Enum,
+            "class" => TokenKind::Class,
+            "interface" => TokenKind::Interface,
+            "val" => TokenKind::Val,
+            "var" => TokenKind::Var,
+            "if" => TokenKind::If,
+            "else" => TokenKind::Else,
+            "when" => TokenKind::When,
+            "while" => TokenKind::While,
+            "do" => TokenKind::Do,
+            "for" => TokenKind::For,
+            "break" => TokenKind::Break,
+            "continue" => TokenKind::Continue,
+            "return" => TokenKind::Return,
+            "true" => TokenKind::True,
+            "false" => TokenKind::False,
+            "this" => TokenKind::This,
+            "is" => TokenKind::Is,
+            "in" => TokenKind::In,
+            "infix" => TokenKind::Infix,
+            "as" => TokenKind::As,
+            _ => TokenKind::Ident(text.to_string()),
+        };
+        Ok(kind)
+    }
+}
+
+fn is_ident_start(c: char) -> bool {
+    unicode_ident::is_xid_start(c) || c == '_'
+}
+
+fn is_ident_continue(c: char) -> bool {
+    unicode_ident::is_xid_continue(c) || c == '_'
+}

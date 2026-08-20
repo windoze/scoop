@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `$get$value` does not cover inherited slot `Base.$get$value`",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 245,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 240
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `$set$value` does not cover inherited slot `Base.$set$value`",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 245,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 240
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `execute` does not cover inherited slot `Base.execute`",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 201,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 194
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `expanded` does not cover inherited slot `Expanded.expanded`",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 537,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 529
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `expanded` does not cover inherited slot `ProtectedBase.expanded`",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 537,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 529
+    },
+    "severity": "error"
+  }
+]

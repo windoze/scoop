@@ -1,0 +1,30 @@
+import scoop.json.Json
+import sequences.sequence
+import sequences.capture
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"list artifact assertion ${code}")) }
+}
+
+private class Captured(private val body: (List<String>, Encodable<String>, Encoder) -> Unit)
+    : Encodable<List<String>> {
+    public override fun encode(value: List<String>, encoder: Encoder) {
+        body(value, String.Companion, encoder)
+    }
+}
+
+fun main() {
+    val integers = Array<Int>(3L) { index -> index.toInt32() + 1 }
+    val integerCodec = sequence<Int>(Int.Companion)
+    check(Json.encode<List<Int>>(integers, integerCodec) == "[1,2,3]", 1)
+    val mutable = ArrayList<Unit>()
+    mutable.add(Unit)
+    check(Json.encode<List<Unit>>(mutable, sequence<Unit>(UnitEncoder)) == "[null]", 2)
+    val nested = Array<List<Int>>(2L) { _ -> integers }
+    check(Json.encode<List<List<Int>>>(nested, sequence<List<Int>>(integerCodec)) == "[[1,2,3],[1,2,3]]", 3)
+    val strings = Array<String>(2L) { _ -> "界" }
+    check(Json.encode<List<String>>(strings, Captured(capture<String>())) == "[\"界\",\"界\"]", 4)
+    val restored = Json.decode(Json.encode<List<Int>>(integers, integerCodec), Array<Int>.decoder(Int.Companion))
+    check(restored.size == 3L && restored[2L] == 3, 5)
+    println("list-encoding-artifacts-ok")
+}

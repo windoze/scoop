@@ -1,0 +1,5 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val value = 1__2
+}

@@ -1,0 +1,11 @@
+package nativeapi
+
+@GCLeaf @Extern(name = "m33_provider_sum", captureErrno = true)
+private fun sum(value: Int): (Int, Int)
+
+public fun call(value: Int): (Int, Int) { @Unsafe { return sum(value) } }
+public fun <T> keep(value: T): T {
+    val (result, error) = call(40)
+    if (result != 42 || error != 17) { throw IllegalStateException() }
+    return value
+}

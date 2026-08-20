@@ -1,0 +1,17 @@
+sealed interface Event {}
+class Text(val value: String) : Event
+struct Count(val value: Int) : Event
+enum Flag : Event { Yes, No }
+object Stop : Event {}
+fun describe(value: Event): String = when (value) {
+    is Text -> value.value
+    is Count -> "count"
+    is Flag -> "flag"
+    is Stop -> "stop"
+}
+fun main() {
+    println(describe(Text("text")))
+    println(describe(Count(42)))
+    println(describe(Flag.Yes))
+    println(describe(Stop))
+}

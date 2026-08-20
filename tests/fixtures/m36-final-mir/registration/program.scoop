@@ -1,0 +1,61 @@
+class Gate: SuspendRegistration<Unit> {
+    var pending: Continuation<Unit>? = None
+    public override fun register(continuation: Continuation<Unit>) {
+        println("registered")
+        pending = Some(continuation)
+    }
+    fun complete() {
+        val continuation = pending!!
+        pending = None
+        gcCollect()
+        continuation.resume(Unit)
+    }
+    fun fail() {
+        val continuation = pending!!
+        pending = None
+        gcCollect()
+        continuation.resumeWithException(IllegalStateException())
+    }
+}
+
+class Immediate: SuspendRegistration<Unit> {
+    public override fun register(continuation: Continuation<Unit>) {
+        continuation.resume(Unit)
+    }
+}
+
+class Done(val label: String): Continuation<Unit> {
+    public override fun resume(value: Unit) { println(label) }
+    public override fun resumeWithException(exception: Throwable) { println("unexpected") }
+}
+
+suspend fun twice(registration: SuspendRegistration<Unit>) {
+    suspendCoroutine(registration)
+    suspendCoroutine(registration)
+}
+
+fun main() {
+    startCoroutine(suspend { twice(Immediate()); println("sync-body") }, Done("sync-done"))
+    val erased: Any = Gate()
+    val gate = (erased as? Gate)!!
+    println(when (erased as? Immediate) {
+        case None -> true
+        case Some(_) -> false
+    })
+    startCoroutine(suspend { twice(gate); println("async-body") }, Done("async-done"))
+    println("first")
+    gate.complete()
+    println("second")
+    gate.complete()
+    startCoroutine(suspend {
+        try {
+            twice(gate)
+        } catch (error: IllegalStateException) {
+            println("caught")
+        } finally {
+            println("cleanup")
+        }
+    }, Done("failure-done"))
+    println("failure")
+    gate.fail()
+}

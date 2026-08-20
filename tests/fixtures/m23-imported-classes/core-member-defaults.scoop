@@ -1,0 +1,16 @@
+
+public interface RebuiltDefaults {
+    public fun score(): Long = 21
+}
+public fun rebuiltLongDefault(): Long {
+    val value: Long = 9
+    return value.score()
+}
+public fun rebuiltBooleanDefault(): Long {
+    val value: Boolean = true
+    return value.score()
+}
+public fun rebuiltStringDefault(): Long {
+    val value: String = "default"
+    return value.score()
+}

@@ -1,0 +1,1 @@
+#error native fixture diagnostic

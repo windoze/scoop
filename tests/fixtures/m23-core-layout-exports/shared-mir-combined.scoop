@@ -1,0 +1,14 @@
+@CLayout(aligned = 16, packed = 2)
+@InteriorMutable
+public struct SharedMirPacket(val flag: Boolean, val value: Int, val extra: Long)
+public enum SharedMirChoice { Empty, Packet(SharedMirPacket), Text(String) }
+public interface SharedMirReadable {
+    public fun read(): Int
+}
+public open class SharedMirBase: SharedMirReadable {
+    public override fun read(): Int = 1
+}
+public class SharedMirLeaf: SharedMirBase()
+public object SharedMirService: SharedMirBase() {
+    public val active: Boolean = true
+}

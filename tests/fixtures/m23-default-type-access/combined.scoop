@@ -1,0 +1,12 @@
+public struct AccessBox<T>(val value: T)
+public class AccessHolder {
+    public struct Nested(val value: Int)
+}
+
+public fun <T> accessCombined(
+    value: T,
+    box: AccessBox<T> = AccessBox<T>(value),
+    pair: (T, Int) = (value, 7),
+    factory: () -> T = { value },
+    nested: AccessHolder.Nested = AccessHolder.Nested(9)
+): T = box.value

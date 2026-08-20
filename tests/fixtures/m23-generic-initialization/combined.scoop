@@ -1,0 +1,66 @@
+package templates.initialization
+
+private fun <T> keep(value: T): T = value
+
+public class Payload public constructor(public val number: Int)
+
+public open class Base<T> public constructor(public val item: T) {
+    public var baseNumber: Int = 1
+
+    init {
+        this.baseNumber = this.baseNumber + 1
+    }
+}
+
+public class Derived<T> public constructor(value: T) : Base<T>(keep(value)) {
+    public val copied: T = this.item
+    public var extra: Int = this.baseNumber
+
+    init {
+        this.extra = this.extra + 1
+    }
+
+    public constructor(value: T, adjustment: Int) : this(value) {
+        this.extra = this.extra + adjustment
+    }
+}
+
+public class Alternate<T> : Base<T> {
+    public val copied: T = this.item
+    public var extra: Int = this.baseNumber
+
+    init {
+        this.extra = this.extra + 1
+    }
+
+    public constructor(value: T, adjustment: Int) : super(keep(value)) {
+        this.extra = this.extra + adjustment
+    }
+
+    public constructor(value: T) : this(value, -1) {}
+
+    public constructor(value: T, increment: Boolean) : super(keep(value)) {
+        if (increment) {
+            this.extra = this.extra + 1
+        }
+    }
+}
+
+private class Cell<T>(private val value: T) {
+    operator fun provideDelegate(): Cell<T> = this
+    operator fun getValue(thisRef: Holder<T>): T = value
+}
+
+public class Holder<T> public constructor(value: T) {
+    public val stored: T by Cell<T>(keep(value))
+
+    init {
+        keep(value)
+    }
+}
+
+public fun result(): Int {
+    val value = Alternate<Payload>(Payload(40))
+    val holder = Holder<Payload>(value.copied)
+    return holder.stored.number + value.extra
+}

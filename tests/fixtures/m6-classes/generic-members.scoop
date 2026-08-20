@@ -1,0 +1,29 @@
+interface Exchange<T> {
+    fun current(): T
+}
+
+struct Box<T>(val value: T) : Exchange<T> {
+    fun <U> exchange(owner: T, missing: U?, value: U): U = value
+    override fun current(): T = value
+}
+
+open class Tool {
+    final fun <T> id(value: T): T = value
+}
+
+class Overloads {
+    fun id(value: Int): Int = 100
+    fun <T> id(value: T): T = value
+}
+
+fun read(value: Exchange<Int>): Int = value.current()
+
+fun main() {
+    val box = Box(7)
+    println(box.exchange(7, None, "struct"))
+    println(read(box))
+    println(Tool().id("class"))
+    val overloads = Overloads()
+    println(overloads.id(1))
+    println(overloads.id("generic overload"))
+}

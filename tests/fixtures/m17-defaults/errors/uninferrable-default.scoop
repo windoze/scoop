@@ -1,0 +1,5 @@
+fun <T> empty(values: Array<T> = []): Array<T> = values
+
+fun main() {
+    empty()
+}

@@ -1,0 +1,24 @@
+package consumer.bindings
+import upstream.bindings.*
+
+private class LocalPieces<T>(public val first: T, public val second: Int) {
+    operator fun component1(): T = this.first
+    operator fun component2(): Int = this.second
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    reset()
+    val (value, _) = Pieces<T>(seed, 0)
+    if (order != 12) { return 1 }
+    val (localValue, extra) = LocalPieces<T>(seed, 0)
+    if (read(value) != read(localValue) + extra) { return 2 }
+    val (extended,) = ExtensionPieces<T>(seed)
+    return read(extended)
+}
+
+public fun result(): Int {
+    reset()
+    val ((value, _), _) = Pieces<Pieces<Int>>(Pieces<Int>(42, 0), 0)
+    if (order != 1122) { return 3 }
+    return exercise<Int>(value, { item -> item })
+}

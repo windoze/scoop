@@ -1,0 +1,32 @@
+package consumer.arrayconstruction
+
+import Array as Snapshot
+import MutableArray as Buffer
+import dependency.arrayconstruction.IntSnapshot as FixedSnapshot
+import dependency.arrayconstruction.IntBuffer as FixedBuffer
+import dependency.arrayconstruction.exercise as providerExercise
+
+private class Local(public val number: Int)
+private typealias LocalSnapshot = Array<Local>
+private typealias LocalBuffer = MutableArray<Local>
+private typealias Forwarded = FixedSnapshot
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val original: Array<Int> = [42]
+    val mutable = Buffer<_>(original)
+    val copied = Snapshot(mutable)
+    val fixed = FixedSnapshot(source = mutable)
+    val forwarded = Forwarded(mutable)
+    val fixedBuffer = FixedBuffer(copied)
+    mutable[0L] = 7
+    if (copied[0L] != 42 || fixed[0L] != 42 || forwarded[0L] != 42) { return 1 }
+    if (fixedBuffer[0L] != 42 || fixed === forwarded || fixed === copied) { return 2 }
+    val local = LocalBuffer(source = [Local(42)])
+    val localCopy = LocalSnapshot(local)
+    val empty = LocalSnapshot([])
+    local[0L] = Local(7)
+    if (localCopy[0L].number != 42 || empty.size != 0L) { return 3 }
+    return localCopy[0L].number
+}

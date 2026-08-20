@@ -1,0 +1,7 @@
+private class Ambiguous(first: Int, second: Any, extra: Int = 0) {
+    public constructor(first: Any, second: Int): this(0, second, 0) {}
+}
+
+public fun result(): Unit {
+    Ambiguous(42, 42)
+}

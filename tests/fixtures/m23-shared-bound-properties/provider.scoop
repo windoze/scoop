@@ -1,0 +1,30 @@
+package upstream.boundProperties
+
+public open class Box<T> public constructor(public var value: T) {
+    public open var exposed: T
+        get() = this.value
+        set(next) { this.value = next }
+}
+
+public class Remote<T> public constructor(value: T, public var alternate: T): Box<T>(value) {
+    public override var exposed: T
+        get() = this.alternate
+        set(next) { this.alternate = next }
+}
+
+public fun <T, B : Box<T>> stored(box: B): T = box.value
+
+public fun <T, B : Box<T>> exchange(box: B, next: T): T {
+    val previous = box.exposed
+    box.exposed = next
+    return previous
+}
+
+public fun <T, B : Box<T>> defaultRead(box: B, previous: T = box.value): T = previous
+public fun <T, B : Box<T>> optional(box: B?): T? = box?.value
+public fun <B : Box<() -> Int>> invoke(box: B): Int = box.value()
+
+public fun <B : Box<Int>> advance(box: B): Int {
+    box.value += 2
+    return box.value
+}

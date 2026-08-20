@@ -1,0 +1,265 @@
+{
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "target": "x86_64-unknown-linux-gnu",
+  "revision": "e97b40f5c9c408e2ff785e5d09c6bf9222c78979",
+  "mode": "off",
+  "kind": "interfaces",
+  "builds": [
+    {
+      "name": "provider",
+      "first_build_seconds": 3.1951008559844922,
+      "warm_build_seconds": 3.1342369399790186,
+      "command": [
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-source/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-source/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/provider",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/target-provider",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/provider-dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c38c1d9a38120cf40fe672e21f74886c94bac5336168d05e04b02d1e7e98e6ea",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/fa684831ea676829d6afb3549f1e71cfdbcf57ea0673f1cb2b03c4818050f51e/artifact.slib"
+            }
+          ],
+          "kind": "library",
+          "observations": {
+            "child_invocations": [
+              "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c"
+            ],
+            "nodes": [
+              {
+                "cache_key": "fa684831ea676829d6afb3549f1e71cfdbcf57ea0673f1cb2b03c4818050f51e",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "92281d940fe56d3e1037232a3e23932040b77e343f8193debe31c90f8550fefd",
+                "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "1262cd49e8de1a9eb8d3531abfbd953a83b855f10b1701d0d10520a537b21983",
+            "coordinate": {
+              "group": "dev.m34",
+              "name": "interface-bench-provider",
+              "version": "0.1.0"
+            },
+            "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/92281d940fe56d3e1037232a3e23932040b77e343f8193debe31c90f8550fefd/artifact.slib"
+          },
+          "schema": 1
+        }
+      ],
+      "output_bytes": 821040,
+      "root_slib_bytes": 821040
+    },
+    {
+      "name": "consumer",
+      "first_build_seconds": 6.253800506005064,
+      "warm_build_seconds": 6.280133802007185,
+      "command": [
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-source/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-source/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/consumer",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/target-consumer",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/interfaces",
+        "--cone-path",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/artifacts",
+        "--library-path",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/consumer-dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c38c1d9a38120cf40fe672e21f74886c94bac5336168d05e04b02d1e7e98e6ea",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/fa684831ea676829d6afb3549f1e71cfdbcf57ea0673f1cb2b03c4818050f51e/artifact.slib"
+            },
+            {
+              "artifact_fingerprint": "1262cd49e8de1a9eb8d3531abfbd953a83b855f10b1701d0d10520a537b21983",
+              "coordinate": {
+                "group": "dev.m34",
+                "name": "interface-bench-provider",
+                "version": "0.1.0"
+              },
+              "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "f5298abad6dbd36b8e7f50c95de47b6669011229f0cf43df5b2a7d8ffaecd225",
+          "observations": {
+            "child_invocations": [
+              "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090"
+            ],
+            "nodes": [
+              {
+                "cache_key": "fa684831ea676829d6afb3549f1e71cfdbcf57ea0673f1cb2b03c4818050f51e",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": null,
+                "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+                "origin": "prebuilt"
+              },
+              {
+                "cache_key": "47fdace395c03333844f86352715730f664952d749601d46999dc180cf24e3e6",
+                "identity": "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/interfaces",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "8abdcae1b1e8624aa91e20c678c246e2ceabd8dbd450767628f1a5059ea01332",
+            "coordinate": {
+              "group": "dev.m34",
+              "name": "interface-bench-consumer",
+              "version": "0.1.0"
+            },
+            "identity": "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/47fdace395c03333844f86352715730f664952d749601d46999dc180cf24e3e6/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/runtime-v1/f2616fc9b46cb8565635af27295d349ef16e05981d51944b8ef8175f27fd4591/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4608952,
+      "root_slib_bytes": 265192
+    }
+  ],
+  "commands": [
+    [
+      "cc",
+      "-std=c11",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-c",
+      "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/phases.c",
+      "-o",
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/phases.o"
+    ],
+    [
+      "ar",
+      "rcs",
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/libm34_interfaces.a",
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/phases.o"
+    ]
+  ],
+  "tools": {
+    "cc": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "llvm": "22.1.2"
+  },
+  "sections": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-linux-gnu/interfaces  :\nsection                  size      addr\n.interp                    28       848\n.gnu.hash                  40       880\n.dynsym                  1656       920\n.dynstr                  1000      2576\n.gnu.version              138      3576\n.gnu.version_r            272      3720\n.rela.dyn              166104      3992\n.rela.plt                1464    170096\n.init                      27    172032\n.plt                      992    172064\n.plt.got                    8    173056\n.text                  271025    173120\n.fini                      13    444148\n.rodata                130892    446464\n.eh_frame_hdr           10308    577356\n.eh_frame               53616    587664\n.gcc_except_table        4272    641280\n.note.gnu.property         32    645552\n.note.ABI-tag              32    645584\n.tbss                      16    650384\n.init_array                 8    650384\n.fini_array                 8    650392\n.data.rel.ro.scoop     961952    650400\n.data.rel.ro              352   1612352\n.dynamic                  528   1612704\n.got                      568   1613232\n.data                     744   1613824\n.bss                     3056   1614592\n.comment                   68         0\n.deplibs                   11         0\nTotal                 1609230\n\n\n",
+  "hot_functions": [
+    {
+      "source": "Cell.next",
+      "mir_function": "0",
+      "symbol": "scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0",
+      "machine_bytes": 71,
+      "instruction_count": 26
+    },
+    {
+      "source": "Cell.$get$salt",
+      "mir_function": "1",
+      "symbol": "scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be",
+      "machine_bytes": 34,
+      "instruction_count": 11
+    },
+    {
+      "source": "known",
+      "mir_function": "2",
+      "symbol": "scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb",
+      "machine_bytes": 169,
+      "instruction_count": 50
+    },
+    {
+      "source": "unknown",
+      "mir_function": "3",
+      "symbol": "scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0",
+      "machine_bytes": 169,
+      "instruction_count": 49
+    },
+    {
+      "source": "convertedOnce",
+      "mir_function": "4",
+      "symbol": "scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd",
+      "machine_bytes": 380,
+      "instruction_count": 101
+    },
+    {
+      "source": "convertedEach",
+      "mir_function": "5",
+      "symbol": "scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b",
+      "machine_bytes": 382,
+      "instruction_count": 102
+    }
+  ]
+}

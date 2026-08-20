@@ -1,0 +1,13 @@
+suspend fun suspendedValue(): Int = 1
+
+class PropertySuspend {
+    val value: Int = suspendedValue()
+}
+
+class BodySuspend {
+    constructor() {
+        suspendedValue()
+    }
+}
+
+fun main() {}

@@ -1,0 +1,24 @@
+schema = 1
+name = "m33-sysroot-reject-source-failure"
+inputs = ["cone", "platform"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "sysroot", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [
+ {mkdir = {path = "${work}/sysroot/lib"}},
+ {symlink = {from = "${sysroot}/lib/scoop.core", to = "${work}/sysroot/lib/scoop.core"}},
+ {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+ {copy = {from = "${fixture}/platform", to = "${work}/sysroot/lib/scoop.platform"}},
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--sysroot", "${work}/sysroot", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

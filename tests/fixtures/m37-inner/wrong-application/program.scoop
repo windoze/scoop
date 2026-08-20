@@ -1,0 +1,2 @@
+class Outer<T>(val x: T) { inner class Inner }
+fun main() { val value: Outer<String>.Inner = Outer(1).Inner() }

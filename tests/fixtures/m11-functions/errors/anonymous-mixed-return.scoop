@@ -1,0 +1,8 @@
+fun main() {
+    val operation = fun(value: Int) {
+        if (value == 0) {
+            return
+        }
+        return value
+    }
+}

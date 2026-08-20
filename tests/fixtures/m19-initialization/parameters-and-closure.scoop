@@ -1,0 +1,36 @@
+class Captured(seed: String) {
+    val value: String = seed
+    val thunk: () -> String = { seed }
+
+    init {
+        println(value)
+        println(thunk())
+    }
+
+    fun read(): String = thunk()
+}
+
+class MutableBody(seed: Int) {
+    var value: Int = seed
+
+    init {
+        value = value + 1
+    }
+}
+
+class Shadow(name: String) {
+    val name: String = name
+
+    init {
+        println(this.name)
+    }
+
+    fun read(): String = name
+}
+
+fun main() {
+    val captured = Captured("captured")
+    println(captured.read())
+    println(Shadow("shadowed").read())
+    println(MutableBody(9).value)
+}

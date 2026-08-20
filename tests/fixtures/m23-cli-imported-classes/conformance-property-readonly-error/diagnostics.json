@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "immutable property `value` cannot override a mutable property",
+    "notes": [],
+    "origin": {
+      "cone": "c9386e8bbd2e0d1c15e49a6bb0da5a874b7c9025a885f482c1ea66157c0e5f7d",
+      "end": 149,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 99
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Wrong` does not implement interface method `MutableValue.$set$value`",
+    "notes": [],
+    "origin": {
+      "cone": "c9386e8bbd2e0d1c15e49a6bb0da5a874b7c9025a885f482c1ea66157c0e5f7d",
+      "end": 151,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 39
+    },
+    "severity": "error"
+  }
+]

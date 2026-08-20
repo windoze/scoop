@@ -1,0 +1,3 @@
+public object Reader : Decodable<Int>
+
+fun main() {}

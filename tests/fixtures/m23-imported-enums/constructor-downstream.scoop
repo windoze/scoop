@@ -1,0 +1,8 @@
+package downstream.enums
+
+import consumer.enums.test
+import consumer.enums.defaultScore
+import consumer.enums.defaultFlag
+import consumer.enums.defaultMarker
+
+@NoGC public fun check(): Long = test() + defaultScore() - 42 + defaultFlag() - 1 + defaultMarker()

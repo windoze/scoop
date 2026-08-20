@@ -1,0 +1,4 @@
+struct Plain<T>(val value: T) {
+    private fun equals(other: Plain<T>): Boolean = true
+}
+fun main() { println(Plain<Int>(1) == Plain<Int>(1)) }

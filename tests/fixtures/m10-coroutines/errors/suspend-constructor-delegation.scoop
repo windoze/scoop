@@ -1,0 +1,6 @@
+suspend fun value(): Int = 1
+
+open class Base(val value: Int)
+class Derived : Base(value())
+
+fun main() {}

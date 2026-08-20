@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown function `__scoopThrowInitializationCycle`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "172ca4fc186313b15ce702b34ddc64b0750b3543cbcc542f5709a40c097d74f8",
+      "end": 102,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 71
+    },
+    "severity": "error"
+  }
+]

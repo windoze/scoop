@@ -1,0 +1,14 @@
+fun answer() = 7
+fun <T> identity(value: T) = value
+class Box(val value: Int) { fun read() = value }
+fun pick(value: Int) = pick("selected")
+fun pick(value: String) = 9
+fun main() {
+    val plain = ::answer
+    val generic: (String) -> String = ::identity
+    val bound = Box(8)::read
+    println(plain())
+    println(generic("generic"))
+    println(bound())
+    println(pick(1))
+}

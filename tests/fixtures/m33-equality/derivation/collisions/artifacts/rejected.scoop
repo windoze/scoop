@@ -1,0 +1,6 @@
+import collisions.*
+fun plain(): Boolean = Plain(1) == Plain(1)
+fun generic(): Boolean = Generic<Int>(1) == Generic<Int>(1)
+fun hidden(): Boolean = Hidden<Int>(1) == Hidden<Int>(1)
+fun choice(): Boolean = Choice.Entry(1) == Choice.Entry(1)
+fun main() {}

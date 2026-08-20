@@ -1,0 +1,8 @@
+struct Pair<A, B>(val first: A, val second: B)
+
+fun invalidParameter(value: _) {}
+
+fun main() {
+    val nested: Pair<Int, _> = Pair(1, "value")
+    Pair<Int, _>
+}

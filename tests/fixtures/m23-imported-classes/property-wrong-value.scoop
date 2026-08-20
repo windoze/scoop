@@ -1,0 +1,5 @@
+import dependency.classes.*
+
+public fun invalid(value: MutableCell) {
+    value.value = Counter(21)
+}

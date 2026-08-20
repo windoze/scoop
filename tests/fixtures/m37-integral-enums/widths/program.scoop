@@ -1,0 +1,42 @@
+enum Signed8 : Int8 { Min = Int8.MIN_VALUE, Max = Int8.MAX_VALUE }
+enum Signed16 : Int16 { Min = Int16.MIN_VALUE, Max = Int16.MAX_VALUE }
+enum Signed32 : Int { Min = Int.MIN_VALUE, Max = Int.MAX_VALUE }
+enum Signed64 : Long { Min = Long.MIN_VALUE, Max = Long.MAX_VALUE }
+enum Unsigned8 : UInt8 { Min = UInt8.MIN_VALUE, Max = UInt8.MAX_VALUE }
+enum Unsigned16 : UInt16 { Min = UInt16.MIN_VALUE, Max = UInt16.MAX_VALUE }
+enum Unsigned32 : UInt { Min = UInt.MIN_VALUE, Max = UInt.MAX_VALUE }
+enum Unsigned64 : ULong { Min = ULong.MIN_VALUE, Max = ULong.MAX_VALUE }
+fun main() {
+    val minSigned8: Int8 = Signed8.Min
+    val maxSigned8: Int8 = Signed8.Max
+    println(minSigned8)
+    println(maxSigned8)
+    val minSigned16: Int16 = Signed16.Min
+    val maxSigned16: Int16 = Signed16.Max
+    println(minSigned16)
+    println(maxSigned16)
+    val minSigned32: Int = Signed32.Min
+    val maxSigned32: Int = Signed32.Max
+    println(minSigned32)
+    println(maxSigned32)
+    val minSigned64: Long = Signed64.Min
+    val maxSigned64: Long = Signed64.Max
+    println(minSigned64)
+    println(maxSigned64)
+    val minUnsigned8: UInt8 = Unsigned8.Min
+    val maxUnsigned8: UInt8 = Unsigned8.Max
+    println(minUnsigned8)
+    println(maxUnsigned8)
+    val minUnsigned16: UInt16 = Unsigned16.Min
+    val maxUnsigned16: UInt16 = Unsigned16.Max
+    println(minUnsigned16)
+    println(maxUnsigned16)
+    val minUnsigned32: UInt = Unsigned32.Min
+    val maxUnsigned32: UInt = Unsigned32.Max
+    println(minUnsigned32)
+    println(maxUnsigned32)
+    val minUnsigned64: ULong = Unsigned64.Min
+    val maxUnsigned64: ULong = Unsigned64.Max
+    println(minUnsigned64)
+    println(maxUnsigned64)
+}

@@ -1,0 +1,8 @@
+package consumer.members
+
+import templates.members.*
+
+private typealias Numeric = Inherited<Int>
+
+public fun result(): Int = Numeric(42).extensionValue
+public fun <T> make(value: T): T = Inherited<T>(value).extensionValue

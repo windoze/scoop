@@ -1,0 +1,147 @@
+use super::*;
+
+mod mir;
+use scoop_identity::{ConeIdentity, CoreBuiltinNominal, RequestedConeKind};
+
+#[test]
+fn core_declarations_retain_shared_dependency_selections_through_hir_and_mir() {
+    let mut core = trusted_core();
+    let provider = DependencyFunctionFixture::new(
+        "core-helper",
+        "run",
+        SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+    );
+    let foundation =
+        core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 61);
+    let aliases = empty_alias_expansions();
+    let parsed = core_sources();
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
+        ConeIdentity::CORE,
+        vec![scoop_hir::ImportedProviderInput {
+            foundation: &foundation,
+            interface: &provider.interface,
+            alias_expansions: &aliases,
+        }],
+        Vec::new(),
+    )
+    .unwrap();
+    let input = CurrentConeSources::try_new(
+        &parsed,
+        crate::CoreProtocolInput::CurrentDeclarations,
+        &world,
+    )
+    .unwrap();
+    let output = lower_current_cone(RequestedConeKind::Library, &input).unwrap();
+    assert!(matches!(
+        output.output().export.core_protocols,
+        scoop_hir::CoreProtocols::Defined(_)
+    ));
+    assert!(!output.output().local.materialization().roots().is_empty());
+    assert_eq!(
+        output.imported_dependencies().consumer(),
+        ConeIdentity::CORE
+    );
+    assert_eq!(output.imported_dependencies().callable_count(), 1);
+    assert_eq!(output.concrete_dependency_witness_uses().len(), 1);
+    assert_eq!(output.output().local.imported_dependency_callables.len(), 1);
+    let dump = scoop_hir::dump(&output.output().export);
+    assert_eq!(dump.matches("Call external #0").count(), 3);
+    mir::check(&output);
+    let selected = output.imported_dependencies().callables().next().unwrap();
+    assert_eq!(
+        selected.interface().declaration(),
+        provider.interface.callable_interfaces().records()[0].declaration()
+    );
+    let canonical = scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
+    let mut authority = scoop_hir::CrossConeHirProductionAuthority::new(
+        &canonical,
+        &output.output().export.public_export_bindings,
+        &world,
+    );
+    let public = scoop_hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(
+        &output,
+        &[],
+        &mut authority,
+    )
+    .unwrap();
+    assert!(!public.external_references().records().is_empty());
+    drop(world);
+    assert_eq!(output.imported_dependencies().callable_count(), 1);
+}
+
+#[test]
+fn protocol_origin_and_semantic_world_must_match_current_sources() {
+    let core = trusted_core();
+    let parsed = core_sources();
+    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
+        ConeIdentity::CORE,
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let imported = core.foundation.import_core_inputs(&core.interface).unwrap();
+    assert!(matches!(
+        CurrentConeSources::try_new(&parsed, imported, &world),
+        Err(crate::CurrentConeSourceError::CoreImportsOwnProtocols)
+    ));
+    let ordinary = parsed_ordinary(file(Vec::new()));
+    let other_world = core.world(ordinary.cone());
+    assert!(matches!(
+        CurrentConeSources::try_new(
+            &ordinary,
+            crate::CoreProtocolInput::CurrentDeclarations,
+            &other_world
+        ),
+        Err(crate::CurrentConeSourceError::CurrentProtocolsInOrdinaryCone(_))
+    ));
+    assert!(matches!(
+        CurrentConeSources::try_new(
+            &parsed,
+            crate::CoreProtocolInput::CurrentDeclarations,
+            &other_world
+        ),
+        Err(crate::CurrentConeSourceError::SemanticWorldCurrentConeMismatch { .. })
+    ));
+}
+
+fn core_sources() -> scoop_ast::CurrentConeParsedSources {
+    core_sources_with_calls(include_str!(
+        "../../../../../tests/fixtures/core-library/dependency-calls.scoop"
+    ))
+}
+
+fn core_sources_with_calls(text: &str) -> scoop_ast::CurrentConeParsedSources {
+    use scoop_ast::{
+        AllParsedSources, CurrentConeParsedSources, CurrentSourceDiagnosticContext,
+        CurrentSourceText, IdentifiedParsedSource, NonEmptyVec,
+    };
+    let locals = include_str!("../../../../../tests/fixtures/core-library/dependency-locals.scoop");
+    let sources = [
+        ("src/core.scoop", "", crate::tests::complete_core_file()),
+        (
+            "src/dependency-calls.scoop",
+            text,
+            scoop_parser::parse(text).unwrap(),
+        ),
+        (
+            "src/dependency-locals.scoop",
+            locals,
+            scoop_parser::parse(locals).unwrap(),
+        ),
+    ];
+    let mut parsed = Vec::new();
+    let mut texts = Vec::new();
+    let mut diagnostics = Vec::new();
+    for (path, text, source) in sources {
+        let identity = crate::tests::core_source_identity(path);
+        parsed.push(IdentifiedParsedSource::new(identity.clone(), source));
+        texts.push(CurrentSourceText::new(identity.clone(), text.to_owned()));
+        diagnostics.push(CurrentSourceDiagnosticContext::new(identity, path.into()));
+    }
+    CurrentConeParsedSources::try_new(
+        AllParsedSources::try_new(NonEmptyVec::new(parsed.remove(0), parsed)).unwrap(),
+        NonEmptyVec::new(texts.remove(0), texts),
+        NonEmptyVec::new(diagnostics.remove(0), diagnostics),
+    )
+    .unwrap()
+}

@@ -1,0 +1,21 @@
+var calls: Int = 0
+fun next(): Int { calls = calls + 1; return calls }
+interface Calls {
+    fun run(first: Int = next(), second: Int = next(), vararg rest: Int): Int
+    fun count(vararg values: Int = [next()]): Long
+}
+class Impl : Calls {
+    override fun run(first: Int, second: Int, vararg rest: Int): Int = first * 100 + second * 10 + if (rest.size > 0) rest[0] else 0
+    override fun count(vararg values: Int): Long = values.size
+}
+class Host(delegate: Calls) : Calls by delegate
+fun main() {
+    val host = Host(Impl())
+    println(host.run())
+    println(host.run(second = 5))
+    println(host.count())
+    println(host.run(7, 8, 9))
+    val reference: (Int, Int, Array<Int>) -> Int = host::run
+    println(reference(1, 2, [3]))
+    println(calls)
+}

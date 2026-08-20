@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type argument `Managed` for `T` of struct `Ptr` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "cbd8e602285a99c98f720de1f4098dabe6136e50b09f03aba5428d29d1144874",
+      "end": 114,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 97
+    },
+    "severity": "error"
+  }
+]

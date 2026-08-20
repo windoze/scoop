@@ -1,0 +1,220 @@
+{
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "target": "x86_64-unknown-linux-gnu",
+  "revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
+  "mode": "on",
+  "kind": "interfaces",
+  "builds": [
+    {
+      "name": "provider",
+      "first_build_seconds": 3.691104881989304,
+      "warm_build_seconds": 3.8009451839898247,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/provider",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/target-provider",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/provider-dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
+            }
+          ],
+          "kind": "library",
+          "observations": {
+            "child_invocations": [
+              "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c"
+            ],
+            "nodes": [
+              {
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "fcc85f55d5cd63d4ead563382f0ccfb4aa88ffca5964daba645f741a8cecc646",
+                "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "374df733d669c069d2165622c56dc97f61dcdb85d7d0901e7de014fc891d4a01",
+            "coordinate": {
+              "group": "dev.m34",
+              "name": "interface-bench-provider",
+              "version": "0.1.0"
+            },
+            "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/fcc85f55d5cd63d4ead563382f0ccfb4aa88ffca5964daba645f741a8cecc646/artifact.slib"
+          },
+          "schema": 1
+        }
+      ],
+      "output_bytes": 835970,
+      "root_slib_bytes": 835970
+    },
+    {
+      "name": "consumer",
+      "first_build_seconds": 7.347727998014307,
+      "warm_build_seconds": 7.294340813998133,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/consumer",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/target-consumer",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces",
+        "--cone-path",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/artifacts",
+        "--library-path",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/consumer-dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
+            },
+            {
+              "artifact_fingerprint": "374df733d669c069d2165622c56dc97f61dcdb85d7d0901e7de014fc891d4a01",
+              "coordinate": {
+                "group": "dev.m34",
+                "name": "interface-bench-provider",
+                "version": "0.1.0"
+              },
+              "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "cbf5d5ac57a54536fa2d43a0e7160f35c67dac1d35cf4e4e34bcbc3a8bd3754b",
+          "observations": {
+            "child_invocations": [
+              "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090"
+            ],
+            "nodes": [
+              {
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": null,
+                "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+                "origin": "prebuilt"
+              },
+              {
+                "cache_key": "978c97e25d91edaacf250e77c80585c37cfb59802fa428df21ecb4ab7ec30e52",
+                "identity": "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "ebb2c73227e3364c6bd1f4af19d249a2ac2a918f26c4d6d367f996fc4fb770eb",
+            "coordinate": {
+              "group": "dev.m34",
+              "name": "interface-bench-consumer",
+              "version": "0.1.0"
+            },
+            "identity": "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/978c97e25d91edaacf250e77c80585c37cfb59802fa428df21ecb4ab7ec30e52/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4636208,
+      "root_slib_bytes": 268920
+    }
+  ],
+  "commands": [
+    [
+      "cc",
+      "-std=c11",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-c",
+      "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/phases.c",
+      "-o",
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/phases.o"
+    ],
+    [
+      "ar",
+      "rcs",
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/libm34_interfaces.a",
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/phases.o"
+    ]
+  ],
+  "tools": {
+    "cc": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "llvm": "22.1.2"
+  }
+}

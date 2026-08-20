@@ -1,0 +1,5 @@
+fun one(value: Int): Int = value
+
+fun main() {
+    one(1, 2)
+}

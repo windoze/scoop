@@ -1,0 +1,1 @@
+fun value(): Int = 42

@@ -1,0 +1,36 @@
+class Box<T>(val value: T)
+
+interface Left {}
+interface Right {}
+
+class Both : Left, Right
+
+class Own(val value: Int)
+
+val Int.initialized: Int = 1
+
+val <T> Int.unbound: Int
+    get() = 1
+
+val Int.duplicate: Int
+    get() = 1
+
+val Int.duplicate: Int
+    get() = 2
+
+val <T> Box<T>.delegated: T by 1
+
+val Left.label: Int
+    get() = 1
+
+val Right.label: Int
+    get() = 2
+
+var Own.value: Int
+    get() = 100
+    set(next) {}
+
+fun main() {
+    println(Both().label)
+    Own(1).value = 2
+}

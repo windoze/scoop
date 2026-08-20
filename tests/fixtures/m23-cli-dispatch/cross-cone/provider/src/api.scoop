@@ -1,0 +1,31 @@
+package dispatch.origin
+
+public interface Describe<T> {
+    public fun describe(value: T): String
+}
+
+public class Both public constructor() : Describe<Int>, Describe<String> {
+    public override fun describe(value: Int): String = "int"
+    public override fun describe(value: String): String = "string"
+}
+
+public class Wrapped<T> public constructor() : Describe<Int>, Describe<String> {
+    public override fun describe(value: Int): String = "wrapped-int"
+    public override fun describe(value: String): String = "wrapped-string"
+}
+
+public interface Echo<T> {
+    public fun echo(value: T): T = value
+}
+
+public class Defaults public constructor() : Echo<Int>, Echo<String> {}
+
+public interface Refined<T> : Echo<T> {
+    public override fun echo(value: T): T = value
+}
+
+public class RefinedDefaults public constructor() : Refined<Int>, Refined<String> {}
+
+public fun <T : Describe<String>> throughBound(value: T): String = value.describe("bound")
+
+public fun throughDefault(value: Describe<String> = Both()): String = value.describe("default")

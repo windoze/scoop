@@ -1,0 +1,10 @@
+class Names {
+    public annotation class Target(val allowed: Array<AnnotationTarget>)
+    public annotation class Repeatable
+}
+@Names.Target([]) @Names.Repeatable annotation class Ordinary
+@Ordinary fun read(): Int = 42
+@Target([]) annotation class ValueOnly(val number: Int)
+annotation class Wrapper(val value: ValueOnly)
+@Wrapper(ValueOnly(7)) struct Box(val value: Int)
+fun main() { println(read()); println(Box(7).value) }

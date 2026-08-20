@@ -1,0 +1,11 @@
+package consumer.globals
+import templates.globals.*
+
+@NoGC
+private fun <T> leaf(): Int = leafStep<T>()
+public fun <T> exercise(value: T): Int {
+    reset()
+    if (firstLeaf() != 1 || leaf<T>() != 2 || leaf<Int>() != 3 || count() != 3) { return 1 }
+    return 42
+}
+public fun result(): Int = exercise<Int>(0)

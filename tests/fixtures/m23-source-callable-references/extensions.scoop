@@ -1,0 +1,19 @@
+package consumer.references
+
+import templates.references.*
+
+public fun <T> exercise(value: T): Int {
+    val unbound: (T) -> T = ::retain
+    val bound: () -> T = value::retain
+    val whole: (T, Int) -> Int = ::extensionSelect
+    val saved: (Int) -> Int = value::extensionSelect
+    val boundIncrement = 41::increment
+    val incrementUnbound = ::increment
+    val equals: (Int) -> Boolean = 42::equals
+    val values = (bound(), unbound(value))
+    if (boundIncrement() != 42 || incrementUnbound(41) != 42) { return 1 }
+    if (whole(value, 42) != 42 || !equals(42) || equals(1)) { return 2 }
+    return saved(42)
+}
+
+public fun result(): Int = exercise<Int>(0)

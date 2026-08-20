@@ -1,0 +1,5 @@
+import consumer.cache.check
+
+fun main() {
+    println(check())
+}

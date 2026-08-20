@@ -1,0 +1,2 @@
+const val value: Int = 'A'.code
+fun main() {}

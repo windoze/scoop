@@ -1,0 +1,2 @@
+fun add(left: Float, right: Double): Double = left + right
+fun main() {}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot derive `equals` for `Payload<Any>`: field `Payload.data` of type `Any` has no applicable member operator `equals`",
+    "notes": [],
+    "origin": {
+      "cone": "db5cabd7a4f815ab8e5529c41773799894feec16cc84361681aeafa2bbeda662",
+      "end": 216,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 203
+    },
+    "severity": "error"
+  }
+]

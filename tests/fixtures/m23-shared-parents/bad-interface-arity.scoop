@@ -1,0 +1,3 @@
+import dependency.parents.Reader
+
+public interface Bad: Reader<Int, String> {}

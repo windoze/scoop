@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::suspended` in dependency top-level candidate layer:\n  - suspend fun suspended<T>(value: T): T — ordinary and suspend callable shapes differ",
+    "notes": [],
+    "origin": {
+      "cone": "c8bf846442b6824e8ff51d028a31cb3fef49c7ed812d89f8cfc04ae31fdbd51a",
+      "end": 105,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  }
+]

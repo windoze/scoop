@@ -1,0 +1,2 @@
+fun choose(): Int = when { true -> 1 }
+fun main() {}

@@ -1,0 +1,8 @@
+package consumer.values
+
+import dependency.values.Token
+import dependency.values.passToken
+
+public struct OtherToken()
+
+@NoGC public fun mismatched(value: OtherToken): Token = passToken(value)

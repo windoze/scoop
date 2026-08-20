@@ -1,0 +1,6 @@
+import bridge.*
+fun main() {
+    println(choose(Box(42)).value)
+    println(forwarded(Box(43)).value)
+    println(choose(44))
+}

@@ -1,0 +1,18 @@
+import dependency.generics.identity
+import dependency.generics.checked
+import dependency.generics.recover
+import dependency.generics.defaulted
+
+struct LocalValue(val number: Int, val text: String)
+
+public fun primitive(): Int = identity(41)
+
+public fun localValue(): Int = checked(identity(LocalValue(42, "root")), 2).number
+
+public fun <T> relay(value: T): T = identity(value)
+
+public fun relayValue(): Int = checked(relay(43), 2)
+
+public fun recovery(): Int = recover(Throwable(), 44)
+
+public fun defaultValue(): Int = defaulted(45)

@@ -1,0 +1,4 @@
+fun main() {
+    val size: Int = 2
+    val unused = Array<Int>(size) { _ -> 1 }
+}

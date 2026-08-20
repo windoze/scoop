@@ -1,0 +1,125 @@
+class Request(val id: Int)
+
+context(request: Request)
+fun current(): Int = request.id
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class Gate : SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) {
+        waiter = Some(continuation)
+    }
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class Completion : Continuation<Int> {
+    var value: Int = 0
+    var failures: Int = 0
+    var calls: Int = 0
+    public override fun resume(value: Int) {
+        expect(current() == 1)
+        this.value = value
+        calls = calls + 1
+    }
+    public override fun resumeWithException(exception: Throwable) {
+        expect(current() == 1)
+        expect(exception is IllegalStateException)
+        failures = failures + 1
+        calls = calls + 1
+    }
+}
+
+suspend fun pendingReturn(gate: Gate): Request {
+    try {
+        return context(Request(2)) {
+            val value = suspendCoroutine(gate)
+            expect(current() == 2)
+            Request(value)
+        }
+    } finally {
+        expect(current() == 1)
+        context(Request(3)) {
+            suspendCoroutine(gate)
+            gcCollect()
+            expect(current() == 3)
+        }
+        expect(current() == 1)
+    }
+}
+
+suspend fun loopExits(gate: Gate): Int = context(Request(2)) {
+    var count = 0
+    while (count < 3) {
+        expect(current() == 2)
+        context(Request(3)) {
+            suspendCoroutine(gate)
+            gcCollect()
+            expect(current() == 3)
+            count = count + 1
+            if (count == 1) { continue }
+            break
+        }
+    }
+    expect(current() == 2)
+    count
+}
+
+suspend fun catchAndThrow(gate: Gate): Int = context(Request(2)) {
+    try {
+        suspendCoroutine(gate)
+        throw IllegalStateException()
+    } catch (failure: IllegalStateException) {
+        expect(current() == 2)
+        context(Request(3)) {
+            suspendCoroutine(gate)
+            gcCollect()
+            expect(current() == 3)
+        }
+        expect(current() == 2)
+        throw failure
+    } finally {
+        expect(current() == 2)
+    }
+}
+
+fun resumeTwice(gate: Gate, done: Completion) {
+    expect(done.calls == 0 && current() == 1)
+    context(Request(9)) {
+        gate.complete(40)
+        expect(current() == 9 && done.calls == 0)
+    }
+    gcCollect()
+    context(Request(8)) {
+        gate.complete(0)
+        expect(current() == 8 && done.calls == 1)
+    }
+    expect(current() == 1)
+}
+
+fun main() {
+    context(Request(1)) {
+        val returning = Gate()
+        val returnDone = Completion()
+        startCoroutine(suspend { pendingReturn(returning).id + 2 }, returnDone)
+        resumeTwice(returning, returnDone)
+        expect(returnDone.value == 42 && returnDone.failures == 0)
+
+        val looping = Gate()
+        val loopDone = Completion()
+        startCoroutine(suspend { loopExits(looping) }, loopDone)
+        resumeTwice(looping, loopDone)
+        expect(loopDone.value == 2 && loopDone.failures == 0)
+
+        val throwing = Gate()
+        val throwDone = Completion()
+        startCoroutine(suspend { catchAndThrow(throwing) }, throwDone)
+        resumeTwice(throwing, throwDone)
+        expect(throwDone.failures == 1)
+    }
+    println("coroutine-exits-ok")
+}

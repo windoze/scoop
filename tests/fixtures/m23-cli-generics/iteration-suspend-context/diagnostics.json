@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "suspend function `Source.iterator` cannot be called from non-suspend function `invalid`",
+    "notes": [],
+    "origin": {
+      "cone": "7a09f0e755fb8743778f6fbbbec051b4cf17fde3d59a8acc56226bb429debd04",
+      "end": 161,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 153
+    },
+    "severity": "error"
+  }
+]

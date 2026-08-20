@@ -1,0 +1,6 @@
+import startup.lazy.*
+private fun trace(value: Long) { println(value) }
+fun main() {
+    if (count() != 0) { throw IllegalStateException() }
+    @Unsafe { trace(42L) }
+}

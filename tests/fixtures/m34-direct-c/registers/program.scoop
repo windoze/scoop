@@ -1,0 +1,47 @@
+@CLayout struct Mixed(val x: Double, val n: Long)
+@CLayout struct Floats(val a: Float, val b: Float, val c: Float)
+@CLayout struct Hfa4(val a: Double, val b: Double, val c: Double, val d: Double)
+@CLayout struct Big(val a: Long, val b: Long, val c: Long, val d: Long, val e: Long)
+@CLayout(packed = 1) struct Packed(val tag: UInt8, val x: Double)
+
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_gp_full")
+fun gpFull(a: Long, b: Long, c: Long, d: Long, e: Long, f: Long,
+           value: Mixed, tail: Double, small: Short): Mixed
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_fp_full")
+fun fpFull(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double,
+           g: Double, h: Double, value: Mixed, tail: Long): Mixed
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_sret_full")
+fun sretFull(a: Long, b: Long, c: Long, d: Long, e: Long, value: Mixed, tail: Double): Big
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_gp_boundary")
+fun gpBoundary(a: Long, b: Long, c: Long, d: Long, e: Long, f: Long, g: Long,
+               value: Mixed, tail: Long): Mixed
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_fp_boundary")
+fun fpBoundary(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double,
+               g: Double, value: Floats, tail: Double): Floats
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_mixed_stack")
+fun stack(a: Long, b: Long, c: Long, d: Long, e: Long, f: Long,
+          hfa: Hfa4, packed: Packed, mixed: Mixed, tail: UInt8): Hfa4
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+@Unsafe fun run() {
+    val value = Mixed(1.25, 42L)
+    val gp = gpFull(1L, 2L, 3L, 4L, 5L, 6L, value, 2.5, (-31000).toInt16())
+    check(gp.x == 1.25 && gp.n == 63L)
+    val fp = fpFull(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, value, 73L)
+    check(fp.x == 1.25 && fp.n == 115L)
+    val large = sretFull(1L, 2L, 3L, 4L, 5L, value, 2.5)
+    check(large.a == 1L && large.b == 2L && large.c == 3L && large.d == 4L && large.e == 57L)
+    val boundary = gpBoundary(1L, 2L, 3L, 4L, 5L, 6L, 7L, value, 73L)
+    check(boundary.x == 1.25 && boundary.n == 42L)
+    val single = fpBoundary(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, Floats(1.5f, 2.5f, 3.5f), 73.5)
+    check(single.a == 1.5f && single.b == 2.5f && single.c == 3.5f)
+    val h = stack(1L, 2L, 3L, 4L, 5L, 6L, Hfa4(1.25, 2.25, 3.25, 4.25),
+                  Packed(129.toUInt8(), 5.25), Mixed(6.25, 73L), 255.toUInt8())
+    check(h.a == 1.25 && h.b == 2.25 && h.c == 3.25 && h.d == 4.25)
+}
+fun main() {
+    var cleanups = 0
+    try { @Unsafe { run() } } finally { cleanups += 1 }
+    check(cleanups == 1)
+    println("direct-c-registers-ok")
+}

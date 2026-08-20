@@ -1,0 +1,2 @@
+class Owner<T> { companion object { typealias Row<U> = (T, U) } }
+fun main() { val row: Owner.Companion.Row<Int> = ("missing", 42) }

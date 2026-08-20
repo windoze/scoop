@@ -1,0 +1,9 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val cell = PropertyItem<Int>(42)
+    cell.extensionState = "wrong"
+    return cell.value
+}

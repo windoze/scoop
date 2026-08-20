@@ -1,0 +1,3 @@
+class Payload
+fun bad(value: Payload) { val cell = Atomic(value) }
+fun main() {}

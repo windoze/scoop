@@ -1,0 +1,44 @@
+// Minimal coroutine protocol (spec 11.9, M10 DESIGN section 1.1).
+// State machines, frames, and continuation adapters are compiler-generated;
+// these declarations provide the source-level typed boundary.
+
+public interface Continuation<T> {
+    public fun resumeWithException(exception: Throwable)
+    public fun resume(value: T)
+}
+
+public interface SuspendTask<T> {
+    public suspend fun run(): T
+}
+
+public interface SuspendRegistration<T> {
+    public fun register(continuation: Continuation<T>)
+}
+
+public struct FunctionSuspendTask<T>(val task: suspend () -> T) : SuspendTask<T> {
+    public final override suspend fun run(): T = task.invoke()
+}
+
+public struct FunctionSuspendRegistration<T>(
+    val registration: (Continuation<T>) -> Unit
+) : SuspendRegistration<T> {
+    public final override fun register(continuation: Continuation<T>) {
+        registration.invoke(continuation)
+    }
+}
+
+@Intrinsic("coroutine_start")
+public fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>)
+
+@Intrinsic("coroutine_suspend")
+public suspend fun <T> suspendCoroutine(registration: SuspendRegistration<T>): T
+
+public fun <T> startCoroutine(task: suspend () -> T, completion: Continuation<T>) {
+    startCoroutine(FunctionSuspendTask(task), completion)
+}
+
+public suspend fun <T> suspendCoroutine(registration: (Continuation<T>) -> Unit): T =
+    suspendCoroutine(FunctionSuspendRegistration(registration))
+
+public suspend fun <T> rebuiltAwait(registration: (Continuation<T>) -> Unit): T =
+    suspendCoroutine(registration)

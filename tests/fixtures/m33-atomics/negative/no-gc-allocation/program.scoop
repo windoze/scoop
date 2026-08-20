@@ -1,0 +1,3 @@
+@NoGC
+fun make(): AtomicInt = AtomicInt(1)
+fun main() {}

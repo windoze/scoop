@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test"
+name = "runtime-layout-gates-runtime-arithmetic-default"
+version = "1.0.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:arithmetic-default" = "0.1.0"

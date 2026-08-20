@@ -1,0 +1,403 @@
+{
+  "revision": "m34-small-values-working-tree",
+  "target": "x86_64-unknown-linux-gnu",
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "runs": 7,
+  "cold_build_seconds": 85.42865132100997,
+  "warm_build_seconds": 5.993880926020211,
+  "native_commands": [
+    [
+      "llc",
+      "-mtriple=x86_64-unknown-linux-gnu",
+      "-filetype=obj",
+      "-relocation-model=pic",
+      "/home/chenxu/repos/scoop/tests/benchmarks/small-values/x86_64-unknown-linux-gnu.ll",
+      "-o",
+      "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/native.o"
+    ],
+    [
+      "ar",
+      "rcs",
+      "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/libsmall_values.a",
+      "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/native.o"
+    ]
+  ],
+  "build_command": [
+    "/home/chenxu/repos/scoop/target/release/scoop",
+    "build",
+    "/home/chenxu/repos/scoop/tests/benchmarks/small-values/program.scoop",
+    "--scoopc",
+    "/home/chenxu/repos/scoop/target/release/scoopc",
+    "--sysroot",
+    "/home/chenxu/repos/scoop/sysroot",
+    "--runtime-root",
+    "/home/chenxu/repos/scoop/runtime",
+    "--cache-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/cache",
+    "--target-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/target",
+    "--profile",
+    "release",
+    "--message-format",
+    "json",
+    "--target",
+    "x86_64-unknown-linux-gnu",
+    "--library-path",
+    "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu",
+    "--emit",
+    "all",
+    "--dump-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/dump",
+    "-o",
+    "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/small-values"
+  ],
+  "build_records": [
+    {
+      "dependencies": [
+        {
+          "artifact_fingerprint": "e4fa40e5102b20de1e0048270cff68e45cc1aa5146f8064ba615a3c9bf9d9d4c",
+          "coordinate": {
+            "group": "scoop",
+            "name": "scoop.core",
+            "version": "0.1.0"
+          },
+          "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+          "path": "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/cache/compile-v1/375baa49c4cb99e364e6e8daab7ed869075c58bfeb5cae4a9f2d19debabe55df/artifact.slib"
+        }
+      ],
+      "kind": "executable",
+      "link_plan_fingerprint": "c80c7616d882cef11a70cdd6ff75412d00089b533d2c00ceac118826a87c9ff6",
+      "observations": {
+        "child_invocations": [
+          "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+          "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+        ],
+        "nodes": [
+          {
+            "cache_key": "375baa49c4cb99e364e6e8daab7ed869075c58bfeb5cae4a9f2d19debabe55df",
+            "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+            "origin": "compiled"
+          },
+          {
+            "cache_key": "c3b3a173d31f6c44545ae3d3d64c36d39716bcfcdf87d5f9b3e575e41ed4a9b3",
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "origin": "compiled"
+          }
+        ]
+      },
+      "output": "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/small-values",
+      "profile": "release",
+      "root": {
+        "artifact_fingerprint": "7b3136fa78f8d36635972055e50d412622f1e3ad7326942cfdc90993d209d185",
+        "coordinate": {
+          "group": "scoop",
+          "name": "single-file",
+          "version": "0.0.0"
+        },
+        "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+        "path": "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/cache/compile-v1/c3b3a173d31f6c44545ae3d3d64c36d39716bcfcdf87d5f9b3e575e41ed4a9b3/artifact.slib"
+      },
+      "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/small-values-after-gnu/cache/runtime-v1/31dec4d1bf4bcf413aab3ee23e2c7ab9c072e70b5af7d4c87d79cbdcbac3ba88/index.cbor",
+      "schema": 1
+    }
+  ],
+  "executable_bytes": 4519736,
+  "slib_bytes": 237538,
+  "run_seconds": [
+    0.18996053500450216,
+    0.1764601320028305,
+    0.1829430709767621,
+    0.18337726898607798,
+    0.1779185899940785,
+    0.2807753410015721,
+    0.1761201309855096
+  ],
+  "gc": [
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "stderr": [
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n"
+  ],
+  "median_seconds": 0.1829430709767621,
+  "min_seconds": 0.1761201309855096,
+  "max_seconds": 0.2807753410015721,
+  "stdout": "10000010\n"
+}

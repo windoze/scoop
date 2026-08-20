@@ -1,0 +1,4 @@
+package consumer.constructors
+import upstream.constructors.*
+
+public fun result(): Int = Pair<String, Unit>(42).adjustment

@@ -1,0 +1,35 @@
+protected fun invalidTopLevel() {
+}
+
+public interface PublicContract {
+    fun hiddenObligation()
+}
+
+public abstract class AbstractApi public constructor() {
+    abstract fun hiddenAbstract()
+}
+
+public open class PublicBase public constructor() {
+    public open fun run() {
+    }
+
+    protected fun secret() {
+    }
+}
+
+internal class NarrowOverride() : PublicBase() {
+    final override fun run() {
+    }
+
+    fun invalidReceiver(other: PublicBase) {
+        other.secret()
+    }
+}
+
+private class Hidden private constructor()
+
+public fun leak(value: Hidden) {
+}
+
+fun main() {
+}

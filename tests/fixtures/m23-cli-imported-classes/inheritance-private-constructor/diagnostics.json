@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `PrivateConstructor` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "2a47308c6ff67a2d7a169218f35481454c3cd65b418a344a4d28709bf3015cc5",
+      "end": 109,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 89
+    },
+    "severity": "error"
+  }
+]

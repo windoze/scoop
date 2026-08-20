@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "automatic encode has no Encodable<Ptr<Int>> field codec; provide a primary val dependency, a conforming companion, or an explicit encode implementation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 69,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  }
+]

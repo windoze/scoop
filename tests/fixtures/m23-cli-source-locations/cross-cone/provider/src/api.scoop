@@ -1,0 +1,24 @@
+package locations.provider
+
+public fun trace(location: SourceLocation = getCurrentSourceLocation()): SourceLocation = location
+
+public fun <T> body(value: T): SourceLocation = getCurrentSourceLocation()
+
+public fun <T> defaultBody(value: T, location: SourceLocation = getCurrentSourceLocation()): SourceLocation = location
+
+public class Reporter public constructor() {
+    public final fun body(): SourceLocation = getCurrentSourceLocation()
+
+    public final fun trace(location: SourceLocation = getCurrentSourceLocation()): SourceLocation = location
+}
+
+public fun <T> closureBody(value: T): SourceLocation {
+    val location: () -> SourceLocation = { getCurrentSourceLocation() }
+    return location()
+}
+
+public class GenericReporter<T> public constructor(public val value: T) {
+    public final fun body(): SourceLocation = getCurrentSourceLocation()
+
+    public final fun closure(): () -> SourceLocation = { getCurrentSourceLocation() }
+}

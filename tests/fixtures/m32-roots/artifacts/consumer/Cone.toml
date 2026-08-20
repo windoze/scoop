@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m32"
+name = "roots-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m32:roots-facade" = "0.1.0"

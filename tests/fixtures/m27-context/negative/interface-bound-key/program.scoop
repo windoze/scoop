@@ -1,0 +1,3 @@
+interface Service {}
+context(a: T) fun <T: Service> read() {}
+fun main() {}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `ambiguous` is ambiguous in member candidate layer:\n  - fun Host.ambiguous(first: Int, second: Any, extra: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `first` = Int, argument for `second` = Int\n  - fun Host.ambiguous(first: Any, second: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `first` = Int, argument for `second` = Int",
+    "notes": [],
+    "origin": {
+      "cone": "113bb06eefdf4d968a8a24e141585a4a02acd95cf478215bfa08333e27a3f240",
+      "end": 211,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 187
+    },
+    "severity": "error"
+  }
+]

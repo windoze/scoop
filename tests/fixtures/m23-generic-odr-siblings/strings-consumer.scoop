@@ -1,0 +1,24 @@
+import dependency.odr.*
+import sibling.left.*
+import sibling.right.*
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    val value = left()
+    if (value !== right()) { return 1 }
+    if (value !== constant<Int>()) { return 2 }
+    if (value === distinct()) { return 3 }
+    if (value === leftOther()) { return 4 }
+    if (leftOther() !== rightOther()) { return 5 }
+    if (leftSelected(true) !== rightSelected(true)) { return 6 }
+    if (leftSelected(false) !== rightSelected(false)) { return 7 }
+    if (leftSelected(true) === leftSelected(false)) { return 8 }
+    if (forwarded<Int>() !== value) { return 9 }
+    if (forwarded<Later>() === value) { return 10 }
+    val first = Later(20)
+    val second = Later(22)
+    if (forwarded<Later>() !== forwarded<Later>()) { return 11 }
+    if (value != "generic constant") { return 12 }
+    return first.value + second.value
+}

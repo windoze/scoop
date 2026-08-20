@@ -1,0 +1,20 @@
+const val answer: Int = 42
+
+interface Value {
+    fun value(): Int
+}
+
+abstract class Base : Value {
+    abstract override fun value(): Int
+    abstract suspend fun load(): Int
+}
+
+class Derived : Base() {
+    final override fun value(): Int = answer
+    override suspend fun load(): Int = value()
+}
+
+fun main() {
+    val value: Value = Derived()
+    println(value.value())
+}

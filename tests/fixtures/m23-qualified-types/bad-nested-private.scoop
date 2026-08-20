@@ -1,0 +1,3 @@
+package consumer.paths
+
+public fun rejected(value: dependency.paths.Outer.Hidden): Int = 0

@@ -1,0 +1,29 @@
+public interface Bound {}
+public open class Source {
+    protected fun direct(first: Int, second: Long): Long = second
+    @Unsafe
+    protected fun raw(value: Long): Long = value
+    protected infix fun joined(other: Int): Int = other
+    protected operator fun contains(value: Int): Boolean = true
+    protected suspend fun waitFor(value: Int): Long = 1L
+    protected fun <T> identity(value: T): T = value
+    protected fun <T: Bound> bounded(value: T): T = value
+    protected open fun virtual(value: Long = 1L): Long = value
+    protected var stored: Int = 1
+    protected open val computed: Int
+        get() = stored
+    public var exposed: Int
+        get() = stored
+        protected set(replacement) { stored = replacement }
+    private fun ignored(): Int = 0
+    public fun publicOnly(): Int = 0
+}
+public class Child : Source() {
+    protected final override fun virtual(value: Long): Long = value
+    protected final override val computed: Int
+        get() = 2
+}
+public abstract class Abstract {
+    protected abstract fun obligation(value: Int): Int
+    protected abstract val required: Int
+}

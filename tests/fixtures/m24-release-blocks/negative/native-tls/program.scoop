@@ -1,0 +1,3 @@
+@Extern(name = "local") @ThreadLocal var local: Int
+class Owner { release { @Unsafe { val copy = local } } }
+fun main() {}

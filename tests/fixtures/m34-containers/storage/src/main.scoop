@@ -1,0 +1,15 @@
+@Extern(lib = "m34_containers", name = "m34_inspect_list", abi = "scoop")
+fun inspectStorage(values: Any, stride: Long): Unit
+@Extern(lib = "m34_containers", name = "m34_minor_count") fun minorCount(): Long
+@Extern(lib = "m34_containers", name = "m34_moving_stress") fun movingStress(): Boolean
+
+fun check(value: Boolean, marker: Int) {
+    if (!value) { println(marker); throw IllegalStateException() }
+}
+
+@Unsafe fun main() {
+    scalarsAndOptions()
+    valuesAndInterfaces()
+    movingAndClearing()
+    println("compact lists")
+}

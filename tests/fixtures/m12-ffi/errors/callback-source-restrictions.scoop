@@ -1,0 +1,32 @@
+@NoGC
+fun staticCallback(value: Int): Int = value
+
+@NoGC
+fun <T> genericCallback(value: T): T = value
+
+@NoGC
+suspend fun suspendedCallback(value: Int): Int = value
+
+@NoGC
+fun Int.extensionCallback(value: Int): Int = this + value
+
+struct CallbackHost(val offset: Int) {
+    @NoGC
+    fun memberCallback(value: Int): Int = value + offset
+}
+
+fun main() {
+    fun localCallback(value: Int): Int = value
+
+    val managed: (Int) -> Int = ::staticCallback
+    val fromManaged: FunPtr<(Int) -> Int> = managed
+    val fromLocal: FunPtr<(Int) -> Int> = ::localCallback
+    val fromGeneric: FunPtr<(Int) -> Int> = ::genericCallback
+    val fromSuspend: FunPtr<(Int) -> Int> = ::suspendedCallback
+    val fromExtension: FunPtr<(Int, Int) -> Int> = ::extensionCallback
+    val fromMember: FunPtr<(Int) -> Int> = CallbackHost(1)::memberCallback
+    val fromLambda: FunPtr<(Int) -> Int> = { value -> value }
+    val fromAnonymous: FunPtr<(Int) -> Int> = fun(value: Int): Int {
+        return value
+    }
+}

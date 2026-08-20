@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "core-direct-reader"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"test:direct-combined" = "1.0.0"

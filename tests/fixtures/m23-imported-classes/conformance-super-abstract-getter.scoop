@@ -1,0 +1,6 @@
+import dependency.classes.Valued
+
+public class LocalValue public constructor(): Valued {
+    public override val value: Long
+        get() = super<Valued>.value
+}

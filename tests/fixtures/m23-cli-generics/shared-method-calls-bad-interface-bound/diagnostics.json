@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `boundRead`: RemoteNumber is not a subtype of Reader<T>",
+    "notes": [],
+    "origin": {
+      "cone": "5d5794ef0274399cfc9e337d41a140f0da886d1fa82bb7005b633c1ce12e812e",
+      "end": 120,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  }
+]

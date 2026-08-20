@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_CLI_CONFIG",
+    "message": "invalid current Cone operand ${work}/pipe.scoop: operand must resolve to a directory or regular file",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/pipe.scoop",
+      "start": null
+    },
+    "phase": "Request",
+    "severity": "error"
+  }
+]

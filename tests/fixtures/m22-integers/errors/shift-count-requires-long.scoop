@@ -1,0 +1,7 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val value: Int = 1
+    val distance: Int = 2
+    val shifted: Int = value shl distance
+}

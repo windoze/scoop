@@ -1,0 +1,3 @@
+import upstream.sharedbounds.unfilled
+
+public fun result(): Int = unfilled()

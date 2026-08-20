@@ -1,0 +1,373 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3065,
+  "selected": 39,
+  "unselected": 3026,
+  "counts": {
+    "passed": 33,
+    "failed": 6
+  },
+  "variants": 38,
+  "processes": 193,
+  "stage_and_plan_goldens": 165,
+  "results": [
+    {
+      "name": "imported-enum-constructor-combinations",
+      "status": "passed",
+      "seconds": 19.442315288004465,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructors",
+      "status": "passed",
+      "seconds": 19.705593816994224,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-options-defaults",
+      "status": "passed",
+      "seconds": 19.101405223016627,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-lexical",
+      "status": "passed",
+      "seconds": 19.853386936010793,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-static",
+      "status": "passed",
+      "seconds": 19.338979319960345,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-sugar",
+      "status": "passed",
+      "seconds": 19.289485125045758,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "legacy-m18-invoke-invoke-semantics",
+      "status": "passed",
+      "seconds": 5.9488692919840105,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-control-while-header",
+      "status": "passed",
+      "seconds": 5.276858633966185,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-representation-matrix",
+      "status": "passed",
+      "seconds": 7.8573120580404066,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-recursive-named-fields",
+      "status": "passed",
+      "seconds": 5.10772186802933,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-when-exhaustiveness",
+      "status": "passed",
+      "seconds": 5.106556719983928,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-pointers-option-niche-consumers",
+      "status": "passed",
+      "seconds": 5.092452823999338,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-generic-option",
+      "status": "passed",
+      "seconds": 5.046300983987749,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-nested-option",
+      "status": "passed",
+      "seconds": 4.992442447051872,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-option-basics",
+      "status": "passed",
+      "seconds": 5.110063459025696,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m5-arrays-array-elements",
+      "status": "passed",
+      "seconds": 6.150120050995611,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "legacy-m8-exceptions-control-expressions",
+      "status": "passed",
+      "seconds": 5.109730978962034,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m26-interpolation-contexts",
+      "status": "passed",
+      "seconds": 5.690191795001738,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m27-context-callback-scopes",
+      "status": "passed",
+      "seconds": 5.548602471011691,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m27-context-coroutine-exits",
+      "status": "passed",
+      "seconds": 6.991156201052945,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m27-context-exits",
+      "status": "passed",
+      "seconds": 5.191989607003052,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m28-cli-library-toolchain",
+      "status": "passed",
+      "seconds": 3.006982564984355,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-cli-program",
+      "status": "passed",
+      "seconds": 14.990947383979801,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-cli-program-musl-pie",
+      "status": "passed",
+      "seconds": 5.191813912999351,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-deep-frames",
+      "status": "passed",
+      "seconds": 10.689288343011867,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-deep-frames-musl-pie",
+      "status": "passed",
+      "seconds": 2.8017749190330505,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-native-dso",
+      "status": "passed",
+      "seconds": 9.949812032980844,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-artifacts-musl-pie",
+      "status": "passed",
+      "seconds": 28.9930328069604,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m32-roots-control",
+      "status": "passed",
+      "seconds": 5.140119323972613,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m32-roots-gc-context",
+      "status": "passed",
+      "seconds": 9.915858263964765,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "m33-native-safe-transitions-pie",
+      "status": "passed",
+      "seconds": 14.270993360958528,
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-platform-cone-musl-pie",
+      "status": "passed",
+      "seconds": 22.734869656036608,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "protected-domains-protected-default-references",
+      "status": "passed",
+      "seconds": 13.599900100962259,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "rebuilt-core-option-edited-core",
+      "status": "failed",
+      "seconds": 92.06693854596233,
+      "variants": 0,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOPC_BUILD_FAILED\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot produce the current Cone layout artifact: ELF atom materialization: Disk quota exceeded (os error 122)\",\"notes\":[],\"origin\":{\"kind\":\"none\"},\"schema\":1,\"severity\":\"error\"}\\n') differs:",
+      "message_sha256": "5607f14bb0d500a923d2d49cf807a18fe485760fe66a582d2690582ea5153518"
+    },
+    {
+      "name": "shared-enums-aliases-equality",
+      "status": "failed",
+      "seconds": 0.31861495797056705,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CACHE_ENTRY_CORRUPT\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: cannot materialize cache hit: cannot write /tmp/scoop-m35-linux-musl-focused/cache/compile-v1/.staging/build-qs6VHE/output/completed-artifacts/5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c",
+      "message_sha256": "1f9b49a9ca6737a40f98bf7c929f2d9bf83a8571e04eaba4f20d315c2d34061e"
+    },
+    {
+      "name": "shared-enums-qualified",
+      "status": "failed",
+      "seconds": 0.31020889000501484,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CACHE_ENTRY_CORRUPT\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: cannot materialize cache hit: cannot write /tmp/scoop-m35-linux-musl-focused/cache/compile-v1/.staging/build-tZcegp/output/completed-artifacts/5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c",
+      "message_sha256": "de7de79e9feaf26ff38f21bce08868a679e8d0aa274fcdb8e30dbfab53cda94f"
+    },
+    {
+      "name": "shared-native-calls-context",
+      "status": "failed",
+      "seconds": 0.3102022890234366,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CACHE_ENTRY_CORRUPT\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: cannot materialize cache hit: cannot write /tmp/scoop-m35-linux-musl-focused/cache/compile-v1/.staging/build-qNRrmG/output/completed-artifacts/5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c",
+      "message_sha256": "aa352d116f4e31ea18019db6380f414ccee851e8af9a0b13a3d0758d04484e47"
+    },
+    {
+      "name": "shared-structs-combined",
+      "status": "failed",
+      "seconds": 0.3099841289804317,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CACHE_ENTRY_CORRUPT\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: cannot materialize cache hit: cannot write /tmp/scoop-m35-linux-musl-focused/cache/compile-v1/.staging/build-JeGpTa/output/completed-artifacts/5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c",
+      "message_sha256": "eccfeb3457032a318fc745f608d370cbb81d53b7b11b2d06b0b6d473bac4714b"
+    },
+    {
+      "name": "shared-structs-standalone",
+      "status": "failed",
+      "seconds": 0.30989257199689746,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CACHE_ENTRY_CORRUPT\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: cannot materialize cache hit: cannot write /tmp/scoop-m35-linux-musl-focused/cache/compile-v1/.staging/build-I7Y3s7/output/completed-artifacts/5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c",
+      "message_sha256": "a9b344aa86bec221bf20482047a72a4a9359a38a1afe736c7c96a11e63dd22d4"
+    }
+  ]
+}

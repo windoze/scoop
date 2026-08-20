@@ -1,0 +1,42 @@
+schema = 1
+name = "legacy-m22-pointers-ffi-pointer-ffi-round-trip"
+root = "../../../m22-pointers/ffi/pointer-ffi-round-trip.scoop"
+inputs = ["../../../m22-pointers/ffi/pointer-ffi-round-trip.scoop", "../../../m22-pointers/ffi/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["legacy", "m22-pointers", "single-file", "run", "native"]
+
+[[steps]]
+name = "prepare_native"
+files = [{"mkdir" = {"path" = "${work}/native/objects"}}, {"mkdir" = {"path" = "${work}/native/lib"}}]
+
+[[steps]]
+name = "compile_native_0"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../../../m22-pointers/ffi/native.c", "-o", "${work}/native/objects/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native_0"
+argv = ["${ar}", "rcs", "${work}/native/lib/libfixture_native.a", "${work}/native/objects/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native/lib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "true\ntrue\ntrue\ntrue\n202\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\n101\n102\n41\n103\n42\ntrue\ntrue\ntrue\n202\ntrue\ntrue\n104\n105\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\n43\n44\ntrue\ntrue\ntrue\ntrue\n501\ntrue\n502\ntrue\n503\ntrue\n504\n106\n107\ntrue\ntrue\ntrue\ntrue\ntrue\n45\n46\ntrue\ntrue\ntrue\ntrue\n"
+stderr = ""

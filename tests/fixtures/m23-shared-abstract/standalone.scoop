@@ -1,0 +1,32 @@
+package consumer.abstracts
+
+private interface MutableReader<T> {
+    public var value: T
+    public fun replace(value: T): Unit
+    public fun read(): T = this.value
+    public fun again(): T = this.read()
+}
+
+private abstract class BaseReader<T>(): MutableReader<T> {
+    protected abstract fun stored(): T
+    public abstract override var value: T
+    public override fun read(): T = this.stored()
+    public override fun replace(value: T): Unit { this.value = value }
+}
+
+private class ReaderBox<T>(private var item: T): BaseReader<T>() {
+    protected override fun stored(): T = this.item
+    public override var value: T
+        get() = this.item
+        set(next) { this.item = next }
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val box: MutableReader<T> = ReaderBox<T>(value)
+    val replace: (T) -> Unit = box::replace
+    replace(value)
+    val fetch: () -> T = box::read
+    return if (read(box.again()) == read(fetch())) { read(box.value) } else { 0 }
+}

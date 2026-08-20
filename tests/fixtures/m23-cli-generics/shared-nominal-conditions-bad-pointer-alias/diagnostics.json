@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Pointer<Managed> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "811a34be6c38b53f3faf82c783cb4d2fea412c47ead1baa5829e204a8e99baba",
+      "end": 115,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 72
+    },
+    "severity": "error"
+  }
+]

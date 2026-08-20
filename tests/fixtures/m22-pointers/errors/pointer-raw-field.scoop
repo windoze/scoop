@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+fun inspect(pointer: Ptr<Int>): ULong {
+    return pointer._rawPointer
+}
+
+fun main() {
+    println(0)
+}

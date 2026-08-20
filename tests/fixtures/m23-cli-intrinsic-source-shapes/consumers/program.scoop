@@ -1,0 +1,18 @@
+fun verifyShape(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyShape(exportedIntrinsicFlag)
+    verifyShape(exportedIntrinsicText == "source-shape")
+    verifyShape(exportedIntrinsicNumber == 42)
+    verifyShape(exportedFlagVarargs() == 0)
+    verifyShape(exportedFlagVarargs(true, false) == 0)
+    val flags = [true, false]
+    verifyShape(exportedFlagVarargs(*flags) == 0)
+    verifyShape(exportedFlagVarargs(flags = flags) == 0)
+    verifyShape(exportedGenericVarargs<Int>() == 0)
+    verifyShape(exportedGenericVarargs<Int>(1, 2) == 0)
+    val texts = ["left", "right"]
+    verifyShape(exportedGenericVarargs<String>(*texts) == 0)
+    val values = [IntrinsicContainer<Int>(17), IntrinsicContainer<Int>(25)]
+    verifyShape(exportedGenericVarargs<IntrinsicContainer<Int>>(values = values) == 0)
+}

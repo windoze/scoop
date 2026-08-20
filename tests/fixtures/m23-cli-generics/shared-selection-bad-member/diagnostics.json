@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `ambiguous` is ambiguous in member layer:\n  - ambiguous(first: Int, second: Any, extra: Int): Int — applicable; tied by MSC\n  - ambiguous(first: Any, second: Int): Int — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "c31f9fd44cbea44fa33c1dd58d4558611cea89efb30bac4598a14d5c9939094d",
+      "end": 85,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 61
+    },
+    "severity": "error"
+  }
+]

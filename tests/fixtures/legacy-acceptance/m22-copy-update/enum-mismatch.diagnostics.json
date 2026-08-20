@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found UnitChoice",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 248,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 220
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found PositionalChoice",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 381,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 353
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update requires an exact declared struct value, found NamedChoice",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 532,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 504
+    },
+    "severity": "error"
+  }
+]

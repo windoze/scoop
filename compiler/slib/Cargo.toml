@@ -1,0 +1,18 @@
+[package]
+name = "scoop-slib"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+object.workspace = true
+yaxpeax-x86.workspace = true
+yaxpeax-arch.workspace = true
+scoop-hir.workspace = true
+scoop-identity.workspace = true
+scoop-lir.workspace = true
+scoop-mir.workspace = true
+scoop-wire.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+la-arena.workspace = true

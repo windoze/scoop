@@ -1,0 +1,10 @@
+package consumer.bounds
+
+import templates.bounds.*
+
+public fun <T> exercise(value: T): Int {
+    val receiver = GenericValue<T>(value, 42)
+    return defaultRead(receiver)
+}
+
+public fun result(answer: Int = defaultRead(Value(42))): Int = answer

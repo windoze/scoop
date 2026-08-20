@@ -1,0 +1,4 @@
+package nativelink.api
+
+@Extern(lib = "m23_math", name = "m23_add")
+public fun add(left: Int, right: Int = 2): Int

@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3,
+  "selected": 3,
+  "unselected": 0,
+  "counts": {
+    "passed": 3
+  },
+  "variants": 7,
+  "processes": 41,
+  "stage_and_plan_goldens": 6,
+  "results": [
+    {
+      "name": "m31-nursery-native-context-copy",
+      "status": "passed",
+      "seconds": 136.33777036799995,
+      "variants": 3,
+      "processes": 9,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m31-odr-selection",
+      "status": "passed",
+      "seconds": 149.283433081,
+      "variants": 2,
+      "processes": 20,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m31-optimization-profile-native-gc",
+      "status": "passed",
+      "seconds": 144.27969341999994,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 0,
+      "message": ""
+    }
+  ],
+  "environment": "NUC12 native Linux; LLVM 22.1.2, GCC 15.2.0",
+  "source_revision": "c4714125c",
+  "final_production_revision": "c3ea0d7d2",
+  "selection_complete": true,
+  "full_suite": false,
+  "purpose": "Focused validation on the native NUC toolchain: profile/native GC, mixed-optimization ODR, nursery/Context/FFI.",
+  "mode": "ordinary"
+}

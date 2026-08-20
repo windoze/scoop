@@ -1,0 +1,47 @@
+{
+  "target": "aarch64-apple-darwin",
+  "date": "2026-10-10",
+  "rust": {
+    "parser": 459,
+    "parser_doctests": 1,
+    "hir_m4_when": 34,
+    "hir_m22": 103,
+    "mir_patterns": 10
+  },
+  "fixtures_passed": [
+    "legacy-m22-patterns-errors-qualified-variant-typo",
+    "legacy-m22-patterns-errors-recursive-named-fields",
+    "legacy-m22-patterns-errors-uint8-one-missing",
+    "legacy-m22-patterns-errors-unary-plus-integer-pattern",
+    "legacy-m22-patterns-errors-when-exhaustiveness",
+    "legacy-m22-patterns-int8-complete-domain",
+    "legacy-m22-patterns-integer-when",
+    "legacy-m22-patterns-nested-enum-primitives",
+    "legacy-m22-patterns-recursive-named-fields",
+    "legacy-m22-patterns-suspicious-enum-catch-all",
+    "legacy-m22-patterns-when-exhaustiveness",
+    "legacy-m4-enum-destructuring",
+    "legacy-m4-enum-enum-basics",
+    "legacy-m4-enum-enum-generics",
+    "legacy-m4-enum-errors-guard-not-boolean",
+    "legacy-m4-enum-errors-named-rest-missing",
+    "legacy-m4-enum-errors-non-exhaustive",
+    "legacy-m4-enum-errors-refutable-in-val",
+    "legacy-m4-enum-errors-rest-twice",
+    "legacy-m4-enum-errors-unknown-variant",
+    "legacy-m4-enum-option-via-when",
+    "legacy-m4-enum-when-expression",
+    "legacy-m4-enum-when-guards",
+    "m26-characters-basic",
+    "m26-characters-values",
+    "m30-floating-patterns",
+    "m35-case-basic",
+    "m35-case-combined",
+    "m35-case-missing-prefix"
+  ],
+  "verification": "Case source migration, normal and moving-GC execution, exact diagnostics; new stage goldens and the initially interrupted warning golden were compared again without update mode. Remaining repository-wide migration regression is part of M35 final acceptance.",
+  "target_cleanup_gb": {
+    "before": 25,
+    "after": 16
+  }
+}

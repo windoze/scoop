@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property `value` without an initializer must be a mutable Option property",
+    "notes": [],
+    "origin": {
+      "cone": "33e17e7157eba94f1284de3acbedc4b14f13b5e344437113c56f344afa660d16",
+      "end": 79,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 67
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Missing` has no property `value`",
+    "notes": [],
+    "origin": {
+      "cone": "33e17e7157eba94f1284de3acbedc4b14f13b5e344437113c56f344afa660d16",
+      "end": 160,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 155
+    },
+    "severity": "error"
+  }
+]

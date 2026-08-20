@@ -1,0 +1,3 @@
+suspend fun suspended(): Int = 1
+class Owner { release { suspended() } }
+fun main() {}

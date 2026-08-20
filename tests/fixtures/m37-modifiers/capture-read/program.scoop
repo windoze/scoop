@@ -1,0 +1,5 @@
+inline fun read(noinline action: () -> Int): Int = action()
+fun main() {
+    var value = 1
+    read { value }
+}

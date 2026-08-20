@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m34.bench"
+name = "small-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m34.bench:small-provider" = "0.1.0"

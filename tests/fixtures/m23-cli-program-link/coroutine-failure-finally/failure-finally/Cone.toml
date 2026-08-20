@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "failure-finally"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:coroutines" = {"version" = "0.1.0", "path" = "../coroutines"}

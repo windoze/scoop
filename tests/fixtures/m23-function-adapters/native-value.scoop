@@ -1,0 +1,26 @@
+package consumer.adapters
+
+import templates.adapters.*
+
+@Extern(lib = "m23_native_calls", name = "m23_call_scalar")
+private fun nativeCall(callback: FunPtr<(Long) -> Long>, value: Long): Long
+
+public fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long {
+    @Unsafe { return nativeCall(callback, value) }
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val pointer: FunPtr<(Long) -> Long> = ::nativeIdentity
+    val exact = nativeSource(seed, read, pointer)
+    val adapted: (FunPtr<(Long) -> Long>) -> Any = exact
+    val erased: Any = exact
+    val checked = erased as (FunPtr<(Long) -> Long>) -> Any
+    val first = adapted(pointer) as FunPtr<(Long) -> Long>
+    val second = checked(pointer) as FunPtr<(Long) -> Long>
+    @Unsafe {
+        if (callScalar(first, 41L) != 41L) { return 1 }
+        return callScalar(second, read(seed).toInt64()).toInt32()
+    }
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

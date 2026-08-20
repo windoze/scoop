@@ -1,0 +1,3 @@
+import dependency.classes.PrivateConstructor
+
+public class Derived public constructor(): PrivateConstructor()

@@ -1,0 +1,27 @@
+// Exception hierarchy (spec 11.7, docs/milestone8/DESIGN.md section 2).
+// Throwable / Exception are `open` so user code can define custom
+// exceptions; the built-in subclasses are final.
+
+public open class Throwable public constructor()
+
+public open class Exception public constructor(public val message: String?) : Throwable()
+
+public class UnwrapException public constructor() : Exception(Some("unwrap on None"))
+
+public class ClassCastException public constructor() : Exception(Some("invalid cast"))
+
+public class ArithmeticException public constructor() : Exception(Some("arithmetic error"))
+
+public class MissingContextException public constructor(message: String?) : Exception(message)
+
+public class IndexOutOfBoundsException public constructor() : Exception(Some("array index out of bounds"))
+
+public class IllegalArgumentException public constructor(message: String? = Some("illegal argument")) : Exception(message)
+
+public class IllegalStateException public constructor(message: String? = Some("illegal state")) : Exception(message)
+
+public class CharacterCodingException public constructor(public val byteOffset: Long) : Exception(Some("invalid UTF-8"))
+
+internal fun __scoopThrowInitializationCycle(message: String) {
+    throw IllegalStateException(Some(message))
+}

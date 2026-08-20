@@ -1,0 +1,16 @@
+fun main() {
+    val make: (Long, (Long) -> Int) -> Array<Int> = ::Array
+    val mutable: (Array<Int>) -> MutableArray<Int> = ::MutableArray
+    val frozen: (MutableArray<Int>) -> Array<Int> = ::Array
+    val values = make(3L, { index -> index.toInt32() + 40 })
+    val changed = mutable(values)
+    changed[0L] = 7
+    gcCollect()
+    println(values[0L])
+    println(frozen(changed)[0L])
+    println(values[2L])
+    val direct = Array<Int>(1L, { index -> 5 })
+    println(direct[0L])
+    try { val invalid = make(-1L, { index -> 0 }) }
+    catch (error: IllegalArgumentException) { println("invalid size") }
+}

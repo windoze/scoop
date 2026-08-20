@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "recursive value layout does not cross a reference boundary: Recursive -> Recursive",
+    "notes": [],
+    "origin": {
+      "cone": "2001e0d53a091ec51dcdb2b8400ea8ddaedf9ab081df8f1b606f47b156e208d9",
+      "end": 122,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 68
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Phantom<Pointer<Managed>> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "6c7762101104fc9459af47c39c4c2017260189a733535ea7efe64d2da7beb3a8",
+      "end": 135,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 72
+    },
+    "severity": "error"
+  }
+]

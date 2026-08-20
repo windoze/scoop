@@ -1,0 +1,75 @@
+schema = 1
+name = "source-only-actual-demand"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "actual-demand", "../../m23-source-only-nominals/actual-demand.scoop", "source-only-actual-demand-consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["source-only"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_actual-demand"
+files = [
+  {"copy" = {"from" = "${fixture}/actual-demand", "to" = "${work}/sources/actual-demand"}},
+  {"copy" = {"from" = "${fixture}/../../m23-source-only-nominals/actual-demand.scoop", "to" = "${work}/sources/actual-demand/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/actual-demand", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/actual-demand/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/actual-demand"}},
+]
+
+[[steps]]
+name = "prepare_source-only-actual-demand-consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/source-only-actual-demand-consumer", "to" = "${work}/sources/source-only-actual-demand-consumer"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/source-only-actual-demand-consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/source-only-actual-demand-consumer/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/source-only-actual-demand-consumer"}},
+]

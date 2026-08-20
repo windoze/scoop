@@ -1,0 +1,43 @@
+import scoop.json.Json
+
+public class DecodeState(public val offset: Int)
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"context decode assertion ${code}")) }
+}
+
+context(state: DecodeState)
+private fun contextualValue(decoder: Decoder): Int = Int.Companion.decode(decoder) + state.offset
+
+private object Contextual : Decodable<Int> {
+    public override fun decode(decoder: Decoder): Int = contextualValue(decoder)
+}
+
+context(state: DecodeState)
+public fun fallback(): Int = state.offset
+
+public struct Item<T>(val pair: (T, Array<T>), val fallback: Int = fallback())
+public class ItemDecoder<T>(private val element: Decodable<T>) : Decodable<Item<T>>
+
+fun main() {
+    val codec = ItemDecoder<Int>(Contextual)
+    val text = "{\"pair\":[1,[2,3]]}"
+    val outer = DecodeState(10)
+    context(outer) {
+        val a = Json.decode(text, codec)
+        check(a.pair._1 == 11 && a.pair._2[0L] == 12 && a.fallback == 10, 1)
+        context(DecodeState(100)) {
+            val b = Json.decode(text, codec)
+            check(b.pair._1 == 101 && b.pair._2[1L] == 103 && b.fallback == 100, 2)
+        }
+        check(Json.decode(text, codec).pair._1 == 11, 3)
+    }
+    try { Json.decode(text, codec); check(false, 4) }
+    catch (error: MissingContextException) {}
+    context(DecodeState(20)) {
+        try { Json.decode("{\"pair\":[1,[null]]}", codec); check(false, 5) }
+        catch (error: DecodingException) { check(error.path == "/pair/1/0", 6) }
+        check(Json.decode(text, codec).fallback == 20, 7)
+    }
+    println("context-ok")
+}

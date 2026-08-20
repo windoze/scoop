@@ -1,0 +1,12 @@
+package locations.facade
+
+public import locations.provider.body
+public import locations.provider.defaultBody
+public import locations.provider.Reporter
+public import locations.provider.GenericReporter
+public import locations.provider.closureBody
+import locations.provider.trace
+
+public fun <T> relay(value: T, location: SourceLocation = trace()): SourceLocation = location
+
+public fun ordinary(): SourceLocation = getCurrentSourceLocation()

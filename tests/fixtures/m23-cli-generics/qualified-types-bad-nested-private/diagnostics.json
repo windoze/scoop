@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `dependency.paths.Outer.Hidden` is not accessible from this source location",
+    "notes": [],
+    "origin": {
+      "cone": "337f6b26932e3747211e90e9c09f51d1edd5c9a404da8c20186f02e7d657944a",
+      "end": 80,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 51
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "source-error"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:storage-provider" = { version = "0.1.0", path = "../storage-provider" }

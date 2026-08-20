@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `sizeOf`: type argument `String` for `T` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "fc9b9fdcc417024b553a0498d0f5b1074ccc2804d99d84463e8a7f0ac6ddd156",
+      "end": 42,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 26
+    },
+    "severity": "error"
+  }
+]

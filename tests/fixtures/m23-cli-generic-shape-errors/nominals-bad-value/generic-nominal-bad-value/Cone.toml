@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "generic-nominal-bad-value"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:generic-nominal-provider" = "0.1.0"

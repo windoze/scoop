@@ -1,0 +1,3 @@
+import templates.delegateCombinations.*
+
+fun wrong(): Boolean = Receiver<Int>(1).zero

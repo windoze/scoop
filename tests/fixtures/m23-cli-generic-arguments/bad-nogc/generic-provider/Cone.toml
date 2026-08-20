@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test"
+name = "generic-provider"
+version = "1.0.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"

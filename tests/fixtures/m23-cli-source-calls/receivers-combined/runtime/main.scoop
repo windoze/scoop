@@ -1,0 +1,9 @@
+import receiver.consumer.combined
+
+fun verifyCalls(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyCalls(combined() == 7)
+    verifyCalls(combined() == 7)
+}

@@ -1,0 +1,37 @@
+public interface DeferredGeneric<T> {}
+public class DeferredRoot : DeferredGeneric<Int> {}
+public class DeferredHolder(private val value: DeferredRoot) {}
+public class DeferredLeaf(private val value: DeferredHolder) {}
+public struct DeferredBox<T>(val value: T)
+public class DeferredConstructor public constructor(value: DeferredBox<Int>) {}
+
+public interface DeferredSlot {
+    public fun take(value: DeferredRoot): DeferredRoot
+}
+public open class DeferredVirtual {
+    public open fun take(value: DeferredRoot): DeferredRoot = value
+}
+public class DeferredDerived : DeferredVirtual() {}
+public object DeferredObject : DeferredSlot {
+    public override fun take(value: DeferredRoot): DeferredRoot = value
+}
+
+private class DeferredPrivate : DeferredGeneric<Int> {}
+public class DeferredPrivateHolder {
+    private val hidden: DeferredPrivate = DeferredPrivate()
+}
+
+public open class DeferredProtected : DeferredGeneric<Int> {
+    protected val code: Int = 3
+    protected fun read(value: Int = 1): Int = value
+    protected class DeferredNested(private val owner: DeferredRoot) {}
+}
+
+public class DeferredCycleA(private val next: DeferredCycleB) {}
+public class DeferredCycleB(private val next: DeferredCycleA) : DeferredGeneric<Int> {}
+public class ReadyCycleA(private val next: ReadyCycleB) {}
+public class ReadyCycleB(private val next: ReadyCycleA) {}
+public class ReadyDirect {
+    public fun take(value: DeferredRoot): DeferredRoot = value
+}
+public struct ReadyEmpty()

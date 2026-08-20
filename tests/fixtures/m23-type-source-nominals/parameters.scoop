@@ -1,0 +1,28 @@
+public interface Bound {}
+public open class Envelope {
+    protected class Box<T> private constructor(private val stored: T, count: Int = 2) {
+        public constructor(value: T): this(value, 1) {}
+        public fun take(value: T): T = value
+        internal fun <U : Bound> combine(value: T, other: U, count: Int = 1): T = value
+        private fun hidden(value: Int = 3): Int = value
+        protected fun inherited(value: Int = 4): Int = value
+    }
+    protected enum Choice<T> {
+        Empty,
+        Positional(T),
+        Named { value: T },
+        Defaulted(val value: T, val count: Int = 1)
+    }
+    protected struct Pair<T>(val value: T, val count: Int = 2) {
+        private constructor(value: T): this(value, 3) {}
+    }
+    protected class GenericOuter<T> {
+        private class Static public constructor(value: Int = 3) {
+            private fun count(value: Int = 4): Int = value
+        }
+    }
+    protected object Cache {
+        private fun cached(value: Int = 5): Int = value
+    }
+}
+private fun topLevel(value: Int = 6): Int = value

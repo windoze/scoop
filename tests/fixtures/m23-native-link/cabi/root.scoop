@@ -1,0 +1,46 @@
+import nativelink.cabifacade.*
+
+struct Marker(val text: String)
+
+@NoGC
+fun shift(value: Int): Int = value + 1
+
+@NoGC
+fun shiftEnvelope(value: Envelope): Envelope = Envelope(
+    value.tag + 1u, Packed(!value.packed.flag, value.packed.value + 10), value.tail + 2L
+)
+
+fun main() {
+    val marker = Marker("cabi-" + "alive")
+    @Unsafe {
+        println(roundI8(-128))
+        println(roundI16(-32768))
+        println(roundI32(-2147483648))
+        println(roundI64(-9223372036854775808L))
+        println(roundU8(255u))
+        println(roundU16(65535u))
+        println(roundU32(4294967295u))
+        println(roundU64(18446744073709551615uL))
+        val widths = transformWidths(Widths(-1, -2, -3, -4L, 1u, 2u, 3u, 4uL))
+        println(widths.signed8)
+        println(widths.signed16)
+        println(widths.signed32)
+        println(widths.signed64)
+        println(widths.unsigned8)
+        println(widths.unsigned16)
+        println(widths.unsigned32)
+        println(widths.unsigned64)
+        val result = envelope(marker, Envelope(3u, Packed(true, 7), 100L), ::shiftEnvelope)
+        println(result.tag)
+        println(result.packed.flag)
+        println(result.packed.value)
+        println(result.tail)
+        var value = 40
+        println(pointer(marker, addressOf(value)))
+        val callback: FunPtr<(Int) -> Int>? = Some(::shift)
+        println(pointer(marker, addressOf(value), Some(addressOf(value)), callback))
+        println(value)
+        gcCollect()
+        println(marker.text)
+    }
+}

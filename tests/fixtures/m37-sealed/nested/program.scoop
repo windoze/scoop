@@ -1,0 +1,14 @@
+class Catalog {
+    sealed interface Item {}
+    class Entry(val value: Int) : Item
+    object End : Item {}
+    typealias Element = Item
+}
+fun classify(value: Catalog.Element): Int = when (value) {
+    is Catalog.Entry -> value.value
+    is Catalog.End -> 0
+}
+fun main() {
+    println(classify(Catalog.Entry(42)))
+    println(classify(Catalog.End))
+}

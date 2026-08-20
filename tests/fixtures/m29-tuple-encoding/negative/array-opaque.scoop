@@ -1,0 +1,3 @@
+struct Opaque()
+object Coding : Encodable<(Array<(Int, Opaque)>,)>
+fun main() {}

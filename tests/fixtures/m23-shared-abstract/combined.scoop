@@ -1,0 +1,27 @@
+package consumer.abstracts
+
+import dependency.abstracts.BaseReader
+import dependency.abstracts.MutableReader
+import dependency.abstracts.ReaderBox
+
+private class LocalReader<T>(private var item: T): BaseReader<T>() {
+    protected override fun stored(): T = this.item
+    public override var value: T
+        get() = this.item
+        set(next) { this.item = next }
+}
+
+private fun <T> consume(box: MutableReader<T>, value: T, read: (T) -> Int): Int {
+    val replace: (T) -> Unit = box::replace
+    replace(value)
+    val fetch: () -> T = box::read
+    return if (read(box.again()) == read(fetch())) { read(box.value) } else { 0 }
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val imported = consume<T>(ReaderBox<T>(value), value, read)
+    val local = consume<T>(LocalReader<T>(value), value, read)
+    return if (imported == local) { local } else { 0 }
+}

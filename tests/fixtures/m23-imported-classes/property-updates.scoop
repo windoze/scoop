@@ -1,0 +1,20 @@
+import dependency.classes.*
+
+fun receiver(trace: PropertyTrace): MutableCell {
+    trace.receivers += 1
+    return trace.cell
+}
+
+fun argument(trace: PropertyTrace): Long {
+    trace.arguments += 1
+    return if (trace.receivers == trace.arguments) { 20 } else { 100 }
+}
+
+public fun primary(): Counter {
+    val trace = PropertyTrace(MutableCell(0))
+    receiver(trace).value = argument(trace)
+    receiver(trace).value += argument(trace)
+    val old = receiver(trace).value++
+    val next = ++receiver(trace).value
+    return Counter(if (old == 40 && next == 42 && trace.receivers == 4 && trace.arguments == 2) { 21 } else { 0 })
+}

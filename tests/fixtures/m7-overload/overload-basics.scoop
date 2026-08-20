@@ -1,0 +1,12 @@
+fun show(v: Int): String = "int"
+fun show(v: String): String = "string"
+fun show(v: Int, n: Int): String = "two"
+
+fun main() {
+    println(show(1))
+    println(show("a"))
+    println(show(1, 2))
+    println(42)
+    println("x")
+    println(true)
+}

@@ -1,0 +1,20 @@
+import scoop.json.Json
+import containers.arrayDecoder
+import containers.integers
+import containers.nested
+
+private fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("container artifact assertion failed")) }
+}
+
+fun main() {
+    val first = Json.decode("[1,2]", integers())
+    val second = Json.decode("[3]", arrayDecoder(Int.Companion))
+    val third = Json.decode("[\"four\"]", arrayDecoder(String.Companion))
+    check(first[1L] == 2 && second[0L] == 3 && third[0L] == "four")
+    val values = Json.decode("{\"Some\":[[[5,6],[]]]}", nested(Int.Companion))!!
+    check(values.size == 2L && values[0L][1L] == 6 && values[1L].size == 0L)
+    val text = Json.decode("{\"Some\":[[[\"七\"]]]}", nested(String.Companion))!!
+    check(text[0L][0L] == "七")
+    println("artifacts-ok")
+}

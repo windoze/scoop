@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+fun inspect(callback: FunPtr<(Int) -> Int>): ULong {
+    return callback._rawPointer
+}
+
+fun main() {
+    println(0)
+}

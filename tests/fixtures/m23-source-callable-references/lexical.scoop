@@ -1,0 +1,18 @@
+package consumer.references
+
+import templates.references.*
+
+public fun <T> exercise(value: T): Int {
+    val copy: (T) -> T = ::identity
+    fun make(): (T) -> T = ::identity
+    val invoke: () -> T = { copy(value) }
+    val invokeAgain: () -> T = fun (): T { return invoke() }
+    val copied = make()(invokeAgain())
+    val member: () -> Int = Plain(42)::read
+    fun read(): Int = member()
+    val call: () -> Int = ::read
+    val values = (value, copied)
+    return call()
+}
+
+public fun result(): Int = exercise<Int>(0)

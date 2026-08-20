@@ -1,0 +1,4 @@
+import dependency.classes.CompanionHost
+import dependency.classes.OtherCompanionHost
+
+public fun wrong(): OtherCompanionHost.Companion = CompanionHost.Factory

@@ -1,0 +1,8 @@
+public object Argument : Bound {}
+public fun source(): Source = Source()
+public fun child(): Child = Child()
+private class Concrete : Abstract() {
+    protected override fun obligation(value: Int): Int = value
+    protected override val required: Int get() = 17
+}
+public fun abstractValue(): Abstract = Concrete()

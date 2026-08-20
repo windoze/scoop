@@ -1,0 +1,14 @@
+import bridge.*
+val answer = 99
+@NoGC fun readRaw(): Int = raw
+fun main() {
+    val value = Holder(7)
+    println(value.value)
+    println(value.read())
+    println(value.forward)
+    println(relay(value))
+    println(forwarded)
+    println(defaultValue())
+    println(ONE)
+    println(readRaw())
+}

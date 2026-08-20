@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `B` has no method `onlyLeaf`",
+    "notes": [],
+    "origin": {
+      "cone": "414b9b2ed3b3bf464e83db3d0c41b79d9e6e8a323bbf78c338380f355353fc67",
+      "end": 107,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 99
+    },
+    "severity": "error"
+  }
+]

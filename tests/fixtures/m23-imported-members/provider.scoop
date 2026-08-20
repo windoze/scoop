@@ -1,0 +1,27 @@
+package dependency.members
+
+public struct Token() {
+    @NoGC public fun sameToken(other: Token = this): Token = other
+}
+
+public struct Wide(val first: Long, val second: Long, val third: Long) {
+    @NoGC public fun copyWide(other: Wide = this): Wide = other
+    @NoGC public fun total(delta: Long = 0): Long = first + second + third + delta
+    @NoGC public operator fun plus(other: Wide): Wide = other
+    @NoGC private fun hidden(): Long = first
+    public val calculated: Long
+        @NoGC get() = first + second + third
+    private val hiddenValue: Long
+        @NoGC get() = first
+}
+
+public struct Managed(val text: String, val token: Token) {
+    public fun sameManaged(other: Managed = this): Managed = other
+}
+
+public struct Nested(val value: Wide, val marker: Token)
+
+@NoGC public fun defaultField(value: Wide, selected: Long = value.first): Long = selected
+@NoGC public fun defaultMember(value: Wide, selected: Long = value.total(7)): Long = selected
+@NoGC public fun defaultProperty(value: Wide, selected: Long = value.calculated): Long = selected
+@NoGC public fun defaultMarker(value: Nested, marker: Token = value.marker): Token = marker

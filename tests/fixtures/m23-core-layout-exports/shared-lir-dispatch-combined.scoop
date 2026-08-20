@@ -1,0 +1,23 @@
+public struct SharedLirDispatchWide(val first: Int64, val second: Int64, val third: Int64)
+public struct SharedLirDispatchToken()
+public interface SharedLirDispatchRoot {
+    public fun pass(value: SharedLirDispatchWide): SharedLirDispatchWide
+    public val token: SharedLirDispatchToken
+    public fun empty(value: SharedLirDispatchToken): SharedLirDispatchToken = value
+}
+public interface SharedLirDispatchLeft: SharedLirDispatchRoot {
+    public override fun empty(value: SharedLirDispatchToken): SharedLirDispatchToken = value
+}
+public interface SharedLirDispatchRight: SharedLirDispatchRoot {}
+public interface SharedLirDispatchDiamond: SharedLirDispatchLeft, SharedLirDispatchRight {}
+public struct SharedLirDispatchValue(): SharedLirDispatchDiamond {
+    public final override fun pass(value: SharedLirDispatchWide): SharedLirDispatchWide = value
+    public final override val token: SharedLirDispatchToken get() = SharedLirDispatchToken()
+}
+public open class SharedLirDispatchBase: SharedLirDispatchRoot {
+    public override fun pass(value: SharedLirDispatchWide): SharedLirDispatchWide = value
+    public override val token: SharedLirDispatchToken get() = SharedLirDispatchToken()
+}
+public class SharedLirDispatchChild: SharedLirDispatchBase(), SharedLirDispatchDiamond
+public abstract class SharedLirDispatchPending: SharedLirDispatchDiamond
+public object SharedLirDispatchObject: SharedLirDispatchBase(), SharedLirDispatchDiamond {}

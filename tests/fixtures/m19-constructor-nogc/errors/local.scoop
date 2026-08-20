@@ -1,0 +1,2 @@
+struct Bad() { @NoGC constructor(flag: Boolean): this() { val text = "text" } }
+fun main() {}

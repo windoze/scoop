@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `Ambiguous` is ambiguous in current package layer:\n  - class Ambiguous(first: Int, second: Any, extra: Int) — applicable; tied by MSC\n  - class Ambiguous(first: Any, second: Int) — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "c4f1c001542a30924cb868d02e8a64812b04ec3b5bb673235864f967b6234a2e",
+      "end": 190,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 173
+    },
+    "severity": "error"
+  }
+]

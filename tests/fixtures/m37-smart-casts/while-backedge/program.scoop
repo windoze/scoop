@@ -1,0 +1,10 @@
+fun main() {
+    var value: Any = "before"
+    if (value !is String) return
+    var count = 0
+    while (count < 2) {
+        println(value.length)
+        value = 42
+        count++
+    }
+}

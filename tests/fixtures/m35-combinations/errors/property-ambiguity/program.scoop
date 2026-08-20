@@ -1,0 +1,7 @@
+interface Left { val number: Int }
+interface Right { val number: Int }
+fun test(value: Any): Int = when {
+    value is Left && value is Right -> value.number
+    else -> 0
+}
+fun main() {}

@@ -1,0 +1,9 @@
+public fun <Unused, T> ownerLocal(seed: T, value: T = if (true) {
+    fun copy(): T { return seed }
+    copy()
+} else { seed }): T = value
+
+public class OwnerLocalHost {
+    internal fun <A, B> forward(first: A, second: B,
+        value: B = ownerLocal<A, B>(second)): B = value
+}

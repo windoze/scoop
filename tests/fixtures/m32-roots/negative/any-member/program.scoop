@@ -1,0 +1,2 @@
+fun bad(value: Any): String = value.toString()
+fun main() {}

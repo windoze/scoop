@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "schedule-d-join"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:schedule-b-next" = "0.1.0"
+"dev.example:schedule-c-peer" = "0.1.0"

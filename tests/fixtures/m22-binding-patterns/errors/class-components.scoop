@@ -1,0 +1,22 @@
+// EXPECT-DIAGNOSTICS
+
+class Resty {
+    operator fun component1(): Int = 1
+}
+
+fun rejectRest() {
+    val (first, ..) = Resty()
+}
+
+class Sparse {
+    operator fun component1(): Int = 1
+}
+
+fun consume(value: Int) {}
+
+fun rejectMissing() {
+    val (first, second) = Sparse()
+    consume(first)
+}
+
+fun main() {}

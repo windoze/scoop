@@ -1,0 +1,3 @@
+@NoGC @Unsafe fun read(values: Array<Int>): Long =
+    values.withDataPointer<Int, Long>() { pointer, count -> count }
+fun main() {}

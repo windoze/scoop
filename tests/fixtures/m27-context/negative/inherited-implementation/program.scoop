@@ -1,0 +1,4 @@
+open class Base { open fun read(): Int = 1 }
+interface Reader { context(a: String) fun read(): Int }
+class Derived : Base(), Reader
+fun main() {}

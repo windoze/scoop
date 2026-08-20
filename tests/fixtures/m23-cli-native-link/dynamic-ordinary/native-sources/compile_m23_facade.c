@@ -1,0 +1,1 @@
+int facade_marker(void) { return 7; }

@@ -1,0 +1,2 @@
+fun bad(): Nothing { return }
+fun main() {}

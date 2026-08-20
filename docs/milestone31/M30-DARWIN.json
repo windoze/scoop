@@ -1,0 +1,171 @@
+{
+  "revision": "6e62514da",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "profile": "debug",
+  "runs": 5,
+  "build_args": [],
+  "toolchain": "LLVM 22.1.8, Apple Clang; Scoop O0, generated C O0, runtime O2",
+  "gc_statistics": null,
+  "raw_reports": [
+    "/tmp/scoop-m31-baseline/darwin-m30/report.json",
+    "/tmp/scoop-m31-baseline/darwin-m30-rest/report.json"
+  ],
+  "cases": [
+    {
+      "name": "aggregate",
+      "cold_build_seconds": 15.967835749965161,
+      "warm_build_seconds": 2.6867750419769436,
+      "run_seconds": [
+        0.4202685420168564,
+        0.04124262498226017,
+        0.037118291947990656,
+        0.03699249995406717,
+        0.036736875073984265
+      ],
+      "median_seconds": 0.037118291947990656,
+      "min_seconds": 0.036736875073984265,
+      "max_seconds": 0.4202685420168564,
+      "executable_bytes": 5414808,
+      "stdout": "2000000\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "slib_bytes": 195806,
+      "core_compiled": true
+    },
+    {
+      "name": "allocation",
+      "cold_build_seconds": 4.725726792006753,
+      "warm_build_seconds": 2.6522493329830468,
+      "run_seconds": [
+        0.3979678340256214,
+        0.02282549999654293,
+        0.01814337493851781,
+        0.016960375010967255,
+        0.015910707996226847
+      ],
+      "median_seconds": 0.01814337493851781,
+      "min_seconds": 0.015910707996226847,
+      "max_seconds": 0.3979678340256214,
+      "executable_bytes": 5419608,
+      "stdout": "1599960000\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "slib_bytes": 251936,
+      "core_compiled": false
+    },
+    {
+      "name": "arrays",
+      "cold_build_seconds": 14.805449250037782,
+      "warm_build_seconds": 2.7242949589854106,
+      "run_seconds": [
+        0.534502417081967,
+        0.031895500025711954,
+        0.02718883298803121,
+        0.02370408398564905,
+        0.02307491609826684
+      ],
+      "median_seconds": 0.02718883298803121,
+      "min_seconds": 0.02307491609826684,
+      "max_seconds": 0.534502417081967,
+      "executable_bytes": 5634232,
+      "stdout": "393216\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "slib_bytes": 1330646,
+      "core_compiled": true
+    },
+    {
+      "name": "collections",
+      "cold_build_seconds": 4.859323290991597,
+      "warm_build_seconds": 2.73562958301045,
+      "run_seconds": [
+        0.39554754097480327,
+        0.03722770791500807,
+        0.031295833992771804,
+        0.030240583000704646,
+        0.029764875071123242
+      ],
+      "median_seconds": 0.031295833992771804,
+      "min_seconds": 0.029764875071123242,
+      "max_seconds": 0.39554754097480327,
+      "executable_bytes": 5436872,
+      "stdout": "312600\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "slib_bytes": 1651096,
+      "core_compiled": false
+    },
+    {
+      "name": "old-graph",
+      "cold_build_seconds": 4.787978625041433,
+      "warm_build_seconds": 2.7390686660073698,
+      "run_seconds": [
+        0.384721958078444,
+        0.032754375017248094,
+        0.027839250047691166,
+        0.02444437495432794,
+        0.024335250025615096
+      ],
+      "median_seconds": 0.027839250047691166,
+      "min_seconds": 0.024335250025615096,
+      "max_seconds": 0.384721958078444,
+      "executable_bytes": 5550776,
+      "stdout": "199680\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "slib_bytes": 906670,
+      "core_compiled": false
+    },
+    {
+      "name": "primitive",
+      "cold_build_seconds": 4.730547833023593,
+      "warm_build_seconds": 2.7006882081041113,
+      "run_seconds": [
+        0.613758165971376,
+        0.23620516597293317,
+        0.2446549169253558,
+        0.21772504202090204,
+        0.22532516694627702
+      ],
+      "median_seconds": 0.23620516597293317,
+      "min_seconds": 0.21772504202090204,
+      "max_seconds": 0.613758165971376,
+      "executable_bytes": 5407128,
+      "stdout": "79999971\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "slib_bytes": 188616,
+      "core_compiled": false
+    }
+  ]
+}

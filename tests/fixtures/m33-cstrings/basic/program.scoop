@@ -1,0 +1,74 @@
+@Extern(lib = "fixture_native", name = "cstring_sum")
+fun nativeSum(pointer: Ptr<Int8>, count: Long): Long
+@GCLeaf @Extern(lib = "fixture_native", name = "cstring_sum")
+fun leafSum(pointer: Ptr<Int8>, count: Long): Long
+@GCLeaf @Extern(lib = "fixture_native", name = "native_cstring")
+fun nativeString(kind: Int): Ptr<Int8>
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+class Flag(var value: Boolean)
+
+fun main() {
+    @Unsafe {
+        val text = "A" + "界B"
+        val result = text.withCString(fun(pointer: Ptr<Int8>): (String, Long) {
+            @Unsafe {
+                expect(pointer.toULong() != 0UL && pointer.load(5L) == 0)
+                expect(nativeSum(pointer, 5L) == 651L)
+                gcCollect()
+                val decoded = String.fromCString(pointer)
+                "nested".withCString() { inner: Ptr<Int8> ->
+                    @Unsafe {
+                        gcCollect()
+                        expect(String.fromCString(inner) == "nested")
+                        expect(String.fromCString(pointer) == text)
+                    }
+                }
+                return (decoded, leafSum(pointer, 5L))
+            }
+        })
+        gcCollect()
+        expect(result._1 == text && result._2 == 651L && text == "A界B")
+        "".withCString() { pointer: Ptr<Int8> ->
+            @Unsafe {
+                expect(pointer.toULong() != 0UL && pointer.load() == 0)
+                expect(nativeSum(pointer, 0L) == 0L && String.fromCString(pointer) == "")
+            }
+        }
+        expect(String.fromCString(nativeString(0)) == "A")
+        expect(String.fromCString(nativeString(2)) == "")
+        var invalid = false
+        try {
+            val unexpected = String.fromCString(nativeString(1))
+            expect(unexpected.length < 0L)
+        } catch (error: CharacterCodingException) {
+            expect(error.byteOffset == 1L)
+            invalid = true
+        }
+        expect(invalid)
+
+        val entered = Flag(false)
+        var rejected = false
+        try {
+            "before\u0000after".withCString<Unit>(fun(pointer: Ptr<Int8>) { entered.value = true })
+        } catch (error: IllegalArgumentException) { rejected = true }
+        expect(rejected && !entered.value)
+
+        var cleaned = false
+        try {
+            text.withCString<Unit>(fun(pointer: Ptr<Int8>) {
+                @Unsafe {
+                    gcCollect()
+                    expect(String.fromCString(pointer) == "A界B")
+                    throw IllegalStateException()
+                }
+            })
+        } catch (error: IllegalStateException) { cleaned = true }
+        gcCollect()
+        expect(cleaned)
+        text.withCString() { pointer: Ptr<Int8> ->
+            @Unsafe { expect(String.fromCString(pointer) == text) }
+        }
+    }
+    println("cstrings-ok")
+}

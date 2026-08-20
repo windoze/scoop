@@ -1,0 +1,8 @@
+fun main() {
+    val signed: Array<Byte> = [65]
+    val wide: Array<UInt> = [65u]
+    val mutable = MutableArray<UInt8>(1L) { _ -> 65u }
+    val a = String.fromUtf8(signed)
+    val b = String.fromUtf8OrNone(wide)
+    val c = String.fromUtf8Lossy(mutable)
+}

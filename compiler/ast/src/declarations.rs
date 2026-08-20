@@ -1,0 +1,542 @@
+use crate::{
+    Annotation, AnnotationClassDecl, Block, Expr, Ident, ImportSyntax, PackageSyntax, Span, TypeRef,
+};
+
+mod classes;
+pub use classes::*;
+mod local_types;
+pub use local_types::*;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SourceFile {
+    pub package: PackageSyntax,
+    pub imports: Vec<ImportSyntax>,
+    pub declarations: Vec<Decl>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Decl {
+    Global(GlobalDecl),
+    Function(FunctionDecl),
+    TypeAlias(TypeAliasDecl),
+    AnnotationClass(AnnotationClassDecl),
+    Struct(StructDecl),
+    Enum(EnumDecl),
+    Class(ClassDecl),
+    Interface(InterfaceDecl),
+    Object(ObjectDecl),
+}
+
+/// A transparent alias, expanded in its declaration-site type scope.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeAliasDecl {
+    pub annotations: Vec<Annotation>,
+    pub visibility: VisibilitySyntax,
+    pub name: Ident,
+    pub type_params: Vec<TypeParamDecl>,
+    pub where_clause: Option<WhereClause>,
+    pub target: TypeRef,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeclaredVisibility {
+    Public,
+    Internal,
+    Private,
+    Protected,
+}
+
+/// Source visibility keeps an omitted modifier distinct until HIR
+/// normalizes it to the language default (`internal`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VisibilitySyntax {
+    Explicit {
+        visibility: DeclaredVisibility,
+        span: Span,
+    },
+    Omitted,
+}
+
+impl VisibilitySyntax {
+    pub const fn omitted() -> Self {
+        Self::Omitted
+    }
+}
+
+/// A non-local logical property. `GlobalDecl` and the historical
+/// `StoredPropertyDecl` names below are aliases so downstream stages can be
+/// migrated feature-by-feature without maintaining a second field model.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropertyDecl {
+    pub context_parameters: Vec<crate::ContextParameter>,
+    pub annotations: Vec<Annotation>,
+    pub visibility: VisibilitySyntax,
+    pub modifier: MethodModifier,
+    pub is_override: bool,
+    pub mutable: bool,
+    /// Present only for a top-level extension property.
+    pub receiver_ty: Option<TypeRef>,
+    /// Extension-property parameters; ordinary properties keep this empty.
+    pub type_params: Vec<TypeParamDecl>,
+    pub where_clause: Option<WhereClause>,
+    pub name: Ident,
+    pub ty: Option<TypeRef>,
+    pub body: PropertyBodySyntax,
+    pub span: Span,
+}
+
+impl PropertyDecl {
+    pub fn type_span(&self) -> Span {
+        self.ty.as_ref().map_or(self.name.span, |ty| ty.span)
+    }
+
+    pub fn initializer(&self) -> Option<&Expr> {
+        match &self.body {
+            PropertyBodySyntax::Initializer { expression, .. }
+            | PropertyBodySyntax::Const(expression) => Some(expression),
+            PropertyBodySyntax::OptionalOmitted
+            | PropertyBodySyntax::Computed(_)
+            | PropertyBodySyntax::Delegated { .. }
+            | PropertyBodySyntax::Abstract
+            | PropertyBodySyntax::ExternStorage => None,
+        }
+    }
+}
+
+pub type GlobalDecl = PropertyDecl;
+pub type StoredPropertyDecl = PropertyDecl;
+
+/// The property form is a closed sum. In particular, a missing initializer
+/// cannot be confused with an extern view, a computed property, or the
+/// Option-valued omitted-initializer shorthand.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PropertyBodySyntax {
+    Initializer {
+        expression: Box<Expr>,
+        accessors: AccessorSyntax,
+    },
+    OptionalOmitted,
+    Computed(AccessorSyntax),
+    Delegated {
+        expression: Box<Expr>,
+        by_span: Span,
+    },
+    Abstract,
+    ExternStorage,
+    Const(Box<Expr>),
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct AccessorSyntax {
+    pub getter: Option<GetterDecl>,
+    pub setter: Option<SetterDecl>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GetterDecl {
+    pub annotations: Vec<Annotation>,
+    pub body: AccessorBodySyntax,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetterDecl {
+    pub annotations: Vec<Annotation>,
+    pub visibility: SetterVisibilitySyntax,
+    pub parameter: SetterParameterSyntax,
+    pub body: AccessorBodySyntax,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetterVisibilitySyntax {
+    Explicit {
+        visibility: DeclaredVisibility,
+        span: Span,
+    },
+    Inherited,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SetterParameterSyntax {
+    Default { span: Span },
+    Named(Ident),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AccessorBodySyntax {
+    Block(Block),
+    Expr(Box<Expr>),
+    Omitted,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassModifier {
+    /// Default: cannot be inherited.
+    Final,
+    Open,
+    Abstract,
+    Sealed,
+}
+
+/// Effective modality of a member function (spec 9.1). Plain class
+/// methods are final; an override is open unless explicitly final.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodModifier {
+    Final,
+    Open,
+    Abstract,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum StructMember {
+    SecondaryConstructor(SecondaryConstructorDecl),
+    Function(Box<FunctionDecl>),
+    Property(Box<PropertyDecl>),
+    Nested(Box<NestedTypeDecl>),
+    Companion(Box<CompanionObjectDecl>),
+}
+
+impl StructMember {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::SecondaryConstructor(constructor) => constructor.span,
+            Self::Function(function) => function.span,
+            Self::Property(property) => property.span,
+            Self::Nested(declaration) => declaration.span(),
+            Self::Companion(companion) => companion.span,
+        }
+    }
+}
+
+/// An interface keeps method defaults and accessor-level property syntax;
+/// semantic obligation/default selection belongs to HIR.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InterfaceDecl {
+    pub sealed_span: Option<Span>,
+    pub annotations: Vec<Annotation>,
+    pub visibility: VisibilitySyntax,
+    pub name: Ident,
+    pub type_params: Vec<TypeParamDecl>,
+    pub supertypes: Vec<SupertypeSpec>,
+    pub where_clause: Option<WhereClause>,
+    pub methods: Vec<FunctionDecl>,
+    pub properties: Vec<PropertyDecl>,
+    pub nested: Vec<NestedTypeDecl>,
+    pub companion: Option<CompanionObjectDecl>,
+    pub span: Span,
+}
+
+/// A singleton object declaration. Its type and value identities are split
+/// later by HIR; the AST keeps one source declaration with ordered members.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjectDecl {
+    pub annotations: Vec<Annotation>,
+    pub visibility: VisibilitySyntax,
+    pub name: Ident,
+    pub supertypes: Vec<SupertypeSpec>,
+    pub members: Vec<ClassMember>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompanionObjectDecl {
+    pub annotations: Vec<Annotation>,
+    pub visibility: VisibilitySyntax,
+    pub name: CompanionNameSyntax,
+    pub supertypes: Vec<SupertypeSpec>,
+    pub members: Vec<ClassMember>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompanionNameSyntax {
+    Default { span: Span },
+    Named(Ident),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NestedTypeDecl {
+    TypeAlias(Box<TypeAliasDecl>),
+    Struct(Box<StructDecl>),
+    Enum(Box<EnumDecl>),
+    Class(Box<ClassDecl>),
+    Interface(Box<InterfaceDecl>),
+    Object(Box<ObjectDecl>),
+    AnnotationClass(Box<AnnotationClassDecl>),
+}
+
+impl NestedTypeDecl {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::TypeAlias(declaration) => declaration.span,
+            Self::Struct(declaration) => declaration.span,
+            Self::Enum(declaration) => declaration.span,
+            Self::Class(declaration) => declaration.span,
+            Self::Interface(declaration) => declaration.span,
+            Self::Object(declaration) => declaration.span,
+            Self::AnnotationClass(declaration) => declaration.span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeParamDecl {
+    pub name: Ident,
+    pub inline_bound: Option<TypeBound>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeParamKindBound {
+    Value,
+    Ref,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeBound {
+    Kind(TypeParamKindBound),
+    Upper(TypeRef),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhereClause {
+    pub constraints: Vec<TypeConstraint>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeConstraint {
+    pub parameter: Ident,
+    pub bound: TypeBound,
+    pub span: Span,
+}
+
+/// `enum E<T> { ... }` (spec 4.2).
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumDecl {
+    pub annotations: Vec<Annotation>,
+    pub visibility: VisibilitySyntax,
+    pub name: Ident,
+    pub type_params: Vec<TypeParamDecl>,
+    pub variants: Vec<VariantDecl>,
+    /// Implemented interfaces (spec 4.4.3).
+    pub interfaces: Vec<TypeRef>,
+    pub where_clause: Option<WhereClause>,
+    /// Member functions (spec 4.2).
+    pub methods: Vec<FunctionDecl>,
+    pub properties: Vec<PropertyDecl>,
+    pub nested: Vec<NestedTypeDecl>,
+    pub companion: Option<CompanionObjectDecl>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariantDecl {
+    pub annotations: Vec<Annotation>,
+    pub name: Ident,
+    pub kind: VariantDeclKind,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariantDeclKind {
+    /// `Variant = integer_constant` in an integral enum.
+    Constant(Box<crate::Expr>),
+    /// `SimpleVariant`
+    Unit,
+    /// `VariantWithValue(Int, String)` — unnamed fields.
+    Positional(Vec<crate::PositionalVariantFieldDecl>),
+    /// `Variant { f1: Int, f2: String }` — block-style named fields.
+    Named(Vec<VariantFieldDecl>),
+    /// `Variant(val f1: Int, val f2: String = "...")` —
+    /// constructor-style named fields (spec 4.2); defaults are
+    /// constant expressions in M4 (DESIGN.md 5.4).
+    Constructor(Vec<VariantFieldDecl>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariantFieldDecl {
+    pub annotations: Vec<Annotation>,
+    pub name: Ident,
+    pub ty: TypeRef,
+    /// Constructor-style variants use the full source parameter protocol;
+    /// block-style named variants always use [`ParameterSyntax::Required`].
+    pub syntax: ParameterSyntax,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructDecl {
+    pub annotations: Vec<Annotation>,
+    pub visibility: VisibilitySyntax,
+    pub name: Ident,
+    /// Generic type parameters (`struct Name<T, U>(...)`); empty for
+    /// non-generic structs.
+    pub type_params: Vec<TypeParamDecl>,
+    pub fields: StructRepresentationDecl,
+    /// Syntactic supertypes. HIR requires every resolved target to be an
+    /// interface and rejects constructor argument lists.
+    pub supertypes: Vec<SupertypeSpec>,
+    pub where_clause: Option<WhereClause>,
+    pub members: Vec<StructMember>,
+    pub span: Span,
+}
+
+impl StructDecl {
+    pub fn functions(&self) -> impl Iterator<Item = &FunctionDecl> {
+        self.members.iter().filter_map(|member| match member {
+            StructMember::Function(function) => Some(function.as_ref()),
+            StructMember::SecondaryConstructor(_)
+            | StructMember::Property(_)
+            | StructMember::Nested(_)
+            | StructMember::Companion(_) => None,
+        })
+    }
+
+    pub fn secondary_constructors(&self) -> impl Iterator<Item = &SecondaryConstructorDecl> {
+        self.members.iter().filter_map(|member| match member {
+            StructMember::SecondaryConstructor(constructor) => Some(constructor),
+            StructMember::Function(_)
+            | StructMember::Property(_)
+            | StructMember::Nested(_)
+            | StructMember::Companion(_) => None,
+        })
+    }
+}
+
+/// The representation syntax of a struct declaration. Only a registry-approved
+/// intrinsic type may use `Omitted`; ordinary zero-field structs use
+/// `Declared(Vec::new())` and therefore remain distinguishable.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StructRepresentationDecl {
+    Omitted,
+    Declared(Vec<FieldDecl>),
+}
+
+impl StructRepresentationDecl {
+    pub fn is_omitted(&self) -> bool {
+        matches!(self, Self::Omitted)
+    }
+}
+
+impl std::ops::Deref for StructRepresentationDecl {
+    type Target = [FieldDecl];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Omitted => &[],
+            Self::Declared(fields) => fields,
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a StructRepresentationDecl {
+    type Item = &'a FieldDecl;
+    type IntoIter = std::slice::Iter<'a, FieldDecl>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl FromIterator<FieldDecl> for StructRepresentationDecl {
+    fn from_iter<T: IntoIterator<Item = FieldDecl>>(iter: T) -> Self {
+        Self::Declared(iter.into_iter().collect())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldDecl {
+    pub annotations: Vec<Annotation>,
+    pub name: Ident,
+    pub ty: TypeRef,
+    pub syntax: ParameterSyntax,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionDecl {
+    pub context_parameters: Vec<crate::ContextParameter>,
+    /// Compiler-recognized annotations in source order (spec 9.4 / M12).
+    pub annotations: Vec<Annotation>,
+    pub visibility: VisibilitySyntax,
+    /// Whether this callable uses the coroutine calling convention.
+    pub is_suspend: bool,
+    /// `override` (required when overriding, forbidden otherwise).
+    pub is_override: bool,
+    /// Present exactly when the declaration has an `operator` modifier; the
+    /// modifier span is retained for HIR signature/target diagnostics.
+    pub operator: Option<OperatorModifier>,
+    /// Present exactly when the declaration has an `infix` modifier.
+    pub infix: Option<InfixModifier>,
+    /// Effective member modality. It is `Final` for top-level
+    /// functions, where member modality is not applicable.
+    pub modifier: MethodModifier,
+    /// Receiver type of a top-level extension function (`fun T.name(...)`).
+    /// `None` for ordinary top-level functions, members, and local functions.
+    pub receiver_ty: Option<TypeRef>,
+    pub name: Ident,
+    /// Generic type parameters (`fun <T> f(...)`); empty for
+    /// non-generic functions.
+    pub type_params: Vec<TypeParamDecl>,
+    pub params: Vec<Param>,
+    /// Return type annotation; absent means `Unit`.
+    pub return_ty: Option<TypeRef>,
+    pub where_clause: Option<WhereClause>,
+    pub body: FunctionBody,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OperatorModifier {
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InfixModifier {
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Param {
+    pub annotations: Vec<Annotation>,
+    pub name: Ident,
+    pub ty: TypeRef,
+    pub syntax: ParameterSyntax,
+    pub span: Span,
+}
+
+/// Source calling shape of one declared value parameter. The variants keep
+/// impossible combinations (for example, a required parameter carrying a
+/// default expression) out of the AST.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParameterSyntax {
+    Required,
+    Default {
+        expression: Expr,
+        equals_span: Span,
+    },
+    Vararg {
+        modifier_span: Span,
+        default: VarargDefaultSyntax,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VarargDefaultSyntax {
+    EmptyWhenOmitted,
+    Expression { expression: Expr, equals_span: Span },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FunctionBody {
+    Block(Block),
+    /// `fun f(...) [: T] = expr`
+    Expr(Box<Expr>),
+    /// Bodyless declaration. HIR decides whether the declaration kind permits
+    /// the missing body (`abstract`, interface, intrinsic or extern).
+    None,
+}

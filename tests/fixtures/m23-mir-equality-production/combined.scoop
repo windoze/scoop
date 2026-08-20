@@ -1,0 +1,19 @@
+public struct Leaf() {}
+public struct Pair(val first: Leaf, val second: Leaf)
+public enum Choice { Empty, Full(Pair) }
+
+public struct Manual() {
+    public operator fun equals(other: Manual): Boolean = false
+}
+public struct UsesManual(val value: Manual)
+
+public struct Overloaded() {
+    public operator fun equals(other: Leaf): Boolean = true
+}
+
+public class Reference {}
+public struct NotComparable(val value: Reference)
+
+public fun sameChoice(left: Choice, right: Choice): Boolean = left == right
+public fun sameManual(left: UsesManual, right: UsesManual): Boolean = left == right
+public fun sameOverloaded(left: Overloaded, right: Overloaded): Boolean = left == right

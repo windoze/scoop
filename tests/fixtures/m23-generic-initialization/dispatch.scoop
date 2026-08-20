@@ -1,0 +1,21 @@
+package templates.initialization
+
+public interface Source<T> {
+    public fun get(): T
+    public fun echo(value: T): T = value
+}
+
+public open class Base<T>(public val item: T) : Source<T> {
+    public override fun get(): T = this.item
+    public open fun offset(): Int = 1
+}
+
+public class Derived<T>(item: T) : Base<T>(item) {
+    public override fun offset(): Int = 2
+}
+
+public fun result(): Int {
+    val base: Base<Int> = Derived<Int>(40)
+    val source: Source<Int> = base
+    return source.echo(source.get()) + base.offset()
+}

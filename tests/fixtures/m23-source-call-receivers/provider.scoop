@@ -1,0 +1,9 @@
+package receiver.provider
+
+public fun String.answer(): Int = 7
+
+public fun withDefault(value: Int = "default".answer()): Int = value
+
+public var String.score: Int
+    get() = 7
+    set(value) {}

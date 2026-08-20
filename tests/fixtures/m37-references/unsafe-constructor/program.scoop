@@ -1,0 +1,2 @@
+class Unsafe @Unsafe constructor()
+fun main() { @Unsafe { val make = ::Unsafe } }

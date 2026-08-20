@@ -1,0 +1,9 @@
+import dependency.classes.Counter
+import dependency.classes.ValueEcho
+import dependency.classes.EchoValue
+
+public fun primary(): Counter {
+    val input = EchoValue(Counter(21))
+    val echo: ValueEcho = input
+    return echo.echo(input).reference
+}

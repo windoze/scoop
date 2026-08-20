@@ -1,0 +1,17 @@
+package consumer.nativeAddresses
+
+public import dependency.nativeAddresses.echo as exposed
+import dependency.nativeAddresses.echo as renamed
+
+@Extern(lib = "m23_native_calls", name = "m23_call_scalar")
+private fun nativeScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+
+public fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long {
+    @Unsafe { return nativeScalar(callback, value) }
+}
+
+public fun <T> exercise(value: T): Long {
+    val callback: FunPtr<(Long) -> Long> = ::renamed
+    @Unsafe { return callScalar(callback, 42) }
+}
+public fun result(): Long = exercise<Int>(0)

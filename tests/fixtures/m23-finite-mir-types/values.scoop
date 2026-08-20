@@ -1,0 +1,3 @@
+public struct FiniteEmpty() {}
+public struct FiniteScalar(val number: Int)
+public enum FiniteState { Off, On(Int) }

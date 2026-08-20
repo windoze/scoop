@@ -1,0 +1,8 @@
+// EXPECT-TRAP
+struct S(val v: Int)
+
+fun main() {
+    val a: Any = S(1)
+    val i = a as Int
+    println(i)
+}

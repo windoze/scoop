@@ -1,0 +1,22 @@
+package dependency.abstracts
+
+public interface MutableReader<T> {
+    public var value: T
+    public fun replace(value: T): Unit
+    public fun read(): T = this.value
+    public fun again(): T = this.read()
+}
+
+public abstract class BaseReader<T> public constructor(): MutableReader<T> {
+    protected abstract fun stored(): T
+    public abstract override var value: T
+    public override fun read(): T = this.stored()
+    public override fun replace(value: T): Unit { this.value = value }
+}
+
+public class ReaderBox<T> public constructor(private var item: T): BaseReader<T>() {
+    protected override fun stored(): T = this.item
+    public override var value: T
+        get() = this.item
+        set(next) { this.item = next }
+}

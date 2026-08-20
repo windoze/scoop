@@ -1,0 +1,11 @@
+fun main() {
+    var value = 1L
+    var index = 0L
+    while (index < 10000000L) {
+        val twice = index * 2L
+        val copy = twice
+        value = value + (copy - twice) + (index % 17L)
+        index = index + 1L
+    }
+    println(value)
+}

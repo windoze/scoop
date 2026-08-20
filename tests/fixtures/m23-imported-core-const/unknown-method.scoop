@@ -1,0 +1,1 @@
+public const val broken: Int = 3.shiftBits(distance = 2L)

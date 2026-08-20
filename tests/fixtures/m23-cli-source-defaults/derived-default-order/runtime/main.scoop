@@ -1,0 +1,10 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(use())
+    verifyDefault(Holder().same)
+    verifyDefault(structDefault(Empty(), Empty()))
+    verifyDefault(!structDefault(Empty(), Empty(), false))
+    verifyDefault(!enumDefault(Choice.First, Choice.Second))
+}

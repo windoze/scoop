@@ -1,0 +1,3 @@
+interface I { var value: Int }
+class Host(delegate: I) : I by delegate { override val value: Int = 42 }
+fun main() {}

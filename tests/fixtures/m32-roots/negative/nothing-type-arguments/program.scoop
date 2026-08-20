@@ -1,0 +1,2 @@
+fun bad(): Nothing<Int> { throw IllegalStateException() }
+fun main() {}

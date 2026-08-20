@@ -1,0 +1,13 @@
+struct Tagged(val tag: String, val pair: (Int, String))
+
+fun main() {
+    val a = Tagged("p", (1, "one"))
+    val b = Tagged("p", (1, "one"))
+    println(a == b)
+    println(a.pair._2)
+    var count = 0
+    while (count < 2) {
+        println(a.tag)
+        count = count + 1
+    }
+}

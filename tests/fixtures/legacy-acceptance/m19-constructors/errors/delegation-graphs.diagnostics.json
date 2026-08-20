@@ -1,0 +1,80 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a class with a primary constructor requires every secondary constructor to declare `this(...)` delegation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 95,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 69
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a class with a primary constructor requires every secondary constructor to delegate with `this(...)`, not `super(...)`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 175,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 134
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a class without a primary constructor cannot pass base arguments in its header",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 210,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 203
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor delegation cycle: Cycle(Int) -> Cycle(String) -> Cycle(Int)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 315,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 273
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a struct secondary constructor must declare `this(...)` delegation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 422,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 406
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a struct secondary constructor cannot use `super(...)`; it must delegate with `this(...)`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 493,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 467
+    },
+    "severity": "error"
+  }
+]

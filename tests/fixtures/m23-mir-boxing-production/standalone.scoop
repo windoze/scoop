@@ -1,0 +1,13 @@
+public interface Contract {
+    public fun apply(value: Token): Token
+    public val token: Token
+}
+public struct Token() : Contract {
+    public final override fun apply(value: Token): Token = value
+    public final override val token: Token get() = this
+}
+private struct Hidden() : Contract {
+    public final override fun apply(value: Token): Token = value
+    public final override val token: Token get() = Token()
+}
+private fun internalBox(value: Hidden): Contract = value

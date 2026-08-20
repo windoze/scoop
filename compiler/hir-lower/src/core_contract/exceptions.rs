@@ -1,0 +1,341 @@
+use super::*;
+
+use crate::{
+    call_resolution::{arguments::CandidateArgumentMap, candidates::NominalConstructorSource},
+    defaults::SourceParameterOwner,
+};
+
+impl Lowerer {
+    fn initialization_cycle_thrower(&mut self, files: &[ast::SourceFile]) -> Option<FunctionId> {
+        const NAME: &str = "__scoopThrowInitializationCycle";
+
+        let candidates = self
+            .top_level
+            .iter()
+            .copied()
+            .filter(|function| {
+                self.source_function_declarations
+                    .get(function)
+                    .is_some_and(|source| source.name == NAME)
+            })
+            .collect::<Vec<_>>();
+        let [function] = candidates.as_slice() else {
+            let file = candidates
+                .first()
+                .and_then(|function| self.function_files.get(function))
+                .copied()
+                .unwrap_or_else(|| self.core_diagnostic_file());
+            self.current_file = file;
+            let span = candidates
+                .first()
+                .map(|function| self.functions[*function].span)
+                .unwrap_or(files[file].span);
+            self.error(
+                span,
+                format!(
+                    "scoop.core must define exactly one internal function `{NAME}(message: String): Unit`"
+                ),
+            );
+            return None;
+        };
+        let function = *function;
+        self.current_file = self.function_files[&function];
+        let declaration = &self.functions[function];
+        let signature = &self.signatures[&function];
+        let valid = declaration.access.declared == hir::DeclaredVisibility::Internal
+            && matches!(declaration.genericity, hir::FunctionGenericity::Plain)
+            && !declaration.is_suspend
+            && declaration.method.is_none()
+            && signature.params.len() == 1
+            && signature.params[0].ty == self.string
+            && signature.return_ty == self.unit
+            && signature.attributes.gc_effect == hir::GcEffect::Managed
+            && matches!(declaration.kind, hir::FunctionKind::User(_));
+        if !valid {
+            self.error(
+                declaration.span,
+                format!(
+                    "function `{NAME}` in scoop.core must be internal, non-generic, non-suspend, managed, and have signature `(String) -> Unit`"
+                ),
+            );
+            return None;
+        }
+        Some(function)
+    }
+
+    fn zero_source_argument_constructor(&self, class: ClassId) -> Option<hir::ClassConstructorId> {
+        self.classes[class]
+            .constructors
+            .iter()
+            .copied()
+            .find(|constructor| {
+                let declaration = &self.class_constructors[*constructor];
+                let Some(callings) = self.class_parameter_calling.get(constructor) else {
+                    return false;
+                };
+                if declaration.parameters.len() != callings.len() {
+                    return false;
+                }
+                let owner = SourceParameterOwner::ClassConstructor(*constructor);
+                callings
+                    .iter()
+                    .enumerate()
+                    .all(|(index, calling)| match calling {
+                        crate::FnParamCalling::Required => false,
+                        crate::FnParamCalling::Default { .. } => {
+                            self.default_templates.contains_key(&(owner, index as u32))
+                        }
+                        crate::FnParamCalling::Vararg { omission, .. } => match omission {
+                            crate::FnVarargOmission::EmptyArray => true,
+                            crate::FnVarargOmission::Default { .. } => {
+                                self.default_templates.contains_key(&(owner, index as u32))
+                            }
+                        },
+                    })
+            })
+    }
+
+    /// Produce the physical zero-parameter callable needed by MIR's
+    /// compiler-generated exception edges. A source constructor whose
+    /// parameters are all omittable is adapted once in HIR, with its typed
+    /// defaults materialized into a hidden `this` delegation.
+    fn compiler_exception_callable(
+        &mut self,
+        source: hir::ClassConstructorId,
+    ) -> hir::ClassConstructorId {
+        if self.class_constructors[source].parameters.is_empty() {
+            return source;
+        }
+
+        let class = self.class_constructors[source].owner;
+        let span = self.class_constructors[source].span;
+        let view = self.nominal_constructor_view(NominalConstructorSource::Class(source), span);
+        let argument_map = CandidateArgumentMap::source_nominal(&view, &[])
+            .expect("a validated zero-source-argument constructor is callable without inputs");
+        let lowered = self
+            .with_constructor_expression_context(
+                source,
+                "compiler exception zero-argument adapter",
+                self.class_constructors[source].safety,
+                |this, sink| {
+                    this.materialize_nominal_arguments(
+                        crate::argument_materialization::NominalArgumentMaterialization {
+                            receiver: None,
+                            view: &view,
+                            argument_map: &argument_map,
+                            type_args: &[],
+                            source_args: Vec::new(),
+                            argument_sinks: Vec::new(),
+                            call_span: span,
+                        },
+                        sink,
+                    )
+                },
+            )
+            .expect("compiler exception adapter lowering always returns its arguments");
+        let target =
+            self.class_constructor_application(source, self.classes[class].self_application);
+        let declaration = self.class_constructors[source].clone();
+        let evaluation_context = self.next_class_constructor_context();
+        let adapter = self.class_constructors.alloc(hir::ClassConstructor {
+            context_parameter: None,
+            owner: class,
+            identity_kind: hir::ClassConstructorIdentityKind::ZeroArgumentAdapter { source },
+            access: declaration.access,
+            safety: declaration.safety,
+            no_gc_type_params: Vec::new(),
+            parameters: Vec::new(),
+            kind: hir::ClassConstructorKind::Secondary {
+                delegation: hir::ClassSecondaryDelegation::This {
+                    target,
+                    arguments: hir::ConstructorArguments {
+                        locals: lowered.locals,
+                        statements: lowered.statements,
+                        args: lowered.value,
+                    },
+                },
+                body: hir::Body {
+                    locals: la_arena::Arena::new(),
+                    statements: Vec::new(),
+                },
+            },
+            span,
+            origin: declaration.origin,
+            evaluation_context,
+        });
+        self.classes[class].constructors.push(adapter);
+        self.class_parameter_calling.insert(adapter, Vec::new());
+        adapter
+    }
+}
+
+impl Lowerer {
+    pub(crate) fn compiler_exception(
+        &mut self,
+        name: &str,
+        files: &[ast::SourceFile],
+        throwable: ClassId,
+    ) -> Option<hir::CompilerException> {
+        let candidate = self
+            .core_nominal_target(name)
+            .and_then(|target| match target {
+                crate::NominalTarget::Class(id) => Some(id),
+                _ => None,
+            });
+        let id = candidate;
+        let Some(id) = id else {
+            let core_diagnostic_file = self.core_diagnostic_file();
+            self.current_file = candidate
+                .and_then(|id| self.class_files.get(&id).copied())
+                .unwrap_or(core_diagnostic_file);
+            self.error(
+                files[core_diagnostic_file].span,
+                format!("scoop.core must define class `{name}`"),
+            );
+            return None;
+        };
+        self.current_file = self.class_files[&id];
+        let declaration = &self.classes[id];
+        let zero_arg = self.zero_source_argument_constructor(id);
+        let valid = declaration.modifier == hir::ClassModifier::Final
+            && declaration.type_params.is_empty()
+            && declaration.is_declared()
+            && zero_arg.is_some()
+            && self.class_descends_from(id, throwable);
+        if !valid {
+            self.error(
+                declaration.span,
+                format!(
+                    "class `{name}` in scoop.core must be a non-generic final subtype of `Throwable` callable with zero source arguments"
+                ),
+            );
+        }
+        zero_arg.map(|constructor| {
+            self.check_compiler_exception_safety(name, constructor);
+            let constructor = self.compiler_exception_callable(constructor);
+            hir::CompilerException {
+                constructor: hir::ZeroArgClassConstructor {
+                    class: id,
+                    constructor,
+                },
+            }
+        })
+    }
+
+    pub(crate) fn validate_exception_core(
+        &mut self,
+        files: &[ast::SourceFile],
+    ) -> Option<hir::CompilerExceptionCore> {
+        let throwable = self.throwable.map(|(id, _)| id)?;
+        self.current_file = self.class_files[&throwable];
+        let declaration = &self.classes[throwable];
+        let zero_arg = declaration
+            .constructors
+            .iter()
+            .copied()
+            .find(|constructor| self.class_constructors[*constructor].parameters.is_empty());
+        let valid_throwable = declaration.modifier == hir::ClassModifier::Open
+            && declaration.type_params.is_empty()
+            && declaration.is_declared()
+            && zero_arg.is_some();
+        if !valid_throwable {
+            self.error(
+                declaration.span,
+                "class `Throwable` in scoop.core must be a non-generic open class with a zero-argument constructor"
+                    .to_string(),
+            );
+        }
+        self.check_compiler_exception_safety("Throwable", zero_arg?);
+        let throwable = hir::CompilerException {
+            constructor: hir::ZeroArgClassConstructor {
+                class: throwable,
+                constructor: zero_arg?,
+            },
+        };
+        let illegal_state =
+            self.compiler_exception("IllegalStateException", files, throwable.class())?;
+        let initialization_cycle_thrower = self.initialization_cycle_thrower(files)?;
+        Some(hir::CompilerExceptionCore {
+            missing_context_constructor: self
+                .missing_context_constructor(files, throwable.class())?,
+            throwable,
+            unwrap_exception: self.compiler_exception(
+                "UnwrapException",
+                files,
+                throwable.class(),
+            )?,
+            class_cast_exception: self.compiler_exception(
+                "ClassCastException",
+                files,
+                throwable.class(),
+            )?,
+            arithmetic_exception: self.compiler_exception(
+                "ArithmeticException",
+                files,
+                throwable.class(),
+            )?,
+            index_out_of_bounds_exception: self.compiler_exception(
+                "IndexOutOfBoundsException",
+                files,
+                throwable.class(),
+            )?,
+            illegal_argument_exception: self.compiler_exception(
+                "IllegalArgumentException",
+                files,
+                throwable.class(),
+            )?,
+            illegal_state_exception: illegal_state,
+            initialization_cycle_thrower,
+        })
+    }
+
+    pub(crate) fn validate_throwable(&mut self, files: &[ast::SourceFile]) {
+        let Some(&candidate) = self.throwable_candidates.first() else {
+            let core_diagnostic_file = self.core_diagnostic_file();
+            self.current_file = core_diagnostic_file;
+            self.error(
+                files[core_diagnostic_file].span,
+                "scoop.core must define a class `Throwable`".to_string(),
+            );
+            return;
+        };
+        self.throwable = Some(candidate);
+    }
+
+    /// Resolves the actual exception root through the ordinary type query.
+    /// Missing declarations record a diagnostic before lowering can continue.
+    pub(crate) fn throwable_ty(&mut self, span: Span) -> Option<TypeId> {
+        match &self.core {
+            CoreLoweringAuthority::Defined => self.throwable.map(|(_, ty)| ty),
+            CoreLoweringAuthority::Imported(imported) => {
+                let declaration = imported.exceptions().throwable().persistent();
+                match self.imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(
+                    declaration,
+                )) {
+                    Ok(ty) => Some(ty),
+                    Err(error) => {
+                        self.error(
+                            span,
+                            format!("cannot resolve Throwable dependency type: {error:?}"),
+                        );
+                        None
+                    }
+                }
+            }
+        }
+    }
+
+    fn check_compiler_exception_safety(
+        &mut self,
+        name: &str,
+        constructor: hir::ClassConstructorId,
+    ) {
+        let constructor = &self.class_constructors[constructor];
+        if constructor.safety != hir::Safety::Safe {
+            self.error(
+                constructor.span,
+                format!("compiler exception constructor `{name}` must be safe"),
+            );
+        }
+    }
+}

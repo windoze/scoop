@@ -1,0 +1,17 @@
+
+public object SharedHolder {
+    public val value: Counter = Counter(21)
+}
+
+public object OtherHolder
+internal object HiddenHolder
+
+public object SharedReader: Readable {
+    public override fun read(): Long = 21
+}
+
+public object SharedMethods {
+    public fun read(marker: Token): Counter = SharedHolder.value
+}
+
+public fun defaultHolder(value: SharedHolder = SharedHolder): SharedHolder = value

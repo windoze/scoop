@@ -1,0 +1,19 @@
+package consumer.requests
+import upstream.requests.*
+
+public class Local<T>(public val value: T) {
+    public fun <U> mix(extra: U, select: (T, U) -> Int): Int = select(value, extra)
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val box = Box<T>(seed)
+    val first = box.mix<Int>(0, { value, extra -> read(value) + extra })
+    val second = box.mix<Unit>(Unit, { value, extra -> read(value) })
+    val local = Local<T>(box.read())
+    if (local.mix<Int>(0, { value, extra -> read(value) + extra }) != first) { return 1 }
+    if (local.mix<Unit>(Unit, { value, extra -> read(value) }) != second) { return 2 }
+    val callback = factory<T>(seed)
+    return read(defaulted<T>(callback(), { value -> identity<T>(value) }))
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

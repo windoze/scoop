@@ -1,0 +1,48 @@
+package shape
+
+public annotation class Doc(val text: String, val active: Boolean = true)
+
+@Doc("parcel")
+public struct Parcel<T>(@Doc("value") val value: T, val count: Int = 4) {
+    public companion object Factory {
+        @Doc("counter") public var visits: Int = 0
+        public fun make(value: T): Parcel<T> {
+            visits += 1
+            return Parcel<T>(value)
+        }
+    }
+}
+
+public enum Choice<T> {
+    @Doc("empty") Empty,
+    Named(@Doc("payload") val value: T, val count: Int = 3),
+    Other(val value: T),
+    Pair(T, Int)
+}
+
+public struct Functions<T>(val pair: (T, Int), val apply: (T) -> T)
+public interface Parent<T> { public val item: T }
+public interface View<T> : Parent<T> { @Doc("label") public val label: String }
+public open class Base public constructor(public val inherited: Int)
+
+public class Slot<T> public constructor(private val value: T) {
+    public operator fun getValue(thisRef: Row<T>): T = value
+}
+
+public class Row<T> public constructor(
+    seed: Int,
+    @Doc("payload") public val value: T,
+    public var count: Int = seed
+) : Base(seed) {
+    @Doc("stored") private val cached: String = "cache"
+    @Doc("computed") public val size: Long get() = cached.length + count.toInt64()
+    @Doc("delegated") public val copy: T by Slot<T>(value)
+    public constructor(value: T) : this(3, value) {}
+}
+
+public class Node public constructor(public val next: Option<Node> = None)
+public class Empty public constructor()
+public class Secondary { public constructor(value: Int) {} }
+public fun pointer(value: Ptr<Int>): Ptr<Int> = value
+public fun callback(value: FunPtr<(Int) -> Int>): FunPtr<(Int) -> Int> = value
+public fun view(value: View<Int>): View<Int> = value

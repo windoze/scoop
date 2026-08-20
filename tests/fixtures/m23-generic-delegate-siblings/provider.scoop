@@ -1,0 +1,38 @@
+package templates.delegateSiblings
+
+public object State {
+    public var builds: Int = 0
+    public var provides: Int = 0
+    public var failures: Int = 0
+}
+
+public class Receiver<A, B> public constructor(public val left: A, public val right: B)
+public class Payload public constructor(public var value: Int)
+public class Failure public constructor(public val payload: Payload) : Throwable()
+
+public class Slot<A, B> public constructor(private val payload: Payload) {
+    public operator fun getValue(thisRef: Receiver<A, B>): Int = this.payload.value
+    public operator fun setValue(thisRef: Receiver<A, B>, value: Int): Unit {
+        this.payload.value = value
+    }
+}
+
+public class Starter<A, B> public constructor() {
+    public operator fun provideDelegate(): Slot<A, B> {
+        State.provides += 1
+        return Slot<A, B>(Payload(40))
+    }
+}
+
+public fun <A, B> start(): Starter<A, B> {
+    State.builds += 1
+    return Starter<A, B>()
+}
+
+public fun <A, B> fail(): Slot<A, B> {
+    State.failures += 1
+    throw Failure(Payload(State.failures))
+}
+
+public var <A, B> Receiver<A, B>.shared: Int by start<A, B>()
+public val <A, B> Receiver<A, B>.broken: Int by fail<A, B>()

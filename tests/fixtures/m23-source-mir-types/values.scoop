@@ -1,0 +1,7 @@
+public struct Empty() {}
+public struct EmptyPair(val first: Empty, val second: Empty)
+public struct Pair(val number: Int, val empty: Empty)
+public enum State { Off, On(Int), Stamp(Empty), Data(Int, Empty) }
+
+@CLayout
+public struct Packet(val number: Int)

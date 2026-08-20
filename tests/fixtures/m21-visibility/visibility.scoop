@@ -1,0 +1,24 @@
+public interface VisibleValue {
+    public fun value(): Int
+}
+
+internal class VisibleValueImpl() : VisibleValue {
+    public final override fun value(): Int = 7
+}
+
+public open class VisibleBase public constructor() {
+    protected fun inheritedValue(): Int = 9
+}
+
+internal class VisibleDerived() : VisibleBase() {
+    fun readInherited(): Int = inheritedValue()
+}
+
+private fun localValue(): Int = 11
+
+fun main() {
+    val value: VisibleValue = VisibleValueImpl()
+    println(value.value())
+    println(VisibleDerived().readInherited())
+    println(localValue())
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`return` value of `result` must be of type Option<Any>, found Option<Cell>; nominal application `Option` is invariant: first differing type argument 1 (`T`) is `Cell` in `Option<Cell>`, but `Any` in `Option<Any>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "0ce98277e8785010ef55adeafbdb819b0ae694cbef32056446a38d7e171b34ba",
+      "end": 130,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 124
+    },
+    "severity": "error"
+  }
+]

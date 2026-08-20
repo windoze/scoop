@@ -1,0 +1,85 @@
+var trace: Int = 0
+var cleanups: Int = 0
+class Payload(val value: Int)
+struct Pair(val left: Int, val right: Int)
+@InteriorMutable
+struct Cell(val value: Int)
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun next(value: Int): Int { trace = trace * 10 + value; return value }
+fun first(left: Int, right: Int): Int = left
+fun optional(value: Int, positive: Boolean): Int? {
+    if (positive) { return Some(value) }
+    return Some(-value)
+}
+@NoGC
+fun scalar(value: Int): Int = value + 1
+@Unsafe
+fun replace(value: Pair): Pair {
+    addressOf(value).store(Pair(7, 8))
+    return value
+}
+@Unsafe
+fun addressed(value: Int): Int {
+    val pointer = addressOf(value)
+    pointer.store(99)
+    return value
+}
+@Unsafe
+fun replaceCell(value: Cell): Int {
+    addressOf(value).store(Cell(51))
+    return value.value
+}
+fun throwExisting(error: IllegalStateException) { throw error }
+fun allocate(value: Int): Payload {
+    val object = Payload(value)
+    gcCollect()
+    return object
+}
+fun make(offset: Int): (Int) -> Int = { value -> scalar(value + offset) }
+context(value: Payload)
+fun contextual(): Int = scalar(value.value)
+fun ownHandler(): Int {
+    try { throwExisting(IllegalStateException()) }
+    catch (error: IllegalStateException) { return 13 }
+    return 0
+}
+
+fun main() {
+    check(first(next(1), next(2)) == 1 && trace == 12)
+    check(optional(7, trace == 12)!! == 7 && optional(8, trace == 0)!! == -8)
+    val pair = Pair(3, 4)
+    @Unsafe {
+        val cell = Cell(9)
+        val copied = replace(pair)
+        check(copied.left == 7 && copied.right == 8 && pair.left == 3 && pair.right == 4)
+        check(addressed(7) == 99)
+        check(replaceCell(cell) == 51 && cell.value == 9)
+    }
+    val error = IllegalStateException(Some("inline payload"))
+    var caught = 0
+    try { throwExisting(error) }
+    catch (actual: IllegalStateException) { check(actual.message!! == "inline payload"); caught += 1 }
+    finally { cleanups += 1 }
+    check(caught == 1 && cleanups == 1 && ownHandler() == 13)
+    var index = 0
+    var total = 0
+    while (index < 3) {
+        val object = allocate(index)
+        total += object.value
+        index += 1
+    }
+    check(total == 3)
+    val closure = make(5)
+    gcCollect()
+    check(closure(6) == 12)
+    val outer = Payload(20)
+    context(outer) {
+        check(contextual() == 21)
+        try { context(Payload(30)) { throwExisting(error) } }
+        catch (actual: IllegalStateException) { check(contextual() == 21) }
+        gcCollect()
+        check(contextual() == 21)
+    }
+    println("inlined semantics")
+}

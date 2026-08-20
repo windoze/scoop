@@ -1,0 +1,50 @@
+schema = 1
+name = "m33-sysroot-reject-ambiguous"
+inputs = ["cone", "platform", "helper"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "sysroot", "resolver"]
+[vars]
+options = ["--sysroot", "${work}/sysroot", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+ {mkdir = {path = "${work}/sysroot/lib"}},
+ {symlink = {from = "${sysroot}/lib/scoop.core", to = "${work}/sysroot/lib/scoop.core"}},
+ {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+ {copy = {from = "${fixture}/platform", to = "${work}/sysroot/lib/scoop.platform"}},
+ {copy = {from = "${fixture}/helper", to = "${work}/sysroot/lib/scoop.helper"}},
+]
+
+[[steps]]
+name = "platform"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/lib/scoop.platform", {each = "${options}"}, "-o", "${work}/first/scoop/scoop.platform/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+
+[[steps]]
+name = "change_library"
+files = [{replace = {path = "${work}/sysroot/lib/scoop.platform/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 3"}}]
+
+[[steps]]
+name = "second"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/lib/scoop.platform", {each = "${options}"}, "-o", "${work}/second/scoop/scoop.platform/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--cone-path", "${work}/first", "--cone-path", "${work}/second"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

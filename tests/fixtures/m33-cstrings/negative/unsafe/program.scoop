@@ -1,0 +1,2 @@
+fun decode(pointer: Ptr<Int8>): String = String.fromCString(pointer)
+fun main() { "value".withCString() { pointer: Ptr<Int8> -> Unit } }

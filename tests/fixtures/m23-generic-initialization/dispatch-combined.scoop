@@ -1,0 +1,31 @@
+package templates.initialization
+
+public class Payload(public val value: Int)
+
+public interface Root<T> {
+    public fun get(): T
+    public fun echo(value: T): T = value
+}
+
+public interface Source<T> : Root<T> {}
+
+public abstract class Base<T>(public val item: T) : Source<T> {
+    public abstract override fun get(): T
+    public open fun offset(): Int = 1
+}
+
+public class Derived<T>(item: T) : Base<T>(item) {
+    public override fun get(): T = this.item
+    public override fun offset(): Int = 2
+}
+
+private fun <T> read(source: Source<T>): T = source.echo(source.get())
+
+public fun result(): Int {
+    val base: Base<Payload> = Derived<Payload>(Payload(40))
+    val source: Source<Payload> = base
+    val value = read<Payload>(source)
+    val first = Payload(1)
+    val second = Payload(2)
+    return value.value + base.offset()
+}

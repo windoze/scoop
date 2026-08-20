@@ -1,0 +1,76 @@
+schema = 1
+name = "m33-native-libraries-cache"
+inputs = ["cone", "reordered.toml", "changed.toml"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "native", "cache"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "baseline"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+]
+
+[[steps]]
+name = "run_baseline"
+argv = ["${baseline.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_reordered"
+files = [{copy = {from = "${fixture}/reordered.toml", to = "${work}/cone/Cone.toml"}}]
+
+[[steps]]
+name = "reordered"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${reordered.result.observations.child_invocations}", equals = []},
+ {actual = "${reordered.result.root.artifact_fingerprint}", equals = "${baseline.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "run_reordered"
+argv = ["${reordered.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_changed"
+files = [{copy = {from = "${fixture}/changed.toml", to = "${work}/cone/Cone.toml"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${changed.result.observations.nodes.1.cache_key}", not_equals = "${baseline.result.observations.nodes.1.cache_key}"},
+ {actual = "${changed.result.root.artifact_fingerprint}", not_equals = "${baseline.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

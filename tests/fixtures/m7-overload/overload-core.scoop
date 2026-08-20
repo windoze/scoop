@@ -1,0 +1,7 @@
+// 用户顶层函数整层遮蔽 core 的隐式导入候选（Kotlin 分层语义）。
+fun write(v: Int): String = "user-write"
+
+fun main() {
+    println(write(1))
+    println("c")
+}

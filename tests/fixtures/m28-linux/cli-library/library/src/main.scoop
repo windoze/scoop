@@ -1,0 +1,8 @@
+@Extern(name = "abs")
+fun nativeAbs(value: Int): Int
+
+fun nativeExercise() {
+    @Unsafe { nativeAbs(-7) }
+}
+
+fun greeting(): String = "Linux amd64"

@@ -1,0 +1,13 @@
+package consumer.delegates
+
+import templates.delegateCombinations.*
+
+public fun <T> exercise(value: T): Int {
+    Trace.order = 0
+    val first = Receiver<T>(value).ordered
+    Payload(0)
+    val second = Receiver<T>(value).ordered
+    return if (Trace.order == 3466 && first == 10 && second == 10) { 42 } else { 1 }
+}
+
+public fun result(): Int = exercise<Int>(1)

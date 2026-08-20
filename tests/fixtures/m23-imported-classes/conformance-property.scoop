@@ -1,0 +1,14 @@
+import dependency.classes.Counter
+import dependency.classes.MutableValue
+
+public class LocalValue public constructor(initial: Long): MutableValue {
+    public override var value: Long = initial
+        get() = field + 1
+        set(next) { field = next - 1 }
+}
+public fun primary(): Counter {
+    val concrete = LocalValue(19)
+    val view: MutableValue = concrete
+    view.value += 1
+    return Counter(concrete.value)
+}

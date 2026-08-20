@@ -1,0 +1,12 @@
+package equality.facade
+
+public import equality.origin.Flag
+public import equality.origin.Packet
+public import equality.origin.Envelope
+public import equality.origin.Manual
+public import equality.origin.Overloaded
+
+public fun <T> defaultSame(left: Flag, right: Flag, same: Boolean = left == right): Int {
+    if (same) { return 42 }
+    return 0
+}

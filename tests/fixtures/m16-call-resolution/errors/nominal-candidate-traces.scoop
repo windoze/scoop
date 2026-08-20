@@ -1,0 +1,17 @@
+interface Marker {}
+
+struct RefBox<T : ref>(val value: T)
+
+class Bounded<T : Marker>()
+
+enum Choice<T> {
+    Some(T),
+    None
+}
+
+fun main() {
+    RefBox(1)
+    Bounded<Int>()
+    Choice.Some()
+    Choice.None
+}

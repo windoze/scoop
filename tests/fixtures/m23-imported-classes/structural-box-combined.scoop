@@ -1,0 +1,13 @@
+import dependency.classes.Counter
+import dependency.classes.Token
+
+public fun primary(): Counter {
+    val first = Counter(20)
+    val second = Counter(21)
+    val third = Counter(22)
+    val boxed: Any = (Token(), (first, second, third))
+    val pressure = Counter(0)
+    val (marker, references) = boxed as (Token, (Counter, Counter, Counter))
+    val (left, middle, right) = references
+    return Counter((left.twice() + middle.twice() + right.twice()) / 6 + pressure.twice())
+}

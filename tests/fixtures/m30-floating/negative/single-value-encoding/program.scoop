@@ -1,0 +1,8 @@
+class Incomplete: SingleValueEncodingContainer {
+    public override fun writeBoolean(value: Boolean) { throw IllegalStateException(None) }
+    public override fun writeLong(value: Long) { throw IllegalStateException(None) }
+    public override fun writeULong(value: ULong) { throw IllegalStateException(None) }
+    public override fun writeString(value: String) { throw IllegalStateException(None) }
+    public override fun writeNull() { throw IllegalStateException(None) }
+}
+fun main() {}

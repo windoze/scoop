@@ -1,0 +1,16 @@
+public struct SharedDigestEmpty()
+public struct SharedDigestMessage(val text: String, val token: SharedDigestEmpty)
+public interface SharedDigestReader {
+    public fun read(): SharedDigestMessage
+}
+public object SharedDigestService: SharedDigestReader {
+    public var text: String = "digest"
+    public override fun read(): SharedDigestMessage = SharedDigestMessage(text, SharedDigestEmpty())
+}
+public class SharedDigestOwner {
+    public companion object {
+        public val message: SharedDigestMessage = SharedDigestService.read()
+    }
+}
+public val sharedDigestCached: SharedDigestMessage = SharedDigestOwner.message
+public fun sharedDigestRead(): SharedDigestMessage = SharedDigestService.read()

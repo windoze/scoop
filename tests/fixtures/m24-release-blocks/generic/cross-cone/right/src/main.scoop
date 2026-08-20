@@ -1,0 +1,7 @@
+package releaseright
+
+import releasegeneric.Owner
+
+public fun makeRight(): Owner<Int> = Owner(13, 19)
+public fun makeLong(): Owner<Long> = Owner(15L, 23)
+public fun observeRight(value: Owner<Int>): Int = value.second()

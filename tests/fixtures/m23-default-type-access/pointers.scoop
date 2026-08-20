@@ -1,0 +1,10 @@
+public fun <T: value> accessPointer(
+    pointer: Ptr<T>,
+    copy: Ptr<T> = pointer
+): Ptr<T> = copy
+
+public fun <T> accessFunctionPointer(
+    value: T,
+    pointer: FunPtr<(Int) -> Int>,
+    copy: FunPtr<(Int) -> Int> = pointer
+): T = value

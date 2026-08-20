@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "library-negative"
+version = "0.1.0"
+kind = "executable"
+[native]
+libraries = ["m"]

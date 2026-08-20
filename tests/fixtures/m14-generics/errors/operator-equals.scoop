@@ -1,0 +1,37 @@
+class WrongName() {
+    operator fun compare(other: WrongName): Boolean = true
+}
+
+class WrongArity() {
+    operator fun equals(first: WrongArity, second: WrongArity): Boolean = true
+}
+
+class WrongResult() {
+    operator fun equals(other: WrongResult): Int = 0
+}
+
+class GenericEquals() {
+    operator fun <T> equals(other: GenericEquals): Boolean = true
+}
+
+class SuspendEquals() {
+    suspend operator fun equals(other: SuspendEquals): Boolean = true
+}
+
+class Plain()
+
+class MerelyNamed() {
+    final fun toString(): String = "MerelyNamed"
+}
+
+operator fun topLevel(other: Int): Boolean = true
+
+fun main() {
+    val plain = Plain()
+    plain == Plain()
+
+    val erased: Any = plain
+    erased == erased
+
+    println(MerelyNamed())
+}

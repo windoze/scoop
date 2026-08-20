@@ -1,0 +1,2 @@
+class Owner<T: ref>(private val value: T) { release { val copy = value } }
+fun main() {}

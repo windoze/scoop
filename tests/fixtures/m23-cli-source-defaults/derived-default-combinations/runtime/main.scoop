@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val pair = Pair(Atom(), Atom())
+    verifyDefault(!use())
+    verifyDefault(nested(pair, pair))
+    verifyDefault(closure(pair, pair)())
+    verifyDefault(enumNested(Choice.Present(pair), Choice.Present(pair)))
+    verifyDefault(!enumNested(Choice.Present(pair), Choice.Empty))
+}

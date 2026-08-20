@@ -1,0 +1,18 @@
+
+public open class Parent public constructor(public val seed: Long = 20) {
+    public open fun read(): Long = seed
+    public open fun add(extra: Long = 1): Long = seed + extra
+    public fun direct(): Long = seed
+    public open var score: Long = seed
+}
+public open class InterfaceParent public constructor(): Parent(), Readable {
+    public override fun read(): Long = seed
+}
+public abstract class AbstractParent public constructor(public val seed: Long = 20) {
+    public abstract fun read(): Long
+    public abstract var value: Long
+}
+public open class ProtectedParent protected constructor(public val seed: Long) {
+    protected open fun secret(): Long = seed
+}
+public open class PrivateConstructor private constructor()

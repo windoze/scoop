@@ -1,0 +1,2 @@
+abstract class Base
+fun main() { val make = ::Base }

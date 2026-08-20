@@ -1,0 +1,14 @@
+fun verifyShape(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val empty = IntrinsicEmptyLike()
+    verifyShape(empty == IntrinsicEmptyLike())
+    verifyShape(IntrinsicNativeLike(42uL).raw == 42uL)
+    verifyShape(IntrinsicContainer<Int>(17).item == 17)
+    verifyShape(IntrinsicContainer<String>("value").item == "value")
+    val value = makeIntrinsicString("shape")
+    val boxed: Any = value
+    gcCollect()
+    verifyShape(boxed is IntrinsicStringLike)
+    verifyShape(readIntrinsicString(value) == "shape")
+}

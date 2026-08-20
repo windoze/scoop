@@ -1,0 +1,4 @@
+@Intrinsic("coroutine_start")
+fun <T> fakeStart(task: SuspendTask<T>, completion: Continuation<T>)
+
+fun main() {}

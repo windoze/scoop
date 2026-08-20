@@ -1,0 +1,34 @@
+schema = 1
+[[sources]]
+path = "src/main.scoop"
+[[sources]]
+path = "src/darwin.scoop"
+when = {os = "darwin"}
+[[sources]]
+path = "src/gnu.scoop"
+when = {env = "gnu"}
+[[sources]]
+path = "src/musl.scoop"
+when = {env = "musl"}
+[cone]
+group = "dev.m33"
+name = "native-values"
+version = "0.1.0"
+kind = "executable"
+[native]
+include = ["include"]
+c_flags = ["-DM33_OFFSET=40", "-g", "-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/common.c"
+[[native.sources]]
+path = "native/darwin.c"
+when = {os = "darwin", arch = "aarch64"}
+[[native.sources]]
+path = "native/gnu.c"
+when = {env = "gnu"}
+[[native.sources]]
+path = "native/musl.c"
+when = {env = "musl"}
+[[native.sources]]
+path = "absent.cpp"
+when = {os = []}

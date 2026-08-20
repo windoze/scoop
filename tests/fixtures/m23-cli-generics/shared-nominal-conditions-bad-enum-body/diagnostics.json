@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` enum `Choice` specialization is not GC-free because it directly or indirectly contains a ref type",
+    "notes": [],
+    "origin": {
+      "cone": "2b9cb4db194a16efc8a0e694e2bdcf7a08b45481c8199b778b51f1cb7596f8e6",
+      "end": 121,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  }
+]

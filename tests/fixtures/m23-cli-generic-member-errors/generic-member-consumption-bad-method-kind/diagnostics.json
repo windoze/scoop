@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `valueOnly`: type argument `Reference` for `U` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "5d2cc1466d878711d3950cd2276db2deb7bed98f727e0d9c588fa15ecf388170",
+      "end": 143,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  }
+]

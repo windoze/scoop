@@ -1,0 +1,2 @@
+private fun secret(): Int = 1
+public fun <T> leak(value: () -> Int = ::secret): () -> Int = value

@@ -1,0 +1,18 @@
+struct Point(val x: Int, val y: Int)
+struct Line(val a: Point, val b: Point)
+
+fun main() {
+    val p1 = Point(1, 2)
+    val p3 = Point(3, 4)
+    println(p1 == Point(1, 2))
+    println(p1 == p3)
+    println(p1 != p3)
+    val l1 = Line(p1, p3)
+    val l2 = Line(Point(1, 2), Point(3, 4))
+    println(l1 == l2)
+    val t1 = (1, "a")
+    println(t1 == (1, "a"))
+    println(t1 == (1, "b"))
+    println("x" + "y")
+    println("x" + "y" == "xy")
+}

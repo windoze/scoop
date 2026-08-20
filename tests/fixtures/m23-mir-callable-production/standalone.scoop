@@ -1,0 +1,6 @@
+public struct Token() {
+    @NoGC public fun echo(value: Token): Token = value
+    public val copy: Token get() = this
+}
+public fun pass(value: Token): Token = value
+public fun Token.extra(value: Token): Token = value

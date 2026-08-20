@@ -1,0 +1,10 @@
+public struct Element<T>(val value: T) {
+    public companion object {
+        public fun decoder(element: Decodable<T>): Decodable<Element<T>> = ElementReader(element)
+    }
+}
+public class ElementReader<T>(private val element: Decodable<T>) : Decodable<Element<T>>
+public struct Item<T>(val value: Element<T>)
+public class Reader<T>(private val element: Decodable<T>) : Decodable<Item<T>>
+
+fun main() {}

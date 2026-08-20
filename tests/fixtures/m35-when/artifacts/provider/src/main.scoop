@@ -1,0 +1,18 @@
+public fun <T> pick(flag: Boolean, value: T, other: T): T = when (flag) {
+    true -> value
+    false -> other
+}
+
+public fun <T> identity(value: T): T {
+    when { false -> println("unselected") }
+    return when (val copy = value) { is T -> copy; else -> value }
+}
+
+public fun choose(flag: Boolean, value: Int = when (flag) { true -> 3; false -> 4 }): Int = value
+
+public fun pairSum(pair: (Int, Int), value: Int = when (val (first, second) = pair) {
+    (first, second) -> first + second
+    else -> 0
+}): Int = value
+
+public fun subjectless(value: String = when { false -> "wrong"; else -> "default" }): String = value

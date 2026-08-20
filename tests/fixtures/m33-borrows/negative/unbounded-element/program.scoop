@@ -1,0 +1,3 @@
+@Unsafe fun <T> borrow(values: Array<T>): Long =
+    values.withDataPointer<T, Long>() { pointer, count -> count }
+fun main() {}

@@ -1,0 +1,39 @@
+package decoded
+
+public var defaults: Int = 0
+public fun next(value: Int): Int { defaults += 1; return value }
+
+public struct Packet<T>(
+    @SerialName("item") val value: T,
+    val count: Int = next(7),
+    @Transient val ignored: Int = count + 1
+)
+public class PacketDecoder<T> public constructor(private val element: Decodable<T>)
+    : Decodable<Packet<T>>
+
+public class Row<T> public constructor(private val id: Int, public val value: T, plain: Int = next(3)) {
+    @Transient private val cached: Int = id + plain
+    public val computed: Int get() = cached
+}
+
+public enum Event<T> {
+    @SerialName("empty") Empty,
+    Pair(T, Int),
+    Named(@SerialName("item") val value: T, val count: Int = next(9), @Transient val ignored: Int = count + 1),
+    Record { value: T, count: Int }
+}
+
+public struct Nest<T>(val values: (T, Option<Array<T>>))
+public class NestDecoder<T> public constructor(private val element: Decodable<T>)
+    : Decodable<Nest<T>>
+
+public struct Collision(@SerialName("remote") val value: Int) {
+    public companion object : Decodable<Collision>
+}
+public typealias ForeignCollision = Collision
+
+public struct Phantom<T>(val value: Int) {
+    public companion object : Decodable<Phantom<T>>
+}
+
+public struct Batch<T>(val seed: T, vararg val values: T = [seed])

@@ -1,0 +1,17 @@
+package consumer.delegates
+
+import templates.delegateCombinations.LocalValueSlot
+import templates.delegateCombinations.FixedLocalSlot
+
+public fun <T> echo(value: T): T {
+    var copy: T by LocalValueSlot<T>(value)
+    copy = value
+    fun read(): T = copy
+    return read()
+}
+
+public fun result(): Int {
+    var copy: Int by FixedLocalSlot(0)
+    copy = echo<Int>(42)
+    return copy
+}

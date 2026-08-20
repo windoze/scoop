@@ -1,0 +1,3 @@
+import dependency.classes.OtherReadable
+
+public fun rejected(value: Long): OtherReadable = value

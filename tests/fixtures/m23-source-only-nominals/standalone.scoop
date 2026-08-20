@@ -1,0 +1,3 @@
+public interface DeferredGeneric<T> {}
+public class DeferredRoot : DeferredGeneric<Int> {}
+public struct ReadyValue(val value: Int)

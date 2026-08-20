@@ -1,0 +1,15 @@
+interface Describe<T> {
+    fun describe(value: T): String
+}
+
+class Both : Describe<Int>, Describe<String> {
+    override fun describe(value: Int): String = "int"
+    override fun describe(value: String): String = "string"
+}
+
+fun main() {
+    val intView: Describe<Int> = Both()
+    val stringView: Describe<String> = Both()
+    println(intView.describe(1))
+    println(stringView.describe("x"))
+}

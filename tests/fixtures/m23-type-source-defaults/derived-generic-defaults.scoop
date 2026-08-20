@@ -1,0 +1,10 @@
+public struct Token<T>()
+public class DerivedHost {
+    public fun <T> nominal(left: Token<T>, right: Token<T>, value: Boolean = left == right): Boolean = value
+    public fun <T> tuple(left: (Token<T>, Unit), right: (Token<T>, Unit), value: Boolean = left == right): Boolean = value
+}
+public fun concrete(left: Token<Unit>, right: Token<Unit>, unit: Unit): Boolean {
+    val host = DerivedHost()
+    host.nominal<Unit>(left, right)
+    return host.tuple<Unit>((left, unit), (right, unit))
+}

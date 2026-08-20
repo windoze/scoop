@@ -1,0 +1,4 @@
+typealias Values<T> = Array<T>
+fun read(value: Values<Int>): Int = 1
+fun read(value: Array<Int>): Int = 2
+fun main() {}

@@ -1,0 +1,16 @@
+package upstream.classes
+
+public interface ValueSource<T> {
+    public fun read(): T
+}
+
+public open class Base<T> public constructor(public val value: T): ValueSource<T> {
+    public override fun read(): T = this.value
+    public open fun select(other: T): T = other
+}
+
+public class Remote<T> public constructor(value: T, public val alternate: T): Base<T>(value) {
+    public override fun select(other: T): T = this.alternate
+}
+
+public fun <T> create(value: T): Remote<T> = Remote(value, value)

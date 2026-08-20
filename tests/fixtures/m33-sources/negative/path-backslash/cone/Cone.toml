@@ -1,0 +1,9 @@
+schema = 1
+[[sources]]
+path = 'src\file.scoop'
+when = {os = []}
+[cone]
+group = "dev.m33"
+name = "invalid-selection"
+version = "0.1.0"
+kind = "library"

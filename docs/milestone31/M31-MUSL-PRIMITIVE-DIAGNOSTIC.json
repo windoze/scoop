@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "target": "x86_64-unknown-linux-musl",
+  "host": "nuc12",
+  "cpu": 0,
+  "runs_per_command": 3,
+  "baseline_revision": "6e62514da",
+  "production_revision": "c3ea0d7d2",
+  "workload": "tests/benchmarks/primitive.scoop, unchanged 10000000 iterations",
+  "measurement": "Independent perf stat runs on the retained executables; basic cycle/instruction/branch events count user mode; topdown and fetch groups retain their default scope and multiplex scaling.",
+  "observations": {
+    "collections": 0,
+    "main_release": "Register loop with constant division strength reduction; GNU and musl release instructions match apart from addresses.",
+    "runtime_poll": "The safepoint wrapper, implementation and thread poll paths have matching instruction sequences apart from addresses; runtime/src/thread/collection.c is unchanged from M30.",
+    "limitation": "The data identifies increased frontend-bound execution, not a proven cache collision or one responsible instruction. No code layout was tuned for this benchmark."
+  },
+  "raw": {
+    "basic": [
+      {
+        "label": "m30-linux-musl-control",
+        "exit": 0,
+        "stderr": "<not counted>,,cpu_atom/cycles/u,0.00%,0,0.00,,\n562540968,,cpu_core/cycles/u,0.15%,131544906,100.00,,\n<not counted>,,cpu_atom/instructions/u,0.00%,0,0.00,,\n3070923303,,cpu_core/instructions/u,0.00%,131544906,100.00,,\n<not counted>,,cpu_atom/branches/u,0.00%,0,0.00,,\n676959064,,cpu_core/branches/u,0.00%,131544906,100.00,,\n<not counted>,,cpu_atom/branch-misses/u,0.00%,0,0.00,,\n117303,,cpu_core/branch-misses/u,0.33%,131544906,100.00,,\n",
+        "command": [
+          "sudo",
+          "-n",
+          "env",
+          "TMPDIR=/home/chenxu/repos/scoop/tmp/m31-final/temporary",
+          "perf",
+          "stat",
+          "-x,",
+          "-r",
+          "3",
+          "-e",
+          "cycles:u,instructions:u,branches:u,branch-misses:u",
+          "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/primitive"
+        ]
+      },
+      {
+        "label": "m31-linux-musl-release",
+        "exit": 0,
+        "stderr": "<not counted>,,cpu_atom/cycles/u,0.00%,0,0.00,,\n673593067,,cpu_core/cycles/u,0.08%,154819586,100.00,,\n<not counted>,,cpu_atom/instructions/u,0.00%,0,0.00,,\n2740898397,,cpu_core/instructions/u,0.00%,154819586,100.00,,\n<not counted>,,cpu_atom/branches/u,0.00%,0,0.00,,\n626965066,,cpu_core/branches/u,0.00%,154819586,100.00,,\n<not counted>,,cpu_atom/branch-misses/u,0.00%,0,0.00,,\n117317,,cpu_core/branch-misses/u,0.61%,154819586,100.00,,\n",
+        "command": [
+          "sudo",
+          "-n",
+          "env",
+          "TMPDIR=/home/chenxu/repos/scoop/tmp/m31-final/temporary",
+          "perf",
+          "stat",
+          "-x,",
+          "-r",
+          "3",
+          "-e",
+          "cycles:u,instructions:u,branches:u,branch-misses:u",
+          "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/primitive"
+        ]
+      }
+    ],
+    "topdown": [
+      {
+        "label": "m30-linux-musl-control",
+        "exit": 0,
+        "stderr": "3890557835,,cpu_core/TOPDOWN.SLOTS/,0.50%,74471081,50.00,17.6,%  tma_frontend_bound\n3090646831,,cpu_core/topdown-retiring/,4.68%,74471081,50.00,4.1,%  tma_backend_bound\n132554727,,cpu_core/topdown-bad-spec/,3.18%,74471081,50.00,,\n547484,,cpu_core/INT_MISC.UOP_DROPPING/,6.70%,74471081,50.00,,\n723562024,,cpu_core/topdown-fe-bound/,15.34%,74471081,50.00,,\n169713012,,cpu_core/topdown-be-bound/,8.60%,74471081,50.00,,\n3890888905,,cpu_core/slots/,0.35%,73991485,49.00,,\n57131521,,cpu_core/topdown-mem-bound/,18.68%,73991485,49.00,1.4,%  tma_memory_bound\n2950781791,,cpu_core/topdown-retiring/,4.91%,73991485,49.00,,\n131771604,,cpu_core/topdown-bad-spec/,3.75%,73991485,49.00,,\n834433401,,cpu_core/topdown-fe-bound/,13.59%,73991485,49.00,,\n163949240,,cpu_core/topdown-be-bound/,8.79%,73991485,49.00,,\n<not counted>,,cpu_atom/CPU_CLK_UNHALTED.CORE/,0.00%,0,0.00,,\n<not counted>,,cpu_atom/TOPDOWN_BE_BOUND.ALL/,0.00%,0,0.00,,%  tma_backend_bound\n<not counted>,,cpu_atom/CPU_CLK_UNHALTED.CORE/,0.00%,0,0.00,,\n<not counted>,,cpu_atom/TOPDOWN_FE_BOUND.ALL/,0.00%,0,0.00,,%  tma_frontend_bound\n",
+        "command": [
+          "sudo",
+          "-n",
+          "env",
+          "TMPDIR=/home/chenxu/repos/scoop/tmp/m31-final/temporary",
+          "perf",
+          "stat",
+          "-x,",
+          "-r",
+          "3",
+          "-M",
+          "tma_frontend_bound,tma_backend_bound,tma_memory_bound",
+          "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/primitive"
+        ]
+      },
+      {
+        "label": "m31-linux-musl-release",
+        "exit": 0,
+        "stderr": "4174640909,,cpu_core/TOPDOWN.SLOTS/,0.31%,79430014,50.00,33.7,%  tma_frontend_bound\n2581038858,,cpu_core/topdown-retiring/,0.88%,79430014,50.00,4.0,%  tma_backend_bound\n147023007,,cpu_core/topdown-bad-spec/,3.74%,79430014,50.00,,\n466039,,cpu_core/INT_MISC.UOP_DROPPING/,2.08%,79430014,50.00,,\n1479117036,,cpu_core/topdown-fe-bound/,3.24%,79430014,50.00,,\n176723905,,cpu_core/topdown-be-bound/,3.73%,79430014,50.00,,\n4170444971,,cpu_core/slots/,0.21%,79056061,49.00,,\n66217302,,cpu_core/topdown-mem-bound/,14.59%,79056061,49.00,1.5,%  tma_memory_bound\n2600501016,,cpu_core/topdown-retiring/,1.42%,79056061,49.00,,\n136130787,,cpu_core/topdown-bad-spec/,0.12%,79056061,49.00,,\n1460920549,,cpu_core/topdown-fe-bound/,2.57%,79056061,49.00,,\n165931953,,cpu_core/topdown-be-bound/,7.22%,79056061,49.00,,\n<not counted>,,cpu_atom/CPU_CLK_UNHALTED.CORE/,0.00%,0,0.00,,\n<not counted>,,cpu_atom/TOPDOWN_BE_BOUND.ALL/,0.00%,0,0.00,,%  tma_backend_bound\n<not counted>,,cpu_atom/CPU_CLK_UNHALTED.CORE/,0.00%,0,0.00,,\n<not counted>,,cpu_atom/TOPDOWN_FE_BOUND.ALL/,0.00%,0,0.00,,%  tma_frontend_bound\n",
+        "command": [
+          "sudo",
+          "-n",
+          "env",
+          "TMPDIR=/home/chenxu/repos/scoop/tmp/m31-final/temporary",
+          "perf",
+          "stat",
+          "-x,",
+          "-r",
+          "3",
+          "-M",
+          "tma_frontend_bound,tma_backend_bound,tma_memory_bound",
+          "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/primitive"
+        ]
+      }
+    ],
+    "fetch": [
+      {
+        "label": "m30-linux-musl-control",
+        "exit": 0,
+        "command": [
+          "sudo",
+          "-n",
+          "env",
+          "TMPDIR=/home/chenxu/repos/scoop/tmp/m31-final/temporary",
+          "perf",
+          "stat",
+          "-x,",
+          "-r",
+          "3",
+          "-e",
+          "idq.dsb_uops,idq.mite_uops,dsb2mite_switches.penalty_cycles,icache_tag.stalls,icache_data.stalls,itlb_misses.walk_completed",
+          "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/primitive"
+        ],
+        "stderr": "3022166194,,cpu_core/idq.dsb_uops/,0.09%,93225275,66.00,,\n11776432,,cpu_core/idq.mite_uops/,3.28%,93735520,66.00,,\n606961,,cpu_core/dsb2mite_switches.penalty_cycles/,2.22%,94746260,67.00,,\n444622,,cpu_core/icache_tag.stalls/,1.88%,95238496,67.00,,\n283335,,cpu_core/icache_data.stalls/,5.47%,94455735,66.00,,\n<not counted>,,cpu_atom/itlb_misses.walk_completed/,0.00%,0,0.00,,\n5540,,cpu_core/itlb_misses.walk_completed/,2.72%,93453254,66.00,,\n"
+      },
+      {
+        "label": "m31-linux-musl-release",
+        "exit": 0,
+        "command": [
+          "sudo",
+          "-n",
+          "env",
+          "TMPDIR=/home/chenxu/repos/scoop/tmp/m31-final/temporary",
+          "perf",
+          "stat",
+          "-x,",
+          "-r",
+          "3",
+          "-e",
+          "idq.dsb_uops,idq.mite_uops,dsb2mite_switches.penalty_cycles,icache_tag.stalls,icache_data.stalls,itlb_misses.walk_completed",
+          "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/primitive"
+        ],
+        "stderr": "2693155816,,cpu_core/idq.dsb_uops/,0.09%,105036032,66.00,,\n13078632,,cpu_core/idq.mite_uops/,7.87%,105538651,66.00,,\n691251,,cpu_core/dsb2mite_switches.penalty_cycles/,4.98%,106954083,67.00,,\n466802,,cpu_core/icache_tag.stalls/,13.44%,107447436,67.00,,\n287796,,cpu_core/icache_data.stalls/,4.14%,106055721,66.00,,\n<not counted>,,cpu_atom/itlb_misses.walk_completed/,0.00%,0,0.00,,\n6112,,cpu_core/itlb_misses.walk_completed/,0.14%,105059749,66.00,,\n"
+      }
+    ]
+  }
+}

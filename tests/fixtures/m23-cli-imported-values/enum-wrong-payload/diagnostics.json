@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Choice, found (Long, Long)",
+    "notes": [],
+    "origin": {
+      "cone": "2873285ca80f35a38a9c14938328d2a7b1f38266d0433877587e1ee2c85de1ac",
+      "end": 148,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 143
+    },
+    "severity": "error"
+  }
+]

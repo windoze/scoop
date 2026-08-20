@@ -1,0 +1,839 @@
+{
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "samples": [
+    {
+      "mode": 0,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1886623,
+      "ns_per_call": 0.943,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 64653856,
+      "ns_per_call": 32.327,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 37699366,
+      "ns_per_call": 18.85,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2407314,
+      "ns_per_call": 1.204,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 73285950,
+      "ns_per_call": 36.643,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 30109056,
+      "ns_per_call": 15.055,
+      "collections": 0
+    },
+    {
+      "mode": 0,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1859364,
+      "ns_per_call": 0.93,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 61953326,
+      "ns_per_call": 30.977,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 30309335,
+      "ns_per_call": 15.155,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1272674,
+      "ns_per_call": 0.636,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 69095713,
+      "ns_per_call": 34.548,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 31812839,
+      "ns_per_call": 15.906,
+      "collections": 0
+    },
+    {
+      "mode": 0,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1284462,
+      "ns_per_call": 0.642,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 61704017,
+      "ns_per_call": 30.852,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 32474991,
+      "ns_per_call": 16.237,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1992364,
+      "ns_per_call": 0.996,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 70512450,
+      "ns_per_call": 35.256,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 34184234,
+      "ns_per_call": 17.092,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 1,
+      "iterations": 20000000,
+      "gc": true,
+      "elapsed_ns": 1419697322,
+      "ns_per_call": 70.985,
+      "collections": 4623,
+      "stop_wait": {
+        "p50_ns": 946,
+        "p99_ns": 101801,
+        "max_ns": 135836
+      },
+      "pause": {
+        "p50_ns": 116575,
+        "p99_ns": 225623,
+        "max_ns": 1574895
+      }
+    },
+    {
+      "mode": 2,
+      "threads": 1,
+      "iterations": 20000000,
+      "gc": true,
+      "elapsed_ns": 496277730,
+      "ns_per_call": 24.814,
+      "collections": 1864,
+      "stop_wait": {
+        "p50_ns": 910,
+        "p99_ns": 3882,
+        "max_ns": 107269
+      },
+      "pause": {
+        "p50_ns": 109572,
+        "p99_ns": 245755,
+        "max_ns": 1617321
+      }
+    },
+    {
+      "mode": 0,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2159842,
+      "ns_per_call": 0.54,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 65364622,
+      "ns_per_call": 16.341,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 33501471,
+      "ns_per_call": 8.375,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2417676,
+      "ns_per_call": 0.604,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 70571360,
+      "ns_per_call": 17.643,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 35640445,
+      "ns_per_call": 8.91,
+      "collections": 0
+    },
+    {
+      "mode": 0,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1841305,
+      "ns_per_call": 0.46,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 63961063,
+      "ns_per_call": 15.99,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 31485931,
+      "ns_per_call": 7.871,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2409528,
+      "ns_per_call": 0.602,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 71145239,
+      "ns_per_call": 17.786,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 37563235,
+      "ns_per_call": 9.391,
+      "collections": 0
+    },
+    {
+      "mode": 0,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1800263,
+      "ns_per_call": 0.45,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 60467095,
+      "ns_per_call": 15.117,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 31526017,
+      "ns_per_call": 7.882,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2415364,
+      "ns_per_call": 0.604,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 74712579,
+      "ns_per_call": 18.678,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 33797925,
+      "ns_per_call": 8.449,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 2,
+      "iterations": 20000000,
+      "gc": true,
+      "elapsed_ns": 1550350453,
+      "ns_per_call": 38.759,
+      "collections": 5005,
+      "stop_wait": {
+        "p50_ns": 4204,
+        "p99_ns": 101868,
+        "max_ns": 103407
+      },
+      "pause": {
+        "p50_ns": 124191,
+        "p99_ns": 227657,
+        "max_ns": 1640115
+      }
+    },
+    {
+      "mode": 2,
+      "threads": 2,
+      "iterations": 20000000,
+      "gc": true,
+      "elapsed_ns": 512959914,
+      "ns_per_call": 12.824,
+      "collections": 1828,
+      "stop_wait": {
+        "p50_ns": 5662,
+        "p99_ns": 9885,
+        "max_ns": 107240
+      },
+      "pause": {
+        "p50_ns": 126057,
+        "p99_ns": 150888,
+        "max_ns": 1862071
+      }
+    },
+    {
+      "mode": 0,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1786679,
+      "ns_per_call": 0.223,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 70002801,
+      "ns_per_call": 8.75,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 37655234,
+      "ns_per_call": 4.707,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2416040,
+      "ns_per_call": 0.302,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 76084055,
+      "ns_per_call": 9.511,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 37309805,
+      "ns_per_call": 4.664,
+      "collections": 0
+    },
+    {
+      "mode": 0,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1789966,
+      "ns_per_call": 0.224,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 72427264,
+      "ns_per_call": 9.053,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 36977618,
+      "ns_per_call": 4.622,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2426823,
+      "ns_per_call": 0.303,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 76024361,
+      "ns_per_call": 9.503,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 35607222,
+      "ns_per_call": 4.451,
+      "collections": 0
+    },
+    {
+      "mode": 0,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1784670,
+      "ns_per_call": 0.223,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 71232493,
+      "ns_per_call": 8.904,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 36844092,
+      "ns_per_call": 4.606,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2388069,
+      "ns_per_call": 0.299,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 82248806,
+      "ns_per_call": 10.281,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 40261848,
+      "ns_per_call": 5.033,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 4,
+      "iterations": 20000000,
+      "gc": true,
+      "elapsed_ns": 1629668724,
+      "ns_per_call": 20.371,
+      "collections": 5194,
+      "stop_wait": {
+        "p50_ns": 4964,
+        "p99_ns": 102074,
+        "max_ns": 149019
+      },
+      "pause": {
+        "p50_ns": 143032,
+        "p99_ns": 241720,
+        "max_ns": 1395746
+      }
+    },
+    {
+      "mode": 2,
+      "threads": 4,
+      "iterations": 20000000,
+      "gc": true,
+      "elapsed_ns": 590958866,
+      "ns_per_call": 7.387,
+      "collections": 1955,
+      "stop_wait": {
+        "p50_ns": 8274,
+        "p99_ns": 24412,
+        "max_ns": 159316
+      },
+      "pause": {
+        "p50_ns": 148604,
+        "p99_ns": 226201,
+        "max_ns": 1146368
+      }
+    },
+    {
+      "mode": 0,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1987421,
+      "ns_per_call": 0.124,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 92117781,
+      "ns_per_call": 5.757,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 39841033,
+      "ns_per_call": 2.49,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2692570,
+      "ns_per_call": 0.168,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 97805665,
+      "ns_per_call": 6.113,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 42245696,
+      "ns_per_call": 2.64,
+      "collections": 0
+    },
+    {
+      "mode": 0,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2187705,
+      "ns_per_call": 0.137,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 93415574,
+      "ns_per_call": 5.838,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 37999015,
+      "ns_per_call": 2.375,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 3076875,
+      "ns_per_call": 0.192,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 108054669,
+      "ns_per_call": 6.753,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 42026784,
+      "ns_per_call": 2.627,
+      "collections": 0
+    },
+    {
+      "mode": 0,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2232016,
+      "ns_per_call": 0.14,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 92851885,
+      "ns_per_call": 5.803,
+      "collections": 0
+    },
+    {
+      "mode": 2,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 38063882,
+      "ns_per_call": 2.379,
+      "collections": 0
+    },
+    {
+      "mode": 3,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 3009547,
+      "ns_per_call": 0.188,
+      "collections": 0
+    },
+    {
+      "mode": 4,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 110676036,
+      "ns_per_call": 6.917,
+      "collections": 0
+    },
+    {
+      "mode": 5,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 45417595,
+      "ns_per_call": 2.839,
+      "collections": 0
+    },
+    {
+      "mode": 1,
+      "threads": 8,
+      "iterations": 20000000,
+      "gc": true,
+      "elapsed_ns": 2068330602,
+      "ns_per_call": 12.927,
+      "collections": 6159,
+      "stop_wait": {
+        "p50_ns": 10158,
+        "p99_ns": 102241,
+        "max_ns": 144701
+      },
+      "pause": {
+        "p50_ns": 171483,
+        "p99_ns": 276330,
+        "max_ns": 1363536
+      }
+    },
+    {
+      "mode": 2,
+      "threads": 8,
+      "iterations": 20000000,
+      "gc": true,
+      "elapsed_ns": 800876249,
+      "ns_per_call": 5.005,
+      "collections": 2307,
+      "stop_wait": {
+        "p50_ns": 16912,
+        "p99_ns": 45481,
+        "max_ns": 132695
+      },
+      "pause": {
+        "p50_ns": 179461,
+        "p99_ns": 293788,
+        "max_ns": 1377457
+      }
+    }
+  ],
+  "medians": {
+    "1": {
+      "c-scalar": 0.93,
+      "safe-direct": 30.977,
+      "leaf-direct": 16.237,
+      "c-pair": 0.996,
+      "safe-bridge": 35.256,
+      "leaf-bridge": 15.906
+    },
+    "2": {
+      "c-scalar": 0.46,
+      "safe-direct": 15.99,
+      "leaf-direct": 7.882,
+      "c-pair": 0.604,
+      "safe-bridge": 17.786,
+      "leaf-bridge": 8.91
+    },
+    "4": {
+      "c-scalar": 0.223,
+      "safe-direct": 8.904,
+      "leaf-direct": 4.622,
+      "c-pair": 0.302,
+      "safe-bridge": 9.511,
+      "leaf-bridge": 4.664
+    },
+    "8": {
+      "c-scalar": 0.137,
+      "safe-direct": 5.803,
+      "leaf-direct": 2.379,
+      "c-pair": 0.188,
+      "safe-bridge": 6.753,
+      "leaf-bridge": 2.64
+    }
+  }
+}

@@ -1,0 +1,21 @@
+package consumer.members
+
+import templates.members.*
+
+public class Derived<T> public constructor(value: T): ProtectedBox<T>(value) {
+    public fun readPeer(peer: Derived<T>): T {
+        fun read(): T = peer.secret()
+        return read()
+    }
+}
+
+public fun result(): Int {
+    val first = Derived<Int>(20)
+    val second = Derived<Int>(22)
+    return first.readPeer(first) + first.readPeer(second)
+}
+
+public fun <T> make(value: T): T {
+    val holder = Derived<T>(value)
+    return holder.readPeer(holder)
+}

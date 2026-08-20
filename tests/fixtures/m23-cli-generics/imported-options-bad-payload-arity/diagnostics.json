@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Some` expects 1 argument(s), but 2 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "2a8279c1da63a9c8f0ce6d72ba9b6ea232708f58e00eac8842f9a023f26aec14",
+      "end": 66,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 54
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,3 @@
+public open class Plain {
+    public fun checkOwn(): Int = own<Int>(7)
+    public fun checkInherited(): Int = inherited()

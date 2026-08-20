@@ -1,0 +1,18 @@
+package upstream.callableorder
+
+public class Tape public constructor() {
+    public var log: Int = 0
+    public fun mark(value: Int): Int { log = log * 10 + value; return value }
+    public fun reset(): Unit { log = 0 }
+}
+
+public fun <T> prepare(tape: Tape, seed: T): (Int, Int) -> T {
+    tape.mark(1)
+    return { first, second -> tape.mark(4); seed }
+}
+
+public fun argument(tape: Tape, value: Int = tape.mark(3)): Int = value
+
+public fun fail(tape: Tape, value: Int = tape.mark(3)): Int {
+    throw ArithmeticException()
+}

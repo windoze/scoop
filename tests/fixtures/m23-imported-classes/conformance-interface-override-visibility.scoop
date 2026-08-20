@@ -1,0 +1,4 @@
+import dependency.classes.Readable
+public interface LocalReader: Readable {
+    internal override fun read(): Long = 20
+}

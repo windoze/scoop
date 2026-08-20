@@ -1,0 +1,3 @@
+annotation class Mark
+@get:Mark val value: Int
+    @Mark get() = 1

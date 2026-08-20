@@ -1,0 +1,3 @@
+import dependency.classes.CompanionHost
+
+public fun invalid() { CompanionHost.Factory() }

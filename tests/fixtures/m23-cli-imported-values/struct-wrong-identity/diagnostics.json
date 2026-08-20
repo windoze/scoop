@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Token, found OtherToken",
+    "notes": [],
+    "origin": {
+      "cone": "70a273b0bbd96a18237acf693167b4029981277026777079a98c7f3147496458",
+      "end": 191,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 186
+    },
+    "severity": "error"
+  }
+]

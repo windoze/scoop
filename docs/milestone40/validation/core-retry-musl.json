@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3771,
+  "selected": 1,
+  "unselected": 3770,
+  "counts": {
+    "passed": 1
+  },
+  "variants": 1,
+  "processes": 2,
+  "stage_and_plan_goldens": 0,
+  "results": [
+    {
+      "name": "core-layouts-shared-dispatch-combined",
+      "status": "passed",
+      "seconds": 106.15211525099585,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

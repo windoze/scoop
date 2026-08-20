@@ -1,0 +1,80 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extension property `initialized` must be computed or delegated",
+    "notes": [],
+    "origin": {
+      "cone": "d132c0f852546481805481b8266ac98ec12cb54a440a7590fd75282ec6b3bab6",
+      "end": 147,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 119
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `T` of extension property `unbound` cannot be inferred solely from its receiver",
+    "notes": [],
+    "origin": {
+      "cone": "d132c0f852546481805481b8266ac98ec12cb54a440a7590fd75282ec6b3bab6",
+      "end": 155,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 154
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extension property `duplicate` is already declared for the same receiver type",
+    "notes": [],
+    "origin": {
+      "cone": "d132c0f852546481805481b8266ac98ec12cb54a440a7590fd75282ec6b3bab6",
+      "end": 263,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 227
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `label` is ambiguous in extension property layer:\n  - fun Left.label(): Int — applicable; tied by MSC\n  - fun Right.label(): Int — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "d132c0f852546481805481b8266ac98ec12cb54a440a7590fd75282ec6b3bab6",
+      "end": 460,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 455
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable property `value`",
+    "notes": [],
+    "origin": {
+      "cone": "d132c0f852546481805481b8266ac98ec12cb54a440a7590fd75282ec6b3bab6",
+      "end": 478,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 473
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Int` has no applicable property delegate operator `getValue`",
+    "notes": [],
+    "origin": {
+      "cone": "d132c0f852546481805481b8266ac98ec12cb54a440a7590fd75282ec6b3bab6",
+      "end": 297,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 265
+    },
+    "severity": "error"
+  }
+]

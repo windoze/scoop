@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unreachable catch block: RebuiltFailure is already covered by an earlier catch",
+    "notes": [],
+    "origin": {
+      "cone": "40974a5f71557ceffc3efc1e5bf5d4148cde746a709ec247dcab759c0203bae6",
+      "end": 142,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 105
+    },
+    "severity": "error"
+  }
+]

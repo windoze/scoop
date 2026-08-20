@@ -1,0 +1,1050 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3065,
+  "selected": 115,
+  "unselected": 2950,
+  "counts": {
+    "passed": 115
+  },
+  "variants": 116,
+  "processes": 295,
+  "stage_and_plan_goldens": 0,
+  "results": [
+    {
+      "name": "core-operations-members-equality-pattern-overflow",
+      "status": "passed",
+      "seconds": 4.580160094948951,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-function-value-elements",
+      "status": "passed",
+      "seconds": 8.94466736499453,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-index-type",
+      "status": "passed",
+      "seconds": 5.091766662022565,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-spread-invariant",
+      "status": "passed",
+      "seconds": 5.220879896020051,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-spread-mutable",
+      "status": "passed",
+      "seconds": 4.590207286004443,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-spread-non-array",
+      "status": "passed",
+      "seconds": 4.739392681978643,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-uninferrable-empty",
+      "status": "passed",
+      "seconds": 4.638817473023664,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-whole-and-elements",
+      "status": "passed",
+      "seconds": 4.9244089759886265,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-whole-element",
+      "status": "passed",
+      "seconds": 5.15425772202434,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-write-immutable",
+      "status": "passed",
+      "seconds": 4.729052523965947,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-arity",
+      "status": "passed",
+      "seconds": 9.155320393037982,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-invariance",
+      "status": "passed",
+      "seconds": 4.857099760964047,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-ref",
+      "status": "passed",
+      "seconds": 4.719750943011604,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-value",
+      "status": "passed",
+      "seconds": 4.8236421549809165,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-generic-alias",
+      "status": "passed",
+      "seconds": 7.890253300021868,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-managed-constructor",
+      "status": "passed",
+      "seconds": 5.153053377987817,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-nonconstructible-alias",
+      "status": "passed",
+      "seconds": 5.159993021981791,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-private-constructor",
+      "status": "passed",
+      "seconds": 4.7495717569836415,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-argument",
+      "status": "passed",
+      "seconds": 5.488316707953345,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-constructor-tuple",
+      "status": "passed",
+      "seconds": 5.507527644047514,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-identity",
+      "status": "passed",
+      "seconds": 5.230057008971926,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-arity",
+      "status": "passed",
+      "seconds": 5.296559337992221,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-field",
+      "status": "passed",
+      "seconds": 5.397444668982644,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-identity",
+      "status": "passed",
+      "seconds": 5.324050440976862,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-c-abi",
+      "status": "passed",
+      "seconds": 9.734623820986599,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-duplicate-field",
+      "status": "passed",
+      "seconds": 5.366532070969697,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-missing-field",
+      "status": "passed",
+      "seconds": 4.827548355970066,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-shadowed",
+      "status": "passed",
+      "seconds": 5.304900827002712,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-type-arguments",
+      "status": "passed",
+      "seconds": 5.293706424999982,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-wrong-owner",
+      "status": "passed",
+      "seconds": 5.252400697034318,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-wrong-payload",
+      "status": "passed",
+      "seconds": 5.2183422449743375,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-guarded-coverage",
+      "status": "passed",
+      "seconds": 5.184889736992773,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-named-positional",
+      "status": "passed",
+      "seconds": 5.190481877012644,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-non-exhaustive",
+      "status": "passed",
+      "seconds": 5.107017838978209,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-positional-named",
+      "status": "passed",
+      "seconds": 5.069385572976898,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-refutable-binding",
+      "status": "passed",
+      "seconds": 5.036994182039052,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-unit-called",
+      "status": "passed",
+      "seconds": 4.491363495006226,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-identity",
+      "status": "passed",
+      "seconds": 5.045582995051518,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-pattern-field",
+      "status": "passed",
+      "seconds": 5.034540198976174,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-pattern-owner",
+      "status": "passed",
+      "seconds": 4.988820838974789,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-pattern-style",
+      "status": "passed",
+      "seconds": 5.035137074009981,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-payload",
+      "status": "passed",
+      "seconds": 5.129160681040958,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-alias-erased",
+      "status": "passed",
+      "seconds": 7.991574075014796,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-alias-payload",
+      "status": "passed",
+      "seconds": 4.721340973046608,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-constructor-alias-payload",
+      "status": "passed",
+      "seconds": 5.055803928000387,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-contextual-payload",
+      "status": "passed",
+      "seconds": 5.357047107012477,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-immutable-omission",
+      "status": "passed",
+      "seconds": 4.955432360002305,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-invariance",
+      "status": "passed",
+      "seconds": 4.5302655849955045,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-kind-bound",
+      "status": "passed",
+      "seconds": 5.449190159968566,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-local-alias-payload",
+      "status": "passed",
+      "seconds": 4.603684258996509,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-nested",
+      "status": "passed",
+      "seconds": 5.371890178998001,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-none-inference",
+      "status": "passed",
+      "seconds": 4.648658692021854,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-payload-arity",
+      "status": "passed",
+      "seconds": 4.586412886972539,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-positional-name",
+      "status": "passed",
+      "seconds": 4.509142529044766,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-shadow",
+      "status": "passed",
+      "seconds": 4.648029714007862,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-type-arity",
+      "status": "passed",
+      "seconds": 4.48787779599661,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-unit-call",
+      "status": "passed",
+      "seconds": 4.478189245972317,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-binding-arity",
+      "status": "passed",
+      "seconds": 8.863357651047409,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-escaping-break",
+      "status": "passed",
+      "seconds": 5.107904587988742,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-immutable-binding",
+      "status": "passed",
+      "seconds": 4.497943820024375,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-missing-operator",
+      "status": "passed",
+      "seconds": 4.9251710420357995,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-multiple-applications",
+      "status": "passed",
+      "seconds": 4.616561061004177,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-no-gc",
+      "status": "passed",
+      "seconds": 4.463393788028043,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-private-operator",
+      "status": "passed",
+      "seconds": 4.439393352018669,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-refutable-pattern",
+      "status": "passed",
+      "seconds": 4.526733812002931,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-shadow-protocol",
+      "status": "passed",
+      "seconds": 4.489989465044346,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-suspend-context",
+      "status": "passed",
+      "seconds": 5.380173657962587,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-wrong-protocol",
+      "status": "passed",
+      "seconds": 5.521429212007206,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-binding-patterns-errors-irrefutable-only",
+      "status": "passed",
+      "seconds": 4.108238065964542,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-qualified-variant-typo",
+      "status": "passed",
+      "seconds": 4.039963938004803,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-recursive-named-fields",
+      "status": "passed",
+      "seconds": 4.03922966303071,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-uint8-one-missing",
+      "status": "passed",
+      "seconds": 3.9394152269815095,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-unary-plus-integer-pattern",
+      "status": "passed",
+      "seconds": 3.8714430310064927,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-when-exhaustiveness",
+      "status": "passed",
+      "seconds": 3.9235784580232576,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-errors-elvis-type-mismatch",
+      "status": "passed",
+      "seconds": 4.116202219971456,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-guard-not-boolean",
+      "status": "passed",
+      "seconds": 3.9151140860049054,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-non-exhaustive",
+      "status": "passed",
+      "seconds": 4.107783675019164,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-unknown-variant",
+      "status": "passed",
+      "seconds": 3.7073834789916873,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m8-exceptions-errors-when-expression-result-type",
+      "status": "passed",
+      "seconds": 3.839935825963039,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-array-reject-count-type",
+      "status": "passed",
+      "seconds": 3.338263859041035,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-array-reject-initializer-result",
+      "status": "passed",
+      "seconds": 3.369900237012189,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-characters-reject-destructure",
+      "status": "passed",
+      "seconds": 3.5069284710334614,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-characters-reject-non-exhaustive",
+      "status": "passed",
+      "seconds": 3.671304068993777,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-annotation-parameter-type",
+      "status": "passed",
+      "seconds": 4.107271563960239,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-destructure",
+      "status": "passed",
+      "seconds": 3.5699055820005015,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-fixed",
+      "status": "passed",
+      "seconds": 3.6138058049837127,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-incomplete",
+      "status": "passed",
+      "seconds": 3.6077002030215226,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-integer",
+      "status": "passed",
+      "seconds": 3.908346498035826,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-nan-guard",
+      "status": "passed",
+      "seconds": 3.93989400396822,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-recursive-incomplete",
+      "status": "passed",
+      "seconds": 3.306496011035051,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-cxx-reject-musl",
+      "status": "passed",
+      "seconds": 0.6132608099724166,
+      "variants": 2,
+      "processes": 2,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-libraries-reject-dynamic-on-static",
+      "status": "passed",
+      "seconds": 6.220801233954262,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-libraries-reject-framework-on-linux",
+      "status": "passed",
+      "seconds": 6.452874856011476,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-arity",
+      "status": "passed",
+      "seconds": 8.738639097951818,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-class-rest",
+      "status": "passed",
+      "seconds": 4.910426209040452,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-duplicate-field",
+      "status": "passed",
+      "seconds": 4.912871866952628,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-immutable",
+      "status": "passed",
+      "seconds": 5.44560905196704,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-incomplete-when",
+      "status": "passed",
+      "seconds": 4.622259357012808,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-missing-operator",
+      "status": "passed",
+      "seconds": 4.791404149029404,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-missing-rest",
+      "status": "passed",
+      "seconds": 5.381331697979476,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-private-component",
+      "status": "passed",
+      "seconds": 4.854811916011386,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-refutable",
+      "status": "passed",
+      "seconds": 4.675112260971218,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-unknown-field",
+      "status": "passed",
+      "seconds": 4.430077352037188,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-wrong-owner",
+      "status": "passed",
+      "seconds": 5.42173319804715,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-arity",
+      "status": "passed",
+      "seconds": 7.805430935055483,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-hidden-prefix",
+      "status": "passed",
+      "seconds": 4.770011975953821,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-incomplete",
+      "status": "passed",
+      "seconds": 5.129155173955951,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-named-style",
+      "status": "passed",
+      "seconds": 5.288240458990913,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-wrong-alias",
+      "status": "passed",
+      "seconds": 5.391707544971723,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-wrong-prefix",
+      "status": "passed",
+      "seconds": 4.832509397005197,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-literals-bad-exhaustiveness",
+      "status": "passed",
+      "seconds": 9.273254922009073,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-literals-bad-literal",
+      "status": "passed",
+      "seconds": 4.909335398988333,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-struct-definitions-duplicate",
+      "status": "passed",
+      "seconds": 7.543766096991021,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-struct-definitions-unknown",
+      "status": "passed",
+      "seconds": 4.569606849050615,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-struct-definitions-wrong-type",
+      "status": "passed",
+      "seconds": 5.211694183992222,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

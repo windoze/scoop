@@ -1,0 +1,20 @@
+package dependency.nativeAddresses
+
+public var state: Long = 0L
+
+@NoGC public fun echo(value: Long): Long = value
+@NoGC public fun echo(value: Int): Int = value
+@NoGC public fun previouslyUsed(value: Long): Long = value
+public fun previousAddress(): FunPtr<(Long) -> Long> = ::previouslyUsed
+
+@NoGC private fun hidden(value: Long): Long = value + 2
+public fun <T> selected(value: T, callback: FunPtr<(Long) -> Long> = ::echo): FunPtr<(Long) -> Long> = callback
+
+public fun <T> privateAddress(value: T): FunPtr<(Long) -> Long> = ::hidden
+
+@CLayout public struct Wide(val first: Long, val second: Long, val third: Long)
+@NoGC public fun roundWide(value: Wide): Wide = value
+
+@NoGC @Unsafe public fun sink(pointer: Ptr<Long>) { pointer.store(42) }
+public fun managed(value: Long): Long = value
+@NoGC public fun <T: value> generic(value: T): T = value

@@ -1,0 +1,20 @@
+interface Value { fun get(): Int }
+class Item(val number: Int) : Value {
+    public override fun get(): Int = number
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val first: Value = Item(11)
+    val second: Value = Item(22)
+    val cell = AtomicRef(first)
+    check(cell.load().get() == 11)
+    check(cell.exchange(second) === first)
+    check(cell.compareAndExchange(first, second) === second)
+    check(cell.compareAndExchange(second, first).get() == 22)
+    check(cell.compareAndSet(first, second))
+    gcCollect()
+    check(cell.load().get() == 22)
+    cell.store(first)
+    check(cell.load().get() == 11)
+    println("interface atomics")
+}

@@ -1,0 +1,10 @@
+package dependency.values
+
+public struct Token()
+public struct Wide(val first: Long, val second: Long, val third: Long)
+public struct Nested(val token: Token, val payload: Wide)
+public struct Managed(val text: String, val token: Token)
+
+@NoGC public fun passToken(value: Token): Token = value
+@NoGC public fun passWide(value: Wide): Wide = value
+public fun passManaged(value: Managed): Managed = value

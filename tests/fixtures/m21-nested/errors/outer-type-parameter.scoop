@@ -1,0 +1,5 @@
+class Outer<T> {
+    class Nested(val value: T)
+}
+
+fun main() {}

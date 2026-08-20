@@ -1,0 +1,3 @@
+annotation class A
+typealias Box<T> = Array<@A T>
+fun f(x: Box<@A Int>) {}

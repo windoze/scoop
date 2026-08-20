@@ -1,0 +1,4 @@
+import dependency.classes.Counter
+import dependency.classes.CompanionHost.Factory as Saved
+
+public fun primary(): Counter = Saved.value

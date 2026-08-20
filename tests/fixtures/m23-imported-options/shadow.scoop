@@ -1,0 +1,25 @@
+package consumer.options
+
+import dependency.options.force
+
+private enum Option<T> { Other(T) }
+private enum LocalOption { Some(Int, Int), None }
+private enum ReverseShape { Some, None(Int) }
+
+public fun <T> exercise(value: T): Int {
+    val saved: T? = Some(value)
+    val inferred = Some(value)
+    val local: Option<T> = Other(value)
+    val pair: LocalOption = Some(20, 22)
+    val missing: LocalOption = None
+    val unit: ReverseShape = Some
+    val reversed: ReverseShape = None(42)
+    val restored = force(inferred)
+    if (when (saved) { case Some(payload) -> false; case None -> true }) { return 1 }
+    if (when (missing) { case Some(a, b) -> true; case None -> false }) { return 2 }
+    if (when (unit) { case Some -> false; case None(number) -> true }) { return 3 }
+    if (when (reversed) { case Some -> true; case None(number) -> number != 42 }) { return 4 }
+    return when (pair) { case Some(a, b) -> a + b; case None -> 5 }
+}
+
+public fun result(): Int = exercise<Int>(1)

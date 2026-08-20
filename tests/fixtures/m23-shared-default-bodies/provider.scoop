@@ -1,0 +1,23 @@
+package upstream.defaults
+
+public fun advance(value: Int): Int = value + 2
+public fun plain(value: Int = 40, next: () -> Int = {
+    fun read(): Int = advance(value)
+    read()
+}): Int = next()
+public fun reference(value: Int = 40, next: (Int) -> Int = ::advance): Int = next(value)
+private fun readAny(value: Any): Int = 42
+public fun reader(): (Any) -> Int = ::readAny
+public fun coerced(value: Int = 0, next: (Int) -> Int = reader()): Int = next(value)
+
+public fun <T> generic(value: T, next: () -> T = { value }): T = next()
+public fun <T> anonymous(value: T, next: () -> T = fun(): T { return value }): T = next()
+public fun <T> nested(value: T, next: () -> T = {
+    fun <U> keep(item: U): U = item
+    keep<T>(value)
+}): T = next()
+public fun <T> chained(value: T, first: () -> T = { value }, second: () -> T = first): T = second()
+
+public class Box<T> public constructor(public val value: T, public val read: () -> T = { value }) {
+    public fun select(next: () -> T = { this.value }): T = next()
+}

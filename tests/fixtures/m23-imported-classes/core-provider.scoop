@@ -1,0 +1,14 @@
+public interface RebuiltReadable {
+    public fun read(): Long
+}
+public class RebuiltCounter public constructor(val value: Long): RebuiltReadable {
+    public override fun read(): Long = value + stage3CoreAnswer() - 43
+}
+public typealias RebuiltAlias = RebuiltCounter
+public enum RebuiltFlag { Ready, Empty }
+public fun rebuiltQuotient(): Long = stage3CoreAnswer() / 2
+public class RebuiltFailure public constructor(public val code: Long): Throwable()
+
+public struct RebuiltValueReader(val value: Long): RebuiltReadable {
+    public override fun read(): Long = value + stage3CoreAnswer() - 43
+}

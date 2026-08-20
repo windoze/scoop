@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Ambiguous` inherits conflicting defaults for `choose` from FirstChoice.choose and SecondChoice.choose; declare an explicit override",
+    "notes": [],
+    "origin": {
+      "cone": "a93d018b06a4c351ced2689d32b8824a4fc1b7a578532704d6f3a998de531033",
+      "end": 147,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 77
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,39 @@
+package consumer.coroutines
+import templates.coroutines.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val immediateCompletion = Completion<T>()
+    startCoroutine(constant(seed), immediateCompletion)
+    if (immediateCompletion.calls != 1 || read(immediateCompletion.value!!) != 42) { return 2 }
+    val gate = Gate<T>()
+    val counter = Counter()
+    val deferredCompletion = Completion<T>()
+    startCoroutine(deferred(gate, seed, read, counter), deferredCompletion)
+    if (deferredCompletion.calls != 0) { return 3 }
+    val retained = Counter()
+    retained.value = 42
+    gate.complete(seed)
+    if (counter.value != 42 || retained.value != 42 || deferredCompletion.calls != 1) { return 4 }
+    return read(deferredCompletion.value!!)
+}
+
+public fun result(): Int {
+    val reference: suspend (Long) -> Long = ::immediate
+    val referenced = Completion<Long>()
+    startCoroutine(suspend { reference(42L) }, referenced)
+    if (referenced.value!! != 42L) { return 5 }
+    val widened = widenedFunction()
+    val staticResult = Completion<Any>()
+    startCoroutine(suspend { widened(0) }, staticResult)
+    if (staticResult.value!! as Int != 42) { return 6 }
+    val erased = erasedFunction()
+    if (!(erased is suspend (Int) -> Any)) { return 7 }
+    if (erased is (Int) -> Any) { return 8 }
+    val dynamic = erased as suspend (Int) -> Any
+    val dynamicResult = Completion<Any>()
+    startCoroutine(suspend { dynamic(0) }, dynamicResult)
+    if (dynamicResult.value!! as Int != 42) { return 9 }
+    return exercise(42, { value: Int -> value })
+}
+
+fun main() { println(result()) }

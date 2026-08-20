@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "integer division is not allowed in `@NoGC` code because it may throw",
+    "notes": [],
+    "origin": {
+      "cone": "e903e7919f1c927f2a79cfaf2038cac5f70e18998d9191e66a465d57d90bc87d",
+      "end": 56,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 47
+    },
+    "severity": "error"
+  }
+]

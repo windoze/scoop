@@ -1,0 +1,476 @@
+{
+  "revision": "m34-small-values-working-tree",
+  "target": "aarch64-apple-darwin",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "workload": "ordinary-cross-cone",
+  "runs": 7,
+  "provider_build_seconds": 2.548853332991712,
+  "first_consumer_build_seconds": 5.361388584016822,
+  "warm_consumer_build_seconds": 5.129016540944576,
+  "provider_command": [
+    "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+    "build",
+    "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/small-values/provider",
+    "--scoopc",
+    "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+    "--sysroot",
+    "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+    "--runtime-root",
+    "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+    "--cache-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-after-darwin/cache",
+    "--profile",
+    "release",
+    "--message-format",
+    "json",
+    "--target",
+    "aarch64-apple-darwin",
+    "--emit",
+    "all",
+    "--target-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/provider-target",
+    "--dump-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/provider-dump",
+    "-o",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/cones/dev.m34.bench/small-provider/0.1.0/cone.slib"
+  ],
+  "build_command": [
+    "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+    "build",
+    "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/small-values/consumer",
+    "--scoopc",
+    "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+    "--sysroot",
+    "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+    "--runtime-root",
+    "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+    "--cache-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-after-darwin/cache",
+    "--profile",
+    "release",
+    "--message-format",
+    "json",
+    "--target",
+    "aarch64-apple-darwin",
+    "--emit",
+    "all",
+    "--target-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/consumer-target",
+    "--dump-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/consumer-dump",
+    "--cone-path",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/cones",
+    "-o",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/small-values"
+  ],
+  "provider_records": [
+    {
+      "dependencies": [
+        {
+          "artifact_fingerprint": "9b7a414351ecdfa0bfc7a877c503a49c3625491609da5db35e343364769c5084",
+          "coordinate": {
+            "group": "scoop",
+            "name": "scoop.core",
+            "version": "0.1.0"
+          },
+          "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+          "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-after-darwin/cache/compile-v1/6d55824837ea2c9c3de469ff51f66ac74a3f7832d0c7a35f0f69fc9556e71197/artifact.slib"
+        }
+      ],
+      "kind": "library",
+      "observations": {
+        "child_invocations": [
+          "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696"
+        ],
+        "nodes": [
+          {
+            "cache_key": "6d55824837ea2c9c3de469ff51f66ac74a3f7832d0c7a35f0f69fc9556e71197",
+            "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+            "origin": "cache"
+          },
+          {
+            "cache_key": "481109cc8be9d0e1312a24a170c65ac7cefb990528d8a6bf0a7cebdc645c196d",
+            "identity": "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696",
+            "origin": "compiled"
+          }
+        ]
+      },
+      "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/cones/dev.m34.bench/small-provider/0.1.0/cone.slib",
+      "profile": "release",
+      "root": {
+        "artifact_fingerprint": "ad893ce686aedeb28d21e73ca4a9b554706a30706cc5b12104771eb5456ace61",
+        "coordinate": {
+          "group": "dev.m34.bench",
+          "name": "small-provider",
+          "version": "0.1.0"
+        },
+        "identity": "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696",
+        "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-after-darwin/cache/compile-v1/481109cc8be9d0e1312a24a170c65ac7cefb990528d8a6bf0a7cebdc645c196d/artifact.slib"
+      },
+      "schema": 1
+    }
+  ],
+  "build_records": [
+    {
+      "dependencies": [
+        {
+          "artifact_fingerprint": "9b7a414351ecdfa0bfc7a877c503a49c3625491609da5db35e343364769c5084",
+          "coordinate": {
+            "group": "scoop",
+            "name": "scoop.core",
+            "version": "0.1.0"
+          },
+          "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+          "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-after-darwin/cache/compile-v1/6d55824837ea2c9c3de469ff51f66ac74a3f7832d0c7a35f0f69fc9556e71197/artifact.slib"
+        },
+        {
+          "artifact_fingerprint": "ad893ce686aedeb28d21e73ca4a9b554706a30706cc5b12104771eb5456ace61",
+          "coordinate": {
+            "group": "dev.m34.bench",
+            "name": "small-provider",
+            "version": "0.1.0"
+          },
+          "identity": "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696",
+          "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/cones/dev.m34.bench/small-provider/0.1.0/cone.slib"
+        }
+      ],
+      "kind": "executable",
+      "link_plan_fingerprint": "75d025546ff75b99fc5b464dd85179234f07c5a30aa35bfb0107e50953995b2d",
+      "observations": {
+        "child_invocations": [
+          "27f969584b2fc9708ddc7df7d280478dd2a7385679a8f1953339fe2124a278ac"
+        ],
+        "nodes": [
+          {
+            "cache_key": "6d55824837ea2c9c3de469ff51f66ac74a3f7832d0c7a35f0f69fc9556e71197",
+            "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+            "origin": "cache"
+          },
+          {
+            "cache_key": null,
+            "identity": "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696",
+            "origin": "prebuilt"
+          },
+          {
+            "cache_key": "42c8f5b1d58d86f2fba80edfbcc3b6d9c6af1be513a21d42cc11a1734db3503c",
+            "identity": "27f969584b2fc9708ddc7df7d280478dd2a7385679a8f1953339fe2124a278ac",
+            "origin": "compiled"
+          }
+        ]
+      },
+      "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-source-after-darwin/small-values",
+      "profile": "release",
+      "root": {
+        "artifact_fingerprint": "2498f89c06114671863a02600e587533a7891ac3c705a78d2ae9dca502b03308",
+        "coordinate": {
+          "group": "dev.m34.bench",
+          "name": "small-consumer",
+          "version": "0.1.0"
+        },
+        "identity": "27f969584b2fc9708ddc7df7d280478dd2a7385679a8f1953339fe2124a278ac",
+        "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-after-darwin/cache/compile-v1/42c8f5b1d58d86f2fba80edfbcc3b6d9c6af1be513a21d42cc11a1734db3503c/artifact.slib"
+      },
+      "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-after-darwin/cache/runtime-v1/c8800e6828a1e8ca2f67d51c2ace5ec073670ceb16c8bfb9c708aff593f15ecd/index.cbor",
+      "schema": 1
+    }
+  ],
+  "executable_bytes": 6094552,
+  "slib_bytes": 179698,
+  "run_seconds": [
+    0.3601414170116186,
+    0.017946749925613403,
+    0.01780745794530958,
+    0.018033499945886433,
+    0.01779045898001641,
+    0.018127874936908484,
+    0.01790475007146597
+  ],
+  "gc": [
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "stderr": [
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n"
+  ],
+  "median_seconds": 0.017946749925613403,
+  "min_seconds": 0.01779045898001641,
+  "max_seconds": 0.3601414170116186,
+  "stdout": "10000010\n"
+}

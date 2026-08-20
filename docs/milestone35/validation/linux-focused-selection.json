@@ -1,0 +1,2132 @@
+{
+  "baseline": "75a534ef2",
+  "selection_policy": "All M35 features, actual MIR/LIR differences, Linux-specific regressions and migrated semantic examples; Darwin already covers all shared front-end migration. Previously completed additional Linux results remain valid.",
+  "fixtures": [
+    {
+      "name": "imported-enum-constructor-combinations",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "imported-enum-constructors",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "imported-options-defaults",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "imported-options-lexical",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "imported-options-static",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "imported-options-sugar",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m18-invoke-invoke-semantics",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m22-control-while-header",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m22-integers-representation-matrix",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m22-patterns-recursive-named-fields",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m22-patterns-when-exhaustiveness",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m22-pointers-option-niche-consumers",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m3-generics-generic-option",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m3-generics-nested-option",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m3-generics-option-basics",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m5-arrays-array-elements",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "legacy-m8-exceptions-control-expressions",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m26-interpolation-contexts",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m27-context-callback-scopes",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m27-context-coroutine-exits",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m27-context-exits",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m28-cli-library-toolchain",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m28-cli-program",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m28-cli-program-musl-pie",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m28-deep-frames",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m28-deep-frames-musl-pie",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m28-native-dso",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m30-floating-artifacts-musl-pie",
+      "reasons": [
+        "changed Scoop source",
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m32-roots-control",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m32-roots-gc-context",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m33-native-cxx-reject-missing-driver",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu"
+      ]
+    },
+    {
+      "name": "m33-native-cxx-reject-missing-stdlib",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu"
+      ]
+    },
+    {
+      "name": "m33-native-cxx-reject-musl",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m33-native-cxx-reject-target-mismatch",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu"
+      ]
+    },
+    {
+      "name": "m33-native-cxx-reject-version-mismatch",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu"
+      ]
+    },
+    {
+      "name": "m33-native-libraries-reject-dynamic-on-static",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m33-native-libraries-reject-framework-on-linux",
+      "reasons": [
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m33-native-safe-transitions-pie",
+      "reasons": [
+        "changed Scoop source",
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m33-platform-cone-musl-pie",
+      "reasons": [
+        "changed Scoop source",
+        "Linux-specific"
+      ],
+      "targets": [
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-artifacts",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-basic",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-cache",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-coding",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-alias-mutable",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-any-element",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-array-for-scalar",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-array-variable",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-builtin-array",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-char-element",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-char-surrogate",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-const-array",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-default-element",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-duplicate",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-enum-element",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-factory",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-float-overflow",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-float-suffix",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-function-element",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-integer-range",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-integer-signedness",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-missing-comma",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-missing-required",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-multidimensional",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-mutable-array",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-nested-annotation",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-nested-array",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-object-element",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-option-element",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-private-reference",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-runtime-expression",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-runtime-value",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-scalar-for-array",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-serial-name-array",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-shadow-array",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-spread",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-unknown-name",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-unknown-reference",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-annotations-error-wrong-element",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-case-basic",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-case-combined",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-case-missing-prefix",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-artifacts",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-captures",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-error-alternative-capture",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-error-extension-ambiguity",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-error-member-ambiguity",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-error-mutable-capture",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-error-property-ambiguity",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-error-reference-ambiguity",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-suspend",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-combinations-views",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-artifacts",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-basic",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-cleanup",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-bare-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-constructor-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-default-elvis-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-default-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-elvis-expected-type",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-elvis-left-type",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-expression-body-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-initializer-bare-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-initializer-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-lambda-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-local-expression-body-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-return-label",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-throw-type",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-error-wrong-return-value",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-operands",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-jumps-suspend",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-artifacts",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-basic",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-effects",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-double-trailing",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-duplicate-named",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-duplicate-positional",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-function-value-arity",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-lambda-return",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-last-non-function",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-last-vararg",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-named-jump-position",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-non-callable",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-ordinary-to-suspend",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-parenthesized-position",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-required-prefix",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-suspend-to-ordinary",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-ungrouped-result",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-unknown-name",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-error-vararg-parenthesized",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-members",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-trailing-suspend",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-artifacts",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-effects",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-alternative-smart-cast",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-boolean-constant-coverage",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-boolean-coverage",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-case-alternatives",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-case-class-subject",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-class-equality",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-contains-missing",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-delegated-subject",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-duplicate-binding",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-duplicate-else",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-else-not-last",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-enum-coverage",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-escaping-smart-cast",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-getter-smart-cast",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-guard-coverage",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-guard-failure-smart-cast",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-initializer-scope",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-mixed-coverage",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-multiple-guard",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-mutable-smart-cast",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-nonboolean-condition",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-nonboolean-guard",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-refutable-subject",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-subject-scope",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-subjectless-case",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-subjectless-guard",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-subjectless-in",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-subjectless-is",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-subjectless-value-coverage",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-user-equality-coverage",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-value-coverage",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-var-subject",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-error-wrong-subject-type",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-ordinary",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-smart-casts",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-subjects",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "m35-when-suspend-subject",
+      "reasons": [
+        "M35 feature",
+        "changed Scoop source",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "protected-domains-protected-default-references",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "rebuilt-core-option-edited-core",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "shared-enums-aliases-equality",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "shared-enums-qualified",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "shared-native-calls-context",
+      "reasons": [
+        "changed Scoop source",
+        "Darwin regression migration"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "shared-structs-combined",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    },
+    {
+      "name": "shared-structs-standalone",
+      "reasons": [
+        "Darwin regression migration",
+        "changed MIR/LIR"
+      ],
+      "targets": [
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    }
+  ]
+}

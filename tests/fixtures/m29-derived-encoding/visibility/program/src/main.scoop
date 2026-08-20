@@ -1,0 +1,40 @@
+import scoop.json.Json
+
+public interface Transform<T> {
+    public fun apply(value: T): T
+    public val current: T
+}
+
+struct Hidden(val value: Int) {
+    public companion object : Encodable<Hidden>, Decodable<Hidden>
+}
+object TransformHidden : Transform<Hidden> {
+    public override fun apply(value: Hidden): Hidden = value
+    public override val current: Hidden get() = Hidden(7)
+}
+
+private struct Local(val value: Int) {
+    public companion object : Transform<Local>, Encodable<Local>, Decodable<Local> {
+        public override fun apply(value: Local): Local = value
+        public override val current: Local get() = Local(9)
+        public override fun encode(value: Local, encoder: Encoder) { Int.encode(value.value, encoder) }
+        public override fun decode(decoder: Decoder): Local = Local(Int.decode(decoder))
+    }
+}
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("codec visibility assertion failed")) }
+}
+
+fun main() {
+    val hidden: Transform<Hidden> = TransformHidden
+    val local: Transform<Local> = Local.Companion
+    val value = hidden.apply(hidden.current)
+    val text = Json.encode(value, Hidden.Companion)
+    check(text == "{\"value\":7}")
+    check(Json.decode(text, Hidden.Companion).value == 7)
+    val privateValue = local.apply(local.current)
+    check(Json.encode(privateValue, Local.Companion) == "9")
+    check(Json.decode("11", Local.Companion).value == 11)
+    println("visibility-ok")
+}

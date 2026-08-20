@@ -1,0 +1,13 @@
+struct Callbacks(
+    val transform: (Int) -> Int,
+    val task: suspend () -> String
+)
+
+fun register(
+    transform: (Int) -> Int,
+    optional: Option<(Int) -> Int>
+) {}
+
+fun main() {
+    println("function types")
+}

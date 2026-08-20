@@ -1,0 +1,9 @@
+package sibling.left
+
+import dependency.odr.Payload
+import dependency.odr.checked
+import dependency.odr.defaulted
+import dependency.odr.recover
+
+public fun left(value: Payload): Payload = checked(defaulted(value), 1)
+public fun leftNumber(error: Throwable): Int = recover(error, 20)

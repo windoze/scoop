@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "dev.m29"
+name = "unit-encoding-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.json" = "0.1.0"
+"dev.m29:unit-encoding" = "0.1.0"
+"dev.m29:unit-encoding-peer" = "0.1.0"

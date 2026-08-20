@@ -1,0 +1,39 @@
+import scoop.json.Json
+
+private struct Opaque()
+private class Node(public val children: Array<(Int, Node)>) {
+    public companion object : Encodable<Node>
+}
+private interface Label {}
+private struct Item() : Label
+private interface LabelEncoder : Encodable<Label> {
+    public override fun encode(value: Label, encoder: Encoder) { encoder.singleValue().writeLong(23L) }
+}
+private object Labels : LabelEncoder
+private fun <T> erase(value: T): Any = value
+private fun noop() {}
+private fun <T> dynamic(value: T, codec: Any, expected: String, code: Int) {
+    check(!(erase(value) is Encodable<T>), code)
+    check(codec is Encodable<T>, code)
+    if (codec is Encodable<T>) { check(Json.encode(value, codec) == expected, code) }
+}
+
+fun dynamicCases() {
+    dynamic((11, "erased"), PairEncoder(Int.Companion, String.Companion), "[11,\"erased\"]", 20)
+    val nested = PairEncoder(PairEncoder(Int.Companion, UnitEncoder), Boolean.Companion)
+    dynamic(((12, Unit), true), nested, "[[12,null],true]", 21)
+    val label: Label = Item()
+    dynamic((label, 24), PairEncoder(Labels, Int.Companion), "[23,24]", 22)
+    val value: Any = 25
+    check(!(erase((value, 26)) is Encodable<(Any, Int)>), 23)
+    check(!(erase((Opaque(), 27)) is Encodable<(Opaque, Int)>), 24)
+    check(!(erase((::noop, 28)) is Encodable<(() -> Unit, Int)>), 25)
+    check(!(erase(((Opaque(), 29), Unit)) is Encodable<((Opaque, Int), Unit)>), 26)
+    val opaque = Array<(Int, Opaque)>(0L) { _ -> (30, Opaque()) }
+    check(!(erase(opaque) is Encodable<Array<(Int, Opaque)>>), 27)
+    val good = Array<(Int, String)>(1L) { _ -> (31, "nested") }
+    val arrayCodec = Array<(Int, String)>.encoder(PairEncoder(Int.Companion, String.Companion))
+    dynamic(good, arrayCodec, "[[31,\"nested\"]]", 28)
+    val children = Array<(Int, Node)>(0L) { _ -> throw IllegalStateException(None) }
+    dynamic(Node(children), Node.Companion, "{\"children\":[]}", 29)
+}

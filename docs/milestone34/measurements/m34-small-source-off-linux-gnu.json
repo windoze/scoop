@@ -1,0 +1,476 @@
+{
+  "revision": "430a69c71",
+  "target": "x86_64-unknown-linux-gnu",
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "workload": "ordinary-cross-cone",
+  "runs": 7,
+  "provider_build_seconds": 3.1766635189997032,
+  "first_consumer_build_seconds": 6.494885435997276,
+  "warm_consumer_build_seconds": 6.212490060977871,
+  "provider_command": [
+    "/home/chenxu/repos/scoop/tmp/m34/allocation-tools/scoop",
+    "build",
+    "/home/chenxu/repos/scoop/tests/benchmarks/small-values/provider",
+    "--scoopc",
+    "/home/chenxu/repos/scoop/tmp/m34/allocation-tools/scoopc",
+    "--sysroot",
+    "/home/chenxu/repos/scoop/tmp/m34/allocation-source/sysroot",
+    "--runtime-root",
+    "/home/chenxu/repos/scoop/tmp/m34/allocation-source/runtime",
+    "--cache-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-values-before-gnu/cache",
+    "--profile",
+    "release",
+    "--message-format",
+    "json",
+    "--target",
+    "x86_64-unknown-linux-gnu",
+    "--emit",
+    "all",
+    "--target-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/provider-target",
+    "--dump-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/provider-dump",
+    "-o",
+    "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/cones/dev.m34.bench/small-provider/0.1.0/cone.slib"
+  ],
+  "build_command": [
+    "/home/chenxu/repos/scoop/tmp/m34/allocation-tools/scoop",
+    "build",
+    "/home/chenxu/repos/scoop/tests/benchmarks/small-values/consumer",
+    "--scoopc",
+    "/home/chenxu/repos/scoop/tmp/m34/allocation-tools/scoopc",
+    "--sysroot",
+    "/home/chenxu/repos/scoop/tmp/m34/allocation-source/sysroot",
+    "--runtime-root",
+    "/home/chenxu/repos/scoop/tmp/m34/allocation-source/runtime",
+    "--cache-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-values-before-gnu/cache",
+    "--profile",
+    "release",
+    "--message-format",
+    "json",
+    "--target",
+    "x86_64-unknown-linux-gnu",
+    "--emit",
+    "all",
+    "--target-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/consumer-target",
+    "--dump-dir",
+    "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/consumer-dump",
+    "--cone-path",
+    "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/cones",
+    "-o",
+    "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/small-values"
+  ],
+  "provider_records": [
+    {
+      "dependencies": [
+        {
+          "artifact_fingerprint": "303a5fd41664a3aa28461a66d22297d9769238b36c177980f05530064ca5265d",
+          "coordinate": {
+            "group": "scoop",
+            "name": "scoop.core",
+            "version": "0.1.0"
+          },
+          "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+          "path": "/home/chenxu/repos/scoop/tmp/m34/small-values-before-gnu/cache/compile-v1/735497de9be6f29db7c5d286955542e3da0126f0b91b90382e831287a6d03089/artifact.slib"
+        }
+      ],
+      "kind": "library",
+      "observations": {
+        "child_invocations": [
+          "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696"
+        ],
+        "nodes": [
+          {
+            "cache_key": "735497de9be6f29db7c5d286955542e3da0126f0b91b90382e831287a6d03089",
+            "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+            "origin": "cache"
+          },
+          {
+            "cache_key": "95e2656b0907a2368facced782448c05565072d8731b0608ee4d4a9f0ce12f45",
+            "identity": "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696",
+            "origin": "compiled"
+          }
+        ]
+      },
+      "output": "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/cones/dev.m34.bench/small-provider/0.1.0/cone.slib",
+      "profile": "release",
+      "root": {
+        "artifact_fingerprint": "73ec4ede8f2250abe0b4ac0c19c2b4d110cd31a2649ae11658d7c25ea461ca6e",
+        "coordinate": {
+          "group": "dev.m34.bench",
+          "name": "small-provider",
+          "version": "0.1.0"
+        },
+        "identity": "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696",
+        "path": "/home/chenxu/repos/scoop/tmp/m34/small-values-before-gnu/cache/compile-v1/95e2656b0907a2368facced782448c05565072d8731b0608ee4d4a9f0ce12f45/artifact.slib"
+      },
+      "schema": 1
+    }
+  ],
+  "build_records": [
+    {
+      "dependencies": [
+        {
+          "artifact_fingerprint": "303a5fd41664a3aa28461a66d22297d9769238b36c177980f05530064ca5265d",
+          "coordinate": {
+            "group": "scoop",
+            "name": "scoop.core",
+            "version": "0.1.0"
+          },
+          "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+          "path": "/home/chenxu/repos/scoop/tmp/m34/small-values-before-gnu/cache/compile-v1/735497de9be6f29db7c5d286955542e3da0126f0b91b90382e831287a6d03089/artifact.slib"
+        },
+        {
+          "artifact_fingerprint": "73ec4ede8f2250abe0b4ac0c19c2b4d110cd31a2649ae11658d7c25ea461ca6e",
+          "coordinate": {
+            "group": "dev.m34.bench",
+            "name": "small-provider",
+            "version": "0.1.0"
+          },
+          "identity": "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696",
+          "path": "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/cones/dev.m34.bench/small-provider/0.1.0/cone.slib"
+        }
+      ],
+      "kind": "executable",
+      "link_plan_fingerprint": "7aedcd83876425359acca204eefa813387b7a2216f217fa07d43d069226d5fa9",
+      "observations": {
+        "child_invocations": [
+          "27f969584b2fc9708ddc7df7d280478dd2a7385679a8f1953339fe2124a278ac"
+        ],
+        "nodes": [
+          {
+            "cache_key": "735497de9be6f29db7c5d286955542e3da0126f0b91b90382e831287a6d03089",
+            "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+            "origin": "cache"
+          },
+          {
+            "cache_key": null,
+            "identity": "afe92284dbe222e20bd2d56be0937de5e4a9081938dae98990e53193ecd37696",
+            "origin": "prebuilt"
+          },
+          {
+            "cache_key": "8535a626b269b69b832b01118e7de84c40a2e0cbad0229c9d231a51862279609",
+            "identity": "27f969584b2fc9708ddc7df7d280478dd2a7385679a8f1953339fe2124a278ac",
+            "origin": "compiled"
+          }
+        ]
+      },
+      "output": "/home/chenxu/repos/scoop/tmp/m34/small-source-before-gnu/small-values",
+      "profile": "release",
+      "root": {
+        "artifact_fingerprint": "36805387b7184382b19da14c33ca37fdd253362100828bee0207569f7dc5e824",
+        "coordinate": {
+          "group": "dev.m34.bench",
+          "name": "small-consumer",
+          "version": "0.1.0"
+        },
+        "identity": "27f969584b2fc9708ddc7df7d280478dd2a7385679a8f1953339fe2124a278ac",
+        "path": "/home/chenxu/repos/scoop/tmp/m34/small-values-before-gnu/cache/compile-v1/8535a626b269b69b832b01118e7de84c40a2e0cbad0229c9d231a51862279609/artifact.slib"
+      },
+      "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/small-values-before-gnu/cache/runtime-v1/0446e1c46f5bd742cbb772af96d322dd83e130758f57725ced524070001efd52/index.cbor",
+      "schema": 1
+    }
+  ],
+  "executable_bytes": 4554120,
+  "slib_bytes": 192582,
+  "run_seconds": [
+    0.06823373102815822,
+    0.06500623197644018,
+    0.06326177300070412,
+    0.06309596300707199,
+    0.067058738990454,
+    0.06533625198062509,
+    0.06511038797907531
+  ],
+  "gc": [
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "stderr": [
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n"
+  ],
+  "median_seconds": 0.06511038797907531,
+  "min_seconds": 0.06309596300707199,
+  "max_seconds": 0.06823373102815822,
+  "stdout": "10000010\n"
+}

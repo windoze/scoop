@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `Counter` in star import layer:\n  - no applicable candidate for `answer` in member candidate layer:\n  - fun LocalDefaults.answer(renamed: Long): Long — has no parameter named `value`\n  - no applicable candidate for `answer` in member candidate layer:\n  - fun LocalDefaults.answer(renamed: Long): Long — has no parameter named `value`",
+    "notes": [],
+    "origin": {
+      "cone": "7a151f4a7538a91578edabce53cb2833f2b213779bc4d9b5c81158461da88980",
+      "end": 277,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 234
+    },
+    "severity": "error"
+  }
+]

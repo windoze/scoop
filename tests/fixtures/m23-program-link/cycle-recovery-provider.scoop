@@ -1,0 +1,4 @@
+package startup.recovery
+private fun initialize(): Long = try { Saved.value } catch (error: IllegalStateException) { 42L }
+private object Saved { val value: Long = initialize() }
+public fun recovered(): Long = Saved.value

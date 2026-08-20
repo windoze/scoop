@@ -1,0 +1,10 @@
+package roots.provider
+
+public import RootTop as Top
+public import RootBottom as Bottom
+
+public fun fail(): Bottom { throw IllegalStateException() }
+public fun failure(): () -> Bottom = ::fail
+public fun <T> relay(value: () -> T): T = value()
+public fun <T> demand(value: T = fail()): T = value
+public fun empty(): Array<Bottom> = []

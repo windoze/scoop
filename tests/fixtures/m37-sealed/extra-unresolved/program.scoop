@@ -1,0 +1,7 @@
+sealed interface Root<T> {}
+class Entry<T,U> : Root<T>
+fun classify(value: Root<Int>): Int = when (value) {
+    is Entry<Int, String> -> 1
+    is Entry<Int, Int> -> 2
+}
+fun main() {}

@@ -1,0 +1,3 @@
+struct Label()
+annotation class Label
+fun main() {}

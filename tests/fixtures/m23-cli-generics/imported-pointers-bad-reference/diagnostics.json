@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `addressOf`: type argument `String` for `T` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "cbd8e602285a99c98f720de1f4098dabe6136e50b09f03aba5428d29d1144874",
+      "end": 69,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 53
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`Ptr` pointee must be GC-free, found String",
+    "notes": [],
+    "origin": {
+      "cone": "cbd8e602285a99c98f720de1f4098dabe6136e50b09f03aba5428d29d1144874",
+      "end": 42,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 39
+    },
+    "severity": "error"
+  }
+]

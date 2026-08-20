@@ -1,0 +1,27 @@
+package consumer.readers
+
+private interface Reader<T> {
+    public fun read(): T
+    public fun again(): T = this.read()
+}
+
+private class NumberReader(): Reader<Int> {
+    public override fun read(): Int = 42
+    public fun read(fallback: Int): Int = fallback
+}
+
+private struct ValueReader<T>(val value: T): Reader<T> {
+    public override fun read(): T = this.value
+    public fun read(fallback: T): T = fallback
+}
+
+public fun result(): Int {
+    val reader = NumberReader()
+    return if (reader.read(21) == 21 && reader.again() == 42) { reader.read() } else { 0 }
+}
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val reader = ValueReader<T>(value)
+    val protocol: Reader<T> = reader
+    return if (read(protocol.again()) == read(reader.read(value))) { read(reader.read()) } else { 0 }
+}

@@ -1,0 +1,19 @@
+public interface SharedUnitReader {
+    public fun read(): Int
+}
+public object SharedUnitService: SharedUnitReader {
+    public var value: Int = 11
+    public override fun read(): Int = value
+}
+public class SharedUnitOwner {
+    public companion object {
+        public val snapshot: Int = SharedUnitService.read()
+        public fun read(): Int = snapshot
+    }
+}
+private object SharedUnitHidden {
+    public val value: Int = SharedUnitOwner.read()
+}
+public val sharedUnitCombined: Int = SharedUnitOwner.read()
+public var sharedUnitMutable: Int = SharedUnitService.read()
+public fun sharedUnitPrivate(): Int = SharedUnitHidden.value

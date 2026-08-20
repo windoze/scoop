@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `gather` parameter `first` is supplied more than once",
+    "notes": [],
+    "origin": {
+      "cone": "fa14798c76f5725be3e0fd684fa3a3c601259fc18278111ff2d3a16fc7037377",
+      "end": 157,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 109
+    },
+    "severity": "error"
+  }
+]

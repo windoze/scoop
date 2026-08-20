@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(same(Token(), Token()))
+    verifyType(hiddenUse())
+    verifyType(Unrequested() == Unrequested())
+}

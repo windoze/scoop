@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Wrong<T>` has no applicable property delegate operator `getValue`",
+    "notes": [],
+    "origin": {
+      "cone": "5bad920bb8d417c086e7b440b8cea9b4a7347b5c7de9a4d476cada7caeb90214",
+      "end": 162,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 118
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,35 @@
+schema = 1
+name = "m31-nursery-native-context-copy"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m31", "gc", "nursery", "context", "ffi", "barrier"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}, env = {SCOOP_GC_STRESS_MINOR = "1"}},
+  {name = "release", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MINOR = "1"}},
+  {name = "normal", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libnursery_probe.a", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--library-path", "${work}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "true\ntrue\n30\n201\n401\n201\n77\n3199960000\ntrue\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

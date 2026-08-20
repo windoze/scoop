@@ -1,0 +1,15 @@
+package provider
+public interface Value<T> { public fun get(): T }
+public fun <T> named(value: T): Value<T> {
+    class Local : Value<T> { public override fun get(): T = value }
+    return Local()
+}
+public fun anonymous(): Value<Int> = object : Value<Int> { public override fun get(): Int = 7 }
+public fun fromDefault(value: Value<Int> = object : Value<Int> { public override fun get(): Int = 23 }): Int = value.get()
+public fun <T> fromCaptureDefault(value: T, result: Value<T> = object : Value<T> {
+    public override fun get(): T = value
+}): Value<T> = result
+public fun <T> factory(value: T): () -> Value<T> {
+    class Local : Value<T> { public override fun get(): T = value }
+    return ::Local
+}

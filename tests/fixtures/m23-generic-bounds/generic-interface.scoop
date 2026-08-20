@@ -1,0 +1,14 @@
+package consumer.bounds
+
+import templates.bounds.*
+
+public fun <T> exercise(value: T): Int {
+    val receiver = HolderImpl<T>(value)
+    val get = inheritedReference<HolderImpl<T>, T>(receiver)
+    val copied = GenericValue<T>(genericInterfaceGet<HolderImpl<T>, T>(receiver), 42)
+    val retained = GenericValue<T>(get(), 42)
+    if (copied.read() != 42) { return 1 }
+    return retained.read()
+}
+
+public fun result(): Int = exercise<Int>(1)

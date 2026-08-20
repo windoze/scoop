@@ -1,0 +1,3 @@
+@NoGC
+@Extern(lib = "m23_contract", name = "m23_contract", abi = "scoop")
+public fun entry(value: Int): Int

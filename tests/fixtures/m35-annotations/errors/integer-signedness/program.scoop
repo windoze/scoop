@@ -1,0 +1,3 @@
+annotation class Mark(val values: Array<UInt8>)
+@Mark([1u, 2, 3u]) struct Item()
+fun main() {}

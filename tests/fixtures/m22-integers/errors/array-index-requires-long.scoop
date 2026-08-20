@@ -1,0 +1,7 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val values = [1, 2]
+    val index: Int = 0
+    val value: Int = values[index]
+}

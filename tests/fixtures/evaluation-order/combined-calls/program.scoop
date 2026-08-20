@@ -1,0 +1,27 @@
+class Box(var value: Int)
+struct Pair(val first: Int, val second: Int)
+val global: Box = Box(3)
+
+fun change(): Int { global.value = 8; gcCollect(); return 4 }
+fun fail(): Nothing { throw IllegalStateException() }
+fun before(): Int { println("before"); return 1 }
+
+fun main() {
+    val nested = ((global.value, 2), change())
+    println(nested._1._1)
+    global.value = 3
+    val array = [global.value, change(), global.value]
+    println(array[0L])
+    println(array[2L])
+    global.value = 3
+    val pair = Pair(global.value, change())
+    println(pair.first)
+    global.value = 3
+    println(global.value + change())
+    try {
+        val result = (before(), fail())
+        println(result._1)
+    } catch (e: IllegalStateException) {
+        println("caught")
+    }
+}

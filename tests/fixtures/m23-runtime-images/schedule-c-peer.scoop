@@ -1,0 +1,10 @@
+package schedule.peer
+
+@Extern(lib = "m23_runtime_images", name = "m23_trace")
+private fun trace(value: Long)
+
+private fun initialize(): String {
+    @Unsafe { trace(30) }
+    return "c" + "peer"
+}
+public val peer: String = initialize()

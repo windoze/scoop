@@ -1,0 +1,10 @@
+public object SharedObjectService {
+    public val number: Int = sharedObjectInitial()
+}
+public class SharedObjectOwner {
+    public companion object {
+        public val number: Int = SharedObjectService.number
+    }
+}
+public fun sharedObjectInitial(): Int = 7
+public fun sharedObjectRead(): Int = SharedObjectOwner.number

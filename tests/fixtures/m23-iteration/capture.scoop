@@ -1,0 +1,24 @@
+package consumer.iteration
+
+import upstream.iteration.*
+import upstream.iteration.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+private fun readInt(value: Int): Int = value
+
+private class Reference(public val value: Int)
+private fun readReference(value: Reference): Int = value.value
+
+public fun result(): Int {
+    val first = Reference(20)
+    val second = Reference(22)
+    val empty = Reference(0)
+    val readers: MutableArray<() -> Reference> = [{ empty }, { empty }]
+    installReaders<Reference>([Entry(0L, (first, 1)), Entry(1L, (second, 2))], readers)
+    val allocation = Reference(0)
+    if (readers[0L]() !== first || readers[1L]() !== second) { return 1 }
+    if (componentTotal<Reference>([Components(first, 1), Components(second, -1)], ::readReference) != 42) { return 2 }
+    var sum = 0
+    for (reader in readers) { sum = sum + reader().value }
+    return sum + allocation.value
+}

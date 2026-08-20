@@ -1,0 +1,4 @@
+fun Int.render(): String = "first"
+fun Int.render(): String = "second"
+
+fun main() {}

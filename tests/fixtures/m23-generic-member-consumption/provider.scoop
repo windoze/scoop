@@ -1,0 +1,172 @@
+package templates.members
+
+public open class Box<T> public constructor(public val value: T) {
+    public fun read(): T = this.value
+    public fun echo(value: T = this.value): T = value
+    public fun <U> choose(value: U, fallback: U = value): U = fallback
+    public fun <U : value> valueOnly(value: U): U = value
+    public fun <U> captured(value: U): U {
+        fun readValue(): U = value
+        return readValue()
+    }
+}
+
+public class Inherited<T> public constructor(value: T): Box<T>(value)
+
+public struct Cell<T>(val value: T) {
+    public fun read(): T = this.value
+    public fun <U> choose(value: U): U = value
+}
+
+public class Plain public constructor() {
+    public fun <U> choose(value: U): U = value
+}
+
+public enum Choice<T> {
+    Empty,
+    Item(T)
+
+    public fun <U> choose(value: U): U = value
+}
+
+public fun <T> emptyChoice(): Choice<T> = Choice.Empty
+public fun <T> through(value: Box<T>): T = value.read()
+
+public open class VirtualBox<T> public constructor(public val value: T) {
+    public open fun read(): T = this.value
+}
+
+public class VirtualChild<T> public constructor(value: T, public val other: T): VirtualBox<T>(value) {
+    public override fun read(): T = this.other
+    public fun inheritedRead(): T = super.read()
+}
+
+public class Overloads<T> public constructor() {
+    public fun <U> select(owner: T, value: U): Int = 1
+    public fun <A, B> select(owner: T, value: (A, B)): Int = 42
+    public fun <U> conflict(owner: T, left: U, right: Int): Int = 1
+    public fun <U> conflict(owner: T, left: Int, right: U): Int = 2
+}
+
+public interface Readable<T> {
+    public fun get(): T
+}
+
+public interface Reader<T>: Readable<T> {
+    public fun read(): T = this.get()
+}
+
+public abstract class AbstractReader<T> public constructor(): Reader<T> {
+    public abstract override fun get(): T
+}
+
+public class InterfaceItem<T> public constructor(public val value: T): AbstractReader<T>() {
+    public override fun get(): T = this.value
+}
+
+public struct InterfaceCell<T>(val value: T): Reader<T> {
+    public override fun get(): T = this.value
+}
+
+public interface Chooser<T> {
+    public fun choose(value: T): T = value
+}
+
+public interface RequiredChooser<T>: Chooser<T> {
+    public override fun choose(value: T): T
+}
+
+public abstract class AbstractChooser<T> public constructor(): RequiredChooser<T>
+
+public class InterfaceChooser<T> public constructor(): AbstractChooser<T>() {
+    public override fun choose(value: T): T = value
+}
+
+public enum InterfaceTag<T>: Chooser<T> {
+    Empty,
+    Value(T)
+}
+
+public fun <T> interfaceTag(value: T): InterfaceTag<T> = InterfaceTag.Value(value)
+
+public interface ReadOnlyProperty<T> {
+    public val value: T
+    public val read: T get() = this.value
+}
+
+public interface MutableProperty<T>: ReadOnlyProperty<T> {
+    public override var value: T
+}
+
+public class PropertyItem<T> public constructor(public override var value: T): MutableProperty<T>
+
+public struct PropertyCell<T>(val stored: T): ReadOnlyProperty<T> {
+    public override val value: T get() = this.stored
+}
+
+public open class ProtectedBox<T> protected constructor(protected val stored: T) {
+    protected open fun secret(): T = this.stored
+    protected fun <U> choose(value: U): U = value
+    public fun readVirtual(): T = this.secret()
+    public fun replaceVirtual(next: T): T {
+        val previous = this.state
+        this.state = next
+        return previous
+    }
+    public open var state: T = stored
+        protected set(next) { field = next }
+    protected var restricted: T = stored
+        private set(next) { field = next }
+}
+
+public open class ProtectedMiddle<T> protected constructor(value: T): ProtectedBox<T>(value)
+
+public class ProtectedChild<T> public constructor(value: T): ProtectedMiddle<T>(value) {
+    public fun read(): T = this.secret()
+}
+
+private fun <T> extensionIdentity(value: T): T = value
+
+public val <T> Box<T>.extensionValue: T
+    get() = extensionIdentity<T>(this.value)
+
+public var <T> PropertyItem<T>.extensionState: T
+    get() = this.value
+    set(next) { this.value = next }
+
+public val <T> Box<T>.extensionCaptured: T
+    get() {
+        fun read(): T = this.value
+        return extensionIdentity<T>(read())
+    }
+
+public val <T : value> Box<T>.extensionValueOnly: T
+    get() = this.value
+
+public var <T> PropertyItem<T>.extensionRestricted: T
+    get() = this.value
+    private set(next) { this.value = next }
+
+public val <T> T.extensionKind: Int
+    get() = 1
+
+public val Int.extensionKind: Int
+    get() = 42
+
+public val <T> T.extensionSelect: Int
+    get() = 1
+
+public val <T> Box<T>.extensionSelect: Int
+    get() = 42
+
+public class ExtensionTrace<T> public constructor(public var value: T, public var order: Int)
+
+public var <T> ExtensionTrace<T>.extensionTracked: T
+    get() {
+        this.order = this.order * 10 + 2
+        return this.value
+    }
+    set(next) {
+        this.order = this.order * 10 + 4
+        this.value = next
+    }

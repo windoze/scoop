@@ -1,0 +1,7 @@
+import dependency.classes.Counter
+import dependency.classes.Parent
+
+public open class Derived public constructor(): Parent() {
+    public override fun read(): Long = seed + 1
+}
+public fun primary(): Counter = Counter(Derived().read())

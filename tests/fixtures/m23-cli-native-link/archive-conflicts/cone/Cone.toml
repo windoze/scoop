@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "archive"
+version = "0.1.0"
+kind = "executable"

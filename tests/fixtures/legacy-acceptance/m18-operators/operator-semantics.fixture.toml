@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m18-operators-operator-semantics"
+root = "../../m18-operators/operator-semantics.scoop"
+inputs = ["../../m18-operators/operator-semantics.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["legacy", "m18-operators", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "2\n-2\n5\n6\n7\n7\n6\n5\n12\n4\n2\n15\n5\n4\ntrue\ntrue\ntrue\ntrue\n6\nleft\nright\n3\ncontainer\nitem\ntrue\n16\n14\ncell-receiver\nrow\ncolumn\nset-value\n42\ntrue\ntrue\n"
+stderr = ""

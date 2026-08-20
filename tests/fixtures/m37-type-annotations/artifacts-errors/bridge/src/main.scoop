@@ -1,0 +1,2 @@
+package annotated.bridge
+public import annotated.provider.*

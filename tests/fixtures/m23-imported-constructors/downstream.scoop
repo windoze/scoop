@@ -1,0 +1,12 @@
+package downstream.constructors
+
+import consumer.constructors.token
+import consumer.constructors.primary
+import consumer.constructors.secondary
+import consumer.constructors.defaults
+import consumer.constructors.republished
+
+@NoGC public fun check(): Long {
+    val marker = token()
+    return primary().sum() + secondary().sum() + defaults() + republished()
+}

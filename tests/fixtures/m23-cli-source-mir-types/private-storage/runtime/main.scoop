@@ -1,0 +1,8 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(result() == 42)
+    verifyType(Parcel.Item("value") == Parcel.Item("value"))
+    val empty: Parcel<Int> = Parcel.Empty
+    verifyType(empty == Parcel.Empty)
+}

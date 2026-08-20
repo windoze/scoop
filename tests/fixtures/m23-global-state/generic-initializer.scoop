@@ -1,0 +1,19 @@
+package consumer.globals
+import templates.globals.*
+
+public fun <T> exercise(value: T): Int {
+    val receiver = Receiver<T>(value)
+    val before = buildCount()
+    if (receiver.shared != 42 || Receiver<T>(value).shared != 42) { return 1 }
+    val after = buildCount()
+    if (after < before || after > before + 1) { return 2 }
+    val failedBefore = failureCount()
+    var catches = 0
+    try { receiver.broken } catch (error: Failed) { catches += 1 }
+    val failedAfter = failureCount()
+    try { Receiver<T>(value).broken } catch (error: Failed) { catches += 1 }
+    if (failedAfter < failedBefore || failedAfter > failedBefore + 1) { return 3 }
+    if (catches != 2 || failureCount() != failedAfter) { return 4 }
+    return 42
+}
+public fun result(): Int = exercise<Int>(0)

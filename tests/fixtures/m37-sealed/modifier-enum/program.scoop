@@ -1,0 +1,2 @@
+sealed enum Bad { Value }
+fun main() {}

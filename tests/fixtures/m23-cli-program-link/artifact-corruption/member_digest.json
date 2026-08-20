@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "archive member 3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd payload digest does not match its directory record",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "member/3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd:$.8[slib-member:3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd]",
+      "path": "${work}/artifacts/root.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,16 @@
+package shape.use
+import shape.Row
+import shape.Store
+import shape.Empty
+import shape.Secondary
+
+fun main() {
+    val row = Row<String>(7, "text")
+    val second = Row<String>("next")
+    val store = Store<String>(row)
+    val secondary = Secondary(1)
+    val empty = Empty()
+    if (row.value != "text" || row.count != 7 || row.inherited != 7 || row.size != 12L) { throw Throwable() }
+    if (second.count != 3 || store.row !== row) { throw Throwable() }
+    println("class-shapes-ok")
+}

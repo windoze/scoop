@@ -1,0 +1,29 @@
+import maybe.provider.Pair
+import maybe.provider.Read
+import maybe.provider.Payload
+import maybe.provider.storage
+import maybe.provider.wrap
+import maybe.provider.extract
+import maybe.provider.identity
+import maybe.provider.roundTrip
+import maybe.provider.captured
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+@Unsafe fun main() {
+    check(storage<Int>().assumeInit() == 0)
+    val value = wrap(Pair(42L, 7))
+    check(extract(value).number == 42L)
+    check(identity(value).assumeInit().tag == 7)
+    val callable: (MaybeUninit<Pair>) -> MaybeUninit<Pair> = ::identity
+    check(callable(value).assumeInit().number == 42L)
+    val payload = MaybeUninit<Read>.initialized(Payload(53))
+    val returned = roundTrip(payload)
+    val capturedValue = captured(Payload(64))
+    gcCollect()
+    check(returned.assumeInit().value() == 53)
+    check(capturedValue().assumeInit().value() == 64)
+    val optional: MaybeUninit<Read>? = Some(returned)
+    gcCollect()
+    check(optional!!.assumeInit().value() == 53)
+    println("maybe artifacts")
+}

@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "root"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.core" = { version = "0.1.0", artifact = "../../rebuilt-core.slib" }
+"dev.programlink:ordinary-string" = { version = "0.1.0", path = "../ordinary-string" }

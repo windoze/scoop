@@ -1,0 +1,43 @@
+fun pick(value: Float): String = "Float"
+fun pick(value: Double): String = "Double"
+fun reversed(value: Double): String = "Double"
+fun reversed(value: Float): String = "Float"
+fun <T> same(first: T, second: T): T = first
+struct Cell<T>(val value: T)
+fun first(vararg values: Float): Float = values[0]
+fun defaults(value: Float = 1.000000059604644775390625000001): Float = value
+fun result(): Float = 1.000000059604644775390625000001
+fun consume(action: () -> Float): Float = action()
+
+const val constOperator: Float = 1.000000059604644775390625000001 + 0f
+const val constMember: Float = 1.000000059604644775390625000001.plus(0f)
+const val constExpected: Float = 1.000000059604644775390625000001.plus(0.0)
+const val constEqual: Boolean = 1.000000059604644775390625000001 == 1.0000001f
+const val constOrder: Boolean = 1.000000059604644775390625000001 > 1f
+const val constConversion: Float = 1.000000059604644775390625000001.toFloat()
+
+fun main() {
+    println(pick(0.1) == "Double" && reversed(0.1) == "Double" && pick(.1F) == "Float")
+    println(pick(1e40) == "Double" && reversed(1e40) == "Double")
+    val fixed = 0f
+    val operator = 1.000000059604644775390625000001 + fixed
+    val member = 1.000000059604644775390625000001.plus(fixed)
+    val expected: Float = 1.000000059604644775390625000001.plus(0.0)
+    println(operator == 1.0000001f && member == 1.0000001f && expected == 1.0000001f)
+    println(1.000000059604644775390625000001 > 1f && 1.000000059604644775390625000001 == 1.0000001f)
+    println(1.000000059604644775390625000001.isTotallyOrdered(belowOrEqualTo = 1.0000001f))
+    println(1.000000059604644775390625000001.toFloat() == 1f)
+    val generic = same(1.000000059604644775390625000001, fixed)
+    val nested = same(Cell(1.000000059604644775390625000001), Cell(fixed))
+    val nominal: Cell<Float> = Cell(1.000000059604644775390625000001)
+    val unbound = same(0.1, 0.2)
+    println(generic == 1.0000001f && nested.value == 1.0000001f && nominal.value == 1.0000001f && pick(unbound) == "Double")
+    val array = [1.000000059604644775390625000001, fixed]
+    val branch = if (true) { 1.000000059604644775390625000001 } else { fixed }
+    val tuple: (Float, Double) = (1.000000059604644775390625000001, 0.1)
+    println(array[0] == 1.0000001f && branch == 1.0000001f && tuple._1 == 1.0000001f)
+    println(first(1.000000059604644775390625000001, 0.0) == 1.0000001f && defaults() == 1.0000001f && result() == 1.0000001f)
+    println(consume({ 1.000000059604644775390625000001 }) == 1.0000001f)
+    gcCollect()
+    println(constOperator == 1.0000001f && constMember == 1.0000001f && constExpected == 1.0000001f && constEqual && constOrder && constConversion == 1f)
+}

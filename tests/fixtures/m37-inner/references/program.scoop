@@ -1,0 +1,11 @@
+class Outer(val seed: Int) {
+    inner class Inner(val delta: Int) { fun total(): Int = seed + delta }
+    fun factory(): (Int) -> Inner = ::Inner
+}
+fun main() {
+    var outer = Outer(40)
+    val factory: (Int) -> Outer.Inner = outer::Inner
+    outer = Outer(100)
+    println(factory(2).total())
+    println(outer.factory()(3).total())
+}

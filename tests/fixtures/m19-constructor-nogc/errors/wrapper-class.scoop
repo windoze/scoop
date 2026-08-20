@@ -1,0 +1,4 @@
+@NoGC fun <T> identity(value: T): T = value
+class Wrapper<T>(value: T) { init { identity(value) } }
+fun bad() { val bad: Wrapper<String> = Wrapper("text") }
+fun main() {}

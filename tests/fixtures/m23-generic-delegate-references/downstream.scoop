@@ -1,0 +1,12 @@
+import consumer.delegates.result
+import consumer.delegates.exercise
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    if (result() != 42) { return 1 }
+    val value = Later(42)
+    val answer = exercise<Later>(value)
+    val allocated = Later(0)
+    return if (value.value == 42 && allocated.value == 0) { answer } else { 2 }
+}

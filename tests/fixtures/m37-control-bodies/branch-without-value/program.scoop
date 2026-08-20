@@ -1,0 +1,1 @@
+fun main() { val value: Int = if (true) val local = 1 else 2 }

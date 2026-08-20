@@ -1,0 +1,31 @@
+package consumer.selection
+
+import dependency.selection.Base
+import dependency.selection.Variadic
+
+private open class LocalBase(public val number: Int, ready: Boolean = true) {
+    public constructor(value: Int): this(value + 1, false) {}
+    public constructor(label: String): this(41) {}
+}
+
+private class LocalDerived(): LocalBase(41)
+private class ExternalDerived(): Base(41)
+
+private class LocalVariadic(public val number: Int) {
+    public constructor(vararg values: Int): this(1) {}
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val value = read(seed)
+    val local = LocalBase(value - 1)
+    val external = Base(value - 1)
+    return if (local.number == external.number) { external.number } else { 1 }
+}
+
+public fun result(): Int {
+    if (LocalBase(41).number != 42 || Base(41).number != 42) { return 2 }
+    if (LocalBase("value").number != 42 || Base("value").number != 42) { return 3 }
+    if (LocalDerived().number != 42 || ExternalDerived().number != 42) { return 4 }
+    if (LocalVariadic(42).number != 42 || Variadic(42).number != 42) { return 5 }
+    return 42
+}

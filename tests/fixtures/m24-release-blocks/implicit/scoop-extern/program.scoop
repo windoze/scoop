@@ -1,0 +1,3 @@
+@NoGC @Extern(name = "native", abi = "scoop") fun native(value: Int): Int
+class Owner { release { @Unsafe { native(1) } } }
+fun main() {}

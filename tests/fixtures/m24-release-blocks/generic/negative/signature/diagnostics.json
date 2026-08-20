@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Owner<String> requires ReleaseValue arguments for its `release` block",
+    "notes": [],
+    "origin": {
+      "cone": "ddce66b354731510ec5ecc4a35f0b89d135cf3fc16738ca2d96200a54e828852",
+      "end": 77,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 29
+    },
+    "severity": "error"
+  }
+]

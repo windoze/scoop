@@ -1,0 +1,4 @@
+val values: Array<Int> = [1]
+annotation class Mark(val values: Array<Int>)
+@Mark(values) struct Item()
+fun main() {}

@@ -1,0 +1,9 @@
+package selected.left
+
+import selected.templates.*
+
+public fun fromLeft(value: Item): Int = context(value) {
+    val box = Box<Item>(current<Item>())
+    gcCollect()
+    keep<Item>(box.value).number
+}

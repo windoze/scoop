@@ -1,0 +1,12 @@
+@Extern(name = "verify_finished", lib = "m23_native_boundary")
+fun verifyFinished()
+
+public fun perform() {
+    main()
+    @Unsafe {
+        if (handleRoundTrip(GcHandle<Any>(99uL)) != GcHandle<Any>(100uL)) {
+            throw IllegalStateException()
+        }
+    }
+    @Unsafe { verifyFinished() }
+}

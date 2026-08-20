@@ -1,0 +1,3 @@
+interface ToString { fun toString(): String }
+class Value : ToString { public override fun toString(): String = "fake" }
+fun main() { val value = f"${Value()}" }

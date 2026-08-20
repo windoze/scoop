@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "missing native library \"m33_missing_native_library\" for x86_64-unknown-linux-gnu; no candidate in explicit roots or the selected target's system libraries; requirement cb02ce8a87a98a087c716b24942f31fc45cb6cb7e30332f6c7a7e085e1aff3a3; origins: dev.m33:library-negative:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,7 @@
+typealias LocalCoreNumber = UserCoreNumber
+fun passthrough(value: LocalCoreNumber): UserCoreNumber = value
+fun main() {
+    val initial: UserCoreNumber = UserCoreNumber()
+    val combined: UserCorePair = (initial, true)
+    val renamed: LocalCoreNumber = passthrough(initial)
+}

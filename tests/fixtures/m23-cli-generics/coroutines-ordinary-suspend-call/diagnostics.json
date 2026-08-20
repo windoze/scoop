@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "suspend function `immediate` cannot be called from non-suspend function `result`",
+    "notes": [],
+    "origin": {
+      "cone": "20be36170e4e97f969497225f934bbd52a64b937f94906d4f516efe009218710",
+      "end": 81,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 67
+    },
+    "severity": "error"
+  }
+]

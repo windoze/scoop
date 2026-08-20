@@ -1,0 +1,24 @@
+package upstream.signatures
+
+public fun <T> identity(value: T): T = value
+
+@NoGC public fun <T> scalar(value: T): T = value
+@Unsafe public fun <T> unchecked(value: T): T = value
+public suspend fun <T> delayed(value: T): T = value
+
+public fun <T> defaulted(value: T, select: (T) -> T = { item -> identity<T>(item) }): T = select(value)
+
+public fun <T> nested(value: T): () -> T {
+    fun <U> keep(next: U): U = identity<U>(next)
+    return { keep<T>(value) }
+}
+
+public interface Source<T> {
+    public fun get(): T
+}
+
+public class Box<T> public constructor(public val value: T): Source<T> {
+    public override fun get(): T = value
+    public suspend fun suspendedGet(): T = value
+    public fun <U> apply(extra: U, select: (T, U) -> Int): Int = select(value, extra)
+}

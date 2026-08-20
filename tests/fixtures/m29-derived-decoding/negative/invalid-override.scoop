@@ -1,0 +1,6 @@
+public struct Item(val value: Int)
+public object Reader : Decodable<Item> {
+    public override fun decode(decoder: Decoder): Int = 1
+}
+
+fun main() {}

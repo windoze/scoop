@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = "scoop"
+name = "scoop.core"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"test:helper" = { version = "1.0.0", path = "../helper" }

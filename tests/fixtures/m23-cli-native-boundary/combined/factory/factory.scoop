@@ -1,0 +1,14 @@
+@Extern(name = "verify_finished", lib = "m23_native_boundary")
+fun verifyFinished()
+
+public fun perform() {
+    @Unsafe {
+        nativeMixed(Wrapper(Choice.Data(Packed(7, true))), -7, -300, -123456, -5000000000L,
+                    250u, 60000u, 4000000000u, 9000000000uL)
+        nativeMixed(Wrapper(Choice.Text("payload")), -7, -300, -123456, -5000000000L,
+                    250u, 60000u, 4000000000u, 9000000000uL)
+        nativeMixed(Wrapper(Choice.Empty), -7, -300, -123456, -5000000000L,
+                    250u, 60000u, 4000000000u, 9000000000uL)
+    }
+    @Unsafe { verifyFinished() }
+}

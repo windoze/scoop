@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+class Async {
+    suspend operator fun component1(): Int = 1
+}
+
+fun main() {
+    val (value,) = Async()
+}

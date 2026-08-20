@@ -1,0 +1,2 @@
+class Box {}
+@NoGC fun main() { val make = ::Box }

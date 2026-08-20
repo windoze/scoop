@@ -1,0 +1,9 @@
+fun main() {
+    var value: Any = "snapshot"
+    val saved = value
+    if (saved !is String) return
+    println(value.length)
+    value = 42
+    println(saved.length)
+    if (value is Int) println(value + 1)
+}

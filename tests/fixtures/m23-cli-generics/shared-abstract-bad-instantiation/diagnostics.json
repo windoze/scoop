@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract class `BaseReader` cannot be instantiated",
+    "notes": [],
+    "origin": {
+      "cone": "b3b613425ffd0ea0b4e1115dac61c46391163016d79ee7dd2cfec9d9f25cee58",
+      "end": 84,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 67
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "hir-global-default-read"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:global-default-read" = "0.1.0"

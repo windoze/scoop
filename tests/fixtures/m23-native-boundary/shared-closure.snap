@@ -1,0 +1,4 @@
+Box binders=1 struct NotCLayout fields=1
+Choice binders=0 enum fields=[1, 0]
+Leaf binders=0 struct NotCLayout fields=0
+Root binders=0 struct CLayout { aligned: Bytes(Bytes8), packed: Bytes(Bytes1) } fields=2

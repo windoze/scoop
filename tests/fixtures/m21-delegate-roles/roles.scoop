@@ -1,0 +1,25 @@
+interface Readable<T> {
+    operator fun getValue(thisRef: Unit): T
+}
+
+class BoxDelegate<T>(val value: T) : Readable<T> {
+    override operator fun getValue(thisRef: Unit): T = value
+
+    operator fun provideDelegate(): BoxDelegate<T> = this
+}
+
+class MutableDelegate(var value: Int) {
+    operator fun getValue(thisRef: Unit): Int = value
+
+    operator fun setValue(thisRef: Unit, next: Int) {
+        value = next
+    }
+}
+
+class Ordinary {
+    fun getValue(thisRef: Unit): Int = 0
+}
+
+fun main() {
+    println(21)
+}

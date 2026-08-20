@@ -1,0 +1,3 @@
+fun take(action: Int.(Int) -> Int) {}
+fun take(action: (Int, Int) -> Int) {}
+fun main() {}

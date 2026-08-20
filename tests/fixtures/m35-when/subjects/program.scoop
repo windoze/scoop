@@ -1,0 +1,44 @@
+struct Packet(val count: Int, val text: String)
+
+class Product(val count: Int, val text: String) {
+    operator fun component1(): Int { println("component1"); return count }
+    operator fun component2(): String { println("component2"); return text }
+    operator fun equals(other: Product): Boolean = count == other.count && text == other.text
+}
+
+class State(var value: Int) {
+    fun shift(): Int { value = 2; return 1 }
+}
+
+fun pair(): (Int, String) { println("pair"); return (3, "three") }
+fun packet(): Packet { println("packet"); return Packet(4, "four") }
+
+fun main() {
+    when (val (number, text): (Int, String) = pair()) {
+        (number, text) -> println(number)
+        else -> println("wrong")
+    }
+    when (val Packet { count: renamed, text: label } = packet()) {
+        Packet(renamed, label) -> println(label)
+        else -> println("wrong")
+    }
+    val product = Product(5, "five")
+    when (val (number, text) = product) {
+        product -> { println(number); println(text) }
+    }
+    val state = State(1)
+    when (state.value) { state.shift() -> println("snapshot") }
+    println(state.value)
+    val outer = 6
+    when (val outer = outer + 1) { 7 -> println(outer) }
+    println(outer)
+    val closure: () -> Int = when (val ((first, _), last) = ((8, 9), 10)) {
+        ((8, 9), 10) -> ({ first + last })
+        else -> ({ 0 })
+    }
+    println(closure())
+    when (val (first, .., last) = (11, 12, 13)) {
+        case (_, 12, _) -> { println(first); println(last) }
+        else -> println("wrong")
+    }
+}

@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::convert` in current-unit top-level candidate layer:\n  - fun convert<T : Marker>(value: T): T — type argument `String` for `T` must satisfy interface upper bound `Marker`\n  - fun convert(value: Int): Int — Int is not equal to String",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 332,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 323
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "callable reference `::choose` is ambiguous in current-unit top-level candidate layer:\n  - fun choose(value: Int): Int — forms a complete non-generic function type\n  - fun choose(value: String): String — forms a complete non-generic function type",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 361,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 353
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for native function reference `::callback` in current-unit top-level candidate layer:\n  - fun callback(value: Int): Int — native callbacks must be declared `@NoGC`\n  - fun callback(value: UInt): UInt — UInt is not equal to Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 419,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 409
+    },
+    "severity": "error"
+  }
+]

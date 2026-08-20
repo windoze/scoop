@@ -1,0 +1,3 @@
+fun StringBuilder.add(value: Any): StringBuilder = this
+fun show(value: Any): String = f"${value}"
+fun main() {}

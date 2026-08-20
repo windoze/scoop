@@ -1,0 +1,8 @@
+class A(val x: Int)
+
+class B(val y: Int) : A(1)
+
+fun main() {
+    val b = B(1)
+    println(b.y)
+}

@@ -1,0 +1,17 @@
+// EXPECT-COMPILE
+// Expected output: left, right, 42, true (one per line).
+struct Empty()
+struct References(val first: String, val nested: (String, Long), val empty: Empty)
+
+fun payload(): References = References("le" + "ft", ("ri" + "ght", 42), Empty())
+fun identity(value: References): References = value
+
+fun main() {
+    val boxed: Any = identity(payload())
+    gcCollect()
+    val restored = boxed as References
+    println(restored.first)
+    println(restored.nested._1)
+    println(restored.nested._2)
+    println(restored.empty == Empty())
+}

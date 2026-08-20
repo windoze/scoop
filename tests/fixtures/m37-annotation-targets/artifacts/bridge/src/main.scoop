@@ -1,0 +1,4 @@
+package annotated.bridge
+public import annotated.provider.*
+@Mark("bridge") public struct Bridge(@param:Mark("argument") val text: String)
+@Mark("forwarding function") public fun <T> forwarded(@Mark("forwarding parameter") value: T): T = keep(value)

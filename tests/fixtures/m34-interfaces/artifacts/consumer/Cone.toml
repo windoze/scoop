@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m34"
+name = "interface-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m34:interface-provider" = "0.1.0"

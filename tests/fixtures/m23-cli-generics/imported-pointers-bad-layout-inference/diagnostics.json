@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `sizeOf`: cannot infer a unique type argument for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "01026c67cadaef4a94b248c153df578bc8ef607e1a6d00e0d7f6bf83c0d7d9a2",
+      "end": 34,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 26
+    },
+    "severity": "error"
+  }
+]

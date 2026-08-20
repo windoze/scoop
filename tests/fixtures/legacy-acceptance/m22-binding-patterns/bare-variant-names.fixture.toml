@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m22-binding-patterns-bare-variant-names"
+root = "../../m22-binding-patterns/bare-variant-names.scoop"
+inputs = ["../../m22-binding-patterns/bare-variant-names.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["legacy", "m22-binding-patterns", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "7\n3\n1\n4\n0\n6\n"
+stderr = ""

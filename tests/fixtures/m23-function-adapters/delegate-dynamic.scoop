@@ -1,0 +1,18 @@
+package consumer.adapters
+
+import templates.adapters.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val before = Trace.initializations
+    val first = Receiver(seed).dynamicAdapt
+    val initialized = Trace.initializations
+    val second = Receiver(seed).dynamicAdapt
+    if (initialized < before || initialized > before + 1) { return 1 }
+    if (Trace.initializations != initialized || first != 42 || second != 42) { return 2 }
+    return read(seed)
+}
+
+public fun result(): Int {
+    val value = exercise(42, { value: Int -> value })
+    return if (Trace.initializations == 1) { value } else { 3 }
+}

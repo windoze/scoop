@@ -1,0 +1,6 @@
+private class FixedHost() {
+    public fun choose(value: Int): Int = value
+    public fun choose(value: Any): String = "broad"
+}
+
+public fun result(): String = FixedHost().choose(42)

@@ -1,0 +1,2 @@
+import upstream.arrays.pack
+public fun result(): Array<Int> = pack<Int>(*42)

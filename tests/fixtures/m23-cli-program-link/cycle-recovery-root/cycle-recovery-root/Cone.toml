@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "cycle-recovery-root"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:cycle-recovery-provider" = {"version" = "0.1.0", "path" = "../cycle-recovery-provider"}

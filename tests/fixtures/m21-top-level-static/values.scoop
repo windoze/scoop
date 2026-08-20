@@ -1,0 +1,27 @@
+const val BASE: Int = 40
+
+val answer: Int = BASE + 2
+val staticText: String = "sta" + "tic"
+var label: String = "ready"
+var maybe: String?
+var explicitNone: String? = None
+var adjusted: Int = 4
+    get() = field + 1
+    set(next) { field = next - 1 }
+
+fun main() {
+    println(answer)
+    println(staticText)
+    println(label)
+    println(maybe == None)
+    println(explicitNone == None)
+    println(adjusted)
+    adjusted = 10
+    println(adjusted)
+
+    label = "move" + "d"
+    maybe = Some(label)
+    gcCollect()
+    println(label)
+    println(maybe!!)
+}

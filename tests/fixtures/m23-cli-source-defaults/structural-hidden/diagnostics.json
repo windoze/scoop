@@ -1,0 +1,210 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 79,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 59
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 68,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 68,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a constructor outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 68,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 78,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 70
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 78,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 70
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a constructor outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 78,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 70
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 103,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 59
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a callable outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 103,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 59
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 103,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 83
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 92,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 84
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 92,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 84
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a constructor outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 92,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 84
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 102,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a type outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 102,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a constructor outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 102,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  }
+]

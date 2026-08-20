@@ -1,0 +1,37 @@
+sealed interface Event {}
+class Text(val value: String) : Event
+object Stop : Event {}
+class Gate(var waiter: Continuation<Int>?) {}
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    public final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+class Task(val gate: Gate, val event: Event) : SuspendTask<Int> {
+    public final override suspend fun run(): Int {
+        try {
+            return when (val value = event) {
+                is Text -> {
+                    val result = suspendCoroutine(Registration(gate))
+                    gcCollect()
+                    println(value.value)
+                    result
+                }
+                is Stop -> 0
+            }
+        } finally { println("finally") }
+    }
+}
+class Completion : Continuation<Int> {
+    public final override fun resume(value: Int) { println(value) }
+    public final override fun resumeWithException(exception: Throwable) { println("failed") }
+}
+fun main() {
+    val gate = Gate(None)
+    startCoroutine(Task(gate, Text("retained")), Completion())
+    println("suspended")
+    gcCollect()
+    val continuation = gate.waiter!!
+    gate.waiter = None
+    continuation.resume(42)
+}

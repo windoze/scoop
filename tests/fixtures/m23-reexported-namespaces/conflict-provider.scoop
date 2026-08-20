@@ -1,0 +1,5 @@
+package facade.nesting
+
+public class Outer {
+    public struct Leaf(val number: Int)
+}

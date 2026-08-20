@@ -1,0 +1,16 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val box = Box<Int>(42)
+    if (box.extensionKind != 1) { return 0 }
+    if (box.extensionSelect != 42) { return 0 }
+    return box.value.extensionKind
+}
+
+public fun <T> make(value: T): T {
+    val box = Box<T>(value)
+    val selected = box.extensionSelect
+    return box.extensionValue
+}

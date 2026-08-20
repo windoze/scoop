@@ -1,0 +1,2 @@
+class Bad : Any {}
+fun main() {}

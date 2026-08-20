@@ -1,0 +1,12 @@
+fun main() {
+    val a: Int? = Some(10)
+    when (a) {
+        case Some(v) -> println(v)
+        case None -> println("none")
+    }
+    val b: Int? = None
+    when (b) {
+        case Some(v) -> println(v)
+        case None -> println("none")
+    }
+}

@@ -1,0 +1,4 @@
+class Owner {
+    override release {}
+}
+fun main() {}

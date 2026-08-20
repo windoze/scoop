@@ -1,0 +1,18 @@
+package startup.early
+private fun trace(value: Long) { println(value) }
+private class Number(val value: Long)
+private fun ready(marker: Long, value: Long): Long {
+    @Unsafe { trace(marker) }
+    return value + 1L
+}
+private fun last(): Long {
+    val retained = Number(0L)
+    return ready(6L, retained.value)
+}
+private val v0: Long = ready(1L, v1)
+private val v1: Long = ready(2L, v2)
+private val v2: Long = ready(3L, v3)
+private val v3: Long = ready(4L, v4)
+private val v4: Long = ready(5L, v5)
+private val v5: Long = last()
+public fun answer(): Long = v0

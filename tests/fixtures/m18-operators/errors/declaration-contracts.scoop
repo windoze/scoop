@@ -1,0 +1,27 @@
+struct UnknownRole() {
+    operator fun combine(other: UnknownRole): UnknownRole = this
+}
+
+struct EmptyGet() {
+    operator fun get(): Int = 0
+}
+
+struct WrongSet() {
+    operator fun set(index: Int) {}
+}
+
+struct WrongContains() {
+    operator fun contains(value: Int): Int = value
+}
+
+struct WrongCompare() {
+    operator fun compareTo(other: WrongCompare): Boolean = true
+}
+
+struct WrongInfix() {
+    infix fun join(other: WrongInfix = WrongInfix()): WrongInfix = this
+}
+
+operator fun topLevel(value: Int): Int = value
+
+fun main() {}

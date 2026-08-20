@@ -1,0 +1,210 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order Acquire is not allowed with success order Relaxed",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 116,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 50
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order Release is not allowed with success order Relaxed",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 233,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 167
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order AcqRel is not allowed with success order Relaxed",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 348,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 283
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order SeqCst is not allowed with success order Relaxed",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 463,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 398
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order Release is not allowed with success order Acquire",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 580,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 514
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order AcqRel is not allowed with success order Acquire",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 695,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 630
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order SeqCst is not allowed with success order Acquire",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 810,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 745
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order Acquire is not allowed with success order Release",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 927,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 861
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order Release is not allowed with success order Release",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1044,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 978
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order AcqRel is not allowed with success order Release",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1159,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1094
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order SeqCst is not allowed with success order Release",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1274,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1209
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order Release is not allowed with success order AcqRel",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1389,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1324
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order AcqRel is not allowed with success order AcqRel",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1502,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1438
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order SeqCst is not allowed with success order AcqRel",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1615,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1551
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order Release is not allowed with success order SeqCst",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1730,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1665
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "atomic CAS failure order AcqRel is not allowed with success order SeqCst",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1843,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1779
+    },
+    "severity": "error"
+  }
+]

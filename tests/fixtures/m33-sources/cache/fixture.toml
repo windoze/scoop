@@ -1,0 +1,86 @@
+schema = 1
+name = "m33-sources-cache"
+inputs = ["cone", "reordered.toml"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "sources", "manifest"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "baseline"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "unselected_edit"
+files = [{write = {path = "${work}/cone/src/ignored.scoop", data = "A different invalid source that remains unselected.\n"}}]
+
+[[steps]]
+name = "unselected"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${unselected.result.observations.child_invocations}", equals = []},
+  {actual = "${unselected.result.root.artifact_fingerprint}", equals = "${baseline.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "reorder"
+files = [{copy = {from = "${fixture}/reordered.toml", to = "${work}/cone/Cone.toml"}}]
+
+[[steps]]
+name = "reordered"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${reordered.result.observations.child_invocations}", equals = []},
+  {file = "${reordered.result.root.path}", same_as = "${baseline.result.root.path}"},
+]
+
+[[steps]]
+name = "selected_edit"
+files = [{replace = {path = "${work}/cone/api/value.scoop", old = "42", new = "43"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${changed.result.observations.nodes.1.cache_key}", not_equals = "${baseline.result.observations.nodes.1.cache_key}"},
+  {actual = "${changed.result.root.artifact_fingerprint}", not_equals = "${baseline.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "remove_selected_directory"
+files = [{remove = {path = "${work}/cone/empty"}}]
+
+[[steps]]
+name = "missing_before_cache_hit"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "missing.json"}

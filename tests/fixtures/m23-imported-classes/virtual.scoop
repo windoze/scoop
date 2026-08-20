@@ -1,0 +1,4 @@
+import dependency.classes.Counter
+import dependency.classes.virtualCounter
+
+public fun primary(): Counter = Counter(virtualCounter(20).read())

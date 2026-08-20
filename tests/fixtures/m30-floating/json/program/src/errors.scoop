@@ -1,0 +1,32 @@
+import scoop.json.Json
+
+fun <T> rejectDecoding(text: String, codec: Decodable<T>, path: String) {
+    var rejected = false
+    try { val result = Json.decode(text, codec) }
+    catch (error: DecodingException) { check(error.path == path); rejected = true }
+    check(rejected)
+}
+
+fun <T> rejectEncoding(value: T, codec: Encodable<T>, path: String) {
+    var rejected = false
+    try { val result = Json.encode(value, codec) }
+    catch (error: EncodingException) { check(error.path == path); rejected = true }
+    check(rejected)
+}
+
+fun numericErrors() {
+    rejectEncoding(Float.NaN, Float.Companion, "")
+    rejectEncoding(Float.POSITIVE_INFINITY, Float.Companion, "")
+    rejectEncoding(Float.NEGATIVE_INFINITY, Float.Companion, "")
+    rejectEncoding(Double.NaN, Double.Companion, "")
+    rejectEncoding(Double.POSITIVE_INFINITY, Double.Companion, "")
+    rejectEncoding(Double.NEGATIVE_INFINITY, Double.Companion, "")
+    rejectDecoding("3.4028236e38", Float.Companion, "")
+    rejectDecoding("-3.4028236e38", Float.Companion, "")
+    rejectDecoding("1.7976931348623159e308", Double.Companion, "")
+    rejectDecoding("-1.7976931348623159e308", Double.Companion, "")
+    for (text in ["NaN", "Infinity", "-Infinity", "\"0.1\"", "true", "null", "[]", "{}", "01", "1.", "+1", "1e", "0,1"]) {
+        rejectDecoding(text, Float.Companion, "")
+        rejectDecoding(text, Double.Companion, "")
+    }
+}

@@ -1,0 +1,93 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `T` of function cannot combine nominal upper bounds with a kind bound",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 182,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 172
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown type parameter `U` in where clause of function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 237,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 236
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "upper bound of type parameter `T` must be a class or interface, found `Int`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 268,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 265
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "duplicate interface upper bound `Marker` for type parameter `T` of function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 364,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 354
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic interface `Boxed` requires 1 type argument(s)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 388,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 383
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `value` is ambiguous in member candidate layer:\n  - fun Left.value(): Int — tied after pairwise declaration forwarding\n  - fun Right.value(): Int — tied after pairwise declaration forwarding",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 559,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 546
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `requiresMarker` in current-unit top-level candidate layer:\n  - fun requiresMarker<T : Marker>(value: T): T — type argument `Int` for `T` must satisfy interface upper bound `Marker`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 596,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 578
+    },
+    "severity": "error"
+  }
+]

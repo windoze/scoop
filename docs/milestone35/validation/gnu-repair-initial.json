@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3065,
+  "selected": 6,
+  "unselected": 3059,
+  "counts": {
+    "failed": 5,
+    "passed": 1
+  },
+  "variants": 1,
+  "processes": 15,
+  "stage_and_plan_goldens": 16,
+  "results": [
+    {
+      "name": "argument-inference-abi",
+      "status": "failed",
+      "seconds": 10.793597711017355,
+      "variants": 0,
+      "processes": 4,
+      "snapshots": 8,
+      "message": "downstream exit/signal (stderr: b'{\"code\":\"SCOOP_CHILD_PROTOCOL\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 6611c0d7e0ed45977d348bfec74968f922fa8c49edcfb9b5f6a610429d8c8d86: child transport failed: invalid child response after exit status: 1: protocol frame is shorter than its 8-byte length prefix; stderr=\\\\\"LLVM ERROR: IO failure on output stream: Disk quota exceeded",
+      "message_sha256": "4b69ff4389419ff154dc7756c91a5cf86a308634259d293e954e3d2e981bb79b"
+    },
+    {
+      "name": "argument-inference-ambiguous",
+      "status": "passed",
+      "seconds": 3.278064551996067,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-arrays",
+      "status": "failed",
+      "seconds": 6.664313932997175,
+      "variants": 0,
+      "processes": 4,
+      "snapshots": 8,
+      "message": "downstream exit/signal (stderr: b'{\"code\":\"SCOOP_BUILD_FAILED\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot write /tmp/scoop-m35-linux-gnu-repair/cache/compile-v1/.staging/build-EFwaN0/input/artifacts/781e15a53f876d58f94e181c58f06b8e96389959d6cc42d6e6fe4a26f1a70fd4/00000000.slib: Disk quota exceeded (os error 122)\",\"notes\":[],\"origin\":{\"kind\":\"none\"},\"phase\":\"SourceSnapshot\",\"schema\":1,\"se",
+      "message_sha256": "71d65a3623c9992fbba0e33510a3e2c7efa789586db13060aaebf50c39e79d69"
+    },
+    {
+      "name": "argument-inference-bound",
+      "status": "failed",
+      "seconds": 0.736840651021339,
+      "variants": 0,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "provider exit/signal (stderr: b'{\"code\":\"SCOOP_BUILD_FAILED\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot write /tmp/scoop-m35-linux-gnu-repair/cache/compile-v1/.staging/build-naFmay/input/artifacts/5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d/00000000.slib: Disk quota exceeded (os error 122)\",\"notes\":[],\"origin\":{\"kind\":\"none\"},\"phase\":\"SourceSnapshot\",\"schema\":1,\"seve",
+      "message_sha256": "7f14801773bbf4c757cfa26d9e6893cb4a64b988f267cc06b7424db2951166e6"
+    },
+    {
+      "name": "core-layouts-shared-dispatch-combined",
+      "status": "failed",
+      "seconds": 113.99529283901211,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOPC_BUILD_FAILED\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"Disk quota exceeded (os error 122)\",\"notes\":[],\"origin\":{\"kind\":\"none\"},\"schema\":1,\"severity\":\"error\"}\\n') differs:",
+      "message_sha256": "f980711b437e8045ac5ecdd691077282732bddc8d3e845bee58834b4e666647d"
+    },
+    {
+      "name": "core-layouts-shared-equality-combined",
+      "status": "failed",
+      "seconds": 83.39963188697584,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CHILD_PROTOCOL\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: child transport failed: invalid child response after exit status: 1: protocol frame is shorter than its 8-byte length prefix; stderr=\\\\\"LLVM ERROR: IO failure on output stream: Disk quota exceeded\\\\\\\\n\\",
+      "message_sha256": "7592b8e3f498dd66cdc044fcefe572b592880f9970d1736a515cb1b5387a585d"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+package siblings.delegates.left
+
+import templates.delegateSiblings.*
+
+public fun write(): Int {
+    val receiver = Receiver<Int, Boolean>(1, true)
+    receiver.shared = 42
+    return receiver.shared
+}
+
+public fun failure(): Failure {
+    try {
+        Receiver<Int, Boolean>(1, true).broken
+    } catch (error: Failure) {
+        return error
+    }
+    throw IllegalStateException()
+}

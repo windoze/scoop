@@ -1,0 +1,17 @@
+// EXPECT-COMPILE
+class Counter(var checks: Int) {
+    fun next(): Boolean? {
+        checks = checks + 1
+        return Some(checks <= 3)
+    }
+}
+
+fun main() {
+    val counter = Counter(0)
+    var iterations = 0
+    while (counter.next() ?: false) {
+        iterations = iterations + 1
+    }
+    println(iterations)
+    println(counter.checks)
+}

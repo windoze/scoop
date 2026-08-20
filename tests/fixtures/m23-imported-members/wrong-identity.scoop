@@ -1,0 +1,6 @@
+package consumer.members
+
+import dependency.members.Token
+
+public struct Other()
+public fun rejected(value: Token, other: Other): Token = value.sameToken(other)

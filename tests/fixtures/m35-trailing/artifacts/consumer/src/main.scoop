@@ -1,0 +1,8 @@
+struct Payload(val value: Int)
+fun main() {
+    println(run { 6 })
+    println(transform(Payload(10)) { it }.value)
+    println(defaults())
+    println(visit(1, 2) { 14 })
+    println(Alias { 17 }.value())
+}

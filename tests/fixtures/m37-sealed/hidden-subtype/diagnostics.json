@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing subtype family `Hidden`",
+    "notes": [],
+    "origin": {
+      "cone": "b628d73c0e833be22c75a45a8187c7469fbe81d50dddc220c4d6b5eac2d2458e",
+      "end": 74,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 45
+    },
+    "severity": "error"
+  }
+]

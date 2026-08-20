@@ -1,0 +1,30 @@
+class Reentrant(val builder: StringBuilder) : ToString {
+    var calls: Int = 0
+    public override fun toString(): String {
+        calls = calls + 1
+        for (index in 0L until 12L) { builder.add("i") }
+        gcCollect()
+        return "outer"
+    }
+}
+class Failing(val builder: StringBuilder) : ToString {
+    public override fun toString(): String {
+        builder.add("kept")
+        gcCollect()
+        throw IllegalStateException()
+    }
+}
+fun main() {
+    val builder = StringBuilder()
+    for (index in 0L until 7L) { builder.add("p") }
+    val value = Reentrant(builder)
+    builder.add(value)
+    val before = builder.build()
+    if (value.calls != 1 || before != "pppppppiiiiiiiiiiiiouter") { println("reentry"); return }
+    var failed = false
+    try { builder.add(Failing(builder)) } catch (e: IllegalStateException) { failed = true }
+    if (!failed || builder.build() != before + "kept") { println("throw"); return }
+    builder.add("tail")
+    if (builder.build() != before + "kepttail") { println("continue"); return }
+    println(42)
+}

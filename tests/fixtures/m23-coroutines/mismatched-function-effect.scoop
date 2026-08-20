@@ -1,0 +1,6 @@
+import templates.coroutines.erasedFunction
+
+public fun result(): Int {
+    val function: () -> Int = suspend { 42 }
+    return function()
+}

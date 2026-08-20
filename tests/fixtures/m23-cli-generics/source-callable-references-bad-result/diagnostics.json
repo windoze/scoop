@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::answer` in dependency top-level candidate layer:\n  - fun answer(): Int — Int is not equal to String",
+    "notes": [],
+    "origin": {
+      "cone": "96c4fe741e794bd30d6c73e826c59d29fc030f984441aa6f59077a4db26605d6",
+      "end": 102,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  }
+]

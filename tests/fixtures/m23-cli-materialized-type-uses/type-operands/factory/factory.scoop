@@ -1,0 +1,1 @@
+public fun observe(value: Any): Boolean = primitiveTest(value)

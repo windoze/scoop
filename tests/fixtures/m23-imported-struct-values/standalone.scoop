@@ -1,0 +1,12 @@
+package consumer.values
+
+import dependency.values.Token
+import dependency.values.Wide
+import dependency.values.passToken
+import dependency.values.passWide
+
+@NoGC public fun keepToken(value: Token): Token = passToken(value)
+@NoGC public fun keepWide(value: Wide): Wide {
+    val copy = value
+    return passWide(copy)
+}

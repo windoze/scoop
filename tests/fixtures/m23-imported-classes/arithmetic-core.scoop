@@ -1,0 +1,3 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter = Counter(rebuiltQuotient())

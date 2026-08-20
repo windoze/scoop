@@ -1,0 +1,24 @@
+package consumer.interfaceDefinitions
+import upstream.interfaceDefinitions.*
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val remote = reference(value)
+    val same = remote.same(remote)
+    val view: View<Unit, T> = same
+    if (read(view.choose()) != 42) { return 1 }
+    if (read(remote.choose()) != 42) { return 2 }
+    val peer = view.peer(remote)
+    val source: Array<T> = [peer.second, remote.second]
+    val values = MutableArray(source)
+    values[0] = value
+    return read(values[0])
+}
+
+public fun result(): Int {
+    val integer: IntView = Remote(42)
+    if (integer.choose() != 42) { return 1 }
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 2 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 3 }
+    if (exercise<Pair<Int, Unit>>(Pair(42, Unit), { item -> item.first }) != 42) { return 4 }
+    return exercise<Int>(42, { item -> item })
+}

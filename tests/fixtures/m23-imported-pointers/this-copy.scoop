@@ -1,0 +1,20 @@
+package consumer.pointers
+
+import dependency.pointers.Slot
+import dependency.pointers.copy
+import dependency.pointers.replace
+
+private struct Pair(val left: Int, val right: Int)
+
+public fun <T> exercise(value: T): Int {
+    val original = Slot<Pair>(Pair(1, 2))
+    @Unsafe {
+        val changed = original.rewrite(Pair(20, 22))
+        val result = copy<Pair>(changed)
+        if (original.value.left != 1 || original.value.right != 2) { return 1 }
+        val replaced = replace<Pair>(Pair(0, 0), result)
+        return replaced.left + replaced.right
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

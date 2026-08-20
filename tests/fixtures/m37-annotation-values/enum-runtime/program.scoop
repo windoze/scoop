@@ -1,0 +1,4 @@
+enum E: Int { A = 1 }
+val value = E.A
+annotation class Tag(val value: E)
+@Tag(value) struct Item()

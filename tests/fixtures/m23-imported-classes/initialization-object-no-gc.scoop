@@ -1,0 +1,3 @@
+import dependency.classes.SharedHolder
+
+@NoGC public fun invalid(): SharedHolder = SharedHolder

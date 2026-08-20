@@ -1,0 +1,14 @@
+import fixtures.lists.*
+
+class Cell(val value: Long)
+fun main() {
+    val values = collect<Cell>(20L) { index -> Cell(index) }
+    val copy = snapshot(values)
+    values.removeAt(0L)
+    values.add(0L, Cell(42L))
+    gcCollect()
+    if (values[0L].value != 42L || copy[0L].value != 0L || copy[19L].value != 19L) { println("copy"); return }
+    val numbers = collect<Int>(6L) { index -> index.toInt32() }
+    numbers[5L] = 32
+    println(sum(numbers))
+}

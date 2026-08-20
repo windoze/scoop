@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for bound callable reference `receiver::read` in member candidate layer:\n  - fun Box<T>.read(): T — conflicting types for `T`: Int and String",
+    "notes": [],
+    "origin": {
+      "cone": "4a9b5b3605266eba7beb1842b8380f54e2e1d24540cf85e982b38f17901265c7",
+      "end": 132,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 114
+    },
+    "severity": "error"
+  }
+]

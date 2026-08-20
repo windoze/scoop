@@ -1,0 +1,37 @@
+package consumer.callableorder
+import upstream.callableorder.*
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val tape = Tape()
+    val first = prepare(tape, seed).invoke(tape.mark(2), argument(tape))
+    if (inspect(first) != 42 || tape.log != 1234) { return 1 }
+
+    tape.reset()
+    val operation = prepare(tape, seed)
+    val second = operation(tape.mark(2), argument(tape))
+    if (inspect(second) != 42 || tape.log != 1234) { return 2 }
+
+    tape.reset()
+    try {
+        prepare(tape, seed).invoke(tape.mark(2), fail(tape))
+        return 3
+    } catch (error: ArithmeticException) {
+        if (tape.log != 123) { return 4 }
+    }
+
+    tape.reset()
+    var selected: (Int, Int) -> Int = { left, right -> 42 }
+    val preserved = selected(tape.mark(2), if (true) {
+        selected = { left, right -> 0 }
+        argument(tape)
+    } else { 0 })
+    if (preserved != 42 || tape.log != 23 || selected(0, 0) != 0) { return 5 }
+
+    var earlier = 20
+    val sum: (Int, Int) -> Int = { left, right -> left + right }
+    val saved = sum(earlier, if (true) { earlier = 0; 22 } else { 0 })
+    if (saved != 42 || earlier != 0 || sum(20, 22) != 42) { return 6 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

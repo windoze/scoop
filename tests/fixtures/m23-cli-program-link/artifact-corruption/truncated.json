@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "directory predicts archive length ${original.bytes.length}, found 158557",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "container:$",
+      "path": "${work}/artifacts/root.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

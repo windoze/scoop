@@ -1,0 +1,6 @@
+import dependency.classes.Counter
+import dependency.classes.ChildReader
+import dependency.classes.childReader
+
+public fun retainChild(value: ChildReader): ChildReader = value
+public fun primary(): Counter = Counter(retainChild(childReader()).parent() + 1)

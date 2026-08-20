@@ -1,0 +1,24 @@
+@NoGC(1)
+fun markerWithArgument() {}
+
+@NoGC
+@NoGC
+fun repeated() {}
+
+@Safe
+@Unsafe
+fun conflictingSafety() {}
+
+@Extern(unknown = "value")
+fun unknownExternArgument()
+
+@Extern(lib = 1)
+fun wrongExternArgumentType()
+
+@CLayout(aligned = "8")
+struct WrongLayoutArgument(val value: Int)
+
+@InteriorMutable
+fun wrongTarget() {}
+
+fun main() {}

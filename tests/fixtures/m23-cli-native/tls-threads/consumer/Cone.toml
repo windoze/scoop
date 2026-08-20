@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.raw-tls"
+name = "consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.raw-tls:facade" = {version = "0.1.0", path = "../facade"}

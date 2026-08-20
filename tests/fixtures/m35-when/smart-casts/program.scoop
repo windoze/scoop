@@ -1,0 +1,55 @@
+interface Named { fun label(): String }
+class Person(val name: String) : Named {
+    public override fun label(): String = name
+}
+struct Count(val value: Int)
+
+fun classify(input: Any): String = when (input) {
+    is Person if input.name == "Ada" -> input.label()
+    !is Count -> "other"
+    else -> "count-" + input.value.toString()
+}
+
+fun logical(input: Any): String = when {
+    (input is Person && input.name == "Ada") || (input is Person && input.name == "Lin") -> input.name
+    !(input !is Count) && input.value > 0 -> "positive"
+    else -> "unknown"
+}
+
+fun guarded(input: Option<Any>): Int = when (input) {
+    case Some(value) if value is Count -> value.value
+    case Some(_) -> -1
+    case None -> -2
+}
+
+fun <T> exact(input: Any, fallback: T): T = when (input) {
+    is T -> input
+    else -> fallback
+}
+
+fun main() {
+    println(classify(Person("Ada")))
+    println(classify(Person("Grace")))
+    println(classify(Count(4)))
+    println(logical(Person("Lin")))
+    println(logical(Count(2)))
+    println(logical(0))
+    println(guarded(Some(Count(5))))
+    println(guarded(Some("other")))
+    println(guarded(None))
+    println(exact<Int>(6, 0))
+    println(exact<String>("typed", "fallback"))
+    when (val stable: Any = Person("subject val")) {
+        is Person -> println(stable.name)
+        else -> println("wrong")
+    }
+    when (val (value, _) = (Count(7) as Any, 0)) {
+        case _ if value is Count -> println(value.value)
+        else -> println("wrong")
+    }
+    val input: Any = Person("interface")
+    when (input) {
+        is Named -> println(input.label())
+        else -> println("wrong")
+    }
+}

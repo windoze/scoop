@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "qualified interface `super` is not allowed during initialization",
+    "notes": [],
+    "origin": {
+      "cone": "ff1dbe2f3d922eb24f69565347cadce6053c62a588f02de1eebc9d49cea5f8e4",
+      "end": 157,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 130
+    },
+    "severity": "error"
+  }
+]

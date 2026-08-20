@@ -1,0 +1,10 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(ProviderChild().check(3) == 3)
+    verifyDefault(ProviderApplied<Int>().check((1, 2)) == (1, 2))
+    verifyDefault(ProviderApplied<String>().check(("a", "b")) == ("a", "b"))
+    verifyDefault(ProviderGeneric<String>().checkCopy("source", 4) == 4)
+    verifyDefault(ProviderGeneric<Int>().checkStatic() == 9)
+}

@@ -1,0 +1,5 @@
+package downstream.delegates
+
+import consumer.delegates.result
+
+public fun check(): Int = result()

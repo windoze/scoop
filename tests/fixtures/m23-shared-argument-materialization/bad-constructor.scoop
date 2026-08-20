@@ -1,0 +1,4 @@
+package consumer.argumentmaterialization
+import upstream.argumentmaterialization.*
+
+public fun fail(): Calculator<Int> = Calculator<Int>(42, Tape(), missing = 1)

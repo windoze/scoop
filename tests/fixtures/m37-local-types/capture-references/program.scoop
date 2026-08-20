@@ -1,0 +1,11 @@
+fun main() {
+    val first = 20
+    val second = 22
+    class Local {
+        fun factory(): () -> Local = ::Local
+        fun read(): Int = first + second
+    }
+    val factory: () -> Local = ::Local
+    println(factory().read())
+    println(factory().factory()().read())
+}

@@ -1,0 +1,13 @@
+import dependency.classes.Token
+import dependency.classes.WideParent
+import dependency.classes.WideValue
+
+public class Leaf public constructor(): Derived() {
+    public override fun transform(input: WideValue, marker: Token): WideValue =
+        super.transform(input, marker)
+}
+public fun check(): Long {
+    val value: WideParent = Leaf()
+    val result = value.transform(WideValue(0, 0, 0), Token())
+    return primary().twice() + result.first + result.second + result.third - 21
+}

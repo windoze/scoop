@@ -1,0 +1,7 @@
+enum Payload {
+    Record { left: Int, right: Int }
+}
+
+fun main() {
+    Payload.Record(1, 2)
+}

@@ -1,0 +1,4 @@
+package projection.provider
+
+public struct Empty() {}
+public fun text(): String = "provider"

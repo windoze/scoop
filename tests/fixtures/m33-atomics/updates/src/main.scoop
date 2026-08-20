@@ -1,0 +1,42 @@
+class Payload(val value: Int)
+class Attempts(var value: Int)
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val integer = AtomicInt(1)
+    val attempts = Attempts(0)
+    val old = integer.getAndUpdate({ current ->
+        attempts.value = attempts.value + 1
+        if (attempts.value == 1) { integer.store(5) }
+        current + 2
+    })
+    check(attempts.value == 2 && old == 5 && integer.load() == 7)
+    val change: ((Int) -> Int) -> Int = integer::updateAndGet
+    check(change({ current -> current + 3 }) == 10)
+    try {
+        integer.getAndUpdate({ current ->
+            integer.store(19)
+            throw IllegalStateException()
+        })
+    } catch (error: IllegalStateException) {
+        check(integer.load() == 19)
+    }
+
+    val long = AtomicLong(20L)
+    check(long.getAndUpdate({ current -> current + 2L }) == 20L)
+    check(long.updateAndGet({ current -> current - 1L }) == 21L)
+    val flag = AtomicBoolean(false)
+    check(!flag.getAndUpdate({ current -> !current }))
+    check(!flag.updateAndGet({ current -> !current }))
+
+    val reference = AtomicRef(Payload(1))
+    val original = reference.getAndUpdate({ current ->
+        gcCollect()
+        Payload(current.value + 1)
+    })
+    val updated = reference.updateAndGet({ current -> Payload(current.value + 1) })
+    gcCollect()
+    check(original.value == 1 && updated.value == 3)
+    check(reference.load() === updated)
+    println("atomic updates")
+}

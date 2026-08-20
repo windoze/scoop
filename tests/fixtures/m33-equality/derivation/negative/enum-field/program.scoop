@@ -1,0 +1,3 @@
+enum Choice { Empty, Hold(Any) }
+fun compare(left: Choice, right: Choice): Boolean = left == right
+fun main() {}

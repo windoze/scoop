@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_CLI_CONFIG",
+    "message": "--cone-path is not accepted for a single-file input",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "Request",
+    "severity": "error"
+  }
+]

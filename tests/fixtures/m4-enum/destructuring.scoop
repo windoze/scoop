@@ -1,0 +1,14 @@
+struct S(val f1: Int, val f2: Int, val f3: Int)
+
+fun main() {
+    val t = (1, 2, 3, 4)
+    val (x, .., y) = t
+    println(x + y)
+    val s = S(1, 2, 3)
+    val S { f1, .. } = s
+    println(f1)
+    val (n, S { f2, .. }) = (9, s)
+    println(n + f2)
+    val S(a, _, c) = s
+    println(a + c)
+}

@@ -1,0 +1,22 @@
+package consumer.rebuiltcore
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val cell = rebuiltCell(seed)
+    val values: Array<T> = [seed, cell.value]
+    var count: Int = 0
+    var result: Int = 0
+    for (value in values) {
+        count += 1
+        result = read(value)
+    }
+    if (count != 1) { return 2 }
+    return result
+}
+
+public fun result(): Int {
+    val values: Array<Int> = [100, 20, 22]
+    var total: Int = 0
+    for (value in values) { total += value }
+    if (total != 42) { return 3 }
+    return exercise(42, { value: Int -> value })
+}

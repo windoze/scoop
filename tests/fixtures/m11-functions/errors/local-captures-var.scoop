@@ -1,0 +1,5 @@
+fun main() {
+    var value = 42
+    fun read(): Int = value
+    println(read())
+}

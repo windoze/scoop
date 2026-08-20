@@ -1,0 +1,3 @@
+@Target([AnnotationTarget.FUNCTION]) annotation class OnlyFunction
+@OnlyFunction val answer: Int = 42
+fun main() {}

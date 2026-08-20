@@ -1,0 +1,70 @@
+@GCLeaf @Extern(lib = "fixture_native", name = "counted_pin_release")
+fun recordRelease(value: Int)
+@GCLeaf @Extern(lib = "fixture_native", name = "counted_pin_released")
+fun released(): Int
+
+class Child(val value: Int)
+class Cell(val child: Child)
+class Owner(private val value: Int) {
+    release { @Unsafe { recordRelease(value) } }
+}
+struct Pins<T : ref>(val first: PinnedPtr<T>, val second: PinnedPtr<T>)
+
+@Unsafe fun <T : ref> twice(value: T): Pins<T> = Pins<T>(pin(value), pin(value))
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun references() {
+    @Unsafe {
+        val held = twice(Cell(Child(73)))
+        expect(held.first.raw == held.second.raw)
+        gcCollect()
+        val first = unpin(held.first)
+        expect(first.child.value == 73)
+        val handle = getGcHandle(first)
+        gcCollect()
+        val third = pin(first)
+        expect(third.raw == held.second.raw)
+        expect(unpin(third) === first)
+        gcCollect()
+        val last = unpin(held.second)
+        expect(last === releaseGcHandle(handle))
+        expect(last.child.value == 73)
+    }
+}
+
+fun arrays() {
+    @Unsafe {
+        val held = twice(MutableArray<UInt8>(257L) { index -> index.toUInt8() })
+        gcCollect()
+        val first = unpin(held.first)
+        first[11L] = 91u
+        gcCollect()
+        val second = unpin(held.second)
+        expect(second === first && second[11L] == 91u && second[256L] == 0u)
+    }
+}
+
+@Unsafe fun releaseOne(value: PinnedPtr<Owner>) { unpin(value) }
+
+fun releaseCounts() {
+    @Unsafe {
+        val held = twice(Owner(7))
+        gcCollect()
+        expect(released() == 0)
+        releaseOne(held.first)
+        gcCollect()
+        expect(released() == 0)
+        releaseOne(held.second)
+        gcCollect()
+        expect(released() == 7)
+        gcCollect()
+        expect(released() == 7)
+    }
+}
+
+fun main() {
+    references()
+    arrays()
+    releaseCounts()
+    println("counted-pins-ok")
+}

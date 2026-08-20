@@ -1,0 +1,20 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun known(): Int {
+    val value: Base = Final(1)
+    gcCollect()
+    return value.get()
+}
+fun inherited(): Int {
+    val value: Base = Inherited(5)
+    gcCollect()
+    return value.get()
+}
+fun openParameter(value: Base): Int = value.get()
+fun externalResult(): Int = unknown().get()
+fun main() {
+    check(known() == 70 && inherited() == 5)
+    check(openParameter(Final(1)) == 70)
+    check(openParameter(unknown()) == 99 && externalResult() == 99)
+    check(generic(Final(2)) == 70)
+    println("devirtualized artifacts")
+}

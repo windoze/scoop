@@ -1,0 +1,1 @@
+int m23_z(void) { return 3; }

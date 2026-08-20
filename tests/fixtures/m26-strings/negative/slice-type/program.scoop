@@ -1,0 +1,1 @@
+fun main() { val start: Int = 0; "text".slice(start, 1L) }

@@ -1,0 +1,3 @@
+val value get() = read()
+fun read() = value
+fun main() {}

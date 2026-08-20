@@ -1,0 +1,9 @@
+fun main() {
+    val t = (1, "hello", true)
+    println(t._1)
+    println(t._2)
+    println(t._3)
+    val u = ()
+    val s = (42,)
+    println(s._1)
+}

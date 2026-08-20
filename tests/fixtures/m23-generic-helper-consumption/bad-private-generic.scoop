@@ -1,0 +1,5 @@
+package consumer.helpers
+
+import dependency.helpers.copy
+
+public fun retained(): Int = copy(42)

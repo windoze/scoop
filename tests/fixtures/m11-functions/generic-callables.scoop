@@ -1,0 +1,65 @@
+struct GenericBox<T>(val value: T)
+
+fun <T> identity(value: T): T = value
+
+fun <T> T.copyValue(): T = this
+
+fun <T> makeLambda(value: T): () -> T = { value }
+
+fun <T> makeAnonymous(value: T): () -> T = fun(): T {
+    return value
+}
+
+fun <T> makeLocalReference(value: T): () -> T {
+    fun read(): T = value
+    return ::read
+}
+
+fun <T> makeNamedReference(seed: T): (T) -> T {
+    val reference: (T) -> T = ::identity
+    return reference
+}
+
+fun <T> makeExtensionReference(value: T): () -> T = value::copyValue
+
+fun <T> makeNested(value: T): () -> (() -> T) = fun(): () -> T {
+    return { value }
+}
+
+fun <T> makeBoxReader(value: T): () -> T {
+    val box = GenericBox(value)
+    return { box.value }
+}
+
+fun main() {
+    val intLambda = makeLambda(42)
+    val stringLambda = makeLambda("lambda")
+    val intAnonymous = makeAnonymous(43)
+    val stringAnonymous = makeAnonymous("anonymous")
+    val intLocal = makeLocalReference(44)
+    val stringLocal = makeLocalReference("local")
+    val intIdentity: (Int) -> Int = makeNamedReference(0)
+    val stringIdentity: (String) -> String = makeNamedReference("")
+    val intExtension = makeExtensionReference(45)
+    val stringExtension = makeExtensionReference("extension")
+    val intNested = makeNested(46)
+    val stringNested = makeNested("nested")
+    val intBox = makeBoxReader(47)
+    val stringBox = makeBoxReader("box")
+
+    gcCollect()
+    println(intLambda())
+    println(stringLambda())
+    println(intAnonymous())
+    println(stringAnonymous())
+    println(intLocal())
+    println(stringLocal())
+    println(intIdentity(48))
+    println(stringIdentity("identity"))
+    println(intExtension())
+    println(stringExtension())
+    println(intNested()())
+    println(stringNested()())
+    println(intBox())
+    println(stringBox())
+}

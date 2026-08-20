@@ -1,0 +1,45 @@
+fun prepForward(value: Int = PrepValue().value): Int = value
+fun prepVariant(value: PrepChoice = PrepChoice.Item()): PrepChoice = value
+fun prepExplicit(value: Int = prepExplicit(1)): Int = value
+fun prepPositions(first: Int = prepPositions(first = 1), second: Int = prepLater()): Int = second
+fun prepInherited(value: Int = PrepChild().choose()): Int = value
+fun prepGeneric(value: Int = PrepGenericChild().choose(9)): Int = value
+
+struct PrepValue(val value: Int = prepLater())
+enum PrepChoice { Item(val value: Int = prepLater()) }
+open class PrepBase {
+    open fun choose(value: Int = prepLater()): Int = value
+}
+class PrepChild: PrepBase() {
+    override fun choose(value: Int): Int = value
+}
+open class PrepGeneric<T> {
+    open fun choose(seed: T, value: T = seed): T = value
+}
+class PrepGenericChild: PrepGeneric<Int>() {
+    override fun choose(seed: Int, value: Int): Int = value
+}
+
+class PrepSecondary(val value: Int) {
+    constructor(marker: String, value: Int = prepLater()): this(value) {}
+}
+fun prepSecondary(value: PrepSecondary = PrepSecondary("secondary")): PrepSecondary = value
+fun prepVararg(vararg values: Int = [prepLater()]): Array<Int> = values
+fun prepVarargUse(values: Array<Int> = prepVararg()): Array<Int> = values
+fun prepLater(value: Int = 7): Int = value
+
+fun prepLexical(seed: Int): Int {
+    fun local(first: Int = local(first = 1), second: Int = seed): Int = second
+    return local()
+}
+fun main() {
+    prepForward()
+    prepVariant()
+    prepExplicit()
+    prepPositions()
+    prepInherited()
+    prepGeneric()
+    prepSecondary()
+    prepVarargUse()
+    prepLexical(13)
+}

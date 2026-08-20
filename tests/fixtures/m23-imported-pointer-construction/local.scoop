@@ -1,0 +1,17 @@
+package consumer.construction
+
+public fun <T> exercise(value: T): Int {
+    var number = 40
+    @Unsafe {
+        val raw = addressOf(number).toULong()
+        val explicit = Ptr<Int>(raw = raw)
+        val inferred: Ptr<Int> = Ptr(raw)
+        val placeholder: Ptr<Int> = Ptr<_>(raw)
+        if (explicit.toULong() != raw || inferred.toULong() != raw || placeholder.toULong() != raw) { return 1 }
+        explicit.store(inferred.load() + 1)
+        placeholder.store(placeholder.load() + 1)
+        return number
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

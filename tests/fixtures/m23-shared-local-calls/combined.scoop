@@ -1,0 +1,12 @@
+package consumer.localcalls
+import upstream.localcalls.*
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val first = choose<T, Unit>(seed, Unit)
+    val second = choose<T, String>(seed, "complete")
+    fun read(value: T = second): T { return value }
+    if (inspect(first) != 42 || inspect(read()) != 42) { return 1 }
+    return measure<T>(seed, inspect)
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

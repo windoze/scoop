@@ -1,0 +1,10 @@
+class ManagedHandler() {
+    operator fun invoke(value: Int = 1): Int = value
+}
+
+@Global
+var invalidHandler: ManagedHandler = ManagedHandler()
+
+fun main() {
+    val value = invalidHandler()
+}

@@ -1,0 +1,29 @@
+package consumer.references
+
+import templates.references.*
+
+private var evaluations: Int = 0
+private fun next(): Plain {
+    evaluations += 1
+    return Plain(42)
+}
+
+public fun <T> exercise(value: T): Int {
+    evaluations = 0
+    val computed = next()::read
+    var current = Plain(42)
+    val saved = current::read
+    current = Plain(1)
+    val choose: (T) -> T = current::choose
+    val child = Child<T>(value)
+    val read = child::read
+    val chooseBoth: (T, Int) -> Int = child::choose
+    val cell = Cell<T>(value)
+    val valueRead = cell::read
+    val values = (choose(value), read(), valueRead())
+    if (computed() != 42 || computed() != 42 || evaluations != 1) { return 1 }
+    if (saved() != 42 || current.read() != 1) { return 2 }
+    return chooseBoth(value, 42)
+}
+
+public fun result(): Int = exercise<Int>(0)

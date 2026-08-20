@@ -1,0 +1,7 @@
+object Invalid {
+    constructor() {
+    }
+}
+
+fun main() {
+}

@@ -1,0 +1,145 @@
+use super::*;
+
+mod merge;
+mod receivers;
+
+impl Projection<'_> {
+    pub(super) fn selections(&mut self, nominal: NominalOwner) -> Result<Selections, Error> {
+        self.binders = super::super::signatures::HirInterfaceSignatureProjector::new(self.export)
+            .binder_frame(self.declaration_parameters(nominal), 0)
+            .map_err(invalid)?;
+        let host = self.declaration_type(nominal);
+        let receiver = self.type_key(host)?;
+        let mut selections = Selections::new();
+        let (implementations, allow_abstract) = match nominal {
+            NominalOwner::Class(id) => {
+                self.virtual_selections(id, &receiver, &mut selections)?;
+                let class = &self.export.classes[id];
+                (
+                    &class.interface_implementations,
+                    class.modifier == ClassModifier::Abstract,
+                )
+            }
+            NominalOwner::Object(id) => {
+                let class = self.export.objects[id].backing_class;
+                self.virtual_selections(class, &receiver, &mut selections)?;
+                (&self.export.classes[class].interface_implementations, false)
+            }
+            NominalOwner::Struct(id) => (&self.export.structs[id].interface_implementations, false),
+            NominalOwner::Enum(id) => (&self.export.enums[id].interface_implementations, false),
+            NominalOwner::Interface(id) => {
+                let application = self.export.interfaces[id].self_application;
+                let role = self.interface_role(
+                    self.export.interface_applications[application].canonical_type,
+                )?;
+                for member in self.interface_members(application)? {
+                    let slot = self.interface_slot(member)?;
+                    let selection = self.interface_selection(member)?;
+                    self.merge_selection(
+                        &mut selections,
+                        role.clone(),
+                        receiver.clone(),
+                        slot,
+                        selection,
+                    )?;
+                }
+                return Ok(selections);
+            }
+        };
+        self.implementation_selections(implementations, allow_abstract, host, &mut selections)?;
+        Ok(selections)
+    }
+
+    fn virtual_selections(
+        &mut self,
+        class: ClassId,
+        receiver: &scoop_identity::SignatureTypeKey,
+        selections: &mut Selections,
+    ) -> Result<(), Error> {
+        // The first encounter in derived-to-base order is the selected override.
+        for entry in self.class_chain(class)? {
+            let class = match entry {
+                ClassChainEntry::Local(class) => class,
+                ClassChainEntry::Imported(ty) => {
+                    let Type::Class(application) = self.export.types[ty] else {
+                        return Err(invalid("class base does not resolve to a class type"));
+                    };
+                    let class = &self.export.loaded_class_definitions
+                        [&self.export.class_applications[application].template];
+                    for selection in class
+                        .declaration
+                        .interface
+                        .declaration_details()
+                        .dispatch_selections()
+                        .records()
+                    {
+                        if selection.role() == &SelectionRole::ClassVtable
+                            && class
+                                .virtual_methods
+                                .iter()
+                                .any(|method| method.slot == selection.slot())
+                            && !selections
+                                .contains_key(&(SelectionRole::ClassVtable, selection.slot()))
+                        {
+                            self.merge_selection(
+                                selections,
+                                SelectionRole::ClassVtable,
+                                receiver.clone(),
+                                selection.slot(),
+                                selection.selection(),
+                            )?;
+                        }
+                    }
+                    continue;
+                }
+            };
+            for function in &self.export.classes[class].methods {
+                let method = self.method(*function)?;
+                let family = match method.dispatch {
+                    MethodDispatch::Virtual(family) | MethodDispatch::FinalOverride(family) => {
+                        family
+                    }
+                    MethodDispatch::Direct => continue,
+                    MethodDispatch::Interface(_) => {
+                        return Err(invalid(
+                            "class method carries interface declaration dispatch",
+                        ));
+                    }
+                };
+                let slot = self
+                    .export
+                    .dispatch_slot_identities
+                    .get_virtual(family)
+                    .ok_or_else(|| invalid("virtual family has no sealed dispatch identity"))?
+                    .id();
+
+                if !selections.contains_key(&(SelectionRole::ClassVtable, slot)) {
+                    let selection = if method.modifier == MethodModifier::Abstract {
+                        Selection::Abstract(self.callable(*function)?)
+                    } else {
+                        Selection::Concrete(self.callable(*function)?)
+                    };
+                    self.merge_selection(
+                        selections,
+                        SelectionRole::ClassVtable,
+                        receiver.clone(),
+                        slot,
+                        selection,
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn merge_selection(
+        &mut self,
+        selections: &mut Selections,
+        role: SelectionRole,
+        receiver: scoop_identity::SignatureTypeKey,
+        slot: PersistentDispatchSlotId,
+        selection: Selection,
+    ) -> Result<(), Error> {
+        merge::insert(selections, role, receiver, slot, selection)
+    }
+}

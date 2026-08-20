@@ -1,0 +1,77 @@
+use super::*;
+
+#[derive(Debug)]
+pub struct DecodedStrongStaticStorageSemanticProjectionV1 {
+    pub(in crate::production::registration_production) storage:
+        DecodedPersistentId<PersistentStaticStorageId>,
+    pub(super) storage_symbol: DecodedPersistentSymbolRequest,
+    pub(in crate::production::registration_production) layout_provider:
+        DecodedPersistentId<scoop_identity::ConeIdentity>,
+    pub(in crate::production::registration_production) layout:
+        DecodedPersistentId<PersistentLayoutId>,
+    pub(in crate::production::registration_production) scan: DecodedPersistentId<PersistentScanId>,
+    pub(in crate::production::registration_production) scan_program: DecodedRefScan,
+    pub(in crate::production::registration_production) scan_kind: u32,
+    pub(in crate::production::registration_production) byte_size: u64,
+    pub(in crate::production::registration_production) allocation_extent: u64,
+    pub(in crate::production::registration_production) required_alignment: u64,
+    pub(in crate::production::registration_production) initial_state:
+        DecodedStrongStaticStorageInitialStatePlanV1,
+}
+impl DecodedStrongStaticStorageSemanticProjectionV1 {
+    pub(super) fn decode_fields(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
+        Ok(Self {
+            storage: decoder.field(1, DecodedPersistentId::decode)?,
+            storage_symbol: decoder.field(2, DecodedPersistentSymbolRequest::decode)?,
+            layout: decoder.field(3, DecodedPersistentId::decode)?,
+            scan: decoder.field(4, DecodedPersistentId::decode)?,
+            scan_program: decoder.field(5, DecodedRefScan::decode)?,
+            scan_kind: decoder.field(6, Decoder::u32)?,
+            byte_size: decoder.field(7, Decoder::unsigned)?,
+            allocation_extent: decoder.field(8, Decoder::unsigned)?,
+            required_alignment: decoder.field(9, Decoder::unsigned)?,
+            initial_state: decoder
+                .field(10, DecodedStrongStaticStorageInitialStatePlanV1::decode)?,
+            layout_provider: decoder.field(32, DecodedPersistentId::decode)?,
+        })
+    }
+    pub(super) fn encode_fields(
+        &self,
+        encoder: &mut Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_field(encoder, 1, &self.storage)?;
+        encode_field(encoder, 2, &self.storage_symbol)?;
+        encode_field(encoder, 3, &self.layout)?;
+        encode_field(encoder, 4, &self.scan)?;
+        encode_field(encoder, 5, &self.scan_program)?;
+        encode_unsigned_field(encoder, 6, u64::from(self.scan_kind))?;
+        encode_unsigned_field(encoder, 7, self.byte_size)?;
+        encode_unsigned_field(encoder, 8, self.allocation_extent)?;
+        encode_unsigned_field(encoder, 9, self.required_alignment)?;
+        encode_field(encoder, 10, &self.initial_state)
+    }
+}
+impl WireDecode for DecodedStrongStaticStorageSemanticProjectionV1 {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
+        decoder.expect_map(11)?;
+        Self::decode_fields(decoder)
+    }
+}
+impl WireEncode for DecodedStrongStaticStorageSemanticProjectionV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(11)?;
+        self.encode_fields(encoder)?;
+        encode_field(encoder, 32, &self.layout_provider)
+    }
+}
+
+impl DecodedStrongStaticStorageSemanticProjectionV1 {
+    /// Checks this projection against a complete provider semantic plan. It
+    /// does not authorize the backing storage as an externally selected use.
+    pub fn validate_against(
+        self,
+        expected: &crate::StrongStaticStorageSemanticPlanV1,
+    ) -> Result<(), StrongSemanticProjectionError> {
+        compare_semantics(&self, &expected.semantic_projection())
+    }
+}

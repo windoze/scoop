@@ -1,0 +1,101 @@
+use scoop_hir as hir;
+use scoop_mir as mir;
+
+pub(in crate::layout_compile_closure::mir_types) fn c_layout(
+    source: hir::NominalCLayoutPolicyV1,
+) -> mir::MirTypeCLayoutPolicyV1 {
+    match source {
+        hir::NominalCLayoutPolicyV1::Ordinary => mir::MirTypeCLayoutPolicyV1::Ordinary,
+        hir::NominalCLayoutPolicyV1::CLayout { contract } => {
+            mir::MirTypeCLayoutPolicyV1::CLayout(mir::MirCLayoutContract {
+                aligned: alignment(contract.aligned),
+                packed: alignment(contract.packed),
+            })
+        }
+    }
+}
+
+fn alignment(source: hir::HirCLayoutValue) -> mir::MirCLayoutValue {
+    match source {
+        hir::HirCLayoutValue::Natural => mir::MirCLayoutValue::Natural,
+        hir::HirCLayoutValue::A1 => mir::MirCLayoutValue::A1,
+        hir::HirCLayoutValue::A2 => mir::MirCLayoutValue::A2,
+        hir::HirCLayoutValue::A4 => mir::MirCLayoutValue::A4,
+        hir::HirCLayoutValue::A8 => mir::MirCLayoutValue::A8,
+        hir::HirCLayoutValue::A16 => mir::MirCLayoutValue::A16,
+    }
+}
+
+pub(super) fn intrinsic(source: hir::IntrinsicTypeKind) -> Option<mir::MirParamFreeIntrinsicV1> {
+    Some(match source {
+        hir::IntrinsicTypeKind::Atomic(scoop_identity::AtomicValueKind::Int) => {
+            mir::MirParamFreeIntrinsicV1::AtomicInt
+        }
+        hir::IntrinsicTypeKind::Atomic(scoop_identity::AtomicValueKind::Long) => {
+            mir::MirParamFreeIntrinsicV1::AtomicLong
+        }
+        hir::IntrinsicTypeKind::Atomic(scoop_identity::AtomicValueKind::Boolean) => {
+            mir::MirParamFreeIntrinsicV1::AtomicBoolean
+        }
+        hir::IntrinsicTypeKind::Atomic(scoop_identity::AtomicValueKind::Reference) => return None,
+        hir::IntrinsicTypeKind::Unit => mir::MirParamFreeIntrinsicV1::Unit,
+        hir::IntrinsicTypeKind::Integer(kind) => {
+            mir::MirParamFreeIntrinsicV1::Integer(mir::IntegerKind::new(
+                match kind.signedness() {
+                    hir::IntegerSignedness::Signed => mir::IntegerSignedness::Signed,
+                    hir::IntegerSignedness::Unsigned => mir::IntegerSignedness::Unsigned,
+                },
+                match kind.width() {
+                    hir::IntegerWidth::W8 => mir::IntegerWidth::W8,
+                    hir::IntegerWidth::W16 => mir::IntegerWidth::W16,
+                    hir::IntegerWidth::W32 => mir::IntegerWidth::W32,
+                    hir::IntegerWidth::W64 => mir::IntegerWidth::W64,
+                },
+            ))
+        }
+        hir::IntrinsicTypeKind::Float(kind) => mir::MirParamFreeIntrinsicV1::Float(kind),
+        hir::IntrinsicTypeKind::Char => mir::MirParamFreeIntrinsicV1::Char,
+        hir::IntrinsicTypeKind::Boolean => mir::MirParamFreeIntrinsicV1::Boolean,
+        hir::IntrinsicTypeKind::String => mir::MirParamFreeIntrinsicV1::String,
+        hir::IntrinsicTypeKind::Any => mir::MirParamFreeIntrinsicV1::Any,
+        hir::IntrinsicTypeKind::Nothing => mir::MirParamFreeIntrinsicV1::Nothing,
+        hir::IntrinsicTypeKind::Array
+        | hir::IntrinsicTypeKind::MaybeUninit
+        | hir::IntrinsicTypeKind::MutableArray
+        | hir::IntrinsicTypeKind::Ptr
+        | hir::IntrinsicTypeKind::FunPtr => return None,
+    })
+}
+
+pub(in crate::layout_compile_closure::mir_types) fn release(
+    policy: &hir::NominalReleasePolicyV1,
+    owner: scoop_identity::PersistentExactTypeId,
+) -> mir::MirClassReleasePolicyV1 {
+    match policy {
+        hir::NominalReleasePolicyV1::None => mir::MirClassReleasePolicyV1::None,
+        hir::NominalReleasePolicyV1::SynchronousGcFree { .. } => {
+            mir::MirClassReleasePolicyV1::SynchronousGcFree { owner }
+        }
+    }
+}
+
+pub(in crate::layout_compile_closure::mir_types) fn enum_representation_matches(
+    source: &hir::EnumRepresentation,
+    target: &mir::EnumRepresentation,
+) -> bool {
+    match (source, target) {
+        (hir::EnumRepresentation::Algebraic, mir::EnumRepresentation::Algebraic) => true,
+        (
+            hir::EnumRepresentation::Integral { kind, values },
+            mir::EnumRepresentation::Integral {
+                kind: actual,
+                values: actual_values,
+            },
+        ) => {
+            intrinsic(hir::IntrinsicTypeKind::Integer(*kind))
+                == Some(mir::MirParamFreeIntrinsicV1::Integer(*actual))
+                && values == actual_values
+        }
+        _ => false,
+    }
+}

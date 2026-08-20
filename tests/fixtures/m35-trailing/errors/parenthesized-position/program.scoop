@@ -1,0 +1,2 @@
+fun f(first: () -> Unit = {}, last: () -> Unit) {}
+fun main() { f({}) }

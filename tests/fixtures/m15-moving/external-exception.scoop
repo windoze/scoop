@@ -1,0 +1,15 @@
+class MovingError(val payload: String) : Exception(Some(payload))
+
+fun failWithMovingPayload() {
+    val payload = "moving-" + "payload"
+    throw MovingError(payload)
+}
+
+fun main() {
+    try {
+        failWithMovingPayload()
+    } catch (error: MovingError) {
+        println(error.payload)
+        println(error.message!!)
+    }
+}

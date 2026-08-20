@@ -1,0 +1,46 @@
+import scoop.json.Json
+
+struct Measurement(@SerialName("small/~") val small: Float, val wide: Double = -0.0) {
+    public companion object : Encodable<Measurement>, Decodable<Measurement>
+}
+enum Event {
+    Reading(Measurement), Empty
+    public companion object : Encodable<Event>, Decodable<Event>
+}
+struct Box<T>(val value: T)
+class BoxEncoder<T>(val element: Encodable<T>): Encodable<Box<T>> {
+    public override fun encode(value: Box<T>, encoder: Encoder) { element.encode(value.value, encoder) }
+}
+class BoxDecoder<T>(val element: Decodable<T>): Decodable<Box<T>> {
+    public override fun decode(decoder: Decoder): Box<T> = Box(element.decode(decoder))
+}
+
+@Unsafe fun combinations() {
+    val measurement = Json.decode("{\"small/~\":0.1}", Measurement.Companion)
+    check(measurement.small == 0.1f && doubleBits(measurement.wide) == 0x8000000000000000UL)
+    val event = Event.Reading(Measurement(Float.MIN_NORMAL, Double.MIN_VALUE))
+    check(Json.decode(Json.encode(event, Event.Companion), Event.Companion) == event)
+    rejectEncoding(Measurement(Float.NaN, 0.0), Measurement.Companion, "/small~1~0")
+    rejectEncoding(Event.Reading(Measurement(0f, Double.POSITIVE_INFINITY)), Event.Companion, "/Reading/0/wide")
+    rejectDecoding("{\"Reading\":[{\"small/~\":1e100}]}", Event.Companion, "/Reading/0/small~1~0")
+    rejectDecoding("{}", Measurement.Companion, "/small~1~0")
+    val optionEncoder = Option<Float>.Companion.encoder(Float.Companion)
+    val optionDecoder = Option<Float>.Companion.decoder(Float.Companion)
+    val arrayEncoder = Array<Option<Float>>.Companion.encoder(optionEncoder)
+    val arrayDecoder = Array<Option<Float>>.Companion.decoder(optionDecoder)
+    val values: Array<Option<Float>> = [None, Some(-0f), Some(Float.MIN_VALUE)]
+    val restored = Json.decode(Json.encode(values, arrayEncoder), arrayDecoder)
+    check(restored[0L] == None && floatBits(restored[1L]!!) == 0x80000000U && restored[2L] == Some(Float.MIN_VALUE))
+    val bad: Array<Option<Float>> = [None, Some(Float.NaN)]
+    rejectEncoding(bad, arrayEncoder, "/1/Some/0")
+    rejectDecoding("[{\"Some\":[1e100]}]", arrayDecoder, "/0/Some/0")
+    val text = Json.encode(Box(-0.0), BoxEncoder(Double.Companion))
+    check(doubleBits(Json.decode(text, BoxDecoder(Double.Companion)).value) == 0x8000000000000000UL)
+    val list = ArrayList<Double>()
+    list.add(Double.MIN_VALUE)
+    list.add(-0.0)
+    val listText = Json.encode(list, ArrayList<Double>.Companion.encoder(Double.Companion))
+    val listResult = Json.decode(listText, ArrayList<Double>.Companion.decoder(Double.Companion))
+    check(listResult[0L] == Double.MIN_VALUE && doubleBits(listResult[1L]) == 0x8000000000000000UL)
+    gcCollect()
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Pair` positional variants do not accept named arguments",
+    "notes": [],
+    "origin": {
+      "cone": "62cd2c0446d31a0d4603e40ea95c46b135102107694944edda480b05bbda79fa",
+      "end": 132,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 83
+    },
+    "severity": "error"
+  }
+]

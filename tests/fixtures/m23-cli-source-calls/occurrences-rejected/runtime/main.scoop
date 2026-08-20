@@ -1,0 +1,14 @@
+import dependency.api.configure
+import dependency.api.callCount
+
+fun verifyCalls(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    configure(false)
+    verifyCalls(rejected())
+    verifyCalls(callCount() == 0)
+    configure(true)
+    verifyCalls(rejected())
+    verifyCalls(callCount() == 0)
+}

@@ -1,0 +1,32 @@
+package consumer.hostproperties
+
+public class Item<T> public constructor(public val value: T) {
+    public fun read(): T = value
+}
+
+public open class Base<T> public constructor(public val item: Item<T>)
+public class Host<T> public constructor(item: Item<T>, public val action: () -> T) : Base<T>(item)
+public class Hidden<T> public constructor(private val item: Item<T>)
+
+public fun <T> Base<T>.readItem(): T = item.read()
+
+public fun <T> Host<T>.readAction(): T = action.invoke()
+
+public fun <T> Host<T>.referenceItem(): () -> T = item::read
+
+public class Local<T> public constructor(item: Item<T>) : Base<T>(item) {
+    public fun readLocal(): T = item.read()
+}
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val item = Item<T>(seed)
+    val host = Host<T>(item, { -> seed })
+    if (inspect(host.readItem()) != 42) { return 1 }
+    if (inspect(host.readAction()) != 42) { return 2 }
+    val read = host.referenceItem()
+    if (inspect(read()) != 42) { return 3 }
+    if (inspect(Local<T>(item).readLocal()) != 42) { return 4 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

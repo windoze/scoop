@@ -1,0 +1,2 @@
+fun bad(cell: AtomicInt): Unit = cell.store(true)
+fun main() {}

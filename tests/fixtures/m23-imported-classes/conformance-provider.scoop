@@ -1,0 +1,13 @@
+
+public interface Valued {
+    public val value: Long
+}
+public interface FirstChoice {
+    public fun choose(): Long = 20
+}
+public interface SecondChoice {
+    public fun choose(): Long = 1
+}
+public interface UnsafeReader {
+    @Unsafe public fun read(): Long
+}

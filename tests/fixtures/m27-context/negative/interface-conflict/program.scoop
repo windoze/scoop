@@ -1,0 +1,4 @@
+interface First { context(a: String) fun read(): Int }
+interface Second { fun read(): Int }
+interface Both : First, Second {}
+fun main() {}

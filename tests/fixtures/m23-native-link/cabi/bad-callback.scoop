@@ -1,0 +1,8 @@
+fun increment(value: Int): Int = value + 1
+
+@Extern(lib = "m23_cabi", name = "m23_invalid")
+fun invalid(callback: FunPtr<(Int) -> Int>): Int
+
+fun main() {
+    @Unsafe { println(invalid(::increment)) }
+}

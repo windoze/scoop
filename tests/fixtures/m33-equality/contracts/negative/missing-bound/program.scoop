@@ -1,0 +1,2 @@
+fun <T> same(left: T, right: T): Boolean = left == right
+fun main() { println(same(1, 1)) }

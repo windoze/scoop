@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `same`: conflicting types for `A`: Int and Unit",
+    "notes": [],
+    "origin": {
+      "cone": "c469433ad6048ee0fd0335ae3fb76c0a0f092beaed9195bead98018a99d1cd31",
+      "end": 143,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 138
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,2 @@
+@Intrinsic("core_nothing")
+public final class Nothing {}

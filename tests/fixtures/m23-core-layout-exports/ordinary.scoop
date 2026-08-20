@@ -1,0 +1,9 @@
+public struct Token() {}
+public struct Payload(val marker: Token, val ready: Boolean)
+public interface Deferred<T> {}
+public class Later: Deferred<Boolean> {}
+public class Published {
+    public fun deferred(value: Later): Later = value
+    public fun ready(value: Token): Token = value
+}
+public fun pass(value: Token): Token = value

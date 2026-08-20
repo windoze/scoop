@@ -1,0 +1,18 @@
+public open class Base protected constructor() {
+    protected fun secret(): Int = 7
+    public var number: Int
+        get() = 1
+        protected set(value) {}
+}
+public object Singleton : Base() {
+    public fun probe(): Int {
+        this.number = 3
+        return this.secret()
+    }
+}
+public class Holder {
+    public companion object : Base() {
+        public fun probe(): Int = secret()
+    }
+}
+fun main() {}

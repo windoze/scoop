@@ -1,0 +1,83 @@
+fun factorialOf(value: Int): Int {
+    fun factorial(n: Int): Int {
+        return if (n <= 1) { 1 } else { n * factorial(n - 1) }
+    }
+    return factorial(value)
+}
+
+fun makeAdder(base: Int): (Int) -> Int {
+    fun add(value: Int): Int = value + base
+    println(add(1))
+    return ::add
+}
+
+fun overloaded(): Int {
+    fun choose(value: Int): Int = value + 1
+    fun choose(value: String): Int = 0
+    return choose(41)
+}
+
+fun genericLocal(): Int {
+    fun <T> identity(value: T): T = value
+    return identity(42)
+}
+
+fun genericReference(): (Int) -> Int {
+    fun <T> identity(value: T): T = value
+    return ::identity
+}
+
+fun <T> throughOuterGeneric(value: T): T {
+    fun local(value: T): T = value
+    return local(value)
+}
+
+fun recursiveCapture(base: Int): Int {
+    fun finishAfter(n: Int): Int {
+        if (n > 0) {
+            return finishAfter(n - 1)
+        }
+        return base
+    }
+    return finishAfter(2)
+}
+
+fun makeLabelReader(label: LocalLabel): () -> String {
+    fun read(): String = label.text
+    return ::read
+}
+
+fun nestedLocal(base: Int): Int {
+    fun outer(value: Int): Int {
+        fun inner(value: Int): Int = value + base
+        return inner(value)
+    }
+    return outer(40)
+}
+
+fun main() {
+    val add = makeAdder(2)
+    val read = makeLabelReader(LocalLabel("alive"))
+    gcCollect()
+    println(factorialOf(5))
+    println(add(40))
+    println(overloaded())
+    println(genericLocal())
+    println(genericReference()(42))
+    println(throughOuterGeneric(42))
+    println(recursiveCapture(42))
+    println(read())
+    println(nestedLocal(2))
+    var snapshot = LocalSnapshot(42)
+    println(snapshot.readThroughLocal())
+    snapshot = LocalSnapshot(0)
+    println(snapshot.value)
+}
+struct LocalLabel(val text: String)
+
+struct LocalSnapshot(val value: Int) {
+    fun readThroughLocal(): Int {
+        fun read(): Int = value
+        return read()
+    }
+}

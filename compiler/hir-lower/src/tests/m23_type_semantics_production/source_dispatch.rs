@@ -1,0 +1,162 @@
+use super::*;
+use scoop_wire::{decode_canonical, encode};
+
+mod selections;
+mod support;
+use support::*;
+pub(super) use support::{owners, with_hir_source, with_hir_sources, with_source};
+
+pub(super) const VIRTUAL: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tests/fixtures/m23-type-source-dispatch/virtual.scoop"
+));
+pub(super) const INTERFACES: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tests/fixtures/m23-type-source-dispatch/interfaces.scoop"
+));
+
+#[test]
+fn source_vtable_keeps_base_prefix_final_override_and_protected_accessors() {
+    with_source(VIRTUAL, |output, mir| {
+        let inventory = project(output);
+        let base = inventory.get(owner(output, "Base")).unwrap();
+        let derived = inventory.get(owner(output, "Derived")).unwrap();
+        let singleton = inventory.get(owner(output, "Singleton")).unwrap();
+        let role = hir::InheritanceSlotSchemaRoleV1::ClassVtable;
+        let base_slots = base.slot_schemas().get(role).unwrap().slots();
+        let derived_slots = derived.slot_schemas().get(role).unwrap().slots();
+        let derived_mir = mir
+            .classes
+            .iter()
+            .find(|(_, class)| class.name == "Derived")
+            .unwrap()
+            .1;
+        assert_eq!(derived_mir.vtable.len(), derived_slots.len());
+        assert_eq!(
+            derived_mir
+                .vtable
+                .iter()
+                .map(|slot| match slot {
+                    scoop_mir::TableSlot::Function(function) =>
+                        mir.functions[*function].name.as_str(),
+                    scoop_mir::TableSlot::External(_) => panic!("local dispatch fixture"),
+                    scoop_mir::TableSlot::Runtime(_) =>
+                        panic!("source virtual slots select user functions"),
+                })
+                .collect::<Vec<_>>(),
+            [
+                "Derived.zeta",
+                "Base.alpha",
+                "Base.$get$value",
+                "Base.$set$value",
+                "Derived.middle"
+            ]
+        );
+        assert_eq!(base_slots.len(), 4);
+        assert_eq!(base.protected_members().values().len(), 3);
+        assert_eq!(derived_slots.len(), 5);
+        assert!(derived_slots.starts_with(base_slots));
+        assert_eq!(
+            singleton.slot_schemas().get(role).unwrap().slots(),
+            derived_slots
+        );
+        roundtrip(output, &inventory);
+    });
+}
+
+#[test]
+fn source_interface_order_matches_concrete_diamond_override_and_value_tables() {
+    with_source(INTERFACES, |output, _| {
+        let inventory = project(output);
+        let local = output.output().local.module();
+        for (interface, declaration) in local.interfaces.iter().filter(|(_, declaration)| {
+            declaration
+                .origin
+                .source()
+                .is_some_and(|source| source.declaration().origin() == local.cone)
+        }) {
+            let exact = local.exact_type_identities[declaration.canonical_type].id();
+            let source = inventory.get(exact).unwrap();
+            assert_eq!(source.slot_schemas().records().len(), 1);
+            let role = hir::InheritanceSlotSchemaRoleV1::Interface {
+                interface_exact: exact,
+            };
+            let actual = local
+                .dispatch_slot_identities
+                .interface_slots(interface)
+                .map(|(_, record)| record.id())
+                .collect::<Vec<_>>();
+            assert_eq!(source.slot_schemas().get(role).unwrap().slots(), actual);
+            for name in ["User", "Derived", "Singleton", "Value", "Choice"] {
+                let implementor = inventory.get(owner(output, name)).unwrap();
+                if declaration.name == "AbstractAgain"
+                    || (declaration.name == "Mutable" && matches!(name, "Value" | "Choice"))
+                {
+                    assert!(implementor.slot_schemas().get(role).is_none());
+                } else {
+                    assert_eq!(
+                        implementor.slot_schemas().get(role).unwrap().slots(),
+                        actual
+                    );
+                }
+            }
+        }
+        roundtrip(output, &inventory);
+    });
+}
+
+#[test]
+fn source_dispatch_bytes_ignore_unrelated_arena_allocation() {
+    let prefix = "fun unrelated(): Int = 7\n";
+    // Keep declaration spans fixed while inserting an unrelated arena entry.
+    let padding = format!("//{}\n", " ".repeat(prefix.len() - 3));
+    let first = with_source(&format!("{padding}{INTERFACES}"), |output, _| {
+        encode(&project(output)).unwrap()
+    });
+    let second = with_source(&format!("{prefix}{INTERFACES}"), |output, _| {
+        encode(&project(output)).unwrap()
+    });
+    assert_eq!(first, second);
+}
+
+fn roundtrip(
+    output: &hir::DependencyHirOutput,
+    inventory: &hir::CanonicalNominalInheritanceInterfacesV1,
+) {
+    let mut identities = super::source_inventory::identity_closure(output);
+    let restored: hir::DecodedCanonicalNominalInheritanceInterfacesV1 =
+        decode_canonical(&encode(inventory).unwrap()).unwrap();
+    let restored = restored.resolve(&mut identities).unwrap();
+    assert_eq!(&restored, inventory);
+}
+
+#[test]
+fn source_dispatch_materializes_a_closed_generic_parent() {
+    with_source(
+        "public interface Generic<T> {}\npublic class User : Generic<Int>",
+        |output, _| {
+            let inventory = produce_cross_cone_type_semantics(output, &public_interface(output))
+                .unwrap()
+                .inheritance()
+                .clone();
+            assert_eq!(inventory.records().len(), 1);
+            let parent = inventory.records()[0].edges().direct_interfaces();
+            assert_eq!(parent.len(), 1);
+            let identities = super::source_inventory::identity_closure(output);
+            assert!(matches!(
+                identities
+                    .canonical_key::<_, scoop_identity::ExactTypeKey>(parent[0])
+                    .unwrap()
+                    .as_ref(),
+                scoop_identity::ExactTypeKey::NominalApplication { .. }
+            ));
+            assert_eq!(
+                public_interface(output)
+                    .nominal_interfaces()
+                    .records()
+                    .len(),
+                2
+            );
+        },
+    );
+}

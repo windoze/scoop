@@ -1,0 +1,10 @@
+private fun sourceSeed(value: Int = 11): Int = value
+private val sourceBias: Int = 4
+
+public class SourceContainer {
+    private fun hidden(value: Int = sourceSeed() + sourceBias): Int = value
+    public fun run(): Int = hidden()
+}
+
+private fun unreachableLeft(value: Int = unreachableRight(0)): Int = value
+private fun unreachableRight(value: Int = unreachableLeft(0)): Int = value

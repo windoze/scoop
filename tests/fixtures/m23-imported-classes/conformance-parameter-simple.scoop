@@ -1,0 +1,7 @@
+import dependency.classes.*
+
+public class LocalDefaults public constructor(): Readable {
+    public override fun read(): Long = 20
+    public override fun answer(extra: Long): Long = read() + extra
+}
+public fun primary(): Counter = Counter(LocalDefaults().answer())

@@ -1,0 +1,5 @@
+fun main() {
+    @Unsafe {
+        val pointer = addressOf(1)
+    }
+}

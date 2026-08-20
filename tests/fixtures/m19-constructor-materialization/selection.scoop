@@ -1,0 +1,12 @@
+class DeferredHolder<T>(val value: T) {
+    constructor(value: T, extra: Int): this(value) {}
+}
+struct DeferredData<T>(val value: T) {
+    constructor(value: T, extra: Int): this(value) {}
+}
+class DeferredTypeOnly<T>()
+fun inspect(value: DeferredTypeOnly<Int>) {}
+fun main() {
+    val holder: DeferredHolder<Int> = DeferredHolder(1)
+    val data: DeferredData<Int> = DeferredData(1)
+}

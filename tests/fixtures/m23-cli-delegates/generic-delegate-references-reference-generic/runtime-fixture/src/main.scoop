@@ -1,0 +1,19 @@
+@Extern(lib="m23_delegate_metadata", name="m23_delegate_metadata")
+fun delegateMetadata(): Int
+
+@Extern(lib = "m23_class_gc", name = "m23_class_gc_collected")
+fun collected(): Int
+
+fun main() {
+    if (check() != 42) {
+        throw IllegalStateException()
+    }
+    @Unsafe {
+        if (delegateMetadata() != 1) {
+            throw IllegalStateException()
+        }
+        if (collected() != 1) {
+            throw IllegalStateException()
+        }
+    }
+}

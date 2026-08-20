@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `pair` in current-unit top-level candidate layer:\n  - fun pair<A, B>(first: A, second: B): B — expects 2 explicit type argument(s), but 1 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 282,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 263
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `pair` in current-unit top-level candidate layer:\n  - fun pair<A, B>(first: A, second: B): B — expects 2 explicit type argument(s), but 3 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 324,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 287
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `first` in current-unit top-level candidate layer:\n  - fun first<A, B>(value: A): A — cannot infer a unique type argument for `B`; fixed type arguments: A = Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 341,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 340
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `require` in current-unit top-level candidate layer:\n  - fun require<A, B : Marker>(first: A, second: B): B — type argument `Int` for `B` must satisfy interface upper bound `Marker`; fixed type arguments: A = String",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 367,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 366
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `Holder` in nominal constructor candidate layer:\n  - struct Holder<A, T : Marker>(fixed: A, value: T) — type argument `Int` for `T` must satisfy interface upper bound `Marker`; fixed type arguments: A = String",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 401,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 400
+    },
+    "severity": "error"
+  }
+]

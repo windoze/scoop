@@ -1,0 +1,18 @@
+package upstream.declarationviews
+
+public class Counter public constructor() {
+    public var calls: Int = 0
+    public fun next(): Int { calls = calls + 1; return calls }
+}
+
+public fun <T> identity(value: T): T = value
+public fun <T> T.retain(): T = this
+public fun <T> select(value: T): Int = 1
+public fun select(value: Int): Int = value + 1
+public fun <T> collect(fallback: T, vararg values: T = [fallback]): Array<T> = values
+public fun <T> copy(value: T, operation: (T) -> T = ::identity): T = operation(value)
+
+public class Box<T> public constructor(public val value: T, public val counter: Counter) {
+    public fun read(ignored: Int = counter.next()): T = value
+    public fun <U> relay(other: U): U = other
+}

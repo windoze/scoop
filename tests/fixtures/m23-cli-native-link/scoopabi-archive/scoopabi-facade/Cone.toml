@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "scoopabi-facade"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.programlink:scoopabi-provider" = {"version" = "0.1.0", "path" = "../scoopabi-provider"}

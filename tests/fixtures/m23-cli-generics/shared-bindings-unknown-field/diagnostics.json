@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Pair` has no field `missing`",
+    "notes": [],
+    "origin": {
+      "cone": "295dfafdfa5c9c5520dffd695403a5c9447d8d8c4b735377f76b504a9d0ab124",
+      "end": 78,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 71
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "295dfafdfa5c9c5520dffd695403a5c9447d8d8c4b735377f76b504a9d0ab124",
+      "end": 127,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 122
+    },
+    "severity": "error"
+  }
+]

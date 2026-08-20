@@ -1,0 +1,20 @@
+package consumer.delegates
+
+import templates.delegateCombinations.*
+
+private fun <T> failure(): Int = try {
+    Token<T>().cycleDirect
+    0
+} catch (error: IllegalStateException) {
+    42
+}
+
+public fun <T> exercise(value: T): Int {
+    Trace.direct = 0
+    val first = failure<T>()
+    Payload(0)
+    val second = failure<T>()
+    return if (first == 42 && second == 42 && Trace.direct == 1) { 42 } else { 1 }
+}
+
+public fun result(): Int = exercise<Int>(1)

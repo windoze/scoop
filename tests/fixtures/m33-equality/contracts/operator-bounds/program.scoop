@@ -1,0 +1,18 @@
+interface Similar<T> {
+    public operator fun equals(other: T): Boolean
+}
+interface Child<T> : Similar<T> {}
+class Key(val value: Int) : Child<Key> {
+    public override operator fun equals(other: Key): Boolean = value == other.value
+}
+struct Point(val value: Int) : Child<Point> {
+    public override operator fun equals(other: Point): Boolean = value == other.value
+}
+fun <T : Similar<T>> same(left: T, right: T): Boolean = left == right
+fun main() {
+    if (!same(Key(1), Key(1)) || same(Key(1), Key(2))) { throw IllegalStateException() }
+    if (!same(Point(1), Point(1)) || same(Point(1), Point(2))) { throw IllegalStateException() }
+    val view: Similar<Point> = Point(3)
+    if (!(view == Point(3))) { throw IllegalStateException() }
+    println("operator-bounds")
+}

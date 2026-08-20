@@ -1,0 +1,28 @@
+package derived
+
+public struct Packet<T>(
+    @SerialName("payload") val value: T,
+    @Transient val ignored: Any
+) {
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<Packet<T>> = PacketEncoder<T>(element)
+    }
+}
+internal class PacketEncoder<T>(private val element: Encodable<T>) : Encodable<Packet<T>>
+
+public enum Event<T> {
+    Empty,
+    Named(@SerialName("item") val value: T),
+    Pair(T, Int)
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<Event<T>> = EventEncoder<T>(element)
+    }
+}
+internal class EventEncoder<T>(private val element: Encodable<T>) : Encodable<Event<T>>
+
+public class Row public constructor(private val id: Int, public val name: String) {
+    public companion object : Encodable<Row>
+}
+public class PublicRow public constructor(public val id: Int, @SerialName("label") public val name: String)
+
+public fun make(): Packet<Int> = Packet<Int>(7, "provider")

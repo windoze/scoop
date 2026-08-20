@@ -1,0 +1,19 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val a: Int8 = 43
+    val b: Int16 = 43
+    val c: Int = 43
+    val d: Long = 43
+    val e: UInt8 = 43u
+    val f: UInt16 = 43u
+    val g: UInt = 43u
+    val h: ULong = 43u
+    val total = (a / 2).toInt64() + (b / 2).toInt64() + (c / 2).toInt64() + d / 2 +
+        (e / 2u).toInt64() + (f / 2u).toInt64() + (g / 2u).toInt64() + (h / 2u).toInt64()
+    val minimum: Int8 = -128
+    val minusOne: Int8 = -1
+    if (minimum / minusOne != minimum || minimum % minusOne != 0) { return Counter(0) }
+    if (total != 168) { return Counter(0) }
+    return Counter(21)
+}

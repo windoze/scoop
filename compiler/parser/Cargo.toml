@@ -1,0 +1,9 @@
+[package]
+name = "scoop-parser"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-ast.workspace = true
+scoop-identity.workspace = true
+unicode-ident.workspace = true

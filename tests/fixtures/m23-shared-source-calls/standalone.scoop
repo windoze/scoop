@@ -1,0 +1,19 @@
+package consumer.sourcecalls
+import upstream.sourcecalls.*
+import upstream.sourcecalls.identity as first
+import upstream.sourcecalls.identity as second
+
+public fun <T> localDefault(value: T, copy: T = choose<T>(value)): T = copy
+@NoGC public fun checked(value: Int): Int = scalar<Int>(value)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int =
+    read(localDefault<T>(first<T>(second<T>(seed))))
+
+public fun result(): Int {
+    if (exercise<String>("source", { value -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { value -> 42 }) != 42) { return 2 }
+    reset()
+    val value = step(checked(42))
+    if (state() != 42) { return 3 }
+    return exercise<Int>(value, { item -> item })
+}

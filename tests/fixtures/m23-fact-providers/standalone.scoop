@@ -1,0 +1,1 @@
+public struct FlagValue(val enabled: Boolean, val count: Int)

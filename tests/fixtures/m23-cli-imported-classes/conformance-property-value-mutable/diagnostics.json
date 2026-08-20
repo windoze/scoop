@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "immutable property `value` cannot override a mutable property",
+    "notes": [],
+    "origin": {
+      "cone": "998ef2127e99f43d2068d462f1e4e5bf5645d3e27b7585b57caaadf56533e342",
+      "end": 131,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 81
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Wrong` cannot implement mutable interface property `value`",
+    "notes": [],
+    "origin": {
+      "cone": "998ef2127e99f43d2068d462f1e4e5bf5645d3e27b7585b57caaadf56533e342",
+      "end": 133,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 39
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,25 @@
+enum State : Int8 { Down = -1, Ready = 7 }
+enum Other : Int8 { Same = 7 }
+fun observe(value: Any) {
+    println(value is State)
+    println(value is Int8)
+    println(value is Other)
+    println(value as Int8)
+}
+fun main() {
+    val state = State.Ready
+    observe(state)
+    val raw: Int8 = state
+    observe(raw)
+    val equality: Equality<Int8> = state
+    println(equality.equalTo(7))
+    val text: ToString = state
+    println(text.toString())
+    val boxed: Any = state
+    println((boxed as State).toString())
+    val rawBox: Any = raw
+    when (rawBox as? State) {
+        case Some(_) -> println("unexpected")
+        case None -> println("none")
+    }
+}

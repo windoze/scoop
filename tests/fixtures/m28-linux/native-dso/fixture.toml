@@ -1,0 +1,115 @@
+schema = 1
+name = "m28-native-dso"
+root = "program"
+inputs = ["program", "leaf.c", "leaf.map", "versions.c", "versions.map", "plain.c", "host.c", "marker.c"]
+tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m28", "ffi", "tls", "elf", "artifact-only"]
+
+[[steps]]
+name = "prepare"
+files = [{ mkdir = { path = "${work}/libs" } }, { remove = { path = "${work}/libs" } }, { mkdir = { path = "${work}/libs/deps" } }]
+
+[[steps]]
+name = "leaf"
+argv = ["${cc}", "-fPIC", "-shared", "${fixture}/leaf.c", "-Wl,-soname,libm28_leaf.so.1", "-Wl,--version-script=${fixture}/leaf.map", "-o", "${work}/libs/deps/libm28_leaf.so.1"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "versions"
+argv = ["${cc}", "-fPIC", "-shared", "${fixture}/versions.c", "-L${work}/libs/deps", "-l:libm28_leaf.so.1", "-Wl,-rpath,$$ORIGIN/deps", "-Wl,-soname,libm28_versions.so.2", "-Wl,--version-script=${fixture}/versions.map", "-o", "${work}/libs/libm28_versions.so.2"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "plain"
+argv = ["${cc}", "-fPIC", "-shared", "${fixture}/plain.c", "-o", "${work}/libs/libm28_plain.so"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "alias"
+files = [{ symlink = { from = "${work}/libs/libm28_versions.so.2", to = "${work}/libs/libm28_versions.so" } }]
+
+[[steps]]
+name = "host"
+argv = ["${cc}", "-fPIC", "-c", "${fixture}/host.c", "-o", "${work}/host.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "marker"
+argv = ["${cc}", "-fPIC", "-c", "${fixture}/marker.c", "-o", "${work}/marker.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "crs", "${work}/libs/libm28_archive.a", "${work}/marker.o", "${work}/host.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/program", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+env = { SCOOP_GC_STRESS_MOVE = "1" }
+exit = 0
+stdout = "47\n7\n3\n2\n42\n5\n1\n"
+stderr = ""
+
+[[steps]]
+name = "link"
+argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/relinked"]
+env = { LLVM_SYS_221_PREFIX = "/absent-llvm", PATH = "/usr/bin:/bin" }
+timeout = 300
+exit = 0
+stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run-relinked"
+argv = ["${work}/relinked"]
+env = { SCOOP_GC_STRESS_MOVE = "1" }
+exit = 0
+stdout = "47\n7\n3\n2\n42\n5\n1\n"
+stderr = ""
+
+[[steps]]
+name = "keep"
+files = [
+  { copy = { from = "${work}/relinked", to = "${work}/before-failed-link" } },
+  { write = { path = "${work}/wrong-version.map", data = "LEAF_9 { global: m28_leaf; local: *; };\n" } },
+]
+
+[[steps]]
+name = "replace-version"
+argv = ["${cc}", "-fPIC", "-shared", "${fixture}/leaf.c", "-Wl,-soname,libm28_leaf.so.1", "-Wl,--version-script=${work}/wrong-version.map", "-o", "${work}/libs/deps/libm28_leaf.so.1"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "reject-version"
+argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/relinked"]
+timeout = 300
+exit = 1
+stdout = ""
+stderr = "scoop-link: unresolved ELF import m28_leaf version Some(\"LEAF_1\") from libm28_versions.so.2\n"
+checks = [{ file = "${work}/relinked", same_as = "${work}/before-failed-link" }]

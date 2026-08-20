@@ -1,0 +1,35 @@
+public interface View {
+    public val token: Int
+        get() = 3
+}
+public open class Store : View {
+    protected var state: Int = 1
+    protected val readonly: Int
+        get() = state
+    protected var privateWriter: Int
+        get() = 2
+        private set(value) {}
+    public open var internalWriter: Int
+        get() = 3
+        internal set(value) {}
+    public var exposed: Int
+        get() = 4
+        protected set(value) {}
+    private val ignored: Int = 9
+    public val unrelated: Int = 8
+}
+public abstract class Abstract {
+    protected abstract val obligation: Int
+}
+public class Child : Store() {
+    public final override var internalWriter: Int
+        get() = 5
+        internal set(value) {}
+}
+public struct Value() : View {
+    public final override val token: Int
+        get() = 6
+}
+public object Constants {
+    public const val marker: Int = 7
+}

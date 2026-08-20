@@ -1,0 +1,10 @@
+@Target([AnnotationTarget.TYPE]) annotation class Once
+typealias Pair<T> = (T, T)
+typealias Named = @Once Int
+fun same(value: @Once() (@Once Int)?): @Once Int = value!!
+fun first(value: Pair<@Once Int>): Named = value._1
+fun main() {
+    val function: @Once() (@Once Int) -> @Once Int = { x -> x }
+    println(function(same(Some(42))))
+    println(first((42, 1)))
+}

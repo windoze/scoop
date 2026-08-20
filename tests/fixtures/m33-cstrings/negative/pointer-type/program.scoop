@@ -1,0 +1,2 @@
+@Unsafe fun decode(pointer: Ptr<UInt8>): String = String.fromCString(pointer)
+fun main() {}

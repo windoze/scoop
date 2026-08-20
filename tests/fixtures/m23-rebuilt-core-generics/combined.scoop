@@ -1,0 +1,25 @@
+package consumer.rebuiltcore
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val immutable: Array<T> = [seed, seed]
+    val mutable = MutableArray(immutable)
+    var saved: T? = None
+    var count: Int = 0
+    for (value in mutable) {
+        saved = Some(value)
+        count += 1
+    }
+    if (count != 1) { return 2 }
+    val copied = Array(mutable)
+    var copiedCount: Int = 0
+    var result: Int = 0
+    for (value in copied) {
+        copiedCount += 1
+        result = read(rebuiltCell(value).copy().value)
+    }
+    if (copiedCount != 1 || result != 42) { return 3 }
+    val build: (T) -> RebuiltCell<T> = ::rebuiltCell
+    return read(build(saved!!).value)
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

@@ -1,0 +1,12 @@
+interface Base {
+    fun read(): Int = 7
+    fun other(value: Int = 9): Int = value
+}
+interface Refined : Base { override fun read() = 8 }
+class Implementation : Refined
+fun selected() = Implementation().read()
+fun withDefault() = Implementation().other()
+interface Identity<T> { fun keep(value: T) = value }
+class TextIdentity : Identity<String>
+fun text() = TextIdentity().keep("generic default")
+fun main() { println(selected()); println(withDefault()); println(text()) }

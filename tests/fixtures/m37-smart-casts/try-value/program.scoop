@@ -1,0 +1,9 @@
+fun number(): Long { throw UnwrapException() }
+fun length(value: Any): Long {
+    val result: Long = try {
+        if (value !is String) return 0L
+        number()
+    } catch (error: UnwrapException) { value.length }
+    return result
+}
+fun main() { println(length("value")); println(length(42)) }

@@ -1,0 +1,28 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class Completion : Continuation<Int> {
+    var result: Int = 0
+    public override fun resume(value: Int) { result = value }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+fun main() {
+    val samples = defaultSamples()
+    val cell = Cell()
+    verifyDefault(samples.method(cell) == 2)
+    verifyDefault(samples.inherited(Child()) == 2)
+    verifyDefault(samples.generic<String>(cell, "kept") == "kept")
+    verifyDefault(samples.getter(cell) == 1)
+    verifyDefault(samples.setter(cell) == 4)
+    verifyDefault(samples.variadicCall<Int>(cell, 7) == 4)
+    val completion = Completion()
+    startCoroutine(suspend { samples.suspended<Int>(cell, 23) }, completion)
+    verifyDefault(completion.result == 23)
+    verifyDefault(samples.cell().value == 2)
+    verifyDefault(samples.packet() == Packet(3))
+    verifyDefault(samples.variant() == Choice.Some(4))
+    verifyDefault(samples.empty() !== samples.empty())
+    verifyDefault(samples.required() !== samples.required())
+    verifyDefault(samples.variadic<Int>(7) !== samples.variadic<Int>(7))
+    verifyDefault(samples.defaultVariadic<Int>() !== samples.defaultVariadic<Int>())
+}

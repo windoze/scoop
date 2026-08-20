@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `NoGet` has no applicable property delegate operator `getValue`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 271,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 244
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `OrdinaryOnly` has no applicable property delegate operator `getValue`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 311,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 276
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate getter for `wrong` returns String, which is not assignable to Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 347,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 316
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `NoSet` has no applicable property delegate operator `setValue`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 379,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 352
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,56 @@
+package dispatch.bench
+
+public interface Reader {
+    public fun next(value: UInt): UInt
+}
+
+public class Cell public constructor(public val salt: UInt) : Reader {
+    public override fun next(value: UInt): UInt {
+        val first = (value xor salt) xor value.shl(13)
+        val second = first xor first.shr(17)
+        return second xor second.shl(5)
+    }
+}
+
+public fun known(cell: Cell, count: Int): UInt {
+    val reader: Reader = cell
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        value = reader.next(value)
+        index += 1
+    }
+    return value
+}
+
+public fun unknown(reader: Reader, count: Int): UInt {
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        value = reader.next(value)
+        index += 1
+    }
+    return value
+}
+
+public fun convertedOnce(source: Any, count: Int): UInt {
+    val reader = source as Reader
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        value = reader.next(value)
+        index += 1
+    }
+    return value
+}
+
+public fun convertedEach(source: Any, count: Int): UInt {
+    var value = 305419896U
+    var index = 0
+    while (index < count) {
+        val reader = source as Reader
+        value = reader.next(value)
+        index += 1
+    }
+    return value
+}

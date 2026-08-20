@@ -1,0 +1,4 @@
+package consumer.callprobes
+import upstream.callprobes.*
+
+public fun result(): Int { val value = Empty(); return 0 }

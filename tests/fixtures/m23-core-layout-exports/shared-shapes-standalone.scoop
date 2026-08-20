@@ -1,0 +1,5 @@
+public struct SharedShapeEmpty()
+public struct SharedShapeValue(val empty: SharedShapeEmpty, val number: Int)
+public enum SharedShapeChoice { Empty, Value(SharedShapeValue) }
+public interface SharedShapeMarker {}
+public class SharedShapeReference(val text: String): SharedShapeMarker

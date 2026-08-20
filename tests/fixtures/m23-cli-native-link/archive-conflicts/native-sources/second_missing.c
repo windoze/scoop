@@ -1,0 +1,1 @@
+int missing(void); int helper(void) { return missing(); }

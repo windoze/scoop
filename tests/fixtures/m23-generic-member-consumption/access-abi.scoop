@@ -1,0 +1,23 @@
+package consumer.members
+
+import templates.members.*
+
+private class Reference(public val value: Int)
+private struct Large(val first: Reference, val second: Reference, val third: Reference)
+
+public class Derived<T> public constructor(value: T): ProtectedMiddle<T>(value) {
+    public fun replace(next: T): T {
+        this.state = next
+        return this.secret()
+    }
+}
+
+public fun result(): Int {
+    val holder = Derived<Large>(Large(Reference(10), Reference(12), Reference(20)))
+    val token = Derived<Unit>(()).replace(())
+    val value = holder.replace(Large(Reference(1), Reference(2), Reference(3)))
+    val allocated = Reference(0)
+    return value.first.value + value.second.value + value.third.value + allocated.value
+}
+
+public fun <T> make(value: T): T = Derived<T>(value).replace(value)

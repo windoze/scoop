@@ -1,0 +1,4 @@
+struct Item<T>(val value: T)
+class Codec<T>(private val first: Encodable<T>, private val second: Encodable<T>) : Encodable<Item<T>>
+
+fun main() {}

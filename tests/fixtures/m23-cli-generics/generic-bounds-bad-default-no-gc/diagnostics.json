@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "managed dependency calls are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "c0c17555b478ea34b986475ea418fb8e8f05c4ae41838f5365dd0b76e9076e4c",
+      "end": 82,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling a managed dependency function is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "c0c17555b478ea34b986475ea418fb8e8f05c4ae41838f5365dd0b76e9076e4c",
+      "end": 82,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  }
+]

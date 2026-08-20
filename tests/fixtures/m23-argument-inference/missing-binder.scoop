@@ -1,0 +1,2 @@
+import dependency.inference.unused
+public fun result(): Int { val value = unused([], 42); return 42 }

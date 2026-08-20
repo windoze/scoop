@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`Ptr` raw address must be nonzero",
+    "notes": [],
+    "origin": {
+      "cone": "21efa196edbc6bcb786e2b0dc81599db68153f6ae48f872651d85b39ab0943b0",
+      "end": 166,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 163
+    },
+    "severity": "error"
+  }
+]

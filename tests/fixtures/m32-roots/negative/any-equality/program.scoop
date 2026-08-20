@@ -1,0 +1,2 @@
+fun bad(value: Any): Boolean = value == value
+fun main() {}

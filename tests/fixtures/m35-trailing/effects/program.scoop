@@ -1,0 +1,27 @@
+var trace: String = ""
+fun mark(label: String, value: Int): Int { trace = trace + label; return value }
+
+class Worker {
+    fun run(value: Int = mark("d", 1), action: () -> Int): Int = value + action()
+}
+fun receiver(): Worker { trace = trace + "r"; return Worker() }
+fun nothing(): Int { val value: Int? = None; return value ?: throw UnwrapException() }
+
+fun main() {
+    println(receiver().run(mark("a", 2)) { mark("b", 3) })
+    println(trace)
+    trace = ""
+    println(receiver().run { mark("b", 3) })
+    println(trace)
+    trace = ""
+    val missing: Worker? = None
+    val skipped = missing?.run(mark("a", 2)) { mark("b", 3) }
+    println(skipped == None)
+    println(trace)
+    val present: Worker? = Some(Worker())
+    println((present?.run { mark("b", 3) })!!)
+    println(trace)
+    try { println(Worker().run { nothing() }) }
+    catch (failure: UnwrapException) { println("caught") }
+    finally { println("finally") }
+}

@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m17-defaults-default-semantics"
+root = "../../m17-defaults/default-semantics.scoop"
+inputs = ["../../m17-defaults/default-semantics.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["legacy", "m17-defaults", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "prior-once\n7\nstruct-default\n10\n11\nclass-default\n20\n21\nvariant-default\n30\n31\n0\nexact\n42\n40\n40\n41\n42\nlocal-seed\n50\nexplicit-throws\ncaught\n"
+stderr = ""

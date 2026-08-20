@@ -1,0 +1,9 @@
+struct Payload(val value: Int)
+fun main() {
+    println(pick<Payload>(None, Payload(7)).value)
+    println(pick<String>(None, "fallback"))
+    println(withDefault())
+    println(fromDefault(Some(18)))
+    try { println(fromDefault(None)) } catch (failure: UnwrapException) { println("caught") }
+    println(branch(true, Payload(19)).value)
+}

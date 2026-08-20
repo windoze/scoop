@@ -1,0 +1,4 @@
+import dependency.classes.SharedHolder
+import dependency.classes.OtherHolder
+
+public fun invalid(): OtherHolder = SharedHolder

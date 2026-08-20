@@ -1,0 +1,15 @@
+// EXPECT-DIAGNOSTICS
+
+enum Signal {
+    Ready,
+    Failed
+}
+
+fun inspect(value: Signal) {
+    when (value) {
+        case Signal.Raedy -> println("misspelled")
+        else -> {}
+    }
+}
+
+fun main() {}

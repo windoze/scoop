@@ -1,0 +1,5 @@
+public fun check(): Int {
+    if (sourceHostInt().run(42) != 55) { return 1 }
+    if (sourceHostString().run("payload") != 55) { return 2 }
+    return 42
+}

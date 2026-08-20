@@ -1,0 +1,19 @@
+package consumer.defaults
+import upstream.defaults.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val expected = read(seed)
+    if (reference() != 42) { return 4 }
+    if (coerced() != 42) { return 5 }
+    if (read(generic<T>(seed)) != expected) { return 1 }
+    if (read(anonymous<T>(seed)) != expected) { return 2 }
+    if (read(chained<T>(seed)) != expected) { return 3 }
+    return read(nested<T>(seed))
+}
+
+public fun result(): Int {
+    if (plain(10) != 12) { return 1 }
+    if (plain() != 42) { return 2 }
+    if (reference() != 42) { return 3 }
+    return exercise<Int>(42, { value -> value })
+}

@@ -1,0 +1,25 @@
+fun named(value: Int): Int { return@named value + 1 }
+fun execute(block: () -> Int): Int = block()
+class Invoker {
+    fun take(block: (Int) -> Int): Int = block(4)
+    fun own(): Int { return@own 9 }
+}
+infix fun Int.apply(block: (Int) -> Int): Int = block(this)
+fun main() {
+    println(named(1))
+    println(execute { return@execute 3 })
+    val chosen = chosen@ { if (true) return@chosen 4; 5 }
+    println(chosen())
+    val anonymous = done@ fun(): Int { return@done 6 }
+    println(anonymous())
+    val nested = same@ {
+        val inner = same@ { return@same 7 }
+        return@same inner() + 1
+    }
+    println(nested())
+    println(Invoker().take { if (it > 0) return@take it + 1; 0 })
+    println(Invoker().own())
+    println(2 apply { return@apply it + 1 })
+    val quoted = `提前.返回`@ { return@`提前.返回` 10 }
+    println(quoted())
+}

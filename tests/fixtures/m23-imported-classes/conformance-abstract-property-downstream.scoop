@@ -1,0 +1,5 @@
+public fun check(): Long {
+    val reader: LocalBase = localReader()
+    reader.value = 21
+    return reader.value + primary().twice() - 21
+}

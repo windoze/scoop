@@ -1,0 +1,2 @@
+typealias Operation<T> = (T) -> T
+fun main() { val value = Operation<Int>(42) }

@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "delegated properties cannot use raw or extern storage annotations",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 196,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 194
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "Option shorthand cannot use raw or extern storage annotations",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 235,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 214
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `WrongExtension` has no applicable property delegate operator `getValue`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 163,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 117
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `NoGet` has no applicable property delegate operator `getValue`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 116,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 89
+    },
+    "severity": "error"
+  }
+]

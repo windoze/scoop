@@ -1,0 +1,18 @@
+public struct CoreLayoutEmpty() {
+    public fun keep(value: CoreLayoutEmpty): CoreLayoutEmpty = value
+}
+public struct CoreLayoutPair(val empty: CoreLayoutEmpty, val enabled: Boolean)
+public interface CoreLayoutReadable {
+    public fun enabled(): Boolean
+}
+public class CoreLayoutBox(val value: Boolean): CoreLayoutReadable {
+    public override fun enabled(): Boolean = value
+}
+public object CoreLayoutService {
+    public val active: Boolean = coreLayoutValue()
+}
+public fun coreLayoutValue(): Boolean = true
+public val coreLayoutStatus: Boolean = coreLayoutValue()
+public fun keepCoreLayoutEmpty(value: CoreLayoutEmpty): CoreLayoutEmpty = value
+public fun keepCoreLayoutAny(value: Any): Any = value
+public fun coreLayoutPair(value: CoreLayoutEmpty): CoreLayoutPair = CoreLayoutPair(value, true)

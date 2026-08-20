@@ -1,0 +1,2 @@
+open class Base @Unsafe constructor(value: Int) {}
+class Child(): Base(1) {}

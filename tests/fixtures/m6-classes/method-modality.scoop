@@ -1,0 +1,26 @@
+open class Base {
+    open fun dynamic(): Int = 1
+    fun fixed(): Int = 2
+    open fun closedLater(): Int = 3
+}
+
+open class Middle : Base() {
+    override fun dynamic(): Int = 10
+    final override fun closedLater(): Int = 30
+}
+
+class Leaf : Middle() {
+    override fun dynamic(): Int = 100
+}
+
+fun main() {
+    val base: Base = Leaf()
+    println(base.dynamic())
+    println(base.fixed())
+    println(base.closedLater())
+
+    val leaf = Leaf()
+    println(leaf.dynamic())
+    println(leaf.fixed())
+    println(leaf.closedLater())
+}

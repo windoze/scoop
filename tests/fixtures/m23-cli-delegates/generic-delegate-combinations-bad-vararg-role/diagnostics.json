@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `getValue` requires required, non-vararg parameters",
+    "notes": [],
+    "origin": {
+      "cone": "35066f543717aca417cc3241522065937c08c05fc379fe7b7f9d83625e2060ef",
+      "end": 120,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 93
+    },
+    "severity": "error"
+  }
+]

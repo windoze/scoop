@@ -1,0 +1,184 @@
+package templates.delegateGenerated
+
+public object Trace {
+    public var initializations: Int = 0
+    public var receivers: Int = 0
+}
+
+public class Receiver<T> public constructor(public val value: T)
+public class Payload public constructor(public var value: Int) {
+    public fun read(): Int {
+        val allocated = Payload(0)
+        return this.value + allocated.value
+    }
+}
+public struct ValueReader(val value: Int) {
+    public fun read(): Int = this.value
+}
+public struct Triple(val first: Payload, val second: Payload, val third: Payload)
+public class GenericReader<T> public constructor(public val value: Int) {
+    public fun read(): Int = this.value
+}
+public open class Base public constructor(public val value: Int) {
+    public open fun read(): Int = 1
+}
+public class Derived public constructor(value: Int) : Base(value) {
+    public override fun read(): Int = this.value
+}
+public interface Readable {
+    public fun read(): Int
+}
+public class ReadableImpl public constructor() : Readable {
+    public override fun read(): Int = 42
+}
+public fun readable(): Readable = ReadableImpl()
+public fun answer(): Int = 42
+public fun <U> genericAnswer(value: U): Int = 42
+public fun unitValue(value: Unit): Int = 0
+public fun Payload.extensionRead(): Int = this.value
+public fun <U> U.unboundRead(): Int = 42
+public fun nextReceiver(): Payload {
+    Trace.receivers += 1
+    return Payload(42)
+}
+
+public class ReaderSlot<T> public constructor(private val read: () -> Int) {
+    public operator fun getValue(thisRef: Receiver<T>): Int = this.read()
+}
+public class ArgumentSlot<T> public constructor(private val read: (T) -> Int) {
+    public operator fun getValue(thisRef: Receiver<T>): Int = this.read(thisRef.value)
+}
+
+public val <T> Receiver<T>.referenceNamed: Int by if (true) {
+    Trace.initializations += 1
+    ReaderSlot<T>(::answer)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceGeneric: Int by if (true) {
+    Trace.initializations += 1
+    ArgumentSlot<T>(::genericAnswer)
+} else {
+    ArgumentSlot<T>(::genericAnswer)
+}
+
+public val <T> Receiver<T>.referenceLocal: Int by if (true) {
+    Trace.initializations += 1
+    val payload = Payload(42)
+    fun read(): Int = payload.value
+    ReaderSlot<T>(::read)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceLocalGeneric: Int by if (true) {
+    Trace.initializations += 1
+    val payload = Payload(42)
+    fun <U> read(value: U): Int = payload.value
+    ArgumentSlot<T>(::read)
+} else {
+    ArgumentSlot<T>(::genericAnswer)
+}
+
+public val <T> Receiver<T>.referenceMember: Int by if (true) {
+    Trace.initializations += 1
+    var current = Payload(42)
+    val read: () -> Int = current::read
+    current = Payload(1)
+    ReaderSlot<T>(read)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceComputed: Int by if (true) {
+    Trace.initializations += 1
+    ReaderSlot<T>(nextReceiver()::read)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceValueMember: Int by if (true) {
+    Trace.initializations += 1
+    var current = ValueReader(42)
+    val read: () -> Int = current::read
+    current = ValueReader(1)
+    ReaderSlot<T>(read)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceGenericMember: Int by if (true) {
+    Trace.initializations += 1
+    ReaderSlot<T>(GenericReader<T>(42)::read)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceVirtual: Int by if (true) {
+    Trace.initializations += 1
+    val current: Base = Derived(42)
+    ReaderSlot<T>(current::read)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceInterface: Int by if (true) {
+    Trace.initializations += 1
+    ReaderSlot<T>(readable()::read)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceExtension: Int by if (true) {
+    Trace.initializations += 1
+    ReaderSlot<T>(Payload(42)::extensionRead)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceUnbound: Int by if (true) {
+    Trace.initializations += 1
+    ArgumentSlot<T>(::unboundRead)
+} else {
+    ArgumentSlot<T>(::genericAnswer)
+}
+
+public val <T> Receiver<T>.referenceValues: Int by if (true) {
+    Trace.initializations += 1
+    val triple = Triple(Payload(14), Payload(14), Payload(14))
+    val zero = Unit
+    fun read(): Int {
+        val allocated = Payload(0)
+        return unitValue(zero) + triple.first.value + triple.second.value + triple.third.value + allocated.value
+    }
+    ReaderSlot<T>(::read)
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceNested: Int by if (true) {
+    Trace.initializations += 1
+    val payload = Payload(42)
+    val make: () -> (() -> Int) = {
+        fun read(): Int {
+            return payload.value
+        }
+        ::read
+    }
+    ReaderSlot<T>(make())
+} else {
+    ReaderSlot<T>(::answer)
+}
+
+public val <T> Receiver<T>.referenceLocalFactory: Int by if (true) {
+    Trace.initializations += 1
+    val payload = Payload(42)
+    fun make(): () -> Int {
+        fun read(): Int = payload.value
+        return ::read
+    }
+    ReaderSlot<T>(make())
+} else {
+    ReaderSlot<T>(::answer)
+}

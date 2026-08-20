@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m34"
+name = "interface-bench-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m34:interface-bench-provider" = "0.1.0"

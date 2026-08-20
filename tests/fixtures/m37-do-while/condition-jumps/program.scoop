@@ -1,0 +1,17 @@
+fun main() {
+    var body = 0
+    var checks = 0
+    again@ do {
+        body += 1
+        val ready = body < 3
+    } while (if (true) {
+        checks += 1
+        if (checks < 3) continue@again
+        ready
+    } else { false })
+    println(body)
+    println(checks)
+    val option: Boolean? = None
+    do { body += 1 } while (option ?: break)
+    println(body)
+}

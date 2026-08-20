@@ -1,0 +1,5 @@
+class Choice {
+    @Unsafe constructor(value: Int) {}
+    constructor(value: Any) {}
+}
+fun main() { val choice: Choice = Choice(1) }

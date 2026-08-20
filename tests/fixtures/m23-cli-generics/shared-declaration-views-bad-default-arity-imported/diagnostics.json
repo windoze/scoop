@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for bound callable reference `receiver::read` in member candidate layer:\n  - fun Box<T>.read(ignored: Int): T — callable shape expects 0 parameter(s), but the actual type has 1",
+    "notes": [],
+    "origin": {
+      "cone": "8403633eeb3fbf52daa03041ff1c6d8b27f8ef3c6e26e03ad46c3efa9e7ebcec",
+      "end": 172,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 163
+    },
+    "severity": "error"
+  }
+]

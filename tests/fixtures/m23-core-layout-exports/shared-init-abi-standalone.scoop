@@ -1,0 +1,6 @@
+public fun sharedInitMessage(): String = "initialized"
+public val sharedInitEager: String = sharedInitMessage()
+public object SharedInitService {
+    public val message: String = sharedInitEager
+}
+public fun sharedInitRead(): String = SharedInitService.message

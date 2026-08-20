@@ -1,0 +1,15 @@
+package consumer.paths
+
+import dependency.paths.Point
+import dependency.paths.Box
+import dependency.paths.make
+
+public fun <T> exercise(value: T): Int {
+    val box: dependency.paths.Box<T> = make<T>(value)
+    val kept: T = box.value
+    val point: dependency.paths.Point = Point(42)
+    val concrete: dependency.paths.Box<Int> = Box<Int>(point.number)
+    return concrete.value
+}
+
+public fun result(): Int = exercise<Int>(0)

@@ -1,0 +1,5 @@
+public struct SharedLayoutEmpty()
+public struct SharedLayoutPair(val first: SharedLayoutEmpty, val second: SharedLayoutEmpty)
+public class SharedLayoutNode public constructor(public val next: SharedLayoutNode)
+public open class SharedLayoutBase public constructor(public val tiny: Int8)
+public class SharedLayoutLeaf public constructor(public val payload: Long): SharedLayoutBase(1)

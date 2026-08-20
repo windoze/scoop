@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: unknown target predicate \"env\" value \"windows\"",
+    "notes": [],
+    "origin": {
+      "end": 168,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": 159
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

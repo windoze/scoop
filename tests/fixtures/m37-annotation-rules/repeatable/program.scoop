@@ -1,0 +1,13 @@
+import Repeatable as Many
+import Target as Places
+import AnnotationTarget as Site
+@Places([Site.FUNCTION, Site.PROPERTY_GETTER, Site.VALUE_PARAMETER, Site.ANNOTATION_CLASS])
+@Many
+annotation class Trace(val value: Int)
+@Trace(1) @Trace(1) @Trace(2)
+fun read(@Trace(3) @Trace(4) value: Int): Int = value
+@get:Trace(5) @get:Trace(6)
+val answer: Int
+    @Trace(7) get() = read(42)
+@Trace(8) @Trace(9) annotation class Mark
+fun main() { println(answer) }

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `conflict` is ambiguous in exact import layer:\n  - conflict<T>(action: (T) -> T, values: Array<T>, left: T, right: Any): T — applicable; tied by MSC\n  - conflict<T>(action: (T) -> T, values: Array<T>, left: Any, right: T): T — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "6e95e223968a2ee90490e575e3e87e6c314fd8c0e77af0ce90b296c6297282b3",
+      "end": 145,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 113
+    },
+    "severity": "error"
+  }
+]

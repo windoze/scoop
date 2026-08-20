@@ -1,0 +1,4 @@
+struct Plain(val value: Int) {
+    fun equals(other: Plain): Boolean = value == other.value
+}
+fun main() { println(Plain(1) == Plain(1)) }

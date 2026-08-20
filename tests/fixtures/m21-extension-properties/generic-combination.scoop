@@ -1,0 +1,28 @@
+class Cell<T>(var value: T)
+
+val <T> Cell<T>.item: T
+    get() = value
+
+var <T> Cell<T>.content: T
+    get() = value
+    set(next) { value = next }
+
+val <T> Cell<T>.kind: String
+    get() = "generic"
+
+val Cell<Int>.kind: String
+    get() = "int"
+
+fun main() {
+    val number = Cell(10)
+    println(number.item)
+    number.content = 12
+    println(number.content)
+    println(number.kind)
+
+    val text = Cell("before")
+    println(text.item)
+    text.content = "after"
+    println(text.content)
+    println(text.kind)
+}

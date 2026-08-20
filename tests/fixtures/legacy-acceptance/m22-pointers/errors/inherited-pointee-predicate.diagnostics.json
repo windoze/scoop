@@ -1,0 +1,171 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Wrapper<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 987,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 955
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Carrier<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 601,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 541
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Wrapper<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 917,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 855
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Wrapper<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1090,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1046
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Wrapper<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1180,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1148
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Carrier<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 652,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 603
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Carrier<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 692,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 654
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Base<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 804,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 765
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type PrimaryWrapper<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1476,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1228
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type BaseWrapper<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1335,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1299
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type InitializerWrapper<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1410,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1367
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type BlockWrapper<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1468,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1431
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type Carrier<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 539,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 493
+    },
+    "severity": "error"
+  }
+]

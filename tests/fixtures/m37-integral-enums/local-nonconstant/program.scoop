@@ -1,0 +1,4 @@
+fun main() {
+    val raw = 1
+    enum Local: Int { Value = raw }
+}

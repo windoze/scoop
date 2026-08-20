@@ -1,0 +1,10 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = service()
+    val view: View = value
+    verifyType(view.value == 4 && value.value == 4)
+    verifyType(value.observe(17) == 17)
+    verifyType(outer().read(19) == 19 && outer().read("text") == "text")
+    verifyType(updateCache(23) == 23 && Cache === Cache)
+}

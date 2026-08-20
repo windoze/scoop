@@ -1,0 +1,4 @@
+val enabled: Boolean = true
+@Extern(name = "bad", captureErrno = enabled)
+fun bad(): (Int, Int)
+fun main() {}

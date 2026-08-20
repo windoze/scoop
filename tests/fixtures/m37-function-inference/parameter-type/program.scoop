@@ -1,0 +1,2 @@
+fun value(input = 7) = input
+fun main() {}

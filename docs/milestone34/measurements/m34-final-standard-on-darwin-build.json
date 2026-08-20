@@ -1,0 +1,646 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "target": "aarch64-apple-darwin",
+  "revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
+  "mode": "on",
+  "kind": "standard",
+  "builds": [
+    {
+      "name": "aggregate",
+      "first_build_seconds": 6.207158208009787,
+      "warm_build_seconds": 3.24135258293245,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/aggregate.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/target-aggregate",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/aggregate"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "4d29a799f444cddd646617a6c92edf113e17c8c370eb2f64155793a0715af75a",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "87327a1a2cac271c388522dd3dc50c75f3cc42eae3438bd3152a7a8515815151",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/aggregate",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "040c2f2cb84afab082bec242c4b3be185ce804589c6a833451dee0ad466a1462",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/87327a1a2cac271c388522dd3dc50c75f3cc42eae3438bd3152a7a8515815151/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6057224,
+      "root_slib_bytes": 219012
+    },
+    {
+      "name": "allocation",
+      "first_build_seconds": 5.271779416012578,
+      "warm_build_seconds": 3.2662248329725116,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/target-allocation",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/allocation"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "d13bf7e3c43b79d9954cfa83f69cadce357b7744d26928335ed7434bb57e8720",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "9b455f125a1c7d6b96008200fe64a1149e2ceb957ff27f72f8bc406f9a7db5c9",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/allocation",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "ea510c0958a975dca7fe91f9145405cf10f727ae2da9cd5eca4cb6713f58abf2",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9b455f125a1c7d6b96008200fe64a1149e2ceb957ff27f72f8bc406f9a7db5c9/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6061016,
+      "root_slib_bytes": 263888
+    },
+    {
+      "name": "arrays",
+      "first_build_seconds": 5.589325042092241,
+      "warm_build_seconds": 3.3364159170305356,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/arrays.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/target-arrays",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/arrays"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "44d682459631d4c84ab54ae671e6a0e7ca115992b1d995d9ffd3faef50020350",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "a07eefc8c35fbc741006970bac553c2be950d39b88e3888d54354a16143abcb9",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/arrays",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "b646483eb3a17bf5df17c393d0a11d29fb75f4a3446c46717d595ead881b11b5",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/a07eefc8c35fbc741006970bac553c2be950d39b88e3888d54354a16143abcb9/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6254264,
+      "root_slib_bytes": 1361352
+    },
+    {
+      "name": "collections",
+      "first_build_seconds": 5.62997070804704,
+      "warm_build_seconds": 3.2681945000076666,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/collections.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/target-collections",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/collections"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "c5927e0b3af56c065ffb5c8e56012e4555fc1d8d575bc6a8df419d4610044947",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "b8d848d37e2cdf51c548a691736c312f0c2fddac7c7b2c16530b585751af2157",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/collections",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "c544be77c17cab4ec6853929937c9ddb8cfb18d02f886acd7cb4301400936a7e",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/b8d848d37e2cdf51c548a691736c312f0c2fddac7c7b2c16530b585751af2157/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6060632,
+      "root_slib_bytes": 1709624
+    },
+    {
+      "name": "old-graph-large",
+      "first_build_seconds": 5.495112583041191,
+      "warm_build_seconds": 3.3087449579034,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/old-graph-large.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/target-old-graph-large",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/old-graph-large"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "a7bb6a087b8fb063cc0d041d57373d8d2e05d989323e928c4a977d191b2de4e1",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "ba07ee35d3b48fade6b7bbbec4295b141c2e1413e39673718a88c032f18b7d31",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/old-graph-large",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "e3943259d0b1526964c96f8ccfb6283055046f11d7207173c70f0744c9bd078e",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/ba07ee35d3b48fade6b7bbbec4295b141c2e1413e39673718a88c032f18b7d31/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6190008,
+      "root_slib_bytes": 938862
+    },
+    {
+      "name": "old-graph",
+      "first_build_seconds": 5.4940933749312535,
+      "warm_build_seconds": 3.297402459080331,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/old-graph.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/target-old-graph",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/old-graph"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "260d70840e8f147ee30c8dbd29d1a6845ad4b91fb1bace9a1895634389b8a067",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "92c4794036e9dabce4245bc7c2c4ed0ce079df1746c19bb7b9baf47c4d520212",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/old-graph",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "8502f5ab3ce01f8fe3f232fdbb54be364b5c4e8de28c16e863918a8aaaebea69",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/92c4794036e9dabce4245bc7c2c4ed0ce079df1746c19bb7b9baf47c4d520212/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6190008,
+      "root_slib_bytes": 938862
+    },
+    {
+      "name": "primitive",
+      "first_build_seconds": 5.26624774991069,
+      "warm_build_seconds": 3.2541000419296324,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/primitive.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/target-primitive",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/primitive"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "689a2ba8b7ce8b3e8cbc0133a94449b3df25191f1b920499a5828f2b6a401d01",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "886d6435cb18c5a283dd703202921036c6d1e23cba08c6d4d90f43e4df606b47",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/primitive",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "f7cf8804970c98cf22ba883dd8740937e3bb43347da113a66cb01005dcdb0815",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/886d6435cb18c5a283dd703202921036c6d1e23cba08c6d4d90f43e4df606b47/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6048536,
+      "root_slib_bytes": 208620
+    },
+    {
+      "name": "survivors",
+      "first_build_seconds": 5.504240166977979,
+      "warm_build_seconds": 3.2876398749649525,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/survivors.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/target-survivors",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/survivors"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "46a7b84b45f907ed5ffc43db6438a1adcb6a50cd38f981411a08dd3d40e267fc",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "3e47a0d501857c95c8f36277f867f2f99024f6b6946b8e12c00da0e4fad8a61a",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/survivors",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "a00495e7d4e2bdceb9b19a170a695177abe5b310b6277a052299d09ab84fe5ad",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/3e47a0d501857c95c8f36277f867f2f99024f6b6946b8e12c00da0e4fad8a61a/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6199544,
+      "root_slib_bytes": 1026452
+    }
+  ],
+  "commands": [],
+  "tools": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "llvm": "22.1.8"
+  }
+}

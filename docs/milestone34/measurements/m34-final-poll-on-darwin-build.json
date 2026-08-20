@@ -1,0 +1,135 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "target": "aarch64-apple-darwin",
+  "revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
+  "mode": "on",
+  "kind": "poll",
+  "builds": [
+    {
+      "name": "poll",
+      "first_build_seconds": 5.446273500099778,
+      "warm_build_seconds": 5.433491832925938,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/poll-response/program.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/target-poll",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/poll",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "3ec80f8dde0816669eb365841f768d4f1c1be20c0d0a1b0ae5367c90b56ed194",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "81be5a415c91f98a5983c5f08dbb32b3de1d02b56acacf9c7080e9cf305d687f",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "9f90b8a5813d29f9a40d39fc4cfc897976fc4521bd26cb7214efd7df4a6fad07",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "7bb7040b5d3177cac846296ba729584d1addff83654c55ec890b04885f5740b2",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/poll",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "ad9aa9aad80a2fa30b5cd56cb3a29b664de61291e4dcaea84afcec757cd99b60",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/compile-v1/7bb7040b5d3177cac846296ba729584d1addff83654c55ec890b04885f5740b2/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/acceptance-darwin/cache/runtime-v1/43b06265b7fcbe3af163719fea20d3c175fbb24c9ceaf73f48481a56e04cc421/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6140552,
+      "root_slib_bytes": 619268
+    }
+  ],
+  "commands": [
+    [
+      "cc",
+      "-std=c11",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-O2",
+      "-fno-omit-frame-pointer",
+      "-fno-optimize-sibling-calls",
+      "-fno-builtin",
+      "-pthread",
+      "-c",
+      "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/ffi/leaf.c",
+      "-o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/leaf.o"
+    ],
+    [
+      "cc",
+      "-std=c11",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-O2",
+      "-fno-omit-frame-pointer",
+      "-fno-optimize-sibling-calls",
+      "-fno-builtin",
+      "-pthread",
+      "-c",
+      "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/ffi/runner.c",
+      "-o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/runner.o"
+    ],
+    [
+      "ar",
+      "rcs",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/libffi_benchmark.a",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/leaf.o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/runner.o"
+    ]
+  ],
+  "tools": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "llvm": "22.1.8"
+  }
+}

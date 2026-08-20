@@ -1,0 +1,23 @@
+interface Show {
+    fun show(): Int
+}
+
+struct Shown(val value: Int) : Show {
+    override fun show(): Int = value
+}
+
+open class Base : Show {
+    override fun show(): Int = 1
+}
+
+class Derived : Base() {
+    override fun show(): Int = 2
+}
+
+fun <T : Show> read(value: T): Int = value.show()
+
+fun main() {
+    println(read(Shown(42)))
+    val base: Base = Derived()
+    println(read(base))
+}

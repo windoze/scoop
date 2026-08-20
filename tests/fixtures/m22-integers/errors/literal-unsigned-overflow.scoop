@@ -1,0 +1,5 @@
+// EXPECT-DIAGNOSTICS
+
+val unsignedOverflow: ULong = 18446744073709551616uL
+
+fun main() {}

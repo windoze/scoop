@@ -1,0 +1,8 @@
+package dispatch.consumer
+
+import dispatch.facade.*
+
+fun main() {
+    val wrong: Describe<Long> = Both()
+    println(wrong.describe(1L))
+}

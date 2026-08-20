@@ -1,0 +1,12 @@
+open class Base(val value: Int) {
+    companion object {
+        fun answer(): Int = 42
+    }
+}
+
+class Derived : Base(1)
+
+fun main() {
+    Base(1).answer()
+    Derived.answer()
+}

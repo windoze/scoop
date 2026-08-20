@@ -1,0 +1,16 @@
+package consumer.constructors
+
+import dependency.constructors.Packet
+import dependency.constructors.Marker
+import dependency.constructors.Wide
+import dependency.constructors.defaultWide
+
+public typealias Parcel = Packet
+typealias LocalWide = Wide
+typealias Zero = Marker
+
+@NoGC public fun token(): Marker = Zero()
+@NoGC public fun primary(): Parcel = Packet(marker = Marker(), third = 53, first = 17, second = -29)
+@NoGC public fun secondary(): Parcel = Parcel(seed = LocalWide(seed = 3).first + 2, step = 3)
+@NoGC public fun defaults(): Long = defaultWide(value = LocalWide(3, 4, 5))
+@NoGC public fun republished(value: Parcel = Parcel(seed = 1, step = 1)): Long = value.sum()

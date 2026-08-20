@@ -1,0 +1,20 @@
+// EXPECT-COMPILE
+
+package demo.app
+
+import demo.app.Box as ImportedBox
+import demo.app.make as create
+import demo.app.Tools.*
+
+struct Box(val value: Int)
+
+fun make(value: Int): Box = Box(value)
+
+object Tools {
+    fun answer(): Int = 42
+}
+
+fun main() {
+    val box: ImportedBox = create(answer())
+    println(box.value)
+}

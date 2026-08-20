@@ -1,0 +1,7 @@
+struct S(val f1: Int, val f2: Int)
+
+fun main() {
+    val s = S(1, 2)
+    val S { f1 } = s
+    println(f1)
+}

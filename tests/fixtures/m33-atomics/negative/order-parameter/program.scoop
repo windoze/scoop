@@ -1,0 +1,2 @@
+fun bad(cell: AtomicLong, order: MemoryOrder): Long = cell.load(order)
+fun main() {}

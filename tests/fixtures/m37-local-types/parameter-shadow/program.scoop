@@ -1,0 +1,2 @@
+fun <T> outer() { class Local<T> }
+fun main() {}

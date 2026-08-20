@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "override function `answer` inherits conflicting default expressions for parameter `value`",
+    "notes": [],
+    "origin": {
+      "cone": "0bb1b5504e52c29db5819bf5895f41a82d05333169b26607c5bb1e2ca97369a3",
+      "end": 196,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 191
+    },
+    "severity": "error"
+  }
+]

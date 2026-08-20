@@ -1,0 +1,1 @@
+public fun divide(value: Long, divisor: Long): Long = value / divisor

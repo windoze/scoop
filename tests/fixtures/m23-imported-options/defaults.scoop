@@ -1,0 +1,18 @@
+package consumer.options
+
+import dependency.options.Holder
+import dependency.options.optionalDefault
+import dependency.options.noneDefault
+import dependency.options.nestedDefault
+import dependency.options.safeDefault
+
+public fun <T> exercise(value: T): Int {
+    val first = optionalDefault(value)
+    val second = nestedDefault(value)
+    val third = safeDefault(value, Some(Holder(value)))
+    if (safeDefault(0, Some(Holder(20))) != 20) { return 1 }
+    if (safeDefault(22, None) != 22) { return 2 }
+    return optionalDefault(20) + noneDefault(22)
+}
+
+public fun result(): Int = exercise<Int>(1)

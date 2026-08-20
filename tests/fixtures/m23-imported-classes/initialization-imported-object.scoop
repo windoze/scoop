@@ -1,0 +1,13 @@
+import dependency.classes.Counter
+import dependency.classes.SharedHolder
+
+private object Saved {
+    val holder: SharedHolder = SharedHolder
+}
+
+public fun primary(): Counter {
+    val first = Saved.holder.value
+    val allocated = Counter(7)
+    val second = SharedHolder.value
+    return if (first === second && allocated.twice() == 14) { first } else { Counter(0) }
+}

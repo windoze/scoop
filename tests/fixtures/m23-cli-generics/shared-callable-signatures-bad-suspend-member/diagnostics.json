@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "suspend function `suspendedGet` cannot be called from non-suspend function `invalid`",
+    "notes": [],
+    "origin": {
+      "cone": "45a8f859ef8315dc99a2033abcac10aa3b6f4fb5d3a1d389e67d7e83f22fd6ba",
+      "end": 95,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 75
+    },
+    "severity": "error"
+  }
+]

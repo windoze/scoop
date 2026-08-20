@@ -1,0 +1,4 @@
+package consumer.members
+import dependency.members.Wide
+import dependency.members.Token
+public fun wrong(value: Wide): Token = value.first

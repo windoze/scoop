@@ -1,0 +1,3 @@
+struct Item(val value: (Int) -> Int) { companion object : Encodable<Item> }
+
+fun main() {}

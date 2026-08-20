@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `loadDefault` requires type argument Value for `T` to be a GC-free `Ptr` pointee",
+    "notes": [],
+    "origin": {
+      "cone": "78bf701e1fbec31f6c986d501c328bbcb477179277bd7319a05af1ecef9f2cee",
+      "end": 206,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 183
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,49 @@
+package dependency.selection
+
+public fun choose(value: Any): Int = 1
+public fun choose(value: Int): Int = value
+public fun <T> prefer(value: T): Int = 1
+public fun prefer(value: Any): Int = 42
+public fun fewer(value: Int, extra: Int = 0): Int = 1
+public fun fewer(value: Int): Int = value
+public fun rest(vararg values: Int): Int = 1
+public fun rest(value: Int): Int = value
+public fun ambiguous(first: Int, second: Any, extra: Int = 0): Int = 1
+public fun ambiguous(first: Any, second: Int): Int = 2
+
+public class Choice public constructor(public val number: Int)
+public fun Choice(value: Any): Int = 1
+public class Holder<T> public constructor(public val value: T)
+public fun Holder(value: Any): Int = 42
+
+public class Host public constructor() {
+    public fun choose(value: Any): Int = 1
+    public fun choose(value: Int): Int = value
+    public fun <T> prefer(value: T): Int = 1
+    public fun prefer(value: Any): Int = 42
+    public fun fewer(value: Int, extra: Int = 0): Int = 1
+    public fun fewer(value: Int): Int = value
+    public fun rest(vararg values: Int): Int = 1
+    public fun rest(value: Int): Int = value
+    public fun relay(): Int = choose(42)
+    public fun ambiguous(first: Int, second: Any, extra: Int = 0): Int = 1
+    public fun ambiguous(first: Any, second: Int): Int = 2
+}
+
+public class GenericHost<T> public constructor(public val value: T) {
+    public fun fewer(value: T, extra: Int = 0): Int = 1
+    public fun fewer(value: T): Int = 42
+}
+
+public open class Base public constructor(public val number: Int, ready: Boolean = true) {
+    public constructor(value: Int): this(value + 1, false) {}
+    public constructor(label: String): this(41) {}
+}
+
+public class Variadic public constructor(public val number: Int) {
+    public constructor(vararg values: Int): this(1) {}
+}
+
+public class Ambiguous public constructor(first: Int, second: Any, extra: Int = 0) {
+    public constructor(first: Any, second: Int): this(0, second, 0) {}
+}

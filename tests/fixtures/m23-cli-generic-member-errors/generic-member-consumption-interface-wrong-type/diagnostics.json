@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`choose` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "3b476fbe322d29f2f3a22f151339a0853ee5232d62fe0b60e7d31eda8c27a7d0",
+      "end": 94,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 88
+    },
+    "severity": "error"
+  }
+]

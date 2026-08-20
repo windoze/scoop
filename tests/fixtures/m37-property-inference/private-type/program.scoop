@@ -1,0 +1,3 @@
+private class Hidden {}
+public val value = Hidden()
+fun main() {}

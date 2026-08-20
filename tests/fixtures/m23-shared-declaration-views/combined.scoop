@@ -1,0 +1,26 @@
+package consumer.declarationviews
+import upstream.declarationviews.*
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val counter = Counter()
+    val box = Box<T>(seed, counter)
+    val read: (Int) -> T = box::read
+    val relay: (T) -> T = box::relay
+    val bound: () -> T = seed::retain
+    val unbound: (T) -> T = ::retain
+    val selected: (Int) -> Int = ::select
+    val packed: (T, Array<T>) -> Array<T> = ::collect
+    if (counter.calls != 0 || selected(41) != 42) { return 1 }
+    if (inspect(read(0)) != 42 || counter.calls != 0) { return 2 }
+    if (inspect(box.read()) != 42 || counter.calls != 1) { return 3 }
+    if (inspect(relay(seed)) != 42 || inspect(bound()) != 42 || inspect(unbound(seed)) != 42) { return 4 }
+    val empty: Array<T> = []
+    if (packed(seed, empty).size != 0L) { return 5 }
+    if (collect(seed).size != 1L || inspect(collect(seed)[0L]) != 42) { return 6 }
+    if (inspect(collect(seed, values = [seed])[0L]) != 42) { return 7 }
+    if (collect(seed, seed, *[seed]).size != 2L) { return 8 }
+    if (inspect(copy(seed)) != 42 || inspect(copy(operation = ::identity, value = seed)) != 42) { return 9 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

@@ -1,0 +1,25 @@
+schema = 1
+
+[[sources]]
+path = "src"
+[[sources]]
+path = "platform/darwin.scoop"
+when = {os = "darwin"}
+[[sources]]
+path = "platform/linux.scoop"
+when = {os = "linux"}
+
+[cone]
+group = "dev.m33"
+name = "platform-example"
+version = "0.1.0"
+kind = "library"
+
+[native]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-pthread"]
+[[native.sources]]
+path = "native/files.c"
+[[native.sources]]
+path = "native/threads.c"
+[[native.libraries]]
+name = "pthread"

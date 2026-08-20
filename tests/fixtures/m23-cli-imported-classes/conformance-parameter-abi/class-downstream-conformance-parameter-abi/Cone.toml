@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "class-downstream-conformance-parameter-abi"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:class-provider" = "0.1.0"
+"dev.example:classes-conformance-parameter-abi" = "0.1.0"

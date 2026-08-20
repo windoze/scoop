@@ -1,0 +1,9 @@
+public fun referenceSeed(): String = "source"
+public fun <T> genericReference(seed: T, value: () -> String = ::referenceSeed): () -> String = value
+public fun <T> unusedReference(value: () -> String = ::referenceSeed): () -> String = value
+fun main() {
+    genericReference(1)()
+    genericReference("other")()
+    unusedReference<Int>()()
+    unusedReference<String>()()
+}

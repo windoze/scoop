@@ -1,0 +1,39 @@
+@NoGC fun <T> gcFree(value: T): T = value
+class DeferredChoice<T> {
+    constructor(value: T, extra: Int) { gcFree(value) }
+    constructor(flag: Boolean) {}
+    init {
+        fun local(): Int = 1
+        local()
+    }
+}
+class DeferredChain<T>(val value: T) {
+    constructor(value: T, flag: Boolean): this(value) { makeChain(value) }
+}
+fun <T> makeChain(value: T): DeferredChain<T> = DeferredChain(value)
+struct DeferredBox<T>(val value: T) {
+    constructor(value: T, flag: Boolean): this(value) { makeBox(value) }
+}
+fun <T> makeBox(value: T): DeferredBox<T> = DeferredBox(value)
+class DeferredRecursive<T>(val value: T) {
+    init { if (false) { makeRecursive(value) } }
+}
+fun <T> makeRecursive(value: T): DeferredRecursive<T> = DeferredRecursive(value)
+open class DeferredBase<T>(val value: T) {
+    constructor(value: T, flag: Boolean): this(value) {}
+}
+class DeferredDerived<T>(value: T): DeferredBase<T>(value)
+class DeferredFixed(value: Int): DeferredBase<Int>(value)
+class DeferredPlain {
+    constructor() {}
+    constructor(flag: Boolean) {}
+}
+fun main() {
+    val choice: DeferredChoice<String> = DeferredChoice<String>(true)
+    val chain: DeferredChain<Int> = DeferredChain(1, true)
+    val box: DeferredBox<Int> = DeferredBox(1, true)
+    val recursive: DeferredRecursive<Int> = DeferredRecursive(1)
+    val derived: DeferredDerived<Int> = DeferredDerived(1)
+    val fixed: DeferredFixed = DeferredFixed(1)
+    val plain: DeferredPlain = DeferredPlain()
+}

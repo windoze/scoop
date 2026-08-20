@@ -1,0 +1,10 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = envelope()
+    verifyNominal(value.exercise(17, Argument) == (17, 7))
+    verifyNominal(value.exercise("parameters", Argument) == ("parameters", 7))
+    verifyNominal(value.defaults() == 11)
+    verifyNominal(value.counts() == 4)
+}

@@ -1,0 +1,2 @@
+class Key(val value: Int)
+fun main() { when (Key(1)) { Key(1) -> {} } }

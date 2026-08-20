@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `accept` in member candidate layer:\n  - fun Host<T>.accept<U : Marker>(value: U): U — type argument `Int` for `U` must satisfy interface upper bound `Marker`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 204,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 187
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "polymorphic recursion is not supported: generic callable cycle `Host.grow` changes its complete type-argument mapping",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 160,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 139
+    },
+    "severity": "error"
+  }
+]

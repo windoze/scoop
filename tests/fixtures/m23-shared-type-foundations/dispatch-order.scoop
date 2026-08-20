@@ -1,0 +1,30 @@
+package dependency.dispatch
+
+public interface Root {
+    public fun root(): Int = 1
+}
+public interface Left : Root {
+    public fun left(): Int = 2
+}
+public interface Right : Root {
+    public fun right(): Int = 3
+}
+public interface Joined : Right, Left {
+    public override fun root(): Int = 4
+    public val size: Int
+        get() = 5
+}
+public open class Base public constructor() {
+    public open fun first(): Int = 6
+    public open fun second(): Int = 7
+    public open var value: Int
+        get() = 8
+        set(value) {}
+}
+public class Derived public constructor() : Base(), Joined {
+    public override fun first(): Int = 9
+}
+public struct Small() : Joined {}
+public interface Generic<T> {
+    public fun select(value: T): T
+}

@@ -1,0 +1,11 @@
+private fun <T> helper(value: T): T = value
+private fun seed(): Int = 7
+private fun <T> unused(value: T): T = value
+
+public fun <T> identity(value: T): T = value
+
+public fun <T> composed(value: T): T {
+    val result = helper(value)
+    seed()
+    return result
+}

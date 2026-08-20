@@ -1,0 +1,15 @@
+class Configuration(val text: String)
+context(configuration: Configuration)
+fun active() = configuration.text
+fun factory() = out@ { return@out answer() }
+fun answer() = 7
+fun main() {
+    val answer = "caller"
+    context(Configuration("context")) { println(active()) }
+    val operation = factory()
+    println(operation())
+    val captured = 9
+    fun local() = captured
+    println(local())
+    println(answer)
+}

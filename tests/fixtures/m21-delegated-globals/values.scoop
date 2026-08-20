@@ -1,0 +1,81 @@
+class UnitDelegate(var value: String) {
+    operator fun provideDelegate(): UnitDelegate {
+        println("provide-unit")
+        return this
+    }
+
+    operator fun getValue(thisRef: Unit): String {
+        println("get-unit")
+        return value
+    }
+
+    operator fun setValue(thisRef: Unit, next: String) {
+        println("set-unit")
+        value = next
+    }
+}
+
+class ExtensionDelegate(var value: Int)
+
+operator fun ExtensionDelegate.provideDelegate(): ExtensionDelegate {
+    println("provide-extension")
+    return this
+}
+
+operator fun ExtensionDelegate.getValue(thisRef: Int): Int {
+    println("get-extension")
+    return value + thisRef
+}
+
+operator fun ExtensionDelegate.setValue(thisRef: Int, next: Int) {
+    println("set-extension")
+    value = next
+}
+
+class Seed(val value: Int) {
+    operator fun provideDelegate(): EffectiveDelegate {
+        println("provide-effective")
+        return EffectiveDelegate(value)
+    }
+}
+
+class EffectiveDelegate(var value: Int) {
+    operator fun getValue(thisRef: Unit): Int = value
+
+    operator fun setValue(thisRef: Unit, next: Int) {
+        value = next
+    }
+}
+
+fun makeUnitDelegate(): UnitDelegate {
+    println("make-unit")
+    return UnitDelegate("initial")
+}
+
+fun makeExtensionDelegate(): ExtensionDelegate {
+    println("make-extension")
+    return ExtensionDelegate(10)
+}
+
+var message: String by makeUnitDelegate()
+var provided: Int by Seed(7)
+var Int.offset: Int by makeExtensionDelegate()
+
+fun main() {
+    println("main")
+    gcCollect()
+
+    println(message)
+    message = "changed"
+    println(message)
+
+    println(provided)
+    provided = 8
+    println(provided)
+
+    println(1.offset)
+    2.offset = 40
+    println(3.offset)
+    gcCollect()
+    println(4.offset)
+}

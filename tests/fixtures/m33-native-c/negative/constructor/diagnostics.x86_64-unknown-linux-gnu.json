@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object 2b2fd0dba809051ebe96c86224d534899c31b19857187885a569e1c7ef3486a6 selected by direct input (dev.m33:native-negative:0.1.0:native.c): native object contains unsupported initialization, LTO or executable-stack section .init_array",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

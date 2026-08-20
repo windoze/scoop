@@ -1,0 +1,2 @@
+public fun sourceHostInt(): SourceHost<Int> = SourceHost<Int>()
+public fun sourceHostString(): SourceHost<String> = SourceHost<String>()

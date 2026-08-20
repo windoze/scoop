@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3771,
+  "selected": 4,
+  "unselected": 3767,
+  "counts": {
+    "passed": 2,
+    "failed": 2
+  },
+  "variants": 4,
+  "processes": 29,
+  "stage_and_plan_goldens": 3,
+  "results": [
+    {
+      "name": "m31-ssa-roots",
+      "status": "passed",
+      "seconds": 90.16454025008716,
+      "variants": 3,
+      "processes": 12,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "native-link-runtime-gc",
+      "status": "failed",
+      "seconds": 4.496410708175972,
+      "variants": 0,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "[Errno 13] Permission denied: '/Users/chenxu/repos/scoop/target/m40/repairs-darwin/cases/1/normal/artifacts/root.slib'"
+    },
+    {
+      "name": "native-link-runtime-handles",
+      "status": "failed",
+      "seconds": 4.645373167004436,
+      "variants": 0,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "[Errno 13] Permission denied: '/Users/chenxu/repos/scoop/target/m40/repairs-darwin/cases/2/normal/artifacts/root.slib'"
+    },
+    {
+      "name": "program-link-artifact-corruption",
+      "status": "passed",
+      "seconds": 8.849470417015254,
+      "variants": 1,
+      "processes": 13,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

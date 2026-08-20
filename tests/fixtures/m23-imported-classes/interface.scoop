@@ -1,0 +1,7 @@
+import dependency.classes.Counter
+import dependency.classes.Readable
+import dependency.classes.readable
+import dependency.classes.retainReadable
+
+public fun accept(value: Readable): Readable = retainReadable(value)
+public fun primary(): Counter = Counter(accept(readable(20)).answer())

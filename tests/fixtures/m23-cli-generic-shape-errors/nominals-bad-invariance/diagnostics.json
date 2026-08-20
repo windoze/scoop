@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `value` must be of type Parcel<Any>, found Parcel<Number>; nominal application `Parcel` is invariant: first differing type argument 1 (`T`) is `Number` in `Parcel<Number>`, but `Any` in `Parcel<Any>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "01d656c6fb57da221037f16139e3c87ef19294cb4c649f2f09f49a1b39d633bb",
+      "end": 192,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 186
+    },
+    "severity": "error"
+  }
+]

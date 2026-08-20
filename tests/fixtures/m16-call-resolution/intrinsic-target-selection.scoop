@@ -1,0 +1,5 @@
+fun foreignCallback(value: Int): Int = value + 1
+
+fun main() {
+    println(foreignCallback(41))
+}

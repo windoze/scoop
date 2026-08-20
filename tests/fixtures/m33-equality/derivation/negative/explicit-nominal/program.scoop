@@ -1,0 +1,2 @@
+struct Unchecked(val value: Any) : Equality<Unchecked>
+fun main() {}

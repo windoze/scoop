@@ -1,0 +1,1 @@
+fun main() { when (val Some(value) = Some(1)) { else -> {} } }

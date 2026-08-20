@@ -1,0 +1,2 @@
+class Owner(private val value: Option<FunPtr<(Int) -> Int>>) { release { val copy = value } }
+fun main() {}

@@ -1,0 +1,10 @@
+private struct Empty()
+private enum Choice { First, Second }
+private fun structDefault(left: Empty, right: Empty, value: Boolean = left == right): Boolean = value
+private fun enumDefault(left: Choice, right: Choice, value: Boolean = left == right): Boolean = value
+private class Holder(val same: Boolean = Empty() == Empty())
+private fun use(): Boolean {
+    val holder = Holder()
+    enumDefault(Choice.First, Choice.Second)
+    return structDefault(Empty(), Empty())
+}

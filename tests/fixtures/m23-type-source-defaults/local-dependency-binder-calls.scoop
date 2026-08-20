@@ -1,0 +1,10 @@
+fun main() {
+    val local = LocalDependencyHost()
+    local.apply(1, "first")
+    local.apply("ignored", 2)
+    val combined = DependencyCombinationHost()
+    combined.callbacks(1, "text")
+    combined.callbacks("ignored", 2)
+    combined.repeated("repeat")
+    combined.repeated(3)
+}

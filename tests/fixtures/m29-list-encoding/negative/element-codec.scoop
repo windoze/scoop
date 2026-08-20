@@ -1,0 +1,7 @@
+private class Opaque()
+
+private fun encode(values: List<Opaque>, encoder: Encoder) {
+    encodeList(values, encoder)
+}
+
+fun main() {}

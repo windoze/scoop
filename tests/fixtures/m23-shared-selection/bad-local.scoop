@@ -1,0 +1,4 @@
+private fun ambiguous(first: Int, second: Any, extra: Int = 0): Int = 1
+private fun ambiguous(first: Any, second: Int): Int = 2
+
+public fun result(): Int = ambiguous(42, 42)

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "unresolved native symbol _missing_helper in default namespace (unresolved symbol _missing_helper); reference chain: _missing_helper <- native object $NATIVE_INPUT_0 selected by direct input",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

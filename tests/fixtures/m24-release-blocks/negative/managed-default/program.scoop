@@ -1,0 +1,4 @@
+fun ordinary(): Int = 1
+@NoGC fun helper(value: Int = ordinary()): Int = value
+class Owner { release { helper() } }
+fun main() {}

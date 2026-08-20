@@ -1,0 +1,13 @@
+@Repeatable @Target([AnnotationTarget.TYPE]) annotation class Mark(val n: Int)
+@Extern(lib = "m37_receiver", name = "m37_receiver_callback")
+fun callNative(callback: @Mark(1) FunPtr<@Mark(2) (@Mark(3) Int, @Mark(4) Ptr<@Mark(5) Unit>) -> @Mark(6) Int>, context: @Mark(7) Ptr<Unit>, value: @Mark(8) Int): @Mark(9) Int
+class Offset(val value: Int)
+fun main() {
+    val offset = Offset(1)
+    val action: @Mark(10) (@Mark(11) Int).() -> @Mark(12) Int = { gcCollect(); this + offset.value }
+    @Unsafe {
+        val callback = foreignCallback<@Mark(13) (Int, Ptr<Unit>) -> Int>(action, 1L, ForeignCallbackMode.Reusable)
+        try { println(callNative(callback.function, callback.context, 41)) }
+        finally { releaseForeignCallback(callback) }
+    }
+}

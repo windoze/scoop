@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Remote` is final and cannot be inherited",
+    "notes": [],
+    "origin": {
+      "cone": "fb476985b2021524a929376d2372c6be18093b07cabc86b3ffe9576e3dc9894d",
+      "end": 103,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 92
+    },
+    "severity": "error"
+  }
+]

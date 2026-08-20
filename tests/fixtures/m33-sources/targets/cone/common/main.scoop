@@ -1,0 +1,10 @@
+package fixture.platform
+
+class Box<T>(val value: T)
+
+fun main() {
+    val result = Box(choose(commonValue() + platformValue() + extraValue()))
+    gcCollect()
+    if (result.value != 42) { throw IllegalStateException() }
+    println("sources-ok")
+}

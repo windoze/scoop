@@ -1,0 +1,1 @@
+fun main() { val index: Int = 0; val character = "text"[index] }

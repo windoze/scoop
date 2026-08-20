@@ -1,0 +1,18 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyNominal(derived().mark() == 3)
+    verifyNominal(derivedMarker().mark() == 3)
+    verifyNominal(Singleton.mark() == 4)
+    verifyNominal(Packet(11) == Packet(11))
+    verifyNominal(Choice.Empty == Choice.Empty)
+    verifyNominal(Choice.Positional(13) == Choice.Positional(13))
+    verifyNominal(Choice.Named(value = 17) == Choice.Named(value = 17))
+    verifyNominal(Choice.Constructed(19) == Choice.Constructed(19))
+    val empty: GenericChoice<Int> = GenericChoice.Empty
+    verifyNominal(empty == GenericChoice.Empty)
+    verifyNominal(GenericChoice.Positional("positional") == GenericChoice.Positional("positional"))
+    verifyNominal(GenericChoice.Named(value = 23) == GenericChoice.Named(value = 23))
+    verifyNominal(GenericChoice.Constructed("constructed") == GenericChoice.Constructed("constructed"))
+}

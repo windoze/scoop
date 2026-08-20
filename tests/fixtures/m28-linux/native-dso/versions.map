@@ -1,0 +1,2 @@
+M28_1 { global: m28_value; };
+M28_2 { global: m28_value; m28_tls; m28_tls_read; m28_initialized; local: *; } M28_1;

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update field `value` is specified more than once",
+    "notes": [],
+    "origin": {
+      "cone": "b9b4909b2e87659d6ab26bf8110f45238e2cc4630db24d1c3bbe83900b45ef37",
+      "end": 144,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 139
+    },
+    "severity": "error"
+  }
+]

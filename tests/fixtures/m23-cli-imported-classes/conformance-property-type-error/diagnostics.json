@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property `value` must have the exact inherited type Long, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "15a31c873c75decc372d51e68d62dffcf6ad8f1aff88e85c714b76afc658e2b0",
+      "end": 118,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 69
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`$get$value` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "15a31c873c75decc372d51e68d62dffcf6ad8f1aff88e85c714b76afc658e2b0",
+      "end": 94,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 89
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Wrong` does not implement interface method `Valued.$get$value`",
+    "notes": [],
+    "origin": {
+      "cone": "15a31c873c75decc372d51e68d62dffcf6ad8f1aff88e85c714b76afc658e2b0",
+      "end": 120,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 33
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,4 @@
+public interface Counter {
+    public var value: Int
+    public fun invalid() { value = true }
+}

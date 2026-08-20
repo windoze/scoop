@@ -1,0 +1,80 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `makeLambda` requires type argument ManagedValue for `T` to be a GC-free `Ptr` pointee",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 734,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 708
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `makeAnonymous` requires type argument ManagedValue for `T` to be a GC-free `Ptr` pointee",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 768,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 739
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `withDefault` requires type argument ManagedValue for `T` to be a GC-free `Ptr` pointee",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 902,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 871
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `requiresGcFreePointee` requires type argument ManagedValue for `T` to be a GC-free `Ptr` pointee",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 689,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 652
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type ClassHost<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 814,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 789
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type StructHost<ManagedValue> requires a GC-free `Ptr` pointee argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 866,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 836
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,2811 @@
+{
+  "revision": "m34-reclamation-pre-inline",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "profile": "release",
+  "runs": 7,
+  "order": "off, on within each case and round",
+  "builds": [
+    {
+      "case": "allocation",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/allocation",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/dump/allocation",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.012070041033439,
+      "warm_build_seconds": 5.029231416061521,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "7b2479a323e45da342a2b4316a4969356faadc68444431795c62c6f06eb9c3f7",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "8fb055d0abb5ce482e8a2da352344b40dab901abe2b320046c182b1b15f10a6b",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/allocation",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "573de4d6e865ac7782da39ecb20dfd3668345fc396439102bc942977451915cc",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/8fb055d0abb5ce482e8a2da352344b40dab901abe2b320046c182b1b15f10a6b/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/e011cbc2d246cf3e230e0d3b11959e099c87fbaec2c02268a55e1c4c344e3331/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6058024,
+      "slib_bytes": 263888
+    },
+    {
+      "case": "old-graph-large",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/old-graph-large.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/old-graph-large",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/dump/old-graph-large",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.1611387089360505,
+      "warm_build_seconds": 5.228415500023402,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "8e3e5f9674704328d1f27f0a40b79d31ce37d0f24a4ee2c45233e3764f4cdb15",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "1107b5e66b81bc52dfa70d52078254e2aef60f3f1864cd9342b042e497bc4cf6",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/old-graph-large",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "7b6d7022c2aa8ef93c1895682e2786d38638daac02051597d88c84964baaf279",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/1107b5e66b81bc52dfa70d52078254e2aef60f3f1864cd9342b042e497bc4cf6/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/e011cbc2d246cf3e230e0d3b11959e099c87fbaec2c02268a55e1c4c344e3331/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6170536,
+      "slib_bytes": 938862
+    },
+    {
+      "case": "survivors",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/survivors.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/survivors",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/dump/survivors",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.275953958043829,
+      "warm_build_seconds": 5.200510291964747,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "07a9e1d374418cb1875df5184318748d0d276f64c4c8a3ce4f870c8d5ec6c249",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "d4b3bf6cfcbd80893e730737b7180112a8ff2719a3a94bc1bbab98c280f96800",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/survivors",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "ab3b6ab83dcbb99ae6d4bcb444f4e05114f7c5a3728feb19865f7b13bbab66ab",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/d4b3bf6cfcbd80893e730737b7180112a8ff2719a3a94bc1bbab98c280f96800/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/e011cbc2d246cf3e230e0d3b11959e099c87fbaec2c02268a55e1c4c344e3331/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6180120,
+      "slib_bytes": 1026452
+    },
+    {
+      "case": "region-churn",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/regions/region-churn.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/region-churn",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/dump/region-churn",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.253713957965374,
+      "warm_build_seconds": 5.529826582991518,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "554ef44b44b5b8a62f266660226f15b9063e0f79dee40cfda61d47adafdfd503",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "dff03e91b2aa617c9d05428831079507356e184d568a97d89f81214aa8b069ad",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-on-darwin/region-churn",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "8f734a2aa5106183da6081d06dc2961eb82c2f9857eb292f1cd6cf83477b08db",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/dff03e91b2aa617c9d05428831079507356e184d568a97d89f81214aa8b069ad/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/e011cbc2d246cf3e230e0d3b11959e099c87fbaec2c02268a55e1c4c344e3331/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6243736,
+      "slib_bytes": 1274486
+    }
+  ],
+  "tool_versions": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "llvm": "22.1.8"
+  },
+  "cases": {
+    "allocation": {
+      "run_seconds": [
+        0.37883604201488197,
+        0.01062695903237909,
+        0.010484625003300607,
+        0.010903917020186782,
+        0.010494165937416255,
+        0.010770207969471812,
+        0.010464749997481704
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 3,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 4160112,
+          "nursery_allocated_bytes": 4160112,
+          "promoted_bytes": 24,
+          "copied_bytes": 24,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 96,
+          "traced_objects": 1,
+          "pause_ns": 1751000,
+          "maximum_pause_ns": 608000,
+          "committed_bytes": 1081344,
+          "minor_pause_ns": 1751000,
+          "full_pause_ns": 0,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 0,
+          "discard_failures": 0,
+          "discarded_bytes": 0,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7520256,
+          "peak_rss_bytes": 7520256,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 3,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 4160112,
+          "nursery_allocated_bytes": 4160112,
+          "promoted_bytes": 24,
+          "copied_bytes": 24,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 96,
+          "traced_objects": 1,
+          "pause_ns": 813000,
+          "maximum_pause_ns": 282000,
+          "committed_bytes": 1081344,
+          "minor_pause_ns": 813000,
+          "full_pause_ns": 0,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 0,
+          "discard_failures": 0,
+          "discarded_bytes": 0,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7503872,
+          "peak_rss_bytes": 7503872,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 3,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 4160112,
+          "nursery_allocated_bytes": 4160112,
+          "promoted_bytes": 24,
+          "copied_bytes": 24,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 96,
+          "traced_objects": 1,
+          "pause_ns": 813000,
+          "maximum_pause_ns": 280000,
+          "committed_bytes": 1081344,
+          "minor_pause_ns": 813000,
+          "full_pause_ns": 0,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 0,
+          "discard_failures": 0,
+          "discarded_bytes": 0,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7503872,
+          "peak_rss_bytes": 7503872,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 3,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 4160112,
+          "nursery_allocated_bytes": 4160112,
+          "promoted_bytes": 24,
+          "copied_bytes": 24,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 96,
+          "traced_objects": 1,
+          "pause_ns": 869000,
+          "maximum_pause_ns": 299000,
+          "committed_bytes": 1081344,
+          "minor_pause_ns": 869000,
+          "full_pause_ns": 0,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 0,
+          "discard_failures": 0,
+          "discarded_bytes": 0,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7487488,
+          "peak_rss_bytes": 7487488,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 3,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 4160112,
+          "nursery_allocated_bytes": 4160112,
+          "promoted_bytes": 24,
+          "copied_bytes": 24,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 96,
+          "traced_objects": 1,
+          "pause_ns": 821000,
+          "maximum_pause_ns": 288000,
+          "committed_bytes": 1081344,
+          "minor_pause_ns": 821000,
+          "full_pause_ns": 0,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 0,
+          "discard_failures": 0,
+          "discarded_bytes": 0,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7503872,
+          "peak_rss_bytes": 7503872,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 3,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 4160112,
+          "nursery_allocated_bytes": 4160112,
+          "promoted_bytes": 24,
+          "copied_bytes": 24,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 96,
+          "traced_objects": 1,
+          "pause_ns": 826000,
+          "maximum_pause_ns": 288000,
+          "committed_bytes": 1081344,
+          "minor_pause_ns": 826000,
+          "full_pause_ns": 0,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 0,
+          "discard_failures": 0,
+          "discarded_bytes": 0,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7503872,
+          "peak_rss_bytes": 7503872,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 3,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 4160112,
+          "nursery_allocated_bytes": 4160112,
+          "promoted_bytes": 24,
+          "copied_bytes": 24,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 96,
+          "traced_objects": 1,
+          "pause_ns": 818000,
+          "maximum_pause_ns": 280000,
+          "committed_bytes": 1081344,
+          "minor_pause_ns": 818000,
+          "full_pause_ns": 0,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 0,
+          "discard_failures": 0,
+          "discarded_bytes": 0,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7487488,
+          "peak_rss_bytes": 7487488,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "phases": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ],
+      "stderr": [
+        "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":1751000,\"maximum_pause_ns\":608000,\"committed_bytes\":1081344,\"minor_pause_ns\":1751000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":0,\"discard_failures\":0,\"discarded_bytes\":0,\"unmapped_bytes\":0,\"current_rss_bytes\":7520256,\"peak_rss_bytes\":7520256,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,3,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":813000,\"maximum_pause_ns\":282000,\"committed_bytes\":1081344,\"minor_pause_ns\":813000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":0,\"discard_failures\":0,\"discarded_bytes\":0,\"unmapped_bytes\":0,\"current_rss_bytes\":7503872,\"peak_rss_bytes\":7503872,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":813000,\"maximum_pause_ns\":280000,\"committed_bytes\":1081344,\"minor_pause_ns\":813000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":0,\"discard_failures\":0,\"discarded_bytes\":0,\"unmapped_bytes\":0,\"current_rss_bytes\":7503872,\"peak_rss_bytes\":7503872,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":869000,\"maximum_pause_ns\":299000,\"committed_bytes\":1081344,\"minor_pause_ns\":869000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":0,\"discard_failures\":0,\"discarded_bytes\":0,\"unmapped_bytes\":0,\"current_rss_bytes\":7487488,\"peak_rss_bytes\":7487488,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":821000,\"maximum_pause_ns\":288000,\"committed_bytes\":1081344,\"minor_pause_ns\":821000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":0,\"discard_failures\":0,\"discarded_bytes\":0,\"unmapped_bytes\":0,\"current_rss_bytes\":7503872,\"peak_rss_bytes\":7503872,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":826000,\"maximum_pause_ns\":288000,\"committed_bytes\":1081344,\"minor_pause_ns\":826000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":0,\"discard_failures\":0,\"discarded_bytes\":0,\"unmapped_bytes\":0,\"current_rss_bytes\":7503872,\"peak_rss_bytes\":7503872,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":818000,\"maximum_pause_ns\":280000,\"committed_bytes\":1081344,\"minor_pause_ns\":818000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":0,\"discard_failures\":0,\"discarded_bytes\":0,\"unmapped_bytes\":0,\"current_rss_bytes\":7487488,\"peak_rss_bytes\":7487488,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n"
+      ],
+      "stdout": "1599960000\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1"
+      },
+      "median_seconds": 0.01062695903237909
+    },
+    "old-graph-large": {
+      "run_seconds": [
+        0.4007539580343291,
+        0.037220624973997474,
+        0.03687166702002287,
+        0.037541916011832654,
+        0.03755716700106859,
+        0.03668166697025299,
+        0.03728291695006192
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 8,
+          "full_collections": 2,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 9021592,
+          "nursery_allocated_bytes": 8497280,
+          "promoted_bytes": 2097424,
+          "copied_bytes": 2089136,
+          "dirty_cards": 1028,
+          "old_reference_slots": 65455,
+          "root_slots": 332,
+          "traced_objects": 196363,
+          "pause_ns": 29946000,
+          "maximum_pause_ns": 7462000,
+          "committed_bytes": 2785280,
+          "minor_pause_ns": 15748000,
+          "full_pause_ns": 14198000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17367040,
+          "discard_calls": 5,
+          "discard_failures": 0,
+          "discarded_bytes": 2260992,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 14090240,
+          "peak_rss_bytes": 14090240,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            3,
+            3,
+            0,
+            4,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 8,
+          "full_collections": 2,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 9021592,
+          "nursery_allocated_bytes": 8497280,
+          "promoted_bytes": 2097424,
+          "copied_bytes": 2089136,
+          "dirty_cards": 1028,
+          "old_reference_slots": 65455,
+          "root_slots": 332,
+          "traced_objects": 196363,
+          "pause_ns": 21850000,
+          "maximum_pause_ns": 5530000,
+          "committed_bytes": 2785280,
+          "minor_pause_ns": 10832000,
+          "full_pause_ns": 11018000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17367040,
+          "discard_calls": 5,
+          "discard_failures": 0,
+          "discarded_bytes": 2260992,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 14106624,
+          "peak_rss_bytes": 14106624,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            6,
+            0,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 8,
+          "full_collections": 2,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 9021592,
+          "nursery_allocated_bytes": 8497280,
+          "promoted_bytes": 2097424,
+          "copied_bytes": 2089136,
+          "dirty_cards": 1028,
+          "old_reference_slots": 65455,
+          "root_slots": 332,
+          "traced_objects": 196363,
+          "pause_ns": 21603000,
+          "maximum_pause_ns": 5607000,
+          "committed_bytes": 2785280,
+          "minor_pause_ns": 10615000,
+          "full_pause_ns": 10988000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17367040,
+          "discard_calls": 5,
+          "discard_failures": 0,
+          "discarded_bytes": 2260992,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 14090240,
+          "peak_rss_bytes": 14090240,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            6,
+            0,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 8,
+          "full_collections": 2,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 9021592,
+          "nursery_allocated_bytes": 8497280,
+          "promoted_bytes": 2097424,
+          "copied_bytes": 2089136,
+          "dirty_cards": 1028,
+          "old_reference_slots": 65455,
+          "root_slots": 332,
+          "traced_objects": 196363,
+          "pause_ns": 22019000,
+          "maximum_pause_ns": 5658000,
+          "committed_bytes": 2785280,
+          "minor_pause_ns": 10717000,
+          "full_pause_ns": 11302000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17367040,
+          "discard_calls": 5,
+          "discard_failures": 0,
+          "discarded_bytes": 2260992,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 14057472,
+          "peak_rss_bytes": 14057472,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            6,
+            0,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 8,
+          "full_collections": 2,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 9021592,
+          "nursery_allocated_bytes": 8497280,
+          "promoted_bytes": 2097424,
+          "copied_bytes": 2089136,
+          "dirty_cards": 1028,
+          "old_reference_slots": 65455,
+          "root_slots": 332,
+          "traced_objects": 196363,
+          "pause_ns": 21779000,
+          "maximum_pause_ns": 5680000,
+          "committed_bytes": 2785280,
+          "minor_pause_ns": 10581000,
+          "full_pause_ns": 11198000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17367040,
+          "discard_calls": 5,
+          "discard_failures": 0,
+          "discarded_bytes": 2260992,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 14057472,
+          "peak_rss_bytes": 14057472,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            6,
+            0,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 8,
+          "full_collections": 2,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 9021592,
+          "nursery_allocated_bytes": 8497280,
+          "promoted_bytes": 2097424,
+          "copied_bytes": 2089136,
+          "dirty_cards": 1028,
+          "old_reference_slots": 65455,
+          "root_slots": 332,
+          "traced_objects": 196363,
+          "pause_ns": 21674000,
+          "maximum_pause_ns": 5609000,
+          "committed_bytes": 2785280,
+          "minor_pause_ns": 10621000,
+          "full_pause_ns": 11053000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17367040,
+          "discard_calls": 5,
+          "discard_failures": 0,
+          "discarded_bytes": 2260992,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 14139392,
+          "peak_rss_bytes": 14139392,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            6,
+            0,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 8,
+          "full_collections": 2,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 9021592,
+          "nursery_allocated_bytes": 8497280,
+          "promoted_bytes": 2097424,
+          "copied_bytes": 2089136,
+          "dirty_cards": 1028,
+          "old_reference_slots": 65455,
+          "root_slots": 332,
+          "traced_objects": 196363,
+          "pause_ns": 22136000,
+          "maximum_pause_ns": 5655000,
+          "committed_bytes": 2785280,
+          "minor_pause_ns": 11007000,
+          "full_pause_ns": 11129000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17367040,
+          "discard_calls": 5,
+          "discard_failures": 0,
+          "discarded_bytes": 2260992,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 14073856,
+          "peak_rss_bytes": 14073856,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            6,
+            0,
+            2,
+            2,
+            0
+          ]
+        }
+      ],
+      "phases": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ],
+      "stderr": [
+        "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2089136,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":29946000,\"maximum_pause_ns\":7462000,\"committed_bytes\":2785280,\"minor_pause_ns\":15748000,\"full_pause_ns\":14198000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"discard_calls\":5,\"discard_failures\":0,\"discarded_bytes\":2260992,\"unmapped_bytes\":0,\"current_rss_bytes\":14090240,\"peak_rss_bytes\":14090240,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,3,0,4,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2089136,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":21850000,\"maximum_pause_ns\":5530000,\"committed_bytes\":2785280,\"minor_pause_ns\":10832000,\"full_pause_ns\":11018000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"discard_calls\":5,\"discard_failures\":0,\"discarded_bytes\":2260992,\"unmapped_bytes\":0,\"current_rss_bytes\":14106624,\"peak_rss_bytes\":14106624,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2089136,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":21603000,\"maximum_pause_ns\":5607000,\"committed_bytes\":2785280,\"minor_pause_ns\":10615000,\"full_pause_ns\":10988000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"discard_calls\":5,\"discard_failures\":0,\"discarded_bytes\":2260992,\"unmapped_bytes\":0,\"current_rss_bytes\":14090240,\"peak_rss_bytes\":14090240,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2089136,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":22019000,\"maximum_pause_ns\":5658000,\"committed_bytes\":2785280,\"minor_pause_ns\":10717000,\"full_pause_ns\":11302000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"discard_calls\":5,\"discard_failures\":0,\"discarded_bytes\":2260992,\"unmapped_bytes\":0,\"current_rss_bytes\":14057472,\"peak_rss_bytes\":14057472,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2089136,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":21779000,\"maximum_pause_ns\":5680000,\"committed_bytes\":2785280,\"minor_pause_ns\":10581000,\"full_pause_ns\":11198000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"discard_calls\":5,\"discard_failures\":0,\"discarded_bytes\":2260992,\"unmapped_bytes\":0,\"current_rss_bytes\":14057472,\"peak_rss_bytes\":14057472,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2089136,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":21674000,\"maximum_pause_ns\":5609000,\"committed_bytes\":2785280,\"minor_pause_ns\":10621000,\"full_pause_ns\":11053000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"discard_calls\":5,\"discard_failures\":0,\"discarded_bytes\":2260992,\"unmapped_bytes\":0,\"current_rss_bytes\":14139392,\"peak_rss_bytes\":14139392,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2089136,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":22136000,\"maximum_pause_ns\":5655000,\"committed_bytes\":2785280,\"minor_pause_ns\":11007000,\"full_pause_ns\":11129000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"discard_calls\":5,\"discard_failures\":0,\"discarded_bytes\":2260992,\"unmapped_bytes\":0,\"current_rss_bytes\":14073856,\"peak_rss_bytes\":14073856,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n"
+      ],
+      "stdout": "199680\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1"
+      },
+      "median_seconds": 0.03728291695006192
+    },
+    "survivors": {
+      "run_seconds": [
+        0.44125612499192357,
+        0.05659754201769829,
+        0.05630024999845773,
+        0.05635270802304149,
+        0.056710417033173144,
+        0.05637137498706579,
+        0.05666833301074803
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 6,
+          "full_collections": 1,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6947000,
+          "nursery_allocated_bytes": 6815904,
+          "promoted_bytes": 6815768,
+          "copied_bytes": 6234168,
+          "dirty_cards": 1542,
+          "old_reference_slots": 98304,
+          "root_slots": 250,
+          "traced_objects": 408832,
+          "pause_ns": 59925000,
+          "maximum_pause_ns": 19566000,
+          "committed_bytes": 7077888,
+          "minor_pause_ns": 40359000,
+          "full_pause_ns": 19566000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 16973824,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 491520,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 19005440,
+          "peak_rss_bytes": 19005440,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            1
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 6,
+          "full_collections": 1,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6947000,
+          "nursery_allocated_bytes": 6815904,
+          "promoted_bytes": 6815768,
+          "copied_bytes": 6234168,
+          "dirty_cards": 1542,
+          "old_reference_slots": 98304,
+          "root_slots": 250,
+          "traced_objects": 408832,
+          "pause_ns": 42576000,
+          "maximum_pause_ns": 16698000,
+          "committed_bytes": 7077888,
+          "minor_pause_ns": 25878000,
+          "full_pause_ns": 16698000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 16973824,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 491520,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 19038208,
+          "peak_rss_bytes": 19038208,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            0,
+            1
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 6,
+          "full_collections": 1,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6947000,
+          "nursery_allocated_bytes": 6815904,
+          "promoted_bytes": 6815768,
+          "copied_bytes": 6234168,
+          "dirty_cards": 1542,
+          "old_reference_slots": 98304,
+          "root_slots": 250,
+          "traced_objects": 408832,
+          "pause_ns": 42347000,
+          "maximum_pause_ns": 16730000,
+          "committed_bytes": 7077888,
+          "minor_pause_ns": 25617000,
+          "full_pause_ns": 16730000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 16973824,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 491520,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18939904,
+          "peak_rss_bytes": 18939904,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            0,
+            1
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 6,
+          "full_collections": 1,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6947000,
+          "nursery_allocated_bytes": 6815904,
+          "promoted_bytes": 6815768,
+          "copied_bytes": 6234168,
+          "dirty_cards": 1542,
+          "old_reference_slots": 98304,
+          "root_slots": 250,
+          "traced_objects": 408832,
+          "pause_ns": 42364000,
+          "maximum_pause_ns": 16633000,
+          "committed_bytes": 7077888,
+          "minor_pause_ns": 25731000,
+          "full_pause_ns": 16633000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 16973824,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 491520,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 19021824,
+          "peak_rss_bytes": 19021824,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            0,
+            1
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 6,
+          "full_collections": 1,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6947000,
+          "nursery_allocated_bytes": 6815904,
+          "promoted_bytes": 6815768,
+          "copied_bytes": 6234168,
+          "dirty_cards": 1542,
+          "old_reference_slots": 98304,
+          "root_slots": 250,
+          "traced_objects": 408832,
+          "pause_ns": 42588000,
+          "maximum_pause_ns": 16744000,
+          "committed_bytes": 7077888,
+          "minor_pause_ns": 25844000,
+          "full_pause_ns": 16744000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 16973824,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 491520,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18890752,
+          "peak_rss_bytes": 18890752,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            0,
+            1
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 6,
+          "full_collections": 1,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6947000,
+          "nursery_allocated_bytes": 6815904,
+          "promoted_bytes": 6815768,
+          "copied_bytes": 6234168,
+          "dirty_cards": 1542,
+          "old_reference_slots": 98304,
+          "root_slots": 250,
+          "traced_objects": 408832,
+          "pause_ns": 42399000,
+          "maximum_pause_ns": 16616000,
+          "committed_bytes": 7077888,
+          "minor_pause_ns": 25783000,
+          "full_pause_ns": 16616000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 16973824,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 491520,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18907136,
+          "peak_rss_bytes": 18907136,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            0,
+            1
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 6,
+          "full_collections": 1,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6947000,
+          "nursery_allocated_bytes": 6815904,
+          "promoted_bytes": 6815768,
+          "copied_bytes": 6234168,
+          "dirty_cards": 1542,
+          "old_reference_slots": 98304,
+          "root_slots": 250,
+          "traced_objects": 408832,
+          "pause_ns": 42908000,
+          "maximum_pause_ns": 16894000,
+          "committed_bytes": 7077888,
+          "minor_pause_ns": 26014000,
+          "full_pause_ns": 16894000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 16973824,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 491520,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 19054592,
+          "peak_rss_bytes": 19054592,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            0,
+            1
+          ]
+        }
+      ],
+      "phases": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ],
+      "stderr": [
+        "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6234168,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":59925000,\"maximum_pause_ns\":19566000,\"committed_bytes\":7077888,\"minor_pause_ns\":40359000,\"full_pause_ns\":19566000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":491520,\"unmapped_bytes\":0,\"current_rss_bytes\":19005440,\"peak_rss_bytes\":19005440,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,6,1]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6234168,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":42576000,\"maximum_pause_ns\":16698000,\"committed_bytes\":7077888,\"minor_pause_ns\":25878000,\"full_pause_ns\":16698000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":491520,\"unmapped_bytes\":0,\"current_rss_bytes\":19038208,\"peak_rss_bytes\":19038208,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6234168,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":42347000,\"maximum_pause_ns\":16730000,\"committed_bytes\":7077888,\"minor_pause_ns\":25617000,\"full_pause_ns\":16730000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":491520,\"unmapped_bytes\":0,\"current_rss_bytes\":18939904,\"peak_rss_bytes\":18939904,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6234168,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":42364000,\"maximum_pause_ns\":16633000,\"committed_bytes\":7077888,\"minor_pause_ns\":25731000,\"full_pause_ns\":16633000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":491520,\"unmapped_bytes\":0,\"current_rss_bytes\":19021824,\"peak_rss_bytes\":19021824,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6234168,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":42588000,\"maximum_pause_ns\":16744000,\"committed_bytes\":7077888,\"minor_pause_ns\":25844000,\"full_pause_ns\":16744000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":491520,\"unmapped_bytes\":0,\"current_rss_bytes\":18890752,\"peak_rss_bytes\":18890752,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6234168,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":42399000,\"maximum_pause_ns\":16616000,\"committed_bytes\":7077888,\"minor_pause_ns\":25783000,\"full_pause_ns\":16616000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":491520,\"unmapped_bytes\":0,\"current_rss_bytes\":18907136,\"peak_rss_bytes\":18907136,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6234168,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":42908000,\"maximum_pause_ns\":16894000,\"committed_bytes\":7077888,\"minor_pause_ns\":26014000,\"full_pause_ns\":16894000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":491520,\"unmapped_bytes\":0,\"current_rss_bytes\":19054592,\"peak_rss_bytes\":19054592,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n"
+      ],
+      "stdout": "196614\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1"
+      },
+      "median_seconds": 0.05659754201769829
+    },
+    "region-churn": {
+      "run_seconds": [
+        1.7464969999855384,
+        1.370722083025612,
+        1.3648761248914525,
+        1.3647149170283228,
+        1.3744671669555828,
+        1.3619937499752268,
+        1.3707582090282813
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108629552,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3936,
+          "traced_objects": 11610207,
+          "pause_ns": 1254690000,
+          "maximum_pause_ns": 149101000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 458365000,
+          "full_pause_ns": 796325000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 48,
+          "discard_failures": 0,
+          "discarded_bytes": 50741248,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 69599232,
+          "peak_rss_bytes": 117473280,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            2,
+            0,
+            0,
+            100,
+            4,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108629552,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3936,
+          "traced_objects": 11610207,
+          "pause_ns": 1255055000,
+          "maximum_pause_ns": 151161000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 451841000,
+          "full_pause_ns": 803214000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 48,
+          "discard_failures": 0,
+          "discarded_bytes": 50741248,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68698112,
+          "peak_rss_bytes": 116572160,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            2,
+            0,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108629552,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3936,
+          "traced_objects": 11610207,
+          "pause_ns": 1247014000,
+          "maximum_pause_ns": 152355000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 443676000,
+          "full_pause_ns": 803338000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 48,
+          "discard_failures": 0,
+          "discarded_bytes": 50741248,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68796416,
+          "peak_rss_bytes": 116670464,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            2,
+            0,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108629552,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3936,
+          "traced_objects": 11610207,
+          "pause_ns": 1248016000,
+          "maximum_pause_ns": 150694000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 444908000,
+          "full_pause_ns": 803108000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 48,
+          "discard_failures": 0,
+          "discarded_bytes": 50741248,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68698112,
+          "peak_rss_bytes": 116572160,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            2,
+            0,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108629552,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3936,
+          "traced_objects": 11610207,
+          "pause_ns": 1257374000,
+          "maximum_pause_ns": 153363000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 448291000,
+          "full_pause_ns": 809083000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 48,
+          "discard_failures": 0,
+          "discarded_bytes": 50741248,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68681728,
+          "peak_rss_bytes": 116572160,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            2,
+            0,
+            0,
+            103,
+            1,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108629552,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3936,
+          "traced_objects": 11610207,
+          "pause_ns": 1245481000,
+          "maximum_pause_ns": 151591000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 444465000,
+          "full_pause_ns": 801016000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 48,
+          "discard_failures": 0,
+          "discarded_bytes": 50741248,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68698112,
+          "peak_rss_bytes": 116572160,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            2,
+            0,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108629552,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3936,
+          "traced_objects": 11610207,
+          "pause_ns": 1253668000,
+          "maximum_pause_ns": 154848000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 448398000,
+          "full_pause_ns": 805270000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 48,
+          "discard_failures": 0,
+          "discarded_bytes": 50741248,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68681728,
+          "peak_rss_bytes": 116572160,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            2,
+            0,
+            0,
+            104,
+            0,
+            10
+          ]
+        }
+      ],
+      "phases": [
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 117309440,
+            "peak_rss_bytes": 117309440
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 69386240,
+            "peak_rss_bytes": 117309440
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 69386240,
+            "peak_rss_bytes": 117309440
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 117473280,
+            "peak_rss_bytes": 117473280
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 69517312,
+            "peak_rss_bytes": 117473280
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 69517312,
+            "peak_rss_bytes": 117473280
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116473856,
+            "peak_rss_bytes": 116473856
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68550656,
+            "peak_rss_bytes": 116473856
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68550656,
+            "peak_rss_bytes": 116473856
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116572160,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116506624,
+            "peak_rss_bytes": 116506624
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68583424,
+            "peak_rss_bytes": 116506624
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68583424,
+            "peak_rss_bytes": 116506624
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116670464,
+            "peak_rss_bytes": 116670464
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68714496,
+            "peak_rss_bytes": 116670464
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68714496,
+            "peak_rss_bytes": 116670464
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116391936,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116572160,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116408320,
+            "peak_rss_bytes": 116408320
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68485120,
+            "peak_rss_bytes": 116408320
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68485120,
+            "peak_rss_bytes": 116408320
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116572160,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116391936,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116572160,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116391936,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116572160,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68616192,
+            "peak_rss_bytes": 116572160
+          }
+        ]
+      ],
+      "stderr": [
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":117309440,\"peak_rss_bytes\":117309440}\n{\"memory_phase\":1,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":69386240,\"peak_rss_bytes\":117309440}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":69386240,\"peak_rss_bytes\":117309440}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":117473280,\"peak_rss_bytes\":117473280}\n{\"memory_phase\":4,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":69517312,\"peak_rss_bytes\":117473280}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":69517312,\"peak_rss_bytes\":117473280}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108629552,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3936,\"traced_objects\":11610207,\"pause_ns\":1254690000,\"maximum_pause_ns\":149101000,\"committed_bytes\":65536,\"minor_pause_ns\":458365000,\"full_pause_ns\":796325000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":48,\"discard_failures\":0,\"discarded_bytes\":50741248,\"unmapped_bytes\":95944704,\"current_rss_bytes\":69599232,\"peak_rss_bytes\":117473280,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,2,0,0,100,4,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116473856,\"peak_rss_bytes\":116473856}\n{\"memory_phase\":1,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68550656,\"peak_rss_bytes\":116473856}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68550656,\"peak_rss_bytes\":116473856}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116572160,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":4,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108629552,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3936,\"traced_objects\":11610207,\"pause_ns\":1255055000,\"maximum_pause_ns\":151161000,\"committed_bytes\":65536,\"minor_pause_ns\":451841000,\"full_pause_ns\":803214000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":48,\"discard_failures\":0,\"discarded_bytes\":50741248,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68698112,\"peak_rss_bytes\":116572160,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,2,0,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116506624,\"peak_rss_bytes\":116506624}\n{\"memory_phase\":1,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68583424,\"peak_rss_bytes\":116506624}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68583424,\"peak_rss_bytes\":116506624}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116670464,\"peak_rss_bytes\":116670464}\n{\"memory_phase\":4,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68714496,\"peak_rss_bytes\":116670464}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68714496,\"peak_rss_bytes\":116670464}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108629552,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3936,\"traced_objects\":11610207,\"pause_ns\":1247014000,\"maximum_pause_ns\":152355000,\"committed_bytes\":65536,\"minor_pause_ns\":443676000,\"full_pause_ns\":803338000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":48,\"discard_failures\":0,\"discarded_bytes\":50741248,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68796416,\"peak_rss_bytes\":116670464,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,2,0,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116391936,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":1,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116572160,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":4,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108629552,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3936,\"traced_objects\":11610207,\"pause_ns\":1248016000,\"maximum_pause_ns\":150694000,\"committed_bytes\":65536,\"minor_pause_ns\":444908000,\"full_pause_ns\":803108000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":48,\"discard_failures\":0,\"discarded_bytes\":50741248,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68698112,\"peak_rss_bytes\":116572160,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,2,0,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116408320,\"peak_rss_bytes\":116408320}\n{\"memory_phase\":1,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68485120,\"peak_rss_bytes\":116408320}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68485120,\"peak_rss_bytes\":116408320}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116572160,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":4,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108629552,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3936,\"traced_objects\":11610207,\"pause_ns\":1257374000,\"maximum_pause_ns\":153363000,\"committed_bytes\":65536,\"minor_pause_ns\":448291000,\"full_pause_ns\":809083000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":48,\"discard_failures\":0,\"discarded_bytes\":50741248,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68681728,\"peak_rss_bytes\":116572160,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,2,0,0,103,1,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116391936,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":1,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116572160,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":4,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108629552,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3936,\"traced_objects\":11610207,\"pause_ns\":1245481000,\"maximum_pause_ns\":151591000,\"committed_bytes\":65536,\"minor_pause_ns\":444465000,\"full_pause_ns\":801016000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":48,\"discard_failures\":0,\"discarded_bytes\":50741248,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68698112,\"peak_rss_bytes\":116572160,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,2,0,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116391936,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":1,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116572160,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":4,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68616192,\"peak_rss_bytes\":116572160}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108629552,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3936,\"traced_objects\":11610207,\"pause_ns\":1253668000,\"maximum_pause_ns\":154848000,\"committed_bytes\":65536,\"minor_pause_ns\":448398000,\"full_pause_ns\":805270000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":48,\"discard_failures\":0,\"discarded_bytes\":50741248,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68681728,\"peak_rss_bytes\":116572160,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,2,0,0,104,0,10]}\n"
+      ],
+      "stdout": "113400000\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1"
+      },
+      "median_seconds": 1.370722083025612
+    },
+    "region-pins": {
+      "run_seconds": [
+        1.3559227500809357,
+        1.3731998750008643,
+        1.3809964589308947,
+        1.3597568329423666,
+        1.368642457993701,
+        1.3556512499926612,
+        1.3577504999702796
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108628232,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3940,
+          "traced_objects": 11610207,
+          "pause_ns": 1240093000,
+          "maximum_pause_ns": 150194000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 452168000,
+          "full_pause_ns": 787925000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 127,
+          "discard_failures": 0,
+          "discarded_bytes": 84885504,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68681728,
+          "peak_rss_bytes": 116555776,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            2,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108628232,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3940,
+          "traced_objects": 11610207,
+          "pause_ns": 1257737000,
+          "maximum_pause_ns": 153309000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 448069000,
+          "full_pause_ns": 809668000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 127,
+          "discard_failures": 0,
+          "discarded_bytes": 84885504,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68763648,
+          "peak_rss_bytes": 116654080,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            2,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108628232,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3940,
+          "traced_objects": 11610207,
+          "pause_ns": 1263329000,
+          "maximum_pause_ns": 158813000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 444770000,
+          "full_pause_ns": 818559000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 127,
+          "discard_failures": 0,
+          "discarded_bytes": 84885504,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68763648,
+          "peak_rss_bytes": 116637696,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            2,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108628232,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3940,
+          "traced_objects": 11610207,
+          "pause_ns": 1244330000,
+          "maximum_pause_ns": 150899000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 445665000,
+          "full_pause_ns": 798665000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 127,
+          "discard_failures": 0,
+          "discarded_bytes": 84885504,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68665344,
+          "peak_rss_bytes": 116555776,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            2,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108628232,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3940,
+          "traced_objects": 11610207,
+          "pause_ns": 1251719000,
+          "maximum_pause_ns": 153817000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 448711000,
+          "full_pause_ns": 803008000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 127,
+          "discard_failures": 0,
+          "discarded_bytes": 84885504,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68665344,
+          "peak_rss_bytes": 116555776,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            2,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108628232,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3940,
+          "traced_objects": 11610207,
+          "pause_ns": 1239820000,
+          "maximum_pause_ns": 151325000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 441161000,
+          "full_pause_ns": 798659000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 127,
+          "discard_failures": 0,
+          "discarded_bytes": 84885504,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68681728,
+          "peak_rss_bytes": 116555776,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            2,
+            0,
+            104,
+            0,
+            10
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 104,
+          "full_collections": 12,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 144001344,
+          "nursery_allocated_bytes": 115201296,
+          "promoted_bytes": 115201144,
+          "copied_bytes": 108628232,
+          "dirty_cards": 53144,
+          "old_reference_slots": 3401178,
+          "root_slots": 3940,
+          "traced_objects": 11610207,
+          "pause_ns": 1241659000,
+          "maximum_pause_ns": 152586000,
+          "committed_bytes": 65536,
+          "minor_pause_ns": 442473000,
+          "full_pause_ns": 799186000,
+          "region_count": 2,
+          "large_mapping_count": 0,
+          "mapped_bytes": 33554432,
+          "discard_calls": 127,
+          "discard_failures": 0,
+          "discarded_bytes": 84885504,
+          "unmapped_bytes": 95944704,
+          "current_rss_bytes": 68796416,
+          "peak_rss_bytes": 116670464,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            2,
+            0,
+            104,
+            0,
+            10
+          ]
+        }
+      ],
+      "phases": [
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116391936,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85245952,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116555776,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85377024,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68599808,
+            "peak_rss_bytes": 116555776
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116555776,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85409792,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68632576,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116654080,
+            "peak_rss_bytes": 116654080
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85475328,
+            "peak_rss_bytes": 116654080
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68698112,
+            "peak_rss_bytes": 116654080
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116473856,
+            "peak_rss_bytes": 116473856
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85327872,
+            "peak_rss_bytes": 116473856
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68550656,
+            "peak_rss_bytes": 116473856
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116637696,
+            "peak_rss_bytes": 116637696
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85458944,
+            "peak_rss_bytes": 116637696
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68681728,
+            "peak_rss_bytes": 116637696
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116391936,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85245952,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116555776,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85377024,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68599808,
+            "peak_rss_bytes": 116555776
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116391936,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85245952,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116555776,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85377024,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68599808,
+            "peak_rss_bytes": 116555776
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116391936,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85245952,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68468736,
+            "peak_rss_bytes": 116391936
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116555776,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85377024,
+            "peak_rss_bytes": 116555776
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68599808,
+            "peak_rss_bytes": 116555776
+          }
+        ],
+        [
+          {
+            "memory_phase": 0,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116572160,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 1,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85426176,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 2,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68648960,
+            "peak_rss_bytes": 116572160
+          },
+          {
+            "memory_phase": 3,
+            "region_count": 4,
+            "mapped_bytes": 81526784,
+            "current_rss_bytes": 116670464,
+            "peak_rss_bytes": 116670464
+          },
+          {
+            "memory_phase": 4,
+            "region_count": 3,
+            "mapped_bytes": 50331648,
+            "current_rss_bytes": 85491712,
+            "peak_rss_bytes": 116670464
+          },
+          {
+            "memory_phase": 5,
+            "region_count": 2,
+            "mapped_bytes": 33554432,
+            "current_rss_bytes": 68714496,
+            "peak_rss_bytes": 116670464
+          }
+        ]
+      ],
+      "stderr": [
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116391936,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":1,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85245952,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116555776,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":4,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85377024,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68599808,\"peak_rss_bytes\":116555776}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108628232,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3940,\"traced_objects\":11610207,\"pause_ns\":1240093000,\"maximum_pause_ns\":150194000,\"committed_bytes\":65536,\"minor_pause_ns\":452168000,\"full_pause_ns\":787925000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":127,\"discard_failures\":0,\"discarded_bytes\":84885504,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68681728,\"peak_rss_bytes\":116555776,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116555776,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":1,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85409792,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68632576,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116654080,\"peak_rss_bytes\":116654080}\n{\"memory_phase\":4,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85475328,\"peak_rss_bytes\":116654080}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68698112,\"peak_rss_bytes\":116654080}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108628232,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3940,\"traced_objects\":11610207,\"pause_ns\":1257737000,\"maximum_pause_ns\":153309000,\"committed_bytes\":65536,\"minor_pause_ns\":448069000,\"full_pause_ns\":809668000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":127,\"discard_failures\":0,\"discarded_bytes\":84885504,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68763648,\"peak_rss_bytes\":116654080,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116473856,\"peak_rss_bytes\":116473856}\n{\"memory_phase\":1,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85327872,\"peak_rss_bytes\":116473856}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68550656,\"peak_rss_bytes\":116473856}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116637696,\"peak_rss_bytes\":116637696}\n{\"memory_phase\":4,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85458944,\"peak_rss_bytes\":116637696}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68681728,\"peak_rss_bytes\":116637696}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108628232,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3940,\"traced_objects\":11610207,\"pause_ns\":1263329000,\"maximum_pause_ns\":158813000,\"committed_bytes\":65536,\"minor_pause_ns\":444770000,\"full_pause_ns\":818559000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":127,\"discard_failures\":0,\"discarded_bytes\":84885504,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68763648,\"peak_rss_bytes\":116637696,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116391936,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":1,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85245952,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116555776,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":4,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85377024,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68599808,\"peak_rss_bytes\":116555776}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108628232,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3940,\"traced_objects\":11610207,\"pause_ns\":1244330000,\"maximum_pause_ns\":150899000,\"committed_bytes\":65536,\"minor_pause_ns\":445665000,\"full_pause_ns\":798665000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":127,\"discard_failures\":0,\"discarded_bytes\":84885504,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68665344,\"peak_rss_bytes\":116555776,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116391936,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":1,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85245952,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116555776,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":4,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85377024,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68599808,\"peak_rss_bytes\":116555776}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108628232,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3940,\"traced_objects\":11610207,\"pause_ns\":1251719000,\"maximum_pause_ns\":153817000,\"committed_bytes\":65536,\"minor_pause_ns\":448711000,\"full_pause_ns\":803008000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":127,\"discard_failures\":0,\"discarded_bytes\":84885504,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68665344,\"peak_rss_bytes\":116555776,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116391936,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":1,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85245952,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68468736,\"peak_rss_bytes\":116391936}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116555776,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":4,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85377024,\"peak_rss_bytes\":116555776}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68599808,\"peak_rss_bytes\":116555776}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108628232,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3940,\"traced_objects\":11610207,\"pause_ns\":1239820000,\"maximum_pause_ns\":151325000,\"committed_bytes\":65536,\"minor_pause_ns\":441161000,\"full_pause_ns\":798659000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":127,\"discard_failures\":0,\"discarded_bytes\":84885504,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68681728,\"peak_rss_bytes\":116555776,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,104,0,10]}\n",
+        "{\"memory_phase\":0,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116572160,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":1,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85426176,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":2,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68648960,\"peak_rss_bytes\":116572160}\n{\"memory_phase\":3,\"region_count\":4,\"mapped_bytes\":81526784,\"current_rss_bytes\":116670464,\"peak_rss_bytes\":116670464}\n{\"memory_phase\":4,\"region_count\":3,\"mapped_bytes\":50331648,\"current_rss_bytes\":85491712,\"peak_rss_bytes\":116670464}\n{\"memory_phase\":5,\"region_count\":2,\"mapped_bytes\":33554432,\"current_rss_bytes\":68714496,\"peak_rss_bytes\":116670464}\n{\"scoop_gc\":1,\"minor_collections\":104,\"full_collections\":12,\"promotion_fallbacks\":0,\"allocated_bytes\":144001344,\"nursery_allocated_bytes\":115201296,\"promoted_bytes\":115201144,\"copied_bytes\":108628232,\"dirty_cards\":53144,\"old_reference_slots\":3401178,\"root_slots\":3940,\"traced_objects\":11610207,\"pause_ns\":1241659000,\"maximum_pause_ns\":152586000,\"committed_bytes\":65536,\"minor_pause_ns\":442473000,\"full_pause_ns\":799186000,\"region_count\":2,\"large_mapping_count\":0,\"mapped_bytes\":33554432,\"discard_calls\":127,\"discard_failures\":0,\"discarded_bytes\":84885504,\"unmapped_bytes\":95944704,\"current_rss_bytes\":68796416,\"peak_rss_bytes\":116670464,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,104,0,10]}\n"
+      ],
+      "stdout": "113400000\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1",
+        "SCOOP_BENCH_PIN": "1"
+      },
+      "median_seconds": 1.3597568329423666
+    }
+  },
+  "measurement_note": "First M34-7 measurement, before forcing the per-object retirement helper to inline; all original samples are retained."
+}

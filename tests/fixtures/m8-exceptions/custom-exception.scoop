@@ -1,0 +1,15 @@
+class MyError(val code: Int) : Exception(Some("my error"))
+
+fun fail(): Int {
+    throw MyError(42)
+}
+
+fun main() {
+    try {
+        fail()
+    } catch (e: MyError) {
+        println(e.code)
+    } finally {
+        println("done")
+    }
+}

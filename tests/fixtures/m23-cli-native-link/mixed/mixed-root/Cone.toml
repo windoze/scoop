@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "mixed-root"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:mixed-provider" = {"version" = "0.1.0", "path" = "../mixed-provider"}
+"dev.programlink:mixed-left" = {"version" = "0.1.0", "path" = "../mixed-left"}
+"dev.programlink:mixed-right" = {"version" = "0.1.0", "path" = "../mixed-right"}

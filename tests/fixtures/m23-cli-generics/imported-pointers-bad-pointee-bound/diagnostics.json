@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `copy` requires type argument Managed for `T` to be a GC-free `Ptr` pointee",
+    "notes": [],
+    "origin": {
+      "cone": "1123850e5b99189e0da84d9f5d78631c623e7db726d988ac1c9bdbcb22c22c37",
+      "end": 139,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 109
+    },
+    "severity": "error"
+  }
+]

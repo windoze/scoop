@@ -1,0 +1,9 @@
+@Extern(name = "verify_finished", lib = "m23_native_boundary")
+fun verifyFinished()
+
+public fun perform() {
+    @Unsafe {
+        if (nativeNarrow(17) != 18) { throw IllegalStateException() }
+    }
+    @Unsafe { verifyFinished() }
+}

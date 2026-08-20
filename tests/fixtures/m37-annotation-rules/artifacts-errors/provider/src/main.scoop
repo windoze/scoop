@@ -1,0 +1,18 @@
+package annotated.provider
+@Repeatable @Target([AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.ENUM_VARIANT, AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.TYPEALIAS, AnnotationTarget.TYPE])
+public annotation class Mark(val text: String = "default")
+@Mark("meta") public annotation class Detail
+@Mark("alias") public typealias Count = Int
+@Mark("class") public class Item @Mark("constructor") public constructor(
+    @param:Mark("constructor value") @field:Mark("backing field") @get:Mark("getter") public val value: Count
+) {
+    @Mark("computed property") @get:Mark("computed getter") public val view: Count get() = value
+}
+@Mark("generic function") @Mark("again") public fun <T> keep(@Mark("value parameter") value: T): T {
+    @Mark("local alias") typealias Element = T
+    @Mark("local function") fun identity(@Mark("local parameter") item: Element): Element = item
+    return identity(value)
+}
+
+@Target([AnnotationTarget.FIELD]) public annotation class OnlyField
+public annotation class Once

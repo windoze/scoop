@@ -1,0 +1,68 @@
+fun returning(value: Int?): Int {
+    try {
+        val number = value ?: return 1
+        return number
+    } finally { println("return-finally") }
+}
+
+fun throwing(value: Int?): Int {
+    try {
+        val number = value ?: throw UnwrapException()
+        return number
+    } catch (failure: UnwrapException) {
+        println("caught")
+        return 2
+    } finally { println("throw-finally") }
+}
+
+fun overrideReturn(value: Int?): Int {
+    try { val number = value ?: return 3; return number }
+    finally { return 4 }
+}
+
+fun conditional(flag: Boolean): Int {
+    val ignored = if (flag) { return 5 } else { throw UnwrapException() }
+}
+
+fun branching(flag: Boolean): Int {
+    val ignored = when (flag) { true -> return 6; false -> throw UnwrapException() }
+}
+
+fun guard(value: Int): Int {
+    when (value) { 1 if (return 7) -> return 0; else -> return 8 }
+}
+
+fun condition(): Int { when { (return 9) -> return 0; else -> return 0 } }
+fun blockValue(value: Int?): String = when (value) {
+    case Some(number) -> number.toString()
+    case None -> throw UnwrapException()
+}
+
+class Configuration(val value: Int)
+context(configuration: Configuration)
+fun configured(): Int = configuration.value
+
+fun fromContext(value: Int?): Int {
+    context(Configuration(100)) {
+        val number = value ?: return configured()
+        return number
+    }
+}
+
+fun main() {
+    context(Configuration(12)) { println(fromContext(None)); println(configured()) }
+    println(returning(None))
+    println(returning(Some(10)))
+    println(throwing(None))
+    println(throwing(Some(11)))
+    println(overrideReturn(None))
+    println(conditional(true))
+    println(branching(true))
+    try { println(conditional(false)) } catch (failure: UnwrapException) { println("if-caught") }
+    try { println(branching(false)) } catch (failure: UnwrapException) { println("when-caught") }
+    println(guard(1))
+    println(guard(2))
+    println(condition())
+    println(blockValue(Some(12)))
+    try { println(blockValue(None)) } catch (failure: UnwrapException) { println("arm-caught") }
+}

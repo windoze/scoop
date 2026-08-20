@@ -1,0 +1,1586 @@
+{
+  "description": "Saved actual outputs supplied the profile-specific expectations. Target-specific copies retain the exact outputs. Shared SysV expectation migration is not counted as musl execution.",
+  "profile_splits": {
+    "darwin": {
+      "templates": 169,
+      "files": 338,
+      "carriers": 73
+    },
+    "gnu": {
+      "templates": 168,
+      "files": 336,
+      "carriers": 72
+    }
+  },
+  "profile_templates": [
+    {
+      "locator": "tests/fixtures/legacy-acceptance/m22-integers/arithmetic-matrix.fixture.toml",
+      "old": "arithmetic-matrix.hir.txt",
+      "new": "arithmetic-matrix.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/legacy-acceptance/m22-integers/arithmetic-matrix.fixture.toml",
+      "old": "arithmetic-matrix.lir.txt",
+      "new": "arithmetic-matrix.${profile}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/legacy-acceptance/m22-integers/arithmetic-matrix.fixture.toml",
+      "old": "arithmetic-matrix.mir.txt",
+      "new": "arithmetic-matrix.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/legacy-acceptance/m22-iteration/combined.fixture.toml",
+      "old": "combined.hir.txt",
+      "new": "combined.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/legacy-acceptance/m22-iteration/combined.fixture.toml",
+      "old": "combined.lir.txt",
+      "new": "combined.${profile}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/legacy-acceptance/m22-iteration/combined.fixture.toml",
+      "old": "combined.mir.txt",
+      "new": "combined.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m27-context/gc-lifetimes/fixture.toml",
+      "old": "program.${target}.lir.txt",
+      "new": "program.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m27-context/gc-lifetimes/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m27-context/gc-lifetimes/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/environment/fixture.toml",
+      "old": "program.${target}.lir.txt",
+      "new": "program.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/environment/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/environment/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/operations/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/operations/fixture.toml",
+      "old": "program.lir.txt",
+      "new": "program.${profile}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/operations/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/rounding/fixture.toml",
+      "old": "program.${target}.lir.txt",
+      "new": "program.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/rounding/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/rounding/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/values/fixture.toml",
+      "old": "program.${target}.lir.txt",
+      "new": "program.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/values/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m30-floating/values/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-odr/selection/fixture.toml",
+      "old": "root.${target}.lir.txt",
+      "new": "root.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-odr/selection/fixture.toml",
+      "old": "root.hir.txt",
+      "new": "root.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-odr/selection/fixture.toml",
+      "old": "root.mir.txt",
+      "new": "root.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/integer-conditions/fixture.toml",
+      "old": "program.${target}.lir.txt",
+      "new": "program.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/integer-conditions/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/integer-conditions/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/local-effects/fixture.toml",
+      "old": "program.${target}.lir.txt",
+      "new": "program.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/local-effects/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/local-effects/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/local-values/fixture.toml",
+      "old": "program.${target}.lir.txt",
+      "new": "program.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/local-values/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/local-values/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/ssa-roots/fixture.toml",
+      "old": "program.${target}.lir.txt",
+      "new": "program.${profile}.${target}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/ssa-roots/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m31-optimization/ssa-roots/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m32-roots/coroutines/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m32-roots/coroutines/fixture.toml",
+      "old": "program.lir.txt",
+      "new": "program.${profile}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m32-roots/coroutines/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m32-roots/gc-context/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m32-roots/gc-context/fixture.toml",
+      "old": "program.lir.txt",
+      "new": "program.${profile}.lir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m32-roots/gc-context/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/concurrency/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/concurrency/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/construction-artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/construction-artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/construction/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/construction/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/library-artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/library-artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/library-artifacts/fixture.toml",
+      "old": "provider.mir.txt",
+      "new": "provider.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/memory-orders/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/memory-orders/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/operations-artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/operations-artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/operations/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/operations/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/updates/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/updates/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/value-storage/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-atomics/value-storage/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/counted-pins/concurrent.fixture.toml",
+      "old": "concurrent.hir.txt",
+      "new": "concurrent.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/counted-pins/concurrent.fixture.toml",
+      "old": "concurrent.mir.txt",
+      "new": "concurrent.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/counted-pins/program.fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/counted-pins/program.fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/scoped-artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/scoped-artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/scoped-artifacts/fixture.toml",
+      "old": "provider.hir.txt",
+      "new": "provider.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/scoped-artifacts/fixture.toml",
+      "old": "provider.mir.txt",
+      "new": "provider.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/scoped-data/concurrent.fixture.toml",
+      "old": "concurrent.hir.txt",
+      "new": "concurrent.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/scoped-data/concurrent.fixture.toml",
+      "old": "concurrent.mir.txt",
+      "new": "concurrent.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/scoped-data/program.fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-borrows/scoped-data/program.fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-cstrings/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-cstrings/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-cstrings/artifacts/fixture.toml",
+      "old": "provider.hir.txt",
+      "new": "provider.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-cstrings/artifacts/fixture.toml",
+      "old": "provider.mir.txt",
+      "new": "provider.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-cstrings/basic/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-cstrings/basic/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/artifacts/fixture.toml",
+      "old": "provider.mir.txt",
+      "new": "provider.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/operator-bounds/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/operator-bounds/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/operator-shadow/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/operator-shadow/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/pointers/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/pointers/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/values/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/contracts/values/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/collisions/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/collisions/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/field-semantics/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/field-semantics/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/nominal-artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/nominal-artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/nominal-artifacts/fixture.toml",
+      "old": "provider.mir.txt",
+      "new": "provider.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/nominal/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/derivation/nominal/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/effects/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/effects/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/effects/artifacts/fixture.toml",
+      "old": "provider.mir.txt",
+      "new": "provider.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/effects/values/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-equality/effects/values/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-errno/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-errno/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-errno/artifacts/fixture.toml",
+      "old": "provider.mir.txt",
+      "new": "provider.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-errno/callbacks/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-errno/callbacks/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-ffi/gc-leaf/concurrent.fixture.toml",
+      "old": "concurrent.hir.txt",
+      "new": "concurrent.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-ffi/gc-leaf/concurrent.fixture.toml",
+      "old": "concurrent.mir.txt",
+      "new": "concurrent.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-ffi/gc-leaf/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-ffi/gc-leaf/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-ffi/transitions/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-ffi/transitions/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-main/args-int/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-main/args-int/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-main/args-unit/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-main/args-unit/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-main/no-args-unit/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-main/no-args-unit/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-c/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-c/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-c/values/fixture.toml",
+      "old": "program.${target}.hir.txt",
+      "new": "program.${profile}.${target}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-c/values/fixture.toml",
+      "old": "program.${target}.mir.txt",
+      "new": "program.${profile}.${target}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-cxx/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-cxx/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-cxx/artifacts/fixture.toml",
+      "old": "middle.hir.txt",
+      "new": "middle.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-cxx/exit/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-cxx/exit/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-cxx/values/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-libraries/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-libraries/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-libraries/explicit/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-libraries/sdk-previous/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-native-libraries/system-native/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-output/basic/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-output/basic/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-output/concurrent/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-output/concurrent/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-platform/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-platform/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-platform/fixture.toml",
+      "old": "provider.${target}.hir.txt",
+      "new": "provider.${profile}.${target}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-platform/fixture.toml",
+      "old": "provider.${target}.mir.txt",
+      "new": "provider.${profile}.${target}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-process/blocked/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-process/blocked/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-process/failure/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-process/panic/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-process/panic/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-shutdown/active/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-shutdown/active/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-shutdown/attached/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-shutdown/clean-exit/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-shutdown/clean-exit/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-shutdown/tokens/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-shutdown/tokens/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-sources/targets/fixture.toml",
+      "old": "program.${target}.hir.txt",
+      "new": "program.${profile}.${target}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-sources/targets/fixture.toml",
+      "old": "program.${target}.mir.txt",
+      "new": "program.${profile}.${target}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-sysroot/combination/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-sysroot/combination/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-sysroot/combination/fixture.toml",
+      "old": "platform.hir.txt",
+      "new": "platform.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-utf8/artifacts/fixture.toml",
+      "old": "consumer.hir.txt",
+      "new": "consumer.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-utf8/artifacts/fixture.toml",
+      "old": "consumer.mir.txt",
+      "new": "consumer.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-utf8/artifacts/fixture.toml",
+      "old": "provider.hir.txt",
+      "new": "provider.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-utf8/artifacts/fixture.toml",
+      "old": "provider.mir.txt",
+      "new": "provider.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-utf8/pointers/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-utf8/pointers/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-utf8/values/fixture.toml",
+      "old": "program.hir.txt",
+      "new": "program.${profile}.hir.txt"
+    },
+    {
+      "locator": "tests/fixtures/m33-utf8/values/fixture.toml",
+      "old": "program.mir.txt",
+      "new": "program.${profile}.mir.txt"
+    }
+  ],
+  "target_splits": {
+    "compared_files": 11065,
+    "public_lir_files": 633,
+    "fixtures": 416,
+    "gnu_specific_updates": 1018,
+    "non_lir_conflicts": [],
+    "files": [
+      "tests/fixtures/legacy-acceptance/m10-coroutines/catch-finally-suspension.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/completion-throws.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/continuation-protocol.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/gc-across-suspension.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/generic-suspend-values.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/immediate-completion.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/immediate-failure.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/multiple-suspension-points.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/real-suspension.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/resume-failure.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/suspend-control-flow.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/suspend-member-dispatch.lir.txt",
+      "tests/fixtures/legacy-acceptance/m10-coroutines/synchronous-resume.lir.txt",
+      "tests/fixtures/legacy-acceptance/m11-functions/callable-references.lir.txt",
+      "tests/fixtures/legacy-acceptance/m11-functions/captures.lir.txt",
+      "tests/fixtures/legacy-acceptance/m11-functions/extensions.lir.txt",
+      "tests/fixtures/legacy-acceptance/m11-functions/local-functions.lir.txt",
+      "tests/fixtures/legacy-acceptance/m11-functions/suspend-values.lir.txt",
+      "tests/fixtures/legacy-acceptance/m12-ffi/c-layout.lir.txt",
+      "tests/fixtures/legacy-acceptance/m14-generics/bound-member.lir.txt",
+      "tests/fixtures/legacy-acceptance/m14-generics/core-capabilities.lir.txt",
+      "tests/fixtures/legacy-acceptance/m14-generics/generic-method.lir.txt",
+      "tests/fixtures/legacy-acceptance/m16-call-resolution/unified-call-combinations.lir.txt",
+      "tests/fixtures/legacy-acceptance/m17-defaults/default-semantics.lir.txt",
+      "tests/fixtures/legacy-acceptance/m17-defaults/suspend-default.lir.txt",
+      "tests/fixtures/legacy-acceptance/m17-vararg/extern-scoop.lir.txt",
+      "tests/fixtures/legacy-acceptance/m17-vararg/vararg-semantics.lir.txt",
+      "tests/fixtures/legacy-acceptance/m18-invoke/invoke-semantics.lir.txt",
+      "tests/fixtures/legacy-acceptance/m19-constructors/suspend-caller.lir.txt",
+      "tests/fixtures/legacy-acceptance/m19-super/direct-dispatch.lir.txt",
+      "tests/fixtures/legacy-acceptance/m2-values/struct-equality.lir.txt",
+      "tests/fixtures/legacy-acceptance/m20-generics/combined.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-aggregate-abi/aggregate-calls.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-binding-patterns/bare-variant-names.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-binding-patterns/class-component-suspend-moving-gc.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-contextual-variants/combined.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-control/while-header.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-copy-update/suspend-moving-gc.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-integers/fixed-width.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-integers/representation-matrix.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-iteration/combined.debug.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-iteration/combined.release.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-patterns/nested-enum-primitives.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-patterns/when-exhaustiveness.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-pointers/option-niche-consumers.lir.txt",
+      "tests/fixtures/legacy-acceptance/m22-ranges/semantics.lir.txt",
+      "tests/fixtures/legacy-acceptance/m3-generics/generic-option.lir.txt",
+      "tests/fixtures/legacy-acceptance/m3-generics/inference-order.lir.txt",
+      "tests/fixtures/legacy-acceptance/m3-generics/option-basics.lir.txt",
+      "tests/fixtures/legacy-acceptance/m4-enum/destructuring.lir.txt",
+      "tests/fixtures/legacy-acceptance/m4-enum/when-expression.lir.txt",
+      "tests/fixtures/legacy-acceptance/m5-arrays/array-basics.lir.txt",
+      "tests/fixtures/legacy-acceptance/m5-arrays/array-elements.lir.txt",
+      "tests/fixtures/legacy-acceptance/m5-arrays/array-functions.lir.txt",
+      "tests/fixtures/legacy-acceptance/m5-arrays/array-method-conversions.lir.txt",
+      "tests/fixtures/legacy-acceptance/m5-arrays/bounds-trap-negative.lir.txt",
+      "tests/fixtures/legacy-acceptance/m5-arrays/bounds-trap.lir.txt",
+      "tests/fixtures/legacy-acceptance/m6-classes/casts.lir.txt",
+      "tests/fixtures/legacy-acceptance/m6-classes/generic-members.lir.txt",
+      "tests/fixtures/legacy-acceptance/m6-classes/interfaces.lir.txt",
+      "tests/fixtures/legacy-acceptance/m6-classes/smart-cast.lir.txt",
+      "tests/fixtures/legacy-acceptance/m7-overload/generic-enum-method.lir.txt",
+      "tests/fixtures/legacy-acceptance/m8-exceptions/builtin-exceptions.lir.txt",
+      "tests/fixtures/legacy-acceptance/m9-gc/generic-interface.lir.txt",
+      "tests/fixtures/legacy-acceptance/m9-gc/generic-struct.lir.txt",
+      "tests/fixtures/m23-cli-cache/core-root/core.lir.txt",
+      "tests/fixtures/m23-cli-constructors/nogc-scalar/provider.lir.txt",
+      "tests/fixtures/m23-cli-constructors/nogc-scalar/single.lir.txt",
+      "tests/fixtures/m23-cli-constructors/safety-safety/provider.lir.txt",
+      "tests/fixtures/m23-cli-constructors/safety-safety/single.lir.txt",
+      "tests/fixtures/m23-cli-core-dependencies/core-local/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/base/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/heap-zst-storage/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/ordinary-consumer/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/ordinary/consumer.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/ordinary/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/property-initialization-provider/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-abi-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-abi-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-accessors-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-accessors-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-aliases-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-aliases-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-callables-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-callables-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-constructors-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-constructors-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-digests-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-digests-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-dispatch-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-dispatch-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-equality-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-equality-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-init-abi-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-init-abi-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-layouts-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-layouts-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-lir-dispatch-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-lir-dispatch-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-mir-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-mir-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-objects-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-objects-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-ordinary-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-ordinary-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-production-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-production-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-shapes-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-shapes-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-td-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-td-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-units-combined/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/shared-units-standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-layouts/standalone/core.lir.txt",
+      "tests/fixtures/m23-cli-core-library/publication-core/core.lir.txt",
+      "tests/fixtures/m23-cli-core-nominals/dispatch-varargs/core.lir.txt",
+      "tests/fixtures/m23-cli-core-nominals/dispatch-varargs/exposed.lir.txt",
+      "tests/fixtures/m23-cli-core-nominals/dispatch-varargs/program.lir.txt",
+      "tests/fixtures/m23-cli-core-nominals/nominal-varargs/core.lir.txt",
+      "tests/fixtures/m23-cli-core-nominals/nominal-varargs/exposed.lir.txt",
+      "tests/fixtures/m23-cli-core-nominals/nominal-varargs/program.lir.txt",
+      "tests/fixtures/m23-cli-core-nominals/storage-roots/core.lir.txt",
+      "tests/fixtures/m23-cli-core-nominals/storage-roots/exposed.lir.txt",
+      "tests/fixtures/m23-cli-core-values/prelude/core.lir.txt",
+      "tests/fixtures/m23-cli-default-access/source-profiles-combined/program.lir.txt",
+      "tests/fixtures/m23-cli-default-access/source-profiles-domain-binding/exposed.lir.txt",
+      "tests/fixtures/m23-cli-default-access/source-profiles-domain-binding/program.lir.txt",
+      "tests/fixtures/m23-cli-default-access/source-profiles-domain-binding/provider.lir.txt",
+      "tests/fixtures/m23-cli-default-access/type-access-combined/program.lir.txt",
+      "tests/fixtures/m23-cli-default-access/type-access-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-default-access/type-access-pointers/core.lir.txt",
+      "tests/fixtures/m23-cli-default-access/value-access-combined/program.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/nominal-operations-standalone/exposed.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/nominal-operations-standalone/program.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/nominal-operations-standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/operation-signatures-standalone/exposed.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/operation-signatures-standalone/program.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/operation-signatures-standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/operation-types-combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/operation-types-combined/program.lir.txt",
+      "tests/fixtures/m23-cli-default-operations/operation-types-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-default-preparation/forward/program.lir.txt",
+      "tests/fixtures/m23-cli-default-properties/nominals/program.lir.txt",
+      "tests/fixtures/m23-cli-default-properties/nominals/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-computed/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-extension/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-generic-member/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-generic/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-interface/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-local-factory/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-local-generic/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-local/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-member/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-named/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-nested/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-unbound/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-value-member/consumer.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-value-member/downstream.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-value-member/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-values/provider.lir.txt",
+      "tests/fixtures/m23-cli-delegates/generic-delegate-references-reference-virtual/provider.lir.txt",
+      "tests/fixtures/m23-cli-enum-identities/combined/program.lir.txt",
+      "tests/fixtures/m23-cli-enum-identities/plain/program.lir.txt",
+      "tests/fixtures/m23-cli-executable-sites/types-casts/consumer.lir.txt",
+      "tests/fixtures/m23-cli-fact-providers/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-fact-providers/combined/program.lir.txt",
+      "tests/fixtures/m23-cli-fact-providers/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-fact-providers/standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-finite-mir-types/combined/core.lir.txt",
+      "tests/fixtures/m23-cli-finite-mir-types/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-finite-mir-types/values/core.lir.txt",
+      "tests/fixtures/m23-cli-finite-mir-types/values/program.lir.txt",
+      "tests/fixtures/m23-cli-generic-arguments/consumer/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generic-reader/concrete-support/provider.lir.txt",
+      "tests/fixtures/m23-cli-generic-shapes/constructors-large-value/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-abi/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-abi/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-arrays/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-arrays/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-arrays/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-callbacks/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-callbacks/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-callbacks/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-nominals/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-nominals/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-nominals/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-order/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-order/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-order/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-overloads/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-overloads/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-overloads/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-shared-fixed-point/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-shared-fixed-point/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-shared-fixed-point/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-shared-mapping/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-shared-mapping/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/argument-inference-shared-mapping/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-abi/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-abi/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-aliases/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-aliases/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-aliases/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-basic/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-basic/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-basic/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-overloads/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-overloads/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-overloads/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-shadow/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-shadow/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/array-construction-shadow/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-closure-finally/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-closure-finally/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-closure-finally/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-failure-finally/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-failure-finally/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-failure-finally/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-function-values/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-function-values/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-function-values/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-immediate/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-immediate/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-immediate/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-lifecycle/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-lifecycle/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-lifecycle/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-suspension/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-suspension/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-suspension/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-value-task/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-value-task/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/coroutines-value-task/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-delegate-dynamic/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-delegate-static/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-dynamic/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-failures/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-interface-dynamic/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-lambda-results/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-nested/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-private-signature/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/function-adapters-static/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-abi/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-abi/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-basic/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-basic/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-basic/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-bounds/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-bounds/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-bounds/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-iteration/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-iteration/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-iteration/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-order/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-order/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-arrays-order/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-defaults/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-defaults/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-generic-interface-default/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-generic-interface-default/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-generic-interface/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-generic-virtual/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-interface-abstract/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-interface-default/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-interface-default/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-interface-enum/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-interface-enum/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-interface-receiver/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-local-conformance/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-local-conformance/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-primitives/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-source-bounds/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-value/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-value/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-value/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-bounds-virtual/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-defaults/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-defaults/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-empty/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-empty/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-nested/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-nested/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-overloads/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-overloads/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-struct/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-equality-struct/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-member-consumption-interface-enum/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-member-consumption-interface-struct/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-member-consumption-interface-value-property/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-member-consumption-value-method/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/generic-member-consumption-value-method/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/global-state-generic-initializer/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/global-state-generic-initializer/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-construct/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-construct/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-construct/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-defaults/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-defaults/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-defaults/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-lexical/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-lexical/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-lexical/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-qualified/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-qualified/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-qualified/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-shadow/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-shadow/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-shadow/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-static/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-static/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-static/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-sugar/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-sugar/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-sugar/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-values/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-values/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-options-values/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-pointer-construction-lexical/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-pointer-construction-lexical/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-pointer-construction-shadow/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-pointer-construction-templates/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-pointer-construction-templates/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-pointers-template/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/imported-pointers-this-copy/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-abi/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-basic/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-basic/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-bounds/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-bounds/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-capture/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-defaults/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-defaults/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-extensions/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-extensions/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-inference/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-inference/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-order/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/iteration-order/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/qualified-types-aliases/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/qualified-types-bounds/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/qualified-types-nested/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/qualified-types-ordinary/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/qualified-types-split-package/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/qualified-types-split-package/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-argument-materialization-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-argument-materialization-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-argument-materialization-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-argument-materialization-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-argument-materialization-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-argument-materialization-standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bindings-abi/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bindings-abi/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bindings-defaults-when/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bindings-defaults-when/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bindings-lambda-for/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bindings-lambda-for/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bindings-structs/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bindings-structs/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bound-properties-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bound-properties-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bound-properties-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-bound-properties-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-constructor-bodies-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-constructor-bodies-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-declaration-views-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-declaration-views-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enum-definitions-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enum-definitions-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enum-definitions-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enum-definitions-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-aliases-equality/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-aliases-equality/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-defaults-nested/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-defaults-nested/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-instances/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-instances/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-qualified/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-qualified/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-enums-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-interface-definitions-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-interface-definitions-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-interface-definitions-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-interface-definitions-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-interface-members-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-interface-members-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-literals-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-literals-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-local-calls-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-local-calls-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-local-calls-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-local-calls-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-method-calls-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-method-calls-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-method-calls-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-method-calls-standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-native-calls-context/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-native-calls-context/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-native-calls-variance/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-nominal-conditions-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-nominal-conditions-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-nominal-conditions-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-nominal-conditions-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-parents-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-ranges-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-ranges-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-ranges-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-ranges-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-selection-constructors/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-selection-constructors/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-selection-functions/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-selection-functions/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-selection-members/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-selection-members/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-struct-definitions-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-struct-definitions-standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-structs-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-structs-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-structs-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-structs-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-structs-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-structs-standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-value-layouts-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-value-layouts-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-value-layouts-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/shared-value-layouts-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/source-callable-references-global-state/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/source-callable-references-global-state/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/source-callable-references-members/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/source-callable-references-members/downstream.lir.txt",
+      "tests/fixtures/m23-cli-generics/source-callable-references-values/consumer.lir.txt",
+      "tests/fixtures/m23-cli-generics/source-callable-references-values/downstream.lir.txt",
+      "tests/fixtures/m23-cli-hir-materialized-selections/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-hir-materialized-selections/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-hir-materialized-selections/standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-hir-publication/reference-reader-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-hir-publication/shared-source-closure-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/class/program.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/class/provider.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/combined/program.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/default/program.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/function/program.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/function/provider.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/literal/program.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/literal/provider.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/struct/program.lir.txt",
+      "tests/fixtures/m23-cli-implicit-array-capability/struct/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-classes/conformance-enum/lir.txt",
+      "tests/fixtures/m23-cli-imported-classes/conformance-interface-property/lir.txt",
+      "tests/fixtures/m23-cli-imported-classes/conformance-property-readonly/lir.txt",
+      "tests/fixtures/m23-cli-imported-classes/conformance-struct/lir.txt",
+      "tests/fixtures/m23-cli-imported-values/constructor-aliases/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/constructor-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/constructor-standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/constructor-structural/consumer.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/constructor-structural/downstream.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/constructor-structural/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/constructor-tuple-constructor/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/constructor-tuple-fields/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/enum-combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/enum-constructor-combinations/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/enum-constructors/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/enum-patterns/provider.lir.txt",
+      "tests/fixtures/m23-cli-imported-values/enum-standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-intrinsic-source-shapes/consumers/core.lir.txt",
+      "tests/fixtures/m23-cli-intrinsic-source-shapes/consumers/program.lir.txt",
+      "tests/fixtures/m23-cli-intrinsic-source-shapes/declarations/core.lir.txt",
+      "tests/fixtures/m23-cli-intrinsic-source-shapes/declarations/exposed.lir.txt",
+      "tests/fixtures/m23-cli-layout-assembly/combined/private.lir.txt",
+      "tests/fixtures/m23-cli-layout-assembly/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-layout-assembly/private-support/private.lir.txt",
+      "tests/fixtures/m23-cli-layout-assembly/private-support/provider.lir.txt",
+      "tests/fixtures/m23-cli-layout-assembly/standalone/private.lir.txt",
+      "tests/fixtures/m23-cli-layout-assembly/standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-layout-dependencies/lir-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-layout-dependencies/lir-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-mir-boxing-production/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-mir-boxing-production/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-mir-callable-production/generic-storage/program.lir.txt",
+      "tests/fixtures/m23-cli-mir-callable-production/generic-storage/provider.lir.txt",
+      "tests/fixtures/m23-cli-mir-dispatch-production/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-mir-dispatch-production/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-mir-equality-production/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-mir-equality-production/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-mir-export-assembly/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-mir-export-assembly/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-namespaces/companions/origin.lir.txt",
+      "tests/fixtures/m23-cli-namespaces/deep/origin.lir.txt",
+      "tests/fixtures/m23-cli-namespaces/enum-variants/origin.lir.txt",
+      "tests/fixtures/m23-cli-namespaces/exact/origin.lir.txt",
+      "tests/fixtures/m23-cli-namespaces/objects/origin.lir.txt",
+      "tests/fixtures/m23-cli-namespaces/public-exact/origin.lir.txt",
+      "tests/fixtures/m23-cli-namespaces/public-star/origin.lir.txt",
+      "tests/fixtures/m23-cli-namespaces/star/origin.lir.txt",
+      "tests/fixtures/m23-cli-native-functions/function-adapters-native-value/provider.lir.txt",
+      "tests/fixtures/m23-cli-native-link/goldens/cabi/root.lir.txt",
+      "tests/fixtures/m23-cli-native-link/goldens/direct/combined.lir.txt",
+      "tests/fixtures/m23-cli-nominal-requirements/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-nominal-requirements/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-nominal-requirements/standalone/exposed.lir.txt",
+      "tests/fixtures/m23-cli-nominal-requirements/standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-nominal-signature-scope/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-nominal-signature-scope/combined/program.lir.txt",
+      "tests/fixtures/m23-cli-nominal-signature-scope/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-program-link/coroutine-closure-finally/lir.txt",
+      "tests/fixtures/m23-cli-program-link/coroutine-failure-finally/lir.txt",
+      "tests/fixtures/m23-cli-program-link/coroutine-function-values/lir.txt",
+      "tests/fixtures/m23-cli-program-link/coroutine-lifecycle/lir.txt",
+      "tests/fixtures/m23-cli-program-link/coroutine-value-task/lir.txt",
+      "tests/fixtures/m23-cli-program-read/read-basic/core.lir.txt",
+      "tests/fixtures/m23-cli-program-read/read-combined/program.lir.txt",
+      "tests/fixtures/m23-cli-program-read/read-combined/verified.lir.txt",
+      "tests/fixtures/m23-cli-protected-domains/protected-default-combinations/exposed.lir.txt",
+      "tests/fixtures/m23-cli-protected-domains/protected-default-references/exposed.lir.txt",
+      "tests/fixtures/m23-cli-protected-domains/protected-default-references/program.lir.txt",
+      "tests/fixtures/m23-cli-protected-domains/protected-default-references/provider.lir.txt",
+      "tests/fixtures/m23-cli-protected-domains/protected-default-varargs/exposed.lir.txt",
+      "tests/fixtures/m23-cli-protected-domains/protected-default-varargs/provider.lir.txt",
+      "tests/fixtures/m23-cli-protected-domains/protected-nested/exposed.lir.txt",
+      "tests/fixtures/m23-cli-qualified-types/diamond/origin.lir.txt",
+      "tests/fixtures/m23-cli-qualified-types/independent/origin.lir.txt",
+      "tests/fixtures/m23-cli-rebuilt-core/array-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-rebuilt-core/array-combined/downstream.lir.txt",
+      "tests/fixtures/m23-cli-rebuilt-core/array-standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-rebuilt-core/array-standalone/downstream.lir.txt",
+      "tests/fixtures/m23-cli-rebuilt-core/coroutine-rebuilt-core/consumer.lir.txt",
+      "tests/fixtures/m23-cli-rebuilt-core/coroutine-rebuilt-core/downstream.lir.txt",
+      "tests/fixtures/m23-cli-rebuilt-core/option-edited-core/consumer.lir.txt",
+      "tests/fixtures/m23-cli-rebuilt-core/option-edited-core/downstream.lir.txt",
+      "tests/fixtures/m23-cli-shape-materialization/value/program.lir.txt",
+      "tests/fixtures/m23-cli-shape-materialization/value/provider.lir.txt",
+      "tests/fixtures/m23-cli-shapes/m10-suspend-constructor-argument.lir.txt",
+      "tests/fixtures/m23-cli-shapes/m18-invoke-combined.lir.txt",
+      "tests/fixtures/m23-cli-shapes/m18-safe-call-combined.lir.txt",
+      "tests/fixtures/m23-cli-shapes/m21-nested-static-nested.lir.txt",
+      "tests/fixtures/m23-cli-shapes/m21-properties-properties.lir.txt",
+      "tests/fixtures/m23-cli-shapes/m22-integers-typealiases.lir.txt",
+      "tests/fixtures/m23-cli-shared-interior-mutability/combined/exposed.lir.txt",
+      "tests/fixtures/m23-cli-shared-interior-mutability/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-shared-interior-mutability/standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-calls/occurrences-combined/consumer.lir.txt",
+      "tests/fixtures/m23-cli-source-calls/references-suspend-signature/consumer.lir.txt",
+      "tests/fixtures/m23-cli-source-calls/references-suspend-signature/program.lir.txt",
+      "tests/fixtures/m23-cli-source-defaults/data-flow/program.lir.txt",
+      "tests/fixtures/m23-cli-source-defaults/data-flow/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-defaults/declaration-binding/program.lir.txt",
+      "tests/fixtures/m23-cli-source-defaults/origin-binding/program.lir.txt",
+      "tests/fixtures/m23-cli-source-defaults/origin-binding/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-defaults/reference-closure-combinations/program.lir.txt",
+      "tests/fixtures/m23-cli-source-defaults/reference-closure-combinations/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/callables/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/callables/program.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/callables/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/constructors/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/constructors/program.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/constructors/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/interfaces/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/interfaces/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/parameter-protocols/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/parameter-protocols/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/protected-callables/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/protected-callables/program.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/protected-callables/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/protected-signatures/program.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/selections/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-dispatch/selections/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-mir-types/generic-values/program.lir.txt",
+      "tests/fixtures/m23-cli-source-mir-types/generic-values/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-mir-types/private-storage/program.lir.txt",
+      "tests/fixtures/m23-cli-source-mir-types/values/program.lir.txt",
+      "tests/fixtures/m23-cli-source-mir-types/values/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/binding/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/binding/program.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/binding/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/c-layout-single/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/c-layout-single/program.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/c-layout-single/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/c-layout/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/c-layout/program.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/c-layout/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/callables/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/callables/program.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/declarations/program.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/inheritance/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/inheritance/program.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/inheritance/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/properties/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/properties/program.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/roots/exposed.lir.txt",
+      "tests/fixtures/m23-cli-source-nominals/roots/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-only/actual-demand/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-only/combined/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-only/initialization-demand/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-only/shape-demand/provider.lir.txt",
+      "tests/fixtures/m23-cli-source-only/standalone/consumer.lir.txt",
+      "tests/fixtures/m23-cli-source-only/standalone/provider.lir.txt",
+      "tests/fixtures/m23-cli-suspend-members/cross-cone/program.lir.txt",
+      "tests/fixtures/m23-cli-suspend-members/cross-cone/provider.lir.txt",
+      "tests/fixtures/m23-cli-type-foundations/constructors/consumer.lir.txt",
+      "tests/fixtures/m23-cli-type-foundations/constructors/provider.lir.txt",
+      "tests/fixtures/m23-cli-type-foundations/default-combinations/consumer.lir.txt",
+      "tests/fixtures/m23-cli-type-foundations/default-combinations/provider.lir.txt",
+      "tests/fixtures/m23-cli-type-foundations/slot-combinations/provider.lir.txt",
+      "tests/fixtures/m23-cli-visibility/protected-nested-receivers/program.lir.txt",
+      "tests/fixtures/m23-cli/equality/direct.lir.txt",
+      "tests/fixtures/m23-cli/equality/local.lir.txt",
+      "tests/fixtures/m23-cli/equality/reexport.lir.txt",
+      "tests/fixtures/m24-release-effects/combined/program.lir.txt",
+      "tests/fixtures/m26-array-construction/basic/program.lir.txt",
+      "tests/fixtures/m26-array-construction/cross-cone/consumer.lir.txt",
+      "tests/fixtures/m26-array-construction/cross-cone/provider.lir.txt",
+      "tests/fixtures/m26-characters/basic/program.lir.txt",
+      "tests/fixtures/m26-characters/cross-cone/consumer.lir.txt",
+      "tests/fixtures/m26-characters/values/program.lir.txt",
+      "tests/fixtures/m26-interpolation/suspend/program.lir.txt",
+      "tests/fixtures/m26-strings/basic/program.lir.txt",
+      "tests/fixtures/m26-strings/cross-cone/consumer.lir.txt",
+      "tests/fixtures/m26-strings/cross-cone/provider.lir.txt",
+      "tests/fixtures/m26-strings/custom-list/program.lir.txt",
+      "tests/fixtures/m26-strings/snapshots/program.lir.txt",
+      "tests/fixtures/m27-context/artifacts/b.lir.txt",
+      "tests/fixtures/m27-context/coroutine-completion/program.lir.txt",
+      "tests/fixtures/m27-context/coroutine-exits/program.lir.txt",
+      "tests/fixtures/m27-context/coroutines/program.lir.txt",
+      "tests/fixtures/m27-context/generics/program.lir.txt",
+      "tests/fixtures/m27-context/types/program.lir.txt",
+      "tests/fixtures/m30-floating/annotations/program.lir.txt",
+      "tests/fixtures/m30-floating/inference/program.lir.txt",
+      "tests/fixtures/m30-floating/patterns/program.lir.txt",
+      "tests/fixtures/m32-roots/coroutines/program.debug.lir.txt",
+      "tests/fixtures/m32-roots/coroutines/program.release.lir.txt",
+      "tests/fixtures/m32-roots/evaluation/program.lir.txt"
+    ]
+  },
+  "sysv_migration": {
+    "updated_files": 805,
+    "checked_against_prior_musl": 96,
+    "conflicts": [],
+    "profile_files_requiring_actual_musl": {
+      "tests/fixtures/m27-context/gc-lifetimes/program.debug.x86_64-unknown-linux-musl.lir.txt": "m27-context-gc-lifetimes",
+      "tests/fixtures/m27-context/gc-lifetimes/program.release.x86_64-unknown-linux-musl.lir.txt": "m27-context-gc-lifetimes",
+      "tests/fixtures/m30-floating/environment/program.debug.x86_64-unknown-linux-musl.lir.txt": "m30-floating-environment",
+      "tests/fixtures/m30-floating/environment/program.release.x86_64-unknown-linux-musl.lir.txt": "m30-floating-environment",
+      "tests/fixtures/m30-floating/rounding/program.debug.x86_64-unknown-linux-musl.lir.txt": "m30-floating-rounding",
+      "tests/fixtures/m30-floating/rounding/program.release.x86_64-unknown-linux-musl.lir.txt": "m30-floating-rounding",
+      "tests/fixtures/m30-floating/values/program.debug.x86_64-unknown-linux-musl.lir.txt": "m30-floating-values",
+      "tests/fixtures/m30-floating/values/program.release.x86_64-unknown-linux-musl.lir.txt": "m30-floating-values",
+      "tests/fixtures/m33-native-c/values/program.debug.x86_64-unknown-linux-musl.hir.txt": "m33-native-c-values",
+      "tests/fixtures/m33-native-c/values/program.release.x86_64-unknown-linux-musl.hir.txt": "m33-native-c-values",
+      "tests/fixtures/m33-native-c/values/program.debug.x86_64-unknown-linux-musl.mir.txt": "m33-native-c-values",
+      "tests/fixtures/m33-native-c/values/program.release.x86_64-unknown-linux-musl.mir.txt": "m33-native-c-values",
+      "tests/fixtures/m33-sources/targets/program.debug.x86_64-unknown-linux-musl.hir.txt": "m33-sources-targets",
+      "tests/fixtures/m33-sources/targets/program.release.x86_64-unknown-linux-musl.hir.txt": "m33-sources-targets"
+    }
+  },
+  "saved_actual_file_checks_before_path_only_target_splits": {
+    "darwin": {
+      "checked_file_observations": 11442,
+      "distinct_expected_files": 10904,
+      "mismatches": 0,
+      "missing_or_ambiguous": 0
+    },
+    "gnu": {
+      "checked_file_observations": 10854,
+      "distinct_expected_files": 10399,
+      "mismatches": 0,
+      "missing_or_ambiguous": 0
+    }
+  },
+  "native_link_plan_replays": {
+    "darwin": {
+      "processes": 44,
+      "description": "Only existing artifact-link processes and their exact normalized snapshots; source compilation and program execution were not repeated."
+    },
+    "gnu": {
+      "processes": 34,
+      "description": "Only existing artifact-link processes and their exact normalized snapshots; source compilation and program execution were not repeated."
+    },
+    "musl": {
+      "processes": 34,
+      "description": "Only the existing artifact-link processes and their exact normalized plan snapshots were replayed; source compilation and execution were not repeated."
+    }
+  },
+  "fixture_declaration_review": {
+    "description": "Compared parsed fixture declarations against HEAD; only snapshot path values may change. Process arguments, environments, timeouts, assertions and normalizers remain identical.",
+    "fixture_declarations": 487,
+    "changed_snapshot_paths": 800,
+    "other_semantic_changes": []
+  },
+  "saved_actual_file_checks_after_target_splits": {
+    "musl": {
+      "checked_file_observations": 5279,
+      "distinct_expected_files": 5103,
+      "mismatches": 0,
+      "missing_or_ambiguous": 0
+    }
+  },
+  "musl_shared_variant_audit": {
+    "shared_variant_snapshots": 189,
+    "checked": 172,
+    "collisions": 0,
+    "missing": 0,
+    "unsaved_streams": 17
+  },
+  "musl_actual_merge": {
+    "captured_expected_files": 5769,
+    "byte_identical_local_files": 4932,
+    "target_specific_updated_files": 837,
+    "shared_output_conflicts": 0,
+    "obsolete_profile_files_removed": 15
+  },
+  "final_non_update_discovery": {
+    "aarch64-apple-darwin": 2920,
+    "x86_64-unknown-linux-gnu": 2920,
+    "x86_64-unknown-linux-musl": 2920
+  }
+}

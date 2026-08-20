@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "pattern has 3 element(s), but tuple of type (Int, Int) has 2",
+    "notes": [],
+    "origin": {
+      "cone": "7d0fb1c22d4f7061bca5658c8ab95b08a3a3e7c720f99cf576a41ae7d6e3b24c",
+      "end": 108,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 86
+    },
+    "severity": "error"
+  }
+]

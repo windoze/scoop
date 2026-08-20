@@ -1,0 +1,3 @@
+abstract class Reader<A: ref, B: ref> { context(a: A, b: B) abstract fun read(): Int }
+fun use(value: Reader<String, String>) {}
+fun main() {}

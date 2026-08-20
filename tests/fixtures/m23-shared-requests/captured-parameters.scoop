@@ -1,0 +1,21 @@
+package consumer.requests
+import upstream.requests.captured
+
+private fun <T> localCaptured(value: T, read: (T) -> Int): Int {
+    val amount = 0
+    fun step(delta: Int): Int {
+        val added = delta
+        fun inner(): Int = read(value) + amount + added
+        return inner()
+    }
+    fun <U> apply(extra: U, use: (U) -> Int): Int = step(use(extra))
+    return apply<Int>(0, { number -> number })
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val local = localCaptured<T>(seed, read)
+    val dependency = captured<T>(seed, read)
+    return if (local == dependency) { dependency } else { 0 }
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

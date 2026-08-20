@@ -1,0 +1,18 @@
+@Extern(lib = "m24_release", name = "m24_release_add")
+private fun dropNative(value: Int)
+
+@Extern(lib = "m24_release", name = "m24_release_count")
+private fun released(): Int
+
+class Owner(private val handle: Int) {
+    release { @Unsafe { dropNative(handle) } }
+}
+
+fun allocate() { val owner = Owner(42) }
+
+fun main() {
+    allocate()
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(released()) }
+}

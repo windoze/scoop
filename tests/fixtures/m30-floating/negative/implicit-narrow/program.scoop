@@ -1,0 +1,1 @@
+fun main() { val source: Double = 1.0; val value: Float = source }

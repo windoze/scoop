@@ -1,0 +1,12 @@
+package consumer.constructors
+
+import templates.constructors.*
+
+private class LocalBox(value: Int): Box<Int>(value, 3)
+
+public fun result(): Int {
+    val box = LocalBox(37)
+    return box.echoed + box.count
+}
+
+public fun <T> make(value: T): Box<T> = Box<T>(value)

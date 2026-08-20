@@ -1,0 +1,25 @@
+typealias Real = Double
+
+fun fail(): Nothing { throw IllegalStateException() }
+fun left(): Real { println("left"); return 1.0 }
+fun single(): Float { println("single"); return 1f }
+fun <T> deferred(value: Double, rhs: () -> Nothing, tag: T): Boolean = value < rhs()
+
+fun check(name: String, action: () -> Unit) {
+    try { action(); println("unexpected return") }
+    catch (error: IllegalStateException) { println(name) }
+    finally { println("finally") }
+}
+
+fun main() {
+    check("lt", { println(left() < fail()) })
+    check("le", { println(left() <= fail()) })
+    check("gt", { println(single() > fail()) })
+    check("ge", { println(single() >= fail()) })
+    check("deferred", { println(deferred(left(), { fail() }, 0)) })
+    check("control", { println(left() < try { fail() } finally { println("rhs finally") }) })
+    println(false && (left() < fail()))
+    println(true || (single() > fail()))
+    println(Double.NaN < 0.0)
+    println(Double.NaN >= 0.0)
+}

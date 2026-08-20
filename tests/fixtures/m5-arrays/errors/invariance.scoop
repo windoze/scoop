@@ -1,0 +1,5 @@
+fun main() {
+    val m: MutableArray<Int> = [1]
+    val a: Array<Int> = m
+    println(a.size)
+}

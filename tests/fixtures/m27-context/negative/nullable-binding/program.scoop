@@ -1,0 +1,2 @@
+fun read(value: String?) { context(value) {} }
+fun main() {}

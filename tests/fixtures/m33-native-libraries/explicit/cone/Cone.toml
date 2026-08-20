@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "library-explicit"
+version = "0.1.0"
+kind = "executable"
+[[native.libraries]]
+name = "m"
+kind = "static"

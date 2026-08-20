@@ -1,0 +1,27 @@
+import smallvalues.provider.Mixed
+import smallvalues.provider.Floats
+import smallvalues.provider.Transform
+import smallvalues.provider.Worker
+import smallvalues.provider.identity
+import smallvalues.provider.floats
+import smallvalues.provider.generic
+import smallvalues.provider.registers
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun dispatch(value: Transform, argument: Mixed): Mixed = value.apply(argument)
+fun main() {
+    val source = Mixed(1.25, 42L)
+    val value = identity(source)
+    check(value.number == 1.25 && value.tag == 42L)
+    val f = floats(Floats(1.5f, -0f, 3.5f))
+    check(f.first == 1.5f && f.third == 3.5f)
+    check(generic(source).tag == 42L)
+    val transform = Worker(9L)
+    check(dispatch(transform, source).tag == 51L)
+    val many = registers(1L, 2L, 3L, 4L, 5L, 6L, source, 2.5)
+    check(many.number == 1.25 && many.tag == 42L)
+    val callable: (Mixed) -> Mixed = ::identity
+    try { check(callable(source).tag == 42L) }
+    catch (error: IllegalStateException) { throw error }
+    println("small artifacts")
+}

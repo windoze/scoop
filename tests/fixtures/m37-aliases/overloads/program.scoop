@@ -1,0 +1,12 @@
+class Pair<A, B>(val first: A, val second: B)
+typealias Build<T> = Pair<String, T>
+fun Build(first: String, second: Int): Int = second + 1
+typealias Fixed = Pair<String, Int>
+fun <T> Fixed(first: String, second: T): Int = 0
+fun main() {
+    println(Build("function", 41))
+    println(Build("alias", true).second)
+    println(Fixed("fixed", 42).second)
+    val make: (String, Boolean) -> Build<Boolean> = ::Build
+    println(make("ref", true).second)
+}

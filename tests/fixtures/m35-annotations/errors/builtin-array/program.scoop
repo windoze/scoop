@@ -1,0 +1,2 @@
+@Extern(["native_value"]) fun nativeValue(): Int
+fun main() {}

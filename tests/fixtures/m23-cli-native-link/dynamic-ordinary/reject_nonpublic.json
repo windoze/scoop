@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native library a28b540433a5385bc9fbcef66b81d2ba3edb019ad3d2ab8b34140ba798965558 does not provide _m23_add; origins: dev.programlink:ordinary-load:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([243, 121, 57, 240, 242, 37, 56, 80, 113, 18, 195, 252, 228, 195, 19, 68, 203, 50, 47, 178, 28, 20, 172, 62, 23, 165, 208, 29, 112, 231, 104, 226])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,4 @@
+public struct Item<T>(val value: T)
+public class Reader<T>(value: Decodable<T>) : Decodable<Item<T>>
+
+fun main() {}

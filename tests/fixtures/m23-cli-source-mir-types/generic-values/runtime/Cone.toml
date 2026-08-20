@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test"
+name = "source-mir-types-runtime-generic-values"
+version = "1.0.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"test:scoop-hir-lower" = "0.0.0"

@@ -1,0 +1,15 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val token = Token()
+    verifyType(Pair() == Pair(token, token))
+    val value: Contract = Value()
+    verifyType(value.run(token) == token && value.token == token && value.echo(token) == token)
+    val base: Base = Derived()
+    verifyType(base.run(token) == token && base.token == token && base.echo(token) == token)
+    verifyType(base.observe(token) == token)
+    verifyType(throughBase(base) == token && throughBase(Registry) == token)
+    verifyType(same(Choice.Full(Pair()), Choice.Full(Pair(token, token))) && ready())
+    val pending = pending()
+    verifyType(pending.run(token) == token && pending.echo(token) == token)
+}

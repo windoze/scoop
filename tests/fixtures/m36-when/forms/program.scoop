@@ -1,0 +1,29 @@
+var changed: Int = 0
+
+fun subject(): Int { println("subject"); return 7 }
+fun choice(): Int { println("choice"); changed = 9; return 7 }
+fun reject(): Boolean { println("guard"); gcCollect(); return false }
+fun flag(label: String, value: Boolean): Boolean { println(label); return value }
+fun stop(): Nothing { println("stop"); throw IllegalStateException() }
+fun value(): Int = when { stop() -> 1; else -> 2 }
+
+fun main() {
+    when (val saved = subject()) {
+        choice() if reject() -> println("wrong")
+        case 7 -> println(saved)
+        case _ -> println("wrong")
+    }
+    println(changed)
+    when {
+        flag("first", false), flag("second", true) -> println("selected")
+        flag("next", true) -> println("wrong")
+        else -> println("wrong")
+    }
+    when (42) { 1 -> println("wrong") }
+    println("subject-fallthrough")
+    when { false -> println("wrong") }
+    println("condition-fallthrough")
+    try { println(value()) }
+    catch (error: IllegalStateException) { println("caught") }
+    finally { println("finally") }
+}

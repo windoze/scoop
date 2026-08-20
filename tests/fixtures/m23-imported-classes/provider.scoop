@@ -1,0 +1,116 @@
+package dependency.classes
+
+public struct Token()
+public class Counter public constructor(val value: Long) {
+    public constructor(marker: Token, value: Long = 21): this(value) {}
+    public fun twice(): Long = value + value
+}
+public class Other public constructor(val value: Long)
+public class Holder public constructor(val value: Counter, val marker: Token) {
+    public fun read(): Counter = value
+}
+public class Recursive public constructor(val next: Recursive)
+public class InternalConstructor(val value: Long)
+public abstract class AbstractCounter public constructor(val value: Long)
+public fun makeCounter(value: Long): Counter = Counter(value)
+public fun identity(value: Counter): Counter = value
+public typealias CounterAlias = Counter
+
+public open class VirtualBase public constructor(val seed: Long) {
+    public open fun read(): Long = seed
+}
+public class VirtualCounter public constructor(value: Long): VirtualBase(value) {
+    public override fun read(): Long = seed + 1
+}
+public fun virtualCounter(value: Long): VirtualBase = VirtualCounter(value)
+
+public interface Readable {
+    public fun read(): Long
+    public fun answer(extra: Long = 1): Long = read() + extra
+}
+public class Reader public constructor(val value: Long): Readable {
+    public override fun read(): Long = value
+}
+public fun readable(value: Long): Readable = Reader(value)
+public fun retainReadable(value: Readable): Readable = value
+public fun defaultReadable(value: Readable = Reader(21)): Readable = value
+public typealias ReadableAlias = Readable
+
+public interface ParentReader {
+    public fun parent(): Long = 20
+}
+public interface ChildReader: ParentReader {
+    public fun child(): Long = parent() + 1
+}
+public class ChildReaderImpl public constructor(): ChildReader
+public fun childReader(): ChildReader = ChildReaderImpl()
+
+public struct WideValue(val first: Long, val second: Long, val third: Long)
+public interface ValueReader {
+    public fun value(marker: Token, input: Counter): WideValue
+}
+public class ValueReaderImpl public constructor(): ValueReader {
+    public override fun value(marker: Token, input: Counter): WideValue =
+        WideValue(input.value, 0, 0)
+}
+public fun valueReader(): ValueReader = ValueReaderImpl()
+public interface OtherReadable {
+    public fun read(): Long
+}
+
+public fun throwValue(value: Throwable) { throw value }
+public fun throwDefault(value: Throwable = RebuiltFailure(21)) { throw value }
+public fun castDefault(input: Any, value: Counter = input as Counter): Counter = value
+
+public class MutableCell public constructor(public var value: Long)
+public class PropertyTrace public constructor(public val cell: MutableCell) {
+    public var receivers: Long = 0
+    public var arguments: Long = 0
+}
+public interface MutableValue {
+    public var value: Long
+}
+public open class MutableBase public constructor(initial: Long): MutableValue {
+    public open override var value: Long = initial
+}
+public class ComputedValue public constructor(initial: Long): MutableBase(initial) {
+    public override var value: Long = initial
+        get() = field + 1
+        set(next) { field = next * 2 }
+}
+public class ValueCells public constructor(
+    public var token: Token,
+    public var wide: WideValue,
+    public var reference: Counter
+)
+public class RestrictedValues public constructor() {
+    public val readonly: Long = 0
+    public var privateValue: Long = 0
+        private set(next) { field = next }
+    public var internalValue: Long = 0
+        internal set(next) { field = next }
+}
+
+public struct StructReader(val value: Long): Readable {
+    public override fun read(): Long = value
+}
+public enum ReadChoice: Readable {
+    Ready, Empty
+    public override fun read(): Long = 20
+}
+public struct ZeroReader(): ChildReader
+public struct WideReader(val first: Long, val second: Long, val third: Long): Readable {
+    public override fun read(): Long = first + second + third
+}
+public struct ReferenceReader(val reference: Counter): Readable {
+    public override fun read(): Long = reference.value
+}
+public interface ValueEcho {
+    public fun echo(value: EchoValue): EchoValue
+}
+public struct EchoValue(val reference: Counter): ValueEcho {
+    public override fun echo(value: EchoValue): EchoValue = value
+}
+public fun defaultValueReader(value: Readable = StructReader(20)): Readable = value
+public fun defaultPrimitiveHash(value: Hash = 21): Hash = value
+public fun defaultQuotient(value: Long = 42 / 2): Long = value

@@ -1,0 +1,2 @@
+@Extern(name = "scoop_rt_exit", abi = "scoop")
+public fun exit(code: Int): Nothing

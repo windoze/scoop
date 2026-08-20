@@ -1,0 +1,3 @@
+package dependency.api
+
+public fun value(): Int = 1

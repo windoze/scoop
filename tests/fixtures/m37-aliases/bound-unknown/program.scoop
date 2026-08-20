@@ -1,0 +1,3 @@
+interface Marker {}
+typealias Values<T> where U: Marker = Array<T>
+fun main() {}

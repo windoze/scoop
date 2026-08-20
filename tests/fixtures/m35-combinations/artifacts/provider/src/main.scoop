@@ -1,0 +1,30 @@
+public annotation class Labels(val names: Array<String> = ["when", "elvis", "lambda"])
+public interface Root { public fun root(): Int }
+public interface Left : Root { public val leftValue: Int; public fun left(): Int }
+public interface Right : Root { public val rightValue: Int; public fun right(): Int }
+@Labels(["captured", "shared", "captured"])
+public class Both public constructor() : Left, Right {
+    public override val leftValue: Int get() = 30
+    public override val rightValue: Int get() = 40
+    public override fun root(): Int = 5
+    public override fun left(): Int = 3
+    public override fun right(): Int = 4
+}
+public fun Right.extra(): Int = right() + 20
+public val Right.extraValue: Int get() = rightValue + 100
+
+public fun <T> exact(input: Any?, fallback: T): () -> T {
+    val value = input ?: return { fallback }
+    when (value) {
+        is T -> return { gcCollect(); value }
+        else -> return { fallback }
+    }
+}
+public fun combined(value: Any, base: Int = 1, action: () -> Int): Int = when {
+    value is Left && value is Right -> base + value.left() + value.right() + action()
+    else -> 0
+}
+public fun defaults(action: () -> Int = when (val value: Any = Both()) {
+    is Left if value is Right -> ({ gcCollect(); value.left() + value.right() })
+    else -> ({ 0 })
+}): Int = action()

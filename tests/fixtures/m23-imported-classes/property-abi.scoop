@@ -1,0 +1,18 @@
+import dependency.classes.*
+
+public fun fill(cells: ValueCells, token: Token, wide: WideValue, reference: Counter) {
+    cells.token = token
+    cells.wide = wide
+    cells.reference = reference
+}
+
+public fun primary(): Counter {
+    val cells = ValueCells(Token(), WideValue(0, 0, 0), Counter(0))
+    fill(cells, Token(), WideValue(20, 1, 0), Counter(21))
+    val moved = Holder(cells.reference, cells.token)
+    return if ((cells.wide.first + cells.wide.second) * 2 == moved.read().twice()) {
+        moved.read()
+    } else {
+        Counter(0)
+    }
+}

@@ -1,0 +1,8 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(callableDefault<Int>() == 5)
+    verifyDefault(callableDefault<String>() == 5)
+    verifyDefault(callableDefault<Int>(9) == 9)
+}

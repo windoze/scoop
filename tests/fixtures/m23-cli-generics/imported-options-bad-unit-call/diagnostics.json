@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unit variant `None` of `Option` does not take arguments; use `None` without parentheses",
+    "notes": [],
+    "origin": {
+      "cone": "6ef154651d2184e33aec5046f971f7babfe9b5b02ca1fbeab13e8769676717b5",
+      "end": 60,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 54
+    },
+    "severity": "error"
+  }
+]

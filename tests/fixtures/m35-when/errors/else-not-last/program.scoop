@@ -1,0 +1,1 @@
+fun main() { when (1) { else -> {}; 1 -> {} } }

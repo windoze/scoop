@@ -1,0 +1,23 @@
+class Box(val text: String)
+
+fun message(): String {
+    val first = Box("Linux ")
+    val second = Box("amd64")
+    val joined = first.text + second.text
+    if (first.text.length != 6L || second.text.length != 5L) {
+        throw IllegalStateException()
+    }
+    return joined
+}
+
+fun main() {
+    var caught = false
+    try {
+        println(message())
+        throw IllegalStateException()
+    } catch (error: IllegalStateException) {
+        caught = true
+    }
+    if (!caught) { throw IllegalStateException() }
+    println("GC and EH passed")
+}

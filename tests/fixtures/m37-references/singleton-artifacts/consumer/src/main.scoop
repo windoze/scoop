@@ -1,0 +1,26 @@
+import bridge.*
+
+typealias StringFactory = Box<String>.Factory
+
+fun main(): Unit {
+    println(starts)
+    val tool: (Int) -> Int = Tools::read
+    println(starts)
+    val create: (Int) -> Box<Int> = Box<Int>.Companion::make
+    println(starts)
+    val alias: (Int) -> Box<Int> = IntFactory::make
+    val returned = bound()
+    val qualified: (Int) -> Box<Int> = bridge.Box<Int>.Factory::make
+    val text: (String) -> Box<String> = StringFactory::make
+    println(starts)
+    println(tool(40))
+    println(create(7).value)
+    println(alias(8).value)
+    println(returned(9).value)
+    println(qualified(12).value)
+    println(text("text").value)
+    println(relay("generic").value)
+    println(defaultBox().value)
+    println(starts)
+    gcCollect()
+}

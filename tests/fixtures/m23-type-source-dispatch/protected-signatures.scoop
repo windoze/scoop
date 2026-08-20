@@ -1,0 +1,3 @@
+public class ShapeSource {
+    protected fun nested(): ((Int, Long), (Int, Long)) = ((1, 2L), (3, 4L))
+}

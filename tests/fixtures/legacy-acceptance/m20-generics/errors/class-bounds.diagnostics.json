@@ -1,0 +1,106 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `T` of function cannot have more than one class upper bound; found `Other`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 157,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 148
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `T` of function cannot combine nominal upper bounds with a kind bound",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 221,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 208
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "upper bound of type parameter `T` must be a class or interface, found `Int`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 243,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 240
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "upper bound of type parameter `T` must be a class or interface, found `Any`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 289,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 286
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "upper bound of type parameter `T` must be a class or interface, found `() -> String`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 342,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 330
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "upper bound of type parameter `T` must be a class or interface, found `U`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 429,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 428
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic class `Base` requires 1 type argument(s)",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 451,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 447
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `requireBase` in current-unit top-level candidate layer:\n  - fun requireBase<T : Base<Int>>(value: T): T — type argument `Other` for `T` must satisfy class upper bound `Base<Int>`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 523,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 503
+    },
+    "severity": "error"
+  }
+]

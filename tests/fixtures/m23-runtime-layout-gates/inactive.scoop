@@ -1,0 +1,4 @@
+public fun withDefault(value: Any, result: Int = value as Int): Int = result
+public fun supplied(value: Any): Int = withDefault(value, 7)
+public fun <T> dormant(value: Any, result: T = value as T): T = result
+public fun upcast(value: String): Any = value as Any

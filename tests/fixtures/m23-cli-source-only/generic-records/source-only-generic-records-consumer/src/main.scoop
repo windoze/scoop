@@ -1,0 +1,1 @@
+public fun result(): Int = dormant() + dormantBody<Int>(0) + requested<Int>(26)

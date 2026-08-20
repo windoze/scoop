@@ -1,0 +1,25 @@
+package consumer.construction
+
+import dependency.construction.loadDefault
+
+private class Counter(public var calls: Int)
+
+@Unsafe
+private fun <P: value> localDefault(raw: ULong, pointer: Ptr<P> = Ptr(raw)): P = pointer.load()
+
+public fun <T> exercise(value: T): Int {
+    var number = 41
+    val counter = Counter(0)
+    @Unsafe {
+        val raw = addressOf(number).toULong()
+        fun next(): ULong { counter.calls += 1; return raw }
+        val pointer = Ptr<Int>(raw = next())
+        val first = loadDefault<Int>(next())
+        val second = localDefault<Int>(next())
+        if (counter.calls != 3 || first != 41 || second != 41) { return 1 }
+        pointer.store(first + 1)
+        return number
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

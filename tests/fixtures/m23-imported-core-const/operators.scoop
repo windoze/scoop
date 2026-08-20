@@ -1,0 +1,12 @@
+public const val answer: Int = 40 + 2
+public const val narrow: Int8 = 120 + 10
+public const val unsigned: UInt8 = 250u + 10u
+public const val unsignedNegated: UInt8 = -unsigned
+public const val nested: Int16 = 5 + (3 * 2)
+public const val quotient: Int = -17 / 3
+public const val remainder: Int = -17 % 3
+public const val negated: Int8 = -narrow
+public const val positive: Int8 = +negated
+public const val order: Boolean = narrow < 0
+public const val equal: Boolean = nested == 11
+public val staticValue: Int8 = 5 + (3 * 2)

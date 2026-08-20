@@ -1,0 +1,4 @@
+import equality.origin.Broken
+
+fun same(left: Broken, right: Broken): Boolean = left == right
+fun main() {}

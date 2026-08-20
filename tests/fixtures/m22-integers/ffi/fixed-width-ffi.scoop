@@ -1,0 +1,210 @@
+@CLayout
+struct FixedWidths(
+    val signed8: Int8,
+    val signed16: Int16,
+    val signed32: Int,
+    val signed64: Long,
+    val unsigned8: UInt8,
+    val unsigned16: UInt16,
+    val unsigned32: UInt,
+    val unsigned64: ULong
+)
+
+@Extern(lib = "fixture_native", name = "round_i8")
+fun roundI8(value: Int8): Int8
+
+@Extern(lib = "fixture_native", name = "round_i16")
+fun roundI16(value: Int16): Int16
+
+@Extern(lib = "fixture_native", name = "round_i32")
+fun roundI32(value: Int): Int
+
+@Extern(lib = "fixture_native", name = "round_i64")
+fun roundI64(value: Long): Long
+
+@Extern(lib = "fixture_native", name = "round_u8")
+fun roundU8(value: UInt8): UInt8
+
+@Extern(lib = "fixture_native", name = "round_u16")
+fun roundU16(value: UInt16): UInt16
+
+@Extern(lib = "fixture_native", name = "round_u32")
+fun roundU32(value: UInt): UInt
+
+@Extern(lib = "fixture_native", name = "round_u64")
+fun roundU64(value: ULong): ULong
+
+@Extern(lib = "fixture_native", name = "transform_widths")
+fun transformWidths(value: FixedWidths): FixedWidths
+
+@Extern(lib = "fixture_native", name = "native_signed8")
+@Global
+var nativeSigned8: Int8
+
+@Extern(lib = "fixture_native", name = "native_signed16")
+@Global
+var nativeSigned16: Int16
+
+@Extern(lib = "fixture_native", name = "native_signed32")
+@Global
+var nativeSigned32: Int
+
+@Extern(lib = "fixture_native", name = "native_signed64")
+@Global
+var nativeSigned64: Long
+
+@Extern(lib = "fixture_native", name = "native_unsigned8")
+@Global
+var nativeUnsigned8: UInt8
+
+@Extern(lib = "fixture_native", name = "native_unsigned16")
+@Global
+var nativeUnsigned16: UInt16
+
+@Extern(lib = "fixture_native", name = "native_unsigned32")
+@Global
+var nativeUnsigned32: UInt
+
+@Extern(lib = "fixture_native", name = "native_unsigned64")
+@Global
+var nativeUnsigned64: ULong
+
+@Extern(lib = "fixture_native", name = "native_tls_signed8")
+@ThreadLocal
+var nativeTlsSigned8: Int8
+
+@Extern(lib = "fixture_native", name = "native_tls_signed16")
+@ThreadLocal
+var nativeTlsSigned16: Int16
+
+@Extern(lib = "fixture_native", name = "native_tls_signed32")
+@ThreadLocal
+var nativeTlsSigned32: Int
+
+@Extern(lib = "fixture_native", name = "native_tls_signed64")
+@ThreadLocal
+var nativeTlsSigned64: Long
+
+@Extern(lib = "fixture_native", name = "native_tls_unsigned8")
+@ThreadLocal
+var nativeTlsUnsigned8: UInt8
+
+@Extern(lib = "fixture_native", name = "native_tls_unsigned16")
+@ThreadLocal
+var nativeTlsUnsigned16: UInt16
+
+@Extern(lib = "fixture_native", name = "native_tls_unsigned32")
+@ThreadLocal
+var nativeTlsUnsigned32: UInt
+
+@Extern(lib = "fixture_native", name = "native_tls_unsigned64")
+@ThreadLocal
+var nativeTlsUnsigned64: ULong
+
+@Extern(lib = "fixture_native", name = "verify_written_globals")
+fun verifyWrittenGlobals(): UInt8
+
+@Extern(lib = "fixture_native", name = "verify_written_tls")
+fun verifyWrittenTls(): UInt8
+
+@Extern(lib = "fixture_native", name = "apply_u16")
+fun applyU16(value: UInt16, callback: FunPtr<(UInt16) -> UInt16>): UInt16
+
+@Extern(lib = "fixture_native", name = "verify_widths_callback")
+fun verifyWidthsCallback(
+    callback: FunPtr<(FixedWidths) -> FixedWidths>
+): UInt8
+
+@NoGC
+fun incrementU16(value: UInt16): UInt16 = value + 1u
+
+@NoGC
+fun roundTripWidths(value: FixedWidths): FixedWidths = value
+
+fun main() {
+    @Unsafe {
+        println(roundI8(-128))
+        println(roundI16(-32768))
+        println(roundI32(-2147483648))
+        println(roundI64(-9223372036854775808L))
+        println(roundU8(255u))
+        println(roundU16(65535u))
+        println(roundU32(4294967295u))
+        println(roundU64(18446744073709551615uL))
+
+        println(nativeSigned8)
+        println(nativeSigned16)
+        println(nativeSigned32)
+        println(nativeSigned64)
+        println(nativeUnsigned8)
+        println(nativeUnsigned16)
+        println(nativeUnsigned32)
+        println(nativeUnsigned64)
+        println(nativeTlsSigned8)
+        println(nativeTlsSigned16)
+        println(nativeTlsSigned32)
+        println(nativeTlsSigned64)
+        println(nativeTlsUnsigned8)
+        println(nativeTlsUnsigned16)
+        println(nativeTlsUnsigned32)
+        println(nativeTlsUnsigned64)
+
+        nativeSigned8 = 127
+        nativeSigned16 = 32767
+        nativeSigned32 = 2147483647
+        nativeSigned64 = 9223372036854775807L
+        nativeUnsigned8 = 254u
+        nativeUnsigned16 = 65534u
+        nativeUnsigned32 = 4294967294u
+        nativeUnsigned64 = 18446744073709551614uL
+        nativeTlsSigned8 = 126
+        nativeTlsSigned16 = 32766
+        nativeTlsSigned32 = 2147483646
+        nativeTlsSigned64 = 9223372036854775806L
+        nativeTlsUnsigned8 = 253u
+        nativeTlsUnsigned16 = 65533u
+        nativeTlsUnsigned32 = 4294967293u
+        nativeTlsUnsigned64 = 18446744073709551613uL
+
+        println(nativeSigned8)
+        println(nativeSigned16)
+        println(nativeSigned32)
+        println(nativeSigned64)
+        println(nativeUnsigned8)
+        println(nativeUnsigned16)
+        println(nativeUnsigned32)
+        println(nativeUnsigned64)
+        println(verifyWrittenGlobals())
+        println(nativeTlsSigned8)
+        println(nativeTlsSigned16)
+        println(nativeTlsSigned32)
+        println(nativeTlsSigned64)
+        println(nativeTlsUnsigned8)
+        println(nativeTlsUnsigned16)
+        println(nativeTlsUnsigned32)
+        println(nativeTlsUnsigned64)
+        println(verifyWrittenTls())
+
+        println(applyU16(41u, ::incrementU16))
+        println(verifyWidthsCallback(::roundTripWidths))
+
+        val transformed = transformWidths(FixedWidths(
+            -1,
+            -2,
+            -3,
+            -4L,
+            1u,
+            2u,
+            3u,
+            4uL
+        ))
+        println(transformed.signed8)
+        println(transformed.signed16)
+        println(transformed.signed32)
+        println(transformed.signed64)
+        println(transformed.unsigned8)
+        println(transformed.unsigned16)
+        println(transformed.unsigned32)
+        println(transformed.unsigned64)
+    }
+}

@@ -1,0 +1,10 @@
+package receiver.consumer
+import receiver.provider.answer
+
+private fun Any.localAnswer(): Int = 9
+private fun <T> using(value: T, answer: Int = value.localAnswer()): Int = answer
+
+public fun generic(): Int {
+    val local = using("generic")
+    return "generic".answer()
+}

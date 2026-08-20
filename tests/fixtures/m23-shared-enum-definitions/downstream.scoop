@@ -1,0 +1,13 @@
+import consumer.enumdefinitions.result
+import consumer.enumdefinitions.exercise
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    val value = Later(result())
+    if (exercise<Later>(value, { item -> item.value }) != 42) { return 1 }
+    if (exercise<Int>(42, { item -> item }) != 42) { return 2 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 3 }
+    val allocation = Later(0)
+    return value.value + allocation.value
+}

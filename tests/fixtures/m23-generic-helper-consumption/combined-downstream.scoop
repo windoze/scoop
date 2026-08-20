@@ -1,0 +1,6 @@
+package application.helpers
+
+import consumer.helpers.retained
+import consumer.helpers.peer.retained as retainedPeer
+
+public fun check(): Int = retained() + retainedPeer() - 42

@@ -1,0 +1,18 @@
+package consumer.references
+
+import templates.references.select as mixed
+import consumer.references.localSelect as mixed
+import templates.references.prefer as preferred
+import consumer.references.localPrefer as preferred
+
+public fun <T> localSelect(value: T): Int = 1
+public fun <T> localPrefer(value: T): Int = 2
+
+public fun <T> exercise(value: T): Int {
+    val selected: ((T, Int)) -> Int = ::mixed
+    val preference: (Int) -> Int = ::preferred
+    if (selected((value, 0)) != 42) { return 1 }
+    return preference(0)
+}
+
+public fun result(): Int = exercise<Int>(0)

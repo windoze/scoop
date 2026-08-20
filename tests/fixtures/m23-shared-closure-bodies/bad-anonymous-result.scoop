@@ -1,0 +1,8 @@
+package consumer.closures
+import upstream.closures.*
+
+public fun <T> invalid(seed: T): T {
+    val read: () -> T = fun (): Int { return 42 }
+    return read()
+}
+public fun result(): Int = invalid<Int>(42)

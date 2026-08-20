@@ -1,0 +1,3 @@
+@Missing
+struct Value()
+fun main() {}

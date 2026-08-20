@@ -1,0 +1,5 @@
+public interface Decodable<T> { public fun decode(decoder: Decoder): T }
+public struct Item(val value: Int)
+public object Reader : Decodable<Item>
+
+fun main() {}

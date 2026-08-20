@@ -1,0 +1,2 @@
+fun <T> show(value: T): String = f"${value}"
+fun main() {}

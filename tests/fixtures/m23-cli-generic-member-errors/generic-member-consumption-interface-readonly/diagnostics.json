@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable property `value`",
+    "notes": [],
+    "origin": {
+      "cone": "e2f7fc07eba54a31e1da7565642221379c4a1be34b58a3f3a5f685288044d813",
+      "end": 96,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

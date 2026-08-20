@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "typealias cycle: First -> Second -> First",
+    "notes": [],
+    "origin": {
+      "cone": "a1ac000b73502813b536ec2719c07de03a6c8ac2f5c7a31b50d6db818f6fe4e0",
+      "end": 94,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 89
+    },
+    "severity": "error"
+  }
+]

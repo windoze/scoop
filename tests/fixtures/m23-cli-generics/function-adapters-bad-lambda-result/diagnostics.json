@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "lambda result must be of type Ptr<Int>, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "19fdc1b19091b01a72b29de07a1474311c35faab9a5687766df7512baba50c1b",
+      "end": 73,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 67
+    },
+    "severity": "error"
+  }
+]

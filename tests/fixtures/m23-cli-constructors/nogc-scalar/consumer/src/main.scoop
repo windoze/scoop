@@ -1,0 +1,11 @@
+@NoGC fun makeChain(): Chain = Chain()
+
+fun main() {
+    if (makeChain().value != 1 || Scalar().value != 1) { throw IllegalStateException() }
+    val empty: Empty = Empty(true)
+    if (Defaulted().value != 1) { throw IllegalStateException() }
+    @Unsafe {
+        if (Scalar(42, true).value != 42) { throw IllegalStateException() }
+    }
+    gcCollect()
+}

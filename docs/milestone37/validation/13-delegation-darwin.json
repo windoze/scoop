@@ -1,0 +1,609 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3457,
+  "selected": 66,
+  "unselected": 3391,
+  "counts": {
+    "passed": 66
+  },
+  "variants": 82,
+  "processes": 315,
+  "stage_and_plan_goldens": 360,
+  "results": [
+    {
+      "name": "m29-derived-decoding-artifacts",
+      "status": "passed",
+      "seconds": 29.172102665994316,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-generics",
+      "status": "passed",
+      "seconds": 21.374572916072793,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-precedence",
+      "status": "passed",
+      "seconds": 16.365355083020404,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-artifacts",
+      "status": "passed",
+      "seconds": 20.752734374953434,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 1,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-imported-accessors",
+      "status": "passed",
+      "seconds": 4.641419208957814,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-precedence",
+      "status": "passed",
+      "seconds": 11.500776416971348,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-aliases-artifacts",
+      "status": "passed",
+      "seconds": 13.231173875043169,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-abstract-obligation",
+      "status": "passed",
+      "seconds": 2.016136792022735,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-arguments",
+      "status": "passed",
+      "seconds": 52.420276124961674,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-artifacts",
+      "status": "passed",
+      "seconds": 13.73335895803757,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-base-class",
+      "status": "passed",
+      "seconds": 2.0475248330039904,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-base-property",
+      "status": "passed",
+      "seconds": 2.1942845419980586,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-basic",
+      "status": "passed",
+      "seconds": 41.81041058304254,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-body-property",
+      "status": "passed",
+      "seconds": 2.0818047920474783,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-context-mismatch",
+      "status": "passed",
+      "seconds": 2.2974398750811815,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-enum",
+      "status": "passed",
+      "seconds": 2.0260488749481738,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-enum-value",
+      "status": "passed",
+      "seconds": 32.94832829106599,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-generic",
+      "status": "passed",
+      "seconds": 33.4536030839663,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-incomplete-type",
+      "status": "passed",
+      "seconds": 2.2558742909459397,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-inference",
+      "status": "passed",
+      "seconds": 10.915710999979638,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-initialization",
+      "status": "passed",
+      "seconds": 10.91431083297357,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-initialization-exception",
+      "status": "passed",
+      "seconds": 10.815739917103201,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-interface",
+      "status": "passed",
+      "seconds": 2.1957265420351177,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-method-conflict",
+      "status": "passed",
+      "seconds": 2.4262860419694334,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-objects",
+      "status": "passed",
+      "seconds": 11.111062625073828,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-operators",
+      "status": "passed",
+      "seconds": 10.971881916979328,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-priority",
+      "status": "passed",
+      "seconds": 11.00633674999699,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-properties",
+      "status": "passed",
+      "seconds": 11.081999625079334,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-property-conflict",
+      "status": "passed",
+      "seconds": 1.9970135829644278,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-property-type",
+      "status": "passed",
+      "seconds": 2.1720579580869526,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-safety",
+      "status": "passed",
+      "seconds": 10.409200666006655,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-secondary",
+      "status": "passed",
+      "seconds": 10.489224000019021,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-secondary-parameter",
+      "status": "passed",
+      "seconds": 2.181641374947503,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-struct",
+      "status": "passed",
+      "seconds": 2.0819232090143487,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-suspend",
+      "status": "passed",
+      "seconds": 11.118034375016578,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-suspend-initializer",
+      "status": "passed",
+      "seconds": 2.1573404169175774,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-this",
+      "status": "passed",
+      "seconds": 2.0537167919101194,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-this-property",
+      "status": "passed",
+      "seconds": 2.1752101669553667,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-type-mismatch",
+      "status": "passed",
+      "seconds": 2.3609940839232877,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-unsafe-call",
+      "status": "passed",
+      "seconds": 2.1068745830561966,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-unsafe-initializer",
+      "status": "passed",
+      "seconds": 2.017976874951273,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-var-override",
+      "status": "passed",
+      "seconds": 1.9859128340613097,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-visibility",
+      "status": "passed",
+      "seconds": 10.905918915988877,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-receivers-artifacts",
+      "status": "passed",
+      "seconds": 13.00856937491335,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-sealed-artifacts",
+      "status": "passed",
+      "seconds": 13.56787054205779,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-sealed-basic",
+      "status": "passed",
+      "seconds": 10.352724374970421,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "shared-property-declarations-combined",
+      "status": "passed",
+      "seconds": 13.678143749944866,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "shared-property-declarations-standalone",
+      "status": "passed",
+      "seconds": 13.655021000071429,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-defaults-derived-default-combinations",
+      "status": "passed",
+      "seconds": 10.468366708024405,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "source-defaults-derived-default-order",
+      "status": "passed",
+      "seconds": 10.845701499958523,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "source-defaults-derived-generic-defaults",
+      "status": "passed",
+      "seconds": 13.142665833001956,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-defaults-inherited-generics",
+      "status": "passed",
+      "seconds": 12.460477291955613,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-callables",
+      "status": "passed",
+      "seconds": 13.279531792039052,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-constructors",
+      "status": "passed",
+      "seconds": 14.018844499951228,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-interfaces",
+      "status": "passed",
+      "seconds": 15.829582333099097,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-parameter-protocols",
+      "status": "passed",
+      "seconds": 12.828640624997206,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-properties",
+      "status": "passed",
+      "seconds": 14.005449625081383,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-property-direct",
+      "status": "passed",
+      "seconds": 13.354680666932836,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-protected-binding",
+      "status": "passed",
+      "seconds": 14.221808166941628,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-protected-callables",
+      "status": "passed",
+      "seconds": 15.01499666692689,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-protected-construction",
+      "status": "passed",
+      "seconds": 14.311694624950178,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-protected-direct",
+      "status": "passed",
+      "seconds": 13.576789167011157,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-protected-signatures",
+      "status": "passed",
+      "seconds": 12.69092133291997,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-selections",
+      "status": "passed",
+      "seconds": 14.911054417025298,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-shared-selections",
+      "status": "passed",
+      "seconds": 12.434139749966562,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "source-dispatch-virtual",
+      "status": "passed",
+      "seconds": 12.821285957936198,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    }
+  ]
+}

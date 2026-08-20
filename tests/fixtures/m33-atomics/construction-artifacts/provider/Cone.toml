@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "atomic-construction"
+version = "0.1.0"
+kind = "library"

@@ -1,0 +1,21 @@
+public struct Token() {}
+public class Ref { public constructor() {} }
+public interface Root {
+    public fun echo(value: Token): Token = value
+    public val token: Token get() = Token()
+}
+public interface Left : Root {
+    public fun left(value: Token): Token = value
+}
+public interface Right : Root {
+    public fun right(value: Token): Token = value
+}
+public interface Diamond : Left, Right {
+    public override fun echo(value: Token): Token = value
+}
+public struct Payload(val reference: Ref) : Diamond
+public enum Choice : Diamond { One }
+public object Singleton : Diamond
+public interface Unused {
+    public fun copy(value: Token): Token = value
+}

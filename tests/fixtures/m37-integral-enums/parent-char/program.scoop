@@ -1,0 +1,1 @@
+enum E : Char { V = 1 }

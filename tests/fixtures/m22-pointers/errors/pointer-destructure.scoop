@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+fun inspect(pointer: Ptr<Int>) {
+    val Ptr(raw) = pointer
+}
+
+fun main() {
+    println(0)
+}

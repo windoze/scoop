@@ -1,0 +1,14 @@
+package consumer.methods
+import upstream.methods.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val box = Box<T>(seed)
+    val chosen = box.choose<Unit>(Unit)
+    val callback = reference<T, Box<T>>(box)
+    if (label<Box<T>>(box) != 42) { return 1 }
+    if (read(chosen) != read(callback())) { return 2 }
+    if (read(classRead<T, Box<T>>(box)) != read(seed)) { return 3 }
+    return read(boundRead<T, Box<T>>(box))
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

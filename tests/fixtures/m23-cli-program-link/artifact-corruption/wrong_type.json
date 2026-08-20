@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "snapshot input ${work}/artifacts/root.slib is not a regular file",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "container:$",
+      "path": "${work}/artifacts/root.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,147 @@
+{
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "target": "x86_64-unknown-linux-gnu",
+  "revision": "e97b40f5c9c408e2ff785e5d09c6bf9222c78979",
+  "mode": "off",
+  "kind": "poll",
+  "builds": [
+    {
+      "name": "poll",
+      "first_build_seconds": 9.48572385800071,
+      "warm_build_seconds": 5.957070283999201,
+      "command": [
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-source/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/poll-response/program.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/target-poll",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/poll",
+        "--library-path",
+        "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c38c1d9a38120cf40fe672e21f74886c94bac5336168d05e04b02d1e7e98e6ea",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/fa684831ea676829d6afb3549f1e71cfdbcf57ea0673f1cb2b03c4818050f51e/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "607d57ee6a220d8c9f2a48cb4f0b69f42f03829a383552eb9ac5883d016e01bb",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "fa684831ea676829d6afb3549f1e71cfdbcf57ea0673f1cb2b03c4818050f51e",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "d5c6d5cc1dbea9980b1d61fa4729e8af66077e5746d3e7718ba961c6223a6362",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/poll",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "c4943ac3cb06d017c83c0cbe4ae516191f1a7c618230ef29fb82dc643553e9f3",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/d5c6d5cc1dbea9980b1d61fa4729e8af66077e5746d3e7718ba961c6223a6362/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/runtime-v1/5814570a93d04c5fb6209d89bc723e18c60112d90f89a49bb5ca1b7ddaf0e8ef/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4567912,
+      "root_slib_bytes": 657998
+    }
+  ],
+  "commands": [
+    [
+      "cc",
+      "-std=c11",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-O2",
+      "-fno-omit-frame-pointer",
+      "-fno-optimize-sibling-calls",
+      "-fno-builtin",
+      "-pthread",
+      "-c",
+      "/home/chenxu/repos/scoop/tests/benchmarks/ffi/leaf.c",
+      "-o",
+      "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/leaf.o"
+    ],
+    [
+      "cc",
+      "-std=c11",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-O2",
+      "-fno-omit-frame-pointer",
+      "-fno-optimize-sibling-calls",
+      "-fno-builtin",
+      "-pthread",
+      "-c",
+      "/home/chenxu/repos/scoop/tests/benchmarks/ffi/runner.c",
+      "-o",
+      "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/runner.o"
+    ],
+    [
+      "ar",
+      "rcs",
+      "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/libffi_benchmark.a",
+      "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/leaf.o",
+      "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/runner.o"
+    ]
+  ],
+  "tools": {
+    "cc": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "llvm": "22.1.2"
+  },
+  "sections": "/home/chenxu/repos/scoop/tmp/m34/final-poll-off-linux-gnu/poll  :\nsection                   size      addr\n.interp                     28       848\n.gnu.hash                   36       880\n.dynsym                   1776       920\n.dynstr                   1055      2696\n.gnu.version               148      3752\n.gnu.version_r             272      3904\n.rela.dyn               164328      4176\n.rela.plt                 1584    168504\n.init                       27    172032\n.plt                      1072    172064\n.plt.got                     8    173136\n.text                   272161    173184\n.fini                       13    445348\n.rodata                 130308    446464\n.eh_frame_hdr            10324    576772\n.eh_frame                53696    587096\n.gcc_except_table         4224    640792\n.note.gnu.property          32    645016\n.note.ABI-tag               32    645048\n.tbss                       16    648048\n.init_array                  8    648048\n.fini_array                  8    648056\n.data.rel.ro.scoop      951952    648064\n.data.rel.ro               352   1600032\n.dynamic                   528   1600384\n.got                       608   1600912\n.data                      744   1601536\n.bss                   1603120   1602304\n.comment                    68         0\n.deplibs                    11         0\nTotal                  3198539\n\n\n",
+  "hot_functions": [
+    {
+      "source": "compute",
+      "mir_function": "5",
+      "symbol": "scoop$1$cb$1fae31b5ae643617acccfbe5d51c772901b38ef70423d570500ef8eb3981e50c",
+      "machine_bytes": 66,
+      "instruction_count": 25
+    }
+  ]
+}

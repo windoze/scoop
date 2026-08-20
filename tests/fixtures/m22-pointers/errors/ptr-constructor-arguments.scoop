@@ -1,0 +1,11 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    @Unsafe {
+        Ptr<Int>()
+        Ptr<Int>(address = 1uL)
+        Ptr<Int>(1uL, raw = 2uL)
+        val rawValues = [1uL]
+        Ptr<Int>(*rawValues)
+    }
+}

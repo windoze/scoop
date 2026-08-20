@@ -1,0 +1,10 @@
+package atomiclibrary
+
+public class Payload public constructor(public val value: Int)
+public struct Snapshot(val serial: Int, val payload: Payload)
+
+public fun <T : value> make(value: T, cell: Atomic<T> = Atomic(value)): Atomic<T> = cell
+public fun <T : value> exchange(cell: Atomic<T>, value: T): T = cell.exchange(value)
+public fun <T : value> read(cell: Atomic<T>, value: T = cell.load()): T = value
+public fun <T : ref> update(cell: AtomicRef<T>, action: (T) -> T): T = cell.updateAndGet(action)
+public fun increment(cell: AtomicInt): Int = cell.getAndUpdate({ value -> value + 1 })

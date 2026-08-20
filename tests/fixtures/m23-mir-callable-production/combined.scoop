@@ -1,0 +1,38 @@
+public struct Token() {}
+public interface Contract {
+    public fun get(value: Token): Token
+    public val token: Token
+    public fun echo(value: Token): Token = value
+}
+public open class Base {
+    public open fun pass(value: Token): Token = value
+    protected fun hidden(value: Token): Token = value
+    protected open val abstractValue: Token get() = Token()
+    private var stored: Token = Token()
+    public var slot: Token
+        get() = stored
+        protected set(value) { stored = value }
+    private fun secret(value: Token): Token = value
+    public fun reach(value: Token): Token = secret(value)
+}
+public class Impl: Base(), Contract {
+    public override fun pass(value: Token): Token = value
+    public override fun get(value: Token): Token = value
+    public override val token: Token = Token()
+}
+public interface SubContract: Contract {}
+public abstract class Partial: SubContract
+public abstract class Abstract {
+    public abstract fun run(value: Token): Token
+}
+public abstract class Again: Base() {
+    public abstract override fun pass(value: Token): Token
+    protected abstract override val abstractValue: Token
+}
+public object Registry {
+    private var stored: Token = Token()
+    public var value: Token
+        get() = stored
+        set(value) { stored = value }
+    public val direct: Token = Token()
+}

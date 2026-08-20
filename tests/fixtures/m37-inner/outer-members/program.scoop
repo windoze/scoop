@@ -1,0 +1,16 @@
+class Outer(var seed: Int) {
+    private fun amount(): Int = seed
+    inner class Inner(val delta: Int = this@Outer.seed) {
+        val initial: Int = this@Outer.amount()
+        init { this@Outer.seed = this@Outer.seed + 1 }
+        fun read(): Int = initial + delta
+        fun closure(): () -> Int = { amount() }
+    }
+}
+fun main() {
+    val outer = Outer(21)
+    val value = outer.Inner()
+    println(value.read())
+    println(value.closure()())
+    println(outer.seed)
+}

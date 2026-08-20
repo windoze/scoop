@@ -1,0 +1,7 @@
+import templates.members.*
+
+private class Reference public constructor()
+
+public fun fail() {
+    Box<Int>(1).valueOnly<Reference>(Reference())
+}

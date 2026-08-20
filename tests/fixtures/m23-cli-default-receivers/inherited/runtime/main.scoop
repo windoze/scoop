@@ -1,0 +1,6 @@
+fun main() {
+    val child = Child()
+    if (child.read(3) != 3) { throw IllegalStateException() }
+    if (probe(child) != 2) { throw IllegalStateException() }
+    if (inherited(child, 5) != 5) { throw IllegalStateException() }
+}

@@ -1,0 +1,22 @@
+public open class Base {
+    protected var state: Int
+        get() = 1
+        private set(value) {}
+    protected fun secret(): Int = state
+    class Writer {
+        fun update(target: Base) { target.state = 2 }
+    }
+}
+open class Sibling : Base()
+class Derived : Base() {
+    struct Reader() {
+        fun read(target: Derived): Int = target.secret()
+    }
+    class Probe : Sibling() {
+        fun read(target: Derived): Int = target.secret()
+    }
+    companion object {
+        fun read(target: Derived): Int = target.secret()
+    }
+}
+fun main() {}

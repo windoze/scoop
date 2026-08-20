@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot derive `equals` for `Choice<Missing>`: field `Choice.Value._0` of type `Missing` has no applicable member operator `equals`",
+    "notes": [],
+    "origin": {
+      "cone": "f71ed51f826332c5372fabb3dc941802436280c26fa98282ca9a875fee3036b9",
+      "end": 180,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 167
+    },
+    "severity": "error"
+  }
+]

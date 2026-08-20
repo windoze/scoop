@@ -1,0 +1,25 @@
+schema = 1
+[[sources]]
+path = "common"
+when = {os = ["darwin", "linux"], arch = ["aarch64", "x86_64"], env = ["none", "gnu", "musl"]}
+[[sources]]
+path = "platform/darwin"
+when = {os = "darwin", env = "none"}
+[[sources]]
+path = "platform/gnu"
+when = {os = "linux", env = "gnu"}
+[[sources]]
+path = "platform/musl"
+when = {os = "linux", env = "musl"}
+[[sources]]
+path = "aliases/extra.scoop"
+[[sources]]
+path = "empty"
+[[sources]]
+path = "absent"
+when = {os = []}
+[cone]
+group = "dev.m33"
+name = "selected-sources"
+version = "0.1.0"
+kind = "executable"

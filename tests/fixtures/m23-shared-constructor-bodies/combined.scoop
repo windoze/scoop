@@ -1,0 +1,33 @@
+package consumer.constructorbodies
+import upstream.constructorbodies.*
+
+private struct CurrentPair<T, U>(val value: T)
+private class Current<T, U>(value: T, trace: Trace): Base<T, U>(value, trace) {
+    val done: Int = trace.mark(8)
+}
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val trace = Trace(0)
+    val pair = Pair<T, Unit>(seed, trace)
+    if (trace.digits != 12 || pair.serial != 1 || inspect(pair.value) != 42) { return 1 }
+    trace.digits = 0
+    val built = Built<T, String>(seed, trace, true)
+    if (trace.digits != 34956 || inspect(built.delegated) != 42) { return 2 }
+    if (inspect(built.retained) != 42 || inspect(built.output) != 42) { return 3 }
+    trace.digits = 0
+    val primary = Built<T, Int>(seed, trace)
+    if (trace.digits != 3495 || inspect(primary.value) != 42) { return 4 }
+    trace.digits = 0
+    val terminal = Terminal<T, Unit>(seed, trace)
+    if (trace.digits != 37 || inspect(terminal.copied) != 42) { return 5 }
+    trace.digits = 0
+    val chained = Terminal<T, String>(seed, trace, false)
+    if (trace.digits != 378 || inspect(chained.value) != 42) { return 6 }
+    trace.digits = 0
+    val local = Current<T, Unit>(seed, trace)
+    if (trace.digits != 38 || inspect(local.value) != 42) { return 7 }
+    val copy = CurrentPair<Built<T, String>, Unit>(built)
+    return inspect(copy.value.retained)
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

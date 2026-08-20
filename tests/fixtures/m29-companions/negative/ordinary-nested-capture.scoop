@@ -1,0 +1,4 @@
+struct Box<T>(val value: T) {
+    companion object { struct Nested(val value: T) }
+}
+fun main() {}

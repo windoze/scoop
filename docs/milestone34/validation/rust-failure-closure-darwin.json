@@ -1,0 +1,438 @@
+{
+  "host": "darwin",
+  "initial_failed_tests": 61,
+  "resolved": 61,
+  "unresolved": [],
+  "tests": [
+    {
+      "initial_test": "cache::key::tests::compile_cache_key_has_a_fixed_canonical_vector",
+      "current_test": "cache::key::tests::compile_cache_key_has_a_fixed_canonical_vector",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::atomics::source_atomic_instructions_preserve_orders_widths_and_pointer_values",
+      "current_test": "tests::atomics::source_atomic_instructions_preserve_orders_widths_and_pointer_values",
+      "passing_logs": [
+        "tmp/m34/m10-nonintegral-codegen.log",
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::object_partition::optimized::emitted_registration_and_stackmap_use_final_ssa_root_count",
+      "current_test": "tests::object_partition::optimized::emitted_registration_and_stackmap_use_final_ssa_root_count",
+      "passing_logs": [
+        "tmp/m34/m10-nonintegral-codegen.log",
+        "tmp/m34/m10-roots-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m21_visibility::signatures::a_public_override_keeps_its_owners_signature_access_domain",
+      "current_test": "tests::m21_visibility::signatures::a_public_override_keeps_its_owners_signature_access_domain",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_container_encoding::nested_container_codecs_keep_explicit_element_dependencies",
+      "current_test": "tests::m29_container_encoding::nested_container_codecs_keep_explicit_element_dependencies",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_container_encoding::containers_keep_unconstrained_elements_without_implicit_encoding",
+      "current_test": "tests::m29_container_encoding::containers_keep_unconstrained_elements_without_implicit_encoding",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::encoding_annotations_only_affect_participating_fields",
+      "current_test": "tests::m29_derived_encoding::encoding_annotations_only_affect_participating_fields",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::inheritance::a_companion_can_read_private_storage_and_an_external_codec_cannot",
+      "current_test": "tests::m29_derived_encoding::inheritance::a_companion_can_read_private_storage_and_an_external_codec_cannot",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::dependencies::ordinary_combined_protocol_derives_both_directions_independently",
+      "current_test": "tests::m29_derived_encoding::dependencies::ordinary_combined_protocol_derives_both_directions_independently",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::dependencies::recursive_fields_use_the_current_codec_through_container_and_tuple_values",
+      "current_test": "tests::m29_derived_encoding::dependencies::recursive_fields_use_the_current_codec_through_container_and_tuple_values",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::dependencies::generic_codecs_keep_definition_bindings_when_actual_types_coincide",
+      "current_test": "tests::m29_derived_encoding::dependencies::generic_codecs_keep_definition_bindings_when_actual_types_coincide",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::explicit_inherited_and_default_encoding_wins_over_synthesis",
+      "current_test": "tests::m29_derived_encoding::explicit_inherited_and_default_encoding_wins_over_synthesis",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::inheritance::an_unrelated_valid_override_does_not_block_derivation",
+      "current_test": "tests::m29_derived_encoding::inheritance::an_unrelated_valid_override_does_not_block_derivation",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::inheritance::explicit_base_codec_accepts_the_ordinary_upcast_without_data_conformance",
+      "current_test": "tests::m29_derived_encoding::inheritance::explicit_base_codec_accepts_the_ordinary_upcast_without_data_conformance",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::unrelated_overload_does_not_block_encoding_synthesis",
+      "current_test": "tests::m29_derived_encoding::unrelated_overload_does_not_block_encoding_synthesis",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_derived_encoding::nominal_encoding_becomes_complete_ordinary_codec_methods",
+      "current_test": "tests::m29_derived_encoding::nominal_encoding_becomes_complete_ordinary_codec_methods",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_tuple_encoding::tuple_codecs_use_ordinary_function_values_and_interface_calls",
+      "current_test": "tests::m29_tuple_encoding::tuple_codecs_use_ordinary_function_values_and_interface_calls",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_tuple_encoding::tuple_erasure_retains_private_element_types_without_codec_conformance",
+      "current_test": "tests::m29_tuple_encoding::tuple_erasure_retains_private_element_types_without_codec_conformance",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m29_unit_encoding::unit_encoding_uses_ordinary_members_and_keeps_builtin_identity",
+      "current_test": "tests::m29_unit_encoding::unit_encoding_uses_ordinary_members_and_keeps_builtin_identity",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m33_atomics::atomic_class_applications_keep_reference_arguments_and_initial_values",
+      "current_test": "tests::m33_atomics::atomic_class_applications_keep_reference_arguments_and_initial_values",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::m33_atomics::operations::atomic_methods_normalize_through_source_generics_and_reference_types",
+      "current_test": "tests::m33_atomics::operations::atomic_methods_normalize_through_source_generics_and_reference_types",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "c_bridge_toolchain::tests::c_bridge_toolchain_contract_and_fingerprints_match_fixed_vectors",
+      "current_test": "c_bridge_toolchain::tests::c_bridge_toolchain_contract_and_fingerprints_match_fixed_vectors",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "production::c_bridge_support::tests::support_contract_binds_target_and_complete_toolchain_profile",
+      "current_test": "production::c_bridge_support::tests::support_contract_binds_target_and_complete_toolchain_profile",
+      "passing_logs": [
+        "tmp/m34/m10-memory-darwin.log",
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "production::c_bridge::tests::used_variant_has_the_frozen_field_order",
+      "current_test": "production::c_bridge::tests::used_variant_has_the_frozen_field_order",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::target_contract_and_fingerprint_match_the_fixed_vectors",
+      "current_test": "tests::target_contract_and_fingerprint_match_the_fixed_vectors",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::native_storage::c_projection::c_projection_produces_uint64_contracts_without_changing_the_scoop_struct",
+      "current_test": "tests::native_storage::c_projection::c_projection_produces_uint64_contracts_without_changing_the_scoop_struct",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::zst_places::mixed_zst_signature_preserves_logical_indexes_around_sret",
+      "current_test": "tests::zst_places::mixed_zst_signature_preserves_logical_indexes_around_sret",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "tests::traps::trap_terminators_branch_to_a_shared_trap_block",
+      "current_test": "tests::traps::trap_terminators_branch_to_a_shared_trap_block",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "compatibility::tests::compatibility_record_is_derived_from_the_only_registered_contracts",
+      "current_test": "compatibility::tests::compatibility_record_is_derived_from_the_only_registered_contracts",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "link_object::undefined_requirements::tests::finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector",
+      "current_test": "link_object::undefined_requirements::tests::finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "profile::tests::cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint",
+      "current_test": "profile::tests::cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "profile::tests::interface_version::lir_layout_abi_v14_retains_target_coercions",
+      "current_test": "profile::tests::interface_version::lir_layout_abi_v15_preserves_maybe_uninit_values",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "profile::tests::interface_version::lir_layout_link_v7_retains_target_coercions",
+      "current_test": "profile::tests::interface_version::lir_layout_link_v8_preserves_maybe_uninit_values",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "profile::tests::interface_version::mir_type_bridge_v18_retains_concrete_interface_receivers",
+      "current_test": "profile::tests::interface_version::mir_type_bridge_v19_preserves_maybe_uninit_representation",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "profile::tests::interface_version::source_interface_v68_retires_derived_interface_targets",
+      "current_test": "profile::tests::interface_version::source_interface_v69_preserves_maybe_uninit_intrinsics",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "profile::tests::interface_version::type_semantics_v26_retires_derived_interface_targets",
+      "current_test": "profile::tests::interface_version::type_semantics_v27_preserves_maybe_uninit_operations",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "profile::tests::layout::generic_profile_has_a_fixed_descriptor_and_fingerprint",
+      "current_test": "profile::tests::layout::generic_profile_has_a_fixed_descriptor_and_fingerprint",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "semantic::tests::semantic_layer_fingerprints_have_fixed_vectors",
+      "current_test": "semantic::tests::semantic_layer_fingerprints_have_fixed_vectors",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "native::tests::relocation_preserves_preprocessed_bytes_and_object_content",
+      "current_test": "native::tests::relocation_preserves_preprocessed_bytes_and_object_content",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::actual_core_sources_produce_closed_mir_and_lir_export_tables",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::actual_core_sources_produce_closed_mir_and_lir_export_tables",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_accessor_forms_select_only_actual_source_machine_bodies",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_accessor_forms_select_only_actual_source_machine_bodies",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_constructor_inventory_replays_primary_secondary_and_class_initializers",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_constructor_inventory_replays_primary_secondary_and_class_initializers",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_initialization_units_replay_source_keys_and_complete_strong_pairs",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_initialization_units_replay_source_keys_and_complete_strong_pairs",
+      "passing_logs": [
+        "tmp/m34/m10-driver-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::property_initialization_uses_close_source_mir_lir_and_both_artifact_views",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::property_initialization_uses_close_source_mir_lir_and_both_artifact_views",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_equality_replays_materialized_source_applications_and_default_only_keys",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_equality_replays_materialized_source_applications_and_default_only_keys",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::actual_layout_artifacts_retain_alias_chains_and_combined_member_signatures",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::actual_layout_artifacts_retain_alias_chains_and_combined_member_signatures",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_mir_types_replay_standalone_and_combined_source_policies",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_mir_types_replay_standalone_and_combined_source_policies",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_initialization_abi_replays_the_protocol_role_and_complete_layout_contract",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_initialization_abi_replays_the_protocol_role_and_complete_layout_contract",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_object_inventory_replays_singletons_companions_and_initialization_entries",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_object_inventory_replays_singletons_companions_and_initialization_entries",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_dispatch_replays_slot_order_targets_reabstraction_and_boxing",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_dispatch_replays_slot_order_targets_reabstraction_and_boxing",
+      "passing_logs": [
+        "tmp/m34/m10-dispatch-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_shape_support_replays_finite_helpers_from_checked_mir_roots",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_shape_support_replays_finite_helpers_from_checked_mir_roots",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_dispatch_replays_complete_tables_and_actual_callable_abis",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_dispatch_replays_complete_tables_and_actual_callable_abis",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_callable_abis_replay_zst_indirect_results_and_boxing_adjustments",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_callable_abis_replay_zst_indirect_results_and_boxing_adjustments",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituents",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituents",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_ordinary_lir_bridges_replay_source_gc_and_layout_abis",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_ordinary_lir_bridges_replay_source_gc_and_layout_abis",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_strong_digests_replay_complete_runtime_registration_roles",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_strong_digests_replay_complete_runtime_registration_roles",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_source_callable_inventory_replays_bodies_and_abstract_overrides",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_source_callable_inventory_replays_bodies_and_abstract_overrides",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_layouts_replay_recursive_references_zst_and_base_prefixes",
+      "current_test": "request::preflight::end_to_end_tests::layout_exports::core::shared_lir_layouts_replay_recursive_references_zst_and_base_prefixes",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::tests::bootstrap::real_trusted_core_sources_form_the_bootstrap_hir_interface",
+      "current_test": "request::preflight::tests::bootstrap::real_trusted_core_sources_form_the_bootstrap_hir_interface",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::tests::bootstrap::shape_sources::shape_demands_are_validated_against_real_mir_without_a_production_root_copy",
+      "current_test": "request::preflight::tests::bootstrap::shape_sources::shape_demands_are_validated_against_real_mir_without_a_production_root_copy",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    },
+    {
+      "initial_test": "request::preflight::end_to_end_tests::nominal_signatures::formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope",
+      "current_test": "request::preflight::end_to_end_tests::nominal_signatures::formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope",
+      "passing_logs": [
+        "tmp/m34/m10-repairs-darwin.log"
+      ]
+    }
+  ]
+}

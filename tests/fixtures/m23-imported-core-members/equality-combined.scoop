@@ -1,0 +1,7 @@
+fun main() {
+    val left = equalInt(userCoreOffset(0))
+    val right = combinedEquality(255U)
+    val selected = patternInt8(127)
+    val nested = nestedPattern((1, 2))
+    val once = singleEvaluation()
+}

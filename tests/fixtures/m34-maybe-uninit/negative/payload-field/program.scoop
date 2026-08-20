@@ -1,0 +1,5 @@
+struct Pair(val first: Int)
+fun main() {
+    val value = MaybeUninit<Pair>.initialized(Pair(1))
+    println(value.first)
+}

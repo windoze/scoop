@@ -1,0 +1,7 @@
+package consumer.cache
+
+import dependency.cache.calculate
+
+public class Payload public constructor(public val number: Int)
+
+public fun check(): Int = calculate("seed")

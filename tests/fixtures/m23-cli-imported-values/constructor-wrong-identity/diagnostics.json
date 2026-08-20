@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `Wide` in exact import layer:\n  - constructor `Wide` is not accessible here\n  - dependency constructor `Wide` expects 1 argument(s), but 4 were supplied\n  - dependency constructor `Wide` expects 1 argument(s), but 4 were supplied\n  - dependency constructor `Wide` expects 2 argument(s), but 4 were supplied\n  - dependency constructor argument must be of type Token, found Other",
+    "notes": [],
+    "origin": {
+      "cone": "70a273b0bbd96a18237acf693167b4029981277026777079a98c7f3147496458",
+      "end": 131,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 109
+    },
+    "severity": "error"
+  }
+]

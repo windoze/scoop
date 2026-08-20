@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "b-next"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.programlink:a-base" = {"version" = "0.1.0", "path" = "../a-base"}

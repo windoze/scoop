@@ -1,0 +1,7 @@
+struct S(val v: Int)
+
+fun main() {
+    val a = S(1)
+    val b = S(1)
+    println(a === b)
+}

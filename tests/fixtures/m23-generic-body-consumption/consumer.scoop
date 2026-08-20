@@ -1,0 +1,30 @@
+import dependency.generics.identity
+import dependency.generics.choose
+import dependency.generics.echo
+import dependency.generics.defaulted
+import dependency.generics.nativeIdentity
+import dependency.generics.recursive
+import dependency.generics.pointerIdentity
+
+struct LocalValue(val number: Int)
+
+public fun explicitAndInferred(): Int = identity<Int>(identity(42))
+
+public fun consumerLocalValue(): Int = identity(LocalValue(43)).number
+
+public fun <T> relay(value: T): T = choose(value, identity(value))
+
+public fun useRelay(): Int = relay(44)
+
+public fun extension(): Int = 45.echo()
+
+public fun defaults(): Int = defaulted(46)
+
+public fun consumerLocalDefault(): Int = defaulted(LocalValue(47)).number
+
+@NoGC
+public fun nativeCall(): Int = nativeIdentity(48)
+
+public fun recursiveCall(): Int = recursive(49, true)
+
+public fun pointerRoundtrip(pointer: Ptr<Int>): Ptr<Int> = pointerIdentity(pointer)

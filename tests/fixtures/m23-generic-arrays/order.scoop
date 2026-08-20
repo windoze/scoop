@@ -1,0 +1,27 @@
+package consumer.arrays
+
+import upstream.arrays.*
+import upstream.arrays.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    trace = 0
+    val named = mark(1).frame(values = markedArray(2), after = mark(3))
+    if (trace != 12346 || named.size != 1L || first(named) != 42) { return 1 }
+    trace = 0
+    val mixed = mark(1).frame(mark(2), mark(3), *markedArray(4), mark(5))
+    if (trace != 1234556 || mixed.size != 3L || first(mixed, 2L) != 42) { return 2 }
+    trace = 0
+    val defaults = mark(1).frame()
+    if (trace != 1456 || defaults.size != 1L || first(defaults) != 42) { return 3 }
+    trace = 0
+    if (defaultFirst(mark(1), *markedArray(2)) != 42 || trace != 12) { return 4 }
+    val source = pack(42)
+    val namedSpread = pack(values = *source)
+    val asFunction: (Array<Int>) -> Array<Int> = ::pack
+    val empty: Array<Int> = pack()
+    val other = pack<Int>()
+    return if (namedSpread === source && asFunction(source) === source &&
+        empty !== other && empty.size == 0L) { 42 } else { 5 }
+}

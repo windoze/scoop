@@ -1,0 +1,19 @@
+class Outer(val value: Int) {
+    fun result(): Int {
+        val value = 40
+        val action: () -> Int = { value + 2 }
+        class Local {
+            fun direct(): Int = value
+            fun call(): Int = action()
+        }
+        class Own(val value: Int) {
+            fun read(): Int = value
+            fun closure(): () -> Int = { value }
+        }
+        println(Local().direct())
+        println(Local().call())
+        println(Own(2).closure()())
+        return Own(2).read()
+    }
+}
+fun main() { println(Outer(1).result()) }

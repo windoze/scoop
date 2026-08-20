@@ -1,0 +1,10 @@
+class Configuration(val answer: Long)
+
+context(configuration: Configuration)
+fun answer(): Long = configuration.answer
+
+fun main() {
+    context(Configuration(42)) {
+        println(answer())
+    }
+}

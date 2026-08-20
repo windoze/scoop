@@ -1,0 +1,1 @@
+fun main() { fun first() = second(); fun second() = 7 }

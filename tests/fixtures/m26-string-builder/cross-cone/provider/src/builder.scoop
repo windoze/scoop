@@ -1,0 +1,6 @@
+package fixtures.builder
+
+public fun <T : ToString> surround(value: T, suffix: Char = '>'): String =
+    StringBuilder().add("<").add(value).add(suffix).build()
+public fun create(seed: String): StringBuilder = StringBuilder().add(seed)
+public fun character(): String = StringBuilder().add('雪').build()

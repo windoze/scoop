@@ -1,0 +1,7 @@
+import dependency.classes.Counter
+import dependency.classes.DefaultArguments
+
+public class LocalArguments public constructor(): DefaultArguments {
+    public fun answer(): Long = super<DefaultArguments>.compute(input = Counter(10))
+}
+public fun primary(): Counter = Counter(LocalArguments().answer())

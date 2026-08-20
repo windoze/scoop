@@ -1,0 +1,11 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val derived = Derived()
+    val base: Base = derived
+    verifyType(base.call(17) == 17 && base.alpha() == 2 && base.direct() == 3)
+    base.value = 99
+    verifyType(base.value == 4 && derived.middle() == 6 && base.observe() == 5)
+    val singleton: Base = Singleton
+    verifyType(singleton.call(23) == 23 && singleton.value == 4 && singleton.observe() == 5)
+}

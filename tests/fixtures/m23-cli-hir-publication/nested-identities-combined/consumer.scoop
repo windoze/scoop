@@ -1,0 +1,11 @@
+public fun check(): Int {
+    if (nestedLambda<Int, (Int, Int), String>()() != 1) { return 1 }
+    if (nestedLocal<Int, String>()() != 1) { return 2 }
+    if (nestedAnonymous<Int, (Int, Int), String>()() != 1) { return 3 }
+    if (nestedReference<Int>()() != 1) { return 4 }
+    val host = nestedHost()
+    if (host.expanded<String>()() != 1) { return 5 }
+    if (host.local<String>()() != 1) { return 6 }
+    if (host.anonymous<String>()() != 1) { return 7 }
+    return 42
+}

@@ -1,0 +1,218 @@
+use scoop_identity::{DecodedPersistentId, PersistentId};
+use scoop_wire::WireError;
+
+use super::*;
+use crate::{
+    CanonicalExactDescriptorExportsV1, ExactDescriptorAncestryV1, ExactDescriptorDispatchV1,
+    ExactDescriptorExportV1, ExactDescriptorTableError, StrongTypeDescriptorRefV2,
+};
+
+impl DecodedExactDescriptorExportV1 {
+    pub fn validate_against(
+        self,
+        expected: &ExactDescriptorExportV1,
+    ) -> Result<ExactDescriptorExportV1, ExactDescriptorWireError> {
+        self.semantic.validate_against(expected)?;
+        if !self.definition.matches_definition(expected.definition())? {
+            return Err(ExactDescriptorWireError::Definition);
+        }
+        if !self
+            .registration
+            .matches_registration(expected.registration())?
+        {
+            return Err(ExactDescriptorWireError::Registration);
+        }
+        Ok(expected.clone())
+    }
+}
+
+impl DecodedExactDescriptorSemanticProjectionV1 {
+    pub fn validate_against(
+        self,
+        expected: &ExactDescriptorExportV1,
+    ) -> Result<(), ExactDescriptorWireError> {
+        verify(self.exact, expected.exact())?;
+        verify(
+            self.value_layout,
+            expected.value_layout().identity().layout(),
+        )?;
+        verify(
+            self.instance_layout,
+            expected.instance_layout().identity().layout(),
+        )?;
+        self.shape.validate_against(expected.shape())?;
+        let object_scan = self.object_scan.validate()?;
+        if object_scan.as_ref_scan() != expected.object_scan() {
+            return Err(ExactDescriptorWireError::ObjectScan);
+        }
+        self.ancestry.validate_against(expected.ancestry())?;
+        self.dispatch.validate_against(expected.dispatch())?;
+        if self.diagnostic_name != expected.diagnostic_name().as_str() {
+            return Err(ExactDescriptorWireError::DiagnosticName);
+        }
+        Ok(())
+    }
+}
+
+impl DecodedAncestry {
+    fn validate_against(
+        self,
+        expected: &ExactDescriptorAncestryV1,
+    ) -> Result<(), ExactDescriptorWireError> {
+        if !optional_ref_matches(self.parent, expected.parent())
+            || self.interfaces.len() != expected.interfaces().len()
+            || !self
+                .interfaces
+                .into_iter()
+                .zip(expected.interfaces())
+                .all(|(actual, expected)| ref_matches(actual, *expected))
+        {
+            return Err(ExactDescriptorWireError::Ancestry);
+        }
+        Ok(())
+    }
+}
+
+impl DecodedDispatch {
+    fn validate_against(
+        self,
+        expected: &ExactDescriptorDispatchV1,
+    ) -> Result<(), ExactDescriptorWireError> {
+        verify(self.vtable, expected.vtable())?;
+        if self.itables.len() != expected.itables().len() {
+            return Err(ExactDescriptorWireError::Dispatch);
+        }
+        for (actual, expected) in self.itables.into_iter().zip(expected.itables()) {
+            if !ref_matches(actual.interface, expected.interface()) {
+                return Err(ExactDescriptorWireError::Dispatch);
+            }
+            verify(actual.table, expected.table())?;
+        }
+        Ok(())
+    }
+}
+
+impl DecodedCanonicalExactDescriptorExportsV1 {
+    pub fn validate_against(
+        self,
+        expected: &CanonicalExactDescriptorExportsV1,
+    ) -> Result<CanonicalExactDescriptorExportsV1, ExactDescriptorTableError> {
+        if self.records.len() != expected.records().len() {
+            return Err(ExactDescriptorTableError::Count);
+        }
+        for (index, (actual, expected)) in
+            self.records.into_iter().zip(expected.records()).enumerate()
+        {
+            actual
+                .validate_against(expected)
+                .map_err(|source| ExactDescriptorTableError::Record { index, source })?;
+        }
+        Ok(expected.clone())
+    }
+}
+
+fn optional_ref_matches(
+    actual: DecodedOptionalStrongTypeDescriptorRefV2,
+    expected: Option<StrongTypeDescriptorRefV2>,
+) -> bool {
+    match (actual, expected) {
+        (DecodedOptionalStrongTypeDescriptorRefV2::Absent, None) => true,
+        (
+            DecodedOptionalStrongTypeDescriptorRefV2::Local(actual),
+            Some(StrongTypeDescriptorRefV2::Local(expected)),
+        ) => actual.verify(expected).is_ok(),
+        (
+            DecodedOptionalStrongTypeDescriptorRefV2::DependencyExternal {
+                provider: actual_provider,
+                exact: actual_exact,
+            },
+            Some(StrongTypeDescriptorRefV2::DependencyExternal {
+                provider: expected_provider,
+                exact: expected_exact,
+            }),
+        ) => {
+            actual_provider.verify(expected_provider).is_ok()
+                && actual_exact.verify(expected_exact).is_ok()
+        }
+        _ => false,
+    }
+}
+
+fn ref_matches(
+    actual: DecodedStrongTypeDescriptorRefV2,
+    expected: StrongTypeDescriptorRefV2,
+) -> bool {
+    match (actual, expected) {
+        (
+            DecodedStrongTypeDescriptorRefV2::Local(actual),
+            StrongTypeDescriptorRefV2::Local(expected),
+        ) => actual.verify(expected).is_ok(),
+        (
+            DecodedStrongTypeDescriptorRefV2::DependencyExternal {
+                provider: actual_provider,
+                exact: actual_exact,
+            },
+            StrongTypeDescriptorRefV2::DependencyExternal {
+                provider: expected_provider,
+                exact: expected_exact,
+            },
+        ) => {
+            actual_provider.verify(expected_provider).is_ok()
+                && actual_exact.verify(expected_exact).is_ok()
+        }
+        _ => false,
+    }
+}
+
+fn verify<I: PersistentId>(
+    actual: DecodedPersistentId<I>,
+    expected: I,
+) -> Result<(), ExactDescriptorWireError> {
+    actual
+        .verify(expected)
+        .map(|_| ())
+        .map_err(|_| ExactDescriptorWireError::Identity)
+}
+
+#[derive(Debug)]
+pub enum ExactDescriptorWireError {
+    Identity,
+    ObjectScan,
+    Ancestry,
+    Dispatch,
+    DiagnosticName,
+    Definition,
+    Registration,
+    Shape(crate::TypeInstanceShapeWireError),
+    Scan(crate::RefScanValidationError),
+    Resource(WireError),
+}
+
+impl From<crate::TypeInstanceShapeWireError> for ExactDescriptorWireError {
+    fn from(error: crate::TypeInstanceShapeWireError) -> Self {
+        Self::Shape(error)
+    }
+}
+
+impl From<crate::RefScanValidationError> for ExactDescriptorWireError {
+    fn from(error: crate::RefScanValidationError) -> Self {
+        Self::Scan(error)
+    }
+}
+
+impl From<WireError> for ExactDescriptorWireError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
+}
+
+impl std::fmt::Display for ExactDescriptorWireError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "descriptor wire differs from checked replay: {self:?}"
+        )
+    }
+}
+
+impl std::error::Error for ExactDescriptorWireError {}

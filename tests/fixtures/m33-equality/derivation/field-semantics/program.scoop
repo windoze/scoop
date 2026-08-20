@@ -1,0 +1,63 @@
+class Trace(var order: Int)
+
+open class Base(val key: Int) {
+    public operator fun equals(other: Base): Boolean = key == other.key
+}
+
+class Child(val detail: Int, key: Int) : Base(key)
+struct Inherited(val child: Child)
+
+class Traced(val value: Int, val digit: Int, val trace: Trace) {
+    public operator fun equals(other: Traced): Boolean {
+        trace.order = trace.order * 10 + digit
+        return value == other.value
+    }
+}
+
+struct Pair(val first: Traced, val second: Traced)
+enum Tagged { First(Pair), Second(Traced), Empty }
+
+struct Multiple(val value: Int) {
+    public operator fun equals(other: Int): Boolean = value == other
+}
+
+struct Raw(val pointer: Ptr<UInt8>)
+@InteriorMutable
+struct NativeWord(val value: Int)
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun main() {
+    check(Inherited(Child(10, 1)) == Inherited(Child(20, 1)))
+    check(Inherited(Child(10, 1)) != Inherited(Child(10, 2)))
+    val trace = Trace(0)
+    val left = Pair(Traced(1, 1, trace), Traced(2, 2, trace))
+    check(left == Pair(Traced(1, 1, trace), Traced(2, 2, trace)))
+    check(trace.order == 12)
+    trace.order = 0
+    check(left != Pair(Traced(3, 1, trace), Traced(2, 2, trace)))
+    check(trace.order == 1)
+    trace.order = 0
+    check(Tagged.First(left) != Tagged.Second(left.first))
+    check(trace.order == 0)
+    check(Tagged.First(left) == Tagged.First(left))
+    check(trace.order == 12)
+    val multiple = Multiple(7)
+    check(multiple == 7)
+    check(multiple == Multiple(7))
+    check(multiple.equals(7))
+    check(multiple.equals(Multiple(7)))
+    @Unsafe {
+        val raw = Raw(Ptr<UInt8>(1UL))
+        check(raw == raw)
+        check(raw != Raw(Ptr<UInt8>(2UL)))
+        check(raw.equals(raw))
+        val word = NativeWord(7)
+        check(word == NativeWord(7))
+        check(word != NativeWord(8))
+        check(word.equals(word))
+    }
+    println("derived field semantics")
+}

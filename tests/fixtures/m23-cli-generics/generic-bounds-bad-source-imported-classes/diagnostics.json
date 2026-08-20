@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `T` of function cannot have more than one class upper bound; found `Base<Int>`",
+    "notes": [],
+    "origin": {
+      "cone": "473ab1922f76490095d4851acb7e3a396211059fddbc5768bbbfb0c302d37ebe",
+      "end": 98,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  }
+]

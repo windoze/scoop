@@ -1,0 +1,6 @@
+fun m(a: Int, b: Any): Int = a
+fun m(a: Any, b: Int): Int = b
+
+fun main() {
+    println(m(1, 1))
+}

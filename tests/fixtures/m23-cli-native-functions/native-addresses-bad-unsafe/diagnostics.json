@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "taking the address of an unsafe callback requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "e8b0515707b276700b50310fc36137b982bdcc0289585de92fbd92df458b0506",
+      "end": 99,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 93
+    },
+    "severity": "error"
+  }
+]

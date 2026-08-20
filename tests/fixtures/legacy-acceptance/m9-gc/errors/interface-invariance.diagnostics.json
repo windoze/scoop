@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `widen` must be of type Cell<Animal>, found Cell<Dog>; nominal application `Cell` is invariant: first differing type argument 1 (`T`) is `Dog` in `Cell<Dog>`, but `Animal` in `Cell<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 133,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 129
+    },
+    "severity": "error"
+  }
+]

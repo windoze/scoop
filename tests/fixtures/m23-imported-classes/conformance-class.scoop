@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.Readable
+import dependency.classes.retainReadable
+
+public class LocalReader public constructor(val value: Long): Readable {
+    public override fun read(): Long = value
+}
+public fun primary(): Counter {
+    val reader: Readable = LocalReader(20)
+    return Counter(retainReadable(reader).answer())
+}

@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m37"
+name = "sealed-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m37:sealed-bridge" = "0.1.0"

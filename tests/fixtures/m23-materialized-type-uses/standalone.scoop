@@ -1,0 +1,5 @@
+fun <T> unexpanded(value: String): Boolean = true
+fun flag(value: Boolean = unexpanded<Boolean>("default")): Boolean = value
+
+public interface SourceOnly<T> {}
+public class Deferred: SourceOnly<Long> {}

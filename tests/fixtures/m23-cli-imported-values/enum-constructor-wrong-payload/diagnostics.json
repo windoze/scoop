@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor argument must be of type Long, found Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "bb92c3b904da4947b0872486737cdfbcbf6cd17000f69df731ef986801bf043c",
+      "end": 108,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 97
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,3 @@
+package consumer.members
+import dependency.members.Wide
+public fun wrong(value: Wide): Long = value.hiddenValue

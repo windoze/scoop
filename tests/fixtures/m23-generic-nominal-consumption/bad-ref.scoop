@@ -1,0 +1,3 @@
+import dependency.nominals.ReferenceParcel
+
+public fun invalid(value: ReferenceParcel<Int>): Int = 0

@@ -1,0 +1,18 @@
+fun <T> forward(body: () -> T): T {
+    try { return body() } finally { println("forward-finally") }
+}
+fun unitResult(): Unit { println("unit-result"); return }
+fun valueResult(): String { gcCollect(); return "value-result" }
+fun main() {
+    forward { unitResult() }
+    println(forward { valueResult() })
+    val discard: () -> Unit = { println("discard"); 42 }
+    forward(discard)
+    try {
+        forward<Unit> { throw UnwrapException() }
+    } catch (failure: UnwrapException) {
+        println("caught")
+    } finally {
+        println("outer-finally")
+    }
+}

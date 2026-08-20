@@ -1,0 +1,8 @@
+fun main() {
+    val plain = LocalGenericHost()
+    plain.pick(1)
+    val generic = GenericLocalHost("stored")
+    generic.direct(1, "direct")
+    generic.expanded(2, "expanded")
+    genericLocalDependency<String, Int>(3)
+}

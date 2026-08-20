@@ -1,0 +1,16 @@
+public open class ProviderBase {
+    public open fun pick(seed: Int, value: Int = seed): Int = value
+}
+public class ProviderChild: ProviderBase() {
+    public final override fun pick(seed: Int, value: Int): Int = value
+}
+public open class ProviderGeneric<T> {
+    public open fun pick(seed: T, value: T = seed): T = value
+    public fun <U> copy(first: T, second: U, value: U = second): U = value
+    public class Static {
+        public fun <U> copy(seed: U, value: U = seed): U = value
+    }
+}
+public class ProviderApplied<U>: ProviderGeneric<(U, U)>() {
+    public final override fun pick(seed: (U, U), value: (U, U)): (U, U) = value
+}

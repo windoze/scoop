@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `getValue` must not declare type parameters",
+    "notes": [],
+    "origin": {
+      "cone": "8d5cfdd865fa20df5946eedfb56a0854da04eb823f09d925a95fabacb71a85b8",
+      "end": 96,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 88
+    },
+    "severity": "error"
+  }
+]

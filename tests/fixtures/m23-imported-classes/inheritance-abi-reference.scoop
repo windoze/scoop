@@ -1,0 +1,21 @@
+import dependency.classes.Counter
+import dependency.classes.MutableCell
+import dependency.classes.ReferenceAggregate
+import dependency.classes.ReferenceParent
+
+public class Derived public constructor():
+    ReferenceParent(ReferenceAggregate(MutableCell(10), MutableCell(9), 1)) {
+    public val extra: MutableCell = MutableCell(1)
+    public override fun transfer(input: ReferenceAggregate): ReferenceAggregate {
+        val previous = super.transfer(input)
+        val first = MutableCell(previous.first.value + extra.value)
+        val second = MutableCell(previous.second.value)
+        return ReferenceAggregate(first, second, previous.tag)
+    }
+}
+public fun primary(): Counter {
+    val value: ReferenceParent = Derived()
+    val result = value.transfer(value.data)
+    val scratch = MutableCell(0)
+    return Counter(result.first.value + result.second.value + result.tag + scratch.value)
+}

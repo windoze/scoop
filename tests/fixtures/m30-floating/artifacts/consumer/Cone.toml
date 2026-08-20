@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "dev.m30"
+name = "floating-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m30:floating-provider" = "0.1.0"
+"dev.m30:floating-facade" = "0.1.0"
+"scoop:scoop.json" = "0.1.0"

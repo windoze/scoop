@@ -1,0 +1,7 @@
+package consumer.constructors
+
+import dependency.constructors.TupleBox
+import dependency.constructors.Token
+import dependency.constructors.Other
+
+public fun wrong(): TupleBox = TupleBox((Token(), (1, 2, 3), Other()))

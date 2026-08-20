@@ -1,0 +1,7 @@
+@GCLeaf("invalid") @Extern(name = "native_one")
+fun nativeOne(): Int
+
+@GCLeaf @GCLeaf @Extern(name = "native_two")
+fun nativeTwo(): Int
+
+fun main() {}

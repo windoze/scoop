@@ -1,0 +1,4 @@
+package consumer.structdefinitions
+import upstream.structdefinitions.*
+
+public fun change(value: Cell<Int>): Cell<Int> = value.{ missing: 1 }

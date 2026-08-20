@@ -1,0 +1,8 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = service()
+    val contract: Contract = value
+    verifyType(contract.compute(17) == 17 && value.observe(23) == 23)
+    verifyType(Service.Cache === Service.Cache)
+}

@@ -1,0 +1,8 @@
+import dependency.classes.AccessParent
+import dependency.classes.Counter
+
+public class Derived public constructor(): AccessParent() {
+    protected override fun secret(): Long = super.secret() + 1
+    public fun read(): Long = secret()
+}
+public fun primary(): Counter = Counter(Derived().read())

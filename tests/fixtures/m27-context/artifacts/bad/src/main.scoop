@@ -1,0 +1,7 @@
+package taskcontexts.invalid
+
+import taskcontexts.*
+
+public fun interfaceOnly(value: PairContract<String, String>) {}
+public fun abstractOnly(value: AbstractPair<String, String>) {}
+public fun unusedMethod(value: UnusedPair<String, String>) {}

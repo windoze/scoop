@@ -1,0 +1,15 @@
+class Small(val value: Long)
+class Medium(val a: Long, val b: Long, val c: Long, val d: Long,
+             val e: Long, val f: Long, val g: Long, val h: Long)
+
+fun main() {
+    var sum = 0L
+    var index = 0L
+    while (index < 40000L) {
+        val small = Small(index)
+        val medium = Medium(index, 1L, 2L, 3L, 4L, 5L, 6L, 7L)
+        sum = sum + small.value + medium.a
+        index = index + 1L
+    }
+    println(sum)
+}

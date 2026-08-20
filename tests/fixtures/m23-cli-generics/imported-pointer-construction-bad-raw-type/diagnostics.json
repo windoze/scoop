@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`Ptr` raw address must be ULong, found UInt",
+    "notes": [],
+    "origin": {
+      "cone": "47179eb56e4f4666c621b34f8cffa86da4b9367c5b1f09a467998ce883188dce",
+      "end": 83,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  }
+]

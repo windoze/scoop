@@ -1,0 +1,13 @@
+// EXPECT-COMPILE
+fun taggedOr(value: Int?, fallback: Int): Int = value ?: fallback
+
+fun managedOr(value: String?, fallback: String): String = value ?: fallback
+
+fun requireRaw(value: Ptr<Int>?): Ptr<Int> = value!!
+
+fun requireCode(value: FunPtr<(Int) -> Int>?): FunPtr<(Int) -> Int> = value!!
+
+fun main() {
+    println(taggedOr(Some(41), 0))
+    println(managedOr(Some("managed"), "fallback"))
+}

@@ -1,0 +1,749 @@
+//! Compile-view section inventory and atomic payload decoding for the
+//! single-Cone strong profile.
+
+use std::fmt;
+use std::rc::Rc;
+
+use scoop_hir::{
+    CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
+    CoreCompilerProtocolSurfaceV1, DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation,
+    HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation,
+    OdrFreeHirFoundationError, PublicNominalShapeProjectionError, PublicNominalShapeRequirementsV1,
+};
+use scoop_identity::{
+    ConeCoordinate, ConeIdentity, IdentityValidationError, SemanticIdentitySession,
+    ValidatedIdentityGraph,
+};
+use scoop_lir::{
+    ConeLirFoundation, ConeLirFoundationError, ConeProductionSectionV1,
+    ConeProductionSectionValidationError, DecodedConeProductionSectionV1, DecodedLirFoundation,
+    EntryProductionSourceV1, ImportedLirFoundation, LirFoundationValidationError,
+};
+use scoop_mir::{
+    CoreBootstrapBridgeSectionV1, DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation,
+    EntryMirBridgeBranchV1, ImportedMirFoundation, MirFoundationValidationError,
+    MirProductionValidationError, OdrFreeMirFoundationError,
+};
+
+use crate::{
+    ArtifactCapabilityProfile, ArtifactFingerprint, CompileSectionDecodeError, ConeKind,
+    MetadataLocation, NativeBoundaryCompileError, ValidatedGraphArtifact,
+    compile_decode::{
+        CompileCommitError, NativeBoundaryFoundationView, SingleConeStrongProfile,
+        ValidatedCompileArtifact, commit_identity_graph, validate_foundation_identity_graph,
+        validate_native_boundary_parts,
+    },
+    compile_sections::{decode_compile_metadata_envelopes, decode_compile_section},
+    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
+    lir_identity_foundation_capability, lir_strong_production_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
+};
+
+/// Every Compile payload required by one strong-profile graph artifact,
+/// decoded as a single transaction. Persistent identities and cross-section
+/// structure have not yet been validated or committed to a semantic session.
+#[derive(Debug)]
+pub struct DecodedSingleConeCompileSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    hir_foundation: DecodedHirFoundation,
+    hir_production: DecodedCoreBootstrapInterfaceSectionV1,
+    mir_foundation: DecodedMirFoundation,
+    mir_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_foundation: DecodedLirFoundation,
+    lir_production: DecodedConeProductionSectionV1,
+}
+
+/// Strong-profile Compile sections whose complete HIR-to-LIR identity graph
+/// passed one transaction. Foundation structure, ODR policy, and production
+/// relations remain unproven.
+pub struct IdentityCheckedSingleConeCompileSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: DecodedHirFoundation,
+    hir_production: DecodedCoreBootstrapInterfaceSectionV1,
+    mir_foundation: DecodedMirFoundation,
+    mir_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_foundation: DecodedLirFoundation,
+    lir_production: DecodedConeProductionSectionV1,
+}
+
+/// Strong-profile foundations whose local structure and `RejectAll` ODR
+/// policy both passed. Production sections remain decoded references and are
+/// validated only by the following cross-section phase.
+pub struct OdrCheckedSingleConeCompileFoundations<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: Rc<scoop_hir::CanonicalHirFoundation>,
+    hir_production: DecodedCoreBootstrapInterfaceSectionV1,
+    mir_foundation: Rc<scoop_mir::CanonicalMirFoundation>,
+    mir_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_foundation: ConeLirFoundation,
+    lir_production: DecodedConeProductionSectionV1,
+}
+
+/// ODR-free foundations whose HIR and MIR production sections are locally
+/// validated. Cross-layer HIR/MIR authority relations and the LIR production
+/// section remain separate obligations.
+pub struct LocallyValidatedSingleConeCompileProduction<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: Rc<scoop_hir::CanonicalHirFoundation>,
+    hir_production: CoreBootstrapInterfaceSectionV1,
+    mir_foundation: Rc<scoop_mir::CanonicalMirFoundation>,
+    mir_production: CoreBootstrapBridgeSectionV1,
+    lir_foundation: ConeLirFoundation,
+    lir_production: DecodedConeProductionSectionV1,
+}
+
+/// HIR and MIR production sections proven to describe the same manifest
+/// output and, for core, the same complete public and compiler-protocol
+/// callable bridge surface.
+/// LIR production validation remains the next proof obligation.
+pub struct ValidatedSingleConeCompileSemanticFront<'input> {
+    local: LocallyValidatedSingleConeCompileProduction<'input>,
+}
+
+/// Every strong Compile payload structurally proven against the same ODR-free
+/// HIR, MIR, and LIR front. External bridge equality is checked against a
+/// typed selection projection; trusted-core authority remains a later proof
+/// obligation. Entry and core shape sources are not caller-supplied.
+pub struct StructurallyValidatedSingleConeCompileProduction<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: Rc<scoop_hir::CanonicalHirFoundation>,
+    hir_production: CoreBootstrapInterfaceSectionV1,
+    mir_foundation: Rc<scoop_mir::CanonicalMirFoundation>,
+    mir_production: CoreBootstrapBridgeSectionV1,
+    lir_foundation: ConeLirFoundation,
+    lir_production: ConeProductionSectionV1,
+}
+
+/// Structurally valid strong Compile production whose source and target
+/// native-boundary closures were replayed against the same canonical
+/// foundations.
+pub struct NativeBoundaryValidatedSingleConeCompileProduction<'input> {
+    structural: StructurallyValidatedSingleConeCompileProduction<'input>,
+}
+
+#[derive(Clone)]
+pub(crate) struct CanonicalFoundationSet {
+    pub(crate) hir: Rc<scoop_hir::CanonicalHirFoundation>,
+    pub(crate) mir: Rc<scoop_mir::CanonicalMirFoundation>,
+    pub(crate) lir: ConeLirFoundation,
+}
+
+pub(crate) struct DecodedStrongProfileProductionSet {
+    pub(crate) hir: DecodedCoreBootstrapInterfaceSectionV1,
+    pub(crate) mir: DecodedCoreBootstrapBridgeSectionV1,
+    pub(crate) lir: DecodedConeProductionSectionV1,
+}
+
+/// The validated HIR, MIR, and LIR production surfaces retained by a
+/// structurally valid `SingleConeStrongProfile` proof.
+#[derive(Clone)]
+pub struct ValidatedSingleConeStrongProduction {
+    hir: Rc<CoreBootstrapInterfaceSectionV1>,
+    mir: Rc<CoreBootstrapBridgeSectionV1>,
+    lir: Rc<ConeProductionSectionV1>,
+}
+
+/// Validate and atomically import the complete Compile view of one
+/// `SingleConeStrongProfile` artifact.
+///
+/// Reads the artifact at its input boundary and retains the complete checked
+/// declarations, types, and production data for subsequent consumers.
+pub fn validate_single_cone_strong_compile_artifact<'input>(
+    graph: ValidatedGraphArtifact<'input>,
+
+    session: &mut SemanticIdentitySession,
+) -> Result<ValidatedCompileArtifact<SingleConeStrongProfile>, StrongCompileArtifactValidationError>
+{
+    graph
+        .decode_single_cone_compile_sections()
+        .map_err(|error| StrongCompileArtifactValidationError::Decode(Box::new(error)))?
+        .validate_identities()
+        .map_err(|error| StrongCompileArtifactValidationError::Identities(Box::new(error)))?
+        .validate_foundation_structure()
+        .map_err(|error| StrongCompileArtifactValidationError::Foundations(Box::new(error)))?
+        .validate_local_production()
+        .map_err(|error| StrongCompileArtifactValidationError::LocalProduction(Box::new(error)))?
+        .validate_cross_layer()
+        .map_err(|error| StrongCompileArtifactValidationError::Relations(Box::new(error)))?
+        .validate_lir_production()
+        .map_err(|error| StrongCompileArtifactValidationError::LirProduction(Box::new(error)))?
+        .validate_native_boundary()
+        .map_err(|error| StrongCompileArtifactValidationError::NativeBoundary(Box::new(error)))?
+        .commit(session)
+        .map_err(|error| StrongCompileArtifactValidationError::Commit(Box::new(error)))
+}
+
+impl ValidatedSingleConeStrongProduction {
+    pub(crate) fn new(
+        hir: CoreBootstrapInterfaceSectionV1,
+        mir: CoreBootstrapBridgeSectionV1,
+        lir: ConeProductionSectionV1,
+    ) -> Self {
+        Self {
+            hir: Rc::new(hir),
+            mir: Rc::new(mir),
+            lir: Rc::new(lir),
+        }
+    }
+
+    pub fn hir(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir
+    }
+
+    pub fn mir(&self) -> &CoreBootstrapBridgeSectionV1 {
+        &self.mir
+    }
+
+    pub fn lir(&self) -> &ConeProductionSectionV1 {
+        &self.lir
+    }
+}
+
+impl<'input> ValidatedGraphArtifact<'input> {
+    pub fn decode_single_cone_compile_sections(
+        mut self,
+    ) -> Result<DecodedSingleConeCompileSections<'input>, SingleConeCompileSectionDecodeError> {
+        let metadata = decode_compile_metadata_envelopes(
+            &mut self,
+            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        )?;
+
+        let hir_foundation_capability = hir_identity_foundation_capability();
+        let hir_production_capability = hir_core_bootstrap_interface_capability();
+        let mir_foundation_capability = mir_identity_foundation_capability();
+        let mir_production_capability = mir_core_bootstrap_bridge_capability();
+        let lir_foundation_capability = lir_identity_foundation_capability();
+        let lir_production_capability = lir_strong_production_capability();
+        let hir_foundation =
+            decode_compile_section(&metadata, MetadataLocation::Hir, hir_foundation_capability)?;
+        let hir_production =
+            decode_compile_section(&metadata, MetadataLocation::Hir, hir_production_capability)?;
+        let mir_foundation =
+            decode_compile_section(&metadata, MetadataLocation::Mir, mir_foundation_capability)?;
+        let mir_production =
+            decode_compile_section(&metadata, MetadataLocation::Mir, mir_production_capability)?;
+        let lir_foundation =
+            decode_compile_section(&metadata, MetadataLocation::Lir, lir_foundation_capability)?;
+        let lir_production =
+            decode_compile_section(&metadata, MetadataLocation::Lir, lir_production_capability)?;
+
+        metadata.validate_semantic_fingerprints(&mut self)?;
+
+        Ok(DecodedSingleConeCompileSections {
+            graph: self,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        })
+    }
+}
+
+impl<'input> DecodedSingleConeCompileSections<'input> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub const fn mir_foundation_wire(&self) -> &DecodedMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn mir_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
+    pub const fn lir_foundation_wire(&self) -> &DecodedLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
+        &self.lir_production
+    }
+
+    /// Registers and resolves every foundation identity before exposing any
+    /// trusted persistent id to production-section validation.
+    pub fn validate_identities(
+        self,
+    ) -> Result<IdentityCheckedSingleConeCompileSections<'input>, IdentityValidationError> {
+        let Self {
+            mut graph,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        } = self;
+        let identities = validate_foundation_identity_graph(
+            &mut graph,
+            &hir_foundation,
+            &mir_foundation,
+            &lir_foundation,
+        )?;
+
+        Ok(IdentityCheckedSingleConeCompileSections {
+            graph,
+            identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        })
+    }
+}
+
+impl<'input> IdentityCheckedSingleConeCompileSections<'input> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub const fn mir_foundation_wire(&self) -> &DecodedMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn mir_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
+    pub const fn lir_foundation_wire(&self) -> &DecodedLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
+        &self.lir_production
+    }
+
+    /// Validates all three foundation structures before replaying the strong
+    /// profile's ODR rejection over each canonical layer.
+    pub fn validate_foundation_structure(
+        self,
+    ) -> Result<OdrCheckedSingleConeCompileFoundations<'input>, StrongProfileFoundationError> {
+        let Self {
+            mut graph,
+            mut identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        } = self;
+        let foundations = validate_strong_profile_foundations(
+            &mut graph,
+            &mut identities,
+            hir_foundation,
+            mir_foundation,
+            lir_foundation,
+        )?;
+
+        Ok(OdrCheckedSingleConeCompileFoundations {
+            graph,
+            identities,
+            hir_foundation: foundations.hir,
+            hir_production,
+            mir_foundation: foundations.mir,
+            mir_production,
+            lir_foundation: foundations.lir,
+            lir_production,
+        })
+    }
+}
+
+impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn mir_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
+        &self.lir_production
+    }
+
+    pub fn validate_local_production(
+        self,
+    ) -> Result<
+        LocallyValidatedSingleConeCompileProduction<'input>,
+        StrongProfileLocalProductionError,
+    > {
+        let Self {
+            graph,
+            mut identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        } = self;
+        let artifact = graph.identity();
+        let production = validate_strong_profile_local_production(
+            artifact,
+            &mut identities,
+            &hir_foundation,
+            hir_production,
+            &mir_foundation,
+            mir_production,
+        )?;
+        Ok(LocallyValidatedSingleConeCompileProduction {
+            graph,
+            identities,
+            hir_foundation,
+            hir_production: production.hir,
+            mir_foundation,
+            mir_production: production.mir,
+            lir_foundation,
+            lir_production,
+        })
+    }
+}
+
+impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn mir_production(&self) -> &CoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
+        &self.lir_production
+    }
+
+    pub fn validate_cross_layer(
+        self,
+    ) -> Result<ValidatedSingleConeCompileSemanticFront<'input>, StrongProfileRelationError> {
+        validate_strong_profile_relations(
+            self.graph.identity(),
+            self.graph.kind(),
+            &self.hir_production,
+            &self.mir_production,
+            &self.hir_foundation,
+        )?;
+        Ok(ValidatedSingleConeCompileSemanticFront { local: self })
+    }
+}
+
+impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.local.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.local.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.local.artifact_fingerprint()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.local.identity_count()
+    }
+
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
+        self.local.hir_foundation()
+    }
+
+    pub const fn hir_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        self.local.hir_production()
+    }
+
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
+        self.local.mir_foundation()
+    }
+
+    pub const fn mir_production(&self) -> &CoreBootstrapBridgeSectionV1 {
+        self.local.mir_production()
+    }
+
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
+        self.local.lir_foundation()
+    }
+
+    pub const fn lir_production_wire(&self) -> &DecodedConeProductionSectionV1 {
+        self.local.lir_production_wire()
+    }
+
+    /// Closes the LIR production proof without accepting independently
+    /// supplied entry or shape-source lists.
+    pub fn validate_lir_production(
+        self,
+    ) -> Result<
+        StructurallyValidatedSingleConeCompileProduction<'input>,
+        StrongProfileLirProductionError,
+    > {
+        let LocallyValidatedSingleConeCompileProduction {
+            graph,
+            mut identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        } = self.local;
+        let lir_production = validate_strong_profile_lir_production(
+            &graph,
+            &mut identities,
+            StrongProfileSemanticFront {
+                hir_foundation: &hir_foundation,
+                hir_production: &hir_production,
+                mir_production: &mir_production,
+                lir_foundation: &lir_foundation,
+            },
+            lir_production,
+        )?;
+        Ok(StructurallyValidatedSingleConeCompileProduction {
+            graph,
+            identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        })
+    }
+}
+
+impl<'input> StructurallyValidatedSingleConeCompileProduction<'input> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.graph.artifact_fingerprint()
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
+        &self.hir_foundation
+    }
+
+    pub const fn hir_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir_production
+    }
+
+    pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
+        &self.mir_foundation
+    }
+
+    pub const fn mir_production(&self) -> &CoreBootstrapBridgeSectionV1 {
+        &self.mir_production
+    }
+
+    pub const fn lir_foundation(&self) -> &ConeLirFoundation {
+        &self.lir_foundation
+    }
+
+    pub const fn lir_production(&self) -> &ConeProductionSectionV1 {
+        &self.lir_production
+    }
+
+    pub fn validate_native_boundary(
+        mut self,
+    ) -> Result<
+        NativeBoundaryValidatedSingleConeCompileProduction<'input>,
+        NativeBoundaryCompileError,
+    > {
+        let view = NativeBoundaryFoundationView::from_foundations(
+            &self.hir_foundation,
+            &self.mir_foundation,
+            &self.lir_foundation,
+        );
+        validate_native_boundary_parts(&mut self.graph, &self.identities, &view)?;
+        Ok(NativeBoundaryValidatedSingleConeCompileProduction { structural: self })
+    }
+}
+
+impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.structural.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.structural.identity()
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.structural.artifact_fingerprint()
+    }
+
+    pub const fn structural(&self) -> &StructurallyValidatedSingleConeCompileProduction<'_> {
+        &self.structural
+    }
+
+    /// Atomically imports the strong profile's ODR-free foundations and
+    /// retains all three validated production surfaces in the final proof.
+    pub fn commit(
+        self,
+        session: &mut SemanticIdentitySession,
+    ) -> Result<ValidatedCompileArtifact<SingleConeStrongProfile>, CompileCommitError> {
+        let StructurallyValidatedSingleConeCompileProduction {
+            mut graph,
+            identities,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            lir_production,
+        } = self.structural;
+        let imported = commit_identity_graph(&mut graph, &identities, session)?;
+        let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
+        let production = ValidatedSingleConeStrongProduction::new(
+            hir_production,
+            mir_production,
+            lir_production,
+        );
+        Ok(ValidatedCompileArtifact::from_parts(
+            std::rc::Rc::new(graph.into()),
+            std::rc::Rc::new(identities),
+            ImportedHirFoundation::from_shared(hir_foundation, hir_identities),
+            ImportedMirFoundation::from_shared(mir_foundation, mir_identities),
+            ImportedLirFoundation::from_odr_free(lir_foundation, lir_identities),
+            production,
+        ))
+    }
+}
+
+mod errors;
+mod validation;
+
+pub use errors::{
+    SingleConeCompileSectionDecodeError, StrongCompileArtifactValidationError,
+    StrongProfileFoundationError, StrongProfileLirProductionError,
+    StrongProfileLocalProductionError, StrongProfileProductionError, StrongProfileRelationError,
+};
+use validation::validate_strong_profile_local_production;
+pub(crate) use validation::{
+    StrongProfileSemanticFront, validate_cross_cone_profile_foundations,
+    validate_strong_profile_foundations, validate_strong_profile_lir_production,
+    validate_strong_profile_lir_with_shape_sources, validate_strong_profile_production,
+    validate_strong_profile_relations,
+};
+
+#[cfg(test)]
+use validation::validate_protocol_relation;
+
+#[cfg(test)]
+pub(crate) mod tests;

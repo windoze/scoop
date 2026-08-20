@@ -1,0 +1,4 @@
+fun duplicate(value: Int): Int = value
+fun duplicate(value: Int = 0): Int = value
+
+fun main() {}

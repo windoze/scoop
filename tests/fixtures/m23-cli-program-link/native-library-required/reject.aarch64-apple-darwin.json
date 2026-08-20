@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "missing native library \"additional\" for aarch64-apple-darwin; no candidate in explicit roots or the selected target's system libraries; requirement 7c537f972935360813de68d7a291e7680fce659fb9d3d7c73e0b1cc8dbee8296; origins: dev.programlink:native-library-required:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

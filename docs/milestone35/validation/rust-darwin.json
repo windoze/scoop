@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "host": "aarch64-apple-darwin",
+  "implementation_commit": "38c75215a",
+  "llvm_sys_221_prefix": "/opt/homebrew/opt/llvm@22",
+  "runs": [
+    {
+      "name": "workspace",
+      "profile": "debug",
+      "scope": "cargo test --workspace",
+      "log": "/tmp/scoop-m35-workspace.log",
+      "test_targets": 7,
+      "counts": {
+        "passed": 2761,
+        "failed": 1,
+        "ignored": 0
+      }
+    },
+    {
+      "name": "workspace-remaining",
+      "profile": "debug",
+      "scope": "cargo test --workspace --exclude scoop --exclude scoop-ast --exclude scoop-codegen --exclude scoop-hir --exclude scoop-hir-lower --no-fail-fast",
+      "log": "/tmp/scoop-m35-workspace-remaining.log",
+      "test_targets": 31,
+      "counts": {
+        "passed": 2674,
+        "failed": 1,
+        "ignored": 0
+      }
+    },
+    {
+      "name": "workspace-docs",
+      "profile": "debug",
+      "scope": "deferred doctests for scoop, scoop-ast, scoop-codegen, scoop-hir and scoop-hir-lower",
+      "log": "/tmp/scoop-m35-workspace-docs.log",
+      "test_targets": 5,
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "name": "workspace-repair",
+      "profile": "debug",
+      "scope": "scoop-hir-lower: ordinary_dependency_calls_share_contextual_arguments",
+      "log": "/tmp/scoop-m35-workspace-repair.log",
+      "test_targets": 1,
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "name": "publication-repair",
+      "profile": "release",
+      "scope": "scoopc: publication_failure_retains_current_warnings_for_core_and_ordinary_libraries",
+      "log": "/tmp/scoop-m35-publication-repair.log",
+      "test_targets": 1,
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    }
+  ],
+  "workspace_coverage": {
+    "passed": 5437,
+    "unresolved_failures": 0,
+    "ignored": 0
+  },
+  "repairs": [
+    {
+      "initial": "workspace",
+      "test": "tests::m23_generic_body_consumption::native_calls::ordinary_dependency_calls_share_contextual_arguments",
+      "reason": "旧 fixture 的 lambda 不是最后形参，将该实参迁回圆括号内。",
+      "verified_by": "workspace-repair"
+    },
+    {
+      "initial": "workspace-remaining",
+      "test": "request::preflight::end_to_end_tests::publication::publication_failure_retains_current_warnings_for_core_and_ordinary_libraries",
+      "reason": "case 前缀使人类可读警告列号从 5 变为 10。",
+      "verified_by": "publication-repair"
+    }
+  ],
+  "notes": [
+    "初跑失败后只执行未运行的 crate/doctest，已通过部分没有重跑。",
+    "两项较重 driver 用例另以 release 模式定向验证；publication 在修复后通过，property layout 复验也通过，不重复计入工作区总数。"
+  ],
+  "format_and_lint": {
+    "status": "passed",
+    "log": "/tmp/scoop-m35-regression-clippy.log"
+  },
+  "fixture_runner_unit_tests": {
+    "passed": 44,
+    "log": "/tmp/scoop-m35-runner-unit.log"
+  },
+  "additional_completed_checks": [
+    {
+      "name": "property-layout-repair",
+      "profile": "release",
+      "passed": 1,
+      "already_covered_by": "workspace-remaining",
+      "log": "/tmp/scoop-m35-property-layout-repair.log"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+class Item(var value: Long)
+struct Pair(val first: Item, val second: Item)
+
+fun <T: ref> keep(value: T): T {
+    gcCollect()
+    return value
+}
+
+context(request: Item)
+fun contextValue(): Long {
+    gcCollect()
+    return request.value
+}
+
+fun shared(item: Item): Long {
+    val pair = Pair(item, item)
+    val captured = { gcCollect(); pair.second.value }
+    gcCollect()
+    pair.first.value = pair.first.value + 1L
+    return captured() + pair.second.value
+}
+
+fun unreachableCalls(seed: Long): Long {
+    val first = seed + 3L
+    val second = seed + 3L
+    if (first == second) { return 42L }
+    try {
+        gcCollect()
+        throw IllegalStateException()
+    } catch (failure: IllegalStateException) {
+        gcCollect()
+        return -1L
+    }
+}
+
+fun exceptional(item: Item): Long {
+    val pair = Pair(item, item)
+    try {
+        gcCollect()
+        throw ArithmeticException()
+    } catch (failure: ArithmeticException) {
+        pair.first.value = keep<Item>(pair.second).value + 1L
+    } finally {
+        gcCollect()
+    }
+    return pair.second.value
+}
+
+fun main() {
+    val item = Item(20L)
+    println(shared(item))
+    println(unreachableCalls(9223372036854775807L))
+    context(item) { println(contextValue()) }
+    println(exceptional(item))
+}

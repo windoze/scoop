@@ -1,0 +1,15 @@
+public open class Outer {
+    protected open class Hidden {
+        protected fun secret(): Int = 1
+        public var state: Int
+            get() = 1
+            protected set(value) {}
+    }
+}
+class Derived : Outer() {
+    private class Sub : Outer.Hidden() {
+        fun badBase(target: Outer.Hidden): Int = target.secret()
+        fun badSetter(target: Outer.Hidden) { target.state = 2 }
+    }
+}
+fun main() {}

@@ -1,0 +1,24 @@
+package taskcontexts.middle
+
+import taskcontexts.*
+
+public fun fromB(value: Request): Int = context(value) {
+    current<Request>().value + nested<Request>(value).value
+}
+
+public fun <T: ref> throughB(value: T): T = nested<T>(value)
+
+public class ReaderImpl public constructor() : Reader<Request> {
+    context(renamed: Request)
+    public override fun read(): Request = renamed
+
+    context(renamed: Request)
+    public override val current: Request get() = renamed
+}
+
+context(request: Request)
+public suspend fun throughBWait(registration: SuspendRegistration<Int>): Request = delayed<Request>(registration)
+
+@Unsafe
+public fun throughBCallback(value: Request, read: (Request) -> Int): ForeignCallback<(Ptr<Unit>, Int) -> Unit> =
+    registerCallback<Request>(value, read)

@@ -1,0 +1,3 @@
+import dependency.enums.Choice
+import dependency.enums.Token
+fun invalid(): Choice = Choice.Pair(left = 1, marker = Token())

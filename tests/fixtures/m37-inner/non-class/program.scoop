@@ -1,0 +1,1 @@
+inner struct Value(val x: Int)

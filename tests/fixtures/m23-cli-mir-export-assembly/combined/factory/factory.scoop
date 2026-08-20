@@ -1,0 +1,5 @@
+private class Complete: Pending() {
+    public override fun run(value: Token): Token = value
+    public override val token: Token get() = Token()
+}
+public fun pending(): Contract = Complete()

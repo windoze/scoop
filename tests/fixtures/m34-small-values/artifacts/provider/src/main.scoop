@@ -1,0 +1,19 @@
+package smallvalues.provider
+
+public struct Mixed(val number: Double, val tag: Long)
+public struct Floats(val first: Float, val second: Float, val third: Float)
+public interface Transform { public fun apply(value: Mixed): Mixed }
+public class Worker public constructor(val delta: Long) : Transform {
+    public override fun apply(value: Mixed): Mixed = Mixed(value.number, value.tag + delta)
+}
+public fun identity(value: Mixed): Mixed { gcCollect(); return value }
+public fun floats(value: Floats): Floats = value
+public fun <T> generic(value: T): T {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return value }
+}
+public fun registers(a: Long, b: Long, c: Long, d: Long, e: Long, f: Long,
+                     value: Mixed, tail: Double): Mixed {
+    if (a + b + c + d + e + f != 21L || tail != 2.5) { throw IllegalStateException() }
+    return value
+}

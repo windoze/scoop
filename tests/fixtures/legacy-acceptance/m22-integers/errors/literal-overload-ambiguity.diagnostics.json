@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `choose` is ambiguous in current-unit top-level candidate layer:\n  - fun choose(value: Int8): String — tied after pairwise declaration forwarding; requires integer literal exact commit: argument for `value` = Int8\n  - fun choose(value: Int16): String — tied after pairwise declaration forwarding; requires integer literal exact commit: argument for `value` = Int16",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 142,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 133
+    },
+    "severity": "error"
+  }
+]

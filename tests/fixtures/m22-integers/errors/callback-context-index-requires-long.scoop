@@ -1,0 +1,13 @@
+// EXPECT-DIAGNOSTICS
+
+fun consume() {
+    @Unsafe {
+        foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int -> value },
+            1u,
+            ForeignCallbackMode.Reusable
+        )
+    }
+}
+
+fun main() {}

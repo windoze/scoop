@@ -1,0 +1,12 @@
+@Extern(lib = "m23_a", name = "m23_foo")
+fun first(): Int
+
+@Extern(lib = "m23_b", name = "m23_bar")
+fun second(): Int
+
+fun main() {
+    @Unsafe {
+        println(first())
+        println(second())
+    }
+}

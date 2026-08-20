@@ -1,0 +1,8 @@
+public object First { public val number: Int = 1 }
+public object Second { public val number: Int = First.number }
+public class Host() {
+    public companion object { public val word: String = "nested" }
+}
+private object Hidden { public val number: Int = 2 }
+public fun hidden(): Int = Hidden.number
+public val top: Int = 4

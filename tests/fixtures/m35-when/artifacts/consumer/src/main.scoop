@@ -1,0 +1,10 @@
+struct Payload(val value: Int)
+fun main() {
+    println(pick(true, 11, 12))
+    println(pick(false, "first", "second"))
+    println(identity(Payload(13)).value)
+    println(choose(true))
+    println(choose(false))
+    println(pairSum((7, 8)))
+    println(subjectless())
+}

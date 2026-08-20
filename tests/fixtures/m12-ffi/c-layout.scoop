@@ -1,0 +1,30 @@
+@CLayout(aligned = 8, packed = 1)
+struct Packed(val flag: Boolean, val value: Int)
+
+@CLayout(aligned = 16, packed = 2)
+struct Outer(val tag: Boolean, val packed: Packed, val tail: Int)
+
+@CLayout
+struct CBox<T>(val value: T)
+
+fun main() {
+    var packed = Packed(true, 7)
+    println(packed.flag)
+    println(packed.value)
+
+    @Unsafe {
+        val pointer = addressOf(packed)
+        pointer.store(Packed(false, 9))
+        val loaded = pointer.load()
+        println(loaded.flag)
+        println(loaded.value)
+    }
+
+    val values = [
+        Outer(true, packed, 11),
+        Outer(false, Packed(true, 13), 15)
+    ]
+    println(values[0].packed.value)
+    println(values[1].tail)
+    println(CBox(17).value)
+}

@@ -1,0 +1,7 @@
+// EXPECT-DIAGNOSTICS
+
+const val INVALID: Int8 = 1 / 0
+const val INVALID_DIV_METHOD: Int8 = 1.div(0)
+const val INVALID_REM_METHOD: ULong = 1u.rem(0u)
+
+fun main() {}

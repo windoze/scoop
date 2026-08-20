@@ -1,0 +1,10 @@
+public struct Pair(val left: Int, val right: Int)
+public enum Choice {
+    Empty,
+    Text(String),
+    Count(Int)
+}
+public class Storage {
+    private val first: Int = 1
+    private var second: Int = 2
+}

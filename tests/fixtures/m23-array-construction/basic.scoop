@@ -1,0 +1,31 @@
+package consumer.arrayconstruction
+
+import dependency.arrayconstruction.*
+import dependency.arrayconstruction.exercise as providerExercise
+
+private fun readInt(value: Int): Int = value
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val original: Array<Int> = [42, 21]
+    val mutable = MutableArray(original)
+    val copied = Array(source = mutable)
+    val explicit = Array<Int>(mutable)
+    val inferred: MutableArray<Int> = MutableArray<_>(copied)
+    mutable[0L] = 7
+    inferred[1L] = 8
+    if (original[0L] != 42 || copied[0L] != 42 || explicit[0L] != 42) { return 1 }
+    if (copied[1L] != 21 || mutable[1L] != 21 || inferred[1L] != 8) { return 2 }
+    if (copied === original || copied === explicit || mutable === inferred) { return 3 }
+    val empty: Array<Int> = Array(source = [])
+    val emptyBuffer = MutableArray<Int>(source = [])
+    if (empty.size != 0L || emptyBuffer.size != 0L) { return 4 }
+    trace = 0
+    val markedCopy = Array(source = marked(2))
+    if (trace != 2 || markedCopy[0L] != 42) { return 5 }
+    trace = 0
+    val defaulted = defaultSnapshot(marked(3))
+    if (trace != 3 || defaulted[0L] != 42) { return 6 }
+    return exercise<Int>(42, ::readInt)
+}

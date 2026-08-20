@@ -1,0 +1,13 @@
+import releasecache.Owner
+
+@Extern(lib = "m24_release", name = "m24_release_count64")
+private fun count(): Long
+
+private fun allocate() { val owner = Owner(0, 1, 40) }
+
+fun main() {
+    allocate()
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(count()) }
+}

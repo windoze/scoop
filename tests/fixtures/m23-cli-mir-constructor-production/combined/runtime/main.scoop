@@ -1,0 +1,13 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val token = Token()
+    verifyType(Pair() == Pair(token, token))
+    val base = Base()
+    val child = Child()
+    verifyType(tokenOf(base) == token && tokenOf(child) == token)
+    verifyType(tokenOf(Child(token)) == token && tokenOf(Singleton) == token)
+    verifyType(tokenOf(Managed().item) == token)
+    val privateValue = Private.make()
+    verifyType(privateValue === privateValue && Singleton === Singleton)
+}

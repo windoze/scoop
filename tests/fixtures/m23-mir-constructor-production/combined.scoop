@@ -1,0 +1,15 @@
+public struct Token() {}
+public struct Pair(val left: Token, val right: Token) {
+    @NoGC public constructor(): this(Token(), Token()) {}
+}
+public open class Base protected constructor(val token: Token) {
+    public constructor(): this(Token()) {}
+}
+public class Child public constructor(token: Token = Token()): Base(token)
+public class Private private constructor() {
+    public companion object { public fun make(): Private = Private() }
+}
+public object Singleton: Base(Token())
+public struct Managed(val item: Base) {
+    public constructor(): this(Base()) {}
+}

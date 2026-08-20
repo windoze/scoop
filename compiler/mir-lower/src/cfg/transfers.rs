@@ -1,0 +1,246 @@
+use super::*;
+
+impl<'a> CfgLowerer<'a> {
+    pub(super) fn cleanup_depth(&self) -> CleanupDepth {
+        CleanupDepth(self.normal_cleanups.len())
+    }
+
+    pub(super) fn new_unwind_target(
+        &mut self,
+        pad: mir::BlockId,
+        continuation: mir::BlockId,
+        handles_in_function: bool,
+    ) -> UnwindTarget {
+        let owner = UnwindScopeId(self.unwind_scope_count);
+        self.unwind_scope_count = self
+            .unwind_scope_count
+            .checked_add(1)
+            .expect("one callable cannot contain u32::MAX unwind scopes");
+        let throwable = self
+            .coroutine_eh
+            .as_ref()
+            .map(|mode| mode.throwable.clone());
+        let managed_exception = throwable.map(|ty| {
+            self.new_hidden(
+                "coroutine_exception",
+                StructuralDefinitionSiteRole::CoroutineTransform,
+                SyntheticLocalRole::CoroutineProtocol,
+                ty,
+            )
+        });
+        UnwindTarget {
+            owner,
+            pad,
+            continuation,
+            handles_in_function,
+            context: self.active_pending.clone(),
+            managed_exception,
+        }
+    }
+
+    pub(super) fn prepare_return(
+        &mut self,
+        value: &smir::Expr,
+        span: Span,
+    ) -> Option<ReturnPayload> {
+        let value = self.lower_expr(value, span)?;
+        if self.return_ty == mir::Type::Unit {
+            return Some(ReturnPayload::Unit);
+        }
+        if self.normal_cleanups.is_empty() {
+            return Some(ReturnPayload::Value(value));
+        }
+        let local = self.new_hidden(
+            "return",
+            StructuralDefinitionSiteRole::SyntheticValue,
+            SyntheticLocalRole::Temporary,
+            self.return_ty.clone(),
+        );
+        self.push(mir::StatementKind::ValDecl { local, init: value }, span);
+        Some(ReturnPayload::Value(mir::Expr::new(
+            self.return_ty.clone(),
+            mir::ExprKind::Local(local),
+        )))
+    }
+
+    /// Route one normal transfer through exactly the cleanup suffix between
+    /// its current lexical position and its typed destination.
+    ///
+    /// Before a cleanup body is entered, the visible cleanup stack is cut to
+    /// the cursor immediately outside that cleanup. A new abrupt transfer in
+    /// a finally therefore starts after the active finally and cannot reenter
+    /// it. If the finally falls through, this invocation resumes the saved
+    /// transfer at the next outer cleanup.
+    pub(super) fn route_transfer(&mut self, transfer: PendingTransfer) -> bool {
+        let stop = transfer.cleanup_depth();
+        let enters_cleanup = stop.0 < self.normal_cleanups.len();
+        let pending = if enters_cleanup {
+            transfer
+                .destination_context()
+                .with_transfer(transfer.source_transfer())
+        } else {
+            self.active_pending.clone()
+        };
+        let all = std::mem::take(&mut self.normal_cleanups);
+        assert!(
+            stop.0 <= all.len(),
+            "a normal transfer target keeps a prefix of the active cleanup stack"
+        );
+        let saved_try_stack = self.try_stack.clone();
+        let saved_pending = std::mem::replace(&mut self.active_pending, pending);
+        self.normal_cleanups = all.clone();
+        let mut cursor = CleanupCursor::new(CleanupDepth(all.len()), stop);
+
+        while let Some(index) = cursor.take_next() {
+            if self.current_sealed {
+                break;
+            }
+            self.normal_cleanups.truncate(index);
+            match all[index] {
+                NormalCleanup::Finally { owner, body } => {
+                    self.leave_unwind_scope(owner);
+                    self.lower_statements(body);
+                }
+                NormalCleanup::EndCatch { owner } => {
+                    self.leave_nested_unwind_scopes(owner);
+                    self.push(
+                        mir::StatementKind::Eh(mir::EhStatement::EndCatch),
+                        synthetic_span(),
+                    );
+                    let active = self.try_stack.pop();
+                    assert_eq!(
+                        active.map(|target| target.owner),
+                        Some(owner),
+                        "a normal catch exit ends its exact active unwind scope"
+                    );
+                }
+            }
+        }
+
+        let reached_target = if self.current_sealed {
+            false
+        } else {
+            self.ensure_unwind_context();
+            self.emit_transfer(transfer);
+            true
+        };
+        self.normal_cleanups = all;
+        self.try_stack = saved_try_stack;
+        self.active_pending = saved_pending;
+        reached_target
+    }
+
+    fn leave_unwind_scope(&mut self, owner: UnwindScopeId) {
+        if let Some(position) = self
+            .try_stack
+            .iter()
+            .rposition(|target| target.owner == owner)
+        {
+            self.try_stack.truncate(position);
+        }
+    }
+
+    fn leave_nested_unwind_scopes(&mut self, owner: UnwindScopeId) {
+        let position = self
+            .try_stack
+            .iter()
+            .rposition(|target| target.owner == owner)
+            .expect("an EndCatch cleanup owns an active unwind scope");
+        self.try_stack.truncate(position + 1);
+    }
+
+    fn emit_transfer(&mut self, transfer: PendingTransfer) {
+        let terminator = match transfer {
+            PendingTransfer::Fallthrough(target) => mir::Terminator::Goto(target.block),
+            PendingTransfer::Return(ReturnPayload::Unit) => mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
+            PendingTransfer::Return(ReturnPayload::Value(value)) => {
+                mir::Terminator::Return { value }
+            }
+            PendingTransfer::Break(target) => mir::Terminator::Goto(target.block),
+            PendingTransfer::Continue(target) => mir::Terminator::Goto(target.block),
+            PendingTransfer::ManagedThrow(transfer) => mir::Terminator::Throw {
+                exception: transfer.exception,
+                unwind: transfer.unwind.map(|target| target.pad),
+            },
+        };
+        self.seal(terminator);
+    }
+
+    pub(super) fn push_loop_target(
+        &mut self,
+        source: smir::LoopId,
+        header: mir::BlockId,
+        exit: mir::BlockId,
+    ) {
+        assert!(
+            self.loop_targets
+                .iter()
+                .all(|target| target.source != source),
+            "one structured loop identity has one active CFG target"
+        );
+        let cleanup_depth = self.cleanup_depth();
+        self.loop_header_polls
+            .push(mir::LoopHeaderPollTarget::new(header));
+        self.loop_targets.push(LoopTarget {
+            source,
+            exit: LoopExitTarget {
+                block: exit,
+                cleanup_depth,
+                context: self.active_pending.clone(),
+            },
+            header: LoopHeaderTarget {
+                block: header,
+                cleanup_depth,
+                context: self.active_pending.clone(),
+            },
+            break_reachable: false,
+            continue_reachable: false,
+        });
+    }
+
+    pub(super) fn pop_loop_target(&mut self, source: smir::LoopId) -> LoopTarget {
+        let target = self
+            .loop_targets
+            .pop()
+            .expect("an active structured loop has a CFG target");
+        assert_eq!(
+            target.source, source,
+            "CFG loop targets are lexically nested"
+        );
+        target
+    }
+
+    pub(super) fn lower_break(&mut self, source: smir::LoopId) {
+        let index = self
+            .loop_targets
+            .iter()
+            .rposition(|target| target.source == source)
+            .expect("structured MIR binds break to an active loop");
+        let target = self.loop_targets[index].exit.clone();
+        if self.route_transfer(PendingTransfer::Break(target)) {
+            self.loop_targets[index].break_reachable = true;
+        }
+    }
+
+    pub(super) fn lower_continue(&mut self, source: smir::LoopId) {
+        let index = self
+            .loop_targets
+            .iter()
+            .rposition(|target| target.source == source)
+            .expect("structured MIR binds continue to an active loop");
+        let target = self.loop_targets[index].header.clone();
+        if self.route_transfer(PendingTransfer::Continue(target)) {
+            self.loop_targets[index].continue_reachable = true;
+        }
+    }
+
+    pub(super) fn call_pending_context(&self) -> CleanupContext {
+        if self.coroutine_eh.is_some() {
+            self.active_pending.clone()
+        } else {
+            CleanupContext::default()
+        }
+    }
+}

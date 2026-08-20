@@ -1,0 +1,67 @@
+package templates.constructors
+
+private fun <T> keep(value: T): T = value
+
+public struct Pair<T>(val first: T, val second: T = first) {
+    public constructor(value: T): this(value, value) {}
+}
+
+public class Trace public constructor(public var count: Int)
+
+public struct Observed<T>(val value: T) {
+    public constructor(value: T, trace: Trace): this(value) {
+        keep(this.value)
+        trace.count = trace.count + 5
+    }
+}
+
+public open class Box<T> public constructor(public var value: T) {
+    public val echoed: T = keep(this.value)
+    public var count: Int = 1
+
+    init {
+        this.count = this.count + 1
+    }
+
+    public constructor(value: T, extra: Int): this(value) {
+        this.count = this.count + extra
+    }
+}
+
+public class Derived<T> public constructor(value: T): Box<T>(value, 3)
+
+public class Nested<T> public constructor(value: T): Box<Pair<T>>(Pair<T>(value), 3)
+
+public struct ValueOnly<T : value>(val value: T)
+
+public class Locked<T> private constructor(public val value: T) {
+    public constructor(value: T, marker: Boolean): this(value) {}
+}
+
+public class DefaultDerived<T> public constructor(): DefaultBase<T>()
+
+public class Alternate<T>: Box<T> {
+    public val carried: T = this.value
+    public var extra: Int = this.count
+
+    init {
+        this.extra = this.extra + 1
+    }
+
+    public constructor(value: T, adjustment: Int): super(value) {
+        this.extra = this.extra + adjustment
+    }
+
+    public constructor(value: T): this(value, 2) {}
+}
+
+public class Captured<T> public constructor(value: T) {
+    public var output: T = value
+
+    init {
+        fun copy(): T = value
+        val saved = copy()
+        fun fromSaved(): T = saved
+        this.output = fromSaved()
+    }
+}

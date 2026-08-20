@@ -1,0 +1,22 @@
+package roots.shadow
+
+import Any as RootAny
+import Nothing as RootNothing
+
+class Any(val value: Int)
+class Nothing(val value: Int)
+typealias Never = RootNothing
+
+fun local(): Nothing = Nothing(22)
+fun fail(): Never { throw IllegalStateException() }
+
+fun main() {
+    val first: RootAny = Any(11)
+    val second: RootAny = local()
+    println((first as Any).value)
+    println((second as Nothing).value)
+    println(second is Nothing)
+    println(second is RootNothing)
+    try { fail() }
+    catch (error: IllegalStateException) { println("root") }
+}

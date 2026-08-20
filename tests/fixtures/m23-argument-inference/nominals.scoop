@@ -1,0 +1,19 @@
+package consumer.inference
+
+import dependency.inference.*
+import dependency.inference.exercise as providerExercise
+
+private typealias IntChoice = Choice<Int>
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val pair = Pair(values = [], seed = 42)
+    val choice = Choice.Data([], 42)
+    val empty = choiceOrSeed(Choice.Empty, 42)
+    val fixed = choiceOrSeed(IntChoice.Empty, 42)
+    val host = Host("owner")
+    val selected = host.select([], 42)
+    if (pair.values.size != 0L || pair.seed != 42 || choiceOrSeed(choice, 0) != 42) { return 1 }
+    return if (empty == 42 && fixed == 42 && selected == 42 && host.value == "owner") { 42 } else { 2 }
+}

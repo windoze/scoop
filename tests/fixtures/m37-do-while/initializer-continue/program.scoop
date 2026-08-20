@@ -1,0 +1,6 @@
+fun bad(input: Int?) {
+    do {
+        val value = input ?: continue
+    } while (value > 0)
+}
+fun main() {}

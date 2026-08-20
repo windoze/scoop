@@ -1,0 +1,1 @@
+class Outer { companion object { inner class Inner } }

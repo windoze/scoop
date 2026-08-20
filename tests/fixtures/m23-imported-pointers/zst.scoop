@@ -1,0 +1,24 @@
+package consumer.pointers
+
+import dependency.pointers.copy
+
+private class Counter(public var calls: Int)
+
+public fun <T> exercise(value: T): Int {
+    val left = Unit
+    val right = Unit
+    val state = Counter(0)
+    fun offset(): Long { state.calls += 1; return 500L }
+    @Unsafe {
+        val pointer = addressOf(left)
+        val other = addressOf(right)
+        val moved = pointer + offset()
+        val empty = moved.load(offset())
+        moved.store(offset(), copy<Unit>(empty))
+        if (pointer.toULong() == other.toULong()) { return 1 }
+        if (pointer.toULong() == 0uL || moved.toULong() != pointer.toULong()) { return 2 }
+        return if (state.calls == 3) { 42 } else { 3 }
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

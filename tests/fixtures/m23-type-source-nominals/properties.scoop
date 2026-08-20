@@ -1,0 +1,39 @@
+public open class Envelope {
+    protected open class Box<T>(private var source: T) {
+        public var value: T
+            get() = source
+            private set(value) { source = value }
+        internal val item: T
+            get() = source
+        protected open val slot: T
+            get() = source
+        private var hidden: T = source
+    }
+    protected interface View<T> {
+        public val item: T
+        public val size: Int
+            get() = 1
+    }
+    protected object Constants {
+        private const val secret: String = "private" + " value"
+        internal const val flag: Boolean = true
+        public const val code: Int = 40 + 2
+        private val runtime: Int = 7
+    }
+    protected struct Pair<T>(val first: T) {
+        public val selected: T
+            get() = first
+    }
+    protected class Holder<U> {
+        public class Static {
+            private val count: Int = 1
+        }
+    }
+    public companion object {
+        private const val cached: UInt = 9u
+    }
+}
+public object Ordinary {
+    public const val exposed: Int = 3
+}
+private const val TOP: Int = 5

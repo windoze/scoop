@@ -1,0 +1,6 @@
+public class LocalGenericHost {
+    internal fun <T> pick(seed: T, value: T = if (true) {
+        fun <C> keep(unused: C): T { return seed }
+        keep<T>(seed)
+    } else { seed }): T = value
+}

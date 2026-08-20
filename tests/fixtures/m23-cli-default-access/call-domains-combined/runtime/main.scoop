@@ -1,0 +1,21 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val diamond = domainDiamond<Int>()
+    verifyDefault(diamond.choose((3, 7)) == (3, 7))
+    val left: DomainLeft<Int> = diamond
+    val right: DomainRight<Int> = diamond
+    verifyDefault(left.choose((5, 11)) == (5, 11))
+    verifyDefault(right.choose((13, 17)) == (13, 17))
+    val value: DomainReader<Int> = DomainValue<Int>()
+    verifyDefault(value.choose(19) == 19)
+    val child = domainChild<Int>()
+    val parent: DomainBase<(Int, Int)> = child
+    verifyDefault(parent.read((23, 29)) == (23, 29))
+    verifyDefault(child.read((31, 37)) == (31, 37))
+    verifyDefault(child.keep<String>("kept") == "kept")
+    verifyDefault(domainUnusedChild<Int>().number() == 3)
+    verifyDefault(domainUnusedChild<String>().number() == 3)
+    verifyDefault(domainInner<String>().nested("nested") == "nested")
+}

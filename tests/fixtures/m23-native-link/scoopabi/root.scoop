@@ -1,0 +1,14 @@
+import nativelink.scoopabifacade.*
+
+struct Marker(val text: String)
+
+fun main() {
+    val marker = Marker("caller-" + "alive")
+    val result = roundTrip(marker, "managed-" + "alive")
+    gcCollect()
+    println(result.text)
+    println(result.left)
+    println(result.right)
+    println(zstValue(Empty(), 41))
+    println(marker.text)
+}

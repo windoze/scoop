@@ -1,0 +1,20 @@
+public struct Token() {}
+public open class Base {
+    public open fun first(value: Token): Token = value
+    protected open val copy: Token get() = Token()
+    public open fun second(): Token = Token()
+}
+public class Child: Base() {
+    public override fun first(value: Token): Token = value
+    protected final override val copy: Token get() = Token()
+}
+public abstract class Again: Base() {
+    public abstract override fun first(value: Token): Token
+    protected abstract override val copy: Token
+}
+public abstract class Inherited: Again()
+
+public object Unique: Base() {
+    public override fun first(value: Token): Token = value
+    public override val copy: Token get() = Token()
+}

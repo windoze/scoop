@@ -1,0 +1,25 @@
+package dependency.union
+
+public class Payload public constructor(public val number: Int)
+public class Other public constructor(public val number: Int)
+public interface Readable {
+    public fun read(): Int
+}
+public class Marker<T> public constructor(public val value: T) : Readable {
+    public override fun read(): Int = 42
+}
+
+public fun first(value: Payload): (Any) -> Payload = { ignored: Any -> value }
+public fun second(value: Other): (Any) -> Other = { ignored: Any -> value }
+
+public fun <T> guarded(value: T, fail: Boolean): T {
+    try {
+        if (fail) { throw IllegalStateException() }
+        return value
+    } catch (failure: Throwable) {
+        return value
+    } finally {
+        val marker = Marker(value)
+        if (marker.read() != 42) { throw IllegalStateException() }
+    }
+}

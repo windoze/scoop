@@ -1,0 +1,69 @@
+// Typed raw-pointer core contract (spec 13.10, M12 DESIGN section 4.1).
+// HIR validates these declarations exactly and normalizes applications to
+// dedicated Ptr/FunPtr types; downstream stages never identify them by name.
+
+@Intrinsic("core_ptr")
+public struct Ptr<T : value> : Equality<Ptr<T>> {
+    public operator fun equals(other: Ptr<T>): Boolean {
+        @Unsafe {
+            return this.toULong() == other.toULong()
+        }
+    }
+
+    public override fun equalTo(other: Ptr<T>): Boolean = this.equals(other)
+
+    @NoGC
+    @Unsafe
+    @Intrinsic("ptr_to_ulong")
+    public fun toULong(): ULong
+
+    @NoGC
+    @Unsafe
+    @Intrinsic("ptr_cast")
+    public fun <U : value> cast(): Ptr<U>
+
+    @NoGC
+    @Unsafe
+    @Intrinsic("ptr_load")
+    public fun load(): T
+
+    @NoGC
+    @Unsafe
+    @Intrinsic("ptr_load_offset")
+    public fun load(offset: Long): T
+
+    @NoGC
+    @Unsafe
+    @Intrinsic("ptr_store")
+    public fun store(value: T)
+
+    @NoGC
+    @Unsafe
+    @Intrinsic("ptr_store_offset")
+    public fun store(offset: Long, value: T)
+
+    @NoGC
+    @Unsafe
+    @Intrinsic("ptr_plus")
+    public operator fun plus(offset: Long): Ptr<T>
+
+    @NoGC
+    @Unsafe
+    @Intrinsic("ptr_minus")
+    public operator fun minus(offset: Long): Ptr<T>
+}
+
+@Intrinsic("core_fun_ptr")
+public struct FunPtr<F>
+
+@Unsafe
+@Intrinsic("address_of")
+public fun <T : value> addressOf(value: T): Ptr<T>
+
+@NoGC
+@Intrinsic("size_of")
+public fun <T : value> sizeOf(): ULong
+
+@NoGC
+@Intrinsic("align_of")
+public fun <T : value> alignOf(): ULong

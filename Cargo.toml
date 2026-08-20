@@ -1,0 +1,75 @@
+[workspace]
+resolver = "2"
+members = [
+    "compiler/wire",
+    "compiler/process",
+    "compiler/identity",
+    "compiler/manifest",
+    "compiler/protocol",
+    "compiler/toolchain",
+    "compiler/linker",
+    "compiler/scoop",
+    "compiler/ast",
+    "compiler/parser",
+    "compiler/hir",
+    "compiler/hir-lower",
+    "compiler/mir",
+    "compiler/mir-lower",
+    "compiler/lir",
+    "compiler/lir-lower",
+    "compiler/codegen",
+    "compiler/slib",
+    "compiler/driver",
+]
+# One-off technical spikes (docs/ROADMAP.md M0) carry their own
+# `[workspace]` table and are intentionally not members.
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+
+[workspace.dependencies]
+rustc_apfloat = "=0.2.3"
+# External LLVM 22.1; independent of the Rust toolchain LLVM version.
+inkwell = { version = "0.10", features = ["llvm22-1-prefer-dynamic"] }
+llvm-sys = "221"
+clap = { version = "4", features = ["derive"] }
+insta = { version = "1" }
+la-arena = { version = "0.3" }
+imbl = "7.0.2"
+object = { version = "0.37", default-features = false, features = ["read"] }
+yaxpeax-x86 = { version = "2.2.0", default-features = false }
+yaxpeax-arch = { version = "0.3.2", default-features = false }
+cc = { version = "1" }
+toml = { version = "0.8" }
+toml_edit = { version = "0.22" }
+minicbor = { version = "2.3", features = ["std"] }
+sha2 = { version = "0.11" }
+semver = { version = "1" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml_ng = "0.10"
+tempfile = { version = "3" }
+fs4 = { version = "1.1" }
+rustix = { version = "1.1", features = ["fs"] }
+signal-hook = "0.4.4"
+unicode-ident = "1.0.26"
+
+scoop-wire = { path = "compiler/wire" }
+scoop-process = { path = "compiler/process" }
+scoop-identity = { path = "compiler/identity" }
+scoop-manifest = { path = "compiler/manifest" }
+scoop-protocol = { path = "compiler/protocol" }
+scoop-toolchain = { path = "compiler/toolchain" }
+scoop-linker = { path = "compiler/linker" }
+scoop = { path = "compiler/scoop" }
+scoop-ast = { path = "compiler/ast" }
+scoop-parser = { path = "compiler/parser" }
+scoop-hir = { path = "compiler/hir" }
+scoop-hir-lower = { path = "compiler/hir-lower" }
+scoop-mir = { path = "compiler/mir" }
+scoop-mir-lower = { path = "compiler/mir-lower" }
+scoop-lir = { path = "compiler/lir" }
+scoop-lir-lower = { path = "compiler/lir-lower" }
+scoop-codegen = { path = "compiler/codegen" }
+scoop-slib = { path = "compiler/slib" }

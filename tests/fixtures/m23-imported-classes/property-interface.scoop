@@ -1,0 +1,8 @@
+import dependency.classes.*
+
+public fun primary(): Counter {
+    val cell: MutableValue = ComputedValue(0)
+    cell.value = 9
+    val next = ++cell.value
+    return Counter(if (next == 20 && cell.value == 41) { 21 } else { 0 })
+}

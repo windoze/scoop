@@ -1,0 +1,43 @@
+typealias Octet = UInt8
+
+fun patternInt8(value: Int8): Int = when (value) {
+    case -128 -> 1
+    else -> 0
+}
+fun patternInt16(value: Int16): Int = when (value) {
+    case 32767 -> 1
+    else -> 0
+}
+fun patternInt(value: Int): Int = when (value) {
+    case 2147483647 -> 1
+    else -> 0
+}
+fun patternLong(value: Long): Int = when (value) {
+    case 9223372036854775807L -> 1
+    else -> 0
+}
+fun patternUInt8(value: UInt8): Int = when (value) {
+    case 255U -> 1
+    else -> 0
+}
+fun patternUInt16(value: UInt16): Int = when (value) {
+    case 65535U -> 1
+    else -> 0
+}
+fun patternUInt(value: UInt): Int = when (value) {
+    case 4294967295U -> 1
+    else -> 0
+}
+fun patternULong(value: ULong): Int = when (value) {
+    case 18446744073709551615UL -> 1
+    else -> 0
+}
+@NoGC
+fun combinedEquality(value: Octet): Boolean = when (value) {
+    case -1U -> value != 0U
+    else -> value.inc() == 2U
+}
+fun nestedPattern(value: (Int, Int8)): Int = when (value) {
+    case (1, 2) -> 1
+    else -> 0
+}

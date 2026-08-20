@@ -1,0 +1,28 @@
+public interface View<T> {
+    private val secret: Int
+        get() = 1
+    private var cache: T
+        get() = item
+        set(value) {}
+    public val item: T
+    public fun readSecret(): Int = secret
+    public var current: T
+        get() = cache
+        private set(value) { cache = value }
+    public fun reset(value: T) { current = value }
+}
+public class Implement : View<Int> {
+    public override val item: Int
+        get() = 7
+}
+fun main() {
+    val reader: View<Int> = Implement()
+    reader.reset(9)
+    val owner: Owner<Int> = Owner(3)
+    val result: Int = owner.value
+}
+public open class Owner<T>(private var current: T) {
+    public open var value: T
+        get() = current
+        private set(next) { current = next }
+}

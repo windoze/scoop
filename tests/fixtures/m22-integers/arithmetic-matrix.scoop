@@ -1,0 +1,700 @@
+// EXPECT-COMPILE
+
+const val I8_ZERO: Int8 = 0
+const val I8_ONE: Int8 = 1
+const val I8_MINUS_ONE: Int8 = -1
+const val I8_MIN: Int8 = -128
+const val I8_MAX: Int8 = 127
+const val I8_ADD: Int8 = I8_MAX + I8_ONE
+const val I8_SUB: Int8 = I8_MIN - I8_ONE
+const val I8_MUL: Int8 = I8_MAX * 2
+const val I8_NEG: Int8 = -I8_MIN
+const val I8_PLUS: Int8 = +I8_ONE
+const val I8_INC_EXPECTED: Int8 = I8_MAX.inc()
+const val I8_DEC_EXPECTED: Int8 = I8_MIN.dec()
+const val I8_AND: Int8 = 0x5a and 0x3c
+const val I8_OR: Int8 = 0x5a or 0x3c
+const val I8_XOR: Int8 = 0x5a xor 0x3c
+const val I8_INV: Int8 = I8_ZERO.inv()
+const val I8_SHL: Int8 = I8_ONE shl 9L
+const val I8_SHR: Int8 = I8_MIN shr 9L
+const val I8_USHR: Int8 = I8_MIN ushr 9L
+const val I8_COMPARE: Boolean = I8_MIN < I8_MAX
+const val I8_COMPARE_TO: Long = I8_MIN.compareTo(I8_MAX)
+const val I8_EQUALS: Boolean = I8_MIN.equals(I8_MIN)
+const val I8_EQUALS_FALSE: Boolean = I8_MIN.equals(I8_MAX)
+const val I8_DIVIDEND: Int8 = -7
+const val I8_DIVISOR: Int8 = 3
+const val I8_DIV: Int8 = I8_DIVIDEND.div(I8_DIVISOR)
+const val I8_REM: Int8 = I8_DIVIDEND.rem(I8_DIVISOR)
+const val I8_MIN_DIV: Int8 = I8_MIN.div(I8_MINUS_ONE)
+const val I8_MIN_REM: Int8 = I8_MIN.rem(I8_MINUS_ONE)
+
+const val I16_ZERO: Int16 = 0
+const val I16_ONE: Int16 = 1
+const val I16_MINUS_ONE: Int16 = -1
+const val I16_MIN: Int16 = -32768
+const val I16_MAX: Int16 = 32767
+const val I16_ADD: Int16 = I16_MAX + I16_ONE
+const val I16_SUB: Int16 = I16_MIN - I16_ONE
+const val I16_MUL: Int16 = I16_MAX * 2
+const val I16_NEG: Int16 = -I16_MIN
+const val I16_PLUS: Int16 = +I16_ONE
+const val I16_INC_EXPECTED: Int16 = I16_MAX.inc()
+const val I16_DEC_EXPECTED: Int16 = I16_MIN.dec()
+const val I16_AND: Int16 = 0x5aa5 and 0x0ff0
+const val I16_OR: Int16 = 0x5aa5 or 0x0ff0
+const val I16_XOR: Int16 = 0x5aa5 xor 0x0ff0
+const val I16_INV: Int16 = I16_ZERO.inv()
+const val I16_SHL: Int16 = I16_ONE shl 17L
+const val I16_SHR: Int16 = I16_MIN shr 17L
+const val I16_USHR: Int16 = I16_MIN ushr 17L
+const val I16_COMPARE: Boolean = I16_MIN < I16_MAX
+const val I16_COMPARE_TO: Long = I16_MIN.compareTo(I16_MAX)
+const val I16_EQUALS: Boolean = I16_MIN.equals(I16_MIN)
+const val I16_EQUALS_FALSE: Boolean = I16_MIN.equals(I16_MAX)
+const val I16_DIVIDEND: Int16 = -7
+const val I16_DIVISOR: Int16 = 3
+const val I16_DIV: Int16 = I16_DIVIDEND.div(I16_DIVISOR)
+const val I16_REM: Int16 = I16_DIVIDEND.rem(I16_DIVISOR)
+const val I16_MIN_DIV: Int16 = I16_MIN.div(I16_MINUS_ONE)
+const val I16_MIN_REM: Int16 = I16_MIN.rem(I16_MINUS_ONE)
+
+const val I32_ZERO: Int = 0
+const val I32_ONE: Int = 1
+const val I32_MINUS_ONE: Int = -1
+const val I32_MIN: Int = -2147483648
+const val I32_MAX: Int = 2147483647
+const val I32_ADD: Int = I32_MAX + I32_ONE
+const val I32_SUB: Int = I32_MIN - I32_ONE
+const val I32_MUL: Int = I32_MAX * 2
+const val I32_NEG: Int = -I32_MIN
+const val I32_PLUS: Int = +I32_ONE
+const val I32_INC_EXPECTED: Int = I32_MAX.inc()
+const val I32_DEC_EXPECTED: Int = I32_MIN.dec()
+const val I32_AND: Int = 0x5aa5_aa55 and 0x0ff0_0ff0
+const val I32_OR: Int = 0x5aa5_aa55 or 0x0ff0_0ff0
+const val I32_XOR: Int = 0x5aa5_aa55 xor 0x0ff0_0ff0
+const val I32_INV: Int = I32_ZERO.inv()
+const val I32_SHL: Int = I32_ONE shl 33L
+const val I32_SHR: Int = I32_MIN shr 33L
+const val I32_USHR: Int = I32_MIN ushr 33L
+const val I32_COMPARE: Boolean = I32_MIN < I32_MAX
+const val I32_COMPARE_TO: Long = I32_MIN.compareTo(I32_MAX)
+const val I32_EQUALS: Boolean = I32_MIN.equals(I32_MIN)
+const val I32_EQUALS_FALSE: Boolean = I32_MIN.equals(I32_MAX)
+const val I32_DIVIDEND: Int = -7
+const val I32_DIVISOR: Int = 3
+const val I32_DIV: Int = I32_DIVIDEND.div(I32_DIVISOR)
+const val I32_REM: Int = I32_DIVIDEND.rem(I32_DIVISOR)
+const val I32_MIN_DIV: Int = I32_MIN.div(I32_MINUS_ONE)
+const val I32_MIN_REM: Int = I32_MIN.rem(I32_MINUS_ONE)
+
+const val I64_ZERO: Long = 0L
+const val I64_ONE: Long = 1L
+const val I64_MINUS_ONE: Long = -1L
+const val I64_MIN: Long = -9223372036854775808L
+const val I64_MAX: Long = 9223372036854775807L
+const val I64_ADD: Long = I64_MAX + I64_ONE
+const val I64_SUB: Long = I64_MIN - I64_ONE
+const val I64_MUL: Long = I64_MAX * 2L
+const val I64_NEG: Long = -I64_MIN
+const val I64_PLUS: Long = +I64_ONE
+const val I64_INC_EXPECTED: Long = I64_MAX.inc()
+const val I64_DEC_EXPECTED: Long = I64_MIN.dec()
+const val I64_AND: Long = 0x5aa5_aa55_5aa5_aa55L and 0x0ff0_0ff0_0ff0_0ff0L
+const val I64_OR: Long = 0x5aa5_aa55_5aa5_aa55L or 0x0ff0_0ff0_0ff0_0ff0L
+const val I64_XOR: Long = 0x5aa5_aa55_5aa5_aa55L xor 0x0ff0_0ff0_0ff0_0ff0L
+const val I64_INV: Long = I64_ZERO.inv()
+const val I64_SHL: Long = I64_ONE shl 65L
+const val I64_SHR: Long = I64_MIN shr 65L
+const val I64_USHR: Long = I64_MIN ushr 65L
+const val I64_COMPARE: Boolean = I64_MIN < I64_MAX
+const val I64_COMPARE_TO: Long = I64_MIN.compareTo(I64_MAX)
+const val I64_EQUALS: Boolean = I64_MIN.equals(I64_MIN)
+const val I64_EQUALS_FALSE: Boolean = I64_MIN.equals(I64_MAX)
+const val I64_DIVIDEND: Long = -7L
+const val I64_DIVISOR: Long = 3L
+const val I64_DIV: Long = I64_DIVIDEND.div(I64_DIVISOR)
+const val I64_REM: Long = I64_DIVIDEND.rem(I64_DIVISOR)
+const val I64_MIN_DIV: Long = I64_MIN.div(I64_MINUS_ONE)
+const val I64_MIN_REM: Long = I64_MIN.rem(I64_MINUS_ONE)
+
+const val U8_ZERO: UInt8 = 0u
+const val U8_ONE: UInt8 = 1u
+const val U8_MAX: UInt8 = 255u
+const val U8_ADD: UInt8 = U8_MAX + U8_ONE
+const val U8_SUB: UInt8 = U8_ZERO - U8_ONE
+const val U8_MUL: UInt8 = U8_MAX * 2u
+const val U8_NEG: UInt8 = -U8_ONE
+const val U8_PLUS: UInt8 = +U8_ONE
+const val U8_INC_EXPECTED: UInt8 = U8_MAX.inc()
+const val U8_DEC_EXPECTED: UInt8 = U8_ZERO.dec()
+const val U8_AND: UInt8 = 0xa5u and 0x3cu
+const val U8_OR: UInt8 = 0xa5u or 0x3cu
+const val U8_XOR: UInt8 = 0xa5u xor 0x3cu
+const val U8_INV: UInt8 = U8_ZERO.inv()
+const val U8_SHL: UInt8 = U8_ONE shl 9L
+const val U8_SHR: UInt8 = U8_MAX shr 9L
+const val U8_COMPARE: Boolean = U8_MAX > U8_ZERO
+const val U8_COMPARE_TO: Long = U8_MAX.compareTo(U8_ZERO)
+const val U8_EQUALS: Boolean = U8_MAX.equals(U8_MAX)
+const val U8_EQUALS_FALSE: Boolean = U8_MAX.equals(U8_ZERO)
+const val U8_DIVIDEND: UInt8 = 250u
+const val U8_DIVISOR: UInt8 = 7u
+const val U8_DIV: UInt8 = U8_DIVIDEND.div(U8_DIVISOR)
+const val U8_REM: UInt8 = U8_DIVIDEND.rem(U8_DIVISOR)
+
+const val U16_ZERO: UInt16 = 0u
+const val U16_ONE: UInt16 = 1u
+const val U16_MAX: UInt16 = 65535u
+const val U16_ADD: UInt16 = U16_MAX + U16_ONE
+const val U16_SUB: UInt16 = U16_ZERO - U16_ONE
+const val U16_MUL: UInt16 = U16_MAX * 2u
+const val U16_NEG: UInt16 = -U16_ONE
+const val U16_PLUS: UInt16 = +U16_ONE
+const val U16_INC_EXPECTED: UInt16 = U16_MAX.inc()
+const val U16_DEC_EXPECTED: UInt16 = U16_ZERO.dec()
+const val U16_AND: UInt16 = 0xa5a5u and 0x3c3cu
+const val U16_OR: UInt16 = 0xa5a5u or 0x3c3cu
+const val U16_XOR: UInt16 = 0xa5a5u xor 0x3c3cu
+const val U16_INV: UInt16 = U16_ZERO.inv()
+const val U16_SHL: UInt16 = U16_ONE shl 17L
+const val U16_SHR: UInt16 = U16_MAX shr 17L
+const val U16_COMPARE: Boolean = U16_MAX > U16_ZERO
+const val U16_COMPARE_TO: Long = U16_MAX.compareTo(U16_ZERO)
+const val U16_EQUALS: Boolean = U16_MAX.equals(U16_MAX)
+const val U16_EQUALS_FALSE: Boolean = U16_MAX.equals(U16_ZERO)
+const val U16_DIVIDEND: UInt16 = 65000u
+const val U16_DIVISOR: UInt16 = 7u
+const val U16_DIV: UInt16 = U16_DIVIDEND.div(U16_DIVISOR)
+const val U16_REM: UInt16 = U16_DIVIDEND.rem(U16_DIVISOR)
+
+const val U32_ZERO: UInt = 0u
+const val U32_ONE: UInt = 1u
+const val U32_MAX: UInt = 4294967295u
+const val U32_ADD: UInt = U32_MAX + U32_ONE
+const val U32_SUB: UInt = U32_ZERO - U32_ONE
+const val U32_MUL: UInt = U32_MAX * 2u
+const val U32_NEG: UInt = -U32_ONE
+const val U32_PLUS: UInt = +U32_ONE
+const val U32_INC_EXPECTED: UInt = U32_MAX.inc()
+const val U32_DEC_EXPECTED: UInt = U32_ZERO.dec()
+const val U32_AND: UInt = 0xa5a5_a5a5u and 0x3c3c_3c3cu
+const val U32_OR: UInt = 0xa5a5_a5a5u or 0x3c3c_3c3cu
+const val U32_XOR: UInt = 0xa5a5_a5a5u xor 0x3c3c_3c3cu
+const val U32_INV: UInt = U32_ZERO.inv()
+const val U32_SHL: UInt = U32_ONE shl 33L
+const val U32_SHR: UInt = U32_MAX shr 33L
+const val U32_COMPARE: Boolean = U32_MAX > U32_ZERO
+const val U32_COMPARE_TO: Long = U32_MAX.compareTo(U32_ZERO)
+const val U32_EQUALS: Boolean = U32_MAX.equals(U32_MAX)
+const val U32_EQUALS_FALSE: Boolean = U32_MAX.equals(U32_ZERO)
+const val U32_DIVIDEND: UInt = 4000000000u
+const val U32_DIVISOR: UInt = 7u
+const val U32_DIV: UInt = U32_DIVIDEND.div(U32_DIVISOR)
+const val U32_REM: UInt = U32_DIVIDEND.rem(U32_DIVISOR)
+
+const val U64_ZERO: ULong = 0uL
+const val U64_ONE: ULong = 1uL
+const val U64_MAX: ULong = 18446744073709551615uL
+const val U64_ADD: ULong = U64_MAX + U64_ONE
+const val U64_SUB: ULong = U64_ZERO - U64_ONE
+const val U64_MUL: ULong = U64_MAX * 2uL
+const val U64_NEG: ULong = -U64_ONE
+const val U64_PLUS: ULong = +U64_ONE
+const val U64_INC_EXPECTED: ULong = U64_MAX.inc()
+const val U64_DEC_EXPECTED: ULong = U64_ZERO.dec()
+const val U64_AND: ULong = 0xa5a5_a5a5_a5a5_a5a5uL and 0x3c3c_3c3c_3c3c_3c3cuL
+const val U64_OR: ULong = 0xa5a5_a5a5_a5a5_a5a5uL or 0x3c3c_3c3c_3c3c_3c3cuL
+const val U64_XOR: ULong = 0xa5a5_a5a5_a5a5_a5a5uL xor 0x3c3c_3c3c_3c3c_3c3cuL
+const val U64_INV: ULong = U64_ZERO.inv()
+const val U64_SHL: ULong = U64_ONE shl 65L
+const val U64_SHR: ULong = U64_MAX shr 65L
+const val U64_COMPARE: Boolean = U64_MAX > U64_ZERO
+const val U64_COMPARE_TO: Long = U64_MAX.compareTo(U64_ZERO)
+const val U64_EQUALS: Boolean = U64_MAX.equals(U64_MAX)
+const val U64_EQUALS_FALSE: Boolean = U64_MAX.equals(U64_ZERO)
+const val U64_DIVIDEND: ULong = 18000000000000000000uL
+const val U64_DIVISOR: ULong = 7uL
+const val U64_DIV: ULong = U64_DIVIDEND.div(U64_DIVISOR)
+const val U64_REM: ULong = U64_DIVIDEND.rem(U64_DIVISOR)
+
+fun checkInt8() {
+    println("Int8")
+    val zero: Int8 = 0
+    val one: Int8 = 1
+    val minusOne: Int8 = -1
+    val minimum: Int8 = -128
+    val maximum: Int8 = 127
+    val maskLeft: Int8 = 0x5a
+    val maskRight: Int8 = 0x3c
+    val dividend: Int8 = -7
+    val divisor: Int8 = 3
+    println(maximum + one == I8_ADD)
+    println(minimum - one == I8_SUB)
+    println(maximum * 2 == I8_MUL)
+    println(-minimum == I8_NEG)
+    println(+one == I8_PLUS)
+    println(I8_ADD == -128)
+    println(I8_SUB == 127)
+    println(I8_MUL == -2)
+    println(I8_NEG == -128)
+    var incremented = maximum
+    val beforeIncrement = incremented++
+    println(incremented == I8_INC_EXPECTED)
+    println(beforeIncrement == maximum)
+    var decremented = minimum
+    val beforeDecrement = decremented--
+    println(decremented == I8_DEC_EXPECTED)
+    println(beforeDecrement == minimum)
+    println((maskLeft and maskRight) == I8_AND)
+    println((maskLeft or maskRight) == I8_OR)
+    println((maskLeft xor maskRight) == I8_XOR)
+    println(zero.inv() == I8_INV)
+    println((one shl 9L) == I8_SHL)
+    println((minimum shr 9L) == I8_SHR)
+    println((minimum ushr 9L) == I8_USHR)
+    println(I8_SHR == -64)
+    println(I8_USHR == 64)
+    println((minimum < maximum) == I8_COMPARE)
+    println(minimum.compareTo(maximum) == I8_COMPARE_TO)
+    println(minimum.equals(minimum) == I8_EQUALS)
+    println(I8_COMPARE)
+    println(I8_COMPARE_TO == -1L)
+    println(I8_EQUALS)
+    println(I8_EQUALS_FALSE == false)
+    println(minimum.equals(maximum) == false)
+    println((dividend / divisor) == I8_DIV)
+    println((dividend % divisor) == I8_REM)
+    println((minimum / minusOne) == I8_MIN_DIV)
+    println((minimum % minusOne) == I8_MIN_REM)
+    println(dividend.div(divisor) == -2)
+    println(dividend.rem(divisor) == -1)
+    println(minimum.div(minusOne) == -128)
+    println(minimum.rem(minusOne) == 0)
+    try {
+        println(one / zero)
+    } catch (error: ArithmeticException) {
+        println("Int8/div-zero")
+    }
+    try {
+        println(one % zero)
+    } catch (error: ArithmeticException) {
+        println("Int8/rem-zero")
+    }
+}
+
+fun checkInt16() {
+    println("Int16")
+    val zero: Int16 = 0
+    val one: Int16 = 1
+    val minusOne: Int16 = -1
+    val minimum: Int16 = -32768
+    val maximum: Int16 = 32767
+    val maskLeft: Int16 = 0x5aa5
+    val maskRight: Int16 = 0x0ff0
+    val dividend: Int16 = -7
+    val divisor: Int16 = 3
+    println(maximum + one == I16_ADD)
+    println(minimum - one == I16_SUB)
+    println(maximum * 2 == I16_MUL)
+    println(-minimum == I16_NEG)
+    println(+one == I16_PLUS)
+    println(I16_ADD == -32768)
+    println(I16_SUB == 32767)
+    println(I16_MUL == -2)
+    println(I16_NEG == -32768)
+    var incremented = maximum
+    val beforeIncrement = incremented++
+    println(incremented == I16_INC_EXPECTED)
+    println(beforeIncrement == maximum)
+    var decremented = minimum
+    val beforeDecrement = decremented--
+    println(decremented == I16_DEC_EXPECTED)
+    println(beforeDecrement == minimum)
+    println((maskLeft and maskRight) == I16_AND)
+    println((maskLeft or maskRight) == I16_OR)
+    println((maskLeft xor maskRight) == I16_XOR)
+    println(zero.inv() == I16_INV)
+    println((one shl 17L) == I16_SHL)
+    println((minimum shr 17L) == I16_SHR)
+    println((minimum ushr 17L) == I16_USHR)
+    println(I16_SHR == -16384)
+    println(I16_USHR == 16384)
+    println((minimum < maximum) == I16_COMPARE)
+    println(minimum.compareTo(maximum) == I16_COMPARE_TO)
+    println(minimum.equals(minimum) == I16_EQUALS)
+    println(I16_COMPARE)
+    println(I16_COMPARE_TO == -1L)
+    println(I16_EQUALS)
+    println(I16_EQUALS_FALSE == false)
+    println(minimum.equals(maximum) == false)
+    println((dividend / divisor) == I16_DIV)
+    println((dividend % divisor) == I16_REM)
+    println((minimum / minusOne) == I16_MIN_DIV)
+    println((minimum % minusOne) == I16_MIN_REM)
+    println(dividend.div(divisor) == -2)
+    println(dividend.rem(divisor) == -1)
+    println(minimum.div(minusOne) == -32768)
+    println(minimum.rem(minusOne) == 0)
+    try {
+        println(one / zero)
+    } catch (error: ArithmeticException) {
+        println("Int16/div-zero")
+    }
+    try {
+        println(one % zero)
+    } catch (error: ArithmeticException) {
+        println("Int16/rem-zero")
+    }
+}
+
+fun checkInt32() {
+    println("Int")
+    val zero: Int = 0
+    val one: Int = 1
+    val minusOne: Int = -1
+    val minimum: Int = -2147483648
+    val maximum: Int = 2147483647
+    println(maximum + one == I32_ADD)
+    println(minimum - one == I32_SUB)
+    println(maximum * 2 == I32_MUL)
+    println(-minimum == I32_NEG)
+    println(+one == I32_PLUS)
+    println(I32_ADD == -2147483648)
+    println(I32_SUB == 2147483647)
+    println(I32_MUL == -2)
+    println(I32_NEG == -2147483648)
+    var incremented = maximum
+    val beforeIncrement = incremented++
+    println(incremented == I32_INC_EXPECTED)
+    println(beforeIncrement == maximum)
+    var decremented = minimum
+    val beforeDecrement = decremented--
+    println(decremented == I32_DEC_EXPECTED)
+    println(beforeDecrement == minimum)
+    println((0x5aa5_aa55 and 0x0ff0_0ff0) == I32_AND)
+    println((0x5aa5_aa55 or 0x0ff0_0ff0) == I32_OR)
+    println((0x5aa5_aa55 xor 0x0ff0_0ff0) == I32_XOR)
+    println(zero.inv() == I32_INV)
+    println((one shl 33L) == I32_SHL)
+    println((minimum shr 33L) == I32_SHR)
+    println((minimum ushr 33L) == I32_USHR)
+    println(I32_SHR == -1073741824)
+    println(I32_USHR == 1073741824)
+    println((minimum < maximum) == I32_COMPARE)
+    println(minimum.compareTo(maximum) == I32_COMPARE_TO)
+    println(minimum.equals(minimum) == I32_EQUALS)
+    println(I32_COMPARE)
+    println(I32_COMPARE_TO == -1L)
+    println(I32_EQUALS)
+    println(I32_EQUALS_FALSE == false)
+    println(minimum.equals(maximum) == false)
+    println((-7 / 3) == I32_DIV)
+    println((-7 % 3) == I32_REM)
+    println((minimum / minusOne) == I32_MIN_DIV)
+    println((minimum % minusOne) == I32_MIN_REM)
+    println(I32_DIVIDEND.div(I32_DIVISOR) == -2)
+    println(I32_DIVIDEND.rem(I32_DIVISOR) == -1)
+    println(minimum.div(minusOne) == -2147483648)
+    println(minimum.rem(minusOne) == 0)
+    try {
+        println(one / zero)
+    } catch (error: ArithmeticException) {
+        println("Int/div-zero")
+    }
+    try {
+        println(one % zero)
+    } catch (error: ArithmeticException) {
+        println("Int/rem-zero")
+    }
+}
+
+fun checkInt64() {
+    println("Long")
+    val zero: Long = 0L
+    val one: Long = 1L
+    val minusOne: Long = -1L
+    val minimum: Long = -9223372036854775808L
+    val maximum: Long = 9223372036854775807L
+    println(maximum + one == I64_ADD)
+    println(minimum - one == I64_SUB)
+    println(maximum * 2L == I64_MUL)
+    println(-minimum == I64_NEG)
+    println(+one == I64_PLUS)
+    println(I64_ADD == -9223372036854775808L)
+    println(I64_SUB == 9223372036854775807L)
+    println(I64_MUL == -2L)
+    println(I64_NEG == -9223372036854775808L)
+    var incremented = maximum
+    val beforeIncrement = incremented++
+    println(incremented == I64_INC_EXPECTED)
+    println(beforeIncrement == maximum)
+    var decremented = minimum
+    val beforeDecrement = decremented--
+    println(decremented == I64_DEC_EXPECTED)
+    println(beforeDecrement == minimum)
+    println((0x5aa5_aa55_5aa5_aa55L and 0x0ff0_0ff0_0ff0_0ff0L) == I64_AND)
+    println((0x5aa5_aa55_5aa5_aa55L or 0x0ff0_0ff0_0ff0_0ff0L) == I64_OR)
+    println((0x5aa5_aa55_5aa5_aa55L xor 0x0ff0_0ff0_0ff0_0ff0L) == I64_XOR)
+    println(zero.inv() == I64_INV)
+    println((one shl 65L) == I64_SHL)
+    println((minimum shr 65L) == I64_SHR)
+    println((minimum ushr 65L) == I64_USHR)
+    println(I64_SHR == -4611686018427387904L)
+    println(I64_USHR == 4611686018427387904L)
+    println((minimum < maximum) == I64_COMPARE)
+    println(minimum.compareTo(maximum) == I64_COMPARE_TO)
+    println(minimum.equals(minimum) == I64_EQUALS)
+    println(I64_COMPARE)
+    println(I64_COMPARE_TO == -1L)
+    println(I64_EQUALS)
+    println(I64_EQUALS_FALSE == false)
+    println(minimum.equals(maximum) == false)
+    println((-7L / 3L) == I64_DIV)
+    println((-7L % 3L) == I64_REM)
+    println((minimum / minusOne) == I64_MIN_DIV)
+    println((minimum % minusOne) == I64_MIN_REM)
+    println(I64_DIVIDEND.div(I64_DIVISOR) == -2L)
+    println(I64_DIVIDEND.rem(I64_DIVISOR) == -1L)
+    println(minimum.div(minusOne) == -9223372036854775808L)
+    println(minimum.rem(minusOne) == 0L)
+    try {
+        println(one / zero)
+    } catch (error: ArithmeticException) {
+        println("Long/div-zero")
+    }
+    try {
+        println(one % zero)
+    } catch (error: ArithmeticException) {
+        println("Long/rem-zero")
+    }
+}
+
+fun checkUInt8() {
+    println("UInt8")
+    val zero: UInt8 = 0u
+    val one: UInt8 = 1u
+    val maximum: UInt8 = 255u
+    val maskLeft: UInt8 = 0xa5u
+    val maskRight: UInt8 = 0x3cu
+    val dividend: UInt8 = 250u
+    val divisor: UInt8 = 7u
+    println(maximum + one == U8_ADD)
+    println(zero - one == U8_SUB)
+    println(maximum * 2u == U8_MUL)
+    println(-one == U8_NEG)
+    println(+one == U8_PLUS)
+    println(U8_ADD == 0u)
+    println(U8_SUB == 255u)
+    println(U8_MUL == 254u)
+    println(U8_NEG == 255u)
+    var incremented = maximum
+    val beforeIncrement = incremented++
+    println(incremented == U8_INC_EXPECTED)
+    println(beforeIncrement == maximum)
+    var decremented = zero
+    val beforeDecrement = decremented--
+    println(decremented == U8_DEC_EXPECTED)
+    println(beforeDecrement == zero)
+    println((maskLeft and maskRight) == U8_AND)
+    println((maskLeft or maskRight) == U8_OR)
+    println((maskLeft xor maskRight) == U8_XOR)
+    println(zero.inv() == U8_INV)
+    println((one shl 9L) == U8_SHL)
+    println((maximum shr 9L) == U8_SHR)
+    println((maximum > zero) == U8_COMPARE)
+    println(maximum.compareTo(zero) == U8_COMPARE_TO)
+    println(maximum.equals(maximum) == U8_EQUALS)
+    println(U8_COMPARE)
+    println(U8_COMPARE_TO == 1L)
+    println(U8_EQUALS)
+    println(U8_EQUALS_FALSE == false)
+    println(maximum.equals(zero) == false)
+    println((dividend / divisor) == U8_DIV)
+    println((dividend % divisor) == U8_REM)
+    println(dividend.div(divisor) == 35u)
+    println(dividend.rem(divisor) == 5u)
+    try {
+        println(one / zero)
+    } catch (error: ArithmeticException) {
+        println("UInt8/div-zero")
+    }
+    try {
+        println(one % zero)
+    } catch (error: ArithmeticException) {
+        println("UInt8/rem-zero")
+    }
+}
+
+fun checkUInt16() {
+    println("UInt16")
+    val zero: UInt16 = 0u
+    val one: UInt16 = 1u
+    val maximum: UInt16 = 65535u
+    val maskLeft: UInt16 = 0xa5a5u
+    val maskRight: UInt16 = 0x3c3cu
+    val dividend: UInt16 = 65000u
+    val divisor: UInt16 = 7u
+    println(maximum + one == U16_ADD)
+    println(zero - one == U16_SUB)
+    println(maximum * 2u == U16_MUL)
+    println(-one == U16_NEG)
+    println(+one == U16_PLUS)
+    println(U16_ADD == 0u)
+    println(U16_SUB == 65535u)
+    println(U16_MUL == 65534u)
+    println(U16_NEG == 65535u)
+    var incremented = maximum
+    val beforeIncrement = incremented++
+    println(incremented == U16_INC_EXPECTED)
+    println(beforeIncrement == maximum)
+    var decremented = zero
+    val beforeDecrement = decremented--
+    println(decremented == U16_DEC_EXPECTED)
+    println(beforeDecrement == zero)
+    println((maskLeft and maskRight) == U16_AND)
+    println((maskLeft or maskRight) == U16_OR)
+    println((maskLeft xor maskRight) == U16_XOR)
+    println(zero.inv() == U16_INV)
+    println((one shl 17L) == U16_SHL)
+    println((maximum shr 17L) == U16_SHR)
+    println((maximum > zero) == U16_COMPARE)
+    println(maximum.compareTo(zero) == U16_COMPARE_TO)
+    println(maximum.equals(maximum) == U16_EQUALS)
+    println(U16_COMPARE)
+    println(U16_COMPARE_TO == 1L)
+    println(U16_EQUALS)
+    println(U16_EQUALS_FALSE == false)
+    println(maximum.equals(zero) == false)
+    println((dividend / divisor) == U16_DIV)
+    println((dividend % divisor) == U16_REM)
+    println(dividend.div(divisor) == 9285u)
+    println(dividend.rem(divisor) == 5u)
+    try {
+        println(one / zero)
+    } catch (error: ArithmeticException) {
+        println("UInt16/div-zero")
+    }
+    try {
+        println(one % zero)
+    } catch (error: ArithmeticException) {
+        println("UInt16/rem-zero")
+    }
+}
+
+fun checkUInt32() {
+    println("UInt")
+    val zero: UInt = 0u
+    val one: UInt = 1u
+    val maximum: UInt = 4294967295u
+    println(maximum + one == U32_ADD)
+    println(zero - one == U32_SUB)
+    println(maximum * 2u == U32_MUL)
+    println(-one == U32_NEG)
+    println(+one == U32_PLUS)
+    println(U32_ADD == 0u)
+    println(U32_SUB == 4294967295u)
+    println(U32_MUL == 4294967294u)
+    println(U32_NEG == 4294967295u)
+    var incremented = maximum
+    val beforeIncrement = incremented++
+    println(incremented == U32_INC_EXPECTED)
+    println(beforeIncrement == maximum)
+    var decremented = zero
+    val beforeDecrement = decremented--
+    println(decremented == U32_DEC_EXPECTED)
+    println(beforeDecrement == zero)
+    println((0xa5a5_a5a5u and 0x3c3c_3c3cu) == U32_AND)
+    println((0xa5a5_a5a5u or 0x3c3c_3c3cu) == U32_OR)
+    println((0xa5a5_a5a5u xor 0x3c3c_3c3cu) == U32_XOR)
+    println(zero.inv() == U32_INV)
+    println((one shl 33L) == U32_SHL)
+    println((maximum shr 33L) == U32_SHR)
+    println((maximum > zero) == U32_COMPARE)
+    println(maximum.compareTo(zero) == U32_COMPARE_TO)
+    println(maximum.equals(maximum) == U32_EQUALS)
+    println(U32_COMPARE)
+    println(U32_COMPARE_TO == 1L)
+    println(U32_EQUALS)
+    println(U32_EQUALS_FALSE == false)
+    println(maximum.equals(zero) == false)
+    println((4000000000u / 7u) == U32_DIV)
+    println((4000000000u % 7u) == U32_REM)
+    println(U32_DIVIDEND.div(U32_DIVISOR) == 571428571u)
+    println(U32_DIVIDEND.rem(U32_DIVISOR) == 3u)
+    try {
+        println(one / zero)
+    } catch (error: ArithmeticException) {
+        println("UInt/div-zero")
+    }
+    try {
+        println(one % zero)
+    } catch (error: ArithmeticException) {
+        println("UInt/rem-zero")
+    }
+}
+
+fun checkUInt64() {
+    println("ULong")
+    val zero: ULong = 0uL
+    val one: ULong = 1uL
+    val maximum: ULong = 18446744073709551615uL
+    println(maximum + one == U64_ADD)
+    println(zero - one == U64_SUB)
+    println(maximum * 2uL == U64_MUL)
+    println(-one == U64_NEG)
+    println(+one == U64_PLUS)
+    println(U64_ADD == 0uL)
+    println(U64_SUB == 18446744073709551615uL)
+    println(U64_MUL == 18446744073709551614uL)
+    println(U64_NEG == 18446744073709551615uL)
+    var incremented = maximum
+    val beforeIncrement = incremented++
+    println(incremented == U64_INC_EXPECTED)
+    println(beforeIncrement == maximum)
+    var decremented = zero
+    val beforeDecrement = decremented--
+    println(decremented == U64_DEC_EXPECTED)
+    println(beforeDecrement == zero)
+    println((0xa5a5_a5a5_a5a5_a5a5uL and 0x3c3c_3c3c_3c3c_3c3cuL) == U64_AND)
+    println((0xa5a5_a5a5_a5a5_a5a5uL or 0x3c3c_3c3c_3c3c_3c3cuL) == U64_OR)
+    println((0xa5a5_a5a5_a5a5_a5a5uL xor 0x3c3c_3c3c_3c3c_3c3cuL) == U64_XOR)
+    println(zero.inv() == U64_INV)
+    println((one shl 65L) == U64_SHL)
+    println((maximum shr 65L) == U64_SHR)
+    println((maximum > zero) == U64_COMPARE)
+    println(maximum.compareTo(zero) == U64_COMPARE_TO)
+    println(maximum.equals(maximum) == U64_EQUALS)
+    println(U64_COMPARE)
+    println(U64_COMPARE_TO == 1L)
+    println(U64_EQUALS)
+    println(U64_EQUALS_FALSE == false)
+    println(maximum.equals(zero) == false)
+    println((18000000000000000000uL / 7uL) == U64_DIV)
+    println((18000000000000000000uL % 7uL) == U64_REM)
+    println(U64_DIVIDEND.div(U64_DIVISOR) == 2571428571428571428uL)
+    println(U64_DIVIDEND.rem(U64_DIVISOR) == 4uL)
+    try {
+        println(one / zero)
+    } catch (error: ArithmeticException) {
+        println("ULong/div-zero")
+    }
+    try {
+        println(one % zero)
+    } catch (error: ArithmeticException) {
+        println("ULong/rem-zero")
+    }
+}
+
+fun main() {
+    checkInt8()
+    checkInt16()
+    checkInt32()
+    checkInt64()
+    checkUInt8()
+    checkUInt16()
+    checkUInt32()
+    checkUInt64()
+}

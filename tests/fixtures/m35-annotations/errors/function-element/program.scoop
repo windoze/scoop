@@ -1,0 +1,2 @@
+annotation class Mark(val values: Array<() -> Int>)
+fun main() {}

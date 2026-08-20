@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function argument must be of type Int, found String",
+    "notes": [],
+    "origin": {
+      "cone": "d48f82c67a9f2651651bfd2905f884377fcb3c6f734f1aed1db3146b049b1bdc",
+      "end": 56,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 49
+    },
+    "severity": "error"
+  }
+]

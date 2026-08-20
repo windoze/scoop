@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m19-constructors-order-and-delegation"
+root = "../../m19-constructors/order-and-delegation.scoop"
+inputs = ["../../m19-constructors/order-and-delegation.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["legacy", "m19-constructors", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "outer-delegation\nderived-default\nderived-base-argument\nbase-property\nbase-init\nderived-property\nderived-init-one\nderived-init-two\ninner-body\nderived-secondary-inner\nderived-secondary-outer\n3\n5\n3\nalternate-this\nalternate-super\nbase-property\nbase-init\nalternate-property\nalternate-init\nalternate-terminal\nalternate-outer\n11\n12\nstruct-delegation\n13\nstruct-secondary\n13\n"
+stderr = ""

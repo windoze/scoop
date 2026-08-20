@@ -1,0 +1,32 @@
+package consumer.references
+
+import templates.references.*
+
+private struct LocalReader(): Readable {
+    public override fun read(): Int = 42
+}
+private class LocalChooser<T> public constructor(): Chooser<T> {
+    public override fun choose(value: T): T = value
+}
+
+public fun <R : Readable> readBound(value: R): Int {
+    val read = value::read
+    return read()
+}
+public fun <T, R : Chooser<T>> chooseBound(owner: R, value: T): T {
+    val choose: (T) -> T = owner::choose
+    return choose(value)
+}
+public fun <T, R : Box<T>> readClass(owner: R): T {
+    val read = owner::read
+    return read()
+}
+public fun <T> exercise(value: T): Int {
+    val first = chooseBound<T, LocalChooser<T>>(LocalChooser<T>(), value)
+    val second = readClass<T, Child<T>>(Child<T>(value))
+    val values = (first, second)
+    if (readBound<Reader>(Reader()) != 42) { return 1 }
+    return readBound<LocalReader>(LocalReader())
+}
+
+public fun result(): Int = exercise<Int>(0)

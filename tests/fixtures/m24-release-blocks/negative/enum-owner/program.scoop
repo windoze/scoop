@@ -1,0 +1,3 @@
+enum Owner { Value,
+ release {} }
+fun main() {}

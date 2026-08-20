@@ -1,0 +1,5 @@
+public struct IntrinsicEmptyLike()
+@CLayout
+public struct IntrinsicNativeLike(val raw: ULong)
+public struct IntrinsicContainer<T>(val item: T)
+public class IntrinsicStringLike(val text: String)

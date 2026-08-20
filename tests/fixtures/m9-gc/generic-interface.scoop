@@ -1,0 +1,53 @@
+interface Producer<T> {
+    fun get(): T
+}
+
+interface Consumer<T> {
+    fun put(value: T)
+}
+
+open class Animal(val name: String) {}
+
+class Dog : Animal("dog") {}
+
+class DogProducer : Producer<Dog> {
+    override fun get(): Dog = Dog()
+}
+
+class IntProducer : Producer<Int> {
+    override fun get(): Int = 7
+}
+
+struct IntValue(val value: Int) : Producer<Int> {
+    override fun get(): Int = value
+}
+
+struct Value<T>(val value: T) : Producer<T> {
+    override fun get(): T = value
+}
+
+class AnimalConsumer : Consumer<Animal> {
+    override fun put(value: Animal) {
+        println(value.name)
+    }
+}
+
+class AnyConsumer : Consumer<Any> {
+    override fun put(value: Any) {
+        println(value is Int)
+    }
+}
+
+fun <T> readOr(producer: Producer<T>, fallback: T): T = producer.get()
+
+fun main() {
+    val producer: Producer<Dog> = DogProducer()
+    println(producer.get().name)
+    val consumer: Consumer<Animal> = AnimalConsumer()
+    consumer.put(Dog())
+    println(IntProducer().get())
+    println(IntValue(8).get())
+    println(Value(10).get())
+    AnyConsumer().put(9)
+    println(readOr(IntProducer(), 6))
+}

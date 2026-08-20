@@ -1,0 +1,5 @@
+import dependency.classes.Parent
+
+public class Derived public constructor(): Parent() {
+    public override fun missing(): Long = 21
+}

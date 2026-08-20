@@ -1,0 +1,2 @@
+fun show(value: Any): String = f"${value}"
+fun main() {}

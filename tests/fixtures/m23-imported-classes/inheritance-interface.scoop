@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.InterfaceParent
+import dependency.classes.Readable
+
+public class Derived public constructor(): InterfaceParent() {
+    public override fun read(): Long = seed + 1
+}
+public fun primary(): Counter {
+    val value: Readable = Derived()
+    return Counter(value.answer() - 1)
+}

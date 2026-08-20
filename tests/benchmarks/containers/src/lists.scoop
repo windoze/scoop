@@ -1,0 +1,71 @@
+@Unsafe fun scalarList(count: Long): Long {
+    beginPhase()
+    val values = ArrayList<Int>(count)
+    endPhase(0)
+    reportLayout(values)
+    beginPhase()
+    var index = 0L
+    var expected = 0L
+    while (index < count) {
+        val value = (index % 97L).toInt32()
+        values.add(value)
+        expected += value.toInt64()
+        index += 1L
+    }
+    endPhase(1)
+    beginPhase()
+    var sum = 0L
+    index = 0L
+    while (index < count) {
+        sum += values[index].toInt64()
+        values[index] = values[index] + 1
+        index += 1L
+    }
+    endPhase(2)
+    check(sum == expected)
+    beginPhase()
+    values.clear()
+    endPhase(3)
+    check(values.size == 0L)
+    return sum
+}
+
+@Unsafe fun interfaceList(count: Long): Long {
+    beginPhase()
+    val values = ArrayList<Read>(count)
+    endPhase(0)
+    reportLayout(values)
+    beginPhase()
+    var index = 0L
+    while (index < count) { values.add(Cell(index.toInt32())); index += 1L }
+    endPhase(1)
+    beginPhase()
+    var sum = 0L
+    index = 0L
+    while (index < count) { sum += values[index].value().toInt64(); index += 1L }
+    endPhase(2)
+    check(sum == count * (count - 1L) / 2L)
+    beginPhase()
+    values.clear()
+    endPhase(3)
+    check(values.size == 0L)
+    return sum
+}
+
+@Unsafe fun zeroSizeList(count: Long): Long {
+    Counts.value = 0L
+    beginPhase()
+    val values = ArrayList<Empty>(count)
+    endPhase(0)
+    reportLayout(values)
+    beginPhase()
+    var index = 0L
+    while (index < count) { values.add(emptyValue()); index += 1L }
+    endPhase(1)
+    check(values.size == count && Counts.value == count)
+    beginPhase()
+    values.clear()
+    endPhase(3)
+    check(values.size == 0L)
+    return Counts.value
+}

@@ -1,0 +1,13 @@
+fun main() {
+    var n = 0
+    var sum = 0
+    while (n < 5) {
+        n = n + 1
+        if (n / 2 * 2 == n) {
+            sum = sum + n
+        } else {
+            sum = sum - 1
+        }
+    }
+    println(sum)
+}

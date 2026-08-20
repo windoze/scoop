@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    collect()
+    val values = [1, 2, 3]
+    verifyType(values.size == 3L && values[2] == 3)
+}

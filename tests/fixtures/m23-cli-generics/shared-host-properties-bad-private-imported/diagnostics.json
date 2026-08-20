@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `item`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "83f89e126935b38e65a68a68bc97ed6d7085d3c6e2668222b87e06f5b3120113",
+      "end": 113,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 109
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,30 @@
+import bridge.*
+fun main() {
+    val first = Row("direct", 42)
+    val second: Catalog.Entry<Int> = Catalog.Entry("nested", 7)
+    val make: (String, Int) -> Wrapped<Int> = ::Wrapped
+    println(first.second)
+    println(second.first)
+    println(make("reference", 9).second)
+    println(copy(11).first)
+    val plus = add()
+    println(40.plus(2))
+    val value: Pick<Int> = Pick.Value("imported", 40)
+    when (value) {
+        case Pick.Empty -> println("empty")
+        case Pick.Value(text, n, count) -> { println(text); println(n + count) }
+        case Pick.Many(text, values) -> println(values.size)
+    }
+    val empty: Pick<Int> = Pick.Empty
+    println(empty is Pick<Int>)
+    val many = Pick.Many("many", 1, *[2, 3])
+    when (many) {
+        case Pick.Empty -> println(0)
+        case Pick.Value(text, n, count) -> println(n)
+        case Pick.Many(text, values) -> println(values.size)
+    }
+    println(Build("function", 41))
+    println(Fixed("alias", 42).second)
+    val owned: Owner<String>.Companion.Row<Int> = Owner<String>.Companion.Row("host", 42)
+    println(owned.first)
+}

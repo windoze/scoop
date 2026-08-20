@@ -1,0 +1,32 @@
+private fun sourceSeed(value: Int = 11): Int = value
+private var sourceBias: Int = 4
+private fun Int.sourceShift(value: Int = sourceSeed()): Int = this + value
+private struct SourcePacket(val value: Int = sourceSeed())
+private enum SourceChoice { Present(val value: Int = sourceSeed()) }
+private object SourceRegistry {
+    public fun read(value: Int = sourceSeed()): Int = value
+}
+
+public open class SourceBase<T> {
+    protected open fun inherited(seed: T, value: T = seed): T = value
+}
+public class SourceChild<U> : SourceBase<(U, U)>() {
+    protected override fun inherited(seed: (U, U), value: (U, U)): (U, U) = value
+}
+
+public class SourceHost<T> {
+    private fun packet(value: Int = SourcePacket().value + sourceBias): Int = value
+    private fun choice(value: SourceChoice = SourceChoice.Present()): SourceChoice = value
+    private fun singleton(value: Int = SourceRegistry.read()): Int = value
+    private fun extension(value: Int = 1.sourceShift()): Int = value
+    private fun reference(value: (Int) -> Int = ::sourceSeed): (Int) -> Int = value
+    private fun local(value: () -> Int = if (true) {
+        fun <U> nested(value: () -> Int = { sourceSeed() + sourceBias }): () -> Int = value
+        nested<T>()
+    } else { val fallback: () -> Int = { 2 }; fallback }): () -> Int = value
+    private fun <U> keep(seed: U, value: U = seed): U = value
+    public fun run(seed: T): Int = packet() + singleton() + extension() + reference()(2) + local()()
+}
+
+private fun unreachableLeft(value: Int = unreachableRight(0)): Int = value
+private fun unreachableRight(value: Int = unreachableLeft(0)): Int = value

@@ -1,0 +1,19 @@
+sealed interface Root<T> {}
+interface Tagged {}
+class Entry<T, U>(val value: U) : Root<T>, Tagged
+class End<T> : Root<T>
+fun classify(value: Root<Int>): Int = when (value) {
+    is Tagged -> 1
+    is End<Int> -> 2
+}
+fun complement(value: Root<Int>): Int = when (value) {
+    !is Entry<Int, String> -> 3
+    is Entry<Int, String> -> 4
+}
+fun main() {
+    println(classify(Entry<Int, String>("x")))
+    println(classify(Entry<Int, Int>(42)))
+    println(classify(End<Int>()))
+    println(complement(Entry<Int, String>("x")))
+    println(complement(Entry<Int, Int>(42)))
+}

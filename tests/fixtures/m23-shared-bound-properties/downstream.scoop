@@ -1,0 +1,13 @@
+import consumer.boundProperties.exercise
+import consumer.boundProperties.result
+
+private class Payload(public val value: Int)
+
+public fun check(): Int {
+    if (result() != 42 || exercise<Int>(42) != 42) { return 1 }
+    val payload = Payload(42)
+    if (exercise<Payload>(payload) != 42) { return 2 }
+    val other = Payload(0)
+    if (other.value != 0) { return 3 }
+    return payload.value
+}

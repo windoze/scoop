@@ -1,0 +1,15 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val base = host()
+    val marker = base.marker()
+    verifyNominal(marker is LeftRole)
+    verifyNominal(marker is RightRole)
+    verifyNominal(base.number() == 17)
+    verifyNominal(derived().number() == 17)
+    val other = derived().marker()
+    verifyNominal(other is LeftRole)
+    verifyNominal(other is RightRole)
+    verifyNominal(marker !== other)
+}

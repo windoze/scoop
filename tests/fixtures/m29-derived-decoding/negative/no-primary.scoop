@@ -1,0 +1,4 @@
+public class Item { public constructor() {} }
+public object Reader : Decodable<Item>
+
+fun main() {}

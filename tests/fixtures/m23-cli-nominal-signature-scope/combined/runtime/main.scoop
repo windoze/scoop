@@ -1,0 +1,8 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val payload = Payload(Marker(), true)
+    verifyType(read(box(payload), "label") == payload)
+    verifyType(pass(Choice.Full(payload), Marker()) == Choice.Full(payload))
+    verifyType(pass(Choice.Empty, Marker()) == Choice.Empty)
+}

@@ -1,0 +1,5 @@
+fun badLoadRelease(cell: AtomicInt): Int = cell.load(MemoryOrder.Release)
+fun badLoadAcqRel(cell: AtomicInt): Int = cell.load(MemoryOrder.AcqRel)
+fun badStoreAcquire(cell: AtomicInt): Unit = cell.store(1, MemoryOrder.Acquire)
+fun badStoreAcqRel(cell: AtomicInt): Unit = cell.store(1, MemoryOrder.AcqRel)
+fun main() {}

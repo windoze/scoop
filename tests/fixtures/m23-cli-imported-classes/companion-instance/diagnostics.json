@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `CompanionHost` has no method `get`",
+    "notes": [],
+    "origin": {
+      "cone": "620bdf1e4edc5ca8c7bd8c49c543ab4a4ab98293c009bebf8e9f5bc5d24ced7a",
+      "end": 126,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 123
+    },
+    "severity": "error"
+  }
+]

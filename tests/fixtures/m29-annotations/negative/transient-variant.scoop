@@ -1,0 +1,2 @@
+enum Value { @Transient Some }
+fun main() {}

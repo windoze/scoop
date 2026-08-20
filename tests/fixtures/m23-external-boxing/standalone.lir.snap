@@ -1,0 +1,15 @@
+Module
+  fun @scoop$1$cb$559e00ba792c6cce97a743267fe60a2a897e348cfa1fe817da05179a022c2c7a(elided-zst<{} size=0 align=1>) -> elided-zst<{} size=0 align=1>
+  block entry
+    t0 = box_zst external-td1 sp<managed-call:0> live=[]
+    unbox_zst external-td1, t0 -> t1
+    ret t1
+  fun @scoop$1$cb$f050b052268e1e07049bf8e4845ad8751e9848afa6bcacefb5ccc19534cc0d00(indirect<{{}, i32} size=4 align=4 scan=none>) -> sret<{{}, i32} size=4 align=4 scan=none>
+    local %0 source: {{}, i32}
+    local %1 destination: {{}, i32}
+  block entry
+    store param0 -> local0
+    t0 = box_value external-td2, local0 scan=none sp<managed-call:0> live=[]
+    unbox_value external-td2, t0 -> local1
+    ret local1
+  output library

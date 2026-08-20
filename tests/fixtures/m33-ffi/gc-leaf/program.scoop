@@ -1,0 +1,60 @@
+@CLayout
+struct Pair(val number: Int, val fraction: Double)
+
+@Extern(lib = "fixture_native", name = "m33_observe")
+fun safeObserve(mode: Int, value: Int): Int
+
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_observe")
+fun leafObserve(mode: Int, value: Int = argument(7)): Int
+
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_pair")
+fun leafPair(value: Pair): Pair
+
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_calls")
+fun leafCalls(): Int
+
+class Cell(val value: Int)
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun argument(value: Int): Int {
+    val cell = Cell(value)
+    gcCollect()
+    return cell.value
+}
+
+fun failArgument(): Int { throw IllegalArgumentException() }
+
+@NoGC @Unsafe
+fun noGcCaller(value: Int): Int = leafObserve(1, value)
+
+fun <T> genericCaller(value: T, number: Int): T {
+    @Unsafe { expect(leafObserve(1, number) == number) }
+    return value
+}
+
+fun main() {
+    val cell = Cell(42)
+    @Unsafe {
+        expect(safeObserve(0, 5) == 5)
+        expect(leafObserve(1) == 7)
+        expect(noGcCaller(11) == 11)
+        val pair = leafPair(Pair(9, 1.25))
+        expect(pair.number == 19 && pair.fraction == 1.75)
+        val calls = leafCalls()
+        var caught = false
+        try { leafObserve(1, failArgument()) }
+        catch (error: IllegalArgumentException) { caught = true }
+        expect(caught && leafCalls() == calls)
+        var index = 0
+        while (index < 64) {
+            expect(leafObserve(1, argument(index)) == index)
+            expect(cell.value == 42)
+            index += 1
+        }
+    }
+    expect(genericCaller(cell, 17) === cell)
+    gcCollect()
+    expect(cell.value == 42)
+    println("gc-leaf-ok")
+}

@@ -1,0 +1,1 @@
+fun invalid(value: UserCoreNumber<Int>): Int = 0

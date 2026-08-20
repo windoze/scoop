@@ -1,0 +1,24 @@
+fun main() {
+    val value: Any = Both()
+    when (value) {
+        is Left if value is Right -> {
+            println(value.left() + value.right())
+            println(value.leftValue + value.rightValue)
+            println(value.root())
+            println(value.extra())
+            println(value.extraValue)
+            val reference: () -> Int = value::right
+            println(reference())
+            println(combined(value) { value.left() })
+        }
+        else -> println("missing")
+    }
+    println(defaults())
+    val integer = exact<Int>(Some(6), 0)
+    val missing = exact<String>(None, "fallback")
+    val text = exact<String>(Some("shared-live"), "wrong")
+    gcCollect()
+    println(integer())
+    println(missing())
+    println(text())
+}

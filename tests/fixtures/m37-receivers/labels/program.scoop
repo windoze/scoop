@@ -1,0 +1,22 @@
+class Inner(val number: Int)
+fun inner(action: Inner.() -> Int): Int = action(Inner(2))
+class Outer(val number: Int) {
+    fun run(): Int = inner { this@Outer.number + this.number }
+}
+fun Int.extension(): Int {
+    val action: Int.() -> Int = outer@ {
+        val nested: Int.() -> Int = inner@ { this@extension + this@outer + this@inner }
+        val closure = { nested(3) }
+        closure()
+    }
+    return action(2)
+}
+fun main() {
+    println(Outer(40).run())
+    println(37.extension())
+    val action: Int.() -> Int = named@ {
+        val nested = { this@named }
+        nested()
+    }
+    println(action(9))
+}

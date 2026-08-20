@@ -1,0 +1,7 @@
+val staticValue: Int = 1
+
+fun main() {
+    @Unsafe {
+        addressOf(staticValue)
+    }
+}

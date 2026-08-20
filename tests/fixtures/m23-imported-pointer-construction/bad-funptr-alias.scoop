@@ -1,0 +1,2 @@
+import dependency.construction.Callback
+public fun result(): Int { @Unsafe { val pointer = Callback(1uL) }; return 42 }

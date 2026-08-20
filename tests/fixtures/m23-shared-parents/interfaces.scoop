@@ -1,0 +1,32 @@
+package consumer.parents
+
+import dependency.parents.Reader
+
+public interface IntReader: Reader<Int> {}
+
+public class NumberReader public constructor(public val number: Int): IntReader {
+    public override fun read(): Int = this.number
+}
+
+public interface LocalReader<T> {
+    public fun read(): T
+    public fun again(): T = this.read()
+}
+
+public interface LocalIntReader: LocalReader<Int> {}
+
+public class LocalNumberReader public constructor(public val number: Int): LocalIntReader {
+    public override fun read(): Int = this.number
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val reader: IntReader = NumberReader(read(seed))
+    val local: LocalIntReader = LocalNumberReader(read(seed))
+    return if (local.again() == reader.again()) { reader.again() } else { 1 }
+}
+
+public fun result(): Int {
+    val local: LocalIntReader = LocalNumberReader(42)
+    val external: IntReader = NumberReader(42)
+    return if (local.again() == 42) { external.again() } else { 1 }
+}

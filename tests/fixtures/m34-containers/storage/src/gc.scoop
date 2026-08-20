@@ -1,0 +1,52 @@
+fun fill(values: MutableList<Cell>, count: Int) {
+    var index = 0
+    while (index < count) { values.add(Cell(index)); index += 1 }
+}
+
+fun writeYoung(values: MutableList<Cell>) {
+    values[0L] = Cell(11)
+    values[1024L] = Cell(22)
+    values[2047L] = Cell(33)
+}
+
+fun discardLast(values: MutableList<Cell>) { values.removeAt(values.size - 1L) }
+
+fun minorCollection() {
+    @Unsafe {
+        if (movingStress()) { gcCollect(); return }
+        val before = minorCount()
+        while (minorCount() == before) {
+            var index = 0
+            while (index < 256) {
+                val churn = Cell(index)
+                index = churn.number + 1
+            }
+        }
+    }
+}
+
+@Unsafe fun movingAndClearing() {
+    val values = ArrayList<Cell>(4096L)
+    inspectStorage(values, 8L)
+    fill(values, 2048)
+    gcCollect()
+    writeYoung(values)
+    minorCollection()
+    check(values[0L].number == 11 && values[1024L].number == 22 && values[2047L].number == 33, 9)
+    inspectStorage(values, 8L)
+    gcCollect()
+    val beforeRemove = gcStats()
+    discardLast(values)
+    gcCollect()
+    check(beforeRemove > gcStats(), 10)
+    inspectStorage(values, 8L)
+    val beforeClear = gcStats()
+    values.clear()
+    gcCollect()
+    check(values.size == 0L && beforeClear >= gcStats() + 2047UL, 11)
+    inspectStorage(values, 8L)
+    values.add(Cell(77))
+    minorCollection()
+    check(values[0L].number == 77, 12)
+    inspectStorage(values, 8L)
+}

@@ -1,0 +1,29 @@
+---
+source: compiler/lir-lower/src/tests/pointers/evaluation.rs
+expression: body_dump(&lowered)
+---
+  block entry
+    t0 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t1 = raw_load t0 align 8 : i64
+    t2 = ulong_to_ptr t1 : ptr
+    t3 = ulong_to_ptr integer<ULong>(0x0000000000002000) : ptr
+    t4 = raw_load t3 align 8 : i64
+    t5 = ulong_to_ptr integer<ULong>(0x0000000000003000) : ptr
+    raw_store t5 integer<Long>(0x0000000000000007) align 8
+    t6 = aggregate () : {}
+    t7 = aggregate () : struct0
+    t8 = aggregate (t6, t7) : {{}, struct0}
+    t9 = aggregate (t8) : struct1
+    t10 = aggregate () : {}
+    t11 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t12 = raw_load t11 align 8 : i64
+    t13 = ulong_to_ptr t12 : ptr
+    t14 = ulong_to_ptr integer<ULong>(0x0000000000002000) : ptr
+    t15 = raw_load t14 align 8 : i64
+    t16 = zst_value exact=05c79b4b37c953c45e58822887717a10433301d3b6827935c370b4e5d8454aa6 align 1 : struct1
+    t17 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t18 = raw_load t17 align 8 : i64
+    t19 = ulong_to_ptr t18 : ptr
+    t20 = ulong_to_ptr integer<ULong>(0x0000000000002000) : ptr
+    t21 = raw_load t20 align 8 : i64
+    ret

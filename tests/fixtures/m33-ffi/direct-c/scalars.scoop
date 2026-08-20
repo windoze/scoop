@@ -1,0 +1,69 @@
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_s8") fun leafS8(value: Byte): Byte
+@Extern(lib = "fixture_native", name = "m33_s8") fun safeS8(value: Byte): Byte
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_u8") fun leafU8(value: UByte): UByte
+@Extern(lib = "fixture_native", name = "m33_u8") fun safeU8(value: UByte): UByte
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_s16") fun leafS16(value: Short): Short
+@Extern(lib = "fixture_native", name = "m33_s16") fun safeS16(value: Short): Short
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_u16") fun leafU16(value: UShort): UShort
+@Extern(lib = "fixture_native", name = "m33_u16") fun safeU16(value: UShort): UShort
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_s32") fun leafS32(value: Int): Int
+@Extern(lib = "fixture_native", name = "m33_s32") fun safeS32(value: Int): Int
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_u32") fun leafU32(value: UInt): UInt
+@Extern(lib = "fixture_native", name = "m33_u32") fun safeU32(value: UInt): UInt
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_s64") fun leafS64(value: Long): Long
+@Extern(lib = "fixture_native", name = "m33_s64") fun safeS64(value: Long): Long
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_u64") fun leafU64(value: ULong): ULong
+@Extern(lib = "fixture_native", name = "m33_u64") fun safeU64(value: ULong): ULong
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_boolean") fun leafBoolean(value: Boolean): Boolean
+@Extern(lib = "fixture_native", name = "m33_boolean") fun safeBoolean(value: Boolean): Boolean
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_float") fun leafFloat(value: Float): Float
+@Extern(lib = "fixture_native", name = "m33_float") fun safeFloat(value: Float): Float
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_double") fun leafDouble(value: Double): Double
+@Extern(lib = "fixture_native", name = "m33_double") fun safeDouble(value: Double): Double
+@GCLeaf @Extern(lib = "fixture_native", name = "abs") fun selectedAbs(value: Int): Int
+
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_mixed")
+fun mixed(
+    a0: Long, b0: Double, a1: Long, b1: Double, a2: Long, b2: Double,
+    a3: Long, b3: Double, a4: Long, b4: Double, a5: Long, b5: Double,
+    a6: Long, b6: Double, a7: Long, b7: Double, a8: Long, b8: Double,
+    a9: Long, b9: Double, tag: Byte, flag: Boolean, tail: UShort
+): Double
+
+class Cell(val value: Int)
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val cell = Cell(73)
+    @Unsafe {
+        expect(leafS8((-101).toInt8()) == (-117).toInt8())
+        expect(safeS8((-101).toInt8()) == (-117).toInt8())
+        expect(leafU8(201.toUInt8()) == 239.toUInt8())
+        expect(safeU8(201.toUInt8()) == 239.toUInt8())
+        expect(leafS16((-30001).toInt16()) == (-32001).toInt16())
+        expect(safeS16((-30001).toInt16()) == (-32001).toInt16())
+        expect(leafU16(50001.toUInt16()) == 65521.toUInt16())
+        expect(safeU16(50001.toUInt16()) == 65521.toUInt16())
+        expect(leafS32(-123456789) == -2147483647)
+        expect(safeS32(-123456789) == -2147483647)
+        expect(leafU32(0xfedcba98U) == 0xfffffffeU)
+        expect(safeU32(0xfedcba98U) == 0xfffffffeU)
+        expect(leafS64(-98765432101234567L) == -9223372036854775805L)
+        expect(safeS64(-98765432101234567L) == -9223372036854775805L)
+        expect(leafU64(0xfedcba9876543210UL) == 0xfffffffffffffff1UL)
+        expect(safeU64(0xfedcba9876543210UL) == 0xfffffffffffffff1UL)
+        expect(leafBoolean(false) && !leafBoolean(true))
+        expect(safeBoolean(false) && !safeBoolean(true))
+        expect(leafFloat(1.25f) == -2.75f && safeFloat(1.25f) == -2.75f)
+        expect(leafDouble(0.5) == -123.25 && safeDouble(0.5) == -123.25)
+        expect(selectedAbs(-7) == 3)
+        expect(mixed(
+            1L, 0.5, 2L, 1.5, 3L, 2.5, 4L, 3.5, 5L, 4.5,
+            6L, 5.5, 7L, 6.5, 8L, 7.5, 9L, 8.5, 10L, 9.5,
+            (-101).toInt8(), true, 60000.toUInt16()
+        ) == 60648.5)
+    }
+    gcCollect()
+    expect(cell.value == 73)
+    println("direct-c-scalars-ok")
+}

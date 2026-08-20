@@ -1,0 +1,5 @@
+import consumer.*
+
+fun main() {
+    if (!dormant<Int>(42)) { throw IllegalStateException() }
+}

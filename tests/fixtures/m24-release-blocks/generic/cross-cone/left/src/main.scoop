@@ -1,0 +1,9 @@
+package releaseleft
+
+import releasegeneric.Owner
+import releasegeneric.ordinaryRecord
+
+public fun makeLeft(): Owner<Int> = Owner(11, 17)
+public fun observeLeft(value: Owner<Int>): Int = value.first()
+public fun <T> makeGeneric(value: T, handle: Int): Owner<T> = Owner(value, handle)
+public fun <T> recordBefore(value: T): T = ordinaryRecord(value, 1)

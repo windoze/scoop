@@ -1,0 +1,17 @@
+fun makeOperation(base: Int): (Int) -> Int {
+    return fun(value: Int): Int {
+        if (value < 0) {
+            return 0 - value
+        }
+        return value + base
+    }
+}
+
+fun main() {
+    val operation = makeOperation(2)
+    val inferred = fun(value: Int) { return value + 1 }
+    gcCollect()
+    println(operation(40))
+    println(operation(0 - 7))
+    println(inferred(41))
+}

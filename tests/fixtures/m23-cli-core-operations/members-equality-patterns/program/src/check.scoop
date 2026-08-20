@@ -1,0 +1,17 @@
+fun main() {
+    if (patternInt8(-128) != 1 || patternInt8(127) != 0 || patternInt16(32767) != 1 || patternInt16(0) != 0) {
+        throw IllegalStateException()
+    }
+    if (patternInt(2147483647) != 1 || patternInt(0) != 0 || patternLong(9223372036854775807L) != 1 || patternLong(0L) != 0) {
+        throw IllegalStateException()
+    }
+    if (patternUInt8(255U) != 1 || patternUInt8(0U) != 0 || patternUInt16(65535U) != 1 || patternUInt16(0U) != 0) {
+        throw IllegalStateException()
+    }
+    if (patternUInt(4294967295U) != 1 || patternUInt(0U) != 0 || patternULong(18446744073709551615UL) != 1 || patternULong(0UL) != 0) {
+        throw IllegalStateException()
+    }
+    if (!combinedEquality(255U) || !combinedEquality(1U) || combinedEquality(2U) || nestedPattern((1, 2)) != 1 || nestedPattern((1, 3)) != 0) {
+        throw IllegalStateException()
+    }
+}

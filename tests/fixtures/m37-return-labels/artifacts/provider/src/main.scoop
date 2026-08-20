@@ -1,0 +1,7 @@
+package localreturns
+public class Box public constructor(public val value: Int)
+public fun <T> choose(value: T, work: () -> Int = done@ { return@done 3 }): T {
+    val result: () -> T = out@ { return@out value }
+    println(work())
+    return@choose result()
+}

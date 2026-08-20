@@ -1,0 +1,354 @@
+{
+  "scope": "18 selected fixture snapshot generation on GNU and musl; not ordinary acceptance",
+  "new_target_snapshots": 72,
+  "updated_existing_snapshots": 21,
+  "hir": [
+    {
+      "path": "tests/fixtures/legacy-acceptance/m11-functions/suspend-values.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m35-when/artifacts/consumer.debug.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m35-when/artifacts/consumer.release.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m35-when/effects/program.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m35-when/smart-casts/program.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m37-delegation/artifacts/bridge.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m37-delegation/artifacts/consumer.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m37-delegation/artifacts/provider.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m37-integral-enums/artifacts/consumer.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m37-integral-enums/c-abi/program.hir.txt",
+      "only_imported_identity_renumbering": true
+    },
+    {
+      "path": "tests/fixtures/m37-smart-casts/artifacts/consumer.hir.txt",
+      "only_imported_identity_renumbering": true
+    }
+  ],
+  "lir_platform_pairs": [
+    {
+      "path": "tests/fixtures/legacy-acceptance/m11-functions/suspend-values.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": false,
+      "darwin_diff_lines": 332,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m35-when/artifacts/consumer.debug.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": false,
+      "darwin_diff_lines": 12,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m35-when/artifacts/consumer.release.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": false,
+      "darwin_diff_lines": 12,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m35-when/effects/program.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m35-when/smart-casts/program.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-rules/artifacts-errors/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-rules/artifacts-errors/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-rules/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-rules/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-rules/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-targets/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-targets/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-targets/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-values/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-values/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-annotation-values/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": false,
+      "darwin_diff_lines": 27,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-delegation/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-delegation/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-delegation/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-inner/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-inner/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-inner/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-integral-enums/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-integral-enums/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": false,
+      "darwin_diff_lines": 7,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-integral-enums/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": false,
+      "darwin_diff_lines": 27,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-integral-enums/c-abi/program.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": false,
+      "darwin_diff_lines": 32,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-local-types/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-local-types/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": false,
+      "darwin_diff_lines": 22,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-local-types/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-receivers/callbacks/program.debug.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-receivers/callbacks/program.release.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-smart-casts/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-smart-casts/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-smart-casts/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-type-annotations/artifacts-errors/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-type-annotations/artifacts-errors/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-type-annotations/artifacts/bridge.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-type-annotations/artifacts/consumer.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-type-annotations/artifacts/provider.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-type-annotations/callbacks/program.debug.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    },
+    {
+      "path": "tests/fixtures/m37-type-annotations/callbacks/program.release.x86_64-unknown-linux-gnu.lir.txt",
+      "gnu_musl_identical": true,
+      "darwin_exists": true,
+      "darwin_identical": true,
+      "matches_reviewed_darwin_with_sysv_carriers": true
+    }
+  ],
+  "reviewed_abi_differences": [
+    "four-byte aggregate argument carrier is i32 on SysV instead of the Darwin i64 carrier",
+    "sixteen-byte tagged aggregate returns use two i64 carrier parts on SysV instead of one [2xi64] part"
+  ],
+  "preserved": "after only these ABI substitutions all 41 GNU LIR files match the previously validated Darwin files exactly, including CFG, local numbers, roots, scans and source symbols; GNU and musl are byte-identical",
+  "mir_changed": false
+}

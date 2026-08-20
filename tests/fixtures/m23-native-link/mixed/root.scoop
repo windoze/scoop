@@ -1,0 +1,15 @@
+import nativelink.mixed.*
+import nativelink.mixedleft.*
+import nativelink.mixedright.*
+
+struct Marker(val text: String)
+
+fun main() {
+    val marker = Marker("mixed-" + "alive")
+    println(0)
+    println(left())
+    println(right())
+    println(shared(marker, 30))
+    gcCollect()
+    println(marker.text)
+}

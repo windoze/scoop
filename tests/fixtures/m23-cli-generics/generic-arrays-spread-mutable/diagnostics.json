@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `pack`: MutableArray<Int> is not equal to Array<T>",
+    "notes": [],
+    "origin": {
+      "cone": "c50986b3f11d173b3791ecd7e3bedbe4fd71f83a97873d499036a06a6e3f7964",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 97
+    },
+    "severity": "error"
+  }
+]

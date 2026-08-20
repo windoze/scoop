@@ -1,0 +1,6 @@
+import templates.equality.Counter
+
+@NoGC
+public fun check(left: Counter<Int>, right: Counter<Int>): Boolean {
+    return left == right
+}

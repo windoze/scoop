@@ -1,0 +1,18 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val factory = Factory("factory")
+    val child = Child("child")
+    verifyType(factory.evaluate() == 1 && child.evaluate() == 1)
+    factory.count = 99
+    val root: Root = child
+    root.count = 13
+    verifyType(factory.count == 2 && root.count == 2)
+    verifyType(factory.observe() == (7, "protected"))
+    verifyType(factory.ordinary(true) == "ordinary")
+    val value: Readable = Value(17)
+    verifyType(value.evaluate() == 4 && FinalReader().evaluate() == 5)
+    verifyType(Generic("value").value == "value")
+    val storage = deferred()
+    verifyType(storage.root === storage.root)
+}

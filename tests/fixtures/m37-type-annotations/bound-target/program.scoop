@@ -1,0 +1,3 @@
+@Target([AnnotationTarget.CLASS]) annotation class A
+interface I {}
+fun <T: @A I> f(x: T) {}

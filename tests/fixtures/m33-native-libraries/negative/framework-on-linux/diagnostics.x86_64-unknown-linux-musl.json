@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "framework libraries are not supported by the Linux target; requirement 557b4e69f8bf676d4ae0e5f8aa3251876a5deae53b53d3fbc7a6ac659954a9dd; origins: dev.m33:library-negative:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,30 @@
+package consumer.inference
+
+import dependency.inference.*
+import dependency.inference.exercise as providerExercise
+
+private fun readInt(value: Int): Int = value
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val values = pack(*[], seed)
+    if (values.size != 1L || read(values[0L]) != 42) { return 8 }
+    return providerExercise<T>(seed, read)
+}
+
+public fun result(): Int {
+    val first = pack(*[], 42)
+    val last = pack(42, *[])
+    val wholeEmpty = whole(values = [], seed = 42)
+    if (first.size != 1L || first[0L] != 42 || last[0L] != 42 || wholeEmpty.size != 0L) { return 1 }
+    val wide = pack(*[], 1, 2147483648)
+    val reverse = pack(*[], 2147483648, 1)
+    if (wide[0L] != 1L || wide[1L] != 2147483648L || reverse[1L] != 1L) { return 2 }
+    val unsigned = pack(*[], 1u, 4294967296u)
+    if (unsigned[0L] != 1uL || unsigned[1L] != 4294967296uL) { return 3 }
+    if (arrayOrSeed(empty(), 42) != 42 || arrayOrSeed(Array([]), 42) != 42) { return 4 }
+    if (mutableOrSeed([], 42) != 42 || mutableOrSeed(MutableArray([]), 42) != 42) { return 5 }
+    if (two([], [], 42, "second") != 42) { return 6 }
+    val explicit = pack<_>(*[], 42)
+    val source = pack(42)
+    val named = whole(values = source, seed = 0)
+    return if (explicit[0L] == 42 && named === source) { exercise<Int>(42, ::readInt) } else { 7 }
+}

@@ -1,0 +1,28 @@
+package consumer.constructorrequests
+import upstream.constructorrequests.*
+
+private typealias Fixed = Shell<Int, Unit>
+private class Current<T, U>(value: T): Shell<T, U>(value, true)
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val primary = Shell<T, Unit>(seed)
+    if (inspect(primary.output) != 42) { return 3 }
+    val first = make<T, Unit>(seed)
+    val repeated = Shell<T, Unit>(seed, false)
+    val phantom = Shell<T, String>(seed, true)
+    val current = Current<T, Unit>(seed)
+    if (inspect(first.output) != 42 || inspect(repeated.output) != 42) { return 1 }
+    if (inspect(phantom.output) != 42 || inspect(current.output) != 42) { return 2 }
+    val wrapper = Carrier<Shell<T, Unit>, String>(first)
+    return inspect(wrapper.value.output)
+}
+
+public fun <T, U> make(seed: T): Shell<T, U> = Shell<T, U>(seed, true)
+
+public fun result(): Int {
+    val other = Fixed(21)
+    if (other.output != 21) { return 4 }
+    val alias = Fixed(42, true)
+    if (alias.output != 42) { return 1 }
+    return exercise<Int>(42, { value -> value })
+}

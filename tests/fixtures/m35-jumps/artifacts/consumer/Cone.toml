@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m35"
+name = "jumps-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m35:jumps-provider" = "0.1.0"

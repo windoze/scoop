@@ -1,0 +1,6 @@
+package tuple.peer
+import tuple.provider.pair
+
+public fun sameType(): (Int, String) = (42, "peer")
+public fun combine(): ((Int, String), (Int, String)) = (pair(), sameType())
+public fun erased(): Any = (43, "erased")

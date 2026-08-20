@@ -1,0 +1,7 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int = Plain().choose<_>(42)
+
+public fun <T> make(value: T): T = Plain().choose<T>(value)

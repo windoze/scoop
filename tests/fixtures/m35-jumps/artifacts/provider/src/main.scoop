@@ -1,0 +1,15 @@
+public fun <T> pick(value: T?, fallback: T): T {
+    val result = value ?: return fallback
+    return result
+}
+
+public fun withDefault(action: () -> Int = fun(): Int {
+    val missing: Int? = None
+    return missing ?: return 17
+}): Int = action()
+
+public fun fromDefault(value: Int?, result: Int = value ?: throw UnwrapException()): Int = result
+
+public fun <T> branch(flag: Boolean, value: T): T {
+    val ignored = when (flag) { true -> return value; false -> throw UnwrapException() }
+}

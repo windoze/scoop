@@ -1,0 +1,24 @@
+internal class OptionDecoder<T>(private val element: Decodable<T>) : Decodable<Option<T>> {
+    public override fun decode(decoder: Decoder): Option<T> {
+        val variants = decoder.keyed()
+        val names = variants.keys
+        if (names.size != 1L) {
+            throw DecodingException(decoder.path, "expected exactly one Option variant")
+        }
+        val name = names[0L]
+        if (name != "None" && name != "Some") {
+            throw DecodingException(decoder.path, "unknown Option variant")
+        }
+        val payload = variants.required(name)
+        if (name == "None") {
+            payload.keyed().end()
+            variants.end()
+            return None
+        }
+        val elements = payload.unkeyed()
+        val value = element.decode(elements.element())
+        elements.end()
+        variants.end()
+        return Some(value)
+    }
+}

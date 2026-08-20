@@ -1,0 +1,17 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val token = Token()
+    val impl = implementation()
+    val base: Base = impl
+    val contract: Contract = impl
+    verifyType(base.pass(token) == token && base.reach(token) == token)
+    verifyType(base.observe(token) == (token, token, token, token))
+    verifyType(contract.get(token) == token && contract.token == token && contract.echo(token) == token)
+    val partial = partial()
+    verifyType(partial.get(token) == token && partial.echo(token) == token)
+    verifyType(again().pass(token) == token && again().observe(token)._2 == token)
+    verifyType(abstractTask().run(token) == token)
+    Registry.value = token
+    verifyType(Registry.value == token && Registry.direct == token)
+}

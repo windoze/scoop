@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "program root must be an executable Cone",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:cone.kind",
+      "path": "${work}/artifacts/1.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

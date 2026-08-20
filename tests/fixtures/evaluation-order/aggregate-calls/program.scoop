@@ -1,0 +1,13 @@
+class Box(var value: Int)
+
+fun main() {
+    val box = Box(1)
+    fun change(): Int { box.value = 9; return 2 }
+    val (first, second) = (box.value, change())
+    println(first)
+    println(second)
+    box.value = 1
+    val array = [box.value, change()]
+    println(array[0L])
+    println(array[1L])
+}

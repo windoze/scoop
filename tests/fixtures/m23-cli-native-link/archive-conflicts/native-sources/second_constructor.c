@@ -1,0 +1,1 @@
+int helper(void) { return 0; } __attribute__((constructor)) static void setup(void) {}

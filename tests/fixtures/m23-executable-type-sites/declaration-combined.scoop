@@ -1,0 +1,19 @@
+private fun declarationPrivate(unused: Any) {}
+public fun String.declarationReceiver(unused: Int) {
+    val retained: Any = this
+    declarationPrivate(retained)
+}
+public class DeclarationHolder(val value: String) {
+    public constructor(unused: Any): this("constructor") {}
+}
+public var declarationStorage: String = "storage"
+public var declarationAlias: String
+    get() = declarationStorage
+    set(value) { declarationStorage = value }
+private operator fun String.getValue(thisRef: Unit): String = this
+public val declarationDelegated: String by "delegate"
+public fun declarationRead(): String {
+    val unused: Any = DeclarationHolder("value")
+    declarationStorage.declarationReceiver(1)
+    return declarationStorage
+}

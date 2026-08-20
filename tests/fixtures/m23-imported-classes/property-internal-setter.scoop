@@ -1,0 +1,5 @@
+import dependency.classes.*
+
+public fun invalid(value: RestrictedValues) {
+    value.internalValue = 21
+}

@@ -1,0 +1,3 @@
+import templates.bounds.readBound
+
+public fun result(): Int = readBound(42)

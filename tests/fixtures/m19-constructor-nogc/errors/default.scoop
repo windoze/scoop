@@ -1,0 +1,4 @@
+fun managedFlag(): Boolean = true
+struct Bad(val value: Int) { @NoGC constructor(flag: Boolean = managedFlag()): this(1) {} }
+@NoGC fun make(): Bad = Bad()
+fun main() {}

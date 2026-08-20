@@ -1,0 +1,37 @@
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+class Both : Left, Right {
+    public override fun left(): Int = 20
+    public override fun right(): Int = 22
+}
+fun lambda(value: Any): () -> Int = {
+    when (value) {
+        is Left if value is Right -> { gcCollect(); value.left() + value.right() }
+        else -> 0
+    }
+}
+fun anonymous(value: Any): () -> Int = fun(): Int {
+    val snapshot = value
+    return when (snapshot) {
+        is Left if value is Right -> { gcCollect(); value.left() + snapshot.right() }
+        else -> 0
+    }
+}
+fun local(value: Any): Int {
+    fun read(): Int = when (val snapshot = value) {
+        is Left if snapshot is Right -> { gcCollect(); value.left() + value.right() }
+        else -> 0
+    }
+    return read()
+}
+fun main() {
+    val first = lambda(Both())
+    val second = anonymous(Both())
+    gcCollect()
+    println(first())
+    println(lambda("other")())
+    println(second())
+    println(anonymous("other")())
+    println(local(Both()))
+    println(local("other"))
+}

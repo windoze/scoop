@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `invalid` in current-unit top-level candidate layer:\n  - fun invalid(callback: FunPtr<(Int) -> Int>): Int — argument for `callback` (expected FunPtr<(Int) -> Int>): no applicable candidate for native function reference `::increment` in current-unit top-level candidate layer:\n  - fun increment(value: Int): Int — native callbacks must be declared `@NoGC`",
+    "notes": [],
+    "origin": {
+      "cone": "33525411975e9188b87792d2dcac87fa9f90e29d08e3bc01d0b5085fea746d1a",
+      "end": 196,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 185
+    },
+    "severity": "error"
+  }
+]

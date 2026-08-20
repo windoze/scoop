@@ -1,0 +1,23 @@
+package consumer.union
+
+import dependency.union.*
+import sibling.left.action as leftAction
+import sibling.right.action as rightAction
+import sibling.left.dynamic as leftDynamic
+import sibling.right.dynamic as rightDynamic
+import sibling.left.sameType as leftType
+import sibling.right.sameType as rightType
+
+public fun check(): Int {
+    val left = leftAction()(Payload(0)) as Payload
+    val right = rightAction()(Payload(0)) as Other
+    val dynamicLeft = leftDynamic() as (Payload) -> Any
+    val dynamicRight = rightDynamic() as (Payload) -> Any
+    if ((dynamicLeft(Payload(0)) as Payload).number != left.number) { return 1 }
+    if ((dynamicRight(Payload(0)) as Other).number != right.number) { return 2 }
+    if ((leftType() as Readable).read() != 42) { return 3 }
+    if ((rightType() as Readable).read() != 42) { return 4 }
+    return left.number + right.number
+}
+
+fun main() { println(check()) }

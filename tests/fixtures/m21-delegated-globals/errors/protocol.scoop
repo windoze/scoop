@@ -1,0 +1,16 @@
+class NoGet
+
+class WrongExtension {
+    operator fun getValue(thisRef: Unit): Int = 1
+}
+
+val missing: Int by NoGet()
+val Int.wrongReceiver: Int by WrongExtension()
+
+@Global
+var rawDelegate: Int by NoGet()
+
+@Global
+var rawOptional: Int?
+
+fun main() {}

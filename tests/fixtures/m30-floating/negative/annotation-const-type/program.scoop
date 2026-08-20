@@ -1,0 +1,4 @@
+const val value: Double = 0.1
+annotation class Metric(val value: Float)
+@Metric(value) struct Item()
+fun main() {}

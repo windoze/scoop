@@ -1,0 +1,50 @@
+package consumer.iteration
+
+import upstream.iteration.*
+import upstream.iteration.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+private fun readInt(value: Int): Int = value
+
+private class FailingSource {
+    public operator fun iterator(): Cursor<Int> {
+        val empty: Array<Cursor<Int>> = []
+        return empty[0L]
+    }
+}
+
+public fun result(): Int {
+    resetCalls()
+    var sum = 0
+    for (value in marked<Int>([20, 22])) { sum = sum + value }
+    if (sum != 42 || sourceCalls != 1 || iteratorCalls != 1 || nextCalls != 3) { return 1 }
+    resetCalls()
+    var cleaned = 0
+    var retained = 0
+    for (value in marked<Int>([0, 20, 22])) {
+        try {
+            if (value == 0) { continue }
+            if (value == 22) { break }
+            retained = retained + value
+        } finally { cleaned = cleaned + 1 }
+    }
+    if (sourceCalls != 1 || iteratorCalls != 1 || nextCalls != 3 || cleaned != 3 || retained != 20) { return 2 }
+    var caught = 0
+    try {
+        for (value in Sequence<Int>([1])) {
+            try { val fail = [value][1L] } finally { cleaned = cleaned + 1 }
+        }
+    } catch (error: IndexOutOfBoundsException) { caught = caught + 1 }
+    try {
+        for (value in FailingSource()) { caught = -10 }
+    } catch (error: IndexOutOfBoundsException) { caught = caught + 1 }
+    var nested = 0
+    for (outer in [1, 2]) {
+        for (inner in [0, 1, 2]) {
+            if (inner == 0) { continue }
+            if (inner == 2) { break }
+            nested = nested + outer
+        }
+    }
+    return if (caught == 2 && cleaned == 4 && nested == 3) { 42 } else { 3 }
+}

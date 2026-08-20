@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "private interface property `missing` must provide every accessor body",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 47,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 40
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "private interface method `$get$missing` must have a body",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 47,
+      "kind": "source",
+      "path": "src/user.scoop",
+      "start": 40
+    },
+    "severity": "error"
+  }
+]

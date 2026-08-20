@@ -1,0 +1,4 @@
+import upstream.iteration.Cursor
+
+class Source { private operator fun iterator(): Cursor<Int> = Cursor<Int>([]) }
+public fun invalid() { for (value in Source()) {} }

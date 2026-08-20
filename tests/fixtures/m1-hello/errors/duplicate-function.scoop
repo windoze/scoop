@@ -1,0 +1,7 @@
+fun main() {
+    println("first")
+}
+
+fun main() {
+    println("second")
+}

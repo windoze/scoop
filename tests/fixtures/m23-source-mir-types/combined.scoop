@@ -1,0 +1,9 @@
+public interface Marker { public fun mark(): Int = 7 }
+public open class Base(val inherited: Int)
+public class Child(val own: String, val number: Int) : Base(number), Marker {}
+public struct Label(val text: String) : Marker {}
+public enum Choice { None, Some(Label) }
+public object Singleton : Base(2), Marker {
+    public val text: String = "value"
+    public val number: Int = 3
+}

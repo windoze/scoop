@@ -1,0 +1,3 @@
+import templates.adapters.*
+
+public fun broken(source: (FunPtr<(Int) -> Int>) -> Int): (FunPtr<(Long) -> Long>) -> Any = source

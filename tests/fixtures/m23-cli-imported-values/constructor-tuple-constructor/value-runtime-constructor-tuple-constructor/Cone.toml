@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "value-runtime-constructor-tuple-constructor"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:downstream-tuple-constructor" = "0.1.0"

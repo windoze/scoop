@@ -1,0 +1,5 @@
+@Extern(name = "m33_system_value")
+fun nativeValue(): Int
+fun main() {
+    @Unsafe { if (nativeValue() != 42) { throw IllegalStateException() } }
+}

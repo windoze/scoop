@@ -1,0 +1,4 @@
+import templates.delegateCombinations.Receiver
+import templates.delegateCombinations.ZeroSlot
+
+var <T> Receiver<T>.wrong: Int by ZeroSlot<T>()

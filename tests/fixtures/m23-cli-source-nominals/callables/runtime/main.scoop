@@ -1,0 +1,14 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = envelope()
+    val integer = value.exercise(17, Argument)
+    verifyNominal(integer._1 == 17 && integer._2 === Argument)
+    val text = value.exercise("callable", Argument)
+    verifyNominal(text._1 == "callable" && text._2 === Argument)
+    verifyNominal(value.view(19) == (19, 19, 1, 2))
+    verifyNominal(value.view("view") == ("view", "view", 1, 2))
+    verifyNominal(value.cached() == 10)
+    verifyNominal(value.variant(23))
+}

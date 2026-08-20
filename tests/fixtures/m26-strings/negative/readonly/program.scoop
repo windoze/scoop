@@ -1,0 +1,1 @@
+fun main() { val value = "text"; value[0L] = 'A' }

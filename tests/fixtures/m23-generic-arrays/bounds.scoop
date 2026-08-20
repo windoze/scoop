@@ -1,0 +1,28 @@
+package consumer.arrays
+
+import upstream.arrays.*
+import upstream.arrays.exercise as providerExercise
+
+private var events: Int = 0
+
+private fun badIndex(): Long { events = events * 10 + 1; return 1L }
+private fun replacement(): Int { events = events * 10 + 2; return 42 }
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    var caught = 0
+    val values = pack(42)
+    try { first(values, -1L) } catch (error: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { first(values, values.size) } catch (error: IndexOutOfBoundsException) { caught = caught + 1 }
+    val mutable = copy(values)
+    try {
+        mutateComputed(mutable, ::badIndex, ::replacement)
+    } catch (error: IndexOutOfBoundsException) {
+        caught = caught + 1
+    } finally {
+        events = events * 10 + 3
+    }
+    try { first<Unit>(pack<Unit>()) } catch (error: IndexOutOfBoundsException) { caught = caught + 1 }
+    return if (caught == 4 && events == 123 && first(freeze(mutable)) == 42) { 42 } else { 1 }
+}

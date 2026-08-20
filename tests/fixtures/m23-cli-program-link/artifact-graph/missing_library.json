@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "artifact not found for dev.programlink:library:0.1.0; provide --dependency-slib or --cone-path",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:direct_dependencies",
+      "path": "${work}/artifacts/root.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,3 @@
+val first get() = second
+val second get() = first
+fun main() {}

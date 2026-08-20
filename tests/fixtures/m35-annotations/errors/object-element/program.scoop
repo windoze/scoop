@@ -1,0 +1,3 @@
+class Item()
+annotation class Mark(val values: Array<Item>)
+fun main() {}

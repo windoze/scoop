@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "gc-combined"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:gc-provider" = {"version" = "0.1.0", "path" = "../gc-provider"}

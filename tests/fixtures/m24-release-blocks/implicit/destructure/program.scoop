@@ -1,0 +1,6 @@
+class Parts(val first: Int, val second: Int) {
+    operator fun component1(): Int = first
+    operator fun component2(): Int = second
+}
+class Owner { release { val (first, second) = Parts(1, 2) } }
+fun main() {}

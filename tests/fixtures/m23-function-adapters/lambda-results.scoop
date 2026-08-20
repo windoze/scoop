@@ -1,0 +1,17 @@
+package consumer.adapters
+
+import templates.adapters.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val boxed = boxedResult(seed)
+    val value = valueResult(read(seed))
+    val reference = referenceResult(read(seed))
+    val nested = nestedResult(read(seed))
+    val foreign = externalErased() as (T) -> Any
+    if (read(boxed() as T) != 42) { return 1 }
+    if (value().read() != 42 || reference().value != 42) { return 2 }
+    if (foreign(seed) as Int != 42) { return 3 }
+    return nested()(0) as Int
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

@@ -1,0 +1,6 @@
+@GCLeaf
+@Extern(lib = "fixture_native", name = "main_code", abi = "c")
+private fun code(): Int
+
+@NoGC
+fun main(): Int { @Unsafe { return code() } }

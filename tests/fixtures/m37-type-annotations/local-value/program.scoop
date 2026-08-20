@@ -1,0 +1,2 @@
+annotation class A(val n: Int)
+fun f(n: Int) { val x: @A(n) Int = 1 }

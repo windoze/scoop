@@ -1,0 +1,6 @@
+struct S(val v: Int)
+
+fun main() {
+    val s = S(1)
+    s.v = 2
+}

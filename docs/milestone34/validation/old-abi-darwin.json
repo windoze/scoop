@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop-link",
+    "--root-slib",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/compile-v1/169ffa2f08ed451c62d78cbb9cb611b40d8127ce51bc2b6e7d32c9aa4fb67080/artifact.slib",
+    "--dep-slib",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/compile-v1/48b9c51447f82d53978e3a8abcbc40241649f4a91a0a2c983abdb7fb64402d59/artifact.slib",
+    "--runtime-objects",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/runtime-v1/af33b28b8287f3dbd98d4e0d5b375fae6f05cd27764609285e0d96cf422d7d47/index.cbor",
+    "-o",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-old-abi-rejected",
+    "--target",
+    "aarch64-apple-darwin"
+  ],
+  "exit": 1,
+  "stdout": "",
+  "stderr": "scoop-link: program Link input /Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/compile-v1/169ffa2f08ed451c62d78cbb9cb611b40d8127ce51bc2b6e7d32c9aa4fb67080/artifact.slib: runtime ABI fingerprint mismatch: expected 54f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c379376586, found 8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583\n",
+  "output_exists": false
+}

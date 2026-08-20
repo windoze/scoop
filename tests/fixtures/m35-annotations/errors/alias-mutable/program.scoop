@@ -1,0 +1,3 @@
+typealias Values = MutableArray<String>
+annotation class Mark(val values: Values)
+fun main() {}

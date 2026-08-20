@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `Reference`: type argument `Int` for `T` must satisfy `ref`",
+    "notes": [],
+    "origin": {
+      "cone": "70e8551529fb552ec1b2f02da0609c4acc4c02b90e403e4bf7d8ba6bf2f3388e",
+      "end": 115,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 97
+    },
+    "severity": "error"
+  }
+]

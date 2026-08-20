@@ -1,0 +1,5 @@
+struct ForeignCallback<T>(val value: T)
+
+fun main() {
+    println(ForeignCallback(42).value)
+}

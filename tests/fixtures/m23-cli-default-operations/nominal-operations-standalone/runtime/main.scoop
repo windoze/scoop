@@ -1,0 +1,15 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class MarkerValue : Marker {}
+
+fun main() {
+    val samples = defaultSamples()
+    verifyDefault(samples.packet() == Packet(1, true, Unit))
+    verifyDefault(samples.empty() == Empty())
+    verifyDefault(samples.choice() == Choice.Pair(1, true))
+    verifyDefault(samples.other() == Other.Pair(1, true))
+    verifyDefault(samples.cache() === Cache)
+    verifyDefault(samples.box() !== samples.box())
+    val marker = MarkerValue()
+    verifyDefault(samples.marker(marker) === marker)
+}

@@ -1,0 +1,4 @@
+interface Encodable<T> { public fun encode(value: T, encoder: Encoder) }
+struct Item(val value: Int) { companion object : Encodable<Item> }
+
+fun main() {}

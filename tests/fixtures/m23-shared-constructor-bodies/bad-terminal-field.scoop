@@ -1,0 +1,8 @@
+package consumer.constructorbodies
+
+private class Missing<T> {
+    val value: T
+    constructor(seed: T) {}
+}
+
+public fun result(): Int = Missing<Int>(42).value

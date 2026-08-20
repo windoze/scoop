@@ -1,0 +1,83 @@
+@Extern(lib = "nursery_probe", name = "minor_count")
+fun minorCount(): Long
+@Extern(lib = "nursery_probe", name = "release_value")
+fun releaseValue(value: Long)
+@Extern(lib = "nursery_probe", name = "release_count")
+fun releaseCount(): Long
+
+class Node(val value: Long)
+struct Chunk(val a: Long, val b: Long, val c: Long, val d: Long,
+             val e: Long, val f: Long, val g: Long, val h: Long)
+struct Wide(val first: Node, val a: Chunk, val b: Chunk, val c: Chunk,
+            val d: Chunk, val e: Chunk, val f: Chunk, val g: Chunk,
+            val h: Chunk, val last: Node)
+class Holder(var value: Wide)
+
+class Staged {
+    val first: Node = Node(10L)
+    init { churn() }
+    val last: Node = Node(20L)
+}
+
+class Resource(private val value: Long, fail: Boolean) {
+    init {
+        churn()
+        if (fail) { throw ArithmeticException() }
+    }
+    release { @Unsafe { releaseValue(value) } }
+}
+
+fun releaseCandidates() {
+    val ready = Resource(9L, false)
+    try { val unready = Resource(20L, true) }
+    catch (failure: ArithmeticException) {}
+}
+
+context(request: Node)
+fun current(): Long = request.value
+
+fun wide(value: Long): Wide {
+    val padding = Chunk(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
+    return Wide(Node(value), padding, padding, padding, padding,
+                padding, padding, padding, padding, Node(value + 1L))
+}
+
+fun churn(): Long {
+    var index = 0L
+    var result = 0L
+    while (index < 80000L) {
+        val node = Node(index)
+        result = result + node.value
+        index = index + 1L
+    }
+    return result
+}
+
+@Unsafe fun main() {
+    context(Node(1L)) {
+        val holder = Holder(wide(10L))
+        val values = MutableArray<Wide>(16L) { i -> wide(i) }
+        gcCollect()
+        val staged = Staged()
+        releaseCandidates()
+        holder.value = wide(100L)
+        values[8L] = wide(200L)
+        val snapshot = values.toArray()
+        val copied = snapshot.toMutableArray()
+        val boxed: Any = holder.value
+        context(Node(77L)) {
+            val sum = churn()
+            println(releaseCount() == 0L)
+            gcCollect()
+            println(releaseCount() == 9L)
+            println(staged.first.value + staged.last.value)
+            val unboxed = boxed as Wide
+            println(holder.value.first.value + holder.value.last.value)
+            println(copied[8L].first.value + copied[8L].last.value)
+            println(unboxed.first.value + unboxed.last.value)
+            println(current())
+            println(sum)
+            println(minorCount() > 0L)
+        }
+    }
+}

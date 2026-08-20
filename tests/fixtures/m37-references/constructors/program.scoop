@@ -1,0 +1,20 @@
+var calls = 0
+class Point(val x: Int) {
+    init { calls += 1 }
+    constructor(): this(7) {}
+}
+class Only(val text: String)
+struct Pair(val left: Int, val right: Int)
+fun main() {
+    val point: (Int) -> Point = ::Point
+    val empty: () -> Point = ::Point
+    val only = ::Only
+    val pair = ::Pair
+    println(calls)
+    println(point(42).x)
+    println(empty().x)
+    println(calls)
+    println(only("created").text)
+    val p = pair(2, 3)
+    println(p.left + p.right)
+}

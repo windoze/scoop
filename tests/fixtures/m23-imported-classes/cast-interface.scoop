@@ -1,0 +1,9 @@
+import dependency.classes.Counter
+import dependency.classes.Readable
+import dependency.classes.readable
+
+public fun primary(): Counter {
+    val value: Any = readable(21)
+    val reader = value as Readable
+    return Counter(reader.read())
+}

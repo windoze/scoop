@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.dispatch"
+name = "consumer"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.dispatch:facade" = {version = "0.1.0", path = "../facade"}

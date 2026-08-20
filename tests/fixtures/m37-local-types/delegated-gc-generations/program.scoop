@@ -1,0 +1,40 @@
+interface View { fun read(): Int; fun captured(): Int }
+struct Snapshot(val number: Int)
+class Direct(val number: Int) : View {
+    override fun read(): Int = number
+    override fun captured(): Int = -1
+}
+class Owner(val offset: Int, var slot: View?) {
+    inner class Wrapped(private val source: View) : View by source {
+        override fun captured(): Int = source.captured() + this@Owner.offset
+    }
+    fun install(number: Int) {
+        val snapshot = Snapshot(number)
+        class Local(source: View) : View by source {
+            override fun captured(): Int = snapshot.number
+        }
+        slot = Some(Wrapped(Local(Direct(number + 1))))
+    }
+}
+fun churn(): Int {
+    var index = 0
+    var total = 0
+    while (index < 512) {
+        total += Direct(index).read()
+        index += 1
+    }
+    return total
+}
+fun main() {
+    val owner = Owner(1, None)
+    gcCollect()
+    owner.install(41)
+    println(churn())
+    println(owner.slot!!.read())
+    println(owner.slot!!.captured())
+    gcCollect()
+    owner.install(8)
+    println(churn())
+    println(owner.slot!!.read())
+    println(owner.slot!!.captured())
+}

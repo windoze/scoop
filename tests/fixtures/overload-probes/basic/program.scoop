@@ -1,0 +1,11 @@
+fun select(operation: (Int) -> Int): Int = operation(7)
+fun select(operation: (Int) -> String): String = operation(7)
+
+fun main() {
+    val prefix = "selected"
+    val first = select({ value -> prefix + value.toString() })
+    val second = select({ value -> value + 1 })
+    println(first)
+    println(second)
+    println(select({ value -> prefix + value.toString() }))
+}

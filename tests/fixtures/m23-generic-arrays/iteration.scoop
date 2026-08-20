@@ -1,0 +1,20 @@
+package consumer.arrays
+
+import upstream.arrays.*
+import upstream.arrays.exercise as providerExercise
+
+private class Reference(public val value: Int)
+private fun readInt(value: Int): Int = value
+private fun readReference(value: Reference): Int = value.value
+private fun readUnit(value: Unit): Int = 21
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    if (total<Int>(pack(20, 22), ::readInt) != 42) { return 1 }
+    val values: MutableArray<Reference> = [Reference(20), Reference(22)]
+    if (total<Reference>(values, ::readReference) != 42) { return 2 }
+    val units: Array<Unit> = pack(Unit, Unit)
+    if (total<Unit>(units, ::readUnit) != 42) { return 3 }
+    return total<Int>(pack(42), ::readInt)
+}

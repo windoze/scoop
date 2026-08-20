@@ -1,0 +1,6 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val value: Long = 9
+    return Counter(rebuiltLongDefault() + value.score() - 21)
+}

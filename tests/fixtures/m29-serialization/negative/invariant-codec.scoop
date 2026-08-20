@@ -1,0 +1,2 @@
+fun accept(codec: Decodable<Any>) { println("unreachable") }
+fun main() { accept(Long.Companion) }

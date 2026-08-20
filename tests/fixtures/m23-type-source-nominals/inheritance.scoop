@@ -1,0 +1,28 @@
+public interface Marker {
+    public fun mark(): Int = 1
+}
+public open class Base protected constructor(val seed: Int) : Marker {
+    protected open fun value(): Int = seed
+    protected open var number: Int = seed
+    public override fun mark(): Int = value()
+}
+public class Derived() : Base(2) {
+    protected override fun value(): Int = 3
+}
+public struct Packet(val number: Int)
+public enum Choice {
+    Empty,
+    Positional(Int),
+    Named { value: Int },
+    Constructed(val value: Int)
+}
+public enum GenericChoice<T> {
+    Empty,
+    Positional(T),
+    Named { value: T },
+    Constructed(val value: T)
+}
+public object Singleton : Marker {
+    private val hidden: Int = 4
+    public override fun mark(): Int = hidden
+}

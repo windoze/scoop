@@ -1,0 +1,1 @@
+fun main() { val bytes: Array<Byte> = [65]; String.fromUtf8Unchecked(bytes) }

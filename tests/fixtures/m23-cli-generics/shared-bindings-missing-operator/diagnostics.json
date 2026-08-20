@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `NotOperator<Int>` has no method `component1`",
+    "notes": [],
+    "origin": {
+      "cone": "b287d1412b5c532fd16fbf3444ca62321f9115138674346c2a83de8978531ce7",
+      "end": 77,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 72
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "b287d1412b5c532fd16fbf3444ca62321f9115138674346c2a83de8978531ce7",
+      "end": 119,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 114
+    },
+    "severity": "error"
+  }
+]

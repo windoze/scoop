@@ -1,0 +1,30 @@
+@Extern(lib = "fixture_native", name = "m33_shutdown_start_callback")
+fun startCallback(function: FunPtr<(Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+@Extern(lib = "fixture_native", name = "m33_shutdown_hold")
+fun holdCallback()
+@Extern(lib = "fixture_native", name = "m33_shutdown_register_atexit")
+fun registerAtExit()
+
+struct Payload(val label: String, val value: Int)
+
+fun main(): Int {
+    val captured = Payload("rooted", 17)
+    @Unsafe {
+        registerAtExit()
+        val worker = foreignCallback<(Ptr<Unit>) -> Int>(
+            {
+                gcCollect()
+                if (captured != Payload("rooted", 17)) {
+                    throw IllegalStateException()
+                }
+                @Unsafe { holdCallback() }
+                captured.value
+            }, 0, ForeignCallbackMode.OneShot
+        )
+        startCallback(worker.function, worker.context)
+    }
+    gcCollect()
+    write("buffered-output")
+    writeError("before-shutdown\n")
+    return 73
+}

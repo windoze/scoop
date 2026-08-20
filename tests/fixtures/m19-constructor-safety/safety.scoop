@@ -1,0 +1,22 @@
+@Unsafe
+public fun dangerous(): Int = 1
+public open class Base @Unsafe public constructor(value: Int = dangerous()) {}
+public class Child @Unsafe public constructor(): Base(dangerous()) {
+    init { @Unsafe { dangerous() } }
+}
+public class Secondary {
+    @Unsafe public constructor(value: Int = dangerous()) { dangerous() }
+    @Safe public constructor(value: Boolean) {}
+}
+public struct Value(val value: Int) {
+    @Unsafe public constructor(): this(dangerous()) { dangerous() }
+}
+fun main() {
+    @Unsafe {
+        val base: Base = Base()
+        val child: Child = Child()
+        val secondary: Secondary = Secondary()
+        val value: Value = Value()
+    }
+    val safe: Secondary = Secondary(true)
+}

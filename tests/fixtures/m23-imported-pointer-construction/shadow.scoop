@@ -1,0 +1,15 @@
+package consumer.construction
+
+import Ptr as Raw
+
+private struct Ptr(val raw: Int)
+
+public fun <T> exercise(value: T): Int {
+    val ordinary = Ptr(42)
+    @Unsafe {
+        val pointer = Raw<Ptr>(addressOf(ordinary).toULong())
+        return pointer.load().raw
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

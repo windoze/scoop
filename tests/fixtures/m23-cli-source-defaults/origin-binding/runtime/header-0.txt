@@ -1,0 +1,2 @@
+public open class LocationHost protected constructor(seed: Int = 3) {
+    public fun check(): (Int, String, (Int, Int, LocationMarker, Int), Int, Int) = (local(5), callback("bound")(), combined(), generic(9), inherited(11))

@@ -1,0 +1,23 @@
+public fun localCall(seed: String, value: String = if (true) {
+    fun copy(): String { return seed }
+    copy()
+} else { seed }): String = value
+public fun <T> localCallGeneric(seed: T, value: T = if (true) {
+    fun copy(): T { return seed }
+    copy()
+} else { seed }): T = value
+public class LocalCallHost {
+    internal fun callback(seed: String, value: () -> String = if (true) {
+        fun copy(): String { return seed }
+        val result = copy()
+        val callback: () -> String = { result }
+        callback
+    } else {
+        val fallback: () -> String = { seed }
+        fallback
+    }): () -> String = value
+}
+fun main() {
+    localCall("value")
+    localCallGeneric("generic")
+}

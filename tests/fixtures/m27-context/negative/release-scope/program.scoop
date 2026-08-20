@@ -1,0 +1,2 @@
+class Value { release { context("x") {} } }
+fun main() {}

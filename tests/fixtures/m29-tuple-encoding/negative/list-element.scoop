@@ -1,0 +1,2 @@
+object Coding : Encodable<(Int, List<Int>)>
+fun main() {}

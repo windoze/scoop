@@ -1,0 +1,10 @@
+package consumer.constructors
+
+import templates.constructors.*
+
+public fun result(): Int {
+    val box = DefaultDerived<Int>()
+    return box.count + 2
+}
+
+public fun <T> make(value: T): Box<T> = Box<T>(value)

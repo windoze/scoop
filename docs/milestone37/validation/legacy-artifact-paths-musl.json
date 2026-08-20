@@ -1,0 +1,245 @@
+{
+  "scope": "Final ordinary musl native-link regressions after reviewed target snapshot migration; two completed results retained from the preceding interrupted run.",
+  "target": "x86_64-unknown-linux-musl",
+  "ordinary_only": true,
+  "selected": 21,
+  "counts": {
+    "passed": 21
+  },
+  "variants": 39,
+  "processes": 210,
+  "stage_and_plan_goldens": 361,
+  "results": [
+    {
+      "name": "native-link-cabi-archive",
+      "status": "passed",
+      "seconds": 219.25571213598596,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-final-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/cabi-archive/fixture.toml"
+    },
+    {
+      "name": "native-link-cabi-object",
+      "status": "passed",
+      "seconds": 219.76400982198538,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-final-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/cabi-object/fixture.toml"
+    },
+    {
+      "name": "native-link-cabi-packed",
+      "status": "passed",
+      "seconds": 362.54282194102416,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/cabi-packed/fixture.toml"
+    },
+    {
+      "name": "native-link-callback-exception",
+      "status": "passed",
+      "seconds": 375.22338766400935,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 18,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/callback-exception/fixture.toml"
+    },
+    {
+      "name": "native-link-callback-reentry",
+      "status": "passed",
+      "seconds": 366.0046295670327,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/callback-reentry/fixture.toml"
+    },
+    {
+      "name": "native-link-callback-tls-archive",
+      "status": "passed",
+      "seconds": 389.0383700959501,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/callback-tls-archive/fixture.toml"
+    },
+    {
+      "name": "native-link-callback-tls-object",
+      "status": "passed",
+      "seconds": 402.9190711239935,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/callback-tls-object/fixture.toml"
+    },
+    {
+      "name": "native-link-direct",
+      "status": "passed",
+      "seconds": 364.1002038419829,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/direct/fixture.toml"
+    },
+    {
+      "name": "native-link-direct-candidates",
+      "status": "passed",
+      "seconds": 22.578443151025567,
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 6,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/direct-candidates/fixture.toml"
+    },
+    {
+      "name": "native-link-direct-reexport",
+      "status": "passed",
+      "seconds": 379.1961750490009,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/direct-reexport/fixture.toml"
+    },
+    {
+      "name": "native-link-formats-pointers",
+      "status": "passed",
+      "seconds": 16.85292279801797,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 5,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/formats-pointers/fixture.toml"
+    },
+    {
+      "name": "native-link-runtime-gc",
+      "status": "passed",
+      "seconds": 371.99730875500245,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 10,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/runtime-gc/fixture.toml"
+    },
+    {
+      "name": "native-link-runtime-handles",
+      "status": "passed",
+      "seconds": 367.56928448501276,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 18,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/runtime-handles/fixture.toml"
+    },
+    {
+      "name": "native-link-scoopabi",
+      "status": "passed",
+      "seconds": 364.5638075880124,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/scoopabi/fixture.toml"
+    },
+    {
+      "name": "native-link-scoopabi-archive",
+      "status": "passed",
+      "seconds": 387.3463287689956,
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/scoopabi-archive/fixture.toml"
+    },
+    {
+      "name": "native-link-scoopabi-object",
+      "status": "passed",
+      "seconds": 373.0844000490033,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/scoopabi-object/fixture.toml"
+    },
+    {
+      "name": "native-link-storage",
+      "status": "passed",
+      "seconds": 363.56068527599564,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/storage/fixture.toml"
+    },
+    {
+      "name": "native-link-storage-archive",
+      "status": "passed",
+      "seconds": 367.36309788696235,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/storage-archive/fixture.toml"
+    },
+    {
+      "name": "native-link-storage-object",
+      "status": "passed",
+      "seconds": 367.26698140701046,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-native-link/storage-object/fixture.toml"
+    },
+    {
+      "name": "program-link-coroutine-lifecycle",
+      "status": "passed",
+      "seconds": 44.97101100801956,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-program-link/coroutine-lifecycle/fixture.toml"
+    },
+    {
+      "name": "program-read-read-basic",
+      "status": "passed",
+      "seconds": 194.35395526798675,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": "",
+      "report": "linux-musl-supplement-last-ordinary-report.json",
+      "fixture": "tests/fixtures/m23-cli-program-read/read-basic/fixture.toml"
+    }
+  ]
+}

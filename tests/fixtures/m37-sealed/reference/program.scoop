@@ -1,0 +1,2 @@
+sealed class Root {}
+fun main() { val make: () -> Root = ::Root }

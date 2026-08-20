@@ -1,0 +1,30 @@
+package consumer.options
+
+import dependency.options.wrap
+
+private class Cell(public val number: Int)
+private var stored: Int?
+private var referenced: Cell? = None
+private val qualified: Int? = Option.None
+
+@NoGC
+private fun leaf(): Int {
+    stored = Some(40)
+    return stored ?: 0
+}
+
+public fun <T> exercise(value: T): Int {
+    val held = wrap(value)
+    stored = None
+    referenced = None
+    if ((qualified ?: 2) != 2 || (referenced?.number ?: 0) != 0) { return 1 }
+    val first = leaf()
+    referenced = Some(Cell(2))
+    val allocated = Cell(0)
+    return first + (referenced?.number ?: 0) + allocated.number
+}
+
+public fun result(): Int {
+    if ((stored ?: 0) != 0 || (referenced?.number ?: 0) != 0) { return 3 }
+    return exercise<Int>(1)
+}

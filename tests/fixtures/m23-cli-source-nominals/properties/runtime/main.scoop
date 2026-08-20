@@ -1,0 +1,15 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = envelope()
+    verifyNominal(value.change(17, 19) == (19, 19, 17))
+    verifyNominal(value.change("old", "new") == ("new", "new", "old"))
+    verifyNominal(value.view(23) == (23, 1))
+    verifyNominal(value.view("property") == ("property", 1))
+    verifyNominal(value.constants() == ("private value", true, 42, 7))
+    verifyNominal(value.nestedValue() == 18)
+    verifyNominal(value.fileValue() == 5)
+    verifyNominal(Envelope.Companion.cachedValue() == 9u)
+    verifyNominal(Ordinary.exposed == 3)
+}

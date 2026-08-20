@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "context requirements must have the same count, order and exact types as `Reader.$get$size`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 82,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 78
+    },
+    "severity": "error"
+  }
+]

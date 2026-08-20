@@ -1,0 +1,1 @@
+public fun useCore(): Long = stage3CoreAnswer()

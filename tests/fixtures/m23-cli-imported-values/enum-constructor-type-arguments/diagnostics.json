@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Pair` expects 0 type argument(s), found 1",
+    "notes": [],
+    "origin": {
+      "cone": "8302e6d67cca515c7747213366b0c785230b4295eec82b18ee6856b59a7509bf",
+      "end": 96,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 92
+    },
+    "severity": "error"
+  }
+]

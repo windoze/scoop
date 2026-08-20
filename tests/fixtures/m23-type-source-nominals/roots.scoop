@@ -1,0 +1,37 @@
+public interface RootRole {}
+public interface LeftRole : RootRole {}
+public interface RightRole : RootRole {}
+
+public open class Host {
+    private open class SupportBase {
+        protected class InheritedNested {}
+        private class UnneededBaseChild {}
+    }
+    protected open class Entry : LeftRole, RightRole {
+        private class Helper : SupportBase() {
+            internal object Node {
+                private class Last {}
+            }
+        }
+        private class GenericChild<T>(val value: T) {
+            private class ConcreteLeaf {}
+        }
+        internal enum HiddenChoice { None, Value(Int) }
+        public struct Value(val number: Int)
+        public class PublicChild {
+            private class PublicChildSupport {}
+        }
+        protected object Cache : LeftRole {}
+    }
+    private class UnrelatedSibling {}
+    internal class InternalSibling {}
+    public class PublicSibling {
+        private class UnneededPublicChild {}
+        protected class PublicSiblingEntry {}
+    }
+}
+public class Derived : Host()
+private open class Unrelated {
+    protected class NotRequired {}
+}
+internal class InternalTop {}

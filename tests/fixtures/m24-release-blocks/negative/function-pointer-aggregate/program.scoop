@@ -1,0 +1,3 @@
+struct Wrapped(val value: FunPtr<(Int) -> Int>) {}
+class Owner(private val value: Wrapped) { release { val copy = value } }
+fun main() {}

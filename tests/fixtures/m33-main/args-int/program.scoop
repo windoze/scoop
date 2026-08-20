@@ -1,0 +1,23 @@
+private fun check(value: Boolean) { if (!value) { exit(99) } }
+
+@GCLeaf
+@Extern(lib = "fixture_native", name = "main_code", abi = "c")
+private fun code(): Int
+
+fun defaultArguments(): Array<String> {
+    println("unexpected-default")
+    return Array<String>(0L, fun(index: Long): String { return "unused" })
+}
+
+fun main(args: Array<String> = defaultArguments()): Int {
+    check(args.size == 2L)
+    if (args[1] == "throw") { throw IllegalStateException() }
+    check(args[1] == "normal")
+    try {
+        @Unsafe { return code() }
+    } finally {
+        gcCollect()
+        println(args[0])
+        writeError("finally\n")
+    }
+}

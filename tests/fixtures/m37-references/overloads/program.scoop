@@ -1,0 +1,20 @@
+abstract class Skipped
+fun Skipped(value: Int) = value
+class Pick(val value: Int)
+fun Pick(value: String): String = value
+class Ops {
+    fun choose(value: Int) = value
+    fun choose(value: String) = value
+}
+fun main() {
+    val make: (Int) -> Pick = ::Pick
+    val function: (String) -> String = ::Pick
+    val number: (Ops, Int) -> Int = Ops::choose
+    val text: (Ops, String) -> String = Ops::choose
+    val applicable = ::Skipped
+    println(applicable(9))
+    println(make(42).value)
+    println(function("function"))
+    println(number(Ops(), 7))
+    println(text(Ops(), "overload"))
+}

@@ -1,0 +1,17 @@
+package consumer.defaults
+import upstream.defaults.*
+
+public class Local<T>(public val value: T) {
+    public fun select(next: () -> T = { value }): T = next()
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val first = Box<T>(seed)
+    val second = Box<T>(seed)
+    if (read(first.read()) != read(seed)) { return 1 }
+    if (read(second.read()) != read(seed)) { return 2 }
+    if (read(Local<T>(seed).select()) != read(seed)) { return 3 }
+    return read(first.select())
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

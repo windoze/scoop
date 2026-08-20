@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m8-exceptions-control-expressions"
+root = "../../m8-exceptions/control-expressions.scoop"
+inputs = ["../../m8-exceptions/control-expressions.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["legacy", "m8-exceptions", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n2\ntrue\n4\ndog\ndog\npositive\n7\nnormal-finally\nnormal\ncaught-finally\ncaught\n9\n11\n12\n13\n"
+stderr = ""

@@ -1,0 +1,12 @@
+package consumer.bounds
+
+import templates.bounds.*
+
+public fun <T> exercise(value: T): Int {
+    val receiver: AbstractReader<T> = ActualReader<T>(value)
+    if (readBound(receiver) != 42) { return 1 }
+    val read = readReference(receiver)
+    return read()
+}
+
+public fun result(): Int = exercise<Int>(1)

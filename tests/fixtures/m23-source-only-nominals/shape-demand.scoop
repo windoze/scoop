@@ -1,0 +1,23 @@
+public interface DeferredGeneric<T> {}
+public class DeferredStorage(private val value: DeferredGeneric<Int>) {}
+public enum DeferredEnum { Empty, Full(DeferredStorage) }
+public interface DeferredGetter {
+    public val value: DeferredStorage
+}
+public interface DeferredSetter {
+    public var value: DeferredStorage
+}
+public interface DeferredSuspend {
+    public suspend fun fetch(): Int
+}
+public abstract class DeferredBase {
+    public abstract var value: DeferredStorage
+}
+public abstract class DeferredDerived: DeferredBase()
+public class ReadyDirect {
+    public fun take(value: DeferredStorage): DeferredStorage = value
+}
+public class ReadyPrivateConstructor private constructor(value: DeferredStorage) {}
+public open class ReadyOuter {
+    protected class DeferredNested: DeferredGeneric<Int> {}
+}

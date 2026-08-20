@@ -1,0 +1,8 @@
+enum Choice { Left, Right }
+
+fun main() {
+    val value: Int = when (Choice.Left) {
+        case Left -> 1
+        case Right -> "wrong"
+    }
+}

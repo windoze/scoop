@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const operator operands must have the same type, found Int and Int8",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 105,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 89
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const initializer of `INVALID_OPERATOR` must be of type Int8, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 152,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 142
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "const initializer of `INVALID_METHOD` must be of type Int8, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 199,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 187
+    },
+    "severity": "error"
+  }
+]

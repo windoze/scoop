@@ -1,0 +1,9 @@
+package schedule.peer
+
+private fun trace(value: Long) { println(value) }
+
+private fun initialize(): String {
+    @Unsafe { trace(30) }
+    return "c" + "peer"
+}
+public val peer: String = initialize()

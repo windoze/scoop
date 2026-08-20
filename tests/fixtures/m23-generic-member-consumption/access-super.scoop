@@ -1,0 +1,16 @@
+package consumer.members
+
+import templates.members.*
+
+public class Derived<T> public constructor(value: T, private val replacement: T): ProtectedMiddle<T>(value) {
+    protected override fun secret(): T = this.replacement
+    public fun original(): T = super.secret()
+}
+
+public fun result(): Int {
+    val value = Derived<Int>(20, 22)
+    val base: ProtectedBox<Int> = value
+    return value.original() + base.readVirtual()
+}
+
+public fun <T> make(value: T): T = Derived<T>(value, value).readVirtual()

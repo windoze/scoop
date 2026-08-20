@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `unfilled`: cannot infer a unique type argument for `R`",
+    "notes": [],
+    "origin": {
+      "cone": "51d5c39a482dbb4516ac929b5c573ecc3234e50c1defb64c48ac485aedf67179",
+      "end": 76,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 66
+    },
+    "severity": "error"
+  }
+]

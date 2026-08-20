@@ -1,0 +1,1 @@
+public fun probe(child: Child): Int = inherited(child)

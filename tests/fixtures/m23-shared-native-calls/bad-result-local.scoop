@@ -1,0 +1,4 @@
+private fun choose(value: Int): Int = value
+private fun choose(value: Any): String = "broad"
+
+public fun result(): String = choose(42)

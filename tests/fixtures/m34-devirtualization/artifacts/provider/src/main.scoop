@@ -1,0 +1,11 @@
+public interface Measure { public fun get(): Int }
+public open class Base public constructor(private val number: Int) : Measure {
+    public override fun get(): Int = number
+}
+public class Final public constructor(number: Int) : Base(number) {
+    public override fun get(): Int = 70
+}
+public class Inherited public constructor(number: Int) : Base(number)
+private class Hidden : Base(99) { public override fun get(): Int = 99 }
+public fun unknown(): Base = Hidden()
+public fun <T : Measure> generic(value: T): Int = value.get()

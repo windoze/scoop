@@ -1,0 +1,7 @@
+fun <reified> inline(noinline: reified, crossinline: Int): reified = noinline
+fun tailrec(): Int = 42
+fun main(): Int {
+    val inline = inline(noinline = tailrec(), crossinline = 0)
+    println(inline)
+    return 0
+}

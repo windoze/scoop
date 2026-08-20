@@ -1,0 +1,16 @@
+internal class StringIterator(private val text: String) : Iterator<Char> {
+    private var byteCursor: Long = 0L
+
+    public override fun next(): Char? {
+        if (byteCursor == text.byteLength) { return None }
+        val value = coreStringCharacterAtByte(text, byteCursor)
+        val code = value.code
+        val width = if (code <= 127) { 1L } else {
+            if (code <= 2047) { 2L } else {
+                if (code <= 65535) { 3L } else { 4L }
+            }
+        }
+        byteCursor = byteCursor + width
+        return Some(value)
+    }
+}

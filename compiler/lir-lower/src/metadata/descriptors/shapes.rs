@@ -1,0 +1,333 @@
+use super::*;
+
+pub(super) fn context_type_descriptor(
+    context: &LoweringContext,
+    module: &mir::Module,
+    storage: mir::ContextStorageType,
+    root: lir::MaterializationRoot,
+) -> StorageResult<lir::TypeDescriptor> {
+    let exact = storage.exact_record().id();
+    let identity = lir::TypeDescriptorIdentity::new(
+        lir::RuntimeTypeMappingRecord::new(exact)
+            .expect("a context type has an exact runtime identity"),
+        root.clone(),
+    )
+    .expect("a context type has a descriptor identity");
+    let instance_layout =
+        lir::LayoutIdentity::managed_object(exact, context.target_profile(), root.clone())
+            .expect("a context type has an instance layout identity");
+    let pointer = context.pointer_layout(lir::PointerKind::Managed);
+    let (instance_shape, inline_scan) = match storage.role {
+        mir::ContextStorageRole::Task | mir::ContextStorageRole::Node => {
+            let count = if storage.role == mir::ContextStorageRole::Task {
+                1
+            } else {
+                4
+            };
+            let header = context.object_header_layout().size;
+            let scan = lir::RefScan::References(
+                (0..count)
+                    .map(|index| header + index * pointer.size)
+                    .collect(),
+            );
+            (
+                lir::TypeInstanceShapeV1::fixed_object(
+                    context.target_profile(),
+                    header + count * pointer.size,
+                    pointer.align,
+                    scan,
+                )?,
+                lir::TypeDescriptorInlineScanV1::Null,
+            )
+        }
+        mir::ContextStorageRole::Binding => (
+            lir::TypeInstanceShapeV1::abstract_ref(),
+            lir::TypeDescriptorInlineScanV1::Null,
+        ),
+        mir::ContextStorageRole::Mark | mir::ContextStorageRole::SwitchGuard => {
+            return value_or_abstract_type_descriptor(
+                context,
+                module,
+                &lir::EnumDefs::default(),
+                &mir::Type::Context(storage),
+                exact,
+                root,
+            );
+        }
+    };
+    let vtable = lir::VtableRecord::new(&identity, Vec::new())
+        .expect("context descriptor has an empty vtable");
+    Ok(lir::TypeDescriptor {
+        release_policy: Default::default(),
+        relations: lir::TypeDescriptorRelations::Absent,
+        diagnostic_name: storage.role.name().to_string(),
+        identity,
+        instance_layout,
+        instance_shape,
+        inline_scan,
+        parent: None,
+        vtable,
+        itables: Vec::new(),
+    })
+}
+
+pub(super) fn value_or_abstract_type_descriptor(
+    context: &LoweringContext,
+    module: &mir::Module,
+    enums: &lir::EnumDefs,
+    ty: &mir::Type,
+    exact: scoop_identity::PersistentExactTypeId,
+    root: lir::MaterializationRoot,
+) -> StorageResult<lir::TypeDescriptor> {
+    let identity = lir::TypeDescriptorIdentity::new(
+        lir::RuntimeTypeMappingRecord::new(exact)
+            .expect("validated exact type must derive a nonzero runtime id"),
+        root.clone(),
+    )
+    .expect("validated exact type must derive descriptor identities");
+    let instance_layout =
+        lir::LayoutIdentity::managed_object(exact, context.target_profile(), root.clone())
+            .expect("validated exact type and target must derive its instance layout identity");
+    let (instance_shape, inline_scan) = if matches!(ty, mir::Type::Any) {
+        (
+            lir::TypeInstanceShapeV1::abstract_ref(),
+            lir::TypeDescriptorInlineScanV1::Null,
+        )
+    } else {
+        assert!(
+            !matches!(
+                ty,
+                mir::Type::String
+                    | mir::Type::Class(_)
+                    | mir::Type::Interface(_)
+                    | mir::Type::Function(_)
+            ),
+            "reference source nominals have dedicated descriptors"
+        );
+        let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+        let (size, align) = size_align(context, module, &enum_shape, ty)?;
+        let scan = ref_scan(context, module, enums, ty, 0)?;
+        let inline_scan = typed_inline_scan(
+            &scan,
+            lir::LayoutIdentity::managed_value(
+                exact_type_record(module, ty).id(),
+                context.target_profile(),
+                root,
+            )
+            .expect("validated value type must derive its inline scan identity")
+            .scan_record()
+            .id(),
+        );
+        let value = value_storage(context, size, align, scan)?;
+        (
+            lir::TypeInstanceShapeV1::boxed_value(context.target_profile(), value)?,
+            inline_scan,
+        )
+    };
+    let vtable = lir::VtableRecord::new(&identity, Vec::new())
+        .expect("validated exact type must derive a vtable identity");
+    Ok(lir::TypeDescriptor {
+        release_policy: Default::default(),
+        relations: lir::TypeDescriptorRelations::Absent,
+        diagnostic_name: mir::type_name(module, ty),
+        identity,
+        instance_layout,
+        instance_shape,
+        inline_scan,
+        parent: None,
+        vtable,
+        itables: Vec::new(),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn class_type_descriptor(
+    context: &LoweringContext,
+    identity_roots: &IdentityRoots<'_>,
+    module: &mir::Module,
+    enums: &lir::EnumDefs,
+    id: mir::ClassId,
+    refs: &TypeDescriptorRefs,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    external_callables: &HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
+) -> StorageResult<lir::TypeDescriptor> {
+    let def = &module.classes[id];
+    let descriptor_type = def.physical_type(id);
+    let runtime_type = runtime_type(module, &descriptor_type);
+    let root = identity_roots.for_type(&descriptor_type);
+    let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
+        .expect("validated class exact type must derive descriptor identities");
+    let instance_layout = lir::LayoutIdentity::managed_object(
+        runtime_type.exact_type(),
+        context.target_profile(),
+        root.clone(),
+    )
+    .expect("validated class exact type must derive its instance layout identity");
+    let (instance_shape, inline_scan) = match &def.representation {
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(storage)) => {
+            let layout = atomic_object_layout(context, storage.kind())?;
+            (
+                lir::TypeInstanceShapeV1::fixed_object(
+                    context.target_profile(),
+                    layout.size,
+                    layout.align,
+                    layout.scan,
+                )?,
+                lir::TypeDescriptorInlineScanV1::Null,
+            )
+        }
+        mir::ClassRepresentation::Intrinsic(
+            mir::IntrinsicClassRepresentation::Any | mir::IntrinsicClassRepresentation::Nothing,
+        ) => (
+            lir::TypeInstanceShapeV1::abstract_ref(),
+            lir::TypeDescriptorInlineScanV1::Null,
+        ),
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::String) => (
+            lir::TypeInstanceShapeV1::inline_bytes(context.target_profile())?,
+            lir::TypeDescriptorInlineScanV1::Null,
+        ),
+        mir::ClassRepresentation::Intrinsic(
+            mir::IntrinsicClassRepresentation::Array { .. }
+            | mir::IntrinsicClassRepresentation::MutableArray { .. },
+        ) => {
+            let (size, align, scan) = class_layout(context, module, enums, def)?;
+            let inline_scan = typed_inline_scan(
+                &scan,
+                lir::LayoutIdentity::managed_array(
+                    runtime_type.exact_type(),
+                    context.target_profile(),
+                    root.clone(),
+                )
+                .expect("validated array must derive its element scan identity")
+                .scan_record()
+                .id(),
+            );
+            let element =
+                lir::ArrayElementStorageV1::from_value(&value_storage(context, size, align, scan)?);
+            (
+                lir::TypeInstanceShapeV1::inline_array(context.target_profile(), element)?,
+                inline_scan,
+            )
+        }
+        mir::ClassRepresentation::Declared(mir::DeclaredClass { .. }) => {
+            if let Some(boxed) = module
+                .meta
+                .boxed_types
+                .iter()
+                .find(|boxed| boxed.class() == id)
+            {
+                let enum_shape =
+                    |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+                let (size, align) = size_align(context, module, &enum_shape, boxed.payload())?;
+                let scan = ref_scan(context, module, enums, boxed.payload(), 0)?;
+                let inline_scan = typed_inline_scan(
+                    &scan,
+                    lir::LayoutIdentity::managed_value(
+                        exact_type_record(module, boxed.payload()).id(),
+                        context.target_profile(),
+                        identity_roots.for_type(boxed.payload()),
+                    )
+                    .expect("validated box payload must derive its inline scan identity")
+                    .scan_record()
+                    .id(),
+                );
+                let value = value_storage(context, size, align, scan)?;
+                (
+                    lir::TypeInstanceShapeV1::boxed_value(context.target_profile(), value)?,
+                    inline_scan,
+                )
+            } else {
+                let (size, align, scan) = class_layout(context, module, enums, def)?;
+                (
+                    lir::TypeInstanceShapeV1::fixed_object(
+                        context.target_profile(),
+                        size,
+                        align,
+                        scan,
+                    )?,
+                    lir::TypeDescriptorInlineScanV1::Null,
+                )
+            }
+        }
+    };
+    let vtable = lir::VtableRecord::new(
+        &identity,
+        def.vtable
+            .iter()
+            .map(|slot| dispatch_entry(slot, local_functions, external_callables))
+            .collect(),
+    )
+    .expect("validated class exact type must derive a vtable identity");
+    let mut itables: Vec<_> = def
+        .itables
+        .iter()
+        .filter_map(|record| {
+            let interface = refs.interfaces.get(&record.interface).copied()?;
+            lir::ItableRecord::new(
+                &identity,
+                exact_type_record(module, &mir::Type::Interface(record.interface)).id(),
+                interface,
+                record
+                    .slots
+                    .iter()
+                    .map(|slot| dispatch_entry(slot, local_functions, external_callables))
+                    .collect(),
+            )
+            .expect("validated class and interface exact types must derive an itable identity")
+            .into()
+        })
+        .collect();
+    itables.sort_unstable_by_key(|table| table.identity_record().key().interface());
+    Ok(lir::TypeDescriptor {
+        release_policy: match def.release_policy {
+            mir::ReleasePolicy::None => lir::ReleasePolicy::None,
+            mir::ReleasePolicy::SynchronousGcFree { .. } => lir::ReleasePolicy::SynchronousGcFree {
+                hook: lir::CallableBodyIdentity::for_release_hook(runtime_type.exact_type(), &root)
+                    .expect("a release owner derives its exact hook identity")
+                    .id(),
+            },
+        },
+        relations: if matches!(
+            def.representation,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Nothing)
+        ) {
+            lir::TypeDescriptorRelations::Bottom
+        } else {
+            lir::TypeDescriptorRelations::Absent
+        },
+        diagnostic_name: def.name.clone(),
+        identity,
+        instance_layout,
+        instance_shape,
+        inline_scan,
+        parent: def
+            .base_class()
+            .and_then(|base| refs.classes.get(&base).copied()),
+        vtable,
+        itables,
+    })
+}
+
+fn typed_inline_scan(
+    scan: &lir::RefScan,
+    definition: scoop_identity::PersistentScanId,
+) -> lir::TypeDescriptorInlineScanV1 {
+    if scan.contains_reference() {
+        lir::TypeDescriptorInlineScanV1::Defined(definition)
+    } else {
+        lir::TypeDescriptorInlineScanV1::Null
+    }
+}
+
+pub(super) fn runtime_type(module: &mir::Module, ty: &mir::Type) -> lir::RuntimeTypeMappingRecord {
+    lir::RuntimeTypeMappingRecord::new(exact_type_record(module, ty).id())
+        .expect("validated exact type must derive a nonzero runtime id")
+}
+
+pub(super) fn generated_runtime_type(
+    module: &mir::Module,
+    location: mir::GeneratedExactTypeLocation,
+) -> lir::RuntimeTypeMappingRecord {
+    lir::RuntimeTypeMappingRecord::new(generated_exact_type_record(module, location).id())
+        .expect("validated generated exact type must derive a nonzero runtime id")
+}

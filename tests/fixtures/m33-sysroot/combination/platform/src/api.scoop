@@ -1,0 +1,6 @@
+package platformlib
+import helperlib.*
+@Extern(name = "m33_sysroot_delta")
+fun delta(): Int
+public fun answer(): Int { @Unsafe { return base() + delta() } }
+public fun <T> keep(value: T): T = value

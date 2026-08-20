@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.m27"
+name = "context-c"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m27:context-a" = "0.1.0"
+"dev.m27:context-b" = "0.1.0"

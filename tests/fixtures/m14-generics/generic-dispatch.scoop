@@ -1,0 +1,18 @@
+open class Base<T>(val value: T) {
+    open fun get(): T = value
+    final fun <U> choose(other: U): U = other
+}
+
+class Derived<T>(val childValue: T) : Base<T>(childValue) {
+    override fun get(): T = childValue
+}
+
+fun <T> read(base: Base<T>): T = base.get()
+
+fun main() {
+    val intBase: Base<Int> = Derived(42)
+    val stringBase: Base<String> = Derived("text")
+    println(read(intBase))
+    println(read(stringBase))
+    println(intBase.choose("direct"))
+}

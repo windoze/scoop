@@ -1,0 +1,12 @@
+import consumer.calls.*
+
+private class Later(val value: Int)
+
+public fun check(): Int {
+    val later = Later(result())
+    if (exercise<Later>(later, { item -> item.value }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    if (exercise<String>("call", { item -> 42 }) != 42) { return 3 }
+    val allocation = Later(0)
+    return exercise<Int>(later.value, { item -> item }) + allocation.value
+}

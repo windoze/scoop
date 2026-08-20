@@ -1,0 +1,17 @@
+fun sign(value: Int): Int {
+    if (value < 0) return -1
+    else if (value > 0) return 1
+    else return 0
+}
+fun stop(ready: Boolean) { if (ready) return else println("go") }
+fun main(): Int {
+    println(sign(-5))
+    println(sign(0))
+    println(sign(8))
+    println(if (false) 1 else if (true) 2 else 3)
+    if (true) if (false) println("wrong") else println("nearest")
+    if (false) println("wrong"); else println("semicolon")
+    stop(true)
+    stop(false)
+    return 0
+}

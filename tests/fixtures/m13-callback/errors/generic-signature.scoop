@@ -1,0 +1,11 @@
+fun <T> register(callback: (T) -> Int) {
+    @Unsafe {
+        foreignCallback<(T, Ptr<Unit>) -> Int>(
+            callback,
+            1,
+            ForeignCallbackMode.Reusable
+        )
+    }
+}
+
+fun main() {}

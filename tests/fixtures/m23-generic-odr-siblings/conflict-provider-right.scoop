@@ -1,0 +1,3 @@
+package dependency.odr
+
+public fun <T> adjusted(value: T, delta: Int): Int = delta + 2

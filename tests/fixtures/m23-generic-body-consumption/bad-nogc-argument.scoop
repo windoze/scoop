@@ -1,0 +1,5 @@
+import dependency.generics.nativeIdentity
+
+class ReferenceValue()
+
+public fun invalid(value: ReferenceValue): ReferenceValue = nativeIdentity(value)

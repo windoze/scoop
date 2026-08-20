@@ -1,0 +1,2 @@
+fun next(): Int = 1
+enum E : Int { V = next() }

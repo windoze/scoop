@@ -1,0 +1,10 @@
+import selected.templates.*
+import selected.left.*
+import selected.right.*
+
+fun main() {
+    val value = Item(42)
+    println(fromTemplate(value) + fromLeft(value) + fromRight(value) + keep<Item>(value).number)
+    gcCollect()
+    println(value.number)
+}

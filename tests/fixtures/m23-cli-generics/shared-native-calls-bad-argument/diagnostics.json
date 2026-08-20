@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "lambda parameter type is String, but the expected type is Int",
+    "notes": [],
+    "origin": {
+      "cone": "c72f376f8ad43965faebac7bf5f8e344c7107cae5d7abfe9f2a333764fd886af",
+      "end": 85,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 72
+    },
+    "severity": "error"
+  }
+]

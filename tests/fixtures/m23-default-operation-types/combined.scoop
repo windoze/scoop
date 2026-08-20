@@ -1,0 +1,18 @@
+public class Mimics {
+    public struct Array<T>(val value: T)
+    public struct MutableArray<T>(val value: T)
+    public struct Option<T>(val value: T)
+    public struct ForeignCallback<T>(val value: T)
+}
+public class Combinations {
+    public fun <T> array(seed: Array<T>, value: Array<T> = seed): Array<T> = value
+    public fun <T> mutable(seed: MutableArray<T>, value: MutableArray<T> = seed): MutableArray<T> = value
+    public fun <T> option(seed: Option<T>, value: Option<T> = seed): Option<T> = value
+    public fun <T> callback(seed: ForeignCallback<(T) -> Unit>, value: ForeignCallback<(T) -> Unit> = seed): ForeignCallback<(T) -> Unit> = value
+    public fun <T : value> nested(seed: Array<(T, Ptr<T>)>, value: Array<(T, Ptr<T>)> = seed): Array<(T, Ptr<T>)> = value
+    public fun <T> mimicArray(seed: Mimics.Array<T>, value: Mimics.Array<T> = seed): Mimics.Array<T> = value
+    public fun <T> mimicMutable(seed: Mimics.MutableArray<T>, value: Mimics.MutableArray<T> = seed): Mimics.MutableArray<T> = value
+    public fun <T> mimicOption(seed: Mimics.Option<T>, value: Mimics.Option<T> = seed): Mimics.Option<T> = value
+    public fun <T> mimicCallback(seed: Mimics.ForeignCallback<T>, value: Mimics.ForeignCallback<T> = seed): Mimics.ForeignCallback<T> = value
+    public fun tuple(seed: (Unit, Boolean), value: (Unit, Boolean) = seed): (Unit, Boolean) = value
+}

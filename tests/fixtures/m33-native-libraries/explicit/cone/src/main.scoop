@@ -1,0 +1,3 @@
+@Extern(name = "m33_explicit", lib = "m")
+fun value(): Int
+fun main() { @Unsafe { if (value() != 42) { throw IllegalStateException() } } }

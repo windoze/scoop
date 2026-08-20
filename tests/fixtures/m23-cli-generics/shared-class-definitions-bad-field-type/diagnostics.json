@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `Link`: String is not a subtype of Int",
+    "notes": [],
+    "origin": {
+      "cone": "9b32b0c151637846500cb1924cbdbeb7949cf2bbd96d9919b4b5645166bf6b03",
+      "end": 87,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  }
+]

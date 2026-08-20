@@ -1,0 +1,2 @@
+public class NestedIdentityHost {
+    public fun check(seed: String): String = anonymous(seed)()

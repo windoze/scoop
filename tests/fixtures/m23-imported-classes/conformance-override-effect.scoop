@@ -1,0 +1,4 @@
+import dependency.classes.UnsafeReader
+public struct Wrong(): UnsafeReader {
+    public override fun read(): Long = 21
+}

@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "scoped-data-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m33:scoped-data-provider" = "0.1.0"

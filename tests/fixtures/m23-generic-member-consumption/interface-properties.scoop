@@ -1,0 +1,21 @@
+package consumer.members
+
+import templates.members.*
+
+public class LocalProperty<T> public constructor(public override var value: T): MutableProperty<T>
+
+public fun result(): Int {
+    val item: MutableProperty<Int> = PropertyItem<Int>(20)
+    val before = item.read
+    item.value = 22
+    val local: MutableProperty<Int> = LocalProperty<Int>(1)
+    local.value = item.read
+    return before + local.read
+}
+
+public fun <T> make(value: T): T {
+    val item: MutableProperty<T> = PropertyItem<T>(value)
+    val local: MutableProperty<T> = LocalProperty<T>(item.read)
+    local.value = value
+    return local.read
+}

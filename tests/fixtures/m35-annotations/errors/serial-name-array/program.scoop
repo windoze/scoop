@@ -1,0 +1,2 @@
+struct Item(@SerialName(["id"]) val value: Int)
+fun main() {}

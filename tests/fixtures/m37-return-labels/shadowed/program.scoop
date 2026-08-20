@@ -1,0 +1,1 @@
+fun main() { val action = out@ { out@ while (true) { return@out 1 }; 0 } }

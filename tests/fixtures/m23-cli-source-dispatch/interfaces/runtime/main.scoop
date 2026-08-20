@@ -1,0 +1,17 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = user()
+    val root: Root = value
+    val diamond: Diamond = value
+    verifyDispatch(root.zeta() == 5 && root.value == 8)
+    verifyDispatch(diamond.left() == 3 && diamond.right() == 4 && diamond.own() == 6)
+    value.change = 19
+    verifyDispatch(value.change == 7 && value.value == 8)
+    verifyDispatch(derived().zeta() == 5 && Singleton.value == 8)
+    verifyDispatch(Value().zeta() == 5 && Value().value == 8)
+    val boxed: Root = Value()
+    verifyDispatch(boxed.value == 8)
+    verifyDispatch(Choice.One.zeta() == 5 && Choice.One.value == 8)
+}

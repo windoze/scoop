@@ -1,0 +1,41 @@
+package consumer.boundProperties
+
+import upstream.boundProperties.*
+
+private open class Local<A, B> public constructor(public val marker: A, public var value: B) {
+    public open var exposed: B
+        get() = this.value
+        set(next) { this.value = next }
+}
+
+private class Child<T> public constructor(value: T): Local<Unit, T>(Unit, value)
+private class Foreign<T> public constructor(value: T): Box<T>(value)
+
+private fun <T, B : Local<Unit, T>> readLocal(box: B): T = box.value
+private fun <T, B : Local<Unit, T>> changeLocal(box: B, next: T): T {
+    val previous = box.exposed
+    box.exposed = next
+    return previous
+}
+
+private fun <B : Local<Unit, Int>> addLocal(box: B): Int {
+    box.value += 2
+    return box.value
+}
+
+public fun <T> exercise(value: T): Int {
+    val current = Child(value)
+    val fromCurrent: T = readLocal(current)
+    val previous: T = changeLocal(current, value)
+    val foreign = Foreign(value)
+    val fromProvider: T = stored(foreign)
+    val fromDefault: T = defaultRead(foreign)
+    val fromOptional: T? = optional(Some(foreign))
+    if (advance(Foreign(40)) != 42) { return 1 }
+    return addLocal(Child(40))
+}
+
+public fun result(): Int {
+    if (exercise<String>("text") != 42 || exercise<Unit>(Unit) != 42) { return 2 }
+    return exercise<Int>(42)
+}

@@ -1,0 +1,1 @@
+fun shifted(value: Int): Int = value.shl(distance = 2L)

@@ -1,0 +1,18 @@
+fun anonymousCapture() {
+    var value = 1
+    val operation = fun(): Int { return value }
+}
+
+fun localWriteCapture() {
+    var value = 1
+    fun change() {
+        value = 2
+    }
+}
+
+fun <T> genericCapture(initial: T) {
+    var value = initial
+    val operation = { value }
+}
+
+fun main() {}

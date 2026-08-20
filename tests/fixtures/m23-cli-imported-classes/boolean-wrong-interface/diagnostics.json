@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `rejected` must be of type RebuiltReadable, found Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "f655b9479303168532d4c11ad5e94ae23a5cbb059a0c8946ce90942dca669fdc",
+      "end": 60,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 55
+    },
+    "severity": "error"
+  }
+]

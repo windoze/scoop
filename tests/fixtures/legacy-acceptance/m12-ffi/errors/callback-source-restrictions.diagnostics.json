@@ -1,0 +1,119 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` cannot be used on a suspend function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 163,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 103
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `fromManaged` must be of type FunPtr<(Int) -> Int>, found (Int) -> Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 500,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 493
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a native `FunPtr` address cannot target a local function or function value",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 558,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 543
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for native function reference `::genericCallback` in current-unit top-level candidate layer:\n  - fun genericCallback<T>(value: T): T — native addresses cannot target generic functions",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 620,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 603
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for native function reference `::suspendedCallback` in current-unit top-level candidate layer:\n  - suspend fun suspendedCallback(value: Int): Int — native addresses cannot target suspend functions",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 684,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 665
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for native function reference `::extensionCallback` in extension candidate layer:\n  - fun Int.extensionCallback(value: Int): Int — native addresses cannot target extension functions",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 755,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 736
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a native `FunPtr` address must reference an unbound top-level function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 830,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 799
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "lambda parameter requires a type when there is no expected function type",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 881,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 876
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `fromAnonymous` must be of type FunPtr<(Int) -> Int>, found (Int) -> Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 988,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 939
+    },
+    "severity": "error"
+  }
+]

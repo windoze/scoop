@@ -1,0 +1,5 @@
+fun Float.onlyFloat(): Float = this
+fun main() {
+    val value: Float = 1.0.onlyFloat()
+    println(value)
+}

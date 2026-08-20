@@ -1,0 +1,42 @@
+package consumer.declarationviews
+
+public class Counter public constructor() {
+    public var calls: Int = 0
+    public fun next(): Int { calls = calls + 1; return calls }
+}
+
+public fun <T> identity(value: T): T = value
+public fun <T> T.retain(): T = this
+public fun <T> select(value: T): Int = 1
+public fun select(value: Int): Int = value + 1
+public fun <T> collect(fallback: T, vararg values: T = [fallback]): Array<T> = values
+public fun <T> copy(value: T, operation: (T) -> T = ::identity): T = operation(value)
+
+public class Box<T> public constructor(public val value: T, public val counter: Counter) {
+    public fun read(ignored: Int = counter.next()): T = value
+    public fun <U> relay(other: U): U = other
+}
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val counter = Counter()
+    val box = Box<T>(seed, counter)
+    val read: (Int) -> T = box::read
+    val relay: (T) -> T = box::relay
+    val bound: () -> T = seed::retain
+    val unbound: (T) -> T = ::retain
+    val selected: (Int) -> Int = ::select
+    val packed: (T, Array<T>) -> Array<T> = ::collect
+    if (counter.calls != 0 || selected(41) != 42) { return 1 }
+    if (inspect(read(0)) != 42 || counter.calls != 0) { return 2 }
+    if (inspect(box.read()) != 42 || counter.calls != 1) { return 3 }
+    if (inspect(relay(seed)) != 42 || inspect(bound()) != 42 || inspect(unbound(seed)) != 42) { return 4 }
+    val empty: Array<T> = []
+    if (packed(seed, empty).size != 0L) { return 5 }
+    if (collect(seed).size != 1L || inspect(collect(seed)[0L]) != 42) { return 6 }
+    if (inspect(collect(seed, values = [seed])[0L]) != 42) { return 7 }
+    if (collect(seed, seed, *[seed]).size != 2L) { return 8 }
+    if (inspect(copy(seed)) != 42 || inspect(copy(operation = ::identity, value = seed)) != 42) { return 9 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

@@ -1,0 +1,14 @@
+class Configuration(val value: Int)
+context(number: Configuration)
+fun contextual(): Int = number.value
+class Reader {
+    context(number: Configuration)
+    fun read(): Int = number.value
+}
+fun main() {
+    val read = Reader::read
+    val make = ::Reader
+    val reader = make()
+    context(Configuration(7)) { println(read(reader)) }
+    context(Configuration(9)) { println(read(reader)) }
+}

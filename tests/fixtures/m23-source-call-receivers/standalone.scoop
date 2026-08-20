@@ -1,0 +1,9 @@
+package receiver.consumer
+import receiver.provider.answer
+
+private fun Any.localAnswer(): Int = 9
+
+public fun standalone(): Int {
+    val local = "local".localAnswer()
+    return "standalone".answer()
+}

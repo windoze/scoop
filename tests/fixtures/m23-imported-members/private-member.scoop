@@ -1,0 +1,5 @@
+package consumer.members
+
+import dependency.members.Wide
+
+public fun rejected(value: Wide): Long = value.hidden()

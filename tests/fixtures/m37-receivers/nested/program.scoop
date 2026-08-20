@@ -1,0 +1,23 @@
+class Inner(val own: Int) { fun choose(value: String): Int = 100 }
+class Outer(var total: Int) {
+    fun choose(): Int = total
+    fun run(): Int {
+        val block: Outer.() -> Int = outer@ {
+            val nested: Inner.() -> Int = inner@ {
+                total += own
+                choose() + this@outer.total + this@Outer.total
+            }
+            nested(Inner(2))
+        }
+        return block(this)
+    }
+}
+fun main() {
+    println(Outer(12).run())
+    val outer: Int.() -> Int = named@ {
+        val copy = { this@named }
+        val inner: String.() -> Int = { copy() }
+        inner("ignored")
+    }
+    println(outer(7))
+}

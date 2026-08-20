@@ -1,0 +1,2 @@
+class Box { fun run() { this() } }
+fun main() {}

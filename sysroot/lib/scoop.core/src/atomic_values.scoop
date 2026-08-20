@@ -1,0 +1,49 @@
+public class Atomic<T : value> public constructor(initial: T) {
+    private val lock: AtomicBoolean = AtomicBoolean(false)
+    private var value: T = initial
+
+    public fun load(): T {
+        var spins = 0
+        while (!lock.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {
+            spins = spins + 1
+            if (spins == 64) {
+                @Unsafe { atomicYield() }
+                spins = 0
+            }
+        }
+        val result = value
+        lock.store(false, MemoryOrder.Release)
+        return result
+    }
+
+    public fun store(value: T) {
+        var spins = 0
+        while (!lock.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {
+            spins = spins + 1
+            if (spins == 64) {
+                @Unsafe { atomicYield() }
+                spins = 0
+            }
+        }
+        this.value = value
+        lock.store(false, MemoryOrder.Release)
+    }
+
+    public fun exchange(value: T): T {
+        var spins = 0
+        while (!lock.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {
+            spins = spins + 1
+            if (spins == 64) {
+                @Unsafe { atomicYield() }
+                spins = 0
+            }
+        }
+        val result = this.value
+        this.value = value
+        lock.store(false, MemoryOrder.Release)
+        return result
+    }
+}
+
+@Extern(name = "sched_yield")
+private fun atomicYield(): Int

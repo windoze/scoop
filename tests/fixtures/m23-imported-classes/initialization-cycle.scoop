@@ -1,0 +1,37 @@
+import dependency.classes.Counter
+
+private fun readLeft(): Long = Left.value
+private fun readRight(): Long = Right.value
+
+private object Attempts {
+    var count: Long = 0
+}
+
+private fun initializeLeft(): Long {
+    Attempts.count = Attempts.count + 1
+    return readRight()
+}
+
+private object Left {
+    val value: Long = initializeLeft()
+}
+private object Right {
+    val value: Long = readLeft()
+}
+
+private fun failure(): RebuiltFailure = try {
+    RebuiltFailure(readLeft())
+} catch (error: RebuiltFailure) {
+    error
+}
+
+public fun primary(): Counter {
+    val first = failure()
+    val allocated = Counter(7)
+    val second = failure()
+    return if (first.code == 21 && second.code == 21 && Attempts.count == 1 && allocated.twice() == 14) {
+        Counter(second.code)
+    } else {
+        Counter(0)
+    }
+}

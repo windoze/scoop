@@ -1,0 +1,5 @@
+import upstream.bindings.Pair
+public fun check(): Int {
+    val Pair { missing: value, .. } = Pair<Int>(42, 0)
+    return value
+}

@@ -1,0 +1,14 @@
+// EXPECT-TRAP
+class ExplodingDelegate {
+    operator fun provideDelegate(): ExplodingDelegate {
+        throw IllegalStateException()
+    }
+
+    operator fun getValue(thisRef: Unit): Int = 0
+}
+
+val failed: Int by ExplodingDelegate()
+
+fun main() {
+    println("main must not run")
+}

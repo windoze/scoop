@@ -1,0 +1,1 @@
+public class ArithmeticException public constructor(public val detail: String = "arithmetic error"): Throwable()

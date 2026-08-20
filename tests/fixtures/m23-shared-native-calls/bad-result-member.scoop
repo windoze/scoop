@@ -1,0 +1,3 @@
+import dependency.nativecalls.FixedHost
+
+public fun result(): String = FixedHost().choose(42)

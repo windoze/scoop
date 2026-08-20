@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `InternalConstructor` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "b74c16ae541487f0fb9820d737e866cf3e90d33120c183e7dbe965684d440347",
+      "end": 110,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

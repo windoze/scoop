@@ -1,0 +1,4 @@
+package consumer.constructorrequests
+import upstream.constructorrequests.*
+
+public fun result(): Int = Shell<Int>(42, true).output

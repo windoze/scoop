@@ -1,0 +1,17 @@
+struct Box<T>(val value: T)
+
+fun apply(operation: (Int) -> Int): Int = operation(40)
+fun apply(operation: (String) -> String): String = operation("discarded")
+
+fun <T> identity(value: T): T = value
+
+fun main() {
+    val selected = apply({ value -> value + 2 })
+    val boxed = Box(identity(selected))
+    val optional: Int? = Some(boxed.value)
+    val reference: (Int) -> Int = ::identity
+    val mutable: MutableArray<Int> = [reference(optional!!)]
+    val immutable = Array(mutable)
+    val copied = immutable.toMutableArray()
+    println(copied[0])
+}

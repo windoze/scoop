@@ -1,0 +1,8 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(castValue(17) == 17)
+    var failed = false
+    try { castValue("bad") } catch (error: ClassCastException) { failed = true }
+    verifyType(failed)
+}

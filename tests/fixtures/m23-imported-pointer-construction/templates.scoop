@@ -1,0 +1,22 @@
+package consumer.construction
+
+import dependency.construction.copy
+import dependency.construction.reconstruct
+import dependency.construction.reencode
+
+private struct Pair(val first: Int, val second: Int)
+
+@Unsafe
+public fun <P: value> roundTrip(value: P): P {
+    val raw = reencode<P>(addressOf(value).toULong())
+    return reconstruct<P>(raw).load()
+}
+
+public fun <T> exercise(value: T): Int {
+    @Unsafe {
+        val pair = roundTrip<Pair>(Pair(40, 2))
+        return copy<Int>(pair.first + pair.second)
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

@@ -1,0 +1,94 @@
+use std::fmt;
+use std::path::PathBuf;
+
+use scoop_identity::ConeCoordinate;
+use scoop_manifest::{SingleFileInputError, SourceDiscoveryError};
+use scoop_slib::ArtifactManifestSummaryError;
+
+use super::super::staging::StagingError;
+use crate::{PairedCompilerError, SnapshotFileError};
+
+#[derive(Debug)]
+pub enum PrepareBuildGraphError {
+    PairedCompiler(PairedCompilerError),
+    Staging(StagingError),
+    ManifestSnapshot(SnapshotFileError),
+    ManifestChanged(PathBuf),
+    SourceDiscovery(SourceDiscoveryError),
+    Native(scoop_toolchain::ToolchainError),
+    SingleFile(SingleFileInputError),
+
+    ArtifactSnapshot {
+        path: PathBuf,
+        source: SnapshotFileError,
+    },
+
+    ArtifactSummary {
+        path: PathBuf,
+        source: ArtifactManifestSummaryError,
+    },
+    ArtifactSummaryChanged(PathBuf),
+    PrebuiltProjectionChanged(ConeCoordinate),
+}
+
+impl fmt::Display for PrepareBuildGraphError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Native(error) => error.fmt(formatter),
+            Self::PairedCompiler(error) => error.fmt(formatter),
+            Self::Staging(error) => error.fmt(formatter),
+            Self::ManifestSnapshot(error) => {
+                write!(formatter, "cannot snapshot source manifest: {error}")
+            }
+            Self::ManifestChanged(path) => write!(
+                formatter,
+                "source manifest {} changed after graph discovery",
+                path.display()
+            ),
+            Self::SourceDiscovery(error) => {
+                write!(formatter, "cannot snapshot manifest sources: {error}")
+            }
+            Self::SingleFile(error) => {
+                write!(formatter, "cannot snapshot single-file root: {error}")
+            }
+
+            Self::ArtifactSnapshot { path, source } => write!(
+                formatter,
+                "cannot snapshot prebuilt artifact {}: {source}",
+                path.display()
+            ),
+
+            Self::ArtifactSummary { path, source } => write!(
+                formatter,
+                "cannot re-probe artifact snapshot {}: {source}",
+                path.display()
+            ),
+            Self::ArtifactSummaryChanged(path) => write!(
+                formatter,
+                "artifact {} changed after graph discovery",
+                path.display()
+            ),
+            Self::PrebuiltProjectionChanged(coordinate) => write!(
+                formatter,
+                "prebuilt projection for {coordinate} changed during graph preparation"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for PrepareBuildGraphError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Native(error) => Some(error),
+            Self::PairedCompiler(error) => Some(error),
+            Self::Staging(error) => Some(error),
+            Self::ManifestSnapshot(error) => Some(error),
+            Self::SourceDiscovery(error) => Some(error),
+            Self::SingleFile(error) => Some(error),
+            Self::ArtifactSnapshot { source, .. } => Some(source),
+            Self::ArtifactSummary { source, .. } => Some(source),
+
+            _ => None,
+        }
+    }
+}

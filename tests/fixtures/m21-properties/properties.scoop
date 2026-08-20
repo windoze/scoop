@@ -1,0 +1,88 @@
+open class Base {
+    open var state: Int = 1
+}
+
+class Callable {
+    operator fun invoke(value: Int): Int = value + 1
+}
+
+class Derived : Base() {
+    override var state: Int = 10
+        get() = field + 1
+        set(next) { field = next - 1 }
+
+    val doubled: Int
+        get() = state * 2
+
+    val action: Callable
+        get() = Callable()
+}
+
+abstract class Named {
+    abstract val name: String
+}
+
+class Actual : Named() {
+    override val name: String
+        get() = "actual"
+}
+
+class OptionalHolder {
+    var value: Int?
+}
+
+struct Pair(val left: Int, val right: Int) {
+    val sum: Int
+        get() = left + right
+}
+
+enum Marker {
+    Only
+
+    val code: Int
+        get() = 7
+}
+
+val answer: Int
+    get() = 42
+
+var observed: Int
+    get() = 5
+    set(value) { println(value) }
+
+val callable: Callable
+    get() = Callable()
+
+fun read(base: Base): Int = base.state
+
+fun write(base: Base, value: Int) {
+    base.state = value
+}
+
+fun readName(value: Named): String = value.name
+
+fun main() {
+    val derived = Derived()
+    println(read(derived))
+    write(derived, 20)
+    println(read(derived))
+    derived.state += 2
+    println(derived.doubled)
+
+    val optional: Derived? = Some(derived)
+    println(optional?.doubled!!)
+    println(derived.action(6))
+
+    println(readName(Actual()))
+    println(Pair(3, 4).sum)
+    println(Marker.Only.code)
+    println(answer)
+    observed = 9
+    println(observed)
+    println(callable(8))
+
+    val holder = OptionalHolder()
+    println(holder.value == None)
+    holder.value = Some(8)
+    println(holder.value!!)
+}

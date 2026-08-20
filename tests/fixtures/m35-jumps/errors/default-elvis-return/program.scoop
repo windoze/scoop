@@ -1,0 +1,2 @@
+fun f(value: Int?, result: Int = value ?: return 1) {}
+fun main() {}

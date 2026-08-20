@@ -1,0 +1,2 @@
+class Hidden private constructor()
+fun main() { val make = ::Hidden }

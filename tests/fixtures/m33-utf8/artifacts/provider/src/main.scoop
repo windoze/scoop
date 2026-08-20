@@ -1,0 +1,15 @@
+package m33.utf8
+
+public fun <R> decodeThen(bytes: Array<UInt8>, block: (String) -> R): R =
+    block(String.fromUtf8(bytes))
+
+public fun recover(bytes: Array<UInt8>): String = String.fromUtf8Lossy(bytes)
+
+public fun failureOffset(bytes: Array<UInt8>): Long {
+    try {
+        val value = String.fromUtf8(bytes)
+        return -1L
+    } catch (error: CharacterCodingException) {
+        return error.byteOffset
+    }
+}

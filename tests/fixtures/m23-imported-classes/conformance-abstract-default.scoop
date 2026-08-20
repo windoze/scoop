@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.FirstChoice
+
+public abstract class LocalBase public constructor(): FirstChoice {
+    public abstract override fun choose(): Long
+}
+public class LocalReader public constructor(): LocalBase() {
+    public override fun choose(): Long = 21
+}
+public fun localReader(): LocalBase = LocalReader()
+public fun primary(): Counter = Counter(localReader().choose())

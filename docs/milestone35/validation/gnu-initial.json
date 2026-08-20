@@ -1,0 +1,5448 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3065,
+  "selected": 600,
+  "unselected": 2465,
+  "counts": {
+    "failed": 6,
+    "passed": 174,
+    "inapplicable": 20,
+    "interrupted": 400
+  },
+  "variants": 176,
+  "processes": 951,
+  "stage_and_plan_goldens": 1140,
+  "results": [
+    {
+      "name": "argument-inference-abi",
+      "status": "failed",
+      "seconds": 110.95492462697439,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CHILD_TOOL_MISMATCH\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: child transport failed: paired compiler changed around child invocation: paired compiler changed during capability handshake: 0680a29cfc6133650aef609e8f7186367413d963180efcaa1f08347bd266726f -> 25a",
+      "message_sha256": "dfdcadf8448316fe72e4b03272bfe39820e5d26be4dbb6742bc968037ae4a34c"
+    },
+    {
+      "name": "argument-inference-ambiguous",
+      "status": "failed",
+      "seconds": 111.02252870198572,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CHILD_TOOL_MISMATCH\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: child transport failed: paired compiler changed around child invocation: paired compiler changed during capability handshake: 0680a29cfc6133650aef609e8f7186367413d963180efcaa1f08347bd266726f -> 25a",
+      "message_sha256": "dfdcadf8448316fe72e4b03272bfe39820e5d26be4dbb6742bc968037ae4a34c"
+    },
+    {
+      "name": "argument-inference-arrays",
+      "status": "failed",
+      "seconds": 111.10624294599984,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CHILD_TOOL_MISMATCH\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: child transport failed: paired compiler changed around child invocation: paired compiler changed during capability handshake: 0680a29cfc6133650aef609e8f7186367413d963180efcaa1f08347bd266726f -> 25a",
+      "message_sha256": "dfdcadf8448316fe72e4b03272bfe39820e5d26be4dbb6742bc968037ae4a34c"
+    },
+    {
+      "name": "argument-inference-bound",
+      "status": "failed",
+      "seconds": 110.85391944902949,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core exit/signal (stderr: b'{\"code\":\"SCOOP_CHILD_TOOL_MISMATCH\",\"display\":null,\"kind\":\"diagnostic\",\"message\":\"cannot execute source Cone 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d: child transport failed: paired compiler changed around child invocation: paired compiler changed during capability handshake: 0680a29cfc6133650aef609e8f7186367413d963180efcaa1f08347bd266726f -> 25a",
+      "message_sha256": "dfdcadf8448316fe72e4b03272bfe39820e5d26be4dbb6742bc968037ae4a34c"
+    },
+    {
+      "name": "argument-inference-callbacks",
+      "status": "passed",
+      "seconds": 131.2234513849835,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-invariant-array",
+      "status": "passed",
+      "seconds": 104.76682169100968,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-lambda-result",
+      "status": "passed",
+      "seconds": 105.33121253701393,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-missing-binder",
+      "status": "passed",
+      "seconds": 104.67861303599784,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-mixed-kind",
+      "status": "passed",
+      "seconds": 3.894801967020612,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-no-seed-default",
+      "status": "passed",
+      "seconds": 4.578794030006975,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-no-seed-reference",
+      "status": "passed",
+      "seconds": 4.77708775998326,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-no-seed-vararg",
+      "status": "passed",
+      "seconds": 4.157076082017738,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-nominals",
+      "status": "passed",
+      "seconds": 25.54384297603974,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-order",
+      "status": "passed",
+      "seconds": 25.46320320200175,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-overloads",
+      "status": "passed",
+      "seconds": 24.83488566498272,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-shared-fixed-point",
+      "status": "passed",
+      "seconds": 28.39186947204871,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-shared-mapping",
+      "status": "passed",
+      "seconds": 26.70035248500062,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "array-construction-abi",
+      "status": "passed",
+      "seconds": 31.81321127997944,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "cli-edited-core-root-artifact-consumer",
+      "status": "passed",
+      "seconds": 171.81435775599675,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "cli-process-source-observations",
+      "status": "passed",
+      "seconds": 173.2842618249706,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "core-dependencies-core-local",
+      "status": "passed",
+      "seconds": 163.4855892540072,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-base",
+      "status": "passed",
+      "seconds": 148.7580799240386,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-combined",
+      "status": "passed",
+      "seconds": 162.63612903101603,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-heap-zst-storage",
+      "status": "passed",
+      "seconds": 155.3683209500159,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-ordinary",
+      "status": "passed",
+      "seconds": 153.4064455620246,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-ordinary-consumer",
+      "status": "passed",
+      "seconds": 149.9222328919568,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-property-initialization-provider",
+      "status": "passed",
+      "seconds": 174.00706420396455,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-abi-combined",
+      "status": "passed",
+      "seconds": 214.28595952299656,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-abi-standalone",
+      "status": "passed",
+      "seconds": 185.03296960896114,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-accessors-combined",
+      "status": "passed",
+      "seconds": 197.75141468498623,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-accessors-standalone",
+      "status": "passed",
+      "seconds": 212.14382216101512,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-aliases-combined",
+      "status": "passed",
+      "seconds": 205.4477418200113,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-aliases-standalone",
+      "status": "passed",
+      "seconds": 199.18945590796648,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-callables-combined",
+      "status": "passed",
+      "seconds": 231.88459415198304,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-callables-standalone",
+      "status": "passed",
+      "seconds": 208.51286318100756,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-constructors-combined",
+      "status": "passed",
+      "seconds": 282.09763214498525,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-constructors-standalone",
+      "status": "passed",
+      "seconds": 234.03321813402,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-digests-combined",
+      "status": "passed",
+      "seconds": 264.5766983529902,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-digests-standalone",
+      "status": "passed",
+      "seconds": 237.8355600439827,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-dispatch-combined",
+      "status": "failed",
+      "seconds": 300.00984454597346,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core: process timed out after 300s",
+      "message_sha256": "ea23b81a771944be72679a3c671e0c3c00492993259fda71e4e73f891631a548"
+    },
+    {
+      "name": "core-layouts-shared-dispatch-standalone",
+      "status": "passed",
+      "seconds": 275.20999837096315,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-equality-combined",
+      "status": "failed",
+      "seconds": 300.0143128389609,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "core: process timed out after 300s",
+      "message_sha256": "ea23b81a771944be72679a3c671e0c3c00492993259fda71e4e73f891631a548"
+    },
+    {
+      "name": "core-layouts-shared-equality-standalone",
+      "status": "passed",
+      "seconds": 243.9156277300208,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-init-abi-combined",
+      "status": "passed",
+      "seconds": 231.98688903998118,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-init-abi-standalone",
+      "status": "passed",
+      "seconds": 215.9230059569818,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-layouts-combined",
+      "status": "passed",
+      "seconds": 221.78188122995198,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-layouts-standalone",
+      "status": "passed",
+      "seconds": 201.52558680000948,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-lir-dispatch-combined",
+      "status": "passed",
+      "seconds": 252.22154021798633,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-lir-dispatch-standalone",
+      "status": "passed",
+      "seconds": 217.07408139895415,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-mir-combined",
+      "status": "passed",
+      "seconds": 218.44630417902954,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-mir-standalone",
+      "status": "passed",
+      "seconds": 215.82972538698232,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-objects-combined",
+      "status": "passed",
+      "seconds": 234.61761990300147,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-objects-standalone",
+      "status": "passed",
+      "seconds": 222.22611982602393,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-ordinary-combined",
+      "status": "passed",
+      "seconds": 230.75311783398502,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-ordinary-standalone",
+      "status": "passed",
+      "seconds": 197.80223976803245,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-production-combined",
+      "status": "passed",
+      "seconds": 219.8376244250103,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-production-standalone",
+      "status": "passed",
+      "seconds": 194.73806909198174,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-shapes-combined",
+      "status": "passed",
+      "seconds": 231.32557450601598,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-shapes-standalone",
+      "status": "passed",
+      "seconds": 214.57727471599355,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-td-combined",
+      "status": "passed",
+      "seconds": 235.13519546802854,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-td-standalone",
+      "status": "passed",
+      "seconds": 223.98255772900302,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-units-combined",
+      "status": "passed",
+      "seconds": 205.29566813295241,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-units-standalone",
+      "status": "passed",
+      "seconds": 203.24034877400845,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-standalone",
+      "status": "passed",
+      "seconds": 184.48209850100102,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-library-publication-core",
+      "status": "passed",
+      "seconds": 367.9043108529877,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-library-publication-ordinary",
+      "status": "passed",
+      "seconds": 153.2154358859989,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "core-nominals-dispatch-varargs",
+      "status": "passed",
+      "seconds": 379.1670162480441,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "core-nominals-nominal-varargs",
+      "status": "passed",
+      "seconds": 371.30827563098865,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "core-nominals-storage-roots",
+      "status": "passed",
+      "seconds": 428.84224641596666,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "core-operations-equality-combined",
+      "status": "passed",
+      "seconds": 224.15171565796481,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "core-operations-members-equality-pattern-overflow",
+      "status": "passed",
+      "seconds": 171.397710411984,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "core-operations-members-equality-patterns",
+      "status": "passed",
+      "seconds": 53.127712101035286,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-values-prelude",
+      "status": "passed",
+      "seconds": 178.55332620604895,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "coroutines-closure-finally",
+      "status": "passed",
+      "seconds": 51.46318031300325,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-failure-finally",
+      "status": "passed",
+      "seconds": 43.820323381980415,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-function-values",
+      "status": "passed",
+      "seconds": 52.15540998702636,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-immediate",
+      "status": "passed",
+      "seconds": 33.21420788898831,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-lifecycle",
+      "status": "passed",
+      "seconds": 98.98146020399872,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-suspension",
+      "status": "passed",
+      "seconds": 42.470605103997514,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-value-task",
+      "status": "passed",
+      "seconds": 43.93606900901068,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "default-access-type-access-pointers",
+      "status": "passed",
+      "seconds": 189.30609119299334,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "default-properties-nominals",
+      "status": "passed",
+      "seconds": 16.465766627981793,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "evaluation-order-float-nothing-combined",
+      "status": "passed",
+      "seconds": 191.1548140659579,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "evaluation-order-identity-control-flow",
+      "status": "passed",
+      "seconds": 180.4968726299703,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "fact-providers-combined",
+      "status": "passed",
+      "seconds": 21.9814224660513,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "finite-mir-types-combined",
+      "status": "passed",
+      "seconds": 405.2970870399731,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "finite-mir-types-values",
+      "status": "passed",
+      "seconds": 208.01689148601145,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "function-adapters-dynamic",
+      "status": "passed",
+      "seconds": 34.399577700009104,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-abi",
+      "status": "passed",
+      "seconds": 30.37778201099718,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-basic",
+      "status": "passed",
+      "seconds": 28.092202076979447,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-bounds",
+      "status": "passed",
+      "seconds": 28.053874787001405,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-function-value-elements",
+      "status": "passed",
+      "seconds": 4.542036359955091,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-index-type",
+      "status": "passed",
+      "seconds": 4.620194189017639,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-iteration",
+      "status": "passed",
+      "seconds": 29.26881629199488,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-order",
+      "status": "passed",
+      "seconds": 29.782458809029777,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-spread-invariant",
+      "status": "passed",
+      "seconds": 5.207999664009549,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-spread-mutable",
+      "status": "passed",
+      "seconds": 5.475855371973012,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-spread-non-array",
+      "status": "passed",
+      "seconds": 4.8949679199722596,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-uninferrable-empty",
+      "status": "passed",
+      "seconds": 5.387876289023552,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-whole-and-elements",
+      "status": "passed",
+      "seconds": 4.894273002981208,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-whole-element",
+      "status": "passed",
+      "seconds": 5.243855377018917,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-write-immutable",
+      "status": "passed",
+      "seconds": 5.259969543025363,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-delegate-consumption-consumer",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-arity",
+      "status": "passed",
+      "seconds": 9.171655785001349,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-invariance",
+      "status": "passed",
+      "seconds": 7.822701684955973,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-ref",
+      "status": "passed",
+      "seconds": 5.475843753956724,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-value",
+      "status": "passed",
+      "seconds": 5.212436997971963,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "generic-shapes-nominals-combined",
+      "status": "passed",
+      "seconds": 29.321194046991877,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-shapes-nominals-standalone",
+      "status": "passed",
+      "seconds": 29.462573745986447,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "global-state-enum-state",
+      "status": "passed",
+      "seconds": 28.99850588804111,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "implicit-array-capability-combined",
+      "status": "passed",
+      "seconds": 17.802506665000692,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "imported-class-core-extension",
+      "status": "passed",
+      "seconds": 233.94825687794946,
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-aliases",
+      "status": "passed",
+      "seconds": 28.830888669996057,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-combined",
+      "status": "passed",
+      "seconds": 25.875152297958266,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-generic-alias",
+      "status": "passed",
+      "seconds": 4.983836751023773,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-managed-constructor",
+      "status": "passed",
+      "seconds": 4.710508871998172,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-nonconstructible-alias",
+      "status": "passed",
+      "seconds": 4.4464246010174975,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-private-constructor",
+      "status": "passed",
+      "seconds": 5.579728065989912,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-standalone",
+      "status": "passed",
+      "seconds": 28.864532878040336,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-structural",
+      "status": "passed",
+      "seconds": 28.363740606000647,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-tuple-constructor",
+      "status": "passed",
+      "seconds": 28.65431043499848,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-tuple-fields",
+      "status": "passed",
+      "seconds": 28.77838084002724,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-argument",
+      "status": "passed",
+      "seconds": 5.649859772005584,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-constructor-tuple",
+      "status": "passed",
+      "seconds": 5.7285705910180695,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-identity",
+      "status": "passed",
+      "seconds": 4.678711647982709,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-arity",
+      "status": "passed",
+      "seconds": 5.4809438129886985,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-field",
+      "status": "passed",
+      "seconds": 5.520633105013985,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-identity",
+      "status": "passed",
+      "seconds": 5.331869971007109,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-c-abi",
+      "status": "passed",
+      "seconds": 8.427990696043707,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-combined",
+      "status": "passed",
+      "seconds": 31.084990400006063,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-combinations",
+      "status": "passed",
+      "seconds": 28.309606190014165,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-duplicate-field",
+      "status": "passed",
+      "seconds": 4.942941982997581,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-missing-field",
+      "status": "passed",
+      "seconds": 5.175933170015924,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-shadowed",
+      "status": "passed",
+      "seconds": 5.528573527990375,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-type-arguments",
+      "status": "passed",
+      "seconds": 4.786809651006479,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-wrong-owner",
+      "status": "passed",
+      "seconds": 4.657947879983112,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructor-wrong-payload",
+      "status": "passed",
+      "seconds": 4.694175872951746,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-constructors",
+      "status": "passed",
+      "seconds": 28.259786554030143,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-guarded-coverage",
+      "status": "passed",
+      "seconds": 4.812200646963902,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-named-positional",
+      "status": "passed",
+      "seconds": 4.769806214026175,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-non-exhaustive",
+      "status": "passed",
+      "seconds": 4.931508127017878,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-patterns",
+      "status": "passed",
+      "seconds": 27.42953090200899,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-positional-named",
+      "status": "passed",
+      "seconds": 5.320008216018323,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-refutable-binding",
+      "status": "passed",
+      "seconds": 5.54551662603626,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-standalone",
+      "status": "passed",
+      "seconds": 27.56523654301418,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-unit-called",
+      "status": "passed",
+      "seconds": 5.231892784009688,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-identity",
+      "status": "passed",
+      "seconds": 4.558158689003903,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-pattern-field",
+      "status": "passed",
+      "seconds": 5.24344570498215,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-pattern-owner",
+      "status": "passed",
+      "seconds": 5.114001500012819,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-pattern-style",
+      "status": "passed",
+      "seconds": 4.910935052030254,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-enum-wrong-payload",
+      "status": "passed",
+      "seconds": 4.578559755987953,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-alias-erased",
+      "status": "passed",
+      "seconds": 8.051467219018377,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-alias-payload",
+      "status": "passed",
+      "seconds": 4.587109727959614,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-constructor-alias-payload",
+      "status": "passed",
+      "seconds": 4.816851373994723,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-contextual-payload",
+      "status": "passed",
+      "seconds": 4.247075830993708,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-immutable-omission",
+      "status": "passed",
+      "seconds": 4.730819584976416,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-invariance",
+      "status": "passed",
+      "seconds": 5.055433745961636,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-kind-bound",
+      "status": "passed",
+      "seconds": 4.262338170025032,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-local-alias-payload",
+      "status": "passed",
+      "seconds": 4.693871378956828,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-nested",
+      "status": "passed",
+      "seconds": 4.955147001019213,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-none-inference",
+      "status": "passed",
+      "seconds": 4.294280950969551,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-payload-arity",
+      "status": "passed",
+      "seconds": 4.242665783967823,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-positional-name",
+      "status": "passed",
+      "seconds": 4.294344835972879,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-shadow",
+      "status": "passed",
+      "seconds": 4.442790845001582,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-type-arity",
+      "status": "passed",
+      "seconds": 4.262595817970578,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-bad-unit-call",
+      "status": "passed",
+      "seconds": 4.509858397010248,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "imported-options-construct",
+      "status": "passed",
+      "seconds": 24.7005738329608,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-defaults",
+      "status": "passed",
+      "seconds": 25.14822648098925,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-lexical",
+      "status": "passed",
+      "seconds": 25.931875254027545,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-qualified",
+      "status": "passed",
+      "seconds": 25.781488737033214,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-shadow",
+      "status": "passed",
+      "seconds": 25.139252733963076,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-static",
+      "status": "passed",
+      "seconds": 23.773750277992804,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-sugar",
+      "status": "passed",
+      "seconds": 24.832563134026714,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-options-values",
+      "status": "passed",
+      "seconds": 27.294656951969955,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "imported-pointer-construction-zst-nested",
+      "status": "passed",
+      "seconds": 27.81230770802358,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "intrinsic-source-shapes-consumers",
+      "status": "interrupted",
+      "seconds": 111.79181052499916,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "fixture run interrupted",
+      "message_sha256": "e0967070fddefe59f92e9a82797ad58fc6a88c44c68409df745ae3b5f20ce421"
+    },
+    {
+      "name": "intrinsic-source-shapes-declarations",
+      "status": "interrupted",
+      "seconds": 108.98862920701504,
+      "variants": 0,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "fixture run interrupted",
+      "message_sha256": "e0967070fddefe59f92e9a82797ad58fc6a88c44c68409df745ae3b5f20ce421"
+    },
+    {
+      "name": "iteration-abi",
+      "status": "passed",
+      "seconds": 42.132286239997484,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "iteration-basic",
+      "status": "passed",
+      "seconds": 33.563663035980426,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "iteration-binding-arity",
+      "status": "passed",
+      "seconds": 4.456512956006918,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-bounds",
+      "status": "passed",
+      "seconds": 33.94758723000996,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "iteration-capture",
+      "status": "passed",
+      "seconds": 35.78049070999259,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "iteration-defaults",
+      "status": "interrupted",
+      "seconds": 12.654574332991615,
+      "variants": 0,
+      "processes": 4,
+      "snapshots": 8,
+      "message": "fixture run interrupted",
+      "message_sha256": "e0967070fddefe59f92e9a82797ad58fc6a88c44c68409df745ae3b5f20ce421"
+    },
+    {
+      "name": "iteration-escaping-break",
+      "status": "passed",
+      "seconds": 5.034601683029905,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-extensions",
+      "status": "interrupted",
+      "seconds": 5.644152215041686,
+      "variants": 0,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "fixture run interrupted",
+      "message_sha256": "e0967070fddefe59f92e9a82797ad58fc6a88c44c68409df745ae3b5f20ce421"
+    },
+    {
+      "name": "iteration-immutable-binding",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-inference",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-missing-operator",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-multiple-applications",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-no-gc",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-order",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-private-operator",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-refutable-pattern",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-shadow-protocol",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-suspend-context",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "iteration-wrong-protocol",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m10-coroutines-gc-across-suspension",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m10-coroutines-generic-suspend-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m10-coroutines-suspend-control-flow",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m10-coroutines-suspend-member-dispatch",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m11-functions-capture-combinations",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m11-functions-function-containers",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m11-functions-suspend-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m11-functions-variance",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m12-ffi-pointers",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m13-callback-foreign-continuation",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m13-callback-foreign-continuation-failure",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m13-callback-managed-callback",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m14-generics-core-capabilities",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m15-moving-root-shapes",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m17-arguments-source-order",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m17-defaults-default-semantics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m17-vararg-vararg-semantics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m18-invoke-invoke-semantics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m18-safe-call-safe-call-semantics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m20-generics-expected-construction",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m20-generics-partial-type-arguments",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-aggregate-abi-aggregate-calls",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-binding-patterns-bare-variant-names",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-binding-patterns-errors-irrefutable-only",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-contextual-variants-basics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-contextual-variants-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-control-while-header",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-fixed-width",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-integers-representation-matrix",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-iteration-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-qualified-variant-typo",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-recursive-named-fields",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-uint8-one-missing",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-unary-plus-integer-pattern",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-errors-when-exhaustiveness",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-int8-complete-domain",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-nested-enum-primitives",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-recursive-named-fields",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-suspicious-enum-catch-all",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-patterns-when-exhaustiveness",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-pointers-c-recursive-recursive-pointer",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-pointers-ffi-pointer-ffi-round-trip",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-pointers-option-niche-consumers",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-pointers-pointer-invariants",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-ranges-semantics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m25-eh-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-errors-elvis-type-mismatch",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-generic-option",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-inference-order",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-nested-option",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m3-generics-option-basics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-enum-basics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-enum-generics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-guard-not-boolean",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-non-exhaustive",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-errors-unknown-variant",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-option-via-when",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-when-expression",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m4-enum-when-guards",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m5-arrays-array-elements",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m5-arrays-recursive-reference-scans",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m6-classes-interfaces",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m8-exceptions-control-expressions",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m8-exceptions-errors-when-expression-result-type",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "legacy-m8-exceptions-return-paths",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-array-reject-count-type",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-array-reject-initializer-result",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-characters-basic",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-characters-cross-cone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-characters-reject-destructure",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-characters-reject-non-exhaustive",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-characters-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-interpolation-basic",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-interpolation-contexts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-interpolation-nested",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-strings-custom-list",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m26-strings-snapshots",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m27-context-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m27-context-callback-concurrent",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m27-context-callback-scopes",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m27-context-coroutine-exits",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m27-context-coroutine-thread",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m27-context-exits",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m27-context-gc-lifetimes",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-cli-library-toolchain",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-cli-program",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-cli-program-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "m28-deep-frames",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m28-deep-frames-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "m28-native-dso",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-annotation-parameter-type",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-annotations-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-annotations-source",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-class-shapes-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-class-shapes-source",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-companion-applications",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-companion-bounds",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-companion-failure",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-container-decoding-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-container-decoding-composition",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-container-decoding-option",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-container-decoding-sequences",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-container-encoding-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-container-encoding-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-constructors",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-context",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-defaults",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-generics",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-precedence",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-records",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-recursion",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-decoding-variants",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-context",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-dependencies",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-precedence",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-records",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-variants",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-derived-encoding-visibility",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-list-encoding-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-list-encoding-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-serialization-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-serialization-containers",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-serialization-scalars",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-static-shapes-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-static-shapes-source",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-tuple-encoding-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-tuple-encoding-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-unit-encoding-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m29-unit-encoding-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-annotations",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-artifacts-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "m30-floating-coroutine",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-json",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-patterns",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-destructure",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-fixed",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-incomplete",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-integer",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-nan-guard",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-reject-pattern-recursive-incomplete",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m30-floating-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m31-gc-copy-ranges",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m31-local-effects",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m31-local-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m32-roots-casts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m32-roots-control",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m32-roots-evaluation",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m32-roots-functions",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m32-roots-gc-context",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m32-roots-members",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-atomics-concurrency",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-atomics-gc",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-atomics-value-storage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-counted-pins-concurrent",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-direct-c-representations",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-errno-callbacks",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-gc-leaf-concurrent",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-cxx-reject-missing-driver",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-cxx-reject-missing-stdlib",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-cxx-reject-musl",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "m33-native-cxx-reject-target-mismatch",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-cxx-reject-version-mismatch",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-libraries-reject-dynamic-on-static",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "m33-native-libraries-reject-framework-on-linux",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-safe-transitions",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-native-safe-transitions-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "m33-output-concurrent",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-platform-cone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-platform-cone-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "m33-scoped-data-concurrent",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-allocation-accounting",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-allocation-threads",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-containers-builder",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-direct-c-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-concurrency",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-native",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-maybe-uninit-gc",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-maybe-uninit-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-parallel-threads",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-poll-threads",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-regions-threads",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m34-small-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-basic",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-cache",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-coding",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-alias-mutable",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-any-element",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-array-for-scalar",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-array-variable",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-builtin-array",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-char-element",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-char-surrogate",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-const-array",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-default-element",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-duplicate",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-enum-element",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-factory",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-float-overflow",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-float-suffix",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-function-element",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-integer-range",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-integer-signedness",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-missing-comma",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-missing-required",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-multidimensional",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-mutable-array",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-nested-annotation",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-nested-array",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-object-element",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-option-element",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-private-reference",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-runtime-expression",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-runtime-value",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-scalar-for-array",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-serial-name-array",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-shadow-array",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-spread",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-unknown-name",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-unknown-reference",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-annotations-error-wrong-element",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-case-basic",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-case-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-case-missing-prefix",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-captures",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-error-alternative-capture",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-error-extension-ambiguity",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-error-member-ambiguity",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-error-mutable-capture",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-error-property-ambiguity",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-error-reference-ambiguity",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-suspend",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-views",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-basic",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-cleanup",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-bare-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-constructor-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-default-elvis-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-default-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-elvis-expected-type",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-elvis-left-type",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-expression-body-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-initializer-bare-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-initializer-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-lambda-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-local-expression-body-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-return-label",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-throw-type",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-error-wrong-return-value",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-operands",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-suspend",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-basic",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-effects",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-double-trailing",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-duplicate-named",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-duplicate-positional",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-function-value-arity",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-lambda-return",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-last-non-function",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-last-vararg",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-named-jump-position",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-non-callable",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-ordinary-to-suspend",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-parenthesized-position",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-required-prefix",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-suspend-to-ordinary",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-ungrouped-result",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-unknown-name",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-error-vararg-parenthesized",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-members",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-trailing-suspend",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-artifacts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-effects",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-alternative-smart-cast",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-boolean-constant-coverage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-boolean-coverage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-case-alternatives",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-case-class-subject",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-class-equality",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-contains-missing",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-delegated-subject",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-duplicate-binding",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-duplicate-else",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-else-not-last",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-enum-coverage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-escaping-smart-cast",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-getter-smart-cast",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-guard-coverage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-guard-failure-smart-cast",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-initializer-scope",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-mixed-coverage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-multiple-guard",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-mutable-smart-cast",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-nonboolean-condition",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-nonboolean-guard",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-refutable-subject",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subject-scope",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-case",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-guard",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-in",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-is",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-value-coverage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-user-equality-coverage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-value-coverage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-var-subject",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-wrong-subject-type",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-ordinary",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-smart-casts",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-subjects",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-suspend-subject",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "materialized-type-uses-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "namespace-enum-variants",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "native-link-archive-toc",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-cabi-dynamic",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-callback-exception",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "native-link-callback-reentry",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "native-link-callback-tls-archive",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "native-link-callback-tls-dynamic",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-callback-tls-object",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "native-link-dynamic-framework",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-dynamic-loader",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-dynamic-overlap",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-dynamic-reexport",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-dynamic-renamed",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-mixed",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-resolution-runtime-location",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-scoopabi-dynamic",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "native-link-storage-dynamic",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46"
+    },
+    {
+      "name": "program-link-lazy-cycle-root",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "program-link-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "program-read-read-basic",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "protected-domains-protected-default-references",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "rebuilt-core-coroutine-rebuilt-core",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "rebuilt-core-option-edited-core",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "release-blocks-lifecycle",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "runtime-images-lazy-cycle-root",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shape-materialization-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-argument-materialization-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-argument-materialization-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-abi",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-arity",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-class-rest",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-components",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-defaults-when",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-duplicate-field",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-immutable",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-incomplete-when",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-lambda-for",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-missing-operator",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-missing-rest",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-private-component",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-refutable",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-structs",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-unknown-field",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bindings-wrong-owner",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-bound-properties-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-call-probes-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-call-probes-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enum-definitions-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enum-definitions-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-aliases-equality",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-arity",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-defaults-nested",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-hidden-prefix",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-incomplete",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-instances",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-named-style",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-qualified",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-wrong-alias",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-enums-wrong-prefix",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-literals-bad-exhaustiveness",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-literals-bad-literal",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-literals-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-literals-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-native-calls-context",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-nominal-conditions-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-nominal-conditions-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-shapes-m18-safe-call-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-shapes-m22-integers-typealiases",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-struct-definitions-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-struct-definitions-duplicate",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-struct-definitions-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-struct-definitions-unknown",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-struct-definitions-wrong-type",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-structs-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-structs-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-value-layouts-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "shared-value-layouts-standalone",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "source-calls-occurrences-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "source-defaults-nested-parents",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "source-mir-types-generic-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "source-mir-types-generic-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "source-mir-types-private-storage",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "source-mir-types-private-storage-combined",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "source-mir-types-values",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "source-nominals-parameters",
+      "status": "interrupted",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

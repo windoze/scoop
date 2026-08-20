@@ -1,0 +1,17 @@
+package programlink.values
+
+public struct Token()
+public struct Wide(val first: Long, val second: Long, val third: Long)
+public struct References(val text: String, val nested: (String, Token, Long))
+public enum Packet { Missing, Data(References, Wide) }
+
+@NoGC public fun keep(value: Token): Token = value
+@NoGC public fun tokenValue(value: Token): Int = 42
+@NoGC public fun keep(value: Wide): Wide = value
+public fun keep(value: Packet): Packet = value
+public fun payload(): Packet = Packet.Data(
+    References("le" + "ft", ("ri" + "ght", Token(), 42)),
+    Wide(10, 12, 20)
+)
+public fun wrap(value: Packet): Packet? = Some(value)
+public fun array(value: Packet): Array<Packet> = [value]

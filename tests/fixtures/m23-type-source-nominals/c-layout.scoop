@@ -1,0 +1,17 @@
+package sourcepolicy
+
+@CLayout(aligned = 8, packed = 1)
+public struct Packed(val flag: Boolean, val value: Int)
+
+@CLayout(aligned = 16, packed = 2)
+public struct Outer(val tag: Boolean, val packed: Packed)
+
+@CLayout
+public struct CBox<T>(val value: T)
+
+public struct Ordinary(val value: Int)
+
+public open class Envelope {
+    @CLayout(aligned = 4)
+    protected struct Header(val value: Int)
+}

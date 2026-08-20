@@ -1,0 +1,19 @@
+class Entry<A, B>(val first: A, val second: B, val copy: B = second)
+class Values<T>(vararg val values: T)
+typealias Row<T> = Entry<String, T>
+typealias Reversed<A, B> = Entry<B, A>
+typealias Same<T> = Entry<T, T>
+typealias Unused<T> = Entry<String, Int>
+typealias Items<T> = Values<T>
+fun main() {
+    println(Row(second = 42, first = "named").copy)
+    println(Reversed<Int, String>("reversed", 42).copy)
+    println(Same<_>(40, 42).second)
+    println(Unused<Boolean>("unused", 42).copy)
+    println(Items(1, *[2, 3]).values.size)
+    val empty: Items<Int> = Items()
+    println(empty.values.size)
+    typealias Local = Row<Int>
+    fun read(value: Local = Local("default", 42)): Int = value.copy
+    println(read())
+}

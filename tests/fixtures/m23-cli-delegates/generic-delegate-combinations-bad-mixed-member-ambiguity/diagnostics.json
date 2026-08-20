@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `setValue` is ambiguous in member layer:\n  - fun Ambiguous<T>.setValue(thisRef: Any, value: Int): Unit — applicable; tied by MSC\n  - AmbiguousBase<T>.setValue(thisRef: Receiver<T>, value: Any): Unit — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "3a5cee79904667926bd2bc87d168552561c5cc466830b222acc43fe376410d08",
+      "end": 258,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 201
+    },
+    "severity": "error"
+  }
+]

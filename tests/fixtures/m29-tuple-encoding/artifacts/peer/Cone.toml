@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m29"
+name = "tuple-encoding-peer"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m29:tuple-encoding" = "0.1.0"

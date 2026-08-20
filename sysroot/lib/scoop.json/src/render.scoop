@@ -1,0 +1,63 @@
+package scoop.json
+
+internal fun writeJsonString(text: String, output: StringBuilder) {
+    val hex = "0123456789abcdef"
+    output.add('"')
+    for (character in text) {
+        when (character) {
+            case '"' -> { output.add("\\\"") }
+            case '\\' -> { output.add("\\\\") }
+            case '\u{8}' -> { output.add("\\b") }
+            case '\u{c}' -> { output.add("\\f") }
+            case '\n' -> { output.add("\\n") }
+            case '\r' -> { output.add("\\r") }
+            case '\t' -> { output.add("\\t") }
+            else -> {
+                val code = character.code
+                if (code < 32) {
+                    output.add("\\u00")
+                    output.add(hex[(code / 16).toInt64()])
+                    output.add(hex[(code % 16).toInt64()])
+                } else { output.add(character) }
+            }
+        }
+    }
+    output.add('"')
+}
+
+internal fun writeJson(value: JsonValue, output: StringBuilder) {
+    when (value) {
+        case JsonValue.Null -> { output.add("null") }
+        case JsonValue.BooleanValue(result) -> { output.add(result) }
+        case JsonValue.Number(text) -> { output.add(text) }
+        case JsonValue.Text(text) -> { writeJsonString(text, output) }
+        case JsonValue.Record(members) -> {
+            output.add('{')
+            var first: Boolean = true
+            for (member in members) {
+                if (!first) { output.add(',') }
+                first = false
+                writeJsonString(member.name, output)
+                output.add(':')
+                writeJson(member.value, output)
+            }
+            output.add('}')
+        }
+        case JsonValue.Sequence(elements) -> {
+            output.add('[')
+            var first: Boolean = true
+            for (element in elements) {
+                if (!first) { output.add(',') }
+                first = false
+                writeJson(element, output)
+            }
+            output.add(']')
+        }
+    }
+}
+
+internal fun renderJson(value: JsonValue): String {
+    val output = StringBuilder()
+    writeJson(value, output)
+    return output.build()
+}

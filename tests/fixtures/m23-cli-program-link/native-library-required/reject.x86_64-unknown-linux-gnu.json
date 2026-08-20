@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "missing native library \"additional\" for x86_64-unknown-linux-gnu; no candidate in explicit roots or the selected target's system libraries; requirement 74ad7fe3f8b3c7b969fe755be958cde428bf9bd8eed693982a3c80ffcfb91dd2; origins: dev.programlink:native-library-required:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

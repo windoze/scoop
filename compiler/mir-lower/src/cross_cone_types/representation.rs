@@ -1,0 +1,217 @@
+use super::*;
+use hir::NominalRepresentationShapeV1 as Source;
+use mir::MirTypeRepresentationV1 as Repr;
+
+pub(super) mod fields;
+
+type Backing = (PersistentTypeId, PersistentExactTypeId, Repr);
+
+pub(super) fn project(
+    module: &mir::Module,
+    ty: &mir::Type,
+    source: &hir::NominalRepresentationSupportV1,
+) -> Result<(Repr, Option<Backing>), SourceMirTypeProductionError> {
+    let mismatch = || SourceMirTypeProductionError::RepresentationMismatch(source.owner());
+    let shape = match (ty, source.shape()) {
+        (mir::Type::Any, Source::Intrinsic { representation })
+            if representation.family() == hir::IntrinsicTypeKind::Any =>
+        {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Any)
+        }
+        (mir::Type::Class(id), Source::Intrinsic { representation })
+            if representation.family() == hir::IntrinsicTypeKind::Nothing
+                && matches!(
+                    module.classes[*id].representation,
+                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Nothing)
+                ) =>
+        {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Nothing)
+        }
+        (mir::Type::Unit, Source::Intrinsic { representation })
+            if representation.family() == hir::IntrinsicTypeKind::Unit =>
+        {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
+        }
+        (mir::Type::Unit, Source::Object { .. } | Source::Struct { .. }) => {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
+        }
+        (mir::Type::Integer(kind), Source::Intrinsic { .. }) => {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Integer(*kind))
+        }
+        (mir::Type::Struct(id), Source::Intrinsic { representation })
+            if matches!(representation.family(), hir::IntrinsicTypeKind::Float(_)) =>
+        {
+            let mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Float(
+                kind,
+            )) = module.structs[*id].representation
+            else {
+                return Err(mismatch());
+            };
+            if representation.family() != hir::IntrinsicTypeKind::Float(kind) {
+                return Err(mismatch());
+            }
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Float(kind))
+        }
+        (mir::Type::Struct(id), Source::Intrinsic { .. })
+            if matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Char)
+            ) =>
+        {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Char)
+        }
+        (mir::Type::Boolean, Source::Intrinsic { .. }) => {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Boolean)
+        }
+        (mir::Type::String, Source::Intrinsic { .. }) => {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::String)
+        }
+        (mir::Type::Class(id), Source::Intrinsic { representation })
+            if matches!(representation.family(), hir::IntrinsicTypeKind::Atomic(_)) =>
+        {
+            let mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(
+                storage,
+            )) = &module.classes[*id].representation
+            else {
+                return Err(mismatch());
+            };
+            if representation.family() != hir::IntrinsicTypeKind::Atomic(storage.kind()) {
+                return Err(mismatch());
+            }
+            Repr::Intrinsic(match storage {
+                hir::AtomicStorage::Int => mir::MirParamFreeIntrinsicV1::AtomicInt,
+                hir::AtomicStorage::Long => mir::MirParamFreeIntrinsicV1::AtomicLong,
+                hir::AtomicStorage::Boolean => mir::MirParamFreeIntrinsicV1::AtomicBoolean,
+                hir::AtomicStorage::Reference(_) => return Err(mismatch()),
+            })
+        }
+        (
+            mir::Type::Struct(id),
+            Source::Struct {
+                fields: expected, ..
+            },
+        ) => {
+            let mir::StructRepresentation::Declared(mir::DeclaredStruct {
+                fields,
+                c_layout,
+                interior_mutable,
+                ..
+            }) = &module.structs[*id].representation
+            else {
+                return Err(mismatch());
+            };
+            if fields.len() != expected.len()
+                || fields
+                    .iter()
+                    .zip(expected)
+                    .any(|(field, expected)| field.identity != expected.field())
+            {
+                return Err(mismatch());
+            }
+            let mut projected = Vec::new();
+            reserve(&mut projected, fields.len())?;
+            for field in fields {
+                projected.push(mir::MirRepresentationFieldV1 {
+                    field: field.identity,
+                    value: fields::exact(module, &field.ty)?,
+                });
+            }
+            Repr::Struct {
+                fields: projected,
+                c_layout: c_layout.map_or(
+                    mir::MirTypeCLayoutPolicyV1::Ordinary,
+                    mir::MirTypeCLayoutPolicyV1::CLayout,
+                ),
+                interior_mutable: *interior_mutable,
+            }
+        }
+        (
+            mir::Type::Enum(id, _),
+            Source::Enum {
+                variants: expected,
+                representation,
+            },
+        ) => {
+            let variants = &module.enums[*id].variants;
+            if variants.len() != expected.len()
+                || variants.iter().zip(expected).any(|(variant, expected)| {
+                    variant.identity != expected.variant()
+                        || variant.fields.len() != expected.fields().len()
+                        || variant
+                            .fields
+                            .iter()
+                            .zip(expected.fields())
+                            .any(|(field, expected)| field.identity != expected.field())
+                })
+            {
+                return Err(mismatch());
+            }
+            Repr::Enum {
+                variants: fields::variants(module, variants)?,
+                representation: super::super::types::lower_enum_representation(representation),
+            }
+        }
+        (
+            mir::Type::Class(id),
+            Source::Class {
+                declared_fields, ..
+            },
+        ) => {
+            let class = &module.classes[*id];
+            let mir::ClassRepresentation::Declared(declared) = &class.representation else {
+                return Err(mismatch());
+            };
+            Repr::Class {
+                release_policy: release_policy(class.release_policy, fields::exact(module, ty)?),
+                kind: match class.modifier {
+                    mir::ClassModifier::Final => mir::MirClassKindV1::Final,
+                    mir::ClassModifier::Open => mir::MirClassKindV1::Open,
+                    mir::ClassModifier::Abstract => mir::MirClassKindV1::Abstract,
+                },
+                declared_fields: fields::class(module, declared, source.owner(), declared_fields)?,
+            }
+        }
+        (mir::Type::Interface(_) | mir::Type::Any, Source::Interface) => Repr::Interface,
+        (
+            mir::Type::Class(id),
+            Source::Object {
+                backing_class,
+                declared_fields,
+            },
+        ) => {
+            let mir::ClassRepresentation::Declared(declared) = &module.classes[*id].representation
+            else {
+                return Err(mismatch());
+            };
+            let fields = fields::class(module, declared, source.owner(), declared_fields)?;
+            let key = ExactTypeKey::Nominal(*backing_class);
+
+            let exact = PersistentExactTypeId::from_key(&key)
+                .map_err(|error| SourceMirTypeProductionError::Identity(error.to_string()))?;
+            return Ok((
+                Repr::Object { backing: exact },
+                Some((
+                    *backing_class,
+                    exact,
+                    Repr::ObjectBacking {
+                        declared_fields: fields,
+                    },
+                )),
+            ));
+        }
+        _ => return Err(mismatch()),
+    };
+    Ok((shape, None))
+}
+
+pub(super) fn release_policy(
+    policy: mir::ReleasePolicy,
+    owner: PersistentExactTypeId,
+) -> mir::MirClassReleasePolicyV1 {
+    match policy {
+        mir::ReleasePolicy::None => mir::MirClassReleasePolicyV1::None,
+        mir::ReleasePolicy::SynchronousGcFree { .. } => {
+            mir::MirClassReleasePolicyV1::SynchronousGcFree { owner }
+        }
+    }
+}

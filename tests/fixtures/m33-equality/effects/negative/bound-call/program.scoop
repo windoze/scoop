@@ -1,0 +1,15 @@
+interface Measure {
+    public fun measure(): Int
+}
+
+struct Reading() : Measure {
+    @NoGC
+    public override fun measure(): Int = 42
+}
+
+@NoGC
+fun <T : Measure> bounded(value: T): Int = value.measure()
+
+fun main() {
+    bounded(Reading())
+}

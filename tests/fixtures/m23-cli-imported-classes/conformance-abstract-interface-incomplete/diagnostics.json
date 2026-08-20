@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `LocalReader` does not implement interface method `LocalChoice.choose`",
+    "notes": [],
+    "origin": {
+      "cone": "3413ae2363e25437d13e7e9d79b37ba23b0578da6d9e90f1e31513598dda314f",
+      "end": 185,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 124
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `accept` in current-unit top-level candidate layer:\n  - fun accept(codec: Encodable<Any>): Unit — argument for `codec` has type Companion, which is not equal to Any",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 95,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 81
+    },
+    "severity": "error"
+  }
+]

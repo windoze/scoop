@@ -1,0 +1,4 @@
+private fun seed(): Int = 1
+public open class SourceBase<T> {
+    protected fun read(value: Int = seed()): Int = value
+}

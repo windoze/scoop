@@ -1,0 +1,7 @@
+package bridge
+public import metadata.Tags as Note
+public import metadata.Value as Value
+public import metadata.WORD as WORD
+public annotation class Derived(val words: Array<String> = [WORD, "facade"])
+@Note([WORD, "facade"]) @Derived
+public struct Middle(@Note([]) val value: Int)

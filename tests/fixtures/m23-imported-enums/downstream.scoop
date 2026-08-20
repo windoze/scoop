@@ -1,0 +1,8 @@
+package downstream.enums
+
+import consumer.enums.relay
+import consumer.enums.test
+import dependency.enums.make
+import dependency.enums.sum
+
+@NoGC public fun check(): Long = test() + sum(relay(make(5, -5)))

@@ -1,0 +1,11 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val produced = Produced()
+    val view: Factory = produced
+    verifyDispatch(view === produced)
+    verifyDispatch(factory() !== factory())
+    val singleton: Factory = Singleton
+    verifyDispatch(singleton === Singleton)
+}

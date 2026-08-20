@@ -1,0 +1,9 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(FiniteEmpty() == FiniteEmpty())
+    verifyType(FiniteScalar(17).number == 17)
+    verifyType(FiniteState.On(23) == FiniteState.On(23))
+    val erased: Any = FiniteScalar(29)
+    verifyType((erased as FiniteScalar).number == 29)
+}

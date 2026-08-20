@@ -1,0 +1,2 @@
+@Target([]) annotation class A
+fun f(x: @A Int) {}

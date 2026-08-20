@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Int, found Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "e351be120768d5c01d36809f29032efb92f92d355fc5afc7765650345a646e21",
+      "end": 91,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 87
+    },
+    "severity": "error"
+  }
+]

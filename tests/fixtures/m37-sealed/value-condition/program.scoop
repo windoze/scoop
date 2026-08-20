@@ -1,0 +1,6 @@
+sealed interface Root { operator fun equals(other: Root): Boolean = false }
+class One : Root
+class Two : Root
+fun classify(value: Root): Int = when(value) { One() -> 1
+ Two() -> 2 }
+fun main() {}

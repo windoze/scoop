@@ -1,0 +1,16 @@
+import dependency.classes.Counter
+import dependency.classes.Token
+import dependency.classes.WideParent
+import dependency.classes.WideValue
+
+public open class Derived public constructor(): WideParent(WideValue(7, 8, 5)) {
+    public override fun transform(input: WideValue, marker: Token): WideValue {
+        val result = super.transform(input, marker)
+        return WideValue(result.first + 1, result.second, result.third)
+    }
+}
+public fun primary(): Counter {
+    val value: WideParent = Derived()
+    val result = value.transform(WideValue(0, 0, 0), Token())
+    return Counter(result.first + result.second + result.third)
+}

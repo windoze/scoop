@@ -1,0 +1,17 @@
+import dependency.classes.Counter
+
+private fun divide(value: Long, divisor: Long): Long = value / divisor
+public fun primary(): Counter {
+    var caught: Long = 0
+    try { divide(42, 0) } catch (failure: ArithmeticException) { caught = caught + 10 }
+    try {
+        val value: UInt = 42u
+        val remainder = value % 0u
+        caught = caught + remainder.toInt64()
+    } catch (failure: ArithmeticException) {
+        caught = caught + 10
+    } finally {
+        caught = caught + 1
+    }
+    return Counter(caught)
+}

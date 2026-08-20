@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test"
+name = "runner"
+version = "1.0.0"
+kind = "executable"
+[dependencies]
+"test:root" = { version = "1.0.0", path = "../root" }

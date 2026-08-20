@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `glue` in extension candidate layer:\n  - fun Int8.glue(other: Int8): Int8 — Int is not a subtype of Int8",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 129,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 128
+    },
+    "severity": "error"
+  }
+]

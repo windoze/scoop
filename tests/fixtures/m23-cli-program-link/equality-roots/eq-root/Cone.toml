@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "eq-root"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:eq-facade" = {"version" = "0.1.0", "path" = "../eq-facade"}

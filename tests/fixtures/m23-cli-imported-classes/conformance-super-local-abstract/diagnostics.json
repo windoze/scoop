@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract base method `choose` cannot be called with `super`",
+    "notes": [],
+    "origin": {
+      "cone": "d1679c4ebd3d3a4e093254d83ad6435dee5a54fec189738c3257ea278bb050c0",
+      "end": 259,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 230
+    },
+    "severity": "error"
+  }
+]

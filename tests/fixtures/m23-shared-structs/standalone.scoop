@@ -1,0 +1,17 @@
+package consumer.structs
+import upstream.structs.*
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val remote = create(value)
+    val receiver: Reader<T> = remote
+    if (read(receiver.read()) != 42) { return 1 }
+    if (read(remote.optional ?: value) != 42) { return 2 }
+    val pair = NativePair(20, 22)
+    return pair.left + pair.right
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

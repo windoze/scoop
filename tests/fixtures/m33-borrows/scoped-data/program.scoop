@@ -1,0 +1,107 @@
+@Extern(lib = "fixture_native", name = "sum_values")
+fun sumValues(data: Ptr<Int>, count: Long): Long
+@GCLeaf @Extern(lib = "fixture_native", name = "sum_bytes")
+fun sumBytes(data: Ptr<UInt8>, count: Long): Long
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun checkUnits(pointer: Ptr<Unit>, count: Long) {
+    @Unsafe {
+        expect(count == 3L && pointer.toULong() != 0UL)
+        pointer.store(Unit)
+        val loaded = pointer.load()
+        pointer.store(loaded)
+        gcCollect()
+    }
+}
+
+@Unsafe fun <T : value> first(values: Array<T>): T =
+    values.withDataPointer(fun(pointer: Ptr<T>, count: Long): T {
+        @Unsafe {
+            expect(count > 0L)
+            gcCollect()
+            return pointer.load()
+        }
+    })
+
+fun arrays() {
+    val values = MutableArray<Int>(4L) { index -> index.toInt32() + 1 }
+    @Unsafe {
+        val result = values.withDataPointer(fun(pointer: Ptr<Int>, count: Long): (String, Long) {
+            @Unsafe {
+                expect(count == 4L && sumValues(pointer, count) == 10L)
+                val before = pointer.toULong()
+                val held = pin(values)
+                values.withDataPointer() { nested: Ptr<Int>, size: Long ->
+                    @Unsafe {
+                        expect(nested.toULong() == before && size == count)
+                        gcCollect()
+                        expect(unpin(held) === values)
+                        nested.store(2L, 20)
+                    }
+                }
+                gcCollect()
+                expect(pointer.toULong() == before && pointer.load(2L) == 20)
+                return ("value" + count.toString(), sumValues(pointer, count))
+            }
+        })
+        gcCollect()
+        expect(result._1 == "value4" && result._2 == 27L)
+        expect(values[2L] == 20 && first(values.toArray()) == 1)
+        val empty = Array<Int>(0L) { _ -> 0 }
+        empty.withDataPointer() { pointer: Ptr<Int>, count: Long ->
+            @Unsafe {
+                expect(count == 0L && pointer.toULong() != 0UL)
+                expect(sumValues(pointer, count) == 0L)
+                gcCollect()
+            }
+        }
+        val units = MutableArray<Unit>(3L) { _ -> Unit }
+        units.withDataPointer(::checkUnits)
+    }
+}
+
+@Unsafe fun checkText(text: String) {
+    text.withUtf8Bytes() { pointer: Ptr<UInt8>, count: Long ->
+        @Unsafe {
+            expect(count == 6L && pointer.load() == 65u)
+            expect(pointer.load(4L) == 0u && pointer.load(5L) == 66u)
+            gcCollect()
+            expect(sumBytes(pointer, count) == 651L)
+        }
+    }
+}
+
+fun stringsAndCleanup() {
+    @Unsafe {
+        checkText("A界\u0000B")
+        checkText("A界" + "\u0000B")
+        "".withUtf8Bytes() { pointer: Ptr<UInt8>, count: Long ->
+            @Unsafe {
+                expect(count == 0L && pointer.toULong() != 0UL)
+                gcCollect()
+            }
+        }
+        val data = MutableArray<Int>(1L) { _ -> 19 }
+        try {
+            data.withDataPointer<Int, Unit>() { pointer: Ptr<Int>, count: Long ->
+                @Unsafe {
+                    gcCollect()
+                    expect(pointer.load() == 19 && count == 1L)
+                    throw IllegalStateException(Some("borrow cleanup"))
+                }
+            }
+        } catch (error: IllegalStateException) {
+            gcCollect()
+        }
+        data.withDataPointer() { pointer: Ptr<Int>, _: Long ->
+            @Unsafe { expect(pointer.load() == 19) }
+        }
+    }
+}
+
+fun main() {
+    arrays()
+    stringsAndCleanup()
+    println("scoped-data-ok")
+}

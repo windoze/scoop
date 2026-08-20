@@ -1,0 +1,5 @@
+struct Opaque()
+struct Record(val values: Array<Option<Opaque>>) {
+    companion object : Encodable<Record>
+}
+fun main() {}

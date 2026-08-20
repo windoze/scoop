@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `dependency.paths.Outer` has no accessible nested type `Unknown`",
+    "notes": [],
+    "origin": {
+      "cone": "60d09ffe1c7762816ce1391969040edaa68b87f90d150c9f68a5c369127646ee",
+      "end": 56,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 49
+    },
+    "severity": "error"
+  }
+]

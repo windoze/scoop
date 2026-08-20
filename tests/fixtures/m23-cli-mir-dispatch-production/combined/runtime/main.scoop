@@ -1,0 +1,18 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val token = Token()
+    val value: Diamond = Value()
+    verifyType(value.run(token) == token && value.echo(token) == token && value.token == token)
+    val derived = derived()
+    val root: Root = derived
+    verifyType(root.run(token) == token && root.echo(token) == token && root.token == token)
+    verifyType(throughBase(derived) == token && throughBase(Singleton) == token && throughBase(OtherSingleton) == token)
+    val pending = pending()
+    verifyType(pending.run(token) == token && pending.echo(token) == token)
+    val defaultValue: Default = Choice.One
+    verifyType(defaultValue.token() == token)
+    val mutable = mutable()
+    mutable.value = token
+    verifyType(mutable.value == token)
+}

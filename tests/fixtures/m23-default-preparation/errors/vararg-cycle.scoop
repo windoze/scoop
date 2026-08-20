@@ -1,0 +1,2 @@
+fun cycle(vararg values: Int = cycle()): Array<Int> = values
+fun main() {}

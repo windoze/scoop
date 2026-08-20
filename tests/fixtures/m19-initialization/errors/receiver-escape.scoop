@@ -1,0 +1,12 @@
+class Escape(val ready: String) {
+    fun publish(): String = ready
+
+    init {
+        println(this)
+        val captured: () -> String = { this.ready }
+        this.publish()
+        publish()
+    }
+}
+
+fun main() {}

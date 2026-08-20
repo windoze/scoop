@@ -1,0 +1,1 @@
+fun main() { val cell: AtomicRef<Any> = AtomicRef<String>("value") }

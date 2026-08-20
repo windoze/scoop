@@ -1,0 +1,2 @@
+fun send(value: List<Int>, encoder: Encoder) { value.encode(encoder) }
+fun main() {}

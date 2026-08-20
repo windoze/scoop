@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "suspend function `make` cannot be called from non-suspend function `$init$body$0`",
+    "notes": [],
+    "origin": {
+      "cone": "72f6f3a5f0cda6d060251da85db1df202c8c707d7e5cd5cb6f71966b4e1628ca",
+      "end": 190,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 181
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,20 @@
+class Box<T>(val value: T) {
+    fun read() = value
+    fun <U> choose(other: U) = other
+}
+typealias Words = Box<String>
+fun <T> maker(): (T) -> Box<T> = ::Box
+fun <T> reader(): (Box<T>) -> T = Box<T>::read
+fun main() {
+    val construct: (Int) -> Box<Int> = ::Box
+    val words = ::Words
+    val read = Words::read
+    val member = Box<Int>::read
+    val choose: (Box<String>, Int) -> Int = Box<String>::choose
+    val inferredHost: (Box<Int>) -> Int = Box::read
+    println(member(construct(42)))
+    println(read(words("alias")))
+    println(choose(words("unused"), 7))
+    println(reader<String>()(maker<String>()("generic")))
+    println(inferredHost(construct(9)))
+}

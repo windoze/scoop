@@ -1,0 +1,29 @@
+public fun nestedParentSeed(): String = "parent"
+public fun nestedParentProvider(value: String = if (true) {
+    fun copy(): String { return "source" }
+    copy()
+} else { "fallback" }): String = value
+public class NestedParentHost {
+    internal fun lambdaA(value: () -> String = { "first" }): () -> String = value
+    internal fun lambdaB(value: () -> String = { "second" }): () -> String = value
+    internal fun anonymousA(value: () -> String = fun(): String { return "first" }): () -> String = value
+    internal fun anonymousB(value: () -> String = fun(): String { return "second" }): () -> String = value
+    internal fun referenceA(value: () -> String = ::nestedParentSeed): () -> String = value
+    internal fun referenceB(value: () -> String = ::nestedParentSeed): () -> String = value
+    internal fun localA(value: String = if (true) {
+        fun copy(): String { return "first" }
+        copy()
+    } else { "fallback" }): String = value
+    internal fun localB(value: String = if (true) {
+        fun copy(): String { return "second" }
+        copy()
+    } else { "fallback" }): String = value
+    internal fun expanded(value: String = nestedParentProvider()): String = value
+    internal fun <T> generic(seed: T, value: () -> T = { seed }): () -> T = value
+}
+public class NestedParentConstructor(val callback: () -> String = { "constructor" })
+public class NestedParentGeneric<T>(seed: T, val callback: () -> T = { seed })
+public enum NestedParentChoice {
+    First(val callback: () -> String = { "first" }),
+    Second(val callback: () -> String = { "second" })
+}

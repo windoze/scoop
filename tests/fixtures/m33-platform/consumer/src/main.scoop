@@ -1,0 +1,21 @@
+import fixture.platform.*
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main(args: Array<String>): Int {
+    check(args.size == 2L)
+    val directory = args[1L]
+    val missing = openInput(directory + "/missing")
+    check(missing._1 == -1 && missing._2 == 2)
+    val bytes: Array<UInt8> = [65u, 0u, 206u, 187u, 240u, 159u, 153u, 130u, 10u]
+    val first = directory + "/first-λ.bin"
+    val second = directory + "/second-二.bin"
+    concurrentWrites(first, second, bytes)
+    gcCollect()
+    verifyFile(first, bytes)
+    verifyFile(second, bytes)
+    check(directoryEntries(directory) == (2L, 0))
+    check(missing == (-1, 2))
+    println("platform-cone-ok")
+    return 37
+}

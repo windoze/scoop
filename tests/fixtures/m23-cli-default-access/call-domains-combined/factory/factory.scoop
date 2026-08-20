@@ -1,0 +1,4 @@
+public fun <T> domainDiamond(): DomainDiamond<T> = DomainDiamond<T>()
+public fun <T> domainChild(): DomainChild<T> = DomainChild<T>()
+public fun <T> domainUnusedChild(): DomainUnusedChild<T> = DomainUnusedChild<T>()
+public fun <T> domainInner(): DomainOuter.Inner<T> = DomainOuter.Inner<T>()

@@ -1,0 +1,19 @@
+struct Value(val text: String, val number: Int)
+struct Empty()
+fun main() {
+    val snapshot: Value.() -> () -> String = { val saved = { text }; saved }
+    var value = Value("copied", 1)
+    val closure = value.snapshot()
+    value = Value("changed", 2)
+    gcCollect()
+    println(closure())
+    val zero: Empty.() -> Int = { 42 }
+    println(Empty().zero())
+    val unit: Unit.(Int) -> Int = { it + 1 }
+    println(unit(Unit, 6))
+    val zeroFlat: (Empty) -> Int = zero
+    println(zeroFlat(Empty()))
+    val maybe: Int?.() -> Int = { when (this) { case Some(value) -> value; case None -> 0 } }
+    println(maybe(Some(9)))
+    println(maybe(None))
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid Cone manifest root ${work}/private-sysroot/lib/scoop.core/Cone.toml: invalid Cone.toml: TOML parse error at line 1, column 10\n  |\n1 | schema = true\n  |          ^^^^\ninvalid type: boolean `true`, expected i64\n",
+    "notes": [],
+    "origin": {
+      "end": 13,
+      "kind": "host",
+      "path": "${work}/private-sysroot/lib/scoop.core/Cone.toml",
+      "start": 9
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

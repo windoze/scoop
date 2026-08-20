@@ -1,0 +1,5 @@
+fun main() {
+    val pointer = FunPtr<(Int) -> Int>()
+    val direct = pointer(1)
+    val explicit = pointer.invoke(1)
+}

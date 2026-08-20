@@ -1,0 +1,13 @@
+package consumer.leaf
+import upstream.leaf.number
+
+private object Cache {
+    val answer: Int = number()
+}
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    if (Cache.answer != 42) { return 1 }
+    return read(value)
+}
+
+public fun result(): Int = exercise<Int>(Cache.answer, { value -> value })

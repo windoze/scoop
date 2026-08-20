@@ -1,0 +1,6 @@
+fun main() {
+    var value: Any = "before"
+    if (value !is String) return
+    for (number in [1, 2]) value = number
+    println(value.length)
+}

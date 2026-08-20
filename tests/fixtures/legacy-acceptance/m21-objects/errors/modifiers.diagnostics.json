@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "open property `extensibleProperty` is not allowed in an object declaration",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 117,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 99
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract property `missingProperty` is not allowed in an object declaration",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 160,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 145
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "open function `extensible` is not allowed in an object declaration",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 40,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 30
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract function `missing` is only allowed in abstract classes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 77,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 70
+    },
+    "severity": "error"
+  }
+]

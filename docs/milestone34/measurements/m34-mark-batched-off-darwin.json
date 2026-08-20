@@ -1,0 +1,405 @@
+{
+  "revision": "66abed0c8",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "tool_versions": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "llvm": "22.1.8"
+  },
+  "profile": "release",
+  "runs": 1,
+  "nodes": 16383,
+  "explicit_full_rounds": 3,
+  "configured_workers": null,
+  "order": [
+    "off",
+    "on-1",
+    "on-8"
+  ],
+  "builds": [
+    {
+      "case": "mark-graphs",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/parallel/mark-graphs.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/mark-graphs",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/dump/mark-graphs",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.209311000071466,
+      "warm_build_seconds": 5.3385167920496315,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "00580cec199252311fb3ab6e835651977311180e9386c54389cca6dea6738075",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "1a55b78d7b511bfaebb5f7751de31f75352177f8ee235fa45153aab3f9c6abc9",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/mark-graphs",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "e30e6eba54d8e48e400168186c73a863df0c8a2c97be03a75affae68fca1bf55",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/1a55b78d7b511bfaebb5f7751de31f75352177f8ee235fa45153aab3f9c6abc9/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/d479158cf0e8dca5e80b5bbcedaa2f16e9e3ac094176d37c03b3092073341389/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6274328,
+      "slib_bytes": 1436154
+    }
+  ],
+  "cases": {
+    "wide": {
+      "run_seconds": [
+        0.013937041978351772
+      ],
+      "phases": [
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 1528000,
+            "traced_objects": 16384,
+            "live_objects": 16384,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 7143424,
+            "peak_rss_bytes": 7258112
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 1580000,
+            "traced_objects": 16384,
+            "live_objects": 16384,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 7143424,
+            "peak_rss_bytes": 7258112
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 1568000,
+            "traced_objects": 16384,
+            "live_objects": 16384,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 7143424,
+            "peak_rss_bytes": 7258112
+          }
+        ]
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 3,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 786544,
+          "nursery_allocated_bytes": 655456,
+          "promoted_bytes": 655344,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 99,
+          "traced_objects": 49152,
+          "pause_ns": 4676000,
+          "maximum_pause_ns": 1580000,
+          "committed_bytes": 720896,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 4676000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 16384,
+          "unmapped_bytes": 196608,
+          "current_rss_bytes": 7241728,
+          "peak_rss_bytes": 7258112,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            0,
+            0
+          ]
+        }
+      ],
+      "stderr": [
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":1528000,\"traced_objects\":16384,\"live_objects\":16384,\"mapped_bytes\":16777216,\"current_rss_bytes\":7143424,\"peak_rss_bytes\":7258112}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":1580000,\"traced_objects\":16384,\"live_objects\":16384,\"mapped_bytes\":16777216,\"current_rss_bytes\":7143424,\"peak_rss_bytes\":7258112}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":1568000,\"traced_objects\":16384,\"live_objects\":16384,\"mapped_bytes\":16777216,\"current_rss_bytes\":7143424,\"peak_rss_bytes\":7258112}\n{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":3,\"promotion_fallbacks\":0,\"allocated_bytes\":786544,\"nursery_allocated_bytes\":655456,\"promoted_bytes\":655344,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":99,\"traced_objects\":49152,\"pause_ns\":4676000,\"maximum_pause_ns\":1580000,\"committed_bytes\":720896,\"minor_pause_ns\":0,\"full_pause_ns\":4676000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":16384,\"unmapped_bytes\":196608,\"current_rss_bytes\":7241728,\"peak_rss_bytes\":7258112,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,3,0,0]}\n"
+      ],
+      "stdout": "134193153\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1",
+        "SCOOP_BENCH_GRAPH": "wide",
+        "SCOOP_BENCH_NODES": "16383",
+        "SCOOP_BENCH_ROUNDS": "3"
+      },
+      "median_seconds": 0.013937041978351772
+    },
+    "array": {
+      "run_seconds": [
+        0.017881792038679123
+      ],
+      "phases": [
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 2816000,
+            "traced_objects": 16386,
+            "live_objects": 16386,
+            "mapped_bytes": 16973824,
+            "current_rss_bytes": 7389184,
+            "peak_rss_bytes": 7389184
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 2895000,
+            "traced_objects": 16386,
+            "live_objects": 16386,
+            "mapped_bytes": 16973824,
+            "current_rss_bytes": 7389184,
+            "peak_rss_bytes": 7389184
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 2799000,
+            "traced_objects": 16386,
+            "live_objects": 16386,
+            "mapped_bytes": 16973824,
+            "current_rss_bytes": 7389184,
+            "peak_rss_bytes": 7389184
+          }
+        ]
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 3,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 786592,
+          "nursery_allocated_bytes": 655504,
+          "promoted_bytes": 655384,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 102,
+          "traced_objects": 49158,
+          "pause_ns": 8510000,
+          "maximum_pause_ns": 2895000,
+          "committed_bytes": 917504,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 8510000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 16973824,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 16384,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7503872,
+          "peak_rss_bytes": 7503872,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            0,
+            0
+          ]
+        }
+      ],
+      "stderr": [
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":2816000,\"traced_objects\":16386,\"live_objects\":16386,\"mapped_bytes\":16973824,\"current_rss_bytes\":7389184,\"peak_rss_bytes\":7389184}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":2895000,\"traced_objects\":16386,\"live_objects\":16386,\"mapped_bytes\":16973824,\"current_rss_bytes\":7389184,\"peak_rss_bytes\":7389184}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":2799000,\"traced_objects\":16386,\"live_objects\":16386,\"mapped_bytes\":16973824,\"current_rss_bytes\":7389184,\"peak_rss_bytes\":7389184}\n{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":3,\"promotion_fallbacks\":0,\"allocated_bytes\":786592,\"nursery_allocated_bytes\":655504,\"promoted_bytes\":655384,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":102,\"traced_objects\":49158,\"pause_ns\":8510000,\"maximum_pause_ns\":2895000,\"committed_bytes\":917504,\"minor_pause_ns\":0,\"full_pause_ns\":8510000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":16384,\"unmapped_bytes\":0,\"current_rss_bytes\":7503872,\"peak_rss_bytes\":7503872,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,3,0,0]}\n"
+      ],
+      "stdout": "134193153\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1",
+        "SCOOP_BENCH_GRAPH": "array",
+        "SCOOP_BENCH_NODES": "16383",
+        "SCOOP_BENCH_ROUNDS": "3"
+      },
+      "median_seconds": 0.017881792038679123
+    },
+    "chain": {
+      "run_seconds": [
+        0.01384387502912432
+      ],
+      "phases": [
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 1609000,
+            "traced_objects": 16384,
+            "live_objects": 16384,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 7094272,
+            "peak_rss_bytes": 7094272
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 1599000,
+            "traced_objects": 16384,
+            "live_objects": 16384,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 7094272,
+            "peak_rss_bytes": 7094272
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 1637000,
+            "traced_objects": 16384,
+            "live_objects": 16384,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 7094272,
+            "peak_rss_bytes": 7094272
+          }
+        ]
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 3,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 655432,
+          "nursery_allocated_bytes": 655432,
+          "promoted_bytes": 655344,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 99,
+          "traced_objects": 49152,
+          "pause_ns": 4845000,
+          "maximum_pause_ns": 1637000,
+          "committed_bytes": 720896,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 4845000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 16384,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 7176192,
+          "peak_rss_bytes": 7176192,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            0,
+            0
+          ]
+        }
+      ],
+      "stderr": [
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":1609000,\"traced_objects\":16384,\"live_objects\":16384,\"mapped_bytes\":16777216,\"current_rss_bytes\":7094272,\"peak_rss_bytes\":7094272}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":1599000,\"traced_objects\":16384,\"live_objects\":16384,\"mapped_bytes\":16777216,\"current_rss_bytes\":7094272,\"peak_rss_bytes\":7094272}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":1637000,\"traced_objects\":16384,\"live_objects\":16384,\"mapped_bytes\":16777216,\"current_rss_bytes\":7094272,\"peak_rss_bytes\":7094272}\n{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":3,\"promotion_fallbacks\":0,\"allocated_bytes\":655432,\"nursery_allocated_bytes\":655432,\"promoted_bytes\":655344,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":99,\"traced_objects\":49152,\"pause_ns\":4845000,\"maximum_pause_ns\":1637000,\"committed_bytes\":720896,\"minor_pause_ns\":0,\"full_pause_ns\":4845000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":16384,\"unmapped_bytes\":0,\"current_rss_bytes\":7176192,\"peak_rss_bytes\":7176192,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,3,0,0]}\n"
+      ],
+      "stdout": "134193153\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1",
+        "SCOOP_BENCH_GRAPH": "chain",
+        "SCOOP_BENCH_NODES": "16383",
+        "SCOOP_BENCH_ROUNDS": "3"
+      },
+      "median_seconds": 0.01384387502912432
+    }
+  }
+}

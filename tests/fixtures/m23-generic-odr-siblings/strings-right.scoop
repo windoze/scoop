@@ -1,0 +1,8 @@
+package sibling.right
+
+import dependency.odr.*
+
+public fun right(): String = constant<Int>()
+public fun rightOther(): String = otherConstant<Int>()
+public fun rightSelected(first: Boolean): String = selectedConstant<Int>(first)
+public fun distinct(): String = constant<Long>()

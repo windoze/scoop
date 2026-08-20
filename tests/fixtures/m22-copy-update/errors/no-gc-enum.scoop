@@ -1,0 +1,11 @@
+// EXPECT-DIAGNOSTICS
+
+enum Event {
+    Data { value: Int },
+    Empty
+}
+
+@NoGC
+fun copyEnum(value: Event): Event = value.{ value: 2 }
+
+fun main() {}

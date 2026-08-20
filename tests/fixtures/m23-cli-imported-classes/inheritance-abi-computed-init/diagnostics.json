@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Derived` has no field `computed`",
+    "notes": [],
+    "origin": {
+      "cone": "f1a3e5b7dc364fb81b07dd6f325fb6dd69e1bc9ff8fdedeaedec423d2d67f3e6",
+      "end": 194,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 186
+    },
+    "severity": "error"
+  }
+]

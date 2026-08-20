@@ -1,0 +1,11 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(combined(17, 25) == 42)
+    verifyType(withDefault("unused", 9) == 9)
+    verifyType(dormant<Int>(23) == 23)
+    verifyType(upcast("text") as String == "text")
+    var failed = false
+    try { combined(1, "bad") } catch (error: ClassCastException) { failed = true }
+    verifyType(failed)
+}

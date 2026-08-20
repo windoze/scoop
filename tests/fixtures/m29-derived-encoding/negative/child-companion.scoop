@@ -1,0 +1,9 @@
+open class Base {
+    companion object : Encodable<Base> {
+        public override fun encode(value: Base, encoder: Encoder) { encoder.singleValue().writeNull() }
+    }
+}
+class Child : Base()
+fun use(value: Child, encoder: Encoder) { Child.Companion.encode(value, encoder) }
+
+fun main() {}

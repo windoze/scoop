@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `read` does not cover inherited slot `VirtualBox<T0>.read`",
+    "notes": [],
+    "origin": {
+      "cone": "bd0d83824889b88d5305961f38ea21ed72beece8f68539f2017bd8e7e969360f",
+      "end": 136,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 132
+    },
+    "severity": "error"
+  }
+]

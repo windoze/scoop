@@ -1,0 +1,28 @@
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun <T : Equality<T>> same(left: T, right: T): Boolean = left.equalTo(right)
+
+@Unsafe
+fun verifyPointer(pointer: Ptr<UInt8>, length: Long) {
+    check(length == 2L)
+    check(same(pointer, pointer))
+    val next = pointer + 1L
+    check(!same(pointer, next))
+    val view: Equality<Ptr<UInt8>> = pointer
+    check(view.equalTo(pointer))
+    val boxed: Any = pointer
+    check(boxed is Equality<Ptr<UInt8>>)
+    check((boxed as Equality<Ptr<UInt8>>).equalTo(pointer))
+}
+
+fun main() {
+    @Unsafe {
+        val bytes = MutableArray<UInt8>(2L) { index -> index.toUInt8() }
+        bytes.withDataPointer<UInt8, Unit>() { pointer: Ptr<UInt8>, length: Long ->
+            @Unsafe { verifyPointer(pointer, length) }
+        }
+    }
+    println("pointer equality")
+}

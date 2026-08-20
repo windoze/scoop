@@ -1,0 +1,26 @@
+package consumer.sharedbounds
+
+import upstream.sharedbounds.*
+
+private interface LocalReader<T> { fun read(): T }
+private interface Left<T>: LocalReader<T> {}
+private interface Right<T>: LocalReader<T> {}
+private interface Both<T>: Left<T>, Right<T> {}
+private class LocalHolder<T>(public val value: T): Both<T> {
+    public override fun read(): T = this.value
+}
+private class Bridge<T>(public val value: T): BothReader<T> {
+    public override fun read(): T = this.value
+}
+
+private fun <T> readBase(source: LocalReader<T>): T = source.read()
+private fun <T, R: Both<T>> readLocal(source: R): T = readBase(source)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val local = readLocal(LocalHolder<T>(seed))
+    val imported = readBound(Holder<T>(local))
+    val bridge = readBound(Bridge<T>(imported))
+    return read(bridge)
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

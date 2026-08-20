@@ -1,0 +1,5 @@
+class Box {
+    val value = 1
+        get() = "wrong"
+}
+fun main() {}

@@ -1,0 +1,2 @@
+fun <T> render(value: T): String = StringBuilder().add(value).build()
+fun main() {}

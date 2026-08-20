@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "test"
+name = "publication"
+version = "0.1.0"
+kind = "library"

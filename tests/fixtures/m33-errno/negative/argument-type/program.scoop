@@ -1,0 +1,3 @@
+@Extern(name = "bad", captureErrno = 1)
+fun bad(): (Int, Int)
+fun main() {}

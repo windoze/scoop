@@ -1,0 +1,191 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3156,
+  "selected": 19,
+  "unselected": 3137,
+  "counts": {
+    "passed": 19
+  },
+  "variants": 26,
+  "processes": 66,
+  "stage_and_plan_goldens": 48,
+  "validation_batches": [
+    "05-fixtures-verify.log: 16 new fixtures passed ordinary comparison",
+    "05-regression.log: updated cleanup and two existing loop fixtures passed",
+    "05-artifact-recheck.log: existing artifact chain passed after the explicit LoopKind snapshot migration"
+  ],
+  "results": [
+    {
+      "name": "m37-do-while-artifacts",
+      "status": "passed",
+      "seconds": 13.5,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-basic",
+      "status": "passed",
+      "seconds": 10.95,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-bindings",
+      "status": "passed",
+      "seconds": 11.19,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-body-scope",
+      "status": "passed",
+      "seconds": 2.49,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-callable-value",
+      "status": "passed",
+      "seconds": 2.12,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-capture",
+      "status": "passed",
+      "seconds": 2.42,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-cleanup",
+      "status": "passed",
+      "seconds": 12.014136000070721,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-condition-jumps",
+      "status": "passed",
+      "seconds": 10.59,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-condition-type",
+      "status": "passed",
+      "seconds": 2.3,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-initializer-continue",
+      "status": "passed",
+      "seconds": 2.31,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-local-call-capture",
+      "status": "passed",
+      "seconds": 2.33,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-missing-while",
+      "status": "passed",
+      "seconds": 2.3,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-nested-scope",
+      "status": "passed",
+      "seconds": 2.29,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-outer-continue",
+      "status": "passed",
+      "seconds": 2.02,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-suspend",
+      "status": "passed",
+      "seconds": 10.57,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-uninitialized",
+      "status": "passed",
+      "seconds": 2.19,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-artifacts",
+      "status": "passed",
+      "seconds": 12.585532292025164,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-basic",
+      "status": "passed",
+      "seconds": 12.529910166980699,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-cleanup",
+      "status": "passed",
+      "seconds": 12.524864458013326,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    }
+  ]
+}

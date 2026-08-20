@@ -1,0 +1,40 @@
+public struct SharedCallableToken() {
+    @NoGC public fun keep(value: SharedCallableToken): SharedCallableToken = value
+}
+
+public interface SharedCallableView {
+    public fun run(value: SharedCallableToken): SharedCallableToken
+    public fun ready(value: SharedCallableToken): SharedCallableToken = value
+}
+
+public open class SharedCallableBase(public val stored: Int) : SharedCallableView {
+    public override fun run(value: SharedCallableToken): SharedCallableToken = value
+    protected fun protectedCopy(value: SharedCallableToken): SharedCallableToken = value
+    internal open fun hiddenSlot(value: SharedCallableToken): SharedCallableToken = value
+    private fun privateHelper(value: SharedCallableToken): SharedCallableToken = value
+}
+
+internal abstract class SharedCallableAgain : SharedCallableBase(0) {
+    public abstract override fun run(value: SharedCallableToken): SharedCallableToken
+    internal abstract override fun hiddenSlot(value: SharedCallableToken): SharedCallableToken
+}
+
+internal class SharedCallableImpl : SharedCallableAgain() {
+    public override fun run(value: SharedCallableToken): SharedCallableToken = value
+    internal override fun hiddenSlot(value: SharedCallableToken): SharedCallableToken = value
+}
+
+public class SharedCallableEnvelope private constructor(private val value: SharedCallableAgain)
+
+public object SharedCallableObject {
+    public fun copy(value: SharedCallableToken): SharedCallableToken = value
+}
+
+public class SharedCallableBox<T>(public val value: T)
+public class SharedSourceOnlyHolder(public val value: SharedCallableBox<SharedCallableToken>)
+
+public fun sharedCallableDeferred(value: SharedSourceOnlyHolder): SharedSourceOnlyHolder = value
+public fun <T> sharedCallableGeneric(value: T): T = value
+public fun SharedCallableToken.copy(value: SharedCallableToken): SharedCallableToken = value
+public fun sharedCallablePass(value: SharedCallableToken): SharedCallableToken = value
+private fun sharedCallableHidden(value: SharedCallableToken): SharedCallableToken = value

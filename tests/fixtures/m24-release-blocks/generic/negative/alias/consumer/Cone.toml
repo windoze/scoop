@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test"
+name = "release-generic-bad-alias"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"test:release-generic-provider" = "0.1.0"

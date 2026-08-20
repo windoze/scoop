@@ -1,0 +1,6 @@
+import dependency.arrayconstruction.IntSnapshot
+
+public fun result(): Int {
+    val copied = IntSnapshot<Int>([])
+    return 42
+}

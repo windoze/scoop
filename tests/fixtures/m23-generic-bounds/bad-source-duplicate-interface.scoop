@@ -1,0 +1,3 @@
+import templates.bounds.Readable
+
+public fun <T> result(value: T): Int where T : Readable, T : Readable = 0

@@ -1,0 +1,49 @@
+typealias Never = Nothing
+
+fun fail(): Never {
+    println("fail")
+    throw IllegalStateException()
+}
+
+fun forward(): Int = fail()
+
+fun choose(flag: Boolean): Int = if (flag) { 7 } else { fail() }
+
+fun inferred(flag: Boolean) {
+    val value = if (flag) { 8 } else { fail() }
+    println(value)
+}
+
+fun both(flag: Boolean): Nothing = if (flag) { fail() } else { fail() }
+
+fun loopForever(): Nothing {
+    while (true) {}
+}
+
+fun mark(value: Int): Int {
+    println(value)
+    return value
+}
+
+fun consume(first: Int, second: Int, third: Int): Int = first + second + third
+
+fun defaultValue(value: Int = fail()): Int = value
+
+fun cleanup(): Int {
+    try { return fail() }
+    finally { println("finally"); return 9 }
+}
+
+fun main() {
+    println(choose(true))
+    inferred(true)
+    try { val value: Int = forward(); println(value) }
+    catch (error: IllegalStateException) { println("caught") }
+    try { consume(mark(1), fail(), mark(2)) }
+    catch (error: IllegalStateException) { println("arguments") }
+    try { defaultValue() }
+    catch (error: IllegalStateException) { println("default") }
+    try { both(false) }
+    catch (error: IllegalStateException) { println("branches") }
+    println(cleanup())
+}

@@ -1,0 +1,5 @@
+fun main() {
+    if (shifted(3) != 12 || shifted(1073741824) != 0) {
+        throw IllegalStateException()
+    }
+}

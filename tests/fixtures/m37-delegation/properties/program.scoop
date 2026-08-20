@@ -1,0 +1,23 @@
+interface Number { var number: Int }
+interface Values : Number { val text: String }
+class Impl(var state: Int) : Values {
+    override var number: Int
+        get() = state
+        set(value) { state = value }
+    override val text: String get() = "delegate"
+}
+class Host(delegate: Values) : Values by delegate
+open class Base { open val number: Int get() = 5 }
+class Mixed(delegate: Number) : Base(), Number by delegate
+fun main() {
+    val impl = Impl(1)
+    val host = Host(impl)
+    host.number = 42
+    println(host.number)
+    println(impl.number)
+    println(host.text)
+    val mixed: Number = Mixed(impl)
+    mixed.number = 40
+    println(mixed.number)
+    println(impl.number)
+}

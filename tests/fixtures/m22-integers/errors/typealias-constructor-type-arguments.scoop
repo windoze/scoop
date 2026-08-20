@@ -1,0 +1,7 @@
+struct Box<T>(val value: T)
+
+typealias IntBox = Box<Int>
+
+fun main() {
+    IntBox<String>("not-an-int")
+}

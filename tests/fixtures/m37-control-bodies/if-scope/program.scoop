@@ -1,0 +1,4 @@
+fun main() {
+    if (true) val hidden = 1
+    println(hidden)
+}

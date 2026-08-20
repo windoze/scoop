@@ -1,0 +1,3 @@
+fun <T: ref> choose(): T { throw IllegalStateException() }
+fun use(): String = context(choose()) { "x" }
+fun main() {}

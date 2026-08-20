@@ -1,0 +1,21 @@
+@Extern(lib = "m24_release", name = "m24_release_owner")
+private fun record(id: Int)
+
+@Extern(lib = "m24_release", name = "m24_release_owner_count")
+private fun count(id: Int): Int
+
+class Owner(val code: Int) {
+    release { @Unsafe { record(code) } }
+}
+
+private fun retained(id: Int) {
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(count(id) == 0) }
+}
+
+private fun reclaimed(id: Int) {
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(count(id) == 1) }
+}

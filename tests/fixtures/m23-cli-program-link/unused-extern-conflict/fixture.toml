@@ -1,0 +1,93 @@
+schema = 1
+name = "program-link-unused-extern-conflict"
+inputs = ["cone", "../../m23-program-link/native-conflict-root.scoop", "left", "../../m23-program-link/native-conflict-left.scoop", "right", "../../m23-program-link/native-conflict-right.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-link", "native-link", "multi-cone", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/native-conflict-root.scoop", "to" = "${work}/sources/root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_left"
+files = [{"copy" = {"from" = "${fixture}/left", "to" = "${work}/sources/left"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/native-conflict-left.scoop", "to" = "${work}/sources/left/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "prepare_right"
+files = [{"copy" = {"from" = "${fixture}/right", "to" = "${work}/sources/right"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/native-conflict-right.scoop", "to" = "${work}/sources/right/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "declare_dependencies"
+files = [{"copy" = {"from" = "${fixture}/cone/Cone.toml", "to" = "${work}/sources/root/Cone.toml"}}]
+checks = []
+
+[[steps]]
+name = "compatible_control"
+files = [{"replace" = {"path" = "${work}/sources/right/src/main.scoop", "old" = "Long", "new" = "Int"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "build_dependencies"
+checks = []
+
+[[steps]]
+name = "restore_conflict"
+files = [{"copy" = {"from" = "${fixture}/../../m23-program-link/native-conflict-right.scoop", "to" = "${work}/sources/right/src/main.scoop"}}]
+checks = []
+
+[[steps]]
+name = "rebuild_right"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/right", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuild_right", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "recompile"
+argv = ["${scoopc}", "build", "${work}/sources/root", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--direct-slib", "${rebuild_right.result.output}", "--out-slib", "${work}/replacement.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${work}/replacement.slib", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "replace_right"
+files = [{"remove" = {"path" = "${work}/artifacts/2.slib"}}, {"copy" = {"from" = "${rebuild_right.result.output}", "to" = "${work}/artifacts/2.slib"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_conflict"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_conflict"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_conflict.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

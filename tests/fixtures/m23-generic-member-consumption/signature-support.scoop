@@ -1,0 +1,10 @@
+package consumer.members
+
+import templates.members.*
+
+private class SignatureValue(public val value: Int)
+private class Unrelated(public val value: Int)
+
+public fun result(): Int = Box<Int>(1).choose(SignatureValue(42)).value
+
+public fun <T> make(value: T): T = Box<Int>(1).choose<T>(value)

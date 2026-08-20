@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "invalid cross-Cone semantic closure graph: MultipleVersions { first: ConeCoordinate { group: \"dev.programlink\", name: \"library\", version: \"0.1.0\" }, second: ConeCoordinate { group: \"dev.programlink\", name: \"library\", version: \"0.2.0\" } }",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:direct_dependencies",
+      "path": "${work}/artifacts/root.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

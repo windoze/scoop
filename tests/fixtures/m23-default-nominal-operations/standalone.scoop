@@ -1,0 +1,16 @@
+public struct Packet(val number: Int, val flag: Boolean, val unit: Unit)
+public struct Empty()
+public enum Choice { Missing, Pair(val number: Int, val flag: Boolean) }
+public enum Other { Missing, Pair(val number: Int, val flag: Boolean) }
+public object Cache {}
+public class Box public constructor() {}
+public interface Marker {}
+public class Samples {
+    public fun packet(value: Packet = Packet(1, true, Unit)): Packet = value
+    public fun empty(value: Empty = Empty()): Empty = value
+    public fun choice(value: Choice = Choice.Pair(1, true)): Choice = value
+    public fun other(value: Other = Other.Pair(1, true)): Other = value
+    public fun cache(value: Cache = Cache): Cache = value
+    public fun box(value: Box = Box()): Box = value
+    public fun marker(seed: Marker, value: Marker = seed): Marker = value
+}

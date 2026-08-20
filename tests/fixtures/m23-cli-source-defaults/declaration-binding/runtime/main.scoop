@@ -1,0 +1,12 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(ContractValue(3).second == 3)
+    val choice: ContractChoice<Int> = ContractChoice.Item(4)
+    val explicit: ContractChoice<Int> = ContractChoice.Item(4, 4)
+    verifyDefault(choice == explicit)
+    verifyDefault(ContractBase<Int, String>().check(3, "text") == (3, "text", 1, 3, 3))
+    verifyDefault(ContractChild<Int>().check(5, 6) == (5, 6, 1, 5, 5))
+    verifyDefault(declarationSeed() == 7)
+}

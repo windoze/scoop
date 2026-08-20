@@ -1,0 +1,13 @@
+package consumer.references
+
+import templates.references.identity as importedIdentity
+
+public fun <T> exercise(value: T): Int {
+    val copy: (T) -> T = ::importedIdentity
+    val copyAgain: (T) -> T = ::importedIdentity
+    val values = (copy(value), copyAgain(value))
+    val number: (Int) -> Int = ::importedIdentity
+    return number(42)
+}
+
+public fun result(): Int = exercise<Int>(0)

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract dependency member cannot be called with `super`",
+    "notes": [],
+    "origin": {
+      "cone": "0f3dc6548392523e570a51721e1ee0af18599f6023448975bba4ec51af3e6576",
+      "end": 128,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 117
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,2 @@
+fun <T> capture(value: (Int, T)): (Encoder) -> Unit = value::encode
+fun main() {}

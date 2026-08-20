@@ -1,0 +1,7 @@
+import dependency.classes.Counter
+import dependency.classes.Token
+
+public fun check(): Long {
+    val reader: LocalBase = localReader()
+    return reader.value(Token(), Counter(10)).first + primary().twice() - 20
+}

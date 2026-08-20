@@ -1,0 +1,3 @@
+import dependency.classes.Counter
+
+public fun invalid(): Long = try { 42 } catch (error: Counter) { 0 }

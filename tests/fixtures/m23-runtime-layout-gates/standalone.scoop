@@ -1,0 +1,1 @@
+public fun castValue(value: Any): Int = value as Int

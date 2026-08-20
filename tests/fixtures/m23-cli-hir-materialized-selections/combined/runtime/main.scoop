@@ -1,0 +1,16 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = item(17)
+    val reader: Reader = value
+    verifyType(reader.read() == "item" && count(value) == 17)
+    val marker: Int8 = 1
+    verifyType(value.observe(true) == (marker, "base"))
+    storage = "changed"
+    verifyType(storage == "changed")
+    verifyType(inspect("text") && !inspect(17))
+    verifyType(Message.Text("text") == Message.Text("text"))
+    verifyType(Message.Marker(1) == Message.Marker(1))
+    verifyType(Deferred(Generic(19L)).value.value == 19L)
+    verifyType(dormant(23) == 23 && dormant("value", 2uL) == "value")
+}

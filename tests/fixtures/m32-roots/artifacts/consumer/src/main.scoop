@@ -1,0 +1,21 @@
+package roots.consumer
+import roots.facade.*
+
+fun main() {
+    val boxed: Top = 42
+    println(boxed as Int)
+    println(blank().size)
+    try { never() }
+    catch (error: IllegalStateException) { println("generic") }
+    try { defaulted() }
+    catch (error: IllegalStateException) { println("default") }
+    val value = adapted()
+    try { value() }
+    catch (error: IllegalStateException) { println("adapter") }
+    val dynamic: Top = failure()
+    println(dynamic is () -> Bottom)
+    try { val converted = dynamic as () -> Int; converted() }
+    catch (error: IllegalStateException) { println("dynamic") }
+    gcCollect()
+    println(boxed as Int)
+}

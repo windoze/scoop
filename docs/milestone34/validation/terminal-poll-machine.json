@@ -1,0 +1,106 @@
+{
+  "problem": "LLVM machine block placement duplicates a terminal STATEPOINT after a conditional poll.",
+  "reproducer": "compiler/codegen/src/statepoint_tests/terminal_poll.ll",
+  "regression": "statepoint::tests::terminal_poll::terminal_call_after_conditional_poll_keeps_one_machine_site",
+  "before": {
+    "target": "x86_64-unknown-linux-gnu",
+    "profile": "release",
+    "error": "LLVM stackmap repeats SafepointId 8",
+    "log": "terminal-poll-before.log"
+  },
+  "llvm_versions_reproduced": [
+    "22.1.2",
+    "22.1.8"
+  ],
+  "actual_module_probe": [
+    {
+      "options": [
+        "--no-x86-call-frame-opt"
+      ],
+      "statepoint_records": [
+        17239263147411048184,
+        2125520708822940213,
+        17239263147411048184
+      ]
+    },
+    {
+      "attributes": [
+        "noduplicate"
+      ],
+      "statepoint_records": [
+        17239263147411048184,
+        2125520708822940213,
+        17239263147411048184
+      ]
+    },
+    {
+      "attributes": [
+        "convergent"
+      ],
+      "statepoint_records": [
+        17239263147411048184,
+        2125520708822940213,
+        17239263147411048184
+      ]
+    },
+    {
+      "options": [
+        "--no-x86-call-frame-opt",
+        "--tail-dup-placement=false"
+      ],
+      "statepoint_records": [
+        2125520708822940213,
+        17239263147411048184
+      ]
+    }
+  ],
+  "fix": "Disable tail duplication during machine block placement in the existing one-time LLVM option initialization.",
+  "object_regression": {
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl"
+    ],
+    "profiles": [
+      "debug",
+      "release"
+    ],
+    "checks": [
+      "ordinary optimization",
+      "RS4GC",
+      "typed statepoint verification",
+      "real machine object verification with unique SafepointIds and exact return PCs"
+    ]
+  },
+  "codegen_suites": [
+    {
+      "host": "darwin",
+      "command": "cargo test --release -p scoop-codegen",
+      "passed": 363,
+      "failed": 0
+    },
+    {
+      "host": "linux-gnu",
+      "command": "cargo test --release -p scoop-codegen -j 1 -- --test-threads 2",
+      "passed": 378,
+      "failed": 0
+    }
+  ],
+  "format_and_lint": {
+    "hosts": [
+      "darwin",
+      "linux-gnu"
+    ],
+    "commands": [
+      "cargo fmt --all",
+      "cargo clippy --workspace --all-targets"
+    ],
+    "passed": true
+  },
+  "exit_cli_reports": [
+    "terminal-poll-exit-darwin.json",
+    "terminal-poll-exit-gnu.json",
+    "terminal-poll-exit-musl.json"
+  ],
+  "profile_snapshot_note": "HIR import arena indices and MIR inlining differ between debug and release; each profile now has its own exact HIR/MIR expectation. Actual HIR/MIR bytes match across the three targets."
+}

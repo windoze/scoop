@@ -1,0 +1,5 @@
+fun value(): Int = 7
+annotation class Label(val value: Int)
+@Label(value())
+struct Value()
+fun main() {}

@@ -1,0 +1,1062 @@
+{
+  "baseline": "a0310370b",
+  "target": "x86_64-unknown-linux-musl",
+  "modified_counts": {
+    "hir": 7,
+    "mir": 6,
+    "lir": 173
+  },
+  "new_lir": 9,
+  "files": [
+    {
+      "path": "tests/fixtures/legacy-acceptance/m22-iteration/combined.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/argument-inference-abi/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/argument-inference-arrays/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/argument-inference-callbacks/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/argument-inference-nominals/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/argument-inference-order/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/argument-inference-overloads/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/argument-inference-shared-fixed-point/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/argument-inference-shared-mapping/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/array-construction-abi/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/array-construction-aliases/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/array-construction-basic/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/array-construction-overloads/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/array-construction-shadow/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/coroutines-closure-finally/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit coroutine save slot",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/coroutines-failure-finally/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit coroutine save/reload and empty branch",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/coroutines-immediate/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/coroutines-suspension/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/generic-arrays-abi/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/generic-arrays-basic/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/generic-arrays-bounds/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/generic-arrays-bounds/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/generic-arrays-iteration/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/generic-arrays-iteration/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/generic-arrays-order/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/imported-pointer-construction-templates/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/imported-pointers-template/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/iteration-abi/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/iteration-basic/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/iteration-bounds/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/iteration-capture/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/iteration-defaults/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/iteration-extensions/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/iteration-inference/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/iteration-order/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-argument-materialization-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-argument-materialization-standalone/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-bindings-abi/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-bindings-abi/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-bindings-lambda-for/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-bound-properties-combined/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-bound-properties-standalone/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-constructor-bodies-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-constructor-bodies-standalone/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-enum-definitions-combined/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-enum-definitions-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-enum-definitions-standalone/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-enum-definitions-standalone/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-enums-defaults-nested/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "local declaration order and consistent local-reference permutation",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-enums-defaults-nested/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "local declaration order and consistent local-reference permutation",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-interface-definitions-combined/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-interface-definitions-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-interface-definitions-standalone/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-interface-definitions-standalone/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-interface-members-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-interface-members-standalone/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-method-calls-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-structs-combined/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-structs-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-structs-standalone/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-structs-standalone/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-value-layouts-combined/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-value-layouts-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-value-layouts-standalone/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-generics/shared-value-layouts-standalone/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-hir-publication/global-default-read/consumer.x86_64-unknown-linux-musl.hir.txt",
+      "classification": "reviewed representation change",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-rebuilt-core/array-combined/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m23-cli-rebuilt-core/array-standalone/downstream.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m24-release-blocks/native-aggregate/cross-cone/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused Unit field extraction",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m26-lists/basic/program.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused MaybeUninit<Unit> result local",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m27-context/gc-lifetimes/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m29-container-decoding/composition/program.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused MaybeUninit<Unit> result local",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m29-container-encoding/values/program.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m29-derived-decoding/generics/program.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused MaybeUninit<Unit> result local",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m29-list-encoding/artifacts/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused MaybeUninit<Unit> result local",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m29-list-encoding/values/program.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused MaybeUninit<Unit> result local",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m29-unit-encoding/values/program.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m30-floating/artifacts/consumer.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m30-floating/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m31-optimization/integer-conditions/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m31-optimization/local-effects/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m31-optimization/ssa-roots/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m32-roots/coroutines/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/concurrency/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/construction-artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/construction/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/gc/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/library-artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/memory-orders/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/operations-artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/operations/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/updates/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-atomics/value-storage/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-borrows/counted-pins/concurrent.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-borrows/counted-pins/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-borrows/scoped-artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size values and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-borrows/scoped-data/concurrent.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-borrows/scoped-data/program.debug.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-borrows/scoped-data/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-cstrings/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-cstrings/artifacts/provider.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-cstrings/basic/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-equality/contracts/operator-bounds/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-equality/contracts/operator-shadow/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-equality/contracts/pointers/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-equality/contracts/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-equality/derivation/field-semantics/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-equality/derivation/nominal/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-equality/effects/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-errno/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "The platform-specific LIR differs only by unreferenced zero-size values and consistent temporary numbering. Target-specific symbols and data remain."
+    },
+    {
+      "path": "tests/fixtures/m33-errno/callbacks/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "The platform-specific LIR differs only by unreferenced zero-size values and consistent temporary numbering. Target-specific symbols and data remain."
+    },
+    {
+      "path": "tests/fixtures/m33-errno/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "The platform-specific LIR differs only by unreferenced zero-size values and consistent temporary numbering. Target-specific symbols and data remain."
+    },
+    {
+      "path": "tests/fixtures/m33-ffi/direct-c/representations.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-ffi/direct-c/scalars.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-ffi/gc-leaf-artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-ffi/gc-leaf/concurrent.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-ffi/gc-leaf/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-ffi/transitions/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-main/args-int/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-main/args-unit/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-main/no-args-unit/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-native-c/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-native-c/values/program.debug.x86_64-unknown-linux-musl.hir.txt",
+      "classification": "complete HIR representation",
+      "evidence": "Reviewed separately as complete Return, fixed integer operands and declared payload representation; MIR only adds Unit return expressions."
+    },
+    {
+      "path": "tests/fixtures/m33-native-c/values/program.debug.x86_64-unknown-linux-musl.mir.txt",
+      "classification": "added Unit return values",
+      "evidence": "Reviewed separately as complete Return, fixed integer operands and declared payload representation; MIR only adds Unit return expressions."
+    },
+    {
+      "path": "tests/fixtures/m33-native-c/values/program.release.x86_64-unknown-linux-musl.hir.txt",
+      "classification": "complete HIR representation",
+      "evidence": "Reviewed separately as complete Return, fixed integer operands and declared payload representation; MIR only adds Unit return expressions."
+    },
+    {
+      "path": "tests/fixtures/m33-native-c/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "The platform-specific LIR differs only by unreferenced zero-size values and consistent temporary numbering. Target-specific symbols and data remain."
+    },
+    {
+      "path": "tests/fixtures/m33-native-c/values/program.release.x86_64-unknown-linux-musl.mir.txt",
+      "classification": "added Unit return values",
+      "evidence": "Reviewed separately as complete Return, fixed integer operands and declared payload representation; MIR only adds Unit return expressions."
+    },
+    {
+      "path": "tests/fixtures/m33-native-libraries/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-output/basic/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-platform/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-platform/provider.debug.x86_64-unknown-linux-musl.hir.txt",
+      "classification": "complete HIR representation; core source locations also synchronized for m33-platform",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-platform/provider.debug.x86_64-unknown-linux-musl.mir.txt",
+      "classification": "added Unit return values",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-platform/provider.release.x86_64-unknown-linux-musl.hir.txt",
+      "classification": "complete HIR representation; core source locations also synchronized for m33-platform",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-platform/provider.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "The platform-specific LIR differs only by unreferenced zero-size values and consistent temporary numbering. Target-specific symbols and data remain."
+    },
+    {
+      "path": "tests/fixtures/m33-platform/provider.release.x86_64-unknown-linux-musl.mir.txt",
+      "classification": "added Unit return values",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-process/blocked/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-process/panic/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-shutdown/clean-exit/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-sources/targets/program.debug.x86_64-unknown-linux-musl.hir.txt",
+      "classification": "complete HIR representation",
+      "evidence": "Reviewed separately as complete Return, fixed integer operands and declared payload representation; MIR only adds Unit return expressions."
+    },
+    {
+      "path": "tests/fixtures/m33-sources/targets/program.debug.x86_64-unknown-linux-musl.mir.txt",
+      "classification": "added Unit return values",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-sources/targets/program.release.x86_64-unknown-linux-musl.hir.txt",
+      "classification": "complete HIR representation",
+      "evidence": "Reviewed separately as complete Return, fixed integer operands and declared payload representation; MIR only adds Unit return expressions."
+    },
+    {
+      "path": "tests/fixtures/m33-sources/targets/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "The platform-specific LIR differs only by unreferenced zero-size values and consistent temporary numbering. Target-specific symbols and data remain."
+    },
+    {
+      "path": "tests/fixtures/m33-sources/targets/program.release.x86_64-unknown-linux-musl.mir.txt",
+      "classification": "added Unit return values",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-utf8/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-utf8/artifacts/provider.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-utf8/pointers/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m33-utf8/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-allocation/accounting/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-allocation/threads/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-containers/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-containers/artifacts/provider.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-containers/builder/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-containers/storage/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-containers/updates/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-containers/updates/provider.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-devirtualization/artifacts/provider.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-devirtualization/locals/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-devirtualization/slots/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-direct-c/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-direct-c/registers/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-direct-c/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-inlining/decisions/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-inlining/semantics/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-interfaces/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-interfaces/artifacts/provider.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-interfaces/atomics/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-interfaces/concurrency/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-interfaces/coroutines/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-interfaces/native/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-interfaces/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-maybe-uninit/callables/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size values and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-maybe-uninit/gc/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-maybe-uninit/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size values and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-parallel/threads/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-parallel/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-poll/roots/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-poll/threads/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-reclamation/growth/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-reclamation/pins/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-regions/threads/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-regions/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-small-values/core-string/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-small-values/native/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m34-small-values/values/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m35-trailing/artifacts/consumer.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    },
+    {
+      "path": "tests/fixtures/m35-trailing/artifacts/provider.release.x86_64-unknown-linux-musl.lir.txt",
+      "classification": "unused zero-size materialization and temporary numbering",
+      "evidence": "Both the old and new file are byte-identical to the reviewed GNU counterpart."
+    }
+  ],
+  "new_files": [
+    {
+      "path": "tests/fixtures/m36-call-targets/suspend/program.debug.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-call-targets/suspend/program.debug.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    },
+    {
+      "path": "tests/fixtures/m36-call-targets/suspend/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-call-targets/suspend/program.release.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    },
+    {
+      "path": "tests/fixtures/m36-intrinsics/borrows/program.debug.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-intrinsics/borrows/program.debug.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    },
+    {
+      "path": "tests/fixtures/m36-intrinsics/borrows/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-intrinsics/borrows/program.release.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    },
+    {
+      "path": "tests/fixtures/m36-intrinsics/operands/program.debug.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-intrinsics/operands/program.debug.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    },
+    {
+      "path": "tests/fixtures/m36-intrinsics/operands/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-intrinsics/operands/program.release.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    },
+    {
+      "path": "tests/fixtures/m36-nominals/c-layout/program.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-nominals/c-layout/program.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    },
+    {
+      "path": "tests/fixtures/m36-when/flow/program.debug.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-when/flow/program.debug.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    },
+    {
+      "path": "tests/fixtures/m36-when/flow/program.release.x86_64-unknown-linux-musl.lir.txt",
+      "gnu_counterpart": "tests/fixtures/m36-when/flow/program.release.x86_64-unknown-linux-gnu.lir.txt",
+      "evidence": "Byte-identical to the reviewed GNU target output."
+    }
+  ],
+  "gnu_reference": {
+    "before": "24e949c97",
+    "after": "a0310370b",
+    "files_identical_before_and_after": 174
+  },
+  "lir_classifications": {
+    "unused_zero_size_values_and_temporary_numbering": 149,
+    "unused_Unit_field_extraction": 15,
+    "unused_MaybeUninit_Unit_result_local": 5,
+    "unused_Unit_coroutine_storage_or_transfers": 2,
+    "consistent_local_permutation": 2
+  },
+  "separate_hir_mir_review": {
+    "files": [
+      {
+        "path": "tests/fixtures/m33-native-c/values/program.debug.x86_64-unknown-linux-musl.hir.txt",
+        "stage": "hir",
+        "changed_lines": 134,
+        "classification": "complete HIR representation"
+      },
+      {
+        "path": "tests/fixtures/m33-native-c/values/program.debug.x86_64-unknown-linux-musl.mir.txt",
+        "stage": "mir",
+        "changed_lines": 8,
+        "classification": "added Unit return values"
+      },
+      {
+        "path": "tests/fixtures/m33-native-c/values/program.release.x86_64-unknown-linux-musl.hir.txt",
+        "stage": "hir",
+        "changed_lines": 134,
+        "classification": "complete HIR representation"
+      },
+      {
+        "path": "tests/fixtures/m33-native-c/values/program.release.x86_64-unknown-linux-musl.mir.txt",
+        "stage": "mir",
+        "changed_lines": 10,
+        "classification": "added Unit return values"
+      },
+      {
+        "path": "tests/fixtures/m33-sources/targets/program.debug.x86_64-unknown-linux-musl.hir.txt",
+        "stage": "hir",
+        "changed_lines": 70,
+        "classification": "complete HIR representation"
+      },
+      {
+        "path": "tests/fixtures/m33-sources/targets/program.release.x86_64-unknown-linux-musl.hir.txt",
+        "stage": "hir",
+        "changed_lines": 70,
+        "classification": "complete HIR representation"
+      }
+    ],
+    "hir_distinct_changes": {
+      "- value: Some(Expr {": 22,
+      "+ value: Expr {": 22,
+      "-) }": 22,
+      "+ }": 22,
+      "- kind: IntegerOperation {": 24,
+      "- operation: NoGc {": 24,
+      "+ kind: IntegerOperation(Binary {": 24,
+      "- operation: Equals }": 18,
+      "-,": 68,
+      "- arguments: Binary {": 24,
+      "+ operation: Equals,": 18,
+      "- }": 24,
+      "+),": 44,
+      "- operation: Add }": 6,
+      "+ operation: Add,": 6,
+      "- representation: Declared {": 20,
+      "+ representation: Declared(DeclaredStruct {": 2,
+      "+ representation: Declared(DeclaredClass {": 18
+    }
+  },
+  "note": "Only target snapshots changed. No shared snapshot, diagnostic expectation, compiler source or runtime source was modified in this musl phase."
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `pack`: Int is not equal to Array<T>",
+    "notes": [],
+    "origin": {
+      "cone": "2733de3c6a689c465b602efff735446855ce28a26cb0455810f2c59d24b3ed75",
+      "end": 83,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 72
+    },
+    "severity": "error"
+  }
+]

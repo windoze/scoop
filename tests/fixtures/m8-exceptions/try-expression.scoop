@@ -1,0 +1,11 @@
+fun recover(): String = try {
+    throw UnwrapException()
+} catch (e: UnwrapException) {
+    "caught"
+} finally {
+    println("finally")
+}
+
+fun main() {
+    println(recover())
+}

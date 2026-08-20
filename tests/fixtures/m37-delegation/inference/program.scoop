@@ -1,0 +1,17 @@
+interface Source<T> {
+    fun make(): T
+    val data get() = make()
+    var number
+        get() = 42
+        set(value) {}
+    fun count() = 42
+}
+class Impl<T>(val value: T) : Source<T> { override fun make(): T = value }
+class Host<T>(delegate: Source<T>) : Source<T> by delegate
+fun main() {
+    val host = Host(Impl("retained"))
+    println(host.data)
+    host.number = 7
+    println(host.number)
+    println(host.count())
+}

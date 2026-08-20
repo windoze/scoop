@@ -1,0 +1,7 @@
+package dependency.paths
+
+public class Outer {
+    public struct Nested(val number: Int)
+}
+
+public fun rejected(value: dependency.paths.Outer.Nested): Int = 0

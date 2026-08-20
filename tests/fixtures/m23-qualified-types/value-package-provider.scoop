@@ -1,0 +1,3 @@
+package dependency.paths.Outer
+
+public fun marker(): Int = 0

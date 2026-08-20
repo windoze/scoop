@@ -1,0 +1,5 @@
+private open class Local {}
+private class Child public constructor(public val extra: Int): Local()
+
+private fun <B : Local> bad(box: B): Int = box.extra
+public fun result(): Int = bad(Child(42))

@@ -1,0 +1,7 @@
+fun unitValue() {}
+fun main() {
+    val value = unitValue()
+    if (!inProvider(value, value)) { throw IllegalStateException() }
+    if (!unitDefault(value, value)) { throw IllegalStateException() }
+    if (!(value == value)) { throw IllegalStateException() }
+}

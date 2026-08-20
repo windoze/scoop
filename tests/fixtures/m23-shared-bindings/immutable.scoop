@@ -1,0 +1,6 @@
+import upstream.bindings.Pair
+public fun check(): Int {
+    val (value, _) = Pair<Int>(42, 0)
+    value = 0
+    return value
+}

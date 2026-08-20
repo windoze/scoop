@@ -1,0 +1,11 @@
+interface Read { fun read(): Int }
+enum Value : Read {
+    Answer
+    override fun read(): Int = 42
+}
+class Host(delegate: Read) : Read by delegate
+fun main() {
+    val host: Read = Host(Value.Answer)
+    gcCollect()
+    println(host.read())
+}

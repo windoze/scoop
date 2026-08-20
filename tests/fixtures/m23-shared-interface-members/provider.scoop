@@ -1,0 +1,16 @@
+package dependency.readers
+
+public interface Reader<T> {
+    public fun read(): T
+    public fun again(): T = this.read()
+}
+
+public class NumberReader public constructor(): Reader<Int> {
+    public override fun read(): Int = 42
+    public fun read(fallback: Int): Int = fallback
+}
+
+public struct ValueReader<T>(val value: T): Reader<T> {
+    public override fun read(): T = this.value
+    public fun read(fallback: T): T = fallback
+}

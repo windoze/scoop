@@ -1,0 +1,5 @@
+class Box<T>(val value: T)
+
+typealias IncompleteBox = Box
+
+fun main() {}

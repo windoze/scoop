@@ -1,0 +1,8 @@
+public fun userCoreBranchDefault(seed: Int, value: Int = if (seed == 0) {
+    val next = seed + 1
+    next
+} else {
+    var next = seed
+    next = next + 2
+    next
+}): Int = value

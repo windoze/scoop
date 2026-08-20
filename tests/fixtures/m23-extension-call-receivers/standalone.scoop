@@ -1,0 +1,8 @@
+import dependency.api.runtimeValue
+import dependency.api.receiverAnswer
+
+public val localValue: Int = runtimeValue
+public fun outside(): Int {
+    val initial = runtimeValue
+    return "standalone".receiverAnswer()
+}

@@ -1,0 +1,23 @@
+public const val MAX_UNSIGNED: ULong = 18446744073709551615u
+const val WRAPPED_SIGNED8: Int8 = 127 + 1
+const val MASKED_UNSIGNED8: UInt8 = 0xf0u and 0x0fu
+const val SHIFTED_SIGNED32: Int = 1 shl 31L
+const val LOGICAL_SIGNED32: Int = -1 ushr 1L
+const val NARROWED_UNSIGNED8: UInt8 = 257.toUInt8()
+const val WRAPPED_UNSIGNED8: UInt8 = -1u
+
+val STATIC_MAX_UNSIGNED: ULong = MAX_UNSIGNED
+
+fun withDefault(value: ULong = MAX_UNSIGNED): ULong = value
+
+fun main() {
+    println(MAX_UNSIGNED)
+    println(WRAPPED_SIGNED8)
+    println(MASKED_UNSIGNED8)
+    println(SHIFTED_SIGNED32)
+    println(LOGICAL_SIGNED32)
+    println(NARROWED_UNSIGNED8)
+    println(WRAPPED_UNSIGNED8)
+    println(STATIC_MAX_UNSIGNED)
+    println(withDefault())
+}

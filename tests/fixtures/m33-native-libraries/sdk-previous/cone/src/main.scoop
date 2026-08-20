@@ -1,0 +1,3 @@
+@Extern(name = "m33_moved", lib = "public")
+fun moved(): Int
+fun main() { @Unsafe { if (moved() != 42) { throw IllegalStateException() } } }

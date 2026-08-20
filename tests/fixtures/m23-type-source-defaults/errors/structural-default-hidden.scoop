@@ -1,0 +1,3 @@
+private struct Hidden()
+public fun denied(value: Boolean = (Hidden(), Hidden()) == (Hidden(), Hidden())): Boolean = value
+fun main() {}

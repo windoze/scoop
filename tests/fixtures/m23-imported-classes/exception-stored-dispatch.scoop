@@ -1,0 +1,19 @@
+import dependency.classes.Counter
+import dependency.classes.Readable
+import dependency.classes.StructReader
+import dependency.classes.throwValue
+
+private class Saved(public val error: RebuiltFailure, public val reader: Readable)
+
+private fun saved(): Saved = try {
+    throwValue(RebuiltFailure(21))
+    Saved(RebuiltFailure(0), StructReader(0))
+} catch (error: RebuiltFailure) {
+    Saved(error, StructReader(20))
+}
+
+public fun primary(): Counter {
+    val value = saved()
+    val allocated = Counter(value.reader.answer())
+    return if (allocated.twice() == 42) { Counter(value.error.code) } else { Counter(0) }
+}

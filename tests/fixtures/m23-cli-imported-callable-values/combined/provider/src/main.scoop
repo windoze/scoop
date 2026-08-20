@@ -1,0 +1,21 @@
+package callbacks
+
+public val callback: (Int) -> Int = { value -> value + 2 }
+
+public var trace: Int = 0
+public val selected: (Int) -> Int
+    get() {
+        trace = trace * 10 + 1
+        return callback
+    }
+public fun mark(): Int {
+    trace = trace * 10 + 2
+    return 40
+}
+public class Adder {
+    public operator fun invoke(value: Int): Int = value + 2
+}
+public val operation: Adder = Adder()
+public object Singleton {
+    public operator fun invoke(value: Int): Int = value + 2
+}

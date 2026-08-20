@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.m31.odr"
+name = "z-template"
+version = "0.1.0"
+kind = "library"

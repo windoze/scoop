@@ -1,0 +1,3 @@
+interface I { fun convert(value: Int): Int }
+class Invalid: I { final inline override fun <reified T> convert(value: T): T = value }
+fun main() {}

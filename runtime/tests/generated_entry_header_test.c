@@ -1,0 +1,53 @@
+#include "generated_entries.h"
+
+void generated_entry_header_probe(void) {
+    ScoopCallerRootEntry entry = {0};
+    ScoopCallerRootFrame caller = {0};
+    ScoopCompilerRootFrame compiler = {0};
+    ScoopThreadTransition transition = {0};
+    ScoopAllocationContext allocation = {0};
+    ScoopInitializationCell initialization_cell = {0};
+    ScoopInitializationUnitDescriptorV1 initialization_unit = {0};
+
+    (void)entry;
+    (void)caller;
+    (void)compiler;
+    (void)transition;
+    (void)allocation;
+    (void)initialization_cell;
+    (void)initialization_unit;
+    (void)scoop_rt_allocation_context;
+    (void)scoop_runtime_finish_tlab_alloc;
+    (void)scoop_runtime_alloc_slow;
+    (void)scoop_rt_safepoint;
+    (void)scoop_rt_string_concat;
+    (void)scoop_rt_array_clone;
+    (void)scoop_rt_box_zst;
+    (void)scoop_rt_box_value;
+    (void)scoop_rt_unbox_zst;
+    (void)scoop_rt_unbox_value;
+    (void)scoop_rt_gc_collect;
+    (void)scoop_rt_materialize_exception;
+    (void)scoop_rt_throw;
+    (void)scoop_rt_rethrow;
+    (void)scoop_rt_begin_catch;
+    (void)scoop_rt_end_catch;
+    (void)scoop_rt_init_enter;
+    (void)scoop_rt_init_succeed;
+    (void)scoop_rt_init_fail;
+    (void)scoop_rt_init_failure;
+    (void)scoop_rt_init_cycle_message;
+    (void)scoop_rt_push_caller_roots;
+    (void)scoop_rt_pop_caller_roots;
+    (void)scoop_rt_push_compiler_roots;
+    (void)scoop_rt_pop_compiler_roots;
+    (void)scoop_rt_pop_top_compiler_roots;
+    (void)scoop_rt_enter_native_safe;
+    (void)scoop_rt_leave_native_safe;
+    (void)scoop_rt_enter_native_borrowed;
+    (void)scoop_rt_leave_native_borrowed;
+    (void)scoop_gc_page_map;
+    (void)scoop_rt_gc_add_root;
+    (void)scoop_rt_gc_add_root_object;
+    (void)scoop_rt_gc_remove_root_object;
+}

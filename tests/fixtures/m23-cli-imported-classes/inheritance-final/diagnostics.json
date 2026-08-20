@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Counter` is final and cannot be inherited",
+    "notes": [],
+    "origin": {
+      "cone": "462372777f12a3b356b03d5b7c50de9e0f0be47349691d9fdc2c0aa533e628d2",
+      "end": 85,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 78
+    },
+    "severity": "error"
+  }
+]

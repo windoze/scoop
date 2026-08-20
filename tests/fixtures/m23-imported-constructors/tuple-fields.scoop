@@ -1,0 +1,20 @@
+package consumer.constructors
+
+import dependency.constructors.Token
+import dependency.constructors.Wide
+import dependency.constructors.defaultWide
+import dependency.constructors.TupleBox
+import dependency.constructors.TupleMarker
+
+@NoGC public fun token(): Token = Token()
+@NoGC public fun primary(): Wide {
+    val box = TupleBox((Token(), (17, -29, 53), Token()))
+    return Wide(box.elements)
+}
+@NoGC public fun secondary(): Wide {
+    val marker = TupleMarker((Token(), Token()))
+    val box = TupleBox((marker.elements._1, (5, 8, 11), marker.elements._2))
+    return Wide(box.elements)
+}
+@NoGC public fun defaults(): Long = defaultWide()
+@NoGC public fun republished(value: Wide = Wide(1, 2, 3)): Long = value.sum()

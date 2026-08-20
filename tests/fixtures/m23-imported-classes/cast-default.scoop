@@ -1,0 +1,4 @@
+import dependency.classes.Counter
+import dependency.classes.castDefault
+
+public fun primary(): Counter = castDefault(Counter(21))

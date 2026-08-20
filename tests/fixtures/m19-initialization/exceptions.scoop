@@ -1,0 +1,29 @@
+fun marked(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+class Failing(seed: Int) {
+    val before: Int = marked("before", seed)
+
+    init {
+        println("throwing-init")
+        throw UnwrapException()
+    }
+
+    val after: Int = marked("unreachable-property", seed)
+
+    constructor(seed: Int, label: String) : this(seed) {
+        println(label)
+        println("unreachable-secondary")
+    }
+}
+
+fun main() {
+    try {
+        val failed = Failing(1, "outer")
+        println(failed.before)
+    } catch (exception: UnwrapException) {
+        println("caught")
+    }
+}

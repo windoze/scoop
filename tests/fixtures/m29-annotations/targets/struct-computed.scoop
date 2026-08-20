@@ -1,0 +1,3 @@
+annotation class Label
+struct Value() { @Label val value: Int get() = 7 }
+fun main() {}

@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+struct SeedReader() : DomainSeed<Int> {
+    public override fun choose(seed: Int, value: Int): Int = value
+}
+
+fun main() {
+    val reader: DomainSeed<Int> = SeedReader()
+    verifyDefault(reader.choose(7) == 7)
+    verifyDefault(reader.choose(7, 11) == 11)
+}

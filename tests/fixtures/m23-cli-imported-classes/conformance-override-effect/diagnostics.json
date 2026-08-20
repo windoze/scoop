@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`read` must have the same `effect` modifier as `UnsafeReader.read`",
+    "notes": [],
+    "origin": {
+      "cone": "84af2b821a98e47414d578d257d68bd2a4655e44cf7cdcba250031dad463cdce",
+      "end": 105,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 101
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Wrong` does not implement interface method `UnsafeReader.read`",
+    "notes": [],
+    "origin": {
+      "cone": "84af2b821a98e47414d578d257d68bd2a4655e44cf7cdcba250031dad463cdce",
+      "end": 120,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 39
+    },
+    "severity": "error"
+  }
+]

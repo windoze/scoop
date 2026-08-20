@@ -1,0 +1,4 @@
+import dependency.construction.reencode
+private class Managed(public val number: Int)
+private struct Value(val reference: Managed)
+public fun result(): Int { @Unsafe { val raw = reencode<Value>(1uL) }; return 42 }

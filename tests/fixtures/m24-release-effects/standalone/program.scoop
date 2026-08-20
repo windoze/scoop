@@ -1,0 +1,10 @@
+@NoGC fun increment(value: Int): Int = value + 1
+
+@NoGC fun first(value: Int): Int {
+    if (value == 0) { return increment(value) }
+    return second(value - 1)
+}
+
+@NoGC fun second(value: Int): Int = first(value)
+
+fun main() { println(increment(40) + first(3)) }

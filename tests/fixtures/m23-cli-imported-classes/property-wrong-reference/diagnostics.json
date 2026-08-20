@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign value of type Other to property `reference` of type Counter",
+    "notes": [],
+    "origin": {
+      "cone": "fe3c1d09c05e2290bbe5ff5d7c76d2bbdfdbd8fec78cc89232cccbe11a2998eb",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "StaleDependency: Cone ${mixed.result.dependencies.2.identity} requires dev.m31.odr:z-template:0.1.0 (${mixed.result.dependencies.1.identity}); recorded HIR/MIR/LIR $DEPENDENCY_DIGEST_0/$DEPENDENCY_DIGEST_1/$DEPENDENCY_DIGEST_2, actual $DEPENDENCY_DIGEST_3/$DEPENDENCY_DIGEST_1/$DEPENDENCY_DIGEST_2",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:direct_dependencies",
+      "path": "${work}/artifacts/dev.m31.odr/a-left/0.1.0/cone.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

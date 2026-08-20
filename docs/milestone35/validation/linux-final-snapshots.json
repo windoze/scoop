@@ -1,0 +1,53 @@
+{
+  "per_run": [
+    {
+      "name": "gnu-initial",
+      "checked_observations": 1128,
+      "original_work": "/tmp/scoop-m35-linux-gnu"
+    },
+    {
+      "name": "gnu-focused",
+      "checked_observations": 307,
+      "original_work": "/tmp/scoop-m35-linux-gnu-focused"
+    },
+    {
+      "name": "gnu-repair-initial",
+      "checked_observations": 0,
+      "original_work": "/tmp/scoop-m35-linux-gnu-repair"
+    },
+    {
+      "name": "gnu-quota-repair",
+      "checked_observations": 44,
+      "original_work": "/home/chenxu/repos/scoop/target/m35-linux-validation/gnu-quota-repair"
+    },
+    {
+      "name": "musl-initial",
+      "checked_observations": 146,
+      "original_work": "/tmp/scoop-m35-linux-musl"
+    },
+    {
+      "name": "musl-m35",
+      "checked_observations": 146,
+      "original_work": "/tmp/scoop-m35-linux-musl-m35"
+    },
+    {
+      "name": "musl-negative",
+      "checked_observations": 0,
+      "original_work": "/tmp/scoop-m35-linux-musl-negative"
+    },
+    {
+      "name": "musl-focused",
+      "checked_observations": 165,
+      "original_work": "/tmp/scoop-m35-linux-musl-focused"
+    },
+    {
+      "name": "musl-quota-repair",
+      "checked_observations": 80,
+      "original_work": "/home/chenxu/repos/scoop/target/m35-linux-validation/musl-quota-repair"
+    }
+  ],
+  "mismatches": [],
+  "checked_observations": 2016,
+  "distinct_repository_snapshots": 1628,
+  "note": "Reuse verified immutable observation payloads; compare each current merged repository file once across all completed runs."
+}

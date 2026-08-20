@@ -1,0 +1,170 @@
+{
+  "revision": "9e4c411f2",
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "profile": "debug",
+  "runs": 5,
+  "build_args": [
+    "--target",
+    "x86_64-unknown-linux-gnu",
+    "--unwind-prefix",
+    "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind"
+  ],
+  "cases": [
+    {
+      "name": "aggregate",
+      "cold_build_seconds": 25.473594515991863,
+      "warm_build_seconds": 3.3521275159728248,
+      "run_seconds": [
+        0.039678747998550534,
+        0.03768390300683677,
+        0.03781273899949156,
+        0.03758474800270051,
+        0.0366997969977092
+      ],
+      "median_seconds": 0.03768390300683677,
+      "min_seconds": 0.0366997969977092,
+      "max_seconds": 0.039678747998550534,
+      "executable_bytes": 4049560,
+      "slib_bytes": 202156,
+      "stdout": "2000000\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "allocation",
+      "cold_build_seconds": 6.152088558010291,
+      "warm_build_seconds": 3.1785573399974965,
+      "run_seconds": [
+        0.021033446973888204,
+        0.020184854976832867,
+        0.019832883001072332,
+        0.019919193990062922,
+        0.020730703981826082
+      ],
+      "median_seconds": 0.020184854976832867,
+      "min_seconds": 0.019832883001072332,
+      "max_seconds": 0.021033446973888204,
+      "executable_bytes": 4052632,
+      "slib_bytes": 255996,
+      "stdout": "1599960000\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "arrays",
+      "cold_build_seconds": 6.281153063988313,
+      "warm_build_seconds": 3.2711642119975295,
+      "run_seconds": [
+        0.022233903990127146,
+        0.02089582200278528,
+        0.02122271599364467,
+        0.028558335005072877,
+        0.025918276980519295
+      ],
+      "median_seconds": 0.022233903990127146,
+      "min_seconds": 0.02089582200278528,
+      "max_seconds": 0.028558335005072877,
+      "executable_bytes": 4197352,
+      "slib_bytes": 1397758,
+      "stdout": "393216\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "collections",
+      "cold_build_seconds": 6.247563719982281,
+      "warm_build_seconds": 3.2505481239932124,
+      "run_seconds": [
+        0.028759841981809586,
+        0.02828217900241725,
+        0.02787656700820662,
+        0.028032804984832183,
+        0.0280585229920689
+      ],
+      "median_seconds": 0.0280585229920689,
+      "min_seconds": 0.02787656700820662,
+      "max_seconds": 0.028759841981809586,
+      "executable_bytes": 4059744,
+      "slib_bytes": 1730672,
+      "stdout": "312600\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "old-graph",
+      "cold_build_seconds": 6.213576534995809,
+      "warm_build_seconds": 3.2283893959829584,
+      "run_seconds": [
+        0.02779518999159336,
+        0.022690977988531813,
+        0.023532981984317303,
+        0.025833238003542647,
+        0.028450847981730476
+      ],
+      "median_seconds": 0.025833238003542647,
+      "min_seconds": 0.022690977988531813,
+      "max_seconds": 0.028450847981730476,
+      "executable_bytes": 4147040,
+      "slib_bytes": 952014,
+      "stdout": "199680\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "primitive",
+      "cold_build_seconds": 6.11763198801782,
+      "warm_build_seconds": 3.1970649549912196,
+      "run_seconds": [
+        0.15548498497810215,
+        0.1541672510211356,
+        0.16079487701063044,
+        0.15354918700177222,
+        0.15541610500076786
+      ],
+      "median_seconds": 0.15541610500076786,
+      "min_seconds": 0.15354918700177222,
+      "max_seconds": 0.16079487701063044,
+      "executable_bytes": 4044736,
+      "slib_bytes": 195474,
+      "stdout": "79999971\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    }
+  ],
+  "source_revision": "6e62514da",
+  "toolchain": "LLVM 22.1.2, GCC; Scoop O0, generated C O0, runtime O2",
+  "gc_statistics": null,
+  "raw_reports": [
+    "nuc12:/tmp/scoop-m31-baseline/linux-m30-gnu/report.json"
+  ]
+}

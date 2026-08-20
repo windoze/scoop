@@ -1,0 +1,320 @@
+use super::*;
+
+#[test]
+fn reachable_structural_function_descriptor_keeps_its_signature() {
+    let mut b = Builder::new();
+    let function_type = b.function_types.alloc(mir::FunctionType {
+        receiver: None,
+        is_suspend: false,
+        parameter_types: vec![mir::Type::Any],
+        return_type: mir::Type::Any,
+    });
+    let mut locals = Arena::new();
+    let callable = locals.alloc(local("callable", mir::Type::Any));
+    let result = locals.alloc(local("result", mir::Type::Boolean));
+    let main = b.main(
+        locals,
+        vec![val_decl(
+            result,
+            expr(
+                mir::Type::Boolean,
+                mir::ExprKind::IsInstance {
+                    operand: Box::new(local_expr(callable, mir::Type::Any)),
+                    check_ty: Box::new(mir::Type::Function(function_type)),
+                },
+            ),
+        )],
+    );
+    let mut source = b.finish(main);
+    register_test_source_exact_type(&mut source, mir::Type::Function(function_type));
+    let module = lower(source);
+    let descriptor = module
+        .meta
+        .type_descriptors
+        .iter()
+        .find_map(|(_, descriptor)| {
+            matches!(
+                descriptor.relations,
+                lir::TypeDescriptorRelations::Signature { .. }
+            )
+            .then_some(descriptor)
+        })
+        .unwrap();
+    assert_eq!(
+        descriptor.relations,
+        lir::TypeDescriptorRelations::Signature {
+            is_suspend: false,
+            parameters: vec![None],
+            result: None,
+        }
+    );
+    assert_eq!(descriptor.parent, None);
+    assert!(descriptor.vtable.slots().is_empty());
+}
+
+#[test]
+fn function_signatures_params_and_calls() {
+    let mut b = Builder::new();
+    // fun add(x: Int, y: Int): Int { return x + y }
+    let mut locals = Arena::new();
+    let x = locals.alloc(local("x", INT));
+    let y = locals.alloc(local("y", INT));
+    let add = b.user_fn_body(
+        "add",
+        vec![param("x", INT, x), param("y", INT, y)],
+        INT,
+        returning_body(
+            locals,
+            integer_binary_expr(
+                mir::IntegerKind::SIGNED_32,
+                mir::IntegerBinaryOperator::Add,
+                local_expr(x, INT),
+                local_expr(y, INT),
+            ),
+        ),
+    );
+    // main: val r = add(40, 2)
+    let mut main_locals = Arena::new();
+    let r = main_locals.alloc(local("r", INT));
+    let main = b.main(
+        main_locals,
+        vec![call_value(
+            r,
+            mir::Call {
+                target: mir::CallTarget::Direct(mir::Callee::User(add)),
+                args: vec![int_expr(40), int_expr(2)],
+            },
+        )],
+    );
+    let module = lower(b.finish(main));
+
+    // Parameters are SSA values (`Value::Param`), not stack slots;
+    // the add body has no locals at all.
+    let add_fn = &module.functions[0];
+    assert_eq!(
+        add_fn
+            .signature
+            .arguments()
+            .iter()
+            .map(lir::AbiArgument::logical_storage_type)
+            .collect::<Vec<_>>(),
+        [&lir::LirType::I32, &lir::LirType::I32]
+    );
+    assert_eq!(
+        add_fn.signature.result().logical_storage_type(),
+        Some(&lir::LirType::I32)
+    );
+    assert_eq!(add_fn.locals.len(), 0);
+
+    insta::assert_snapshot!(lir::dump(&module), @r#"
+    Module
+      global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+      fun @scoop$1$cb$6cb4a66fa9aacac49c232a58b41d5c6876ef37a3aeb59531418a4b8f28cce6e2(i32, i32) -> i32
+      block entry
+        poll managed-void-target0 sp<managed-poll:0> live=[]
+        t0 = integer_Add<Int> param0, param1 : i32
+        ret t0
+      fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
+        local %0 r: i32
+      block entry
+        poll managed-void-target0 sp<managed-poll:0> live=[]
+        call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i32) -> i32 local-fn0(integer<Int>(0x00000028), integer<Int>(0x00000002))
+        store t0 -> local0
+        ret
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
+      block entry
+        poll managed-void-target1 sp<managed-poll:0> live=[]
+        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
+        invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+        br @success
+      block success
+        raw_store param2 integer<Int>(0x00000000) align 4
+        ret integer<UInt>(0x00000000)
+      block failure
+        (t0, t1) = landingpad : (exception_record, ptr<raw>)
+        t2 = begin_catch t1 : ptr<managed>
+        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+        global_store global0, t3
+        end_catch
+        ret integer<UInt>(0x00000001)
+      td td1 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td2 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td3 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td4 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td5 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td6 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td7 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td8 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td9 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td10 task-context @scoop$1$td$db9fdace23f2040d3622172122120f4e46c6786180d6495caf23e609df021eac type-id=11462109518987149384 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      layout String size=24 align=8 refs=[]
+      layout Int8 size=1 align=1 refs=[]
+      layout Int16 size=2 align=2 refs=[]
+      layout Int size=4 align=4 refs=[]
+      layout Long size=8 align=8 refs=[]
+      layout UInt8 size=1 align=1 refs=[]
+      layout UInt16 size=2 align=2 refs=[]
+      layout UInt size=4 align=4 refs=[]
+      layout ULong size=8 align=8 refs=[]
+      layout Boolean size=1 align=1 refs=[]
+      layout task-context value size=8 align=8 refs=[0]
+      layout task-context size=24 align=8 refs=[16]
+      layout String value size=8 align=8 refs=[0]
+      output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca
+    "#);
+}
+
+#[test]
+fn c_extern_scalar_arguments_use_values_without_bridge_storage() {
+    let mut b = Builder::new();
+    let int8 = mir::Type::Integer(mir::IntegerKind::SIGNED_8);
+    let consume = b.c_extern(
+        "consumeInt8",
+        "native_consume_int8",
+        vec![int8.clone()],
+        mir::Type::Unit,
+    );
+    let main = b.main(
+        Arena::new(),
+        vec![call_stmt(extern_call(
+            consume,
+            vec![integer_expr(mir::IntegerKind::SIGNED_8, 7)],
+        ))],
+    );
+    let module = lower(b.finish(main));
+
+    let function = &module.functions[0];
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
+    let arguments = instructions
+        .iter()
+        .find_map(|instruction| match instruction {
+            lir::Instruction::Call {
+                site: lir::CallSite::NativeSafe(site),
+            } => Some(site.call.args()),
+            _ => None,
+        })
+        .expect("C extern uses the native-safe protocol");
+    assert_eq!(
+        arguments,
+        [lir::AbiCallArgument::Direct(lir::Value::IntegerConst(
+            lir::LirIntegerConstant::Signed8(7)
+        ))]
+    );
+    assert!(function.locals.is_empty());
+    assert!(lir::dump(&module).contains("direct-c=(i8 signext)->void"));
+    assert!(
+        !instructions
+            .iter()
+            .any(|instruction| matches!(instruction, lir::Instruction::LocalAddress { .. }))
+    );
+}
+
+#[test]
+fn return_inside_a_branch_seals_its_block() {
+    // fun f(x: Int): Int { if (true) { return x }; return 0 }
+    let mut b = Builder::new();
+    let mut locals = Arena::new();
+    let x = locals.alloc(local("x", INT));
+    let mut blocks = Arena::new();
+    let entry = cfg_block(&mut blocks, "entry");
+    let then_block = cfg_block(&mut blocks, "if.then.1");
+    let merge = cfg_block(&mut blocks, "if.merge.2");
+    set_cfg_block(
+        &mut blocks,
+        entry,
+        Vec::new(),
+        mir::Terminator::Branch {
+            cond: mir::Expr::bool(true),
+            then_block,
+            else_block: merge,
+        },
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        then_block,
+        Vec::new(),
+        mir::Terminator::Return {
+            value: local_expr(x, INT),
+        },
+        None,
+    );
+    set_cfg_block(
+        &mut blocks,
+        merge,
+        Vec::new(),
+        mir::Terminator::Return { value: int_expr(0) },
+        None,
+    );
+    let f = b.user_fn_body(
+        "f",
+        vec![param("x", INT, x)],
+        INT,
+        mir::Body {
+            locals,
+            blocks,
+            entry,
+            loop_header_polls: Vec::new(),
+        },
+    );
+    let _ = f;
+    let main = b.main(Arena::new(), vec![]);
+    let module = lower(b.finish(main));
+
+    // The constant branch is folded and its unreachable merge path is
+    // removed; the `return` seals the remaining then block.
+    insta::assert_snapshot!(lir::dump(&module), @r#"
+    Module
+      global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+      fun @scoop$1$cb$6cb4a66fa9aacac49c232a58b41d5c6876ef37a3aeb59531418a4b8f28cce6e2(i32) -> i32
+      block entry
+        poll managed-void-target0 sp<managed-poll:0> live=[]
+        br @if.then.1
+      block if.then.1
+        ret param0
+      fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
+      block entry
+        poll managed-void-target0 sp<managed-poll:0> live=[]
+        ret
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
+      block entry
+        poll managed-void-target1 sp<managed-poll:0> live=[]
+        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
+        invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+        br @success
+      block success
+        raw_store param2 integer<Int>(0x00000000) align 4
+        ret integer<UInt>(0x00000000)
+      block failure
+        (t0, t1) = landingpad : (exception_record, ptr<raw>)
+        t2 = begin_catch t1 : ptr<managed>
+        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+        global_store global0, t3
+        end_catch
+        ret integer<UInt>(0x00000001)
+      td td1 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td2 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td3 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td4 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td5 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td6 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td7 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td8 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td9 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td10 task-context @scoop$1$td$db9fdace23f2040d3622172122120f4e46c6786180d6495caf23e609df021eac type-id=11462109518987149384 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      layout String size=24 align=8 refs=[]
+      layout Int8 size=1 align=1 refs=[]
+      layout Int16 size=2 align=2 refs=[]
+      layout Int size=4 align=4 refs=[]
+      layout Long size=8 align=8 refs=[]
+      layout UInt8 size=1 align=1 refs=[]
+      layout UInt16 size=2 align=2 refs=[]
+      layout UInt size=4 align=4 refs=[]
+      layout ULong size=8 align=8 refs=[]
+      layout Boolean size=1 align=1 refs=[]
+      layout task-context value size=8 align=8 refs=[0]
+      layout task-context size=24 align=8 refs=[16]
+      layout String value size=8 align=8 refs=[0]
+      output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca
+    "#);
+}

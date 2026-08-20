@@ -1,0 +1,31 @@
+package consumer.selection
+
+import dependency.selection.*
+
+private fun localChoose(value: Any): Int = 1
+private fun localChoose(value: Int): Int = value
+private fun <T> localPrefer(value: T): Int = 1
+private fun localPrefer(value: Any): Int = 42
+private fun localFewer(value: Int, extra: Int = 0): Int = 1
+private fun localFewer(value: Int): Int = value
+private fun localRest(vararg values: Int): Int = 1
+private fun localRest(value: Int): Int = value
+private class LocalChoice(public val number: Int)
+private fun LocalChoice(value: Any): Int = 1
+private class LocalHolder<T>(public val value: T)
+private fun LocalHolder(value: Any): Int = 42
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    return if (localChoose(read(seed)) == 42) { choose(read(seed)) } else { 1 }
+}
+
+public fun result(): Int {
+    if (localChoose(42) != 42 || choose(42) != 42) { return 2 }
+    if (localPrefer(42) != 42 || prefer(42) != 42) { return 3 }
+    if (localFewer(42) != 42 || fewer(42) != 42) { return 4 }
+    if (localRest(42) != 42 || rest(42) != 42) { return 5 }
+    if (LocalChoice(42).number != 42 || Choice(42).number != 42) { return 6 }
+    if (LocalHolder(42) != 42 || Holder(42) != 42) { return 7 }
+    if (LocalHolder<Int>(42).value != 42) { return 8 }
+    return Holder<Int>(42).value
+}

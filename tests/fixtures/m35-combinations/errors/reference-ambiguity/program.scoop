@@ -1,0 +1,7 @@
+interface Left { fun number(): Int }
+interface Right { fun number(): Int }
+fun test(value: Any): () -> Int = when {
+    value is Left && value is Right -> value::number
+    else -> ({ 0 })
+}
+fun main() {}

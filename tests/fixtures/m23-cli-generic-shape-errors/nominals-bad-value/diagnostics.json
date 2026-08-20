@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type argument `Number` for `T` of type `ValueParcel` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "47a3b30e05fc8bce7ae037d4b8c5bcc1db80df02e14c0b873dfa581e1d5f1ffd",
+      "end": 113,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 107
+    },
+    "severity": "error"
+  }
+]

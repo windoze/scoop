@@ -1,0 +1,9 @@
+public interface Marker {
+    public val tag: Int
+        get() = 7
+}
+public struct Combined(val value: Int, val label: String): Marker {}
+public enum Choice { None, Item(val payload: Combined) }
+public class Holder(val value: Combined)
+public typealias Again = Combined
+private struct Hidden(val value: Int)

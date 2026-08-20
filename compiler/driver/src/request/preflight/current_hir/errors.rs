@@ -1,0 +1,60 @@
+use std::fmt;
+
+#[derive(Debug)]
+pub enum CurrentConeHirStageError {
+    SemanticWorld(scoop_hir::ImportedSemanticWorldBuildError),
+    NominalClassifier(scoop_hir::NominalExactLeafClassifierBuildError),
+    Input(scoop_hir_lower::CurrentConeSourceError),
+    Lowering(Vec<scoop_ast::Diagnostic>),
+    Foundation(scoop_hir::HirFoundationBuildError),
+    ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),
+    CrossConeSection(
+        Box<
+            scoop_hir::CrossConeHirInterfaceProductionError<
+                scoop_hir::CrossConeHirProductionAuthorityError,
+            >,
+        >,
+    ),
+}
+
+impl fmt::Display for CurrentConeHirStageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SemanticWorld(source) => source.fmt(formatter),
+            Self::NominalClassifier(source) => source.fmt(formatter),
+            Self::Input(source) => source.fmt(formatter),
+            Self::Lowering(diagnostics) => {
+                write!(
+                    formatter,
+                    "current Cone HIR lowering failed with {} diagnostic(s)",
+                    diagnostics.len()
+                )?;
+                for diagnostic in diagnostics {
+                    write!(formatter, "\nsource {}", diagnostic.file)?;
+                    if let Some(span) = diagnostic.span {
+                        write!(formatter, ":{}..{}", span.start, span.end)?;
+                    }
+                    write!(formatter, ": {}", diagnostic.message)?;
+                }
+                Ok(())
+            }
+            Self::Foundation(source) => source.fmt(formatter),
+            Self::ProductionSection(source) => source.fmt(formatter),
+            Self::CrossConeSection(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CurrentConeHirStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::SemanticWorld(source) => Some(source),
+            Self::NominalClassifier(source) => Some(source),
+            Self::Input(source) => Some(source),
+            Self::Lowering(_) => None,
+            Self::Foundation(source) => Some(source),
+            Self::ProductionSection(source) => Some(source),
+            Self::CrossConeSection(source) => Some(source.as_ref()),
+        }
+    }
+}

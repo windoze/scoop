@@ -1,0 +1,7 @@
+package bridge
+public import provider.*
+public fun <T> forwarded(value: Token<T>): UInt8 = raw(value)
+public fun describe(code: Code): String = when (code) {
+    case Code.Cold -> "cold"
+    case Code.Hot -> "hot"
+}

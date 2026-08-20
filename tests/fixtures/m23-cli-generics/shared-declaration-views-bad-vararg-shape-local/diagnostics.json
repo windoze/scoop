@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::collect` in current-unit top-level candidate layer:\n  - fun collect<T>(fallback: T, values: Array<T>): Array<T> — Array<T> is not equal to Int",
+    "notes": [],
+    "origin": {
+      "cone": "fb10c6f28e2cdf719f1b3d0db522c881e7e34b3b50fbbd88e1b228d4d3ccdbbf",
+      "end": 799,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 790
+    },
+    "severity": "error"
+  }
+]

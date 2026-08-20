@@ -1,0 +1,510 @@
+{
+  "schema": 1,
+  "method": "llvm-size --format=sysv --radix=10; main __text/.text section; retained executable size matches its run report.",
+  "records": [
+    {
+      "label": "M30-DARWIN-CONTROL",
+      "case": "aggregate",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/aggregate",
+      "section": "__text",
+      "text_bytes": 269600
+    },
+    {
+      "label": "M30-DARWIN-CONTROL",
+      "case": "allocation",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/allocation",
+      "section": "__text",
+      "text_bytes": 270860
+    },
+    {
+      "label": "M30-DARWIN-CONTROL",
+      "case": "arrays",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/arrays",
+      "section": "__text",
+      "text_bytes": 280040
+    },
+    {
+      "label": "M30-DARWIN-CONTROL",
+      "case": "collections",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/collections",
+      "section": "__text",
+      "text_bytes": 270180
+    },
+    {
+      "label": "M30-DARWIN-CONTROL",
+      "case": "old-graph-large",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/old-graph-large",
+      "section": "__text",
+      "text_bytes": 275856
+    },
+    {
+      "label": "M30-DARWIN-CONTROL",
+      "case": "old-graph",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/old-graph",
+      "section": "__text",
+      "text_bytes": 275856
+    },
+    {
+      "label": "M30-DARWIN-CONTROL",
+      "case": "primitive",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/primitive",
+      "section": "__text",
+      "text_bytes": 269532
+    },
+    {
+      "label": "M30-DARWIN-CONTROL",
+      "case": "survivors",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/survivors",
+      "section": "__text",
+      "text_bytes": 276712
+    },
+    {
+      "label": "M31-DARWIN-DEBUG",
+      "case": "aggregate",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-debug/aggregate",
+      "section": "__text",
+      "text_bytes": 255004
+    },
+    {
+      "label": "M31-DARWIN-DEBUG",
+      "case": "allocation",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-debug/allocation",
+      "section": "__text",
+      "text_bytes": 255528
+    },
+    {
+      "label": "M31-DARWIN-DEBUG",
+      "case": "arrays",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-debug/arrays",
+      "section": "__text",
+      "text_bytes": 262772
+    },
+    {
+      "label": "M31-DARWIN-DEBUG",
+      "case": "collections",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-debug/collections",
+      "section": "__text",
+      "text_bytes": 255480
+    },
+    {
+      "label": "M31-DARWIN-DEBUG",
+      "case": "old-graph-large",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-debug/old-graph-large",
+      "section": "__text",
+      "text_bytes": 259744
+    },
+    {
+      "label": "M31-DARWIN-DEBUG",
+      "case": "old-graph",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-debug/old-graph",
+      "section": "__text",
+      "text_bytes": 259744
+    },
+    {
+      "label": "M31-DARWIN-DEBUG",
+      "case": "primitive",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-debug/primitive",
+      "section": "__text",
+      "text_bytes": 254644
+    },
+    {
+      "label": "M31-DARWIN-DEBUG",
+      "case": "survivors",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-debug/survivors",
+      "section": "__text",
+      "text_bytes": 260524
+    },
+    {
+      "label": "M31-DARWIN-RELEASE",
+      "case": "aggregate",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-release/aggregate",
+      "section": "__text",
+      "text_bytes": 196200
+    },
+    {
+      "label": "M31-DARWIN-RELEASE",
+      "case": "allocation",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-release/allocation",
+      "section": "__text",
+      "text_bytes": 196768
+    },
+    {
+      "label": "M31-DARWIN-RELEASE",
+      "case": "arrays",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-release/arrays",
+      "section": "__text",
+      "text_bytes": 201192
+    },
+    {
+      "label": "M31-DARWIN-RELEASE",
+      "case": "collections",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-release/collections",
+      "section": "__text",
+      "text_bytes": 196720
+    },
+    {
+      "label": "M31-DARWIN-RELEASE",
+      "case": "old-graph-large",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-release/old-graph-large",
+      "section": "__text",
+      "text_bytes": 199264
+    },
+    {
+      "label": "M31-DARWIN-RELEASE",
+      "case": "old-graph",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-release/old-graph",
+      "section": "__text",
+      "text_bytes": 199264
+    },
+    {
+      "label": "M31-DARWIN-RELEASE",
+      "case": "primitive",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-release/primitive",
+      "section": "__text",
+      "text_bytes": 196168
+    },
+    {
+      "label": "M31-DARWIN-RELEASE",
+      "case": "survivors",
+      "binary": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m31-darwin-release/survivors",
+      "section": "__text",
+      "text_bytes": 199732
+    },
+    {
+      "label": "M30-LINUX-GNU-CONTROL",
+      "case": "aggregate",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-gnu-control/aggregate",
+      "section": ".text",
+      "text_bytes": 329633
+    },
+    {
+      "label": "M30-LINUX-GNU-CONTROL",
+      "case": "allocation",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-gnu-control/allocation",
+      "section": ".text",
+      "text_bytes": 330145
+    },
+    {
+      "label": "M30-LINUX-GNU-CONTROL",
+      "case": "arrays",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-gnu-control/arrays",
+      "section": ".text",
+      "text_bytes": 340449
+    },
+    {
+      "label": "M30-LINUX-GNU-CONTROL",
+      "case": "collections",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-gnu-control/collections",
+      "section": ".text",
+      "text_bytes": 330465
+    },
+    {
+      "label": "M30-LINUX-GNU-CONTROL",
+      "case": "old-graph-large",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-gnu-control/old-graph-large",
+      "section": ".text",
+      "text_bytes": 336161
+    },
+    {
+      "label": "M30-LINUX-GNU-CONTROL",
+      "case": "old-graph",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-gnu-control/old-graph",
+      "section": ".text",
+      "text_bytes": 336161
+    },
+    {
+      "label": "M30-LINUX-GNU-CONTROL",
+      "case": "primitive",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-gnu-control/primitive",
+      "section": ".text",
+      "text_bytes": 329313
+    },
+    {
+      "label": "M30-LINUX-GNU-CONTROL",
+      "case": "survivors",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-gnu-control/survivors",
+      "section": ".text",
+      "text_bytes": 337377
+    },
+    {
+      "label": "M31-LINUX-GNU-DEBUG",
+      "case": "aggregate",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-debug/aggregate",
+      "section": ".text",
+      "text_bytes": 317441
+    },
+    {
+      "label": "M31-LINUX-GNU-DEBUG",
+      "case": "allocation",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-debug/allocation",
+      "section": ".text",
+      "text_bytes": 318017
+    },
+    {
+      "label": "M31-LINUX-GNU-DEBUG",
+      "case": "arrays",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-debug/arrays",
+      "section": ".text",
+      "text_bytes": 325633
+    },
+    {
+      "label": "M31-LINUX-GNU-DEBUG",
+      "case": "collections",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-debug/collections",
+      "section": ".text",
+      "text_bytes": 318081
+    },
+    {
+      "label": "M31-LINUX-GNU-DEBUG",
+      "case": "old-graph-large",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-debug/old-graph-large",
+      "section": ".text",
+      "text_bytes": 322497
+    },
+    {
+      "label": "M31-LINUX-GNU-DEBUG",
+      "case": "old-graph",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-debug/old-graph",
+      "section": ".text",
+      "text_bytes": 322497
+    },
+    {
+      "label": "M31-LINUX-GNU-DEBUG",
+      "case": "primitive",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-debug/primitive",
+      "section": ".text",
+      "text_bytes": 317121
+    },
+    {
+      "label": "M31-LINUX-GNU-DEBUG",
+      "case": "survivors",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-debug/survivors",
+      "section": ".text",
+      "text_bytes": 323457
+    },
+    {
+      "label": "M31-LINUX-GNU-RELEASE",
+      "case": "aggregate",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-release/aggregate",
+      "section": ".text",
+      "text_bytes": 246721
+    },
+    {
+      "label": "M31-LINUX-GNU-RELEASE",
+      "case": "allocation",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-release/allocation",
+      "section": ".text",
+      "text_bytes": 247361
+    },
+    {
+      "label": "M31-LINUX-GNU-RELEASE",
+      "case": "arrays",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-release/arrays",
+      "section": ".text",
+      "text_bytes": 252289
+    },
+    {
+      "label": "M31-LINUX-GNU-RELEASE",
+      "case": "collections",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-release/collections",
+      "section": ".text",
+      "text_bytes": 247425
+    },
+    {
+      "label": "M31-LINUX-GNU-RELEASE",
+      "case": "old-graph-large",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-release/old-graph-large",
+      "section": ".text",
+      "text_bytes": 250241
+    },
+    {
+      "label": "M31-LINUX-GNU-RELEASE",
+      "case": "old-graph",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-release/old-graph",
+      "section": ".text",
+      "text_bytes": 250241
+    },
+    {
+      "label": "M31-LINUX-GNU-RELEASE",
+      "case": "primitive",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-release/primitive",
+      "section": ".text",
+      "text_bytes": 246721
+    },
+    {
+      "label": "M31-LINUX-GNU-RELEASE",
+      "case": "survivors",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-gnu-release/survivors",
+      "section": ".text",
+      "text_bytes": 250817
+    },
+    {
+      "label": "M30-LINUX-MUSL-CONTROL",
+      "case": "aggregate",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/aggregate",
+      "section": ".text",
+      "text_bytes": 393278
+    },
+    {
+      "label": "M30-LINUX-MUSL-CONTROL",
+      "case": "allocation",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/allocation",
+      "section": ".text",
+      "text_bytes": 393790
+    },
+    {
+      "label": "M30-LINUX-MUSL-CONTROL",
+      "case": "arrays",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/arrays",
+      "section": ".text",
+      "text_bytes": 404158
+    },
+    {
+      "label": "M30-LINUX-MUSL-CONTROL",
+      "case": "collections",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/collections",
+      "section": ".text",
+      "text_bytes": 394110
+    },
+    {
+      "label": "M30-LINUX-MUSL-CONTROL",
+      "case": "old-graph-large",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/old-graph-large",
+      "section": ".text",
+      "text_bytes": 399870
+    },
+    {
+      "label": "M30-LINUX-MUSL-CONTROL",
+      "case": "old-graph",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/old-graph",
+      "section": ".text",
+      "text_bytes": 399870
+    },
+    {
+      "label": "M30-LINUX-MUSL-CONTROL",
+      "case": "primitive",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/primitive",
+      "section": ".text",
+      "text_bytes": 393022
+    },
+    {
+      "label": "M30-LINUX-MUSL-CONTROL",
+      "case": "survivors",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/survivors",
+      "section": ".text",
+      "text_bytes": 401022
+    },
+    {
+      "label": "M31-LINUX-MUSL-DEBUG",
+      "case": "aggregate",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-debug/aggregate",
+      "section": ".text",
+      "text_bytes": 380926
+    },
+    {
+      "label": "M31-LINUX-MUSL-DEBUG",
+      "case": "allocation",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-debug/allocation",
+      "section": ".text",
+      "text_bytes": 381502
+    },
+    {
+      "label": "M31-LINUX-MUSL-DEBUG",
+      "case": "arrays",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-debug/arrays",
+      "section": ".text",
+      "text_bytes": 389118
+    },
+    {
+      "label": "M31-LINUX-MUSL-DEBUG",
+      "case": "collections",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-debug/collections",
+      "section": ".text",
+      "text_bytes": 381566
+    },
+    {
+      "label": "M31-LINUX-MUSL-DEBUG",
+      "case": "old-graph-large",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-debug/old-graph-large",
+      "section": ".text",
+      "text_bytes": 385982
+    },
+    {
+      "label": "M31-LINUX-MUSL-DEBUG",
+      "case": "old-graph",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-debug/old-graph",
+      "section": ".text",
+      "text_bytes": 385982
+    },
+    {
+      "label": "M31-LINUX-MUSL-DEBUG",
+      "case": "primitive",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-debug/primitive",
+      "section": ".text",
+      "text_bytes": 380542
+    },
+    {
+      "label": "M31-LINUX-MUSL-DEBUG",
+      "case": "survivors",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-debug/survivors",
+      "section": ".text",
+      "text_bytes": 386942
+    },
+    {
+      "label": "M31-LINUX-MUSL-RELEASE",
+      "case": "aggregate",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/aggregate",
+      "section": ".text",
+      "text_bytes": 310206
+    },
+    {
+      "label": "M31-LINUX-MUSL-RELEASE",
+      "case": "allocation",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/allocation",
+      "section": ".text",
+      "text_bytes": 310846
+    },
+    {
+      "label": "M31-LINUX-MUSL-RELEASE",
+      "case": "arrays",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/arrays",
+      "section": ".text",
+      "text_bytes": 315774
+    },
+    {
+      "label": "M31-LINUX-MUSL-RELEASE",
+      "case": "collections",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/collections",
+      "section": ".text",
+      "text_bytes": 310846
+    },
+    {
+      "label": "M31-LINUX-MUSL-RELEASE",
+      "case": "old-graph-large",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/old-graph-large",
+      "section": ".text",
+      "text_bytes": 313662
+    },
+    {
+      "label": "M31-LINUX-MUSL-RELEASE",
+      "case": "old-graph",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/old-graph",
+      "section": ".text",
+      "text_bytes": 313662
+    },
+    {
+      "label": "M31-LINUX-MUSL-RELEASE",
+      "case": "primitive",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/primitive",
+      "section": ".text",
+      "text_bytes": 310206
+    },
+    {
+      "label": "M31-LINUX-MUSL-RELEASE",
+      "case": "survivors",
+      "binary": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m31-linux-musl-release/survivors",
+      "section": ".text",
+      "text_bytes": 314302
+    }
+  ]
+}

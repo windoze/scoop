@@ -1,0 +1,76 @@
+fun mark(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+open class Base(val base: Int) {
+    val doubled: Int = mark("base-property", base * 2)
+
+    init {
+        println("base-init")
+    }
+
+    constructor(text: String) : this(mark("base-delegation", 7)) {
+        println(text)
+        println("base-secondary")
+    }
+}
+
+class Derived(seed: Int, val own: Int = mark("derived-default", 5)) :
+    Base(mark("derived-base-argument", seed)) {
+    val copied: Int = mark("derived-property", seed)
+
+    init {
+        println("derived-init-one")
+    }
+
+    constructor(seed: Int, label: String) : this(seed) {
+        println(label)
+        println("derived-secondary-inner")
+    }
+
+    constructor() : this(mark("outer-delegation", 3), "inner-body") {
+        println("derived-secondary-outer")
+    }
+
+    init {
+        println("derived-init-two")
+    }
+}
+
+class Alternate : Base {
+    val alternateOwn: Int = mark("alternate-property", base + 1)
+
+    init {
+        println("alternate-init")
+    }
+
+    constructor(value: Int) : super(mark("alternate-super", value)) {
+        println("alternate-terminal")
+    }
+
+    constructor() : this(mark("alternate-this", 11)) {
+        println("alternate-outer")
+    }
+}
+
+struct Count(val value: Int) {
+    constructor() : this(mark("struct-delegation", 13)) {
+        println(value)
+        println("struct-secondary")
+    }
+}
+
+fun main() {
+    val derived = Derived()
+    println(derived.base)
+    println(derived.own)
+    println(derived.copied)
+
+    val alternate = Alternate()
+    println(alternate.base)
+    println(alternate.alternateOwn)
+
+    val count = Count()
+    println(count.value)
+}

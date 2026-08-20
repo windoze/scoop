@@ -1,0 +1,6 @@
+fun token() {}
+
+fun main() {
+    userCoreAbiUnit(token())
+    val text = userCoreAbiMixed(userCoreAbiUnit(token()), 7, "mixed ABI")
+}

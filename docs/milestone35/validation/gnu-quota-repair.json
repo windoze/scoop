@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3065,
+  "selected": 5,
+  "unselected": 3060,
+  "counts": {
+    "passed": 5
+  },
+  "variants": 5,
+  "processes": 31,
+  "stage_and_plan_goldens": 44,
+  "results": [
+    {
+      "name": "argument-inference-abi",
+      "status": "passed",
+      "seconds": 23.20023672399111,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-arrays",
+      "status": "passed",
+      "seconds": 21.778751326957718,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-bound",
+      "status": "passed",
+      "seconds": 3.6455347670125775,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-dispatch-combined",
+      "status": "passed",
+      "seconds": 132.09357479697792,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-equality-combined",
+      "status": "passed",
+      "seconds": 124.03724084998248,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    }
+  ]
+}

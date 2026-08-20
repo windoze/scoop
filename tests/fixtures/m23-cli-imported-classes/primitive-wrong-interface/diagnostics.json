@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `rejected` must be of type OtherReadable, found Long",
+    "notes": [],
+    "origin": {
+      "cone": "c121abc46a2840196b660a887fce117a9f1643c4b7c0802c167e90308d9e9740",
+      "end": 96,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

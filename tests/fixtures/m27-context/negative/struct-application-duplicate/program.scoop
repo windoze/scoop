@@ -1,0 +1,3 @@
+struct Reader<A: ref, B: ref>(val id: Int) { context(a: A, b: B) fun read(): Int = id }
+fun use(value: Reader<String, String>) {}
+fun main() {}

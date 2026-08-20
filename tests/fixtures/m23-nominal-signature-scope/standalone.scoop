@@ -1,0 +1,4 @@
+public struct Marker() {}
+
+public fun pass(value: Marker): Marker = value
+public fun empty(): Marker = Marker()

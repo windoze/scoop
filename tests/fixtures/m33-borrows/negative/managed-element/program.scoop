@@ -1,0 +1,8 @@
+class Cell(val value: Int)
+struct WithReference(val value: String)
+fun main() {
+    @Unsafe {
+        Array<Cell>(1L) { _ -> Cell(3) }.withDataPointer<Cell, Long>() { pointer, count -> count }
+        Array<WithReference>(1L) { _ -> WithReference("x") }.withDataPointer<WithReference, Long>() { pointer, count -> count }
+    }
+}

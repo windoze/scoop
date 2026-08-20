@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.m31.odr"
+name = "m-root"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m31.odr:z-template" = {version = "0.1.0", path = "../template"}
+"dev.m31.odr:a-left" = {version = "0.1.0", path = "../left"}
+"dev.m31.odr:b-right" = {version = "0.1.0", path = "../right"}

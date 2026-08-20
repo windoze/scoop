@@ -1,0 +1,16 @@
+package consumer.delegates
+
+public import templates.delegateCombinations.Receiver
+public import templates.delegateCombinations.flat as aliasValue
+
+public typealias PairReceiver = Receiver<(Int, Boolean)>
+
+public fun <T> exercise(value: T): Int {
+    val receiver = Receiver<(T, Boolean)>((value, true))
+    return if (receiver.aliasValue == 42) { 42 } else { 1 }
+}
+
+public fun result(): Int {
+    val aliased = PairReceiver((1, true)).aliasValue
+    return if (aliased == 42) { exercise<Int>(1) } else { 1 }
+}

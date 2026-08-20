@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3766,
+  "selected": 1,
+  "unselected": 3765,
+  "counts": {
+    "passed": 1
+  },
+  "variants": 2,
+  "processes": 8,
+  "stage_and_plan_goldens": 8,
+  "results": [
+    {
+      "name": "program-link-coroutine-function-values",
+      "status": "passed",
+      "seconds": 22.478413542034104,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    }
+  ],
+  "validation": {
+    "target": "aarch64-apple-darwin",
+    "ordinary_comparison": true,
+    "source": "darwin-function-views-ordinary",
+    "seconds": 22.478413542034104,
+    "note": "Original suspend-first check order restored; both type checks and the explicit cast inspect the original erased function. Supersedes the reordered-source run."
+  }
+}

@@ -1,0 +1,207 @@
+use super::*;
+
+impl Lowerer {
+    pub(crate) fn finalize_function_bridges(&mut self, module: &hir::Module) -> bool {
+        let classes: Vec<_> = self.closure_classes.iter().map(|(id, _)| id).collect();
+        let mut added = false;
+        for class in classes {
+            let source = self.closure_classes[class].function_type;
+            let target = types::dynamic_function_type(module, source);
+            if !self.finalized_function_bridges.insert((class, target)) {
+                continue;
+            }
+            let (function, identity) = if source == target {
+                let invoke = self.closure_classes[class].invoke;
+                (self.closure_invokes[invoke].function, None)
+            } else {
+                let (function, identity) =
+                    self.build_function_bridge(module, class, source, target);
+                (function, Some(identity))
+            };
+            self.closure_classes[class]
+                .bridges
+                .push(mir::FunctionBridge { target, function });
+            if let Some(identity) = identity {
+                self.function_bridges.push(
+                    mir::FunctionBridgeMaterialization::checked(
+                        class,
+                        &self.closure_classes[class],
+                        target,
+                        function,
+                        identity,
+                    )
+                    .expect("a closure owns one fixed dynamic invoke entry"),
+                );
+            }
+            added = true;
+        }
+        added
+    }
+
+    pub(crate) fn build_function_bridge(
+        &mut self,
+        module: &hir::Module,
+        class: mir::ClosureClassId,
+        source: mir::FunctionTypeId,
+        target: mir::FunctionTypeId,
+    ) -> (mir::FunctionId, mir::FunctionBridgeIdentity) {
+        let source_signature = self.shell.function_types[source].clone();
+        let target_signature = self.shell.function_types[target].clone();
+        let (target_identity, _) = exact_function_identity(module, target);
+        let mut locals = Arena::new();
+        let closure = locals.alloc(mir::Local {
+            name: "$source".to_string(),
+            ty: mir::Type::Function(source),
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "$source".to_string(),
+            ty: mir::Type::Function(source),
+            local: closure,
+        }];
+        let receiver = smir::Expr::local(closure, mir::Type::Function(source));
+        let mut args = Vec::with_capacity(target_signature.arity());
+        for (index, (target_ty, source_ty)) in target_signature
+            .parameters()
+            .zip(source_signature.parameters())
+            .enumerate()
+        {
+            let local = locals.alloc(mir::Local {
+                name: format!("arg{index}"),
+                ty: target_ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: format!("arg{index}"),
+                ty: target_ty.clone(),
+                local,
+            });
+            args.push(self.dynamic_unbox(
+                module,
+                smir::Expr::local(local, target_ty.clone()),
+                source_ty,
+            ));
+        }
+        let call = smir::Expr::new(
+            source_signature.return_type.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget::Closure {
+                    function_type: source,
+                    receiver: Box::new(receiver),
+                },
+                args,
+                return_ty: source_signature.return_type.clone(),
+            }),
+        );
+        let statements = vec![smir::Statement {
+            kind: smir::StatementKind::Return {
+                value: self.dynamic_box(call),
+            },
+            span: Span::new(0, 0),
+        }];
+        let source_name = &self.closure_classes[class].name;
+        let target_name = mir::type_name(&self.shell, &mir::Type::Function(target));
+        let name = format!("function_bridge.{source_name}.{target_name}");
+        let identity = self.function_bridge_identity(module, class, target_identity);
+        let lowered = cfg::lower(
+            smir::Body {
+                locals,
+                statements,
+                coroutine_eh: None,
+            },
+            target_signature.return_type.clone(),
+            &self.enums.defs,
+            &self.classes,
+        );
+        let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            name,
+            params,
+            return_ty: target_signature.return_type.clone(),
+            body: lowered.body,
+        });
+        self.local_values.record_generated_dispatch_parameters(
+            function,
+            identity.materialization(),
+            &self.functions[function].params,
+        );
+        self.local_values.record_generated(
+            function,
+            identity.materialization(),
+            &lowered.generated_values,
+        );
+        self.coroutines
+            .record_call_sites(function, lowered.call_sites);
+        self.top_level.push(function);
+        if target_signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function,
+                materialization: identity.materialization(),
+                odr_group: identity
+                    .odr_member_record()
+                    .map(|member| member.key().group()),
+                logical_signature: identity.signature_record().signature().clone(),
+                source_return: target_signature.return_type,
+            });
+        }
+        (function, identity)
+    }
+
+    fn function_bridge_identity(
+        &self,
+        module: &hir::Module,
+        class: mir::ClosureClassId,
+        target: hir::ExactCallableSignature,
+    ) -> mir::FunctionBridgeIdentity {
+        if let Some(environment) = self
+            .closure_environments
+            .iter()
+            .find(|environment| environment.class() == class)
+        {
+            let odr_group = match environment.identity().callable().context() {
+                hir::CallableMaterializationContext::NoSubstitution => None,
+                hir::CallableMaterializationContext::Application(application) => Some(
+                    module
+                        .callable_applications
+                        .odr(application)
+                        .expect("a closure materialization references its callable application")
+                        .group(),
+                ),
+                hir::CallableMaterializationContext::InitializationApplication(unit) => {
+                    Some(crate::initialization_odr_group(module, unit))
+                }
+            };
+            return mir::FunctionBridgeIdentity::new(
+                environment.identity().generated_type_record(),
+                target,
+                odr_group,
+            )
+            .expect("a concrete source closure environment has one materialization root");
+        }
+        if let Some((_, adapter)) = self
+            .closure_adapters
+            .iter()
+            .find(|(_, adapter)| adapter.class() == class)
+        {
+            return mir::FunctionBridgeIdentity::new(
+                adapter.identity().environment_record(),
+                target,
+                Some(adapter.identity().odr_group_record().id()),
+            )
+            .expect("a static function adapter environment has one structural root");
+        }
+        if let Some((_, adapter)) = self
+            .dynamic_closure_adapters
+            .iter()
+            .find(|(_, adapter)| adapter.class() == class)
+        {
+            return mir::FunctionBridgeIdentity::new(
+                adapter.identity().environment_record(),
+                target,
+                Some(adapter.identity().odr_group_record().id()),
+            )
+            .expect("a dynamic function adapter environment has one structural root");
+        }
+        unreachable!("every closure class has a persistent environment identity")
+    }
+}

@@ -1,0 +1,37 @@
+{
+  "target": "aarch64-apple-darwin",
+  "date": "2026-10-10",
+  "rust": {
+    "parser": 470,
+    "parser_doctests": 1,
+    "argument_mapping": 8,
+    "hir_m11": 24
+  },
+  "fixtures_passed": [
+    "m35-trailing-artifacts",
+    "m35-trailing-basic",
+    "m35-trailing-effects",
+    "m35-trailing-error-double-trailing",
+    "m35-trailing-error-duplicate-named",
+    "m35-trailing-error-duplicate-positional",
+    "m35-trailing-error-function-value-arity",
+    "m35-trailing-error-lambda-return",
+    "m35-trailing-error-last-non-function",
+    "m35-trailing-error-last-vararg",
+    "m35-trailing-error-named-jump-position",
+    "m35-trailing-error-non-callable",
+    "m35-trailing-error-ordinary-to-suspend",
+    "m35-trailing-error-parenthesized-position",
+    "m35-trailing-error-required-prefix",
+    "m35-trailing-error-suspend-to-ordinary",
+    "m35-trailing-error-ungrouped-result",
+    "m35-trailing-error-unknown-name",
+    "m35-trailing-error-vararg-parenthesized",
+    "m35-trailing-members",
+    "m35-trailing-suspend"
+  ],
+  "variants": 22,
+  "processes": 40,
+  "stage_goldens": 28,
+  "verification": "Strict diagnostics and golden comparison; all ordinary call entries, per-candidate final parameter mapping, suspend success/failure, safe-call ordering, moving/minor GC and source-free cross-Cone debug/release consumers with independent linking."
+}

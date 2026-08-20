@@ -1,0 +1,9 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun defaultUnit() {}
+
+fun main() {
+    verifyDefault(unitDefault(defaultUnit(), defaultUnit()))
+    verifyDefault(tupleDefault((defaultUnit(), defaultUnit()), (defaultUnit(), defaultUnit())))
+    verifyDefault(!tupleDefault((defaultUnit(), defaultUnit()), (defaultUnit(), defaultUnit()), false))
+}

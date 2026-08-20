@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "division by zero in const initializer",
+    "notes": [],
+    "origin": {
+      "cone": "911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006",
+      "end": 48,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 31
+    },
+    "severity": "error"
+  }
+]

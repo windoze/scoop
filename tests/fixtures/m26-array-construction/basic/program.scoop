@@ -1,0 +1,69 @@
+class Cell(val value: Long)
+struct Item(val number: Long, val cell: Cell)
+@CLayout(aligned = 16L) struct Aligned(val value: Long)
+struct Empty()
+
+typealias Numbers = Array<Long>
+
+fun <T> filled(size: Long, value: T): Array<T> = Array<T>(size) { _ -> value }
+fun defaults(values: Array<Long> = Array<Long>(2L) { i -> i + 20L }): Long = values[1L]
+
+fun makeInit(trace: MutableArray<Long>): (Long) -> Long {
+    trace[0L] = trace[0L] * 10L + 1L
+    return { i -> trace[0L] = trace[0L] * 10L + 3L; i }
+}
+fun makeSize(trace: MutableArray<Long>, size: Long): Long {
+    trace[0L] = trace[0L] * 10L + 2L
+    return size
+}
+
+fun main() {
+    val squares = Numbers(4L) { i -> i * i }
+    if (squares.size != 4L || squares[3L] != 9L) { println("squares"); return }
+    val inferred: MutableArray<Long> = MutableArray(3L) { i -> i + 2L }
+    inferred[1L] = 42L
+    if (inferred[0L] != 2L || inferred[1L] != 42L) { println("mutable"); return }
+    val repeated = filled(3L, "hello")
+    if (repeated[2L] != "hello" || defaults() != 21L) { println("generic"); return }
+    val calls: MutableArray<Long> = [0L]
+    val init: (Long) -> Long = { i -> calls[0L] = calls[0L] + 1L; i }
+    val empty = Array<Long>(init = init, size = 0L)
+    if (calls[0L] != 0L || empty.size != 0L) { println("zero"); return }
+    var caught = false
+    try { val unused = Array<Long>(-1L, init) } catch (e: IllegalArgumentException) { caught = true }
+    if (!caught || calls[0L] != 0L) { println("negative"); return }
+    calls[0L] = 0L
+    val ordered = Array<Long>(init = makeInit(calls), size = makeSize(calls, 2L))
+    if (calls[0L] != 1233L || ordered[1L] != 1L) { println("order"); return }
+    calls[0L] = 0L
+    try { val unused = Array<Long>(init = makeInit(calls), size = makeSize(calls, -1L)) }
+    catch (e: IllegalArgumentException) { }
+    if (calls[0L] != 12L) { println("argument-order"); return }
+    calls[0L] = 0L
+    val units = Array<Empty>(5L) { i -> calls[0L] = calls[0L] + i; Empty() }
+    if (units.size != 5L || calls[0L] != 10L) { println("zst"); return }
+    calls[0L] = 0L
+    caught = false
+    try {
+        val unused = Array<Long>(8L) { i ->
+            calls[0L] = calls[0L] + 1L
+            if (i == 3L) { throw IllegalStateException() }
+            i
+        }
+    } catch (e: IllegalStateException) { caught = true }
+    if (!caught || calls[0L] != 4L) { println("throw"); return }
+    caught = false
+    try { val unused = Array<Empty>(9223372036854775807L) { _ -> throw IllegalStateException() } }
+    catch (e: IllegalStateException) { caught = true }
+    if (!caught) { println("full-count"); return }
+    val aligned = Array<Aligned>(3L) { i -> Aligned(i + 40L) }
+    if (aligned[2L].value != 42L) { println("alignment"); return }
+    val cells = Array<Item>(300L) { i -> Item(i, Cell(i + 1L)) }
+    var sum = 0L
+    for (item in cells) { sum = sum + item.cell.value - item.number }
+    if (sum != 300L) { println("roots"); return }
+    val options = MutableArray<String?>(8L) { _ -> None }
+    options[3L] = Some("kept")
+    if (options[3L]!! != "kept") { println("option"); return }
+    println(42)
+}

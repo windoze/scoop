@@ -1,0 +1,22 @@
+package comparisons
+
+public interface Wide {
+    public operator fun equals(other: Wide): Boolean
+}
+
+public interface Exact<T> {
+    public operator fun equals(other: T): Boolean
+}
+
+public struct Box<T>(val value: T)
+public enum Choice<T> { Item(T), Pair(T, T), Empty }
+
+public fun <T : Wide> wide(a: Box<T>, b: Box<T>): Boolean = a == b
+public fun <T : Exact<T>> exact(a: Box<T>, b: Box<T>): Boolean = a == b
+public fun <T : Wide> named(a: Box<T>, b: Box<T>): Boolean = a.equals(b)
+public fun <T : Wide> tuple(a: T, b: T): Boolean = (a, Box(a)) == (b, Box(b))
+public fun <T : Wide> choice(a: Choice<Box<T>>, b: Choice<Box<T>>): Boolean = a == b
+public fun <T : Wide> defaultBox(a: Box<T>, b: Box<T>, same: Boolean = a == b): Boolean = same
+public fun <T : Wide> defaultChoice(a: Choice<T>, b: Choice<T>, same: Boolean = a == b): Boolean = same
+
+public fun <T : Wide> evaluate(a: () -> Box<T>, b: () -> Box<T>): Boolean = a() == b()

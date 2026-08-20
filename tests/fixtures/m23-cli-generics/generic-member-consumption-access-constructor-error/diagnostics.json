@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `ProtectedBox` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "a3ff6f950b2c6250c8bbd279cdc07b206a0ef514e3a1e6ff0527ad4a895bf5c5",
+      "end": 82,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 70
+    },
+    "severity": "error"
+  }
+]

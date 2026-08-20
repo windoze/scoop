@@ -1,0 +1,9 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(accessValue() == 7)
+    ACCESS_GLOBAL = 11
+    verifyDefault(accessValue() == 11)
+    verifyDefault(accessValue(13) == 13)
+}

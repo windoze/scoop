@@ -1,0 +1,1 @@
+public open class Base protected constructor(value: Int = 1)

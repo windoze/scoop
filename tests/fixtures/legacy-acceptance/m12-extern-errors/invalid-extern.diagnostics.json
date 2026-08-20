@@ -1,0 +1,197 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an `@Extern` function must not have a body",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 131,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 101
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Extern` cannot be used on a suspend function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 164,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 133
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an `@Extern` function must not be generic",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 199,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 166
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a C ABI `@Extern` function cannot be marked `@Safe`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 479,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 425
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Extern` library must be a logical library name, not a path or linker flag",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 544,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 481
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern symbol `not-a-symbol` is not a portable C identifier",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 544,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 481
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern ABI `unknown` is not supported; expected `c` or `scoop`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 544,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 481
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Extern` is only allowed on a top-level function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 704,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 650
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an `@Extern` function must not have an extension receiver",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 768,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 708
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function `memberExtern` must have a body",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 702,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 690
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern parameter is not ABI-safe: cRef.parameter1: ref type `String` is managed",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 248,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 201
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern parameter is not ABI-safe: cStruct.parameter1: ordinary struct `OrdinaryPair` has no stable C layout",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 309,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 250
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern parameter is not ABI-safe: cEnum.parameter1: enum types have no M12 C ABI representation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 366,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 311
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern parameter is not ABI-safe: cTuple.parameter1: tuple types have no stable C layout",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 423,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 368
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unsafe function `nativeCall` may only be called from an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 799,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 787
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,21 @@
+package consumer.inference
+
+import dependency.inference.*
+import dependency.inference.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    trace = 0
+    val selected = ordered(deferredEmpty(1), mark(2))
+    if (selected != 42 || trace != 1234) { return 1 }
+    trace = 0
+    val packed = orderedPack(*deferredEmpty(1), mark(2), *markedArray(3))
+    if (packed.size != 2L || packed[0L] != 42 || packed[1L] != 42 || trace != 12345) { return 2 }
+    trace = 0
+    val named = whole(values = deferredEmpty(1), seed = mark(2))
+    if (named.size != 0L || trace != 12) { return 3 }
+    trace = 0
+    val callback = applyTo({ value -> mark(3) }, mark(2))
+    return if (callback == 42 && trace == 23) { 42 } else { 4 }
+}

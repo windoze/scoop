@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m31.odr"
+name = "b-right"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"dev.m31.odr:z-template" = {version = "0.1.0", path = "../template"}

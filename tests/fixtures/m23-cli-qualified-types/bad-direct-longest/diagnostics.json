@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "package `dependency.paths.Outer` has no accessible type `Nested`",
+    "notes": [],
+    "origin": {
+      "cone": "cf7e5c116f1edbb75007440d05afacc453341b4e0e42c97c53d3a0db83c19a78",
+      "end": 148,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 142
+    },
+    "severity": "error"
+  }
+]

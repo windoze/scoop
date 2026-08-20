@@ -1,0 +1,31 @@
+schema = 1
+name = "legacy-m15-moving-root-shapes"
+root = "../../m15-moving/root-shapes.scoop"
+inputs = ["../../m15-moving/root-shapes.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["legacy", "m15-moving", "single-file", "run", "moving-gc"]
+
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "head-alive\nhead-alive\npair-alive\nnode-alive\nnode-alive\nchoice-alive\nfirst-alive\nnode-alive\nfirst-alive\nhead-alive\npair-alive\nnode-alive\nnode-alive\nchoice-alive\nsecond-alive\nnode-alive\nsecond-alive\n"
+stderr = ""

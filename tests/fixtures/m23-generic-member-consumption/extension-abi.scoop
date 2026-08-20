@@ -1,0 +1,25 @@
+package consumer.members
+
+import templates.members.*
+
+private class Reference(public val value: Int)
+private struct Large(val first: Reference, val second: Reference, val third: Reference)
+
+public fun result(): Int {
+    val token = Box<Unit>(()).extensionValueOnly
+    val empty = PropertyItem<Unit>(token)
+    empty.extensionState = token
+    val unit = empty.extensionState
+    val cell = PropertyItem<Large>(Large(Reference(1), Reference(2), Reference(3)))
+    cell.extensionState = Large(Reference(10), Reference(12), Reference(20))
+    val value = Box<Large>(cell.extensionState).extensionValue
+    val first = Reference(1)
+    val second = Reference(2)
+    return value.first.value + value.second.value + value.third.value
+}
+
+public fun <T> make(value: T): T {
+    val cell = PropertyItem<T>(value)
+    cell.extensionState = value
+    return Box<T>(cell.extensionState).extensionValue
+}

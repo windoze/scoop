@@ -1,0 +1,20 @@
+import dependency.classes.Counter
+import dependency.classes.MutableCell
+import dependency.classes.ReferenceAggregate
+import dependency.classes.ReferenceParent
+
+public object Singleton:
+    ReferenceParent(ReferenceAggregate(MutableCell(8), MutableCell(11), 1)) {
+    public val extra: MutableCell = MutableCell(1)
+    public override fun transfer(input: ReferenceAggregate): ReferenceAggregate {
+        val previous = super.transfer(input)
+        return ReferenceAggregate(MutableCell(previous.first.value + extra.value), previous.second, previous.tag)
+    }
+}
+public fun primary(): Counter {
+    val first = Singleton
+    val second: ReferenceParent = Singleton
+    if (first !== second) { return Counter(0) }
+    val result = second.transfer(second.data)
+    return Counter(result.first.value + result.second.value + result.tag)
+}

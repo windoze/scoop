@@ -1,0 +1,2 @@
+public fun makeIntrinsicString(value: String): IntrinsicStringLike = IntrinsicStringLike(value)
+public fun readIntrinsicString(value: IntrinsicStringLike): String = value.text

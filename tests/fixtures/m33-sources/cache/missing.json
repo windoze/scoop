@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "cannot snapshot manifest sources: source discovery failed at ${work}/cone/empty: cannot inspect: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/cone/empty",
+      "start": null
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,5 @@
+fun main() {
+    val a: Int? = Some(1)
+    val Some(x) = a
+    println(x)
+}

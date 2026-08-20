@@ -1,0 +1,14 @@
+[package]
+name = "scoop-mir-lower"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+la-arena.workspace = true
+scoop-hir.workspace = true
+scoop-identity.workspace = true
+scoop-mir.workspace = true
+scoop-wire.workspace = true
+
+[dev-dependencies]
+scoop-hir-lower.workspace = true

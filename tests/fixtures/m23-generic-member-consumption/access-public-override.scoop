@@ -1,0 +1,5 @@
+import templates.members.*
+
+public class Derived<T> public constructor(value: T): VirtualBox<T>(value) {
+    protected override fun read(): T = this.value
+}

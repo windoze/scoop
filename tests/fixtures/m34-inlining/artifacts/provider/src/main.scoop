@@ -1,0 +1,8 @@
+package inlining.provider
+
+public interface Measure { public fun get(): Int }
+public class Item public constructor(val value: Int) : Measure {
+    public override fun get(): Int = value
+}
+public fun <T : Measure> generic(value: T): Int = value.get() + 1
+public fun ordinary(value: Int): Int = value + 2

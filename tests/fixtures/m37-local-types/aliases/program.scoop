@@ -1,0 +1,9 @@
+fun main() {
+    class Earlier(val value: Int)
+    class Later {
+        typealias Ref = Earlier
+        fun make(): Ref = Ref(42)
+    }
+    typealias LocalAlias = Later
+    println(LocalAlias().make().value)
+}

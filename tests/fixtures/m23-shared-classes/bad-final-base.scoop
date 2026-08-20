@@ -1,0 +1,6 @@
+package consumer.classes
+import upstream.classes.Remote
+
+private class Invalid(value: Int): Remote<Int>(value, value)
+
+public fun result(): Int = 42

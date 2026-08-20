@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a lambda cannot use bare `return`; use `return@label` for a local return",
+    "notes": [],
+    "origin": {
+      "cone": "cfa63cbdca711a7d4a14094c056cb58a51be90954aa9a025cb809ddccc9c16d1",
+      "end": 110,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "lambda result must be of type T, found Unit",
+    "notes": [],
+    "origin": {
+      "cone": "cfa63cbdca711a7d4a14094c056cb58a51be90954aa9a025cb809ddccc9c16d1",
+      "end": 112,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 96
+    },
+    "severity": "error"
+  }
+]

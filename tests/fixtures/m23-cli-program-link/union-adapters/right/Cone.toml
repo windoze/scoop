@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "right"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.programlink:provider" = {"version" = "0.1.0", "path" = "../provider"}

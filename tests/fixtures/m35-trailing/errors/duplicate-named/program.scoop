@@ -1,0 +1,2 @@
+fun f(action: () -> Unit) {}
+fun main() { f(action = {}) {} }

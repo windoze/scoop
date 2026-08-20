@@ -1,0 +1,3 @@
+struct Hidden(val value: Int)
+public object Published : Encodable<Hidden>
+fun main() {}

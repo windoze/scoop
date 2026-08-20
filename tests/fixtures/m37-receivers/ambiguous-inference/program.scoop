@@ -1,0 +1,2 @@
+fun <T> choose(left: T, right: T): T = left
+fun main() { val action: Int.() -> Int = { this }; val flat: (Int) -> Int = action; val value = choose(action, flat) }

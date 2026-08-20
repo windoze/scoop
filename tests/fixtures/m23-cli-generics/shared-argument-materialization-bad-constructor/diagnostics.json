@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Calculator` has no parameter named `missing`",
+    "notes": [],
+    "origin": {
+      "cone": "cd9fb5814943b7533406523f86c32cdd1df2a95878ab64d7d5c2c7fcd4fdbcb8",
+      "end": 161,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 121
+    },
+    "severity": "error"
+  }
+]

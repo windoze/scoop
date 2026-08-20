@@ -1,0 +1,58 @@
+enum Only {
+    Value(Boolean)
+}
+
+enum Text {
+    Value(String)
+}
+
+fun partialOption(value: Int?) {
+    when (value) {
+        case Some(0) -> println("zero")
+        case None -> println("none")
+    }
+}
+
+fun partialSingle(value: Only) {
+    when (value) {
+        case Value(true) -> println("true")
+    }
+}
+
+fun partialNested(value: (Int, Boolean)?) {
+    when (value) {
+        case Some((number, _)) if (number > 0) -> println("positive")
+        case Some((0, _)) -> println("zero")
+        case None -> println("none")
+    }
+}
+
+fun partialPair(value: (Boolean, Boolean)) {
+    when (value) {
+        case (false, _) -> println("false")
+        case (true, false) -> println("almost")
+    }
+}
+
+fun partialText(value: Text) {
+    when (value) {
+        case Value("") -> println("empty")
+    }
+}
+
+fun partialValue(value: Int?): Int = when (value) {
+    case Some(0) -> 0
+    case None -> 1
+}
+
+fun main() {}
+
+enum OnlyTuple {
+    Value((Boolean,))
+}
+
+fun partialOneTuple(value: OnlyTuple) {
+    when (value) {
+        case Value((true,)) -> println("true")
+    }
+}

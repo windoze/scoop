@@ -1,0 +1,20 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "native-cxx-values"
+version = "0.1.0"
+kind = "executable"
+[native]
+cxx = true
+c_flags = ["-std=c11", "-DC_ONLY=40", "-Wall", "-Wextra", "-Werror"]
+cxx_flags = ["-std=c++20", "-DCXX_ONLY=1", "-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/value.c"
+[[native.sources]]
+path = "native/value.cpp"
+[[native.sources]]
+path = "native/leaf.cc"
+[[native.sources]]
+path = "native/lower.cxx"
+[[native.sources]]
+path = "native/upper.C"

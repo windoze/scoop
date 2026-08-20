@@ -1,0 +1,2 @@
+class Value { @SerialName("value") val value: Int get() = 7 }
+fun main() {}

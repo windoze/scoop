@@ -1,0 +1,19 @@
+fun choose(): Long {
+    var value = 40L
+    val copied = value
+    if (copied < 0L) {
+        println("unreachable")
+        return 0L
+    }
+    return copied + 1L
+}
+
+fun main() {
+    val values = MutableArray<Long>(3L) { i -> i + choose() }
+    gcCollect()
+    println(values[2L])
+    val signed: Byte = -128
+    val unsigned: UByte = 255u
+    if (signed < 0) { println("signed") }
+    if (unsigned > 127u) { println("unsigned") }
+}

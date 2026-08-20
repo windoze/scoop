@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable property `readonly`",
+    "notes": [],
+    "origin": {
+      "cone": "00af8b6eafe83c6813b9af4e03fb7fc654a6f8a4cea7bc1c1bac0077088ca312",
+      "end": 93,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  }
+]

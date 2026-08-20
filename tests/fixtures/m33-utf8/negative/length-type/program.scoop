@@ -1,0 +1,7 @@
+fun main() {
+    @Unsafe {
+        val pointer = Ptr<UInt8>(1UL)
+        val count: Int = 0
+        val value = String.fromUtf8(pointer, count)
+    }
+}

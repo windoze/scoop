@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native candidate ${work}/libraries/libm.a: Could not read file magic; requirement 662bf2f435f0bdf50f9174e6ece44e09143acffa98370927322f093cf68b9d97; origins: dev.m33:library-negative:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

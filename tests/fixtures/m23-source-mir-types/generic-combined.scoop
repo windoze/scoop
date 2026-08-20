@@ -1,0 +1,9 @@
+public class Reference(val value: Int)
+public class Owner<T>(val value: T)
+public struct Pair<T>(val first: T, val second: T)
+public enum Maybe<T> { Empty, Full(T) }
+public struct Combined(
+    val reference: Owner<Reference>,
+    val values: Maybe<Pair<Reference>>,
+    val array: Array<Pair<Reference>>
+)

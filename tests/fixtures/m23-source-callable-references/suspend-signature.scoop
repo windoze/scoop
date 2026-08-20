@@ -1,0 +1,6 @@
+package consumer.references
+
+import templates.references.suspended
+
+public fun <T> reference(value: T): suspend (T) -> T = ::suspended
+public fun instantiate(): suspend (Int) -> Int = reference<Int>(42)

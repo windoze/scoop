@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: resolved Cone.toml is not a regular file",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": null
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

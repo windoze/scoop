@@ -1,0 +1,3 @@
+import dependency.abstracts.BaseReader
+
+public fun result(): Int = BaseReader<Int>().read()

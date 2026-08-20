@@ -1,0 +1,48 @@
+package dependency.arrayconstruction
+
+public typealias IntSnapshot = Array<Int>
+public typealias IntBuffer = MutableArray<Int>
+
+public fun <T> snapshot(source: MutableArray<T>): Array<T> = Array(source = source)
+
+public fun <T> buffer(source: Array<T>): MutableArray<T> = MutableArray<_>(source)
+
+public fun <T> defaultSnapshot(source: MutableArray<T>, copied: Array<T> = Array(source)): Array<T> = copied
+
+public fun <T> nestedSnapshot(source: MutableArray<T>): Array<T> {
+    fun copy(): Array<T> = Array<T>(source)
+    val action: () -> Array<T> = { Array(source) }
+    val first = copy()
+    val second = action()
+    return if (first !== second) { second } else { [] }
+}
+
+public var trace: Int = 0
+
+public fun marked(digit: Int): MutableArray<Int> {
+    trace = trace * 10 + digit
+    return MutableArray<Int>([42])
+}
+
+public fun selected(source: MutableArray<Int>): Array<Int> = [source[0L] + 1]
+
+public fun <T> broad(source: T): Array<Int> = [7]
+
+public fun <T> genericCopy(source: MutableArray<T>): Array<T> {
+    trace = trace * 10 + 9
+    return Array(source)
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val original: Array<T> = [seed, seed]
+    val mutable = buffer<T>(original)
+    val copied = snapshot<T>(mutable)
+    val defaulted = defaultSnapshot<T>(mutable)
+    val nested = nestedSnapshot<T>(mutable)
+    val empty: Array<T> = Array<T>([])
+    val other: Array<T> = Array<_>([])
+    return if (copied !== original && defaulted !== copied && nested !== defaulted &&
+        copied.size == 2L && nested.size == 2L && read(copied[0L]) == 42 &&
+        read(defaulted[1L]) == 42 && read(nested[0L]) == 42 &&
+        empty.size == 0L && other.size == 0L && empty !== other) { 42 } else { 0 }
+}

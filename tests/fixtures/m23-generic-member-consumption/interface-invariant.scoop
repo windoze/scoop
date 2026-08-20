@@ -1,0 +1,3 @@
+import templates.members.Reader
+
+fun bad(value: Reader<Int>): Reader<String> = value

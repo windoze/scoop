@@ -1,0 +1,16 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = envelope()
+    val marker = value.marker()
+    verifyNominal(value.boxed(marker) === marker)
+    verifyNominal(value.inherited() == 1)
+    verifyNominal(value.readView() == 16)
+    verifyNominal(value.cacheValue() == 7)
+    verifyNominal(value.values())
+    verifyNominal(outer<Int>().childValue() == 1)
+    verifyNominal(outer<String>().childValue() == 1)
+    verifyNominal(outer<Int>().genericValue("child") == "child")
+    verifyNominal(outer<String>().genericValue(17) == 17)
+}

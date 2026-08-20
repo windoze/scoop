@@ -1,0 +1,7 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = store()
+    verifyDispatch(value.visible == 1 && value.write(7) == 1)
+}

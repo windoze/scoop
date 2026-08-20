@@ -1,0 +1,14 @@
+public fun <Unused, T> genericLocalDependency(seed: T, value: T = if (true) {
+    fun <C, D> keep(first: C, second: D): T { return seed }
+    keep<T, T>(seed, seed)
+} else { seed }): T = value
+
+public class GenericLocalHost<H>(val stored: H) {
+    internal fun <A, B> direct(first: A, second: B, value: (H, B) = if (true) {
+        fun <C> combine(unused: C): (H, B) { return (stored, second) }
+        combine<A>(first)
+    } else { (stored, second) }): (H, B) = value
+
+    internal fun <A, B> expanded(first: A, second: B,
+        value: B = genericLocalDependency<A, B>(second)): B = value
+}

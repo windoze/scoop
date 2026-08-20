@@ -1,0 +1,2 @@
+class Outer { inner class Inner private constructor() }
+fun main() { val value = Outer().Inner() }

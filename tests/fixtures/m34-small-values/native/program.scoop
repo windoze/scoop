@@ -1,0 +1,43 @@
+struct Mixed(val number: Double, val tag: Long)
+struct Singles(val first: Float, val second: Float)
+struct Three(val first: Byte, val second: Byte, val third: Byte)
+struct Padded(val tag: Byte, val value: Long)
+
+@GCLeaf @Extern(lib = "fixture_native", name = "float_from_bits") fun fromBits(value: UInt): Float
+@GCLeaf @Extern(lib = "fixture_native", name = "float_bits") fun bits(value: Float): UInt
+@GCLeaf @Extern(lib = "fixture_native", name = "double_from_bits") fun fromWideBits(value: ULong): Double
+@GCLeaf @Extern(lib = "fixture_native", name = "double_bits") fun wideBits(value: Double): ULong
+@NoGC @Extern(lib = "fixture_native", name = "small_mixed", abi = "scoop") fun mixed(value: Mixed): Mixed
+@NoGC @Extern(lib = "fixture_native", name = "small_singles", abi = "scoop") fun singles(value: Singles): Singles
+@NoGC @Extern(lib = "fixture_native", name = "small_three", abi = "scoop") fun three(value: Three): Three
+@NoGC @Extern(lib = "fixture_native", name = "small_padded", abi = "scoop") fun padded(value: Padded): Padded
+@NoGC @Extern(lib = "fixture_native", name = "small_registers", abi = "scoop")
+fun registers(a: Long, b: Long, c: Long, d: Long, e: Long, f: Long,
+              value: Mixed, tail: Double): Mixed
+@Extern(lib = "fixture_native", name = "small_collect", abi = "scoop") fun collect(value: Mixed): Mixed
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+class Payload(val value: Int)
+
+@Unsafe fun main() {
+    val single = fromBits(0xff800123U)
+    val wide = fromWideBits(0x7ff0000000000123UL)
+    val m = mixed(Mixed(wide, 42L))
+    val f = singles(Singles(single, -0f))
+    check(wideBits(m.number) == 0x7ff0000000000123UL && m.tag == 42L)
+    check(bits(f.first) == 0xff800123U && bits(f.second) == 0x80000000U)
+    val t = three(Three(1.toInt8(), 2.toInt8(), 3.toInt8()))
+    val p = padded(Padded(7.toInt8(), 91L))
+    check(t.first == 1.toInt8() && t.second == 2.toInt8() && t.third == 3.toInt8())
+    check(p.tag == 7.toInt8() && p.value == 91L)
+    val r = registers(1L, 2L, 3L, 4L, 5L, 6L, m, 2.5)
+    check(wideBits(r.number) == 0x7ff0000000000123UL && r.tag == 42L)
+    val payload = Payload(73)
+    var cleanups = 0
+    try {
+        val result = collect(m)
+        check(wideBits(result.number) == 0x7ff0000000000123UL && result.tag == 42L)
+    } finally { cleanups += 1 }
+    check(payload.value == 73 && cleanups == 1)
+    println("small native")
+}

@@ -1,0 +1,10 @@
+public open class ProtectedRoot<T> {
+    protected open fun choose(value: Int = 1): Int = value
+}
+public open class PublicMiddle<T> : ProtectedRoot<T>() {
+    public override fun choose(value: Int): Int = value
+}
+public class NarrowChild<T> : PublicMiddle<T>() {
+    protected override fun choose(value: Int): Int = value
+}
+fun main() {}

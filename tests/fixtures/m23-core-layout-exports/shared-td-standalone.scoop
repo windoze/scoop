@@ -1,0 +1,7 @@
+public struct SharedTdEmpty()
+public open class SharedTdBase(val text: String) {
+    public open fun token(): SharedTdEmpty = SharedTdEmpty()
+}
+public class SharedTdChild(text: String, val marker: SharedTdEmpty): SharedTdBase(text)
+public abstract class SharedTdAbstract(text: String): SharedTdBase(text)
+public object SharedTdObject: SharedTdBase("object") {}

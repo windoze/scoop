@@ -1,0 +1,10 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val token = Token()
+    val value: Base = child()
+    verifyType(value.first(token) == token && value.second() == token)
+    verifyType(value.observe() == token && inherited().observe() == token)
+    verifyType(inherited().first(token) == token)
+    verifyType(Unique.copy == token && Unique.first(token) == token)
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "artifact not found for scoop:scoop.platform:0.1.0; provide --dependency-slib or --cone-path",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:direct_dependencies",
+      "path": "${changed.result.root.path}"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object 5b2cb691586e731f29f9096655f2dfee458703fb9e3b7bdee6e94d522d47b314 selected by direct input (dev.m33:native-negative:0.1.0:native.c): native object contains forbidden initialization or LTO section __mod_init_func",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

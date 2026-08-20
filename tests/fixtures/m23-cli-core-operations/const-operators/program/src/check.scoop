@@ -1,0 +1,24 @@
+import answer
+import narrow
+import unsigned
+import unsignedNegated
+import nested
+import quotient
+import remainder
+import negated
+import positive
+import order
+import equal
+import staticValue
+
+fun main() {
+    if (answer != 42 || narrow != -126 || unsigned != 4U || unsignedNegated != 252U) {
+        throw IllegalStateException()
+    }
+    if (nested != 11 || quotient != -5 || remainder != -2 || negated != 126 || positive != 126) {
+        throw IllegalStateException()
+    }
+    if (!order || !equal || staticValue != 11) {
+        throw IllegalStateException()
+    }
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot capture mutable local `state`; bind its current value to a `val` snapshot or capture explicit reference state",
+    "notes": [],
+    "origin": {
+      "cone": "ef7b7731d9247790b3f1ea96646aae1a6879297c6ae35806b77d240f9ef958c8",
+      "end": 152,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 147
+    },
+    "severity": "error"
+  }
+]

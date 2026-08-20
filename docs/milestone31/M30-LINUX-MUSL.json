@@ -1,0 +1,172 @@
+{
+  "revision": "9e4c411f2",
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "profile": "debug",
+  "runs": 5,
+  "build_args": [
+    "--target",
+    "x86_64-unknown-linux-musl",
+    "--cc",
+    "/usr/bin/musl-gcc",
+    "--unwind-prefix",
+    "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-musl/unwind"
+  ],
+  "cases": [
+    {
+      "name": "aggregate",
+      "cold_build_seconds": 25.71734484398621,
+      "warm_build_seconds": 3.407655237999279,
+      "run_seconds": [
+        0.04773889601347037,
+        0.048739237972768024,
+        0.05003339899121784,
+        0.04685371898813173,
+        0.04659117499249987
+      ],
+      "median_seconds": 0.04773889601347037,
+      "min_seconds": 0.04659117499249987,
+      "max_seconds": 0.05003339899121784,
+      "executable_bytes": 3989312,
+      "slib_bytes": 202166,
+      "stdout": "2000000\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "allocation",
+      "cold_build_seconds": 6.6801806460134685,
+      "warm_build_seconds": 3.543512375006685,
+      "run_seconds": [
+        0.03277570501086302,
+        0.03247819800162688,
+        0.03179720899788663,
+        0.0318128950020764,
+        0.034282462002011016
+      ],
+      "median_seconds": 0.03247819800162688,
+      "min_seconds": 0.03179720899788663,
+      "max_seconds": 0.034282462002011016,
+      "executable_bytes": 3992384,
+      "slib_bytes": 256006,
+      "stdout": "1599960000\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "arrays",
+      "cold_build_seconds": 7.110197474976303,
+      "warm_build_seconds": 3.5326340189785697,
+      "run_seconds": [
+        0.03426307701738551,
+        0.03755417201318778,
+        0.03925748998881318,
+        0.034700824005994946,
+        0.03482852299930528
+      ],
+      "median_seconds": 0.03482852299930528,
+      "min_seconds": 0.03426307701738551,
+      "max_seconds": 0.03925748998881318,
+      "executable_bytes": 4128920,
+      "slib_bytes": 1397870,
+      "stdout": "393216\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "collections",
+      "cold_build_seconds": 6.892531599005451,
+      "warm_build_seconds": 3.555457951995777,
+      "run_seconds": [
+        0.049821972992504016,
+        0.049496489984449,
+        0.05118260599556379,
+        0.04907864797860384,
+        0.048680157982744277
+      ],
+      "median_seconds": 0.049496489984449,
+      "min_seconds": 0.048680157982744277,
+      "max_seconds": 0.05118260599556379,
+      "executable_bytes": 3995408,
+      "slib_bytes": 1730768,
+      "stdout": "312600\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "old-graph",
+      "cold_build_seconds": 6.8231372160080355,
+      "warm_build_seconds": 3.5937984689953737,
+      "run_seconds": [
+        0.03818271399359219,
+        0.03779484599363059,
+        0.036299486993812025,
+        0.036048879992449656,
+        0.036459862982155755
+      ],
+      "median_seconds": 0.036459862982155755,
+      "min_seconds": 0.036048879992449656,
+      "max_seconds": 0.03818271399359219,
+      "executable_bytes": 4078608,
+      "slib_bytes": 952090,
+      "stdout": "199680\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "name": "primitive",
+      "cold_build_seconds": 6.8230626989970915,
+      "warm_build_seconds": 3.539529816014692,
+      "run_seconds": [
+        0.14588865701807663,
+        0.1530267259804532,
+        0.1419364849862177,
+        0.1403993440035265,
+        0.14454014101647772
+      ],
+      "median_seconds": 0.14454014101647772,
+      "min_seconds": 0.1403993440035265,
+      "max_seconds": 0.1530267259804532,
+      "executable_bytes": 3980392,
+      "slib_bytes": 195482,
+      "stdout": "79999971\n",
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    }
+  ],
+  "source_revision": "6e62514da",
+  "toolchain": "LLVM 22.1.2, musl-gcc; Scoop O0, generated C O0, runtime O2",
+  "gc_statistics": null,
+  "raw_reports": [
+    "nuc12:/tmp/scoop-m31-baseline/linux-m30-musl/report.json"
+  ]
+}

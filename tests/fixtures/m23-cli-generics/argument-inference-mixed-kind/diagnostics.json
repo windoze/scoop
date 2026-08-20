@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `pack`: Int is not a subtype of Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "cf532d8c705b1e03b26593c998145b8e82b3fdbcc0ff78e80fcb4feac228a074",
+      "end": 84,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 82
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,8 @@
+// EXPECT-DIAGNOSTICS
+
+fun choose(value: Int8): String = "Int8"
+fun choose(value: Int16): String = "Int16"
+
+fun main() {
+    println(choose(1))
+}

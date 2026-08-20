@@ -1,0 +1,6 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val empty: FunPtr<() -> Unit> = FunPtr<() -> Unit>()
+    val fromInteger: FunPtr<() -> Unit> = FunPtr<() -> Unit>(1uL)
+}

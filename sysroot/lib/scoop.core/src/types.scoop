@@ -1,0 +1,66 @@
+public interface Equality<T> {
+    public fun equalTo(other: T): Boolean
+}
+
+public interface ToString {
+    public fun toString(): String
+}
+
+public interface Hash {
+    public fun hash(): Long
+}
+
+public typealias Byte = Int8
+public typealias Short = Int16
+public typealias Int32 = Int
+public typealias Int64 = Long
+public typealias UByte = UInt8
+public typealias UShort = UInt16
+public typealias UInt32 = UInt
+public typealias UInt64 = ULong
+
+@Intrinsic("core_boolean")
+public struct Boolean : Equality<Boolean>, ToString, Hash {
+    public operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
+
+    public override fun equalTo(other: Boolean): Boolean = this.equals(other)
+
+    @Intrinsic("boolean_not")
+    public operator fun not(): Boolean
+
+    public override fun toString(): String = coreBooleanToString(this)
+
+    public override fun hash(): Long = coreBooleanHash(this)
+
+    public companion object : Encodable<Boolean>, Decodable<Boolean> {
+        public override fun encode(value: Boolean, encoder: Encoder): Unit =
+            encoder.singleValue().writeBoolean(value)
+
+        public override fun decode(decoder: Decoder): Boolean =
+            decoder.singleValue().readBoolean()
+    }
+}
+
+// Representation-level fallbacks used by ordinary source methods. Integer
+// equality and all fixed-width arithmetic stay compiler intrinsics.
+@Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+
+
+@Extern(name = "scoop_rt_long_to_string", abi = "scoop")
+internal fun coreLongToString(value: Long): String
+
+@Extern(name = "scoop_rt_ulong_to_string", abi = "scoop")
+internal fun coreULongToString(value: ULong): String
+
+@Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+internal fun coreBooleanToString(value: Boolean): String
+
+@Extern(name = "scoop_rt_long_hash", abi = "scoop")
+internal fun coreLongHash(value: Long): Long
+
+@Extern(name = "scoop_rt_ulong_hash", abi = "scoop")
+internal fun coreULongHash(value: ULong): Long
+
+@Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+internal fun coreBooleanHash(value: Boolean): Long

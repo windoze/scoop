@@ -1,0 +1,5 @@
+typealias First = Second
+typealias Second = Third
+typealias Third = First
+
+fun main() {}

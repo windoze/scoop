@@ -1,0 +1,6 @@
+import templates.coroutines.*
+
+public fun result(): Int {
+    val completion: Continuation<BaseResult> = Completion<DerivedResult>()
+    return 42
+}

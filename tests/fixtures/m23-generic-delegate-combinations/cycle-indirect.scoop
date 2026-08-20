@@ -1,0 +1,27 @@
+package consumer.delegates
+
+import templates.delegateCombinations.*
+
+private fun <T> leftFailure(): Int = try {
+    Token<T>().cycleLeft
+    0
+} catch (error: IllegalStateException) {
+    42
+}
+private fun <T> rightFailure(): Int = try {
+    Token<T>().cycleRight
+    0
+} catch (error: IllegalStateException) {
+    42
+}
+
+public fun <T> exercise(value: T): Int {
+    Trace.left = 0
+    Trace.right = 0
+    val first = leftFailure<T>()
+    Payload(0)
+    val second = rightFailure<T>()
+    return if (first == 42 && second == 42 && Trace.left == 1 && Trace.right == 1) { 42 } else { 1 }
+}
+
+public fun result(): Int = exercise<Int>(1)

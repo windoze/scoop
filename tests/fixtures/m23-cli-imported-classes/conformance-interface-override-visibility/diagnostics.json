@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "member `read` of public interface `LocalReader` must be explicitly public",
+    "notes": [],
+    "origin": {
+      "cone": "4e0b5e30f05bb4131591d633b5e69f9c92a6eb2954329a047e507eaa59087af0",
+      "end": 106,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 102
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "visibility of `read` does not cover inherited slot `Readable.read`",
+    "notes": [],
+    "origin": {
+      "cone": "4e0b5e30f05bb4131591d633b5e69f9c92a6eb2954329a047e507eaa59087af0",
+      "end": 106,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 102
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,21 @@
+package consumer.members
+
+import templates.members.*
+
+private class Reference public constructor(public val value: Int)
+private struct Large(val first: Reference, val second: Reference, val third: Reference)
+
+public fun result(): Int {
+    val empty: Reader<Unit> = InterfaceCell<Unit>(())
+    empty.read()
+    val reader: Reader<Large> = InterfaceCell<Large>(Large(Reference(10), Reference(12), Reference(20)))
+    val value = reader.read()
+    val first = Reference(1)
+    val second = Reference(2)
+    return value.first.value + value.second.value + value.third.value
+}
+
+public fun <T> make(value: T): T {
+    val reader: Reader<T> = InterfaceCell<T>(value)
+    return reader.read()
+}

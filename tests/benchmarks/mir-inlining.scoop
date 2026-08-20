@@ -1,0 +1,35 @@
+@NoGC
+fun mix(value: UInt): UInt {
+    val first = value xor value.shl(13)
+    val second = first xor first.shr(17)
+    return second xor second.shl(5)
+}
+
+@NoGC
+fun calculate(value: UInt, checked: Boolean): UInt {
+    if (checked) {
+        var result = value
+        var count = 0
+        while (count < 8) {
+            result = mix(result)
+            count += 1
+        }
+        return result
+    }
+    return value + 1U
+}
+
+@NoGC
+fun kernel(count: Int): UInt {
+    var value: UInt = 305419896U
+    var checksum: UInt = 0U
+    var index = 0
+    while (index < count) {
+        value = mix(calculate(value, false))
+        checksum = checksum xor value
+        index += 1
+    }
+    return checksum
+}
+
+fun main() { println(kernel(20000000)) }

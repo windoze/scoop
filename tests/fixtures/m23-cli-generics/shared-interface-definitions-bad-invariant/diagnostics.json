@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `wrong` must be of type View<Unit, Any>, found Swap<Int, Unit>; nominal application `View` is invariant: first differing type argument 2 (`B`) is `Int` in `View<Unit, Int>`, but `Any` in `View<Unit, Any>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "1ae7ec5541fa1e4ca5c90e10ae6e49ee955152218a69a702357d6eed65d10e57",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 99
+    },
+    "severity": "error"
+  }
+]

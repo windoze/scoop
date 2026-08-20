@@ -1,0 +1,12 @@
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_storage requirement=e58f7176fbc9a06433fcd607fb35667f88296ad0dff53e6b07fb7a1958a85376 input=$NATIVE_INPUT_0 origins=dev.programlink:storage-provider:0.1.0, dev.programlink:storage-root:0.1.0
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_storage.dylib" imports=7
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
+dynamic binding _m23_counter -> "@rpath/libm23_storage.dylib" source="@rpath/libm23_storage.dylib":_m23_counter kind=Symbol weak=false
+dynamic binding _m23_increment -> "@rpath/libm23_storage.dylib" source="@rpath/libm23_storage.dylib":_m23_increment kind=Symbol weak=false
+dynamic binding _m23_limit -> "@rpath/libm23_storage.dylib" source="@rpath/libm23_storage.dylib":_m23_limit kind=Symbol weak=false
+dynamic binding _m23_pair -> "@rpath/libm23_storage.dylib" source="@rpath/libm23_storage.dylib":_m23_pair kind=Symbol weak=false
+dynamic binding _m23_storage_threads -> "@rpath/libm23_storage.dylib" source="@rpath/libm23_storage.dylib":_m23_storage_threads kind=Symbol weak=false
+dynamic binding _m23_tls_initial -> "@rpath/libm23_storage.dylib" source="@rpath/libm23_storage.dylib":_m23_tls_initial kind=ThreadLocal weak=false
+dynamic binding _m23_tls_zero -> "@rpath/libm23_storage.dylib" source="@rpath/libm23_storage.dylib":_m23_tls_zero kind=ThreadLocal weak=false
+rpath "$WORK/native"

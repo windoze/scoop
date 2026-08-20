@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(result() == 42)
+    verifyType(sourceOnly(17) == 17)
+    verifyType(sourceOnly("value") == "value")
+}

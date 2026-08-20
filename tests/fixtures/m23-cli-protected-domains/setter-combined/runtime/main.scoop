@@ -1,0 +1,13 @@
+fun verifyDomain(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = DomainCases()
+    verifyDomain(value.updateInherited(10) == 10)
+    verifyDomain(value.inspect() == 72)
+    verifyDomain(value.visible == 12)
+    verifyDomain(integerOwner().inspect() == 16)
+    verifyDomain(stringOwner().inspect() == 16)
+    verifyDomain(Registry.inspect() == 28)
+    verifyDomain(fileHolder().inspect() == 19)
+}

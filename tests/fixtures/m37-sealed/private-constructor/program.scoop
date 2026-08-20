@@ -1,0 +1,8 @@
+sealed class Root private constructor() {
+    class Child : Root()
+    companion object {
+        fun make(): Root = Child()
+    }
+}
+fun describe(value: Root): Int = when (value) { is Root.Child -> 42 }
+fun main() { println(describe(Root.make())) }

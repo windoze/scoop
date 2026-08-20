@@ -1,0 +1,34 @@
+@Extern(lib = "m23_storage", name = "m23_counter")
+@Global
+var counter: Int
+
+@Extern(lib = "m23_storage", name = "m23_limit")
+val limit: Int
+
+@Extern(lib = "m23_storage", name = "m23_tls_initial")
+@ThreadLocal
+var tlsInitial: Int
+
+@Extern(lib = "m23_storage", name = "m23_tls_zero")
+@ThreadLocal
+var tlsZero: Int
+
+@Extern(lib = "m23_storage", name = "m23_increment")
+fun increment(pointer: Ptr<Int>): Int
+
+fun main() {
+    @Unsafe {
+        println(counter)
+        counter += 10
+        println(counter++)
+        addressOf(counter).store(42)
+        println(increment(addressOf(counter)))
+        println(limit)
+        println(tlsInitial)
+        println(tlsZero)
+        addressOf(tlsInitial).store(33)
+        tlsZero = 34
+        println(tlsInitial)
+        println(tlsZero)
+    }
+}

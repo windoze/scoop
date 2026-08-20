@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `classRead`: Number is not a subtype of Box<T>",
+    "notes": [],
+    "origin": {
+      "cone": "42324175c80511420caf2e9e8b63976b3e65e56c88990f0a913207ea1d08c655",
+      "end": 110,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,15 @@
+package consumer.delegates
+
+import templates.delegateCombinations.*
+
+public fun <T> exercise(value: T): Int {
+    val receiver = Receiver<T>(value)
+    val first = receiver.references
+    receiver.ordered = receiver.zero
+    Payload(0)
+    if (first != 42 || receiver.flat != 42) { return 1 }
+    if (receiver.ordered != 42 || receiver.references != 42) { return 2 }
+    return receiver.zero
+}
+
+public fun result(): Int = exercise<Int>(1)

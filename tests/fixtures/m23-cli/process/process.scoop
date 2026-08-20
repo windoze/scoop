@@ -1,0 +1,6 @@
+@Extern(lib = "fixture_native", name = "m23_cli_process")
+fun inspectProcess(): Unit
+
+fun main() {
+    @Unsafe { inspectProcess() }
+}

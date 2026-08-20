@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Pair` required parameter `right` has no argument",
+    "notes": [],
+    "origin": {
+      "cone": "5621096a81409520bf08ed2467887b74d9b64d5b98c83562038851fc7911d5e8",
+      "end": 124,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,208 @@
+schema = 1
+name = "imported-struct-standalone"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-imported-struct-values/provider.scoop", "struct-provider", "../../m23-imported-struct-values/standalone.scoop", "struct-standalone", "../../m23-imported-struct-values/downstream.scoop", "downstream-standalone", "../../m23-imported-struct-values/runtime.ll", "../support/struct-main.scoop", "value-runtime-struct-standalone"]
+tools = ["scoop", "scoopc", "llc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["imported-values", "struct"]
+
+[vars]
+symbol0 = "scoop$1$cb$1f383547ac3febae604f2ec026f0bfbcb297be2953105a6fc5354678c230ee5f"
+symbol1 = "scoop$1$cb$db1b090557926612fe7e0d4bae3e0604ba352e6f89eaef764220b9bfd104d5f2"
+symbol2 = "scoop$1$cb$cd273dd696cf6809c39da6e7bcea1f4a38db857acfc3793cee34dca835b89f74"
+symbol3 = "scoop$1$cb$fdf98b946e2ab364e5087bbade1e7315b4ecee66af1ad8c0f0171e392d0254d8"
+symbol4 = "scoop$1$cb$6eadf7dd7fe686bc5076b4c61465780dbc3d8ba51cc0a4ff2818bdaffd244431"
+symbol5 = "scoop$1$cb$51d25774ae3a802848e9f05702b99e538c2c3a900d07a254798825cab5153927"
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_struct-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/struct-provider", "to" = "${work}/sources/struct-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-struct-values/provider.scoop", "to" = "${work}/sources/struct-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/struct-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/struct-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/struct-provider"}},
+]
+
+[[steps]]
+name = "prepare_struct-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/struct-standalone", "to" = "${work}/sources/struct-standalone"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-struct-values/standalone.scoop", "to" = "${work}/sources/struct-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/struct-standalone", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/struct-standalone/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/struct-standalone"}},
+]
+
+[[steps]]
+name = "prepare_downstream-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream-standalone", "to" = "${work}/sources/downstream-standalone"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-struct-values/downstream.scoop", "to" = "${work}/sources/downstream-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/downstream-standalone", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-standalone/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_downstream_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/downstream-standalone"}},
+]
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../m23-imported-struct-values/runtime.ll", "to" = "${work}/native/abi.ll"}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f0(", "new" = "declare void @\"${symbol0}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f0(", "new" = "call void @\"${symbol0}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f1(", "new" = "declare void @\"${symbol1}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f1(", "new" = "call void @\"${symbol1}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f2(", "new" = "declare void @\"${symbol2}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f2(", "new" = "call void @\"${symbol2}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f3(", "new" = "declare void @\"${symbol3}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f3(", "new" = "call void @\"${symbol3}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f4(", "new" = "declare void @\"${symbol4}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f4(", "new" = "call void @\"${symbol4}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f5(", "new" = "declare void @\"${symbol5}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f5(", "new" = "call void @\"${symbol5}\"("}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${llc}", "-mtriple=${llvm_target}", "-filetype=obj", "-relocation-model=pic", "${work}/native/abi.ll", "-o", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_struct_abi.a", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/abi.ll"}},
+  {"remove" = {"path" = "${work}/native/abi.o"}},
+]
+
+[[steps]]
+name = "prepare_value-runtime-struct-standalone"
+files = [
+  {"copy" = {"from" = "${fixture}/value-runtime-struct-standalone", "to" = "${work}/sources/value-runtime-struct-standalone"}},
+  {"copy" = {"from" = "${fixture}/../support/struct-main.scoop", "to" = "${work}/sources/value-runtime-struct-standalone/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/value-runtime-struct-standalone", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "isolate"
+files = [
+  {"remove" = {"path" = "${work}/sources"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${program.result.root.path}", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 4},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:struct-provider:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:struct-standalone:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:downstream-standalone:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:value-runtime-struct-standalone:0.1.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=5 root=${symbol_prefix}scoop$$1$$re$$46ea920e4070cb1724df6ac58fb0eba78b5cbe979857d1af92554b7e5d1f6647"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

@@ -1,0 +1,3 @@
+internal fun __scoopThrowInitializationCycle(message: String) {
+    throw RebuiltFailure(if (message == "") { 0 } else { 21 })
+}

@@ -1,0 +1,5 @@
+import platformlib.*
+fun main() {
+    val retained = keep("sysroot " + "library")
+    println(retained + " " + answer().toString())
+}

@@ -1,0 +1,4 @@
+package sourcepolicy
+
+@CLayout(aligned = 4, packed = 2)
+public struct Payload(val value: Int)

@@ -1,0 +1,19 @@
+package consumer.iteration
+
+import upstream.iteration.*
+import upstream.iteration.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+private fun readInt(value: Int): Int = value
+
+public fun result(): Int {
+    if (total<Int>([20, 22], ::readInt) != 42) { return 1 }
+    val mutable: MutableArray<Int> = [10, 12, 20]
+    if (total<Int>(mutable, ::readInt) != 42) { return 2 }
+    val empty: Array<Int> = []
+    if (total<Int>(empty, ::readInt) != 0) { return 3 }
+    var sum = 0
+    for (value in marked<Int>([20, 22])) { sum = sum + value }
+    if (sum != 42) { return 4 }
+    return exercise<Int>(42, ::readInt)
+}

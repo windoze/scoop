@@ -1,0 +1,17 @@
+package measurements
+
+public interface Measure {
+    public fun measure(delta: Int): Int
+}
+
+public interface DetailedMeasure : Measure {}
+
+public struct Reading(val base: Int) : DetailedMeasure {
+    @NoGC
+    public override fun measure(delta: Int): Int = base + delta
+}
+
+public fun <T : Measure> bounded(value: T): Int = value.measure(3)
+public fun dispatch(value: Measure): Int = value.measure(4)
+@NoGC
+public fun direct(value: Reading): Int = value.measure(2)

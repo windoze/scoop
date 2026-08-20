@@ -1,0 +1,10 @@
+class Host {
+    companion object Factory {
+        const val version: Int = 1
+    }
+}
+
+fun main() {
+    Host.Companion()
+    Host.version = 2
+}

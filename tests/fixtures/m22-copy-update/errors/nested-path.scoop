@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+struct Inner(val field: Int)
+struct Outer(val inner: Inner)
+
+fun main() {
+    val value = Outer(Inner(1))
+    val invalid = value.{ inner.field: 2 }
+}

@@ -1,0 +1,9 @@
+public fun String.repeatCopy(): String = this
+public fun repeatedAnonymous(seed: String, value: () -> String = fun(): String { return seed }): () -> String = value
+public fun repeatedBound(seed: String, value: () -> String = seed::repeatCopy): () -> String = value
+fun main() {
+    repeatedAnonymous("first")()
+    repeatedAnonymous("second")()
+    repeatedBound("first")()
+    repeatedBound("second")()
+}

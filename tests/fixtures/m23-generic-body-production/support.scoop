@@ -1,0 +1,10 @@
+private class Support<T>(private val value: T) {
+    fun pick(): T = value
+}
+
+private val marker: Int = 7
+
+public fun <T> fromSupport(value: T): T {
+    val observed = marker
+    return Support<T>(value).pick()
+}

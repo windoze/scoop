@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun defaultUnit() {}
+
+fun main() {
+    val host = defaultDerivedHost()
+    verifyDefault(host.nominal(Token<Int>(), Token<Int>()))
+    verifyDefault(host.nominal(Token<String>(), Token<String>()))
+    verifyDefault(host.tuple((Token<Int>(), defaultUnit()), (Token<Int>(), defaultUnit())))
+    verifyDefault(concrete(Token<Unit>(), Token<Unit>(), defaultUnit()))
+}

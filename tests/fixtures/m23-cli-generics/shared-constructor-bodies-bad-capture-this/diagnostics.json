@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializing receiver cannot escape before construction completes",
+    "notes": [],
+    "origin": {
+      "cone": "199c0a46cb543f4cf533b9ab8992c5ac58c6a24cef5e1063f99842dce533c26a",
+      "end": 130,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 120
+    },
+    "severity": "error"
+  }
+]

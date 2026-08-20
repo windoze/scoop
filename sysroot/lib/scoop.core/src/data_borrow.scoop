@@ -1,0 +1,25 @@
+// Scoped native access. The compiler supplies layout and exception cleanup.
+
+@Unsafe
+@Intrinsic("array_with_data_pointer")
+internal fun <T : value, R> _withArrayDataPointer(array: Array<T>, block: (Ptr<T>, Long) -> R): R
+
+@Unsafe
+@Intrinsic("mutable_array_with_data_pointer")
+internal fun <T : value, R> _withMutableArrayDataPointer(array: MutableArray<T>, block: (Ptr<T>, Long) -> R): R
+
+@Unsafe
+@Intrinsic("string_with_utf8_bytes")
+internal fun <R> _withStringUtf8Bytes(value: String, block: (Ptr<UInt8>, Long) -> R): R
+
+@Unsafe
+public fun <T : value, R> Array<T>.withDataPointer(block: (Ptr<T>, Long) -> R): R =
+    _withArrayDataPointer<T, R>(this, block)
+
+@Unsafe
+public fun <T : value, R> MutableArray<T>.withDataPointer(block: (Ptr<T>, Long) -> R): R =
+    _withMutableArrayDataPointer<T, R>(this, block)
+
+@Unsafe
+public fun <R> String.withUtf8Bytes(block: (Ptr<UInt8>, Long) -> R): R =
+    _withStringUtf8Bytes<R>(this, block)

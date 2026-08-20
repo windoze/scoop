@@ -1,0 +1,4 @@
+@Extern(name = "read") fun native(value: Int): Int
+@NoGC @Unsafe fun helper(value: Int): Int = native(value)
+class Owner(private val value: Int) { release { @Unsafe { helper(value) } } }
+fun main() {}

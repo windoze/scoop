@@ -1,0 +1,8 @@
+import dependency.classes.Counter
+import dependency.classes.WideValue
+
+public fun primary(): Counter {
+    val boxed: Any = WideValue(21, 1, 2)
+    val value = boxed as WideValue
+    return Counter(value.first)
+}

@@ -1,0 +1,8 @@
+package consumer.constructors
+
+private struct CurrentPair<T, U>(val value: T) {
+    constructor(value: T, flag: Boolean): this(value) {}
+}
+
+@NoGC public fun broken(value: Int): Int = CurrentPair<Int, Unit>(value, true).value
+public fun result(): Int = 42

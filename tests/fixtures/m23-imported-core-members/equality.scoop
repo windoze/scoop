@@ -1,0 +1,23 @@
+@NoGC
+fun equalInt8(value: Int8): Boolean = value == 1
+@NoGC
+fun equalInt16(value: Int16): Boolean = value == 1
+@NoGC
+fun equalInt(value: Int): Boolean = value == 1
+@NoGC
+fun equalLong(value: Long): Boolean = value == 1
+@NoGC
+fun equalUInt8(value: UInt8): Boolean = value != 1U
+@NoGC
+fun equalUInt16(value: UInt16): Boolean = value != 1U
+@NoGC
+fun equalUInt(value: UInt): Boolean = value != 1U
+@NoGC
+fun equalULong(value: ULong): Boolean = value != 1U
+
+fun literalEquality(): Boolean = 7 == 3
+fun contextualLeft(value: Int8): Boolean = 1 == value
+fun leftOperand(): Int = 1
+fun middleOperand(): Int = 2
+fun rightOperand(value: Int): Int = value
+fun singleEvaluation(): Boolean = leftOperand() == rightOperand(middleOperand())

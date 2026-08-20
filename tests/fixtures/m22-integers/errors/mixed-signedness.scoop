@@ -1,0 +1,7 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val signed: Int = 1
+    val unsigned: UInt = 1u
+    println(signed + unsigned)
+}

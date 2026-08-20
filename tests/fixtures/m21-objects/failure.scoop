@@ -1,0 +1,27 @@
+var attempts: Int = 0
+
+fun fail(): Int {
+    attempts = attempts + 1
+    throw UnwrapException()
+}
+
+object Broken {
+    val value: Int = fail()
+}
+
+fun main() {
+    try {
+        println(Broken.value)
+    } catch (exception: UnwrapException) {
+        println(attempts)
+    }
+
+    gcCollect()
+
+    try {
+        println(Broken.value)
+    } catch (exception: UnwrapException) {
+        println(attempts)
+        println(exception is UnwrapException)
+    }
+}

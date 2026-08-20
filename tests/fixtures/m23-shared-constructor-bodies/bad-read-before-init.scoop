@@ -1,0 +1,8 @@
+package consumer.constructorbodies
+
+private class Early<T>(value: T) {
+    val first: T = this.later
+    val later: T = value
+}
+
+public fun result(): Int = Early<Int>(42).first

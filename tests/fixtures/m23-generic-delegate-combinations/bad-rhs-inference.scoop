@@ -1,0 +1,9 @@
+import templates.delegateCombinations.Receiver
+
+class ResultSlot<A, B>() {
+    operator fun getValue(thisRef: Receiver<A>): B { throw IllegalStateException() }
+    operator fun setValue(thisRef: Receiver<A>, value: B): Unit {}
+}
+var <A, B> Receiver<A>.missing: B by ResultSlot<A, B>()
+
+fun wrong(): Unit { Receiver<Int>(1).missing = 42 }

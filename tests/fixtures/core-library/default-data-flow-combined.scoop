@@ -1,0 +1,7 @@
+public fun useCombinedDefaults(seed: Int): Int =
+    userCoreBranchDefault(seed) + userCoreIntegerOperands(seed)
+
+fun main() {
+    val first = useCombinedDefaults(0)
+    val second = useCombinedDefaults(3)
+}

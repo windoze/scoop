@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type argument `Int` for `T` of type `ReferenceParcel` must satisfy `ref`",
+    "notes": [],
+    "origin": {
+      "cone": "b98083568cc8e8b83a84ae3d4bde2f69c2d23d0a456b05854a162177bb33ec02",
+      "end": 89,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 86
+    },
+    "severity": "error"
+  }
+]

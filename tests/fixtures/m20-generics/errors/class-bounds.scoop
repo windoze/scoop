@@ -1,0 +1,18 @@
+open class Base<T>
+open class Other
+
+fun <T> requireBase(value: T): T where T : Base<Int> = value
+
+fun <T : Base<Int>> duplicate(value: T): T where T : Other = value
+
+fun <T : value> mixed(value: T): T where T : Base<Int> = value
+
+fun <T : Int> valueBound(value: T): T = value
+fun <T : Any> anyBound(value: T): T = value
+fun <T : () -> String> functionBound(value: T): T = value
+fun <T, U> parameterBound(value: T): T where T : U = value
+fun <T : Base> incomplete(value: T): T = value
+
+fun main() {
+    requireBase(Other())
+}

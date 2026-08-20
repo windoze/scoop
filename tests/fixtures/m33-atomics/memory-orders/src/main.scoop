@@ -1,0 +1,7 @@
+class Stamp(val value: Int)
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    operationOrders()
+    casOrders()
+    println("atomic memory orders")
+}

@@ -1,0 +1,2 @@
+typealias Never = Nothing
+fun main() { Never() }

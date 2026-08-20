@@ -1,0 +1,18 @@
+[package]
+name = "scoop-hir-lower"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rustc_apfloat.workspace = true
+la-arena.workspace = true
+imbl.workspace = true
+scoop-ast.workspace = true
+scoop-hir.workspace = true
+scoop-identity.workspace = true
+scoop-wire.workspace = true
+
+[dev-dependencies]
+scoop-parser.workspace = true
+scoop-mir.workspace = true
+scoop-mir-lower.workspace = true

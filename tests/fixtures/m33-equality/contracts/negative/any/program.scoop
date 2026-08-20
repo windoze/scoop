@@ -1,0 +1,4 @@
+fun main() {
+    val erased: Any = 42
+    println(erased == erased)
+}

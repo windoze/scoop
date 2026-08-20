@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val samples = defaultSamples()
+    verifyDefault(samples.method<Int, String>(Box<String>("owner"), 7) == ("owner", 7))
+    verifyDefault(samples.echo<String>(Box<String>("owner"), "seed") == "seed")
+    verifyDefault(samples.constructed<Int>(11).seed == 11)
+    verifyDefault(samples.constructed<String>("constructed").seed == "constructed")
+    verifyDefault(samples.nested() == 3)
+}

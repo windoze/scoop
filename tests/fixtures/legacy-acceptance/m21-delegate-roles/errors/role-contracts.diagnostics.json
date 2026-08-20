@@ -1,0 +1,132 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an `@Extern` function must not have an extension receiver",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 507,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 412
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `getValue` must be an ordinary function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 487,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 479
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`operator` requires a member or extension receiver",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 517,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 509
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `provideDelegate` must have exactly 0 parameters, found 1",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 53,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 38
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `getValue` requires required, non-vararg parameters",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 151,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 133
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `provideDelegate` must not be suspend",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 225,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 210
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `getValue` must not declare type parameters",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 300,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 292
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `setValue` must return Unit, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 368,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 360
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "extern parameter is not ABI-safe: getValue.parameter1: `Unit` is only allowed as a Scoop ABI return type",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 507,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 412
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `getValue` must be of type T, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 322,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 321
+    },
+    "severity": "error"
+  }
+]

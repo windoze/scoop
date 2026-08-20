@@ -1,0 +1,10 @@
+package consumer
+
+import dependency.api.run
+
+public fun withDefault(value: Boolean = run()): Boolean = value
+
+public fun invoke(): Boolean {
+    val first = withDefault()
+    return withDefault()
+}

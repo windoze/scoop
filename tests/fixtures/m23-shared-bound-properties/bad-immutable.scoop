@@ -1,0 +1,5 @@
+private open class Local public constructor(public val value: Int)
+
+private fun <B : Local> bad(box: B) {
+    box.value = 42
+}

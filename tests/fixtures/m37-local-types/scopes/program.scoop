@@ -1,0 +1,11 @@
+class Item(val value: Int)
+fun main() {
+    println(Item(1).value)
+    class Item(val value: Int) { fun read(): Int = value + 1 }
+    println(Item(1).read())
+    if (true) {
+        class Item(val value: Int) { fun read(): Int = value + 2 }
+        println(Item(1).read())
+    }
+    println(Item(1).read())
+}

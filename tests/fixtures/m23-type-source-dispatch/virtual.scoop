@@ -1,0 +1,13 @@
+public open class Base {
+    public open fun zeta(): Int = 1
+    public open fun alpha(): Int = 2
+    public fun direct(): Int = 3
+    protected open var value: Int
+        get() = 4
+        set(value) {}
+}
+public open class Derived : Base() {
+    public final override fun zeta(): Int = 5
+    public open fun middle(): Int = 6
+}
+public object Singleton : Derived()

@@ -1,0 +1,9 @@
+fun f(flag: Boolean): Int {
+    if (flag) {
+        return 1
+    }
+}
+
+fun main() {
+    println(f(true))
+}

@@ -1,0 +1,5 @@
+fun main() {
+    fun convert(value: Int): Int = value
+    fun convert(value: Int): String = "duplicate"
+    println(convert(42))
+}

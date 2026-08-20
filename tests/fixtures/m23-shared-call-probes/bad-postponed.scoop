@@ -1,0 +1,4 @@
+package consumer.callprobes
+import upstream.callprobes.*
+
+public fun result(): Int = map<Int, Int>({ value -> "wrong" }, 42)

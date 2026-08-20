@@ -1,0 +1,2 @@
+class Outer { fun test() { inner class Invalid } }
+fun main() {}

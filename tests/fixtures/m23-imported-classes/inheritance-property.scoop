@@ -1,0 +1,13 @@
+import dependency.classes.Counter
+import dependency.classes.Parent
+
+public class Derived public constructor(): Parent() {
+    public override var score: Long = 0
+        get() = field + 1
+        set(next) { field = next * 2 }
+}
+public fun primary(): Counter {
+    val value: Parent = Derived()
+    value.score = 10
+    return Counter(value.score)
+}

@@ -1,0 +1,12 @@
+class Node() {
+    fun next(): Node = this
+}
+
+fun main() {
+    val direct = Node()
+    val invalidReceiver = direct?.next()
+
+    val maybe: Node? = Some(Node())
+    val invalidBranch = maybe?.missing()
+    val invalidChain = maybe?.next().next()
+}

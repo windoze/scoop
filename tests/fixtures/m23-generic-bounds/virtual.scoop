@@ -1,0 +1,15 @@
+package consumer.bounds
+
+import templates.bounds.*
+
+public fun <T> exercise(value: T): Int {
+    val receiver: PlainBase = PlainDerived()
+    val read = readReference(receiver)
+    val classRead = classReference(receiver)
+    val allocated = GenericValue<T>(value, 0)
+    if (readBound(receiver) != 42 || classBound(receiver) != 42) { return 1 }
+    if (classRead() != 42 || allocated.read() != 0) { return 2 }
+    return read()
+}
+
+public fun result(): Int = exercise<Int>(1)

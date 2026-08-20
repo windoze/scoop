@@ -1,0 +1,57 @@
+fun independentMovement() {
+    val value = Payload(7)
+    val cell = AtomicRef(value)
+    @Unsafe {
+        val move = movingStress()
+        val valueHandle = getGcHandle<Any>(value)
+        val cellHandle = getGcHandle<Any>(cell)
+        val pinnedValue = pin(value)
+        val beforeCell = address(cellHandle)
+        val beforeValue = address(valueHandle)
+        gcCollect()
+        if (move) { check(address(cellHandle) != beforeCell) }
+        check(address(valueHandle) == beforeValue)
+        check(cell.load() === unpin(pinnedValue))
+
+        val pinnedCell = pin(cell)
+        val stableCell = address(cellHandle)
+        val movingValue = address(valueHandle)
+        gcCollect()
+        check(address(cellHandle) == stableCell)
+        if (move) { check(address(valueHandle) != movingValue) }
+        check(unpin(pinnedCell).load() === value)
+        check(cell.load().value == 7)
+        releaseGcHandle(valueHandle)
+        releaseGcHandle(cellHandle)
+    }
+}
+
+fun collectedExpected(cell: AtomicRef<Payload>): Payload {
+    val value = cell.load()
+    gcCollect()
+    return value
+}
+fun collectedReplacement(value: Int): Payload {
+    val result = Payload(value)
+    gcCollect()
+    return result
+}
+fun exchangedResult(): Payload {
+    val cell = AtomicRef(Payload(11))
+    return cell.exchange(collectedReplacement(12))
+}
+
+fun operationRoots() {
+    val old = exchangedResult()
+    gcCollect()
+    check(old.value == 11)
+    val cell = AtomicRef(Payload(3))
+    check(cell.compareAndSet(collectedExpected(cell), collectedReplacement(4)))
+    val observed = cell.compareAndExchange(Payload(99), collectedReplacement(5))
+    gcCollect()
+    check(observed.value == 4 && cell.load() === observed)
+    val replaced = cell.compareAndExchange(collectedExpected(cell), collectedReplacement(6))
+    cell.store(collectedReplacement(7))
+    gcCollect()
+    check(replaced.value == 4 && cell.load().value == 7)
+}

@@ -1,0 +1,15 @@
+public class Values {
+    public fun unit(seed: Unit, value: Unit = seed): Unit = value
+    public fun boolean(seed: Boolean, value: Boolean = seed): Boolean = value
+    public fun byte(seed: Int8, value: Int8 = seed): Int8 = value
+    public fun short(seed: Int16, value: Int16 = seed): Int16 = value
+    public fun int(seed: Int, value: Int = seed): Int = value
+    public fun long(seed: Long, value: Long = seed): Long = value
+    public fun ubyte(seed: UInt8, value: UInt8 = seed): UInt8 = value
+    public fun ushort(seed: UInt16, value: UInt16 = seed): UInt16 = value
+    public fun uint(seed: UInt, value: UInt = seed): UInt = value
+    public fun ulong(seed: ULong, value: ULong = seed): ULong = value
+    public fun string(seed: String, value: String = seed): String = value
+    public fun throwable(seed: Throwable, value: Throwable = seed): Throwable = value
+    public fun state(seed: ForeignCallbackState, value: ForeignCallbackState = seed): ForeignCallbackState = value
+}

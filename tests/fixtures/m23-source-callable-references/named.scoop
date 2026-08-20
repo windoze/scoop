@@ -1,0 +1,13 @@
+package consumer.references
+
+import templates.references.*
+
+public fun <T> exercise(value: T): Int {
+    val read = ::answer
+    val adjusted: (Int) -> Int = ::offset
+    val selected: (Int) -> Int = ::overload
+    if (read() != 42 || adjusted(41) != 42) { return 1 }
+    return selected(42)
+}
+
+public fun result(): Int = exercise<Int>(0)

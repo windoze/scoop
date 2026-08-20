@@ -1,0 +1,9 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val empty = Values()
+    val values = [1, 2]
+    val items = Values(3, *values, 4)
+    val whole = Values(values = values)
+    verifyType(empty === empty && items === items && whole === whole)
+}

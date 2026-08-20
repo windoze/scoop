@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract class `AbstractCounter` cannot be instantiated",
+    "notes": [],
+    "origin": {
+      "cone": "1fd617b92a5ecdf90056bad898af40891cd3c5216bbe29fa6810a41cc5ce46ae",
+      "end": 102,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 83
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,20 @@
+import dependency.classes.Counter
+import dependency.classes.MutableCell
+import dependency.classes.OrderedParent
+
+public class Derived: OrderedParent {
+    public val own: MutableCell = MutableCell(trace.value + 20)
+    init {
+        trace.value = trace.value * 10 + 2
+        this.count = trace.value
+        count += 1
+    }
+    public constructor(trace: MutableCell): super(trace) {
+        trace.value = trace.value * 10 + 3
+    }
+}
+public fun primary(): Counter {
+    val trace = MutableCell(0)
+    val value = Derived(trace)
+    return Counter(trace.value + value.own.value + value.count - 136)
+}

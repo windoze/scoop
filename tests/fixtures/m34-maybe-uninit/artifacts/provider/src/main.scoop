@@ -1,0 +1,20 @@
+package maybe.provider
+
+public struct Pair(val number: Long, val tag: Int)
+public interface Read { public fun value(): Int }
+public class Payload public constructor(val number: Int) : Read {
+    public override fun value(): Int = number
+}
+
+public fun <T> storage(value: MaybeUninit<T> = MaybeUninit<T>.uninit()): MaybeUninit<T> = value
+public fun <T> wrap(value: T, stored: MaybeUninit<T> = MaybeUninit<T>.initialized(value)): MaybeUninit<T> = stored
+@Unsafe public fun <T> extract(value: MaybeUninit<T>, result: T = value.assumeInit()): T = result
+public fun identity(value: MaybeUninit<Pair>): MaybeUninit<Pair> { gcCollect(); return value }
+public fun <T> roundTrip(value: MaybeUninit<T>): MaybeUninit<T> {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return value }
+}
+public fun captured(value: Read): () -> MaybeUninit<Read> {
+    val wrapped = MaybeUninit<Read>.initialized(value)
+    return { gcCollect(); wrapped }
+}

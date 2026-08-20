@@ -1,0 +1,10 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = protocols()
+    verifyDispatch(value.observe(17) == (2L, 17, 7, 3))
+    verifyDispatch(value.observe("generic") == (2L, "generic", 7, 3))
+    verifyDispatch(value.publicOnly() == 4 && value.publicOnly(9) == 9)
+    verifyDispatch(Packet().count == 1 && Packet(11).count == 11)
+}

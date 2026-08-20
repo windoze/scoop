@@ -1,0 +1,12 @@
+public interface Generic<T> {
+    public fun value(input: T): T = input
+}
+public interface Refined<T> : Generic<T> {
+    public override fun value(input: T): T = input
+}
+public open class Base<T> {
+    public open fun compute(input: T): T = input
+}
+public class Leaf<T> : Base<T>(), Refined<T> {
+    public final override fun compute(input: T): T = input
+}

@@ -1,0 +1,5 @@
+fun main() {
+    @Unsafe {
+        foreignCallback<(Int, Ptr<Unit>) -> Int>({ value: Int -> value }, 2L, ForeignCallbackMode.Reusable)
+    }
+}

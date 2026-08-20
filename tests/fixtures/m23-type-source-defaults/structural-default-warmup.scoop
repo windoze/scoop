@@ -1,0 +1,1 @@
+private fun warmup(left: (Unit, Unit), right: (Unit, Unit), equal: Boolean = left == right): Boolean = equal

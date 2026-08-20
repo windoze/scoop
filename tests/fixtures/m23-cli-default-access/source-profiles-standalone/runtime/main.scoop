@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val plain = defaultPlain()
+    verifyDefault(plain.own<Int>(7) == 7)
+    verifyDefault(plain.own<String>("kept") == "kept")
+    verifyDefault(plain.literal() == 1)
+    verifyDefault(defaultGeneric<String>().fromOwner("owner") == "owner")
+    verifyDefault(defaultGenericStatic().fromStatic() == 2)
+}

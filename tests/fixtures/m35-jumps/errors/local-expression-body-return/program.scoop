@@ -1,0 +1,1 @@
+fun main() { fun f(value: Int?): Int = value ?: return 1 }

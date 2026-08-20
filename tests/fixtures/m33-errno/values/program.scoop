@@ -1,0 +1,106 @@
+const val CaptureEnabled: Boolean = true
+typealias CapturedInt = (Int, Int)
+
+@CLayout
+struct Pair(val number: Int, val flag: Boolean, val fraction: Double)
+
+@Extern(lib = "fixture_errno", name = "m33_errno_int", captureErrno = CaptureEnabled)
+fun capture(value: Int, code: Int, mode: Int = 0): CapturedInt
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_int", captureErrno = true)
+fun leaf(value: Int, code: Int, mode: Int = 1): (Int, Int)
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_int", captureErrno = false)
+fun plain(value: Int, code: Int, mode: Int): Int
+
+@GCLeaf @Extern("fixture_errno", "m33_errno_void", "c", true)
+fun captureVoid(code: Int): (Unit, Int)
+
+@Extern(lib = "fixture_errno", name = "m33_errno_pair", captureErrno = true)
+fun capturePair(value: Pair, capture: Int): (Pair, Int)
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_pair")
+fun plainPair(value: Pair, capture: Int): Pair
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_bool", captureErrno = true)
+fun captureBoolean(value: Boolean): (Boolean, Int)
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_pointer", captureErrno = true)
+fun capturePointer(present: Int): (Ptr<Int8>?, Int)
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_missing")
+fun missingError(): Int
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_disturb")
+fun disturb()
+
+@Extern(lib = "fixture_errno", name = "m33_errno_record")
+fun record(value: Int, error: Int)
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_released")
+fun released(): Int
+
+class Cell(val value: Int)
+class Owner {
+    release {
+        @Unsafe {
+            val (value, error) = capture(5, 55, -1)
+            record(value, error)
+        }
+    }
+}
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun argument(): Int { val cell = Cell(42); gcCollect(); return cell.value }
+fun discard() { val owner = Owner() }
+
+@NoGC @Unsafe
+fun noGcCapture(): (Int, Int) = leaf(13, 17)
+
+fun referencedCapture(value: Int, error: Int, mode: Int): (Int, Int) {
+    @Unsafe { return leaf(value, error, mode) }
+}
+
+fun <T> retained(value: T): T {
+    @Unsafe { val (_, error) = capture(0, 37); expect(error == 37) }
+    return value
+}
+
+fun main() {
+    val cell = Cell(91)
+    @Unsafe {
+        disturb()
+        val saved = capture(argument(), 23)
+        val second = leaf(7, 0)
+        disturb()
+        gcCollect()
+        val (value, error) = saved
+        val (other, success) = second
+        expect(value == 42 && error == 23 && other == 7 && success == 0)
+        expect(plain(9, 101, -2) == 9)
+        val reference: (Int, Int, Int) -> (Int, Int) = ::referencedCapture
+        val (referenced, referenceError) = reference(3, 47, 1)
+        expect(referenced == 3 && referenceError == 47)
+        leaf(1, 53)
+        val (empty, voidError) = captureVoid(19)
+        expect(empty == Unit && voidError == 19)
+        val (boolean, boolError) = captureBoolean(true)
+        expect(!boolean && boolError == 29)
+        val (pair, pairError) = capturePair(Pair(8, true, 1.25), 1)
+        expect(pair.number == 18 && !pair.flag && pair.fraction == 1.75 && pairError == 31)
+        val ordinary = plainPair(pair, 0)
+        expect(ordinary.number == 28 && ordinary.flag && ordinary.fraction == 2.25)
+        val (pointer, pointerError) = capturePointer(1)
+        expect(pointerError == 0 && String.fromCString(pointer!!) == "errno")
+        val (absent, absentError) = capturePointer(0)
+        expect(absent == None && absentError == missingError())
+        val (noGcValue, noGcError) = noGcCapture()
+        expect(noGcValue == 13 && noGcError == 17)
+    }
+    expect(retained(cell) === cell && cell.value == 91)
+    discard()
+    gcCollect()
+    gcCollect()
+    @Unsafe { expect(released() == 1) }
+    println("errno-values-ok")
+}

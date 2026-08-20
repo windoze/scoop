@@ -1,0 +1,9 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val cell = Box<Int>(42)
+    cell.extensionValue = 1
+    return cell.value
+}

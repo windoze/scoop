@@ -1,0 +1,26 @@
+package m33.borrow
+
+@GCLeaf @Extern(lib = "fixture_native", name = "sum_bytes")
+internal fun sumBytes(data: Ptr<UInt8>, count: Long): Long
+
+@Unsafe public fun <T : value> first(values: Array<T>): T =
+    values.withDataPointer(fun(pointer: Ptr<T>, count: Long): T {
+        @Unsafe {
+            gcCollect()
+            return pointer.load()
+        }
+    })
+
+@Unsafe public fun <R> withValues(values: MutableArray<Int>, block: (Ptr<Int>, Long) -> R): R =
+    values.withDataPointer(block)
+
+public fun byteSum(text: String): Long {
+    @Unsafe {
+        return text.withUtf8Bytes(fun(pointer: Ptr<UInt8>, count: Long): Long {
+            @Unsafe {
+                gcCollect()
+                return sumBytes(pointer, count)
+            }
+        })
+    }
+}

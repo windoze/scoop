@@ -1,0 +1,28 @@
+@Extern(lib = "m24_release", name = "m24_native_count")
+@Global
+private var nativeCount: Int
+
+@NoGC
+@Unsafe
+private fun addCount(amount: Int = 1) {
+    nativeCount = nativeCount + amount
+}
+
+class Owner(private val handle: Int) {
+    release {
+        @Unsafe {
+            val address = addressOf(nativeCount)
+            address.store(address.load() + handle)
+            addCount()
+        }
+    }
+}
+
+private fun allocate() { val owner = Owner(41) }
+
+fun main() {
+    allocate()
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(nativeCount) }
+}

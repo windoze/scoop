@@ -1,0 +1,4 @@
+class Value() {
+    public override operator fun equals(other: Value): Boolean = true
+}
+fun main() {}

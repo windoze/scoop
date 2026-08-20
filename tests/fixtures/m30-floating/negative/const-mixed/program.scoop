@@ -1,0 +1,2 @@
+const val invalid: Float = 1f + 2.0.toDouble()
+fun main() {}

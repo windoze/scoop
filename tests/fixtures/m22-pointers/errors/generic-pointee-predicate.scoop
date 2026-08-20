@@ -1,0 +1,15 @@
+// EXPECT-DIAGNOSTICS
+
+struct ManagedValue(val text: String)
+
+@Unsafe
+fun <T : value> reconstruct(raw: ULong): Ptr<T> = Ptr<T>(raw)
+
+@Unsafe
+fun <T : value> forwardRaw(raw: ULong): ULong = reconstruct<T>(raw).toULong()
+
+fun main() {
+    @Unsafe {
+        println(forwardRaw<ManagedValue>(1uL))
+    }
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `immediate` must be of type SuspendTask<Animal>, found ImmediateDogTask; nominal application `SuspendTask` is invariant: first differing type argument 1 (`T`) is `Dog` in `SuspendTask<Dog>`, but `Animal` in `SuspendTask<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1038,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1020
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `startCoroutine` in core prelude layer:\n  - unknown variable `immediate`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation\n  - unknown variable `immediate`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1088,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1043
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `suspended` must be of type SuspendTask<Animal>, found SuspendedDogTask; nominal application `SuspendTask` is invariant: first differing type argument 1 (`T`) is `Dog` in `SuspendTask<Dog>`, but `Animal` in `SuspendTask<Animal>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1182,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1160
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `startCoroutine` in core prelude layer:\n  - unknown variable `suspended`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation\n  - unknown variable `suspended`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1232,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1187
+    },
+    "severity": "error"
+  }
+]

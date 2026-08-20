@@ -1,0 +1,3 @@
+import facade.nesting.Outer.Leaf
+
+public fun check(): Int = 42

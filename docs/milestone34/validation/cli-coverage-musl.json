@@ -1,0 +1,4104 @@
+{
+  "target": "x86_64-unknown-linux-musl",
+  "description": "Coverage merged from the listed actual runs; this is not a second full CLI run.",
+  "sources": [
+    {
+      "id": "m34-and-string",
+      "report": "tmp/m34/m10-features-strict-musl/report.json",
+      "mode": "strict",
+      "selected": 60,
+      "counts": {
+        "passed": 60
+      },
+      "variants": 100,
+      "processes": 502,
+      "stage_and_plan_goldens": 304
+    },
+    {
+      "id": "terminal-exit",
+      "report": "tmp/m34/m10-terminal-exit-strict-musl/report.json",
+      "mode": "strict",
+      "compiler_revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
+      "selected": 1,
+      "counts": {
+        "passed": 1
+      },
+      "variants": 2,
+      "processes": 28,
+      "stage_and_plan_goldens": 6
+    },
+    {
+      "id": "legacy-slow",
+      "report": "tmp/m34/m10-legacy-slow-musl/report.json",
+      "mode": "update",
+      "compiler_revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
+      "selected": 11,
+      "counts": {
+        "passed": 11
+      },
+      "variants": 11,
+      "processes": 134,
+      "stage_and_plan_goldens": 130
+    },
+    {
+      "id": "legacy-ordinary",
+      "report": "tmp/m34/m10-legacy-ordinary-musl/report.json",
+      "mode": "update",
+      "compiler_revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
+      "selected": 431,
+      "counts": {
+        "passed": 431
+      },
+      "variants": 470,
+      "processes": 4925,
+      "stage_and_plan_goldens": 5578
+    },
+    {
+      "id": "final-m34-strict",
+      "report": "tmp/m34/m10-final-m34-strict-musl/report.json",
+      "mode": "strict",
+      "compiler_revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
+      "selected": 40,
+      "counts": {
+        "passed": 40
+      },
+      "variants": 80,
+      "processes": 436,
+      "stage_and_plan_goldens": 288
+    }
+  ],
+  "covered_fixtures": 503,
+  "counts": {
+    "passed": 503
+  },
+  "passed_variants": 583,
+  "passed_processes": 5589,
+  "passed_snapshot_checks": 6018,
+  "unresolved": [],
+  "results": [
+    {
+      "name": "argument-inference-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "argument-inference-arrays",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "argument-inference-callbacks",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "argument-inference-nominals",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "argument-inference-order",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "argument-inference-overloads",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "argument-inference-shared-fixed-point",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "argument-inference-shared-mapping",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "array-construction-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "array-construction-aliases",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "array-construction-basic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "array-construction-overloads",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "array-construction-shadow",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "coroutines-closure-finally",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "coroutines-failure-finally",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "coroutines-function-values",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "coroutines-immediate",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "coroutines-lifecycle",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "coroutines-suspension",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "coroutines-value-task",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "demanded-initialization-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "demanded-initialization-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-delegate-dynamic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-delegate-static",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-dynamic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-failures",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-interface-dynamic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-lambda-results",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-native-value",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-nested",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-private-signature",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "function-adapters-static",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-arguments-consumer",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-arguments-overload",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-arrays-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-arrays-basic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-arrays-bounds",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-arrays-iteration",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-arrays-order",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-generic-interface",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-generic-interface-default",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-generic-virtual",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-interface-abstract",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-interface-default",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-interface-enum",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-interface-receiver",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-local-conformance",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-primitives",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-source-bounds",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-value",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-bounds-virtual",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-closures-initializer-anonymous",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-closures-initializer-closure",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-closures-initializer-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-closures-initializer-local-closure",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-closures-initializer-plain",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-closures-initializer-values",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-aliases",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-cycle-direct",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-cycle-indirect",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-flat",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-foreign-delegate",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-foreign-extensions",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-foreign-local",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-foreign-receiver",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-local-source",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-mixed-members",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-order",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-read-only-var",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-references",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-write-only",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-combinations-zst",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-generated-initializer-basic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-generated-initializer-local",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-computed",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-extension",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-generic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-generic-member",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-interface",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-local",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-local-factory",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-local-generic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-member",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-named",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-nested",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-unbound",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-value-member",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-values",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-references-reference-virtual",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-delegate-siblings-consumer",
+      "status": "passed",
+      "variants": 1,
+      "processes": 15,
+      "snapshots": 18,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-equality-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-equality-empty",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-equality-enum",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-equality-nested",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-equality-order",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-equality-overloads",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-equality-payload",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-equality-struct",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-helpers-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 17,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-machine-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-machine-control-flow",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-machine-second",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-machine-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-lexical",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-method",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-object",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-ordinary",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-property-override",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-secondary",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-setter",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-access-super",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-captured",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-extension-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-extension-captured",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-extension-inherited",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-extension-order",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-extension-overloads",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-extension-read",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-extension-write",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-extension-write-only",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-inherited",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-interface-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-interface-abstract",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-interface-class",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-interface-enum",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-interface-local",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-interface-properties",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-interface-struct",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-interface-value-property",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-method-arguments",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-overloads",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-plain-owner",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-signature-support",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-value-method",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-member-consumption-virtual",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-publication-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-publication-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-reader-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-reader-concrete-support",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-reader-native-storage",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-reader-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-reader-support",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 11,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-captures",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-class-secondary",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-class-terminal",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-default-base",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-inferred-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-large-value",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-local-base",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-nested",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-struct-secondary",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-constructors-structure",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-initialization-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-initialization-dispatch",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-initialization-dispatch-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-initialization-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-nominals-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-shapes-nominals-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-siblings-adapters",
+      "status": "passed",
+      "variants": 1,
+      "processes": 18,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-siblings-adapters-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 18,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-siblings-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 16,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-siblings-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 16,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-siblings-strings",
+      "status": "passed",
+      "variants": 1,
+      "processes": 16,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "generic-siblings-strings-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 16,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-delegated",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-enum-state",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-generic-initializer",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-initialization",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-lexical",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-members",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-no-gc",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-order",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-static",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "global-state-values",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-class-primitive-inherited-boolean",
+      "status": "passed",
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 4,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "imported-class-primitive-inherited-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 4,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "imported-class-primitive-inherited-long",
+      "status": "passed",
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 4,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "imported-class-primitive-inherited-no-gc",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "imported-class-primitive-inherited-string",
+      "status": "passed",
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 4,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "imported-class-primitive-inherited-wrong-argument",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "imported-options-construct",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-options-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-options-lexical",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-options-qualified",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-options-shadow",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-options-static",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-options-sugar",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-options-values",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointer-construction-aliases",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointer-construction-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointer-construction-lexical",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointer-construction-local",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointer-construction-overloads",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointer-construction-shadow",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointer-construction-templates",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointer-construction-zst-nested",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-bindings",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-layout",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-local",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-operations",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-ordinary-member",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-template",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-this-copy",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "imported-pointers-zst",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "iteration-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "iteration-basic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "iteration-bounds",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "iteration-capture",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "iteration-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "iteration-extensions",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "iteration-inference",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "iteration-order",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "layout-dependencies-core-objects-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "layout-dependencies-core-objects-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "layout-dependencies-core-symbols-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "layout-dependencies-core-symbols-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m12-extern-c-extern-c",
+      "status": "passed",
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m12-ffi-pointers",
+      "status": "passed",
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m13-callback-callback-exception",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m13-callback-context-first-unit",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m13-callback-continuation-race",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m13-callback-foreign-continuation",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m13-callback-foreign-continuation-failure",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m13-callback-managed-callback",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m22-integers-ffi-fixed-width-ffi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m22-pointers-c-recursive-recursive-pointer",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "legacy-m22-pointers-ffi-pointer-ffi-round-trip",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m26-characters-ffi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m27-context-artifacts",
+      "status": "passed",
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 9,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m27-context-callback-concurrent",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 3,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m27-context-callback-scopes",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 3,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m27-context-coroutine-thread",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 3,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m27-context-gc-lifetimes",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m28-cli-library-toolchain",
+      "status": "passed",
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m28-cli-program",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m28-cli-program-musl-pie",
+      "status": "passed",
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m28-deep-frames",
+      "status": "passed",
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m28-deep-frames-musl-pie",
+      "status": "passed",
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m28-native-dso",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-artifacts",
+      "status": "passed",
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-artifacts-musl-pie",
+      "status": "passed",
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-constants",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-coroutine",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-environment",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-rounding",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-single-value",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-total-order",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m30-floating-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-errno-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-errno-callbacks",
+      "status": "passed",
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-errno-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-gc-leaf",
+      "status": "passed",
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-native-c-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-native-c-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-native-cxx-reject-musl",
+      "status": "passed",
+      "variants": 2,
+      "processes": 2,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-native-libraries-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-native-libraries-reject-dynamic-on-static",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-native-libraries-reject-framework-on-linux",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-native-safe-transitions-pie",
+      "status": "passed",
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-platform-cone",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-platform-cone-musl-pie",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 0,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m33-process-exit",
+      "status": "passed",
+      "variants": 2,
+      "processes": 28,
+      "snapshots": 6,
+      "source": "terminal-exit"
+    },
+    {
+      "name": "m33-sources-targets",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "m34-allocation-accounting",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-allocation-threads",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-containers-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-containers-builder",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-containers-storage",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-containers-updates",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-devirtualization-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-devirtualization-locals",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-devirtualization-slots",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-direct-c-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 12,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-direct-c-registers",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-direct-c-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-inlining-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-inlining-decisions",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-inlining-growth",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-inlining-release",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-inlining-semantics",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-interfaces-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-interfaces-atomics",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-interfaces-concurrency",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-interfaces-coroutines",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-interfaces-native",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-interfaces-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-maybe-uninit-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-maybe-uninit-callables",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-maybe-uninit-gc",
+      "status": "passed",
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-c-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-constructor",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-equality",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-implicit-conversion",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-invariance",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-layout-cycle",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-nested-equality",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-no-gc-reference",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-payload-field",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-payload-type",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-pointer-reference",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-to-string",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-unsafe-call",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-reject-unsafe-reference",
+      "status": "passed",
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "source": "m34-and-string"
+    },
+    {
+      "name": "m34-maybe-uninit-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-parallel-threads",
+      "status": "passed",
+      "variants": 2,
+      "processes": 20,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-parallel-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 18,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-poll-roots",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-poll-threads",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-reclamation-growth",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-reclamation-pins",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-regions-threads",
+      "status": "passed",
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-regions-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-small-values",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-small-values-artifacts",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-small-values-core-floating",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-small-values-core-string",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "m34-small-values-native",
+      "status": "passed",
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 6,
+      "source": "final-m34-strict"
+    },
+    {
+      "name": "namespace-companions",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "namespace-deep",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "namespace-enum-variants",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "namespace-exact",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "namespace-objects",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "namespace-public-exact",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "namespace-public-star",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "namespace-star",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-addresses-aliases",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-addresses-aliases-alias-downstream",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-addresses-already-used",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-addresses-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-addresses-sink",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-addresses-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-addresses-wide",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-boundary-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-boundary-handle-c",
+      "status": "passed",
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-boundary-handle-c-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-boundary-single",
+      "status": "passed",
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-archive-chain",
+      "status": "passed",
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-archive-members",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 5,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-cabi-archive",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-cabi-object",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-cabi-packed",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-callback-exception",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 18,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-callback-reentry",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-callback-tls-archive",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-callback-tls-object",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-direct",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-direct-candidates",
+      "status": "passed",
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-direct-reexport",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-formats-pointers",
+      "status": "passed",
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 5,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-resolution-default",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-runtime-gc",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 10,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-runtime-handles",
+      "status": "passed",
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 18,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-scoopabi",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-scoopabi-archive",
+      "status": "passed",
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-scoopabi-object",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-storage",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-storage-archive",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-link-storage-object",
+      "status": "passed",
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "native-tls-cross-cone-callback-threads",
+      "status": "passed",
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "program-link-sdk-native",
+      "status": "passed",
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "qualified-types-aliases",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "qualified-types-bounds",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "qualified-types-diamond",
+      "status": "passed",
+      "variants": 1,
+      "processes": 13,
+      "snapshots": 18,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "qualified-types-independent",
+      "status": "passed",
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 22,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "qualified-types-nested",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "qualified-types-ordinary",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "qualified-types-split-package",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "rebuilt-core-array-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 10,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "rebuilt-core-array-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 10,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "rebuilt-core-coroutine-rebuilt-core",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 10,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "rebuilt-core-option-edited-core",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 10,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "release-blocks-cache-invalidation",
+      "status": "passed",
+      "variants": 1,
+      "processes": 20,
+      "snapshots": 12,
+      "source": "legacy-slow"
+    },
+    {
+      "name": "release-blocks-cross-cone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 9,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "release-blocks-generic-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "release-blocks-native-aggregate-cross-cone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 6,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "release-blocks-native-aggregate-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "release-blocks-roots-closures",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "release-blocks-roots-coroutines",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "release-blocks-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "release-blocks-value-operations",
+      "status": "passed",
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-cycle-recovery-root",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-eager-failure",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-eager-later-root",
+      "status": "passed",
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 12,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-early-root",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-lazy-cycle-root",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-lazy-failure-root",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-ordinary",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-schedule-root",
+      "status": "passed",
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 20,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-images-unused-lazy-root",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-lifecycle-empty-images",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "runtime-lifecycle-missing-image",
+      "status": "passed",
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 8,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-abstract-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-abstract-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-argument-materialization-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-argument-materialization-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bindings-abi",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bindings-components",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bindings-defaults-when",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bindings-lambda-for",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bindings-structs",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bound-properties-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bound-properties-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bounds-classes",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bounds-context",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-bounds-interfaces",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-call-probes-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-call-probes-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-callable-order-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-callable-order-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-callable-signatures-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-callable-signatures-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-class-definitions-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-class-definitions-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-classes-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-classes-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-closure-bodies-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-closure-bodies-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-concrete-calls-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-concrete-calls-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-constructor-applications-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-constructor-applications-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-constructor-bodies-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-constructor-bodies-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-constructor-requests-both",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-constructor-requests-both-imported",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-constructor-requests-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-constructor-requests-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-declaration-views-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-declaration-views-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-default-bodies-functions",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-default-bodies-methods",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-enum-definitions-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-enum-definitions-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-enums-aliases-equality",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-enums-defaults-nested",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-enums-instances",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-enums-qualified",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-enums-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-host-properties-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-host-properties-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-interface-definitions-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-interface-definitions-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-interface-members-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-interface-members-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-interfaces-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-interfaces-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-literals-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-literals-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-local-calls-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-local-calls-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-method-calls-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-method-calls-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-native-calls-context",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-native-calls-variance",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-nominal-conditions-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-nominal-conditions-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-parents-classes",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-parents-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-parents-interfaces",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-ranges-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-ranges-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-reference-targets-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-reference-targets-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-requests-captured-parameters",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-requests-methods-closures",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-requests-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-selection-constructors",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-selection-functions",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-selection-members",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-singleton-reads-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-singleton-reads-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-source-calls-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-source-calls-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-struct-definitions-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-struct-definitions-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-structs-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-structs-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-value-layouts-combined",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "shared-value-layouts-standalone",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-bounds",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-defaults",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-dispatch",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-extensions",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-generic",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-global-state",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-layers",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-lexical",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-members",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-named",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-overloads",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-primitives",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-protected",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "source-callable-references-values",
+      "status": "passed",
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "source": "legacy-ordinary"
+    },
+    {
+      "name": "structural-box-runtime",
+      "status": "passed",
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 7,
+      "source": "legacy-ordinary"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+enum Box<T> {
+    Full(T),
+    Empty,
+
+    fun echo(value: T): T = value
+}
+
+fun main() {
+    val i = Box.Full(1)
+    val s = Box.Full("s")
+    println(i.echo(2))
+    println(s.echo("ok"))
+}

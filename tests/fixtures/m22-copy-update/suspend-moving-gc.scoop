@@ -1,0 +1,82 @@
+// EXPECT-COMPILE
+
+public class Node(val text: String)
+
+struct ManagedPair(val left: Node, val right: Node)
+
+struct ManagedEvent(val kept: Node, val changed: Node)
+
+class Gate(var waiter: Continuation<Node>?) {
+    fun complete(value: Node) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Node> {
+    public final override fun register(continuation: Continuation<Node>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun awaitNode(gate: Gate): Node = suspendCoroutine(Registration(gate))
+
+class CopyTask(val firstGate: Gate, val secondGate: Gate) : SuspendTask<Int> {
+    public final override suspend fun run(): Int {
+        val originalPair = ManagedPair(
+            Node("pair-left-" + "alive"),
+            Node("pair-right-" + "alive")
+        )
+        val changedPair = originalPair.{ left: awaitNode(firstGate) }
+        gcCollect()
+        println(originalPair.left.text)
+        println(originalPair.right.text)
+        println(changedPair.left.text)
+        println(changedPair.right.text)
+
+        val originalEvent = ManagedEvent(
+            Node("event-kept-" + "alive"),
+            Node("event-old-" + "alive")
+        )
+        val changedEvent = originalEvent.{ changed: awaitNode(secondGate) }
+        gcCollect()
+        println(changedEvent.kept.text)
+        println(changedEvent.changed.text)
+        return 42
+    }
+}
+
+class RecordingCompletion() : Continuation<Int> {
+    public final override fun resume(value: Int) {
+        println(value)
+    }
+
+    public final override fun resumeWithException(exception: Throwable) {
+        println("unexpected-failure")
+    }
+}
+
+fun makeGarbage() {
+    var index = 0
+    while (index < 1000) {
+        val garbage = Node("garbage-" + "node")
+        index = index + 1
+    }
+}
+
+fun main() {
+    val firstGate = Gate(None)
+    val secondGate = Gate(None)
+    startCoroutine(CopyTask(firstGate, secondGate), RecordingCompletion())
+    println("first-suspended")
+    gcCollect()
+    makeGarbage()
+    gcCollect()
+    firstGate.complete(Node("pair-replacement-" + "alive"))
+    println("second-suspended")
+    gcCollect()
+    makeGarbage()
+    gcCollect()
+    secondGate.complete(Node("event-replacement-" + "alive"))
+}

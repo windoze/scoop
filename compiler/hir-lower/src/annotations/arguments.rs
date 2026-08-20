@@ -1,0 +1,148 @@
+//! Shared annotation argument schemas and primitive validators.
+
+use scoop_ast as ast;
+use scoop_hir as hir;
+
+use crate::Lowerer;
+
+impl Lowerer {
+    pub(super) fn annotation_marker(&mut self, annotation: &ast::Annotation) -> bool {
+        if annotation.args.is_empty() {
+            true
+        } else {
+            self.error(
+                annotation.span,
+                format!("`@{}` does not accept arguments", annotation.name),
+            );
+            false
+        }
+    }
+
+    pub(super) fn annotation_string(
+        &mut self,
+        annotation: &ast::Annotation,
+        parameter: &str,
+    ) -> Option<String> {
+        if annotation.args.len() != 1 {
+            self.error(
+                annotation.span,
+                format!(
+                    "`@{}` requires exactly one string argument `{parameter}`",
+                    annotation.name
+                ),
+            );
+            return None;
+        }
+        let arg = &annotation.args[0];
+        if let Some(name) = &arg.name
+            && name.text != parameter
+        {
+            self.error(
+                name.span,
+                format!(
+                    "unknown argument `{}` for `@{}`; expected `{parameter}`",
+                    name.text, annotation.name
+                ),
+            );
+            return None;
+        }
+        let ast::AnnotationLiteral::String(value) = &arg.value else {
+            self.error(
+                arg.span,
+                format!(
+                    "argument `{parameter}` of `@{}` must be a string",
+                    annotation.name
+                ),
+            );
+            return None;
+        };
+        Some(value.clone())
+    }
+
+    pub(super) fn annotation_c_layout(
+        &mut self,
+        annotation: &ast::Annotation,
+    ) -> Option<hir::HirCLayoutContract> {
+        let mut aligned = None;
+        let mut packed = None;
+        let mut positional = 0;
+        for arg in &annotation.args {
+            let slot = match arg.name.as_ref().map(|name| name.text.as_str()) {
+                Some("aligned") => &mut aligned,
+                Some("packed") => &mut packed,
+                Some(name) => {
+                    self.error(
+                        arg.span,
+                        format!("unknown argument `{name}` for `@CLayout`"),
+                    );
+                    continue;
+                }
+                None if positional == 0 => {
+                    positional += 1;
+                    &mut aligned
+                }
+                None if positional == 1 => {
+                    positional += 1;
+                    &mut packed
+                }
+                None => {
+                    self.error(
+                        arg.span,
+                        "`@CLayout` accepts at most two arguments".to_string(),
+                    );
+                    continue;
+                }
+            };
+            if slot.is_some() {
+                self.error(arg.span, "duplicate `@CLayout` argument".to_string());
+                continue;
+            }
+            let ast::AnnotationLiteral::Int(value) = &arg.value else {
+                self.error(
+                    arg.span,
+                    "`@CLayout` arguments must be integers".to_string(),
+                );
+                continue;
+            };
+            if !matches!(
+                value.suffix,
+                ast::IntegerSuffix::None | ast::IntegerSuffix::Long
+            ) {
+                self.error(
+                    arg.span,
+                    "`@CLayout` arguments must be signed Long integer literals".to_string(),
+                );
+                continue;
+            }
+            let Some(value) = hir::HirCLayoutValue::from_bytes(value.magnitude) else {
+                self.error(
+                    arg.span,
+                    "`@CLayout` alignment values must be one of 0, 1, 2, 4, 8 or 16".to_string(),
+                );
+                continue;
+            };
+            *slot = Some(value);
+        }
+        Some(hir::HirCLayoutContract {
+            aligned: aligned.unwrap_or(hir::HirCLayoutValue::Natural),
+            packed: packed.unwrap_or(hir::HirCLayoutValue::Natural),
+        })
+    }
+}
+
+pub(crate) fn is_core_annotation(name: &str) -> bool {
+    matches!(
+        name,
+        "Intrinsic"
+            | "Extern"
+            | "NoGC"
+            | "GCLeaf"
+            | "Unsafe"
+            | "Safe"
+            | "CLayout"
+            | "CallingConvention"
+            | "Global"
+            | "ThreadLocal"
+            | "InteriorMutable"
+    )
+}

@@ -1,0 +1,6 @@
+fun main() {
+    var value: Any = "before"
+    if (value !is String) return
+    fun read(): Long = value.length
+    println(read())
+}

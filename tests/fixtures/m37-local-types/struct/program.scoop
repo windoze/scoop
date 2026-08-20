@@ -1,0 +1,6 @@
+fun main() {
+    struct Pair(val left: Int, val right: Int) {
+        fun sum(): Int = left + right
+    }
+    println(Pair(20, 22).sum())
+}

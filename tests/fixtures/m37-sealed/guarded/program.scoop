@@ -1,0 +1,6 @@
+sealed interface Root {}
+class One : Root
+class Two : Root
+fun classify(value: Root): Int = when(value) { is One if true -> 1
+ is Two -> 2 }
+fun main() {}

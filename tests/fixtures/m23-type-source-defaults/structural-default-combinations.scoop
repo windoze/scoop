@@ -1,0 +1,9 @@
+public struct Point()
+public fun nestedDefault(left: (Point, (Unit, Unit)), right: (Point, (Unit, Unit)), equal: Boolean = left == right): Boolean = equal
+public open class Base {
+    public open fun same(left: (Point, Point), right: (Point, Point), equal: Boolean = left == right): Boolean = equal
+}
+public class Child: Base() {
+    public override fun same(left: (Point, Point), right: (Point, Point), equal: Boolean): Boolean = equal
+}
+public class Holder(val equal: Boolean = (Point(), Point()) == (Point(), Point()))

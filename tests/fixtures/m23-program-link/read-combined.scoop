@@ -1,0 +1,24 @@
+struct Pair(val first: Long, val second: Long)
+
+interface Measure {
+    fun size(): Long
+}
+
+class Box<T>(private val item: T) {
+    fun read(): T = item
+}
+
+class Sample(private val value: Long) : Measure {
+    override fun size(): Long = value
+}
+
+fun <T> capture(value: T): () -> T = { value }
+
+fun main() {
+    val pair = Pair(17, 25)
+    val box = Box<Pair>(pair)
+    val read = capture(box.read())
+    val sample: Measure = Sample(read().first + read().second)
+    val result = sample.size()
+    val message = "combined"
+}

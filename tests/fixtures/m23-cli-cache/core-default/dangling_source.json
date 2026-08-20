@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid Cone manifest root ${work}/private-sysroot/lib/scoop.core: cannot inspect: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/private-sysroot/lib/scoop.core",
+      "start": null
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

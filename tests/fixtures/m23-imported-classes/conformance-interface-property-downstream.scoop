@@ -1,0 +1,4 @@
+public fun check(): Long {
+    val value: LocalValue = localValue()
+    return value.value + primary().twice() - 21
+}

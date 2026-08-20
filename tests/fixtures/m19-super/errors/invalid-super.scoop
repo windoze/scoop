@@ -1,0 +1,21 @@
+class Root {
+    fun missingBase(): Int = super.value()
+}
+
+abstract class AbstractBase {
+    abstract fun value(): Int
+}
+
+class AbstractDerived : AbstractBase() {
+    override fun value(): Int = super.value()
+}
+
+open class ConcreteBase {
+    open fun value(): Int = 1
+}
+
+class InitializingDerived : ConcreteBase() {
+    val eager: Int = super.value()
+}
+
+fun main() {}

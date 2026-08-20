@@ -1,0 +1,6 @@
+package bridge
+
+public import singletonrefs.*
+
+public fun <T> relay(value: T): Box<T> = makeFromTemplate(value)
+public fun bound(): (Int) -> Box<Int> = IntFactory::make

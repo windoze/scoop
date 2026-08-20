@@ -1,0 +1,2 @@
+import templates.globals.internalCounter
+public fun <T> bad(value: T): Int = internalCounter

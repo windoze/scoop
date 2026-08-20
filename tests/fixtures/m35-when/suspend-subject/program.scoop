@@ -1,0 +1,131 @@
+class Node(val text: String)
+
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+
+    fun fail() {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resumeWithException(UnwrapException())
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    public final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun waitFor(gate: Gate): Int = suspendCoroutine(Registration(gate))
+
+class Inner(val gate: Gate, val first: Node, val third: Node) {
+    operator fun component1(): Node {
+        println("inner-1")
+        return first
+    }
+
+    suspend operator fun component2(): Int {
+        println("inner-2-enter")
+        val value = waitFor(gate)
+        println("inner-2-exit")
+        return value
+    }
+
+    operator fun component3(): Node {
+        println("inner-3")
+        return third
+    }
+}
+
+class Outer(val inner: Inner, val last: Node) {
+    operator fun component1(): Inner {
+        println("outer-1")
+        return inner
+    }
+
+    operator fun component2(): Node {
+        println("outer-2")
+        return last
+    }
+}
+
+fun makeOuter(gate: Gate, label: String): Outer {
+    println("subject-" + label)
+    return Outer(
+        Inner(
+            gate,
+            Node("first-" + label),
+            Node("third-" + label)
+        ),
+        Node("last-" + label)
+    )
+}
+
+class BindingTask(val gate: Gate, val label: String) : SuspendTask<Int> {
+    public final override suspend fun run(): Int {
+        try {
+            when (val ((first, value, third), last) = makeOuter(gate, label)) {
+                is Outer if value > 0 -> {
+                    println(first.text)
+                    println(value)
+                    println(third.text)
+                    println(last.text)
+                    return value
+                }
+                else -> return -1
+            }
+        } catch (exception: UnwrapException) {
+            println("caught-" + label)
+            return 0
+        }
+    }
+}
+
+class RecordingCompletion(val label: String) : Continuation<Int> {
+    public final override fun resume(value: Int) {
+        println(label + "-done")
+        println(value)
+    }
+
+    public final override fun resumeWithException(exception: Throwable) {
+        println(label + "-unexpected-failure")
+    }
+}
+
+fun makeGarbage() {
+    var index = 0
+    while (index < 1000) {
+        val garbage = Node("garbage-" + "node")
+        index = index + 1
+    }
+}
+
+fun collectAndMove() {
+    gcCollect()
+    makeGarbage()
+    gcCollect()
+}
+
+fun main() {
+    val normalGate = Gate(None)
+    startCoroutine(
+        BindingTask(normalGate, "normal"),
+        RecordingCompletion("normal")
+    )
+    println("normal-suspended")
+    collectAndMove()
+    normalGate.complete(42)
+
+    val failureGate = Gate(None)
+    startCoroutine(
+        BindingTask(failureGate, "failure"),
+        RecordingCompletion("failure")
+    )
+    println("failure-suspended")
+    collectAndMove()
+    failureGate.fail()
+}

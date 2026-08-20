@@ -1,0 +1,2 @@
+class Owner { companion object { release {} } }
+fun main() {}

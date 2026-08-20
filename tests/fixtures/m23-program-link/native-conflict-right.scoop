@@ -1,0 +1,3 @@
+package nativeconflict.right
+@Extern(name = "abs")
+public fun nativeValue(value: Long): Int

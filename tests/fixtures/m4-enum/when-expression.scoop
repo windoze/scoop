@@ -1,0 +1,14 @@
+enum Choice {
+    Number(Int),
+    Empty
+}
+
+fun render(choice: Choice): String = when (choice) {
+    case Number(value) -> if (value > 0) { "positive" } else { "zero" }
+    case Empty -> "empty"
+}
+
+fun main() {
+    println(render(Choice.Number(1)))
+    println(render(Choice.Empty))
+}

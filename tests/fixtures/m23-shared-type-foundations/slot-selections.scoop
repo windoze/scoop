@@ -1,0 +1,17 @@
+package dependency.slotSelections
+
+public interface Root {
+    public fun value(): Int = 1
+}
+public interface Specific : Root {
+    public override fun value(): Int = 2
+}
+public open class Base public constructor() {
+    public open fun count(): Int = 3
+}
+public class Leaf public constructor() : Base(), Specific {
+    public final override fun count(): Int = 4
+}
+public class ClassWinner public constructor() : Base(), Specific {
+    public override fun value(): Int = 5
+}

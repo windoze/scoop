@@ -1,0 +1,33 @@
+fun writeYoung(array: MutableArray<MaybeUninit<Rooted>>, holder: Holder) {
+    array[0L] = MaybeUninit<Rooted>.initialized(Rooted(11L, Payload(11)))
+    array[1024L] = MaybeUninit<Rooted>.initialized(Rooted(22L, Payload(22)))
+    array[2047L] = MaybeUninit<Rooted>.initialized(Rooted(33L, Payload(33)))
+    holder.data = MaybeUninit<Rooted>.initialized(Rooted(44L, Payload(44)))
+    Shared.data = MaybeUninit<Rooted>.initialized(Rooted(55L, Payload(55)))
+}
+
+@Unsafe fun arrayAndFields() {
+    val array = MutableArray<MaybeUninit<Rooted>>(2048L) { _ -> MaybeUninit<Rooted>.uninit() }
+    val holder = Holder(MaybeUninit<Rooted>.uninit())
+    gcCollect()
+    writeYoung(array, holder)
+    minorCollection()
+    check(array[0L].assumeInit().payload.number == 11, 34)
+    check(array[1024L].assumeInit().payload.number == 22, 33)
+    check(array[2047L].assumeInit().payload.number == 33, 32)
+    check(holder.data.assumeInit().payload.number == 44, 31)
+    check(Shared.data.assumeInit().payload.number == 55, 30)
+    array[0L] = MaybeUninit<Rooted>.uninit()
+    holder.data = MaybeUninit<Rooted>.uninit()
+    Shared.data = MaybeUninit<Rooted>.uninit()
+    gcCollect()
+    check(array[1024L].assumeInit().payload.number == 22, 29)
+    check(array[2047L].assumeInit().payload.number == 33, 28)
+    val views = MutableArray<MaybeUninit<Read>>(16L) { _ -> MaybeUninit<Read>.uninit() }
+    views[15L] = MaybeUninit<Read>.initialized(Payload(77))
+    gcCollect()
+    check(views[15L].assumeInit().value() == 77, 27)
+    views[15L] = MaybeUninit<Read>.uninit()
+    minorCollection()
+    check(zeroInterface(views[15L]), 26)
+}

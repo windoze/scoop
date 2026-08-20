@@ -1,0 +1,177 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3755,
+  "selected": 18,
+  "unselected": 3737,
+  "counts": {
+    "passed": 18
+  },
+  "variants": 21,
+  "processes": 117,
+  "stage_and_plan_goldens": 132,
+  "results": [
+    {
+      "name": "legacy-m11-functions-suspend-values",
+      "status": "passed",
+      "seconds": 104.57757730700541,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-when-artifacts",
+      "status": "passed",
+      "seconds": 114.44225730904145,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m35-when-effects",
+      "status": "passed",
+      "seconds": 96.82912411098368,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-when-smart-casts",
+      "status": "passed",
+      "seconds": 96.83076802198775,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m37-annotation-rules-artifacts",
+      "status": "passed",
+      "seconds": 102.42563819600036,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-annotation-rules-artifacts-errors",
+      "status": "passed",
+      "seconds": 95.88957541598938,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-annotation-targets-artifacts",
+      "status": "passed",
+      "seconds": 16.077436360006686,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-annotation-values-artifacts",
+      "status": "passed",
+      "seconds": 16.416488659975585,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-delegation-artifacts",
+      "status": "passed",
+      "seconds": 17.590887584956363,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-inner-artifacts",
+      "status": "passed",
+      "seconds": 16.44093924498884,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-artifacts",
+      "status": "passed",
+      "seconds": 16.77819693495985,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-integral-enums-c-abi",
+      "status": "passed",
+      "seconds": 6.677153198979795,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-artifacts",
+      "status": "passed",
+      "seconds": 16.450461580010597,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-receivers-callbacks",
+      "status": "passed",
+      "seconds": 11.80147779500112,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-artifacts",
+      "status": "passed",
+      "seconds": 15.657138687034603,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-type-annotations-artifacts",
+      "status": "passed",
+      "seconds": 15.149016516050324,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-type-annotations-artifacts-errors",
+      "status": "passed",
+      "seconds": 9.675868135993369,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-type-annotations-callbacks",
+      "status": "passed",
+      "seconds": 11.07087379397126,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 6,
+      "message": ""
+    }
+  ]
+}

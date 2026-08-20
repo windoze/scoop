@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "eq-facade"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.programlink:eq-provider" = {"version" = "0.1.0", "path" = "../eq-provider"}

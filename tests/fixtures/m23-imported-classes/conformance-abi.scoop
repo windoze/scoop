@@ -1,0 +1,14 @@
+import dependency.classes.Counter
+import dependency.classes.Token
+import dependency.classes.ValueReader
+import dependency.classes.WideValue
+
+public struct LocalReader(val reference: Counter): ValueReader {
+    public override fun value(marker: Token, input: Counter): WideValue =
+        WideValue(reference.twice(), input.twice(), 1)
+}
+public fun primary(): Counter {
+    val reader: ValueReader = LocalReader(Counter(9))
+    val result = reader.value(Token(), Counter(1))
+    return Counter(result.first + result.second + result.third)
+}

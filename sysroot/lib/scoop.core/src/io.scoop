@@ -1,0 +1,41 @@
+// Borrowed bytes remain pinned while ordinary C calls may block in stdio.
+public fun write(message: String) {
+    @Unsafe {
+        message.withUtf8Bytes<Unit>(fun(pointer: Ptr<UInt8>, length: Long) {
+            @Unsafe { coreStdoutWrite(pointer, length) }
+        })
+    }
+}
+
+public fun writeError(message: String) {
+    @Unsafe {
+        message.withUtf8Bytes<Unit>(fun(pointer: Ptr<UInt8>, length: Long) {
+            @Unsafe { coreStderrWrite(pointer, length) }
+        })
+    }
+}
+
+public fun flushOutput() { @Unsafe { coreFlushStdout() } }
+
+@Extern(name = "scoop_rt_flush_stdout")
+internal fun coreFlushStdout()
+
+@Extern(name = "scoop_rt_stdout_write")
+internal fun coreStdoutWrite(pointer: Ptr<UInt8>, length: Long)
+
+@Extern(name = "scoop_rt_stderr_write")
+internal fun coreStderrWrite(pointer: Ptr<UInt8>, length: Long)
+
+public fun <T : ToString> print(value: T) = write(value.toString())
+
+public fun <T : ToString> println(value: T) {
+    write(value.toString())
+    write("\n")
+}
+
+public fun <T : ToString> eprint(value: T) = writeError(value.toString())
+
+public fun <T : ToString> eprintln(value: T) {
+    writeError(value.toString())
+    writeError("\n")
+}

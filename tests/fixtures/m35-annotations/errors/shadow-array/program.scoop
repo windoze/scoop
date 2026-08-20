@@ -1,0 +1,3 @@
+class Array<T>()
+annotation class Mark(val values: Array<Int>)
+fun main() {}

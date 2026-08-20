@@ -1,0 +1,8 @@
+struct Mixer() {
+    operator fun plus(other: Int8): Int8 = other
+}
+
+fun main() {
+    val operand: Int16 = 2
+    println(Mixer() + operand)
+}

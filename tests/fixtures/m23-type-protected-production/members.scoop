@@ -1,0 +1,14 @@
+public open class Base protected constructor(seed: Int) {
+    protected open fun execute(value: Int): Int = value
+    protected open var state: Int
+        get() = 1
+        set(value) {}
+    public var visible: Int
+        get() = 2
+        protected set(value) {}
+}
+public open class Child public constructor() : Base(1) {
+    protected final override fun execute(value: Int): Int = value
+    public fun read(): Int = execute(state)
+}
+public object Singleton : Child()

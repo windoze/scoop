@@ -1,0 +1,6 @@
+import templates.references.*
+
+public fun rejected(value: Protected<Int>): Int {
+    val reference = value::read
+    return 0
+}

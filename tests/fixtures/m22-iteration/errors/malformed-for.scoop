@@ -1,0 +1,19 @@
+// EXPECT-DIAGNOSTICS
+
+fun missingOpen(values: Array<Int>) {
+    for value in values) {}
+}
+
+fun missingIn(values: Array<Int>) {
+    for (value values) {}
+}
+
+fun missingClose(values: Array<Int>) {
+    for (value in values {}
+}
+
+fun missingBody(values: Array<Int>) {
+    for (value in values) consume(value)
+}
+
+fun main() {}

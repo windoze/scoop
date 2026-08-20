@@ -1,0 +1,106 @@
+fun marked(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+class Box<T>(val value: T) {
+    companion object Factory {
+        const val version: Int = 21
+        val seed: Int = marked("box-companion", 40)
+        var count: Int = 1
+
+        fun emptyInt(): Box<Int> = Box(2)
+        fun answer(): Int = seed + emptyInt().value
+        fun <U> identity(value: U): U = value
+    }
+}
+
+class DefaultHost {
+    companion object {
+        fun value(): Int = 7
+    }
+}
+
+struct StructHost() {
+    companion object Maker {
+        fun value(): Int = 8
+    }
+}
+
+enum EnumHost {
+    Entry
+
+    companion object Values {
+        fun value(): Int = 9
+    }
+}
+
+interface InterfaceHost {
+    companion object Provider {
+        fun value(): Int = 10
+    }
+}
+
+object ObjectHost {
+    const val token: Int = 11
+    fun direct(): Int = 11
+
+    companion object NestedCompanion {
+        const val token: Int = 12
+        fun forwarded(): Int = 12
+    }
+}
+
+class Independent {
+    companion object {
+        val seed: Int = marked("independent-companion", 13)
+    }
+}
+
+open class FactoryBase {
+    val inheritedProperty: Int = 14
+
+    fun inheritedMethod(): Int = 15
+}
+
+class InheritedHost {
+    companion object : FactoryBase()
+}
+
+const val combinedVersion: Int = Box<Int>.version + Box<Int>.Factory.version
+
+fun chooseFactory(value: Box<Int>.Factory): Box<Int>.Companion = value
+
+fun main() {
+    println(combinedVersion)
+    println(Box<Int>.version)
+    println(Box<Int>.Factory.version + Box<Int>.Companion.version)
+    println("before-box")
+    println(Box<Int>.answer())
+    Box<Int>.count = 3
+    println(Box<Int>.count)
+    Box<Int>.Factory.count = Box<Int>.Factory.count + 1
+    println(Box<Int>.Companion.count)
+    println(Box<Int>.Factory === Box<Int>.Companion)
+    println(chooseFactory(Box<Int>.Factory) === Box<Int>.Companion)
+    println(Box<Int>.Factory.answer())
+    println(Box<Int>.identity<Int>(5))
+    println(DefaultHost.value())
+    println(DefaultHost.Companion.value())
+    println(StructHost.value())
+    println(StructHost.Maker.value())
+    println(EnumHost.value())
+    println(EnumHost.Values.value())
+    println(InterfaceHost.value())
+    println(InterfaceHost.Provider.value())
+    println(ObjectHost.token)
+    println(ObjectHost.Companion.token)
+    println(ObjectHost.direct())
+    println(ObjectHost.forwarded())
+    println(ObjectHost.NestedCompanion.forwarded())
+    val independent: Independent = Independent()
+    println("after-independent-construction")
+    println(Independent.seed)
+    println(InheritedHost.inheritedProperty)
+    println(InheritedHost.inheritedMethod())
+}

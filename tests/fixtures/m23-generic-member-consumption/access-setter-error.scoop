@@ -1,0 +1,3 @@
+import templates.members.*
+
+public fun invalid(value: ProtectedBox<Int>): Unit { value.state = 42 }

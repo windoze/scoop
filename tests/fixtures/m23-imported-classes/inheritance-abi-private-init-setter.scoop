@@ -1,0 +1,6 @@
+import dependency.classes.MutableCell
+import dependency.classes.OrderedParent
+
+public class Derived public constructor(): OrderedParent(MutableCell(0)) {
+    init { locked = 2 }
+}

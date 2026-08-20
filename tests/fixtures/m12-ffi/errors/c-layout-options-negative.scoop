@@ -1,0 +1,4 @@
+@CLayout(aligned = 3, packed = 32)
+struct InvalidLayout(val value: Int)
+
+fun main() {}

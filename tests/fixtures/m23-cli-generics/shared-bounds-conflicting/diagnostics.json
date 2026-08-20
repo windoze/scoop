@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `readBound`: conflicting types for `T`: Int and String",
+    "notes": [],
+    "origin": {
+      "cone": "cdffaf4543b806e18b9dc774f0509ac6f99d8b6490b4e69076e3265d5c064ab9",
+      "end": 114,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 59
+    },
+    "severity": "error"
+  }
+]

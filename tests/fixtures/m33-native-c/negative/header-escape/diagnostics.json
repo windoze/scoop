@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "native compilation: ${work}/outside.h is outside the Cone, public runtime headers and selected system include directories",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

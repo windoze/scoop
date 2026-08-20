@@ -1,0 +1,6 @@
+package decoded
+
+public struct Collision(@SerialName("local") val value: Int) {
+    public companion object : Decodable<Collision>
+}
+public typealias LocalCollision = Collision

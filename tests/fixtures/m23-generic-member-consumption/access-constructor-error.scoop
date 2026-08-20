@@ -1,0 +1,3 @@
+import templates.members.*
+
+public fun invalid(): ProtectedBox<Int> = ProtectedBox<Int>(42)

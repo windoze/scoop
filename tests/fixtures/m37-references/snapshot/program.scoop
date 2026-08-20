@@ -1,0 +1,15 @@
+var reads = 0
+class Box(val value: Int) { fun read() = value }
+fun source(): Box { reads += 1; return Box(reads) }
+fun main() {
+    val bound = source()::read
+    val unbound = Box::read
+    var Box = source()
+    val shadowed = Box::read
+    Box = source()
+    gcCollect()
+    println(reads)
+    println(bound())
+    println(shadowed())
+    println(unbound(Box))
+}

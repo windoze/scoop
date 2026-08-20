@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3766,
+  "selected": 9,
+  "unselected": 3757,
+  "counts": {
+    "passed": 9
+  },
+  "variants": 13,
+  "processes": 70,
+  "stage_and_plan_goldens": 77,
+  "results": [
+    {
+      "name": "coroutines-function-values",
+      "status": "passed",
+      "seconds": 25.332908249925822,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "function-adapters-dynamic",
+      "status": "passed",
+      "seconds": 17.131172915920615,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "function-adapters-interface-dynamic",
+      "status": "passed",
+      "seconds": 16.877761916955933,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-function-downcasts",
+      "status": "passed",
+      "seconds": 10.810959666967392,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-function-view-alias",
+      "status": "passed",
+      "seconds": 2.1154630831442773,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-function-view-artifacts",
+      "status": "passed",
+      "seconds": 13.85987833305262,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-function-view-captures",
+      "status": "passed",
+      "seconds": 11.277040999848396,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-function-views",
+      "status": "passed",
+      "seconds": 11.173749624984339,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "program-link-coroutine-function-values",
+      "status": "passed",
+      "seconds": 22.478413542034104,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    }
+  ],
+  "validation": {
+    "target": "aarch64-apple-darwin",
+    "ordinary_comparison": true,
+    "source": "darwin-function-views-ordinary",
+    "seconds": 51.310953750042245,
+    "rust_tests": {
+      "hir_lower": 35,
+      "mir_lower": 4
+    },
+    "note": "Explicit function type operations and identity comparisons read original binding storage; adapter values do not share source flow facts. Original coroutine check order restored. Typed function captures are retyped to the dynamic adapter Any field."
+  }
+}

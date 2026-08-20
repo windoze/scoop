@@ -1,0 +1,5 @@
+import dependency.classes.MutableValue
+public struct Wrong(): MutableValue {
+    public override val value: Long
+        get() = 21
+}

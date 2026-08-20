@@ -1,0 +1,1 @@
+fun main() { while (true) { break 42 } }

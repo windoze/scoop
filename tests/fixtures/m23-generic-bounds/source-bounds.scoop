@@ -1,0 +1,40 @@
+package consumer.bounds
+
+import templates.bounds.*
+
+private interface LocalExtra {
+    public fun extra(): Int
+}
+
+private open class LocalBase : Readable, Extra {
+    public override fun read(): Int = 40
+    public override fun extra(): Int = 2
+}
+
+private class ForeignDerived : PlainBase(), LocalExtra {
+    public override fun read(): Int = 40
+    public override fun extra(): Int = 2
+}
+
+private fun <T> fromLocal(value: T): Int where T : LocalBase, T : Extra {
+    val reference = readReference(value)
+    return reference() + value.extra()
+}
+
+private fun <T> fromImported(value: T): Int where T : LocalExtra, T : PlainBase =
+    readBound(value) + value.extra()
+
+private fun <T> fromInterfaces(value: T): Int where T : Readable, T : LocalExtra =
+    readBound(value) + value.extra()
+
+private fun <T, U> fromHolder(value: T): U where T : ChildHolder<U> = value.get()
+
+public fun <T> exercise(value: T): Int {
+    if (fromLocal(LocalBase()) != 42) { return 1 }
+    val receiver = ForeignDerived()
+    if (fromInterfaces(receiver) != 42) { return 2 }
+    if (fromHolder<HolderImpl<Int>, Int>(HolderImpl<Int>(42)) != 42) { return 3 }
+    return fromImported(receiver)
+}
+
+public fun result(): Int = exercise<Int>(1)

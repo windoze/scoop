@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `conflict` is ambiguous in member layer:\n  - Overloads<T>.conflict<U>(owner: T, left: U, right: Int): Int — applicable; tied by MSC\n  - Overloads<T>.conflict<U>(owner: T, left: Int, right: U): Int — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "af714c840bd4aff92dc9e9ac4477a4e7e88f7e5b33987b77b08c412f24b65dd6",
+      "end": 96,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 53
+    },
+    "severity": "error"
+  }
+]

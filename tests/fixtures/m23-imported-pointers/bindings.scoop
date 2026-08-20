@@ -1,0 +1,18 @@
+package consumer.pointers
+
+import addressOf as placeOf
+import sizeOf as bytesOf
+
+private fun addressOf(value: Int): Int = value + 1
+
+public fun <T> exercise(value: T): Int {
+    var number = 40
+    @Unsafe {
+        val pointer = placeOf(value = number)
+        pointer.store(addressOf(41))
+        if (bytesOf<Int>() != 4uL) { return 1 }
+        return number
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

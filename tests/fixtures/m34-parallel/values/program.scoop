@@ -1,0 +1,57 @@
+@Extern(lib = "m34_parallel", name = "m34_region_stress") fun stressMode(): Boolean
+@Extern(lib = "m34_parallel", name = "m34_parallel_begin") fun beginMark(): Unit
+@Extern(lib = "m34_parallel", name = "m34_parallel_check") fun markedOnce(): Boolean
+
+interface Value { fun get(): Long }
+class Node(val value: Long, var next: Node?, var shared: Node?) : Value {
+    public override fun get(): Long = value
+}
+struct Edge(val value: Value, val nested: (Node?, Value))
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+@Unsafe fun exercise(count: Long) {
+    val shared = Node(-1L, None, None)
+    shared.next = Some(shared)
+    val nodes = MutableArray<Node>(count) { index -> Node(index, None, Some(shared)) }
+    var index = 0L
+    while (index < count) {
+        nodes[index].next = Some(nodes[(index + 1L) % count])
+        index += 1L
+    }
+    val edges = MutableArray<Edge>(count) { index ->
+        val duplicate: Value = nodes[index % 8L]
+        Edge(nodes[index], (Some(nodes[(index + 1L) % count]), duplicate))
+    }
+    val copied = edges.toArray()
+    val numbers = MutableArray<ULong>(count) { index -> 0xa5a5a5a5a5a5a5a5uL }
+    val cell = AtomicRef<Value>(nodes[0L])
+    val closure: () -> Long = { cell.load().get() }
+    val pinToken = pin(nodes[0L])
+    beginMark()
+    gcCollect()
+    check(markedOnce())
+    index = 0L
+    while (index < count) {
+        check(copied[index].value.get() == index)
+        val (next, duplicate) = copied[index].nested
+        check(next!!.value == (index + 1L) % count && duplicate.get() == index % 8L)
+        check(nodes[index].next!! === next!! && nodes[index].shared!! === shared)
+        check(numbers[index] == 0xa5a5a5a5a5a5a5a5uL)
+        index += 1L
+    }
+    cell.store(Node(count, Some(shared), Some(shared)))
+    nodes[0L].shared = Some(Node(count + 1L, Some(shared), Some(shared)))
+    beginMark()
+    gcCollect()
+    check(markedOnce())
+    check(closure() == count && nodes[0L].shared!!.value == count + 1L)
+    check(unpin(pinToken) === nodes[0L])
+}
+
+@Unsafe fun main() {
+    val count = if (stressMode()) { 64L } else { 32768L }
+    exercise(count)
+    gcCollect()
+    exercise(count)
+    println("parallel values")
+}

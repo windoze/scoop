@@ -1,0 +1,6 @@
+fun main() {
+    var value: Any = "before"
+    if (value !is String) return
+    try { println("try") } finally { value = 42 }
+    println(value.length)
+}

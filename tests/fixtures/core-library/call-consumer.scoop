@@ -1,0 +1,7 @@
+fun main() {
+    val named = userCoreOffset(value = 41)
+    val defaulted = userCoreWithDefault()
+    val explicit = userCoreWithDefault(value = 9)
+    val constant = USER_CORE_DEFAULT
+    val chained = userCoreDefaultChain()
+}

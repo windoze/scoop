@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "iterator operator result type `Int` does not implement `Iterator<T>`",
+    "notes": [],
+    "origin": {
+      "cone": "00f49b64dd62a6b9159a15e2cd6bcfd86869175c87f97e686ad5a9f3ea2fb77e",
+      "end": 200,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 192
+    },
+    "severity": "error"
+  }
+]

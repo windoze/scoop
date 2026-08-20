@@ -1,0 +1,11 @@
+fun verifyDomain(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = defaults()
+    verifyDomain(value.inspectLocal() == 17)
+    verifyDomain(value.integerPair() == (19, 19))
+    verifyDomain(value.stringPair() == ("kept", "kept"))
+    verifyDomain(value.inspectNested() == 12)
+    verifyDomain(value.inspectChoice())
+}

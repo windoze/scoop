@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Some` expects 1 type argument(s), found 2",
+    "notes": [],
+    "origin": {
+      "cone": "b9cf91fe2455dfd22a4e6c7fcd35deb2e81e3f59c0ff6439aa04d8492e2a9f73",
+      "end": 65,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 61
+    },
+    "severity": "error"
+  }
+]

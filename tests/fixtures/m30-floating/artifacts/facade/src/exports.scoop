@@ -1,0 +1,20 @@
+package bridge
+
+public import numeric.Small as Scalar
+public import numeric.Wide as Wide
+public import numeric.Scale as Measure
+public import numeric.Record as Record
+public import numeric.Cell as Cell
+public import numeric.identity as identity
+public import numeric.cell as cell
+public import numeric.NEGATIVE_ZERO as ZERO
+public import numeric.NEGATIVE_NAN as NAN
+public import numeric.fromProvider as fromProvider
+public import numeric.patternDefault as patternDefault
+public import numeric.arithmeticDefault as arithmeticDefault
+public import numeric.classify as classify
+public import numeric.remainder as remainder
+public import numeric.wideRemainder as wideRemainder
+
+public fun fromFacade(): Scalar = identity(ZERO)
+public fun facadeCell(value: Scalar): Cell<Scalar> = cell(value)

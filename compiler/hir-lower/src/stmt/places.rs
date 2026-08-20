@@ -1,0 +1,358 @@
+use super::*;
+use crate::expr::{CallSite, RequiredCallableModifiers};
+use crate::expr::{QualifiedInterfaceProperty, QualifiedInterfacePropertyTarget};
+
+mod imported_properties;
+mod indices;
+mod names;
+
+pub(super) struct ResolvedPlacePlan {
+    pub(super) read: hir::Expr,
+    pub(super) write: WriteCapability,
+    pub(super) ty: TypeId,
+}
+
+pub(super) enum WriteCapability {
+    ReadOnly,
+    Direct(hir::AssignTarget),
+    LocalDelegate {
+        storage: hir::Expr,
+        binding: hir::BindingId,
+    },
+    Property {
+        property: hir::PropertyId,
+        owner: Option<hir::MethodOwnerApplication>,
+        receiver: Option<hir::Expr>,
+    },
+    ExtensionProperty(crate::properties::ResolvedExtensionPropertyWrite),
+    DirectInterfaceProperty(QualifiedInterfaceProperty),
+    ImportedDependencyProperty {
+        binding: hir::DirectImportedTargetBinding,
+        receiver: Option<crate::properties::PropertyCallReceiver>,
+        name: ast::Ident,
+    },
+    ImportedMemberProperty {
+        property: Box<crate::expr::ResolvedImportedMemberProperty>,
+        receiver: hir::Expr,
+        name: ast::Ident,
+    },
+    OperatorSet {
+        receiver: hir::Expr,
+        index_arguments: Vec<ast::CallArgument>,
+    },
+}
+
+impl Lowerer {
+    pub(crate) fn lower_update(
+        &mut self,
+        place: &ast::PlaceExpr,
+        op: ast::UpdateOp,
+        notation: ast::UpdateNotation,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let plan = self.resolve_place_plan(place, sink)?;
+        if matches!(&plan.write, WriteCapability::ReadOnly) {
+            self.error(span, "update operand is not writable".to_string());
+            return None;
+        }
+        let old = self.materialize_place_expr(plan.read, "old", span, sink);
+        let (kind, name) = match op {
+            ast::UpdateOp::Increment => (hir::OperatorKind::Inc, "inc"),
+            ast::UpdateOp::Decrement => (hir::OperatorKind::Dec, "dec"),
+        };
+        let name = ast::Ident {
+            text: name.to_string(),
+            span,
+        };
+        let value = self.lower_named_call_on_receiver(
+            old.clone(),
+            &name,
+            CallSite {
+                type_args: &[],
+                args: &[],
+                span,
+            },
+            sink,
+            Some(plan.ty),
+            RequiredCallableModifiers {
+                operator: Some(kind),
+                infix: false,
+                ..Default::default()
+            },
+        )?;
+        if !self.is_subtype(value.ty, plan.ty) {
+            self.error(
+                span,
+                format!(
+                    "operator `{name}` returns {}, which cannot be assigned to update operand of type {}",
+                    self.type_name(value.ty),
+                    self.type_name(plan.ty),
+                    name = name.text,
+                ),
+            );
+            return None;
+        }
+        let value = self.adapt_to(value, plan.ty);
+        let new = self.materialize_place_expr(value, "new", span, sink);
+        let write = self.lower_place_write(plan.write, new.clone(), span, sink)?;
+        sink.push(hir::Statement { kind: write, span });
+        Some(match notation {
+            ast::UpdateNotation::Prefix => new,
+            ast::UpdateNotation::Postfix => old,
+        })
+    }
+
+    pub(crate) fn materialize_place_expr(
+        &mut self,
+        value: hir::Expr,
+        label: &str,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> hir::Expr {
+        let ty = value.ty;
+        let views = self.smart_cast_receiver_views(&value);
+        let local = self.alloc_hidden(label, ty);
+        if views.len() > 1 {
+            self.smart_casts.insert(
+                self.locals[local].binding,
+                views.into_iter().map(|view| view.ty).collect(),
+            );
+        }
+        sink.push(hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local },
+                init: value,
+            },
+            span,
+        });
+        hir::Expr {
+            kind: hir::ExprKind::Local(local),
+            ty,
+            span,
+            origin: self.expression_origin(span),
+        }
+    }
+
+    pub(super) fn resolve_place_plan(
+        &mut self,
+        place: &ast::PlaceExpr,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<ResolvedPlacePlan> {
+        match place {
+            ast::PlaceExpr::Name(name) => self.resolve_named_place_plan(name, sink),
+            ast::PlaceExpr::Field {
+                receiver,
+                name,
+                span,
+            } => {
+                if let ast::Expr::This { label, .. } = &**receiver
+                    && self.is_initializing_this_label(label.as_ref())
+                {
+                    self.check_initializing_receiver_label(label.as_ref())?;
+                    let field = self.initializing_field(name, *span)?;
+                    let write = field
+                        .write
+                        .map(WriteCapability::Direct)
+                        .unwrap_or(WriteCapability::ReadOnly);
+                    return Some(ResolvedPlacePlan {
+                        ty: field.read.ty,
+                        read: field.read,
+                        write,
+                    });
+                }
+                if let Some(property) = self
+                    .qualified_object_const_property(receiver, &name.text)
+                    .ok()?
+                {
+                    let ty = self.infer_property_type(property)?;
+                    let read = self.lower_property_read(property, None, None, ty, *span)?;
+                    return Some(ResolvedPlacePlan {
+                        read,
+                        write: WriteCapability::ReadOnly,
+                        ty,
+                    });
+                }
+                if let Some(binding) = self
+                    .resolve_imported_qualified_property(receiver, name)
+                    .ok()?
+                {
+                    return self.resolve_imported_property_place(binding, name, sink);
+                }
+                let receiver =
+                    self.lower_qualified_property_receiver(receiver, &name.text, sink)?;
+                let receiver = self.smart_cast_property_receiver(receiver, name).ok()?;
+                let receiver = self.materialize_place_expr(receiver, "place", *span, sink);
+                if let Some((property, owner, ty)) =
+                    self.find_accessible_nominal_property(receiver.ty, &name.text)
+                {
+                    let read = self.lower_property_read(
+                        property,
+                        Some(owner),
+                        Some(receiver.clone()),
+                        ty,
+                        *span,
+                    )?;
+                    let write = if self.properties[property].capability.setter().is_some() {
+                        WriteCapability::Property {
+                            property,
+                            owner: Some(owner),
+                            receiver: Some(receiver),
+                        }
+                    } else {
+                        WriteCapability::ReadOnly
+                    };
+                    return Some(ResolvedPlacePlan { read, write, ty });
+                }
+                if let Some(property) = self
+                    .resolve_imported_member_property(receiver.ty, name)
+                    .ok()?
+                {
+                    return self.imported_member_place(property, receiver, name, *span);
+                }
+                match self.resolve_extension_property_read(receiver.clone(), name, sink) {
+                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
+                        let ty = property.read.ty;
+                        let write = if property.write.has_setter() {
+                            WriteCapability::ExtensionProperty(property.write.clone())
+                        } else {
+                            WriteCapability::ReadOnly
+                        };
+                        Some(ResolvedPlacePlan {
+                            read: property.read,
+                            write,
+                            ty,
+                        })
+                    }
+                    crate::properties::ExtensionPropertyResolution::Failed => None,
+                    crate::properties::ExtensionPropertyResolution::NoCandidate => {
+                        if self.is_value_ty(receiver.ty) {
+                            self.error(
+                                name.span,
+                                "field assignment is not supported (value types are immutable)"
+                                    .to_string(),
+                            );
+                        } else {
+                            let found = self.type_name(receiver.ty);
+                            self.error(name.span, format!("type `{found}` has no fields"));
+                        }
+                        None
+                    }
+                }
+            }
+            ast::PlaceExpr::Index {
+                receiver,
+                indices,
+                span,
+            } => self.resolve_index_place(receiver, indices, *span, sink),
+            ast::PlaceExpr::QualifiedInterfaceSuperProperty {
+                qualifier,
+                name,
+                span,
+            } => {
+                let property =
+                    self.resolve_qualified_interface_super_property(qualifier, name, *span)?;
+                let read = self.lower_direct_interface_property_read(property.clone(), *span)?;
+                let has_setter = match &property.target {
+                    QualifiedInterfacePropertyTarget::Local { property, .. } => {
+                        self.properties[*property].capability.setter().is_some()
+                    }
+                    QualifiedInterfacePropertyTarget::Imported { property, .. } => {
+                        property.has_setter()
+                    }
+                };
+                let write = if has_setter {
+                    WriteCapability::DirectInterfaceProperty(property)
+                } else {
+                    WriteCapability::ReadOnly
+                };
+                Some(ResolvedPlacePlan {
+                    ty: read.ty,
+                    read,
+                    write,
+                })
+            }
+        }
+    }
+
+    fn local_source_argument(&mut self, local: hir::LocalId, span: Span) -> ast::CallArgument {
+        let name = format!("$place.source.{}", self.hidden_count);
+        self.hidden_count += 1;
+        self.scopes.declare(name.clone(), local);
+        ast::CallArgument::positional(ast::Expr::Var(ast::Ident { text: name, span }))
+    }
+
+    pub(super) fn lower_place_write(
+        &mut self,
+        write: WriteCapability,
+        value: hir::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        match write {
+            WriteCapability::ReadOnly => {
+                self.error(
+                    span,
+                    "compound-assignment fallback is not writable".to_string(),
+                );
+                None
+            }
+            WriteCapability::Direct(target) => Some(hir::StatementKind::Assign { target, value }),
+            WriteCapability::LocalDelegate { storage, binding } => self
+                .local_delegate_write(storage, binding, value, span)
+                .map(hir::StatementKind::Expr),
+            WriteCapability::Property {
+                property,
+                owner,
+                receiver,
+            } => self.lower_property_write(property, owner, receiver, value, span),
+            WriteCapability::ExtensionProperty(property) => {
+                self.lower_extension_property_write(property, value, span)
+            }
+            WriteCapability::DirectInterfaceProperty(property) => {
+                self.lower_direct_interface_property_write(property, value, span)
+            }
+            WriteCapability::ImportedDependencyProperty {
+                binding,
+                receiver,
+                name,
+            } => self
+                .lower_imported_dependency_property_write(&binding, receiver, value, &name, span),
+            WriteCapability::ImportedMemberProperty {
+                property,
+                receiver,
+                name,
+            } => self.lower_imported_member_property_write(*property, receiver, value, &name, span),
+            WriteCapability::OperatorSet {
+                receiver,
+                mut index_arguments,
+            } => {
+                let value = self.materialize_place_expr(value, "write", span, sink);
+                let hir::ExprKind::Local(value_local) = value.kind else {
+                    unreachable!("place values are materialized as local reads")
+                };
+                index_arguments.push(self.local_source_argument(value_local, span));
+                let call = self.lower_named_call_on_receiver(
+                    receiver,
+                    &ast::Ident {
+                        text: "set".to_string(),
+                        span,
+                    },
+                    CallSite {
+                        type_args: &[],
+                        args: &index_arguments,
+                        span,
+                    },
+                    sink,
+                    Some(self.unit),
+                    RequiredCallableModifiers {
+                        operator: Some(hir::OperatorKind::Set),
+                        infix: false,
+                        ..Default::default()
+                    },
+                )?;
+                Some(hir::StatementKind::Expr(call))
+            }
+        }
+    }
+}

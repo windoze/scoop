@@ -1,0 +1,13 @@
+fun main() {
+    class Earlier(val value: Int = 42)
+    class Later {
+        val item = Earlier()
+        fun inferred() = Earlier(43)
+        class Nested { fun make() = Earlier(44) }
+        fun defaulted(item: Earlier = Earlier(45)): Int = item.value
+    }
+    println(Later().item.value)
+    println(Later().inferred().value)
+    println(Later.Nested().make().value)
+    println(Later().defaulted())
+}

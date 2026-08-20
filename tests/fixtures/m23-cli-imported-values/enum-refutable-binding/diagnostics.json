@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "01422f9581141cb306abf79d853eebe8bd24d9b5462826fecd0c9fc973418bf8",
+      "end": 124,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 107
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `left`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "01422f9581141cb306abf79d853eebe8bd24d9b5462826fecd0c9fc973418bf8",
+      "end": 145,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 141
+    },
+    "severity": "error"
+  }
+]

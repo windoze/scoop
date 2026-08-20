@@ -1,0 +1,8 @@
+class Box<T>(val value: T)
+
+fun consumeOut(value: Box<out Int>) {}
+fun consumeIn(value: Box<in Int>) {}
+fun consumeStar(value: Box<*>) {}
+fun consumeNestedStar(value: Box<Box<*>>) {}
+
+fun main() {}

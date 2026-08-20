@@ -1,0 +1,14 @@
+struct S(val v: Int)
+
+fun main() {
+    val a: Any = S(9)
+    if (a is S) {
+        println(a.v)
+    }
+    if (a is Int) {
+        println("int")
+    } else {
+        println("not int")
+    }
+    println(a as? S != None)
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot infer the enum type arguments for variant `None`; provide an expected enum type",
+    "notes": [],
+    "origin": {
+      "cone": "88eec7108bef3cfca44ff010892304d0f4ffc3c11fe3ec210142447159bda346",
+      "end": 75,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 71
+    },
+    "severity": "error"
+  }
+]

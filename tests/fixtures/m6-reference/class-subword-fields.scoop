@@ -1,0 +1,12 @@
+class State(var first: Boolean, var second: Boolean, var count: Int)
+
+fun main() {
+    val state = State(true, false, 7)
+    println(state.first)
+    println(state.second)
+    println(state.count)
+    state.second = true
+    state.count = 9
+    println(state.second)
+    println(state.count)
+}

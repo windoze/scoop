@@ -1,0 +1,2 @@
+fun bad(cell: AtomicInt): Boolean = cell.compareAndSet(0, 1, successOrder = MemoryOrder.Acquire)
+fun main() {}

@@ -1,0 +1,21 @@
+package consumer.delegates
+
+import templates.delegateCombinations.Receiver
+import templates.delegateCombinations.Payload
+
+private class LocalSlot<T>(private val payload: Payload) {
+    public operator fun getValue(thisRef: Receiver<T>): Int = this.payload.value
+    public operator fun setValue(thisRef: Receiver<T>, value: Int): Unit {
+        this.payload.value = value
+    }
+}
+private var <T> Receiver<T>.locallyDefined: Int by LocalSlot<T>(Payload(40))
+
+public fun <T> exercise(value: T): Int {
+    val first = Receiver<T>(value)
+    first.locallyDefined += 2
+    Payload(0)
+    return Receiver<T>(value).locallyDefined
+}
+
+public fun result(): Int = exercise<Int>(1)

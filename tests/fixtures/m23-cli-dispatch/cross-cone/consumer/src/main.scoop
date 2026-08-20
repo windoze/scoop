@@ -1,0 +1,31 @@
+package dispatch.consumer
+
+import dispatch.facade.*
+
+fun <T : Describe<Int>> describeInt(value: T): String = value.describe(1)
+fun <T : Describe<String>> describeString(value: T): String = value.describe("x")
+fun <T : Echo<Int>> echoInt(value: T): Int = value.echo(7)
+fun <T : Echo<String>> echoString(value: T): String = value.echo("echo")
+
+fun main() {
+    val both = Both()
+    val intView: Describe<Int> = both
+    val stringView: Describe<String> = both
+    println(intView.describe(1))
+    println(stringView.describe("x"))
+    println(describeInt(both))
+    println(describeString(both))
+    val wrapped = Wrapped<String>()
+    println(describeInt(wrapped))
+    println(describeString(wrapped))
+    val defaults = Defaults()
+    println(echoInt(defaults))
+    println(echoString(defaults))
+    val refined = RefinedDefaults()
+    println(echoInt(refined))
+    println(echoString(refined))
+    println(throughBound(both))
+    println(throughDefault())
+    val closure: () -> String = { stringView.describe("captured") }
+    println(closure())
+}

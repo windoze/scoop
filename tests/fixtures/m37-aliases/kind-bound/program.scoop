@@ -1,0 +1,2 @@
+typealias Scalars<T: value> = Array<T>
+fun main() { val values: Scalars<String> = ["bad"] }

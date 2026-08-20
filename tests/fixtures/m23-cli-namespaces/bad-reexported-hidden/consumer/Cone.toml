@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "bad-reexported-hidden"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:namespace-public-star" = "0.1.0"

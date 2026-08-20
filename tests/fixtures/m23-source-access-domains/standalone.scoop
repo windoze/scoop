@@ -1,0 +1,4 @@
+public open class SourceBase<T> {
+    protected val seed: Int = 3
+    protected fun read(value: Int = seed): Int = value
+}

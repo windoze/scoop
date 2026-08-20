@@ -1,0 +1,10 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDispatch(store().observe() == (11, 11, 2, 3, 4, 9, 8, 3))
+    verifyDispatch(child().observe() == (11, 11, 2, 5, 4, 9, 8, 3))
+    val value: View = child()
+    verifyDispatch(value.token == 3)
+    verifyDispatch(Value().token == 6 && Constants.marker == 7)
+}

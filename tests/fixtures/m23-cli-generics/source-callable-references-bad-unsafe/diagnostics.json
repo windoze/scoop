@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::unsafeAnswer` in dependency top-level candidate layer:\n  - fun unsafeAnswer(): Int — unsafe functions cannot be stored in a managed function type because safety is not part of function-type identity",
+    "notes": [],
+    "origin": {
+      "cone": "e8b0515707b276700b50310fc36137b982bdcc0289585de92fbd92df458b0506",
+      "end": 105,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

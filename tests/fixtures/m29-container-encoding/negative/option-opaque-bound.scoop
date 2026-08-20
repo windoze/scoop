@@ -1,0 +1,3 @@
+struct Opaque()
+fun <T : Encodable<Option<Opaque>>> accept(value: T) {}
+fun main() { val empty: Option<Opaque> = None; accept(empty) }

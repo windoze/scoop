@@ -1,0 +1,18 @@
+import fixtures.strings.*
+
+fun main() {
+    val values = ArrayList<Char>()
+    values.add('A')
+    values.add('雪')
+    values.add('🚀')
+    val text = encode(values)
+    gcCollect()
+    if (text != "A雪🚀" || text.length != 3L || text.byteLength != 8L ||
+        middle(text) != "雪🚀" || walk(text) != 167339L || text.toCharArray()[2L] != '🚀') {
+        println("cross-cone"); return
+    }
+    @Unsafe { if (roundTrip(text) != text) { println("utf8"); return } }
+    values.clear()
+    if (encode(values) != "empty" || encode(values, "custom") != "custom") { println("default"); return }
+    println(42)
+}

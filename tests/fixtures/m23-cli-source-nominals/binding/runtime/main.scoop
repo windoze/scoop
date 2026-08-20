@@ -1,0 +1,16 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val first = host()
+    verifyNominal(first.echo(17) == 17)
+    verifyNominal(first.echo("binding") == "binding")
+    verifyNominal(first.number == 1)
+    verifyNominal(other().echo(23) == 23)
+    verifyNominal(child<Int>() !== child<Int>())
+    verifyNominal(child<String>() !== child<String>())
+    verifyNominal(Pair(1, 2) == Pair(1, 2))
+    verifyNominal(Choice.Empty == Choice.Empty)
+    verifyNominal(Choice.Positional(3, 4) == Choice.Positional(3, 4))
+    verifyNominal(Choice.Named(first = 5, second = 6) == Choice.Named(first = 5, second = 6))
+}

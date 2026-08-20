@@ -1,0 +1,21 @@
+package upstream.callprobes
+
+public class Counter public constructor() { public var calls: Int = 0 }
+
+public class Empty<T> public constructor() {
+    public fun <U> identity(value: U): U = value
+}
+
+public class Pair<T, U> public constructor(public val first: T, public val second: U)
+
+public class Holder<T> public constructor(public val value: T) {
+    public fun <U> apply(other: U, operation: (T, U) -> Int): Int = operation(value, other)
+}
+
+public enum Packet<T> { Item(val value: T), Missing }
+public class Reference<T: ref> public constructor(public val value: T)
+
+public fun <T, R> map(operation: (T) -> R, value: T): R = operation(value)
+public fun <T> choose(value: T, operation: (T) -> Int): Int = operation(value)
+public fun choose(value: Int, operation: (String) -> Int): Int = operation("rejected")
+public fun plain(value: Int, operation: (Int) -> Int): Int = operation(value)

@@ -1,0 +1,11 @@
+fun main() {
+    @Unsafe {
+        val box: Box<Int> = Box(42)
+        val alternate: Box<Int> = Box(42, 2)
+        val pair: Pair<Int> = Pair(42)
+        if (pair.value != 42 || pair.count != 1) { throw IllegalStateException() }
+        val mixed: Mixed = Mixed(42)
+        @Safe { val safe: Mixed = Mixed(true) }
+    }
+    gcCollect()
+}

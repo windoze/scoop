@@ -1,0 +1,2 @@
+public fun envelope(): Envelope = Envelope()
+public fun <T> outer(): GenericOuter<T> = GenericOuter<T>()

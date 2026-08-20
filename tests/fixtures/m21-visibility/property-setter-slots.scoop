@@ -1,0 +1,23 @@
+public open class Base {
+    public open var internalWriter: Int
+        get() = 1
+        internal set(value) {}
+    public open var protectedWriter: Int
+        get() = 2
+        protected set(value) {}
+    public open var visible: Int
+        get() = 3
+        public set(value) {}
+}
+internal class Child : Base() {
+    public final override var internalWriter: Int
+        get() = 4
+        internal set(value) {}
+    public final override var protectedWriter: Int
+        get() = 5
+        protected set(value) {}
+    public final override var visible: Int
+        get() = 6
+        public set(value) {}
+}
+fun main() {}

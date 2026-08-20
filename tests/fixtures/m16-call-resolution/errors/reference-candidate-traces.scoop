@@ -1,0 +1,18 @@
+interface Marker {}
+
+fun <T : Marker> convert(value: T): T = value
+fun convert(value: Int): Int = value
+
+fun choose(value: Int): Int = value
+fun choose(value: String): String = value
+
+fun callback(value: Int): Int = value
+
+@NoGC
+fun callback(value: UInt): UInt = value
+
+fun main() {
+    val converted: (String) -> String = ::convert
+    val ambiguous = ::choose
+    val native: FunPtr<(Boolean) -> Boolean> = ::callback
+}

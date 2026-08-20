@@ -1,0 +1,16 @@
+fun <T> isNone(value: T?): Boolean = when (value) {
+    case Some(_) -> false
+    case None -> true
+}
+fun typed(): (Int) -> Any = { value: Int -> value }
+fun main() {
+    val action = typed()
+    println(isNone(action as? (Int) -> Long))
+    println(isNone(action as? (Int) -> String))
+    try {
+        val narrowed = action as (Int) -> Long
+        println(narrowed(0))
+    } catch (error: ClassCastException) { println("cast") }
+    gcCollect()
+    println(action(42) as Int)
+}

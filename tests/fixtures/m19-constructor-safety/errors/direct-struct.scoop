@@ -1,0 +1,4 @@
+struct Box(val value: Int) {
+    @Unsafe constructor(): this(1) {}
+}
+fun main() { val box: Box = Box() }

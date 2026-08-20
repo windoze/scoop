@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `wrong` must be of type Describe<Long>, found Both; nominal application `Describe` is invariant: first differing type argument 1 (`T`) is `Int` in `Describe<Int>`, but `Long` in `Describe<Long>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "089450421b301aa95f90f3a853f64b6b19473e26582a78d4bba916612941f0c3",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `wrong`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "089450421b301aa95f90f3a853f64b6b19473e26582a78d4bba916612941f0c3",
+      "end": 122,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 117
+    },
+    "severity": "error"
+  }
+]

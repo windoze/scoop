@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `T` of function cannot combine nominal upper bounds with a kind bound",
+    "notes": [],
+    "origin": {
+      "cone": "8c2a6b7a9c91cc3a0fa5ba6f995b7a4d396aba7f9c3d43ef9747edb2ff1475d6",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 88
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `T` of function cannot combine a kind bound with nominal upper bounds",
+    "notes": [],
+    "origin": {
+      "cone": "8c2a6b7a9c91cc3a0fa5ba6f995b7a4d396aba7f9c3d43ef9747edb2ff1475d6",
+      "end": 174,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 165
+    },
+    "severity": "error"
+  }
+]

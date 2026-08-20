@@ -1,0 +1,6 @@
+public class Variadic public constructor(vararg values: Int) {
+    protected fun collect(vararg values: Int): Int = 0
+    protected fun defaulted(seed: Int = 1, vararg values: Int = [seed]): Int = 0
+    protected fun <T> generic(vararg values: T): Int = 0
+}
+fun main() {}

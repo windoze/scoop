@@ -1,0 +1,2 @@
+interface Invalid { inline fun <reified T> convert(noinline value: T): T }
+fun main() {}

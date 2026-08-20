@@ -1,0 +1,38 @@
+package consumer.coroutines
+import templates.coroutines.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val done = Completion<T>()
+    startCoroutine(suspend { synchronous(seed) }, done)
+    if (done.calls != 1 || read(done.value!!) != 42) { return 2 }
+    val failed = Completion<T>()
+    startCoroutine(suspend { synchronousFailure<T>() }, failed)
+    if (failed.calls != 1 || !(failed.failure!! is UnwrapException)) { return 3 }
+    val registration = Completion<T>()
+    startCoroutine(suspend { registrationFailure<T>() }, registration)
+    if (registration.calls != 1 || !(registration.failure!! is UnwrapException)) { return 4 }
+    val resumedFailure = Completion<T>()
+    startCoroutine(suspend { resumedThenThrows(seed) }, resumedFailure)
+    if (resumedFailure.calls != 1 || !(resumedFailure.failure!! is IllegalStateException)) { return 5 }
+    val duplicate = Completion<T>()
+    startCoroutine(suspend { resumedTwice(seed) }, duplicate)
+    if (duplicate.calls != 1 || !(duplicate.failure!! is IllegalStateException)) { return 6 }
+    val gate = Gate<T>()
+    val deferred = Completion<T>()
+    startCoroutine(suspend { await(gate) }, deferred)
+    if (deferred.calls != 0) { return 7 }
+    val continuation = gate.waiter!!
+    gate.complete(seed)
+    var rejected = false
+    try {
+        continuation.resume(seed)
+    } catch (exception: IllegalStateException) {
+        rejected = true
+    }
+    if (!rejected || deferred.calls != 1 || read(deferred.value!!) != 42) { return 8 }
+    return read(seed)
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })
+
+fun main() { println(result()) }

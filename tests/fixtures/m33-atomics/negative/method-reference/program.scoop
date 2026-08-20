@@ -1,0 +1,2 @@
+fun bad(cell: AtomicInt): (MemoryOrder) -> Int = cell::load
+fun main() {}

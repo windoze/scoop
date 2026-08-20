@@ -1,0 +1,6 @@
+fun fail(): Nothing { throw IllegalStateException() }
+
+fun main() {
+    try { println(1 < fail()) }
+    catch (error: IllegalStateException) { println("caught") }
+}

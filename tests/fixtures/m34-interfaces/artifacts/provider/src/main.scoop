@@ -1,0 +1,16 @@
+public interface Value {
+    public fun get(): Int
+    public fun doubled(): Int = get() * 2
+}
+public interface Echo<T> { public fun echo(value: T): T = value }
+public open class Base public constructor(private val number: Int) : Value {
+    public override fun get(): Int = number
+}
+public object Singleton : Base(19)
+public struct Small(val number: Int) : Value {
+    public override fun get(): Int = number
+}
+public fun make(number: Int): Value = Base(number)
+public fun keep(value: Value): Value { gcCollect(); return value }
+public fun <T: Value> generic(value: T): Int { gcCollect(); return value.doubled() }
+public fun <T> copy(value: T): T { gcCollect(); return value }

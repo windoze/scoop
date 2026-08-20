@@ -1,0 +1,7 @@
+schema = 1
+
+[cone]
+group = "dev.m33"
+name = "atomic-value-storage"
+version = "0.1.0"
+kind = "executable"

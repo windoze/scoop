@@ -1,0 +1,2 @@
+public fun finiteHolder(value: FiniteLabel): FiniteHolder = FiniteHolder(value)
+public fun finiteHeld(value: FiniteHolder): FiniteLabel = value.value

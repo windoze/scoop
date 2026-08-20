@@ -1,0 +1,15 @@
+public fun <T> dependencyLambda(seed: T, value: () -> T = { seed }): () -> T = value
+public fun <T> dependencyAnonymous(seed: T, value: () -> T = fun(): T { return seed }): () -> T = value
+public fun <T> dependencyReference(seed: T, value: () -> T = if (true) {
+    fun copy(): T { return seed }
+    ::copy
+} else { val fallback: () -> T = { seed }; fallback }): () -> T = value
+
+public class DependencyCombinationHost {
+    internal fun <X, Y> callbacks(left: X, right: Y,
+        local: () -> Y = dependencyReference(right),
+        lambda: () -> Y = dependencyLambda(right),
+        anonymous: () -> Y = dependencyAnonymous(right)): Y = local()
+    internal fun <T> repeated(seed: T,
+        value: (() -> T, () -> T) = (dependencyReference(seed), dependencyReference(seed))): (() -> T, () -> T) = value
+}

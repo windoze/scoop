@@ -1,0 +1,5 @@
+fun main() {
+    val operation: () -> Int = {
+        return 42
+    }
+}

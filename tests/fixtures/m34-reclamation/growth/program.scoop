@@ -1,0 +1,45 @@
+@Extern(lib = "m34_reclamation", name = "m34_region_stress") fun stressMode(): Boolean
+@Extern(lib = "m34_reclamation", name = "m34_region_count") fun regionCount(): ULong
+@Extern(lib = "m34_reclamation", name = "m34_reclamation_unmapped") fun unmappedBytes(): ULong
+@Extern(lib = "m34_reclamation", name = "m34_reclamation_discards") fun discardCalls(): ULong
+
+class Item(val value: Long)
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+@Unsafe fun grow(count: Long, stress: Boolean): MutableArray<Item> {
+    val all = MutableArray<Item>(count) { index -> Item(index) }
+    gcCollect()
+    if (!stress) { check(regionCount() >= 3uL) }
+    return MutableArray<Item>(64L) { index -> all[index * count / 64L] }
+}
+
+@Unsafe fun exercise(count: Long, stress: Boolean): Long {
+    val unmapped = unmappedBytes()
+    val discarded = discardCalls()
+    val kept = grow(count, stress)
+    gcCollect()
+    if (!stress) {
+        check(regionCount() <= 2uL)
+        check(unmappedBytes() > unmapped && discardCalls() > discarded)
+    }
+    var total = 0L
+    var index = 0L
+    while (index < kept.size) {
+        check(kept[index].value == index * count / 64L)
+        total += kept[index].value
+        index += 1L
+    }
+    gcCollect()
+    check(kept[63L].value == 63L * count / 64L)
+    return total
+}
+
+@Unsafe fun main() {
+    val stress = stressMode()
+    val count = if (stress) { 64L } else { 1600000L }
+    val total = exercise(count, stress) + exercise(count, stress)
+    check(total == count * 63L)
+    gcCollect()
+    if (!stress) { check(regionCount() <= 2uL) }
+    println("region reclamation")
+}

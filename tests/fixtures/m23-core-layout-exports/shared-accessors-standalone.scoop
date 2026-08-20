@@ -1,0 +1,6 @@
+public class AccessorCell(public var stored: Int) {
+    public val computed: Int
+        get() = stored + 1
+    public var mixed: Int = 2
+        set(next) { field = next }
+}

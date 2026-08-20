@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m29"
+name = "companion-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m29:companion-provider" = "0.1.0"

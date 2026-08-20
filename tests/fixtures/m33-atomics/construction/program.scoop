@@ -1,0 +1,44 @@
+class Payload(val text: String)
+typealias Counter = AtomicInt
+typealias StringCell = AtomicRef<String>
+
+var evaluations: Int = 0
+fun initial(): Int {
+    evaluations = evaluations + 1
+    return 2147483647
+}
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+fun <T : ref> cell(value: T): AtomicRef<T> = AtomicRef(value)
+
+fun main() {
+    val counter = Counter(initial = initial())
+    val alias = counter
+    check(evaluations == 1)
+    check(alias === counter)
+    check(counter !== AtomicInt(0))
+    val integer: Any = counter
+    val wide: Any = AtomicLong(-9223372036854775807L)
+    val flag: Any = AtomicBoolean(true)
+    check(integer is AtomicInt)
+    check(wide is AtomicLong)
+    check(flag is AtomicBoolean)
+    check(!(flag is AtomicInt))
+    val payload = Payload("retained")
+    val reference = cell(payload)
+    val boxed: Any = reference
+    check(boxed is AtomicRef<Payload>)
+    check(!(boxed is AtomicRef<Any>))
+    check((boxed as AtomicRef<Payload>) === reference)
+    val string: Any = StringCell("text")
+    check(string is AtomicRef<String>)
+    val action: () -> Int = { 42 }
+    val function: Any = cell(action)
+    check(function is AtomicRef<() -> Int>)
+    val cells = MutableArray<AtomicRef<Payload>>(16L) { i -> cell(Payload("item")) }
+    gcCollect()
+    check(cells[0L] !== cells[1L])
+    check(reference === (boxed as AtomicRef<Payload>))
+    println("atomic construction")
+}

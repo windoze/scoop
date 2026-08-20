@@ -1,0 +1,19 @@
+package consumer.enumdefinitions
+import upstream.enumdefinitions.*
+
+private val empty: Chain<Int> = Chain.End
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val value: Chain<T> = singleton(seed)
+    if (total(empty, { item -> item }) != 0) { return 1 }
+    if (total(value, read) != 42) { return 2 }
+    val selected: Entry<T> = Entry.Value(seed)
+    val readable: Readable<T> = selected
+    return readable.apply(read)
+}
+
+public fun result(): Int {
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 1 }
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

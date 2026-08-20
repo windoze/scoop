@@ -1,0 +1,6 @@
+import dependency.classes.Counter
+import dependency.classes.FirstChoice
+
+public class LocalChoice public constructor(): FirstChoice {
+    public fun answer(): Long = super<Counter>.twice()
+}

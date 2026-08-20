@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun defaultUnit() {}
+
+fun main() {
+    verifyDefault(nestedDefault((Point(), (defaultUnit(), defaultUnit())), (Point(), (defaultUnit(), defaultUnit()))))
+    val base: Base = defaultStructuralChild()
+    verifyDefault(base.same((Point(), Point()), (Point(), Point())))
+    verifyDefault(defaultStructuralChild().same((Point(), Point()), (Point(), Point())))
+    verifyDefault(readStructuralHolder(defaultStructuralHolder()))
+}

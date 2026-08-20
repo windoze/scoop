@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`Ptr` pointee must be GC-free, found Managed",
+    "notes": [],
+    "origin": {
+      "cone": "0b66f88a2001de83a8a4376a2a4d5fb9ece61bbe734b261142c4b261439be0ba",
+      "end": 116,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 93
+    },
+    "severity": "error"
+  }
+]

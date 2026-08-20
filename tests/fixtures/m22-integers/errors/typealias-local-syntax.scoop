@@ -1,0 +1,5 @@
+fun localAlias() {
+    typealias Local = Int
+}
+
+fun main() {}

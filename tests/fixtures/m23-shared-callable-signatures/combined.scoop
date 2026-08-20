@@ -1,0 +1,25 @@
+package consumer.signatures
+import upstream.signatures.*
+
+public fun <T> localIdentity(value: T): T = value
+public suspend fun <T> suspended(value: T): T = Box<T>(delayed<T>(value)).suspendedGet()
+@NoGC private fun nativeNumber(value: Int): Int = scalar<Int>(value)
+
+private class Local<T>(val value: T): Source<T> {
+    public override fun get(): T = value
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val box = Box<T>(localIdentity<T>(seed))
+    val source: Source<T> = box
+    val local: Source<T> = Local<T>(source.get())
+    val callback = nested<T>(local.get())
+    val value = defaulted<T>(callback())
+    val selected = box.apply<Unit>(Unit, { item, unit -> read(identity<T>(item)) })
+    @Unsafe {
+        if (read(unchecked<T>(value)) != selected) { return 1 }
+    }
+    return box.apply<Int>(0, { item, extra -> read(item) + extra })
+}
+
+public fun result(): Int = exercise<Int>(nativeNumber(42), { value -> value })

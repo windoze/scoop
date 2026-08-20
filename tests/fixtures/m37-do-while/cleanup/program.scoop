@@ -1,0 +1,40 @@
+class Configuration(val text: String)
+context(configuration: Configuration)
+fun active(): String = configuration.text
+fun rounds(stop: Boolean): Int {
+    var count = 0
+    outer@ do {
+        count += 1
+        try { continue@outer }
+        finally { while (true) break; if (stop) break@outer }
+    } while (count < 3)
+    return count
+}
+fun returning(): Int {
+    do {
+        try { continue } finally { return 9 }
+        val missing = false
+    } while (missing)
+}
+fun breaking(): Int {
+    do {
+        try { continue } finally { break }
+        val missing = false
+    } while (missing)
+    return 11
+}
+context(configuration: Configuration)
+fun scoped() {
+    do {
+        context(Configuration("inner")) {
+            try { continue } finally { gcCollect(); println(active()) }
+        }
+    } while (if (true) { println(active()); false } else { false })
+}
+fun main() {
+    println(rounds(true))
+    println(rounds(false))
+    println(returning())
+    println(breaking())
+    context(Configuration("outer")) { scoped() }
+}

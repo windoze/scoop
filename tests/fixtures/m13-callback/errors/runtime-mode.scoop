@@ -1,0 +1,11 @@
+fun register(mode: ForeignCallbackMode) {
+    @Unsafe {
+        foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int -> value },
+            1,
+            mode
+        )
+    }
+}
+
+fun main() {}

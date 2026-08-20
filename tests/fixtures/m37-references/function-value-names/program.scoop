@@ -1,0 +1,2 @@
+class Box(val value: Int)
+fun main() { val make = ::Box; val value = make(value = 42) }

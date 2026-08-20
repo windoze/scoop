@@ -1,0 +1,3 @@
+class Payload
+fun bad(value: Payload): Atomic<Payload> = Atomic<Payload>(value)
+fun main() {}

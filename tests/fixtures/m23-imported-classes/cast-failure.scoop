@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.Other
+
+public fun primary(): Counter {
+    val value: Any = Other(0)
+    try {
+        return value as Counter
+    } catch (error: ClassCastException) {
+        return Counter(21)
+    }
+}

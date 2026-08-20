@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `typeAddress` requires type argument Managed for `T` to be a GC-free `Ptr` pointee",
+    "notes": [],
+    "origin": {
+      "cone": "87e8631ec2682569fd65784caf3a78887cf8351c93a9b71cf5ab709f14f75fcf",
+      "end": 163,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 134
+    },
+    "severity": "error"
+  }
+]

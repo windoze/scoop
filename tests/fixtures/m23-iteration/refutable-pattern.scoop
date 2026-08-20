@@ -1,0 +1,5 @@
+import upstream.iteration.*
+
+public fun invalid(values: Array<Option<Int>>) {
+    for (Some(value) in values) {}
+}

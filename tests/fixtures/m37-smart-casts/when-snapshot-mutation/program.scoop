@@ -1,0 +1,9 @@
+fun main() {
+    var value = 1
+    when (value) {
+        if (true) { value = 2; 2 } else { 2 } -> println("wrong")
+        1 -> println("snapshot")
+        else -> println("wrong")
+    }
+    println(value)
+}

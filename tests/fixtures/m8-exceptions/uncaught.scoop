@@ -1,0 +1,4 @@
+// EXPECT-TRAP
+fun main() {
+    throw UnwrapException()
+}

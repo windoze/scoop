@@ -1,0 +1,19 @@
+import consumer.nesting.exercise
+import consumer.nesting.ExportedLeaf
+import consumer.nesting.ExportedBox
+
+private class Later(public val number: Int)
+private fun readLater(value: Later): Int = value.number
+private fun readInt(value: Int): Int = value
+private fun readUnit(value: Unit): Int = 42
+
+public fun check(): Int {
+    val value = Later(42)
+    val box = ExportedBox<Later>(value)
+    val leaf = ExportedLeaf(exercise<Later>(box.value, ::readLater))
+    return if (exercise<Int>(42, ::readInt) == 42 && exercise<Unit>(Unit, ::readUnit) == 42 && box.value.number == 42) {
+        leaf.number
+    } else {
+        1
+    }
+}

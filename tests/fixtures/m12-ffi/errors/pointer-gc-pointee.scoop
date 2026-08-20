@@ -1,0 +1,5 @@
+struct TextBox(val value: String)
+
+fun accept(pointer: Ptr<TextBox>) {}
+
+fun main() {}

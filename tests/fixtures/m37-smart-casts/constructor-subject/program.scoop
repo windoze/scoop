@@ -1,0 +1,28 @@
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+class Both : Left, Right {
+    public override fun left(): Int = 20
+    public override fun right(): Int = 22
+}
+struct Payload(val number: Int, val label: String)
+class Construct(value: Any) {
+    val callback: () -> Int = when (value) {
+        is Payload -> ({ gcCollect(); println(value.label); value.number })
+        else -> ({ 0 })
+    }
+}
+class Views(value: Any) {
+    val callback: () -> Int = when (value) {
+        is Left if value is Right -> ({ gcCollect(); value.left() + value.right() })
+        else -> ({ 0 })
+    }
+}
+fun main() {
+    val payload = Construct(Payload(42, "captured-constructor"))
+    val views = Views(Both())
+    gcCollect()
+    println(payload.callback())
+    println(Construct("other").callback())
+    println(views.callback())
+    println(Views("other").callback())
+}

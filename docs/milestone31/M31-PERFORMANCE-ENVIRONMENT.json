@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "recorded_utc": "2026-10-07T05:37:25.627886+00:00",
+  "production_revision": "c3ea0d7d2",
+  "baseline_revision": "6e62514da",
+  "darwin": {
+    "kernel": "Darwin 27.0.0 arm64",
+    "macos": "27.0.1",
+    "hardware": "Mac15,14\n32\n32\n549755813888\nApple M3 Ultra",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "llvm": "22.1.8",
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "python": "3.14.8"
+  },
+  "linux_gnu_and_musl": {
+    "execution": "NUC12 native Linux over ssh nuc12",
+    "repository": "/home/chenxu/repos/scoop",
+    "working_directory": "/home/chenxu/repos/scoop/tmp/m31-final",
+    "temporary_directory": "/home/chenxu/repos/scoop/tmp/m31-final/temporary",
+    "kernel": "Linux 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux",
+    "cpu": {
+      "Architecture": "x86_64",
+      "CPU(s)": "20",
+      "On-line CPU(s) list": "0-19",
+      "Model name": "12th Gen Intel(R) Core(TM) i7-12700H",
+      "Core(s) per socket": "14",
+      "Socket(s)": "1",
+      "CPU max MHz": "4700.0000",
+      "CPU min MHz": "400.0000"
+    },
+    "memory_total": "MemTotal:       64025176 kB",
+    "llvm": "22.1.2",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cc": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "musl_cc": "x86_64-linux-gnu-gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "packages": "libc6:amd64\t2.43-2ubuntu2.4\nllvm-22\t1:22.1.2-1ubuntu1\nmusl:amd64\t1.2.5-3build1\nmusl-tools\t1.2.5-3build1",
+    "python": "3.14.4",
+    "affinity_control": {
+      "cpu": 0,
+      "original_allowed_cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "runs": 5,
+      "method": "The measurement process and its executable children share one CPU; existing binaries are reused.",
+      "order": "GNU then musl; per case, M30 then M31 debug then M31 release; nursery/full-only alternate within each M31 measurement.",
+      "scaling_governor": "powersave"
+    }
+  },
+  "prior_orbstack_measurements": "orbstack/README.md",
+  "m31_source_snapshot": "c4714125c (production code unchanged from c3ea0d7d2)"
+}

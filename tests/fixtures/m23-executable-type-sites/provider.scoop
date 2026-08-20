@@ -1,0 +1,4 @@
+package typeSites
+
+public fun label(): String = "remote"
+public fun withDefault(value: String = label()): String = value

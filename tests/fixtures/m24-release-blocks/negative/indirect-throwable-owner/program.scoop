@@ -1,0 +1,3 @@
+open class Base: Throwable
+class Owner: Base { release {} }
+fun main() {}

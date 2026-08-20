@@ -1,0 +1,22 @@
+interface Read { fun read(): Int }
+enum Empty : UInt8 {}
+enum Number : Int, Read {
+    Low = 2, High = 8
+
+    override fun read(): Int = this
+    val label: String get() = if (this < 5) "low" else "high"
+}
+fun choose(value: Number): String = "enum"
+fun choose(value: Int): String = "int"
+fun main() {
+    println(choose(Number.Low))
+    val raw: Int = Number.Low
+    println(choose(raw))
+    val value: Read = Number.High
+    println(value.read())
+    println(Number.Low.label)
+    println(sizeOf<Empty>())
+    val mixed = if (true) Number.High else 3
+    println(choose(mixed))
+    println(mixed)
+}

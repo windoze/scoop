@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an intrinsic class declaration must be final",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 108,
+      "kind": "source",
+      "path": "src/roots.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  }
+]

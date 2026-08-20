@@ -1,0 +1,19 @@
+package consumer.classes
+import upstream.classes.*
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val actual = create(value)
+    val base: Base<T> = actual
+    val receiver: ValueSource<T> = actual
+    if (read(base.value) != 42) { return 1 }
+    if (read(base.select(value)) != 42) { return 2 }
+    if (read(receiver.read()) != 42) { return 3 }
+    val values: Array<Remote<T>> = [actual, actual]
+    return read(values[1L].alternate)
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

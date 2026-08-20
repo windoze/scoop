@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@CLayout` alignment values must be one of 0, 1, 2, 4, 8 or 16",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 20,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 9
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@CLayout` alignment values must be one of 0, 1, 2, 4, 8 or 16",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 33,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 22
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,5 @@
+fun length(value: Any, flag: Boolean): Long {
+    if (flag) { if (value !is String) return 0L }
+    return value.length
+}
+fun main() {}

@@ -1,0 +1,28 @@
+import measurements.*
+
+struct LocalReading(val base: Int) : DetailedMeasure {
+    @NoGC
+    public override fun measure(delta: Int): Int = base + delta
+}
+
+@NoGC
+fun importedDirect(value: Reading): Int = value.measure(1)
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun main() {
+    val reading = Reading(40)
+    check(importedDirect(reading) == 41)
+    check(direct(reading) == 42)
+    check(bounded(reading) == 43)
+    check(dispatch(reading) == 44)
+    val view: DetailedMeasure = LocalReading(50)
+    check(dispatch(view) == 54)
+    check(bounded(LocalReading(50)) == 53)
+    val boxed: Any = reading
+    check(boxed is Measure)
+    check((boxed as Measure).measure(5) == 45)
+    println("artifact effect adapters")
+}

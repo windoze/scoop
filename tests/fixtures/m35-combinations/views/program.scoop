@@ -1,0 +1,83 @@
+interface Root { fun root(): Int }
+interface Left : Root {
+    val leftValue: Int
+    fun left(): Int
+    fun choose(value: Int): Int
+}
+interface Right : Root {
+    val rightValue: Int
+    var stored: Int
+    fun right(): Int
+    fun choose(value: String): Int
+    operator fun invoke(): Int
+}
+class Both : Left, Right {
+    public override val leftValue: Int get() = 30
+    public override val rightValue: Int get() = 40
+    public override var stored: Int = 0
+    public override fun root(): Int = 5
+    public override fun left(): Int = 3
+    public override fun right(): Int = 4
+    public override fun choose(value: Int): Int = value + 3
+    public override fun choose(value: String): Int = 44
+    public override operator fun invoke(): Int = 7
+}
+fun Left.leftExtra(): Int = left() + 10
+fun Right.rightExtra(): Int = right() + 20
+val Right.extensionValue: Int get() = rightValue + 100
+var Right.extensionSlot: Int
+    get() = stored
+    set(next) { stored = next }
+fun takeLeft(value: Left): Int = value.left()
+fun takeRight(value: Right): Int = value.right()
+fun withDefaults(base: Int = 10, action: () -> Int): Int = base + action()
+
+fun inspect(value: Any) {
+    when {
+        value is Left && value is Right -> {
+            println(value.left() + value.right())
+            println(value.leftValue + value.rightValue)
+            println(value.choose(2))
+            println(value.choose("text"))
+            println(value.root())
+            println(value.leftExtra() + value.rightExtra())
+            println(value.extensionValue)
+            println(takeLeft(value) + takeRight(value))
+            println(value())
+            val right: () -> Int = value::right
+            println(right())
+            val extra: () -> Int = value::rightExtra
+            println(extra())
+            val root: () -> Int = value::root
+            println(root())
+            println(withDefaults { value.left() + value.right() })
+            value.stored = 8
+            value.stored += 2
+            println(value.stored)
+            value.extensionSlot = 20
+            value.extensionSlot += 5
+            println(value.extensionSlot++)
+            println(value.stored)
+        }
+        else -> println("missing")
+    }
+}
+fun fromLeft(value: Left): Int = when (value) {
+    is Right -> value.left() + value.right()
+    else -> 0
+}
+fun common(value: Any, flag: Boolean): Int = when {
+    (value is Left && value is Right && flag) || (value is Right && value is Left && !flag) -> value.left() + value.right()
+    else -> 0
+}
+fun guarded(value: Any): Int = when (value) {
+    is Left if value is Right -> value.left() + value.right()
+    else -> 0
+}
+fun main() {
+    inspect(Both())
+    println(fromLeft(Both()))
+    println(common(Both(), true))
+    println(common(Both(), false))
+    println(guarded(Both()))
+}

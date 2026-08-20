@@ -1,0 +1,524 @@
+use super::super::*;
+use super::{string_ref, type_name};
+
+pub(super) fn dump_expr(
+    module: &Module,
+    locals: &Arena<Local>,
+    expr: &Expr,
+    indent: usize,
+    out: &mut String,
+) {
+    let pad = "  ".repeat(indent);
+    out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
+    match &expr.kind {
+        ExprKind::MaybeUninit { wrapper, operation } => {
+            let name = match operation {
+                MaybeUninitOperation::Uninit => "Uninit",
+                MaybeUninitOperation::Initialized(_) => "Initialized",
+                MaybeUninitOperation::AssumeInit(_) => "AssumeInit",
+            };
+            out.push_str(&format!(
+                "{pad}MaybeUninit.{name} {}\n",
+                module.structs[*wrapper].name
+            ));
+            if let Some(value) = operation.operand() {
+                dump_expr(module, locals, value, indent + 1, out);
+            }
+        }
+        ExprKind::DataBorrow(operation) => {
+            out.push_str(&format!("{pad}{}\n", operation.kind.name()));
+            dump_expr(module, locals, &operation.operand, indent + 1, out);
+        }
+        ExprKind::FloatUnary {
+            kind,
+            operation,
+            operand,
+        } => {
+            out.push_str(&format!("{pad}FloatUnary {kind:?} {operation:?}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::FloatBinary {
+            kind,
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!("{pad}FloatBinary {kind:?} {operation:?}\n"));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::FloatConversion {
+            conversion,
+            operand,
+        } => {
+            out.push_str(&format!("{pad}FloatConversion {conversion:?}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::Context(operation) => {
+            out.push_str(&format!("{pad}{}", operation.name()));
+            if let ContextOperation::TryGet { key } | ContextOperation::Push { key, .. } = operation
+            {
+                out.push_str(&format!(" {}", key.0));
+            }
+            out.push('\n');
+            if let Some(operand) = operation.operand() {
+                dump_expr(module, locals, operand, indent + 1, out);
+            }
+        }
+        ExprKind::ReleaseFieldLoad { class, index } => out.push_str(&format!(
+            "{pad}ReleaseFieldLoad {}.field{index}\n",
+            module.classes[*class].name,
+        )),
+        ExprKind::StringConst(id) => {
+            out.push_str(&format!("{pad}StringConst {}\n", string_ref(*id)));
+        }
+        ExprKind::IntegerLiteral(value) => {
+            let digits = usize::from(value.width().bytes()) * 2;
+            out.push_str(&format!(
+                "{pad}IntegerLiteral {} value={} bits=0x{:0digits$x}\n",
+                value.kind().canonical_name(),
+                value.mathematical_value(),
+                value.raw_bits(),
+            ));
+        }
+        ExprKind::MachineScalarLiteral(value) => {
+            out.push_str(&format!("{pad}MachineScalarLiteral {value:?}\n"));
+        }
+        ExprKind::FloatLiteral(value) => out.push_str(&format!("{pad}FloatLiteral {value}\n")),
+        ExprKind::CharLiteral(value) => out.push_str(&format!("{pad}CharLiteral {value:?}\n")),
+        ExprKind::CharCode(operand) => {
+            out.push_str(&format!("{pad}CharCode\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::CharFromCodeUnchecked(operand) => {
+            out.push_str(&format!("{pad}CharFromCodeUnchecked\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
+        ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral\n")),
+        ExprKind::InitializationUnitAddress(unit) => out.push_str(&format!(
+            "{pad}InitializationUnitAddress init{} {}\n",
+            unit.into_raw().into_u32(),
+            module.initialization_units[*unit].display_name
+        )),
+        ExprKind::TupleLiteral(elements) => {
+            out.push_str(&format!("{pad}TupleLiteral\n"));
+            for element in elements {
+                dump_expr(module, locals, element, indent + 1, out);
+            }
+        }
+        ExprKind::ClassAlloc { class_id } => out.push_str(&format!(
+            "{pad}ClassAlloc {}\n",
+            type_name(module, &Type::Class(*class_id))
+        )),
+        ExprKind::ClosureAlloc { class, captures } => {
+            out.push_str(&format!(
+                "{pad}ClosureAlloc cc{} {}\n",
+                class.into_raw().into_u32(),
+                module.closure_classes[*class].name
+            ));
+            for capture in captures {
+                out.push_str(&format!(
+                    "{}CaptureInit field={}\n",
+                    "  ".repeat(indent + 1),
+                    capture.field()
+                ));
+                dump_expr(module, locals, capture.value(), indent + 2, out);
+            }
+        }
+        ExprKind::ClosureCapture {
+            closure,
+            class,
+            index,
+        } => {
+            out.push_str(&format!(
+                "{pad}ClosureCapture cc{} {index}\n",
+                class.into_raw().into_u32()
+            ));
+            dump_expr(module, locals, closure, indent + 1, out);
+        }
+        ExprKind::StructInit { struct_id, args } => {
+            out.push_str(&format!(
+                "{pad}StructInit {}\n",
+                type_name(module, &Type::Struct(*struct_id))
+            ));
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
+        ExprKind::StructConstruct { struct_id, fields } => {
+            out.push_str(&format!(
+                "{pad}StructConstruct {}\n",
+                type_name(module, &Type::Struct(*struct_id))
+            ));
+            for field in fields {
+                dump_expr(module, locals, field, indent + 1, out);
+            }
+        }
+        ExprKind::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        ExprKind::GlobalRead(global) => out.push_str(&format!(
+            "{pad}GlobalRead {}\n",
+            module.globals[*global].name
+        )),
+        ExprKind::PtrFromNonZeroULong { operand, pointee } => {
+            out.push_str(&format!(
+                "{pad}PtrFromNonZeroULong {}\n",
+                type_name(module, pointee)
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrToULong(operand) => {
+            out.push_str(&format!("{pad}PtrToULong\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrCast { operand, pointee } => {
+            out.push_str(&format!("{pad}PtrCast {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrLoad {
+            pointer,
+            pointee,
+            offset,
+        } => {
+            out.push_str(&format!("{pad}PtrLoad {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+        }
+        ExprKind::PtrStore {
+            pointer,
+            pointee,
+            offset,
+            value,
+        } => {
+            out.push_str(&format!("{pad}PtrStore {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+            dump_expr(module, locals, value, indent + 1, out);
+        }
+        ExprKind::PtrOffset {
+            pointer,
+            pointee,
+            offset,
+            subtract,
+        } => {
+            out.push_str(&format!(
+                "{pad}PtrOffset {} subtract={subtract}\n",
+                type_name(module, pointee)
+            ));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            dump_expr(module, locals, offset, indent + 1, out);
+        }
+        ExprKind::AddressOf { local, pointee } => out.push_str(&format!(
+            "{pad}AddressOf {} : Ptr<{}>\n",
+            locals[*local].name,
+            type_name(module, pointee)
+        )),
+        ExprKind::GlobalAddress { global, pointee } => out.push_str(&format!(
+            "{pad}GlobalAddress {} {}\n",
+            module.globals[*global].name,
+            type_name(module, pointee)
+        )),
+        ExprKind::SizeOf(ty) => {
+            out.push_str(&format!("{pad}SizeOf {}\n", type_name(module, ty)));
+        }
+        ExprKind::AlignOf(ty) => {
+            out.push_str(&format!("{pad}AlignOf {}\n", type_name(module, ty)));
+        }
+        ExprKind::FunctionAddress { callback } => out.push_str(&format!(
+            "{pad}FunctionAddress cb{}\n",
+            callback.into_raw().into_u32()
+        )),
+        ExprKind::ForeignCallbackRegister { bridge, closure } => {
+            let bridge_id = *bridge;
+            let bridge = &module.foreign_callback_bridges[bridge_id];
+            out.push_str(&format!(
+                "{pad}ForeignCallbackRegister fcb{} family=fcf{}\n",
+                bridge_id.into_raw().into_u32(),
+                bridge.family.into_raw().into_u32(),
+            ));
+            dump_expr(module, locals, closure, indent + 1, out);
+        }
+        ExprKind::ForeignCallbackOperation {
+            operation,
+            callback,
+            ..
+        } => {
+            out.push_str(&format!(
+                "{pad}ForeignCallback{} family{}\n",
+                operation.name(),
+                operation.family().into_raw().into_u32()
+            ));
+            dump_expr(module, locals, callback, indent + 1, out);
+        }
+        ExprKind::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
+        ExprKind::Retype { operand, ty } => {
+            out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::FieldAccess { receiver, index } => {
+            out.push_str(&format!("{pad}FieldAccess {index}\n"));
+            dump_expr(module, locals, receiver, indent + 1, out);
+        }
+        ExprKind::AtomicFieldLoad {
+            kind,
+            object,
+            index,
+        } => {
+            out.push_str(&format!(
+                "{pad}AtomicLoadAcquire kind={} field={index}\n",
+                kind.name()
+            ));
+            dump_expr(module, locals, object, indent + 1, out);
+        }
+        ExprKind::AtomicFieldCompareExchange {
+            kind,
+            object,
+            index,
+            expected,
+            replacement,
+        } => {
+            out.push_str(&format!(
+                "{pad}AtomicCompareExchange kind={} field={index} success=acq_rel failure=acquire\n",
+                kind.name()
+            ));
+            dump_expr(module, locals, object, indent + 1, out);
+            dump_expr(module, locals, expected, indent + 1, out);
+            dump_expr(module, locals, replacement, indent + 1, out);
+        }
+        ExprKind::Box(operand) => {
+            out.push_str(&format!("{pad}Box\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::Unbox(operand) => {
+            out.push_str(&format!("{pad}Unbox\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::IsInstance { operand, check_ty } => {
+            out.push_str(&format!(
+                "{pad}IsInstance {}\n",
+                type_name(module, check_ty)
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+
+        ExprKind::ArrayAllocate { array_type, count } => {
+            out.push_str(&format!(
+                "{pad}ArrayAllocate {}\n",
+                type_name(module, &Type::Class(*array_type))
+            ));
+            dump_expr(module, locals, count, indent + 1, out);
+        }
+        ExprKind::ArrayLiteral {
+            array_type,
+            elements,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayLiteral {}\n",
+                type_name(module, &Type::Class(*array_type))
+            ));
+            for element in elements {
+                dump_expr(module, locals, element, indent + 1, out);
+            }
+        }
+        ExprKind::ArrayAssembly { array_type, parts } => {
+            out.push_str(&format!(
+                "{pad}ArrayAssembly {}\n",
+                type_name(module, &Type::Class(*array_type))
+            ));
+            for part in parts {
+                match part {
+                    ArrayAssemblyPart::Element(value) => {
+                        out.push_str(&format!("{pad}  Element\n"));
+                        dump_expr(module, locals, value, indent + 2, out);
+                    }
+                    ArrayAssemblyPart::CopyArray(value) => {
+                        out.push_str(&format!("{pad}  CopyArray\n"));
+                        dump_expr(module, locals, value, indent + 2, out);
+                    }
+                }
+            }
+        }
+        ExprKind::ArrayGet {
+            array_type,
+            array,
+            index,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayGet {}\n",
+                type_name(module, &Type::Class(*array_type))
+            ));
+            dump_expr(module, locals, array, indent + 1, out);
+            dump_expr(module, locals, index, indent + 1, out);
+        }
+        ExprKind::ArrayLen {
+            array_type,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayLen {}\n",
+                type_name(module, &Type::Class(*array_type))
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::ArrayClone {
+            source_type,
+            target_type,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayClone {} -> {}\n",
+                type_name(module, &Type::Class(*source_type)),
+                type_name(module, &Type::Class(*target_type))
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::AtomicNew(initial) => {
+            out.push_str(&format!("{pad}AtomicNew {}\n", type_name(module, &expr.ty)));
+            dump_expr(module, locals, initial, indent + 1, out);
+        }
+        ExprKind::Atomic(atomic) => {
+            out.push_str(&format!("{pad}{} {:?}\n", atomic.operation, atomic.kind));
+            for operand in atomic.operands() {
+                dump_expr(module, locals, operand, indent + 1, out);
+            }
+        }
+        ExprKind::Binary { op, lhs, rhs } => {
+            out.push_str(&format!("{pad}Binary {op:?}\n"));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::Unary { op, operand } => {
+            out.push_str(&format!("{pad}Unary {op:?}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::IntegerUnary { operation, operand } => {
+            out.push_str(&format!(
+                "{pad}IntegerUnary {} kind={}\n",
+                operation.operator().name(),
+                operation.kind().canonical_name(),
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::IntegerBinary {
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerBinary {} kind={}\n",
+                operation.operator().name(),
+                operation.kind().canonical_name(),
+            ));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::SafeIntegerDivRem {
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!(
+                "{pad}SafeIntegerDivRem {} kind={}\n",
+                operation.operator().name(),
+                operation.kind().canonical_name(),
+            ));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::IntegerCompare {
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerCompare {} operands={} result=Boolean\n",
+                operation.operator().name(),
+                operation.operand_kind().canonical_name(),
+            ));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::IntegerCompareTo {
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerCompareTo operands={} result={}\n",
+                operation.operand_kind().canonical_name(),
+                operation.result_kind().canonical_name(),
+            ));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::IntegerShift {
+            operation,
+            value,
+            count,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerShift {} value={} count={}\n",
+                operation.operator().name(),
+                operation.value_kind().canonical_name(),
+                operation.count_kind().canonical_name(),
+            ));
+            dump_expr(module, locals, value, indent + 1, out);
+            dump_expr(module, locals, count, indent + 1, out);
+        }
+        ExprKind::IntegerConversion {
+            conversion,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}IntegerConversion {} -> {}\n",
+                conversion.source_kind().canonical_name(),
+                conversion.target_kind().canonical_name(),
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::VariantConstruct { variant, fields } => {
+            out.push_str(&format!(
+                "{pad}VariantConstruct {} v{}\n",
+                type_name(module, &expr.ty),
+                variant.variant_index()
+            ));
+            for field in fields {
+                dump_expr(module, locals, field, indent + 1, out);
+            }
+        }
+        ExprKind::EnumTag(operand) => {
+            out.push_str(&format!("{pad}EnumTag\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::EnumField {
+            operand,
+            variant,
+            index,
+        } => {
+            out.push_str(&format!("{pad}EnumField v{variant} f{index}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::VariantTest { operand, variant } => {
+            out.push_str(&format!(
+                "{pad}VariantTest {} v{}\n",
+                type_name(module, &operand.ty),
+                variant.variant_index()
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::VariantPayloadProject { operand, field } => {
+            let variant = field.variant();
+            out.push_str(&format!(
+                "{pad}VariantPayloadProject {} v{} f{}\n",
+                type_name(module, &operand.ty),
+                variant.variant_index(),
+                field.field_index()
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+    }
+}

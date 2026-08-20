@@ -1,0 +1,3 @@
+interface Reader { fun read(): String }
+class Actual : Reader { override fun read() = 7 }
+fun main() {}

@@ -1,0 +1,17 @@
+import compared
+import quotient
+import remainder
+import converted
+import inverted
+import shifted
+import staticValue
+
+fun main() {
+    if (compared != 1L || quotient != 5 || remainder != 2 || converted != 5U || inverted != -1 || shifted != 12U || staticValue != 1L) {
+        throw IllegalStateException()
+    }
+    staticValue = 9L
+    if (staticValue != 9L) {
+        throw IllegalStateException()
+    }
+}

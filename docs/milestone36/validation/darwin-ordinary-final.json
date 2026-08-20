@@ -1,0 +1,16 @@
+{
+  "target": "aarch64-apple-darwin",
+  "counts": {
+    "passed": 236
+  },
+  "variants": 342,
+  "processes": 2524,
+  "stage_and_plan_goldens": 2337,
+  "m36_fixtures": 26,
+  "sources": [
+    "darwin-final.json",
+    "target-fixture-portability.json:results.darwin.runs",
+    "darwin-supplement.json:runs"
+  ],
+  "note": "The latest ordinary result is used once per fixture. The 231-fixture main selection and five additional CLI/diagnostic/enum fixtures are included; the five target portability rechecks overlap the main selection. Snapshot-update runs are excluded."
+}

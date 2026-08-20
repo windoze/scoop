@@ -1,0 +1,319 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 33,
+  "selected": 33,
+  "unselected": 0,
+  "counts": {
+    "passed": 33
+  },
+  "variants": 37,
+  "processes": 124,
+  "stage_and_plan_goldens": 260,
+  "results": [
+    {
+      "name": "core-layouts-heap-zst-storage",
+      "status": "passed",
+      "seconds": 56.39889695798047,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-ordinary",
+      "status": "passed",
+      "seconds": 53.86440400010906,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-ordinary-consumer",
+      "status": "passed",
+      "seconds": 53.797011457849294,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-property-initialization-provider",
+      "status": "passed",
+      "seconds": 54.61701595899649,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-abi-combined",
+      "status": "passed",
+      "seconds": 60.35280045797117,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-abi-standalone",
+      "status": "passed",
+      "seconds": 55.38198112486862,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-accessors-combined",
+      "status": "passed",
+      "seconds": 57.48892037500627,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-accessors-standalone",
+      "status": "passed",
+      "seconds": 55.022348374826834,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-aliases-combined",
+      "status": "passed",
+      "seconds": 57.37024183291942,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-callables-combined",
+      "status": "passed",
+      "seconds": 62.1217923341319,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-constructors-combined",
+      "status": "passed",
+      "seconds": 68.65773945790716,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-constructors-standalone",
+      "status": "passed",
+      "seconds": 59.75777708389796,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-digests-combined",
+      "status": "passed",
+      "seconds": 65.12390366592444,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-dispatch-combined",
+      "status": "passed",
+      "seconds": 74.23683058400638,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-dispatch-standalone",
+      "status": "passed",
+      "seconds": 66.72722166590393,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-equality-combined",
+      "status": "passed",
+      "seconds": 73.18392987502739,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-equality-standalone",
+      "status": "passed",
+      "seconds": 59.735276540974155,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-init-abi-combined",
+      "status": "passed",
+      "seconds": 62.515562457963824,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-layouts-combined",
+      "status": "passed",
+      "seconds": 63.36583475000225,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-layouts-standalone",
+      "status": "passed",
+      "seconds": 59.85676850005984,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-lir-dispatch-combined",
+      "status": "passed",
+      "seconds": 64.53871062491089,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-lir-dispatch-standalone",
+      "status": "passed",
+      "seconds": 57.89524491596967,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-mir-combined",
+      "status": "passed",
+      "seconds": 59.52434541704133,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "m35-combinations-views",
+      "status": "passed",
+      "seconds": 5.771066291956231,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "native-link-archive-chain",
+      "status": "passed",
+      "seconds": 8.398039458086714,
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "native-link-archive-members",
+      "status": "passed",
+      "seconds": 7.956095834029838,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 5,
+      "message": ""
+    },
+    {
+      "name": "native-link-callback-reentry",
+      "status": "passed",
+      "seconds": 119.11626512487419,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": ""
+    },
+    {
+      "name": "native-link-direct-candidates",
+      "status": "passed",
+      "seconds": 14.210912083042786,
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "native-link-formats-pointers",
+      "status": "passed",
+      "seconds": 11.007030250038952,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 5,
+      "message": ""
+    },
+    {
+      "name": "native-link-runtime-gc",
+      "status": "passed",
+      "seconds": 116.44424437498674,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 10,
+      "message": ""
+    },
+    {
+      "name": "native-link-scoopabi",
+      "status": "passed",
+      "seconds": 115.75641791685484,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": ""
+    },
+    {
+      "name": "program-link-coroutine-lifecycle",
+      "status": "passed",
+      "seconds": 25.200976291904226,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-read-read-basic",
+      "status": "passed",
+      "seconds": 65.93282545800321,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    }
+  ],
+  "validation": {
+    "target": "aarch64-apple-darwin",
+    "update_snapshots": false,
+    "returncode": 0,
+    "started_at": "2026-10-12T08:00:46.176448+00:00",
+    "seconds": 486.7891437918879
+  }
+}

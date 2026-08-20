@@ -1,0 +1,7 @@
+// EXPECT-DIAGNOSTICS
+
+package demo.app
+
+import dependency.api.Value
+
+fun main() {}

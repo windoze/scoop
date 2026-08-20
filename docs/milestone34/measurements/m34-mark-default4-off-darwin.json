@@ -1,0 +1,2549 @@
+{
+  "revision": "66abed0c8",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "tool_versions": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "llvm": "22.1.8"
+  },
+  "profile": "release",
+  "runs": 7,
+  "nodes": 131071,
+  "explicit_full_rounds": 5,
+  "configured_workers": null,
+  "order": [
+    "off",
+    "on-auto"
+  ],
+  "builds": [
+    {
+      "case": "mark-graphs",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/parallel/mark-graphs.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/mark-graphs",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/dump/mark-graphs",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.1678990829968825,
+      "warm_build_seconds": 5.221093499916606,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "5c2a2bb87449571ef54093950cd0f7a7effa270d48cccf39e14d8ffb3eed3954",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "1a55b78d7b511bfaebb5f7751de31f75352177f8ee235fa45153aab3f9c6abc9",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/mark-graphs",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "e30e6eba54d8e48e400168186c73a863df0c8a2c97be03a75affae68fca1bf55",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/1a55b78d7b511bfaebb5f7751de31f75352177f8ee235fa45153aab3f9c6abc9/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/d479158cf0e8dca5e80b5bbcedaa2f16e9e3ac094176d37c03b3092073341389/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6274328,
+      "slib_bytes": 1436154
+    },
+    {
+      "case": "allocation",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/allocation",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/dump/allocation",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.0917047910625115,
+      "warm_build_seconds": 4.859438959043473,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "50cf9d48515593970d58287ca57ac53575d2ee160be77765f9b3b58d4508a58a",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "8fb055d0abb5ce482e8a2da352344b40dab901abe2b320046c182b1b15f10a6b",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/allocation",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "573de4d6e865ac7782da39ecb20dfd3668345fc396439102bc942977451915cc",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/8fb055d0abb5ce482e8a2da352344b40dab901abe2b320046c182b1b15f10a6b/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/d479158cf0e8dca5e80b5bbcedaa2f16e9e3ac094176d37c03b3092073341389/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6057992,
+      "slib_bytes": 263888
+    },
+    {
+      "case": "old-graph-large",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/old-graph-large.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/old-graph-large",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/dump/old-graph-large",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.107494541909546,
+      "warm_build_seconds": 5.0411705840379,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "3c120db6fdbad578819fae9ff738d0f4323ace593c95378ba4eacad47b72df28",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "1107b5e66b81bc52dfa70d52078254e2aef60f3f1864cd9342b042e497bc4cf6",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/old-graph-large",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "7b6d7022c2aa8ef93c1895682e2786d38638daac02051597d88c84964baaf279",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/1107b5e66b81bc52dfa70d52078254e2aef60f3f1864cd9342b042e497bc4cf6/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/d479158cf0e8dca5e80b5bbcedaa2f16e9e3ac094176d37c03b3092073341389/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6170488,
+      "slib_bytes": 938862
+    },
+    {
+      "case": "survivors",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/survivors.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/reclamation-source/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/survivors",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/dump/survivors",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.116651042015292,
+      "warm_build_seconds": 5.131947792018764,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "5c80c64ca59d3bf778001d6f86d59be32f9695d3c7d3766dc7dd3248bea3c99e",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "3aa373b622359c79441b14890a2203ecf7af78626342baefef5c3be3e1324c86",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "d4b3bf6cfcbd80893e730737b7180112a8ff2719a3a94bc1bbab98c280f96800",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/marker-off-darwin/survivors",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "ab3b6ab83dcbb99ae6d4bcb444f4e05114f7c5a3728feb19865f7b13bbab66ab",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/d4b3bf6cfcbd80893e730737b7180112a8ff2719a3a94bc1bbab98c280f96800/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/d479158cf0e8dca5e80b5bbcedaa2f16e9e3ac094176d37c03b3092073341389/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6180072,
+      "slib_bytes": 1026452
+    }
+  ],
+  "cases": {
+    "wide": {
+      "run_seconds": [
+        0.09269541699904948,
+        0.09178612497635186,
+        0.09290437505114824,
+        0.09982466697692871,
+        0.09211312502156943,
+        0.09377487492747605,
+        0.09258591698016971
+      ],
+      "phases": [
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 11775000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 11820000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11897000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 11726000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 12059000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 11657000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 11567000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11796000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 11807000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 11551000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 11707000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 11735000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11782000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 11958000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 11783000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 12628000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 12642000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 13315000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 12281000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 12699000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 11769000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 11686000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11630000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 11722000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 11684000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17154048,
+            "peak_rss_bytes": 18186240
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 12208000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 12030000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11675000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 11687000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 11588000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17170432,
+            "peak_rss_bytes": 18202624
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 11757000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 18169856
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 11726000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 18169856
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11794000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 18169856
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 11784000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 18169856
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 11803000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 18169856
+          }
+        ]
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291568,
+          "nursery_allocated_bytes": 5242976,
+          "promoted_bytes": 5242888,
+          "copied_bytes": 5222368,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 340,
+          "traced_objects": 785920,
+          "pause_ns": 78208000,
+          "maximum_pause_ns": 12059000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 18931000,
+          "full_pause_ns": 59277000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 1114112,
+          "current_rss_bytes": 17219584,
+          "peak_rss_bytes": 18186240,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291568,
+          "nursery_allocated_bytes": 5242976,
+          "promoted_bytes": 5242888,
+          "copied_bytes": 5222368,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 340,
+          "traced_objects": 785920,
+          "pause_ns": 77218000,
+          "maximum_pause_ns": 11807000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 18840000,
+          "full_pause_ns": 58378000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 1114112,
+          "current_rss_bytes": 17252352,
+          "peak_rss_bytes": 18202624,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291568,
+          "nursery_allocated_bytes": 5242976,
+          "promoted_bytes": 5242888,
+          "copied_bytes": 5222368,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 340,
+          "traced_objects": 785920,
+          "pause_ns": 77765000,
+          "maximum_pause_ns": 11958000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 18800000,
+          "full_pause_ns": 58965000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 1114112,
+          "current_rss_bytes": 17219584,
+          "peak_rss_bytes": 18186240,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291568,
+          "nursery_allocated_bytes": 5242976,
+          "promoted_bytes": 5242888,
+          "copied_bytes": 5222368,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 340,
+          "traced_objects": 785920,
+          "pause_ns": 83816000,
+          "maximum_pause_ns": 13315000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 20251000,
+          "full_pause_ns": 63565000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 1114112,
+          "current_rss_bytes": 17219584,
+          "peak_rss_bytes": 18186240,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291568,
+          "nursery_allocated_bytes": 5242976,
+          "promoted_bytes": 5242888,
+          "copied_bytes": 5222368,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 340,
+          "traced_objects": 785920,
+          "pause_ns": 77035000,
+          "maximum_pause_ns": 11769000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 18544000,
+          "full_pause_ns": 58491000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 1114112,
+          "current_rss_bytes": 17235968,
+          "peak_rss_bytes": 18186240,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291568,
+          "nursery_allocated_bytes": 5242976,
+          "promoted_bytes": 5242888,
+          "copied_bytes": 5222368,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 340,
+          "traced_objects": 785920,
+          "pause_ns": 78912000,
+          "maximum_pause_ns": 12208000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 19724000,
+          "full_pause_ns": 59188000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 1114112,
+          "current_rss_bytes": 17252352,
+          "peak_rss_bytes": 18202624,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291568,
+          "nursery_allocated_bytes": 5242976,
+          "promoted_bytes": 5242888,
+          "copied_bytes": 5222368,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 340,
+          "traced_objects": 785920,
+          "pause_ns": 77624000,
+          "maximum_pause_ns": 11803000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 18760000,
+          "full_pause_ns": 58864000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 1114112,
+          "current_rss_bytes": 17219584,
+          "peak_rss_bytes": 18169856,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        }
+      ],
+      "stderr": [
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":11775000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":11820000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11897000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":11726000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":12059000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291568,\"nursery_allocated_bytes\":5242976,\"promoted_bytes\":5242888,\"copied_bytes\":5222368,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":340,\"traced_objects\":785920,\"pause_ns\":78208000,\"maximum_pause_ns\":12059000,\"committed_bytes\":5308416,\"minor_pause_ns\":18931000,\"full_pause_ns\":59277000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":1114112,\"current_rss_bytes\":17219584,\"peak_rss_bytes\":18186240,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":11657000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":11567000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11796000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":11807000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":11551000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291568,\"nursery_allocated_bytes\":5242976,\"promoted_bytes\":5242888,\"copied_bytes\":5222368,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":340,\"traced_objects\":785920,\"pause_ns\":77218000,\"maximum_pause_ns\":11807000,\"committed_bytes\":5308416,\"minor_pause_ns\":18840000,\"full_pause_ns\":58378000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":1114112,\"current_rss_bytes\":17252352,\"peak_rss_bytes\":18202624,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":11707000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":11735000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11782000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":11958000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":11783000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291568,\"nursery_allocated_bytes\":5242976,\"promoted_bytes\":5242888,\"copied_bytes\":5222368,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":340,\"traced_objects\":785920,\"pause_ns\":77765000,\"maximum_pause_ns\":11958000,\"committed_bytes\":5308416,\"minor_pause_ns\":18800000,\"full_pause_ns\":58965000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":1114112,\"current_rss_bytes\":17219584,\"peak_rss_bytes\":18186240,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":12628000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":12642000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":13315000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":12281000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":12699000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291568,\"nursery_allocated_bytes\":5242976,\"promoted_bytes\":5242888,\"copied_bytes\":5222368,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":340,\"traced_objects\":785920,\"pause_ns\":83816000,\"maximum_pause_ns\":13315000,\"committed_bytes\":5308416,\"minor_pause_ns\":20251000,\"full_pause_ns\":63565000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":1114112,\"current_rss_bytes\":17219584,\"peak_rss_bytes\":18186240,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":11769000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":11686000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11630000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":11722000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":11684000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17154048,\"peak_rss_bytes\":18186240}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291568,\"nursery_allocated_bytes\":5242976,\"promoted_bytes\":5242888,\"copied_bytes\":5222368,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":340,\"traced_objects\":785920,\"pause_ns\":77035000,\"maximum_pause_ns\":11769000,\"committed_bytes\":5308416,\"minor_pause_ns\":18544000,\"full_pause_ns\":58491000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":1114112,\"current_rss_bytes\":17235968,\"peak_rss_bytes\":18186240,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":12208000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":12030000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11675000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":11687000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":11588000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":18202624}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291568,\"nursery_allocated_bytes\":5242976,\"promoted_bytes\":5242888,\"copied_bytes\":5222368,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":340,\"traced_objects\":785920,\"pause_ns\":78912000,\"maximum_pause_ns\":12208000,\"committed_bytes\":5308416,\"minor_pause_ns\":19724000,\"full_pause_ns\":59188000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":1114112,\"current_rss_bytes\":17252352,\"peak_rss_bytes\":18202624,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":11757000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":18169856}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":11726000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":18169856}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11794000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":18169856}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":11784000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":18169856}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":11803000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":18169856}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291568,\"nursery_allocated_bytes\":5242976,\"promoted_bytes\":5242888,\"copied_bytes\":5222368,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":340,\"traced_objects\":785920,\"pause_ns\":77624000,\"maximum_pause_ns\":11803000,\"committed_bytes\":5308416,\"minor_pause_ns\":18760000,\"full_pause_ns\":58864000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":1114112,\"current_rss_bytes\":17219584,\"peak_rss_bytes\":18169856,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n"
+      ],
+      "stdout": "8589737985\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1",
+        "SCOOP_BENCH_GRAPH": "wide",
+        "SCOOP_BENCH_NODES": "131071",
+        "SCOOP_BENCH_ROUNDS": "5"
+      },
+      "median_seconds": 0.09269541699904948
+    },
+    "array": {
+      "run_seconds": [
+        0.14586774993222207,
+        0.14784749993123114,
+        0.14964883390348405,
+        0.15639120899140835,
+        0.14591212500818074,
+        0.14863379206508398,
+        0.15060758404433727
+      ],
+      "phases": [
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 21720000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18153472,
+            "peak_rss_bytes": 18153472
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 21419000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18153472,
+            "peak_rss_bytes": 18153472
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 21691000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18153472,
+            "peak_rss_bytes": 18153472
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 21426000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18153472,
+            "peak_rss_bytes": 18153472
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 21295000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18153472,
+            "peak_rss_bytes": 18153472
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 21798000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 21670000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 21858000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 22408000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 22115000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 22621000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18169856,
+            "peak_rss_bytes": 18169856
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 21938000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18169856,
+            "peak_rss_bytes": 18169856
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 21443000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18169856,
+            "peak_rss_bytes": 18169856
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 22559000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18169856,
+            "peak_rss_bytes": 18169856
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 23135000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18169856,
+            "peak_rss_bytes": 18169856
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 22914000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18186240,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 23145000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18186240,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 23212000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18186240,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 23257000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18186240,
+            "peak_rss_bytes": 18186240
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 22605000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18186240,
+            "peak_rss_bytes": 18186240
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 21486000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18219008,
+            "peak_rss_bytes": 18219008
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 21491000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18219008,
+            "peak_rss_bytes": 18219008
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 21629000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18219008,
+            "peak_rss_bytes": 18219008
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 21768000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18219008,
+            "peak_rss_bytes": 18219008
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 21646000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18219008,
+            "peak_rss_bytes": 18219008
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 21488000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 21865000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 22797000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 21241000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 23132000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 22221000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 22027000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 22867000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 22356000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 22068000,
+            "traced_objects": 131074,
+            "live_objects": 131074,
+            "mapped_bytes": 17891328,
+            "current_rss_bytes": 18202624,
+            "peak_rss_bytes": 18202624
+          }
+        ]
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291616,
+          "nursery_allocated_bytes": 5243024,
+          "promoted_bytes": 5242936,
+          "copied_bytes": 5222376,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 355,
+          "traced_objects": 785930,
+          "pause_ns": 131939000,
+          "maximum_pause_ns": 21720000,
+          "committed_bytes": 6422528,
+          "minor_pause_ns": 24388000,
+          "full_pause_ns": 107551000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17891328,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18219008,
+          "peak_rss_bytes": 18219008,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            1,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291616,
+          "nursery_allocated_bytes": 5243024,
+          "promoted_bytes": 5242936,
+          "copied_bytes": 5222376,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 355,
+          "traced_objects": 785930,
+          "pause_ns": 133550000,
+          "maximum_pause_ns": 22408000,
+          "committed_bytes": 6422528,
+          "minor_pause_ns": 23701000,
+          "full_pause_ns": 109849000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17891328,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18284544,
+          "peak_rss_bytes": 18284544,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            1,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291616,
+          "nursery_allocated_bytes": 5243024,
+          "promoted_bytes": 5242936,
+          "copied_bytes": 5222376,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 355,
+          "traced_objects": 785930,
+          "pause_ns": 135709000,
+          "maximum_pause_ns": 23135000,
+          "committed_bytes": 6422528,
+          "minor_pause_ns": 24013000,
+          "full_pause_ns": 111696000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17891328,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18251776,
+          "peak_rss_bytes": 18251776,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            1,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291616,
+          "nursery_allocated_bytes": 5243024,
+          "promoted_bytes": 5242936,
+          "copied_bytes": 5222376,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 355,
+          "traced_objects": 785930,
+          "pause_ns": 141124000,
+          "maximum_pause_ns": 23257000,
+          "committed_bytes": 6422528,
+          "minor_pause_ns": 25991000,
+          "full_pause_ns": 115133000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17891328,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18251776,
+          "peak_rss_bytes": 18251776,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            3,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291616,
+          "nursery_allocated_bytes": 5243024,
+          "promoted_bytes": 5242936,
+          "copied_bytes": 5222376,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 355,
+          "traced_objects": 785930,
+          "pause_ns": 132216000,
+          "maximum_pause_ns": 21768000,
+          "committed_bytes": 6422528,
+          "minor_pause_ns": 24196000,
+          "full_pause_ns": 108020000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17891328,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18284544,
+          "peak_rss_bytes": 18284544,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            1,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291616,
+          "nursery_allocated_bytes": 5243024,
+          "promoted_bytes": 5242936,
+          "copied_bytes": 5222376,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 355,
+          "traced_objects": 785930,
+          "pause_ns": 134649000,
+          "maximum_pause_ns": 23132000,
+          "committed_bytes": 6422528,
+          "minor_pause_ns": 24126000,
+          "full_pause_ns": 110523000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17891328,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18284544,
+          "peak_rss_bytes": 18284544,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            1,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 6291616,
+          "nursery_allocated_bytes": 5243024,
+          "promoted_bytes": 5242936,
+          "copied_bytes": 5222376,
+          "dirty_cards": 2045,
+          "old_reference_slots": 130861,
+          "root_slots": 355,
+          "traced_objects": 785930,
+          "pause_ns": 136446000,
+          "maximum_pause_ns": 22867000,
+          "committed_bytes": 6422528,
+          "minor_pause_ns": 24907000,
+          "full_pause_ns": 111539000,
+          "region_count": 1,
+          "large_mapping_count": 1,
+          "mapped_bytes": 17891328,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18284544,
+          "peak_rss_bytes": 18284544,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            1,
+            5
+          ]
+        }
+      ],
+      "stderr": [
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":21720000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18153472,\"peak_rss_bytes\":18153472}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":21419000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18153472,\"peak_rss_bytes\":18153472}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":21691000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18153472,\"peak_rss_bytes\":18153472}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":21426000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18153472,\"peak_rss_bytes\":18153472}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":21295000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18153472,\"peak_rss_bytes\":18153472}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291616,\"nursery_allocated_bytes\":5243024,\"promoted_bytes\":5242936,\"copied_bytes\":5222376,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":355,\"traced_objects\":785930,\"pause_ns\":131939000,\"maximum_pause_ns\":21720000,\"committed_bytes\":6422528,\"minor_pause_ns\":24388000,\"full_pause_ns\":107551000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17891328,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18219008,\"peak_rss_bytes\":18219008,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,4,1,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":21798000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":21670000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":21858000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":22408000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":22115000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291616,\"nursery_allocated_bytes\":5243024,\"promoted_bytes\":5242936,\"copied_bytes\":5222376,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":355,\"traced_objects\":785930,\"pause_ns\":133550000,\"maximum_pause_ns\":22408000,\"committed_bytes\":6422528,\"minor_pause_ns\":23701000,\"full_pause_ns\":109849000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17891328,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18284544,\"peak_rss_bytes\":18284544,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,4,1,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":22621000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18169856,\"peak_rss_bytes\":18169856}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":21938000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18169856,\"peak_rss_bytes\":18169856}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":21443000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18169856,\"peak_rss_bytes\":18169856}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":22559000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18169856,\"peak_rss_bytes\":18169856}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":23135000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18169856,\"peak_rss_bytes\":18169856}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291616,\"nursery_allocated_bytes\":5243024,\"promoted_bytes\":5242936,\"copied_bytes\":5222376,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":355,\"traced_objects\":785930,\"pause_ns\":135709000,\"maximum_pause_ns\":23135000,\"committed_bytes\":6422528,\"minor_pause_ns\":24013000,\"full_pause_ns\":111696000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17891328,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18251776,\"peak_rss_bytes\":18251776,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,4,1,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":22914000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18186240,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":23145000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18186240,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":23212000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18186240,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":23257000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18186240,\"peak_rss_bytes\":18186240}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":22605000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18186240,\"peak_rss_bytes\":18186240}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291616,\"nursery_allocated_bytes\":5243024,\"promoted_bytes\":5242936,\"copied_bytes\":5222376,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":355,\"traced_objects\":785930,\"pause_ns\":141124000,\"maximum_pause_ns\":23257000,\"committed_bytes\":6422528,\"minor_pause_ns\":25991000,\"full_pause_ns\":115133000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17891328,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18251776,\"peak_rss_bytes\":18251776,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,2,3,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":21486000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18219008,\"peak_rss_bytes\":18219008}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":21491000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18219008,\"peak_rss_bytes\":18219008}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":21629000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18219008,\"peak_rss_bytes\":18219008}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":21768000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18219008,\"peak_rss_bytes\":18219008}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":21646000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18219008,\"peak_rss_bytes\":18219008}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291616,\"nursery_allocated_bytes\":5243024,\"promoted_bytes\":5242936,\"copied_bytes\":5222376,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":355,\"traced_objects\":785930,\"pause_ns\":132216000,\"maximum_pause_ns\":21768000,\"committed_bytes\":6422528,\"minor_pause_ns\":24196000,\"full_pause_ns\":108020000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17891328,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18284544,\"peak_rss_bytes\":18284544,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,4,1,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":21488000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":21865000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":22797000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":21241000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":23132000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291616,\"nursery_allocated_bytes\":5243024,\"promoted_bytes\":5242936,\"copied_bytes\":5222376,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":355,\"traced_objects\":785930,\"pause_ns\":134649000,\"maximum_pause_ns\":23132000,\"committed_bytes\":6422528,\"minor_pause_ns\":24126000,\"full_pause_ns\":110523000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17891328,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18284544,\"peak_rss_bytes\":18284544,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,4,1,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":22221000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":22027000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":22867000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":22356000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":22068000,\"traced_objects\":131074,\"live_objects\":131074,\"mapped_bytes\":17891328,\"current_rss_bytes\":18202624,\"peak_rss_bytes\":18202624}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":6291616,\"nursery_allocated_bytes\":5243024,\"promoted_bytes\":5242936,\"copied_bytes\":5222376,\"dirty_cards\":2045,\"old_reference_slots\":130861,\"root_slots\":355,\"traced_objects\":785930,\"pause_ns\":136446000,\"maximum_pause_ns\":22867000,\"committed_bytes\":6422528,\"minor_pause_ns\":24907000,\"full_pause_ns\":111539000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17891328,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18284544,\"peak_rss_bytes\":18284544,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,4,1,5]}\n"
+      ],
+      "stdout": "8589737985\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1",
+        "SCOOP_BENCH_GRAPH": "array",
+        "SCOOP_BENCH_NODES": "131071",
+        "SCOOP_BENCH_ROUNDS": "5"
+      },
+      "median_seconds": 0.14863379206508398
+    },
+    "chain": {
+      "run_seconds": [
+        0.0906237920280546,
+        0.0921862079994753,
+        0.09883379098027945,
+        0.0961048329481855,
+        0.0928234999300912,
+        0.0976497499505058,
+        0.09815583296585828
+      ],
+      "phases": [
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 11845000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17121280,
+            "peak_rss_bytes": 17121280
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 11755000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17121280,
+            "peak_rss_bytes": 17121280
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11979000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17121280,
+            "peak_rss_bytes": 17121280
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 11803000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17121280,
+            "peak_rss_bytes": 17121280
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 11756000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17121280,
+            "peak_rss_bytes": 17121280
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 12173000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 11991000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11888000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 12093000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 11840000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 13085000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 12862000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 13126000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 12714000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 12837000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17137664,
+            "peak_rss_bytes": 17137664
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 13201000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 13154000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 12091000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 12045000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 11958000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 11907000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17088512,
+            "peak_rss_bytes": 17088512
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 11979000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17088512,
+            "peak_rss_bytes": 17088512
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 11909000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17088512,
+            "peak_rss_bytes": 17088512
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 13074000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17088512,
+            "peak_rss_bytes": 17088512
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 12118000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 17088512,
+            "peak_rss_bytes": 17088512
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 12844000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 12869000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 12854000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 12864000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 12797000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          }
+        ],
+        [
+          {
+            "scoop_mark_phase": 1,
+            "round": 0,
+            "pause_ns": 12673000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 1,
+            "pause_ns": 12976000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 2,
+            "pause_ns": 12862000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 3,
+            "pause_ns": 13068000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          },
+          {
+            "scoop_mark_phase": 1,
+            "round": 4,
+            "pause_ns": 12791000,
+            "traced_objects": 131072,
+            "live_objects": 131072,
+            "mapped_bytes": 16777216,
+            "current_rss_bytes": 18415616,
+            "peak_rss_bytes": 18415616
+          }
+        ]
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 5242952,
+          "nursery_allocated_bytes": 5242952,
+          "promoted_bytes": 5242864,
+          "copied_bytes": 5222384,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 330,
+          "traced_objects": 785920,
+          "pause_ns": 77763000,
+          "maximum_pause_ns": 11979000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 18625000,
+          "full_pause_ns": 59138000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 17186816,
+          "peak_rss_bytes": 17186816,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 5242952,
+          "nursery_allocated_bytes": 5242952,
+          "promoted_bytes": 5242864,
+          "copied_bytes": 5222384,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 330,
+          "traced_objects": 785920,
+          "pause_ns": 78523000,
+          "maximum_pause_ns": 12173000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 18538000,
+          "full_pause_ns": 59985000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 17219584,
+          "peak_rss_bytes": 17219584,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 5242952,
+          "nursery_allocated_bytes": 5242952,
+          "promoted_bytes": 5242864,
+          "copied_bytes": 5222384,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 330,
+          "traced_objects": 785920,
+          "pause_ns": 84697000,
+          "maximum_pause_ns": 13126000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 20073000,
+          "full_pause_ns": 64624000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 17203200,
+          "peak_rss_bytes": 17203200,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 5242952,
+          "nursery_allocated_bytes": 5242952,
+          "promoted_bytes": 5242864,
+          "copied_bytes": 5222384,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 330,
+          "traced_objects": 785920,
+          "pause_ns": 82047000,
+          "maximum_pause_ns": 13201000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 19598000,
+          "full_pause_ns": 62449000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18497536,
+          "peak_rss_bytes": 18497536,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 5242952,
+          "nursery_allocated_bytes": 5242952,
+          "promoted_bytes": 5242864,
+          "copied_bytes": 5222384,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 330,
+          "traced_objects": 785920,
+          "pause_ns": 79807000,
+          "maximum_pause_ns": 13074000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 18820000,
+          "full_pause_ns": 60987000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 17170432,
+          "peak_rss_bytes": 17170432,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 5242952,
+          "nursery_allocated_bytes": 5242952,
+          "promoted_bytes": 5242864,
+          "copied_bytes": 5222384,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 330,
+          "traced_objects": 785920,
+          "pause_ns": 83966000,
+          "maximum_pause_ns": 12869000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 19738000,
+          "full_pause_ns": 64228000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18497536,
+          "peak_rss_bytes": 18497536,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 5,
+          "full_collections": 5,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 5242952,
+          "nursery_allocated_bytes": 5242952,
+          "promoted_bytes": 5242864,
+          "copied_bytes": 5222384,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 330,
+          "traced_objects": 785920,
+          "pause_ns": 84239000,
+          "maximum_pause_ns": 13068000,
+          "committed_bytes": 5308416,
+          "minor_pause_ns": 19869000,
+          "full_pause_ns": 64370000,
+          "region_count": 1,
+          "large_mapping_count": 0,
+          "mapped_bytes": 16777216,
+          "discard_calls": 1,
+          "discard_failures": 0,
+          "discarded_bytes": 1015808,
+          "unmapped_bytes": 0,
+          "current_rss_bytes": 18497536,
+          "peak_rss_bytes": 18497536,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            5
+          ]
+        }
+      ],
+      "stderr": [
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":11845000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17121280,\"peak_rss_bytes\":17121280}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":11755000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17121280,\"peak_rss_bytes\":17121280}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11979000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17121280,\"peak_rss_bytes\":17121280}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":11803000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17121280,\"peak_rss_bytes\":17121280}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":11756000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17121280,\"peak_rss_bytes\":17121280}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":5242952,\"nursery_allocated_bytes\":5242952,\"promoted_bytes\":5242864,\"copied_bytes\":5222384,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":330,\"traced_objects\":785920,\"pause_ns\":77763000,\"maximum_pause_ns\":11979000,\"committed_bytes\":5308416,\"minor_pause_ns\":18625000,\"full_pause_ns\":59138000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":17186816,\"peak_rss_bytes\":17186816,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":12173000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":11991000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11888000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":12093000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":11840000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":5242952,\"nursery_allocated_bytes\":5242952,\"promoted_bytes\":5242864,\"copied_bytes\":5222384,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":330,\"traced_objects\":785920,\"pause_ns\":78523000,\"maximum_pause_ns\":12173000,\"committed_bytes\":5308416,\"minor_pause_ns\":18538000,\"full_pause_ns\":59985000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":17219584,\"peak_rss_bytes\":17219584,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":13085000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":12862000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":13126000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":12714000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":12837000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17137664,\"peak_rss_bytes\":17137664}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":5242952,\"nursery_allocated_bytes\":5242952,\"promoted_bytes\":5242864,\"copied_bytes\":5222384,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":330,\"traced_objects\":785920,\"pause_ns\":84697000,\"maximum_pause_ns\":13126000,\"committed_bytes\":5308416,\"minor_pause_ns\":20073000,\"full_pause_ns\":64624000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":17203200,\"peak_rss_bytes\":17203200,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":13201000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":13154000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":12091000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":12045000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":11958000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":5242952,\"nursery_allocated_bytes\":5242952,\"promoted_bytes\":5242864,\"copied_bytes\":5222384,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":330,\"traced_objects\":785920,\"pause_ns\":82047000,\"maximum_pause_ns\":13201000,\"committed_bytes\":5308416,\"minor_pause_ns\":19598000,\"full_pause_ns\":62449000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18497536,\"peak_rss_bytes\":18497536,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":11907000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17088512,\"peak_rss_bytes\":17088512}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":11979000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17088512,\"peak_rss_bytes\":17088512}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":11909000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17088512,\"peak_rss_bytes\":17088512}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":13074000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17088512,\"peak_rss_bytes\":17088512}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":12118000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":17088512,\"peak_rss_bytes\":17088512}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":5242952,\"nursery_allocated_bytes\":5242952,\"promoted_bytes\":5242864,\"copied_bytes\":5222384,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":330,\"traced_objects\":785920,\"pause_ns\":79807000,\"maximum_pause_ns\":13074000,\"committed_bytes\":5308416,\"minor_pause_ns\":18820000,\"full_pause_ns\":60987000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":17170432,\"peak_rss_bytes\":17170432,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":12844000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":12869000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":12854000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":12864000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":12797000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":5242952,\"nursery_allocated_bytes\":5242952,\"promoted_bytes\":5242864,\"copied_bytes\":5222384,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":330,\"traced_objects\":785920,\"pause_ns\":83966000,\"maximum_pause_ns\":12869000,\"committed_bytes\":5308416,\"minor_pause_ns\":19738000,\"full_pause_ns\":64228000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18497536,\"peak_rss_bytes\":18497536,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n",
+        "{\"scoop_mark_phase\":1,\"round\":0,\"pause_ns\":12673000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":1,\"pause_ns\":12976000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":2,\"pause_ns\":12862000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":3,\"pause_ns\":13068000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_mark_phase\":1,\"round\":4,\"pause_ns\":12791000,\"traced_objects\":131072,\"live_objects\":131072,\"mapped_bytes\":16777216,\"current_rss_bytes\":18415616,\"peak_rss_bytes\":18415616}\n{\"scoop_gc\":1,\"minor_collections\":5,\"full_collections\":5,\"promotion_fallbacks\":0,\"allocated_bytes\":5242952,\"nursery_allocated_bytes\":5242952,\"promoted_bytes\":5242864,\"copied_bytes\":5222384,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":330,\"traced_objects\":785920,\"pause_ns\":84239000,\"maximum_pause_ns\":13068000,\"committed_bytes\":5308416,\"minor_pause_ns\":19869000,\"full_pause_ns\":64370000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"discard_calls\":1,\"discard_failures\":0,\"discarded_bytes\":1015808,\"unmapped_bytes\":0,\"current_rss_bytes\":18497536,\"peak_rss_bytes\":18497536,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,5,0,5]}\n"
+      ],
+      "stdout": "8589737985\n",
+      "environment": {
+        "SCOOP_GC_STATS": "1",
+        "SCOOP_BENCH_GRAPH": "chain",
+        "SCOOP_BENCH_NODES": "131071",
+        "SCOOP_BENCH_ROUNDS": "5"
+      },
+      "median_seconds": 0.0961048329481855
+    }
+  }
+}

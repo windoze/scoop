@@ -1,0 +1,5 @@
+fun main() {
+    fun first(value: Int): Int = second(value)
+    fun second(value: Int): Int = first(value)
+    println(first(42))
+}

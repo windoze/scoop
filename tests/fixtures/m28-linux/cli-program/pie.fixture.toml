@@ -1,0 +1,46 @@
+schema = 1
+name = "m28-cli-program-musl-pie"
+root = "program"
+inputs = ["program"]
+tools = ["scoop", "scoopc", "scoop-link", "cc"]
+targets = ["x86_64-unknown-linux-musl"]
+tags = ["m28", "cli", "gc", "eh", "artifact-only"]
+variants = [
+  { name = "debug", vars = { profile = "debug" } },
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/program", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{ actual = "${build.result.kind}", equals = "executable" }]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+env = { SCOOP_GC_STRESS_MOVE = "1" }
+exit = 0
+stdout = "Linux amd64\nGC and EH passed\n"
+stderr = ""
+
+[[steps]]
+name = "link"
+argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/relinked"]
+env = { LLVM_SYS_221_PREFIX = "/absent-llvm", PATH = "/usr/bin:/bin" }
+timeout = 300
+exit = 0
+stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run-relinked"
+argv = ["${work}/relinked"]
+env = { SCOOP_GC_STRESS_MOVE = "1" }
+exit = 0
+stdout = "Linux amd64\nGC and EH passed\n"
+stderr = ""

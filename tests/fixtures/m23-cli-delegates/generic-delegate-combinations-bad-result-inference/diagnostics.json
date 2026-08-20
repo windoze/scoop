@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `B` of extension property `missing` cannot be inferred solely from its receiver",
+    "notes": [],
+    "origin": {
+      "cone": "c08086e0f4bbd3dfaf38e4b04f3bf6f9e18eb1f3723cf19a4b57d5dcce94981c",
+      "end": 171,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 170
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `missing` in extension candidate layer:\n  - fun Receiver<A>.missing<A, B>(): B — cannot infer a unique type argument for `B`",
+    "notes": [],
+    "origin": {
+      "cone": "c08086e0f4bbd3dfaf38e4b04f3bf6f9e18eb1f3723cf19a4b57d5dcce94981c",
+      "end": 262,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 255
+    },
+    "severity": "error"
+  }
+]

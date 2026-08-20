@@ -1,0 +1,45 @@
+package dependency.helpers
+
+public class Payload public constructor(public val number: Int)
+
+private fun offset(): Int = 1
+
+private fun <T> copy(value: T): T = value
+
+private fun <T> classify(value: T): Int = 40
+private fun classify(value: Int): Int = 99
+
+public fun <T> retain(value: T): T = copy(value)
+
+public fun <T> definitionSite(value: T): Int = classify(value) + offset() + 1
+
+public fun <T> captured(value: T): T {
+    fun local(): T = copy(value)
+    return local()
+}
+
+public fun <T> nested(value: T): T {
+    fun middle(): T {
+        fun <U> local(argument: U, again: Boolean): T {
+            if (again) { return local<U>(argument, false) }
+            return copy(value)
+        }
+        return local<Int>(1, true)
+    }
+    return middle()
+}
+
+public fun <T> T.echo(): T = copy(this)
+
+public fun <T> recursive(value: T, again: Boolean): T {
+    if (again) { return recursive<T>(value, false) }
+    return value
+}
+
+@NoGC
+public fun <T> native(value: T): T = value
+
+public fun precompiled(value: Payload): Payload {
+    val flag = native(0)
+    return recursive(nested(captured(value)).echo(), flag == 1)
+}

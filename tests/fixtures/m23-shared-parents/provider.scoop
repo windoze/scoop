@@ -1,0 +1,14 @@
+package dependency.parents
+
+public open class Base<T> public constructor(public val value: T) {
+    public open fun read(): T = this.value
+}
+
+public interface Reader<T> {
+    public fun read(): T
+    public fun again(): T = this.read()
+}
+
+public abstract class ReadingBase<T> public constructor(public val value: T): Reader<T> {
+    public override fun read(): T = this.value
+}

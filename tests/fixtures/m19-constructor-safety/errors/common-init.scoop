@@ -1,0 +1,5 @@
+@Unsafe fun dangerous(): Int = 1
+class Box {
+    @Unsafe constructor() {}
+    init { dangerous() }
+}

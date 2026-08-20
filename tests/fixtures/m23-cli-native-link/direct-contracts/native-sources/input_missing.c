@@ -1,0 +1,1 @@
+extern int missing_helper(void); int m23_add(int x, int y) { return x + y + missing_helper(); }

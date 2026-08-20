@@ -1,0 +1,41 @@
+package consumer.delegateSiblings
+
+import templates.delegateSiblings.State
+import templates.delegateSiblings.Payload
+import siblings.delegates.left.write
+import siblings.delegates.left.failure as failLeft
+import siblings.delegates.right.read
+import siblings.delegates.right.otherFirst
+import siblings.delegates.right.otherSecond
+import siblings.delegates.right.failure as failRight
+import siblings.delegates.right.otherFailure
+
+public fun check(): Int {
+    if (State.builds != 0 || State.provides != 0 || State.failures != 0) { return 1 }
+    if (write() != 42) { return 2 }
+    Payload(0)
+    if (read() != 42) { return 3 }
+    if (State.builds != 1 || State.provides != 1) { return 4 }
+    if (otherFirst() != 40 || otherSecond() != 40) { return 5 }
+    if (State.builds != 3 || State.provides != 3) { return 6 }
+    Payload(0)
+    if (read() != 42) { return 7 }
+
+    val first = failLeft()
+    if (State.failures != 1) { return 12 }
+    Payload(0)
+    val second = failRight()
+    if (State.failures != 1) { return 13 }
+    if (!(first.payload === second.payload) || first.payload.value != 1) { return 8 }
+    first.payload.value = 17
+    val different = otherFailure()
+    if (first.payload === different.payload || State.failures != 2) { return 9 }
+    if (different.payload.value != 2) { return 14 }
+    Payload(0)
+    if (!(first.payload === failLeft().payload) || !(different.payload === otherFailure().payload)) { return 10 }
+    if (failRight().payload.value != 17) { return 15 }
+    if (State.failures != 2) { return 11 }
+    return 42
+}
+
+fun main() { println(check()) }

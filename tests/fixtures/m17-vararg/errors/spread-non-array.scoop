@@ -1,0 +1,5 @@
+fun collect(vararg values: Int): Long = values.size
+
+fun main() {
+    collect(*1)
+}

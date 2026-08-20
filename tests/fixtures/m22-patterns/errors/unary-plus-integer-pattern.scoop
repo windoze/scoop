@@ -1,0 +1,9 @@
+// EXPECT-DIAGNOSTICS
+
+fun main() {
+    val value: Int = 1
+    when (value) {
+        case +1 -> {}
+        else -> {}
+    }
+}

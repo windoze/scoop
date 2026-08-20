@@ -1,0 +1,21 @@
+package consumer.coroutines
+import templates.coroutines.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val immediate = Completion<T>()
+    startCoroutine(valueTask(seed), immediate)
+    if (immediate.calls != 1 || read(immediate.value!!) != 42) { return 2 }
+    val gate = Gate<T>()
+    val deferred = Completion<T>()
+    startCoroutine(waitingValueTask(gate), deferred)
+    if (deferred.calls != 0) { return 3 }
+    val retained = Counter()
+    retained.value = 42
+    gate.complete(seed)
+    if (deferred.calls != 1 || retained.value != 42) { return 4 }
+    return read(deferred.value!!)
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })
+
+fun main() { println(result()) }

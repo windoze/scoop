@@ -1,0 +1,14 @@
+import dependency.api.run
+import LocalTools.enabled as enabled
+
+fun userCoreDependency() {
+    run()
+}
+
+fun userCoreCombined(flag: Boolean) {
+    if (flag && enabled) {
+        run()
+    } else {
+        run()
+    }
+}

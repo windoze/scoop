@@ -1,0 +1,5 @@
+suspend fun awaitValue(): Int = 1
+
+fun invalid(value: Int = awaitValue()): Int = value
+
+fun main() {}

@@ -1,0 +1,2 @@
+class Counter { @get:NoGC private val value: Int = 42 }
+fun main() {}

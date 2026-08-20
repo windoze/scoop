@@ -1,0 +1,14 @@
+class Box<T>(val value: T) { fun read(): T = value }
+fun <T> use(value: T, action: T.() -> T): T = value.action()
+fun <T> reader(): Box<T>.() -> T = { value }
+fun <T> preserve(action: T.() -> T): (T) -> T = action
+fun main() {
+    println(use(42) { this })
+    println(reader<String>()(Box("generic")))
+    val copy = preserve<String> { this }
+    println(copy("flat"))
+    val read: Box<Int>.() -> Int = Box<Int>::read
+    println(Box(7).read())
+    val add: Int.(Int) -> Int = Int::plus
+    println(40.add(2))
+}

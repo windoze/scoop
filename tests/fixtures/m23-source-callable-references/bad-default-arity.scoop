@@ -1,0 +1,6 @@
+import templates.references.*
+
+public fun rejected(): Int {
+    val reference: () -> Int = ::offset
+    return 0
+}

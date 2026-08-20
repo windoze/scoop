@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of type Cell contains `@InteriorMutable` state and requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 97,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 93
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "safe function `compare` exposes `@InteriorMutable` parameter `left`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 106,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 45
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "safe function `compare` exposes `@InteriorMutable` parameter `right`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 106,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 45
+    },
+    "severity": "error"
+  }
+]

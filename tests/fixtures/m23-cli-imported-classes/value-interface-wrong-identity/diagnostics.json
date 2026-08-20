@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `rejected` must be of type OtherReadable, found StructReader",
+    "notes": [],
+    "origin": {
+      "cone": "b8f07b6e73049e25068b1e27bf3539cf604f10474fd82d39f7ecf5fd8115421c",
+      "end": 143,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 138
+    },
+    "severity": "error"
+  }
+]

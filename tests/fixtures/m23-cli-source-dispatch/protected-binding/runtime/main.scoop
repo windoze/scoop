@@ -1,0 +1,8 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = vault().observe(17L, Argument)
+    verifyDispatch(value._1 == 17L && value._2 === Argument && value._3 == 3)
+    verifyDispatch(another().observe(19L) == 19L)
+}

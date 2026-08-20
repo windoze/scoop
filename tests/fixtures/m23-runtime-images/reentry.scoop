@@ -1,0 +1,4 @@
+@Extern(lib = "m23_lifecycle", name = "m23_reenter") private fun reenter()
+private fun initialize(): Long { @Unsafe { reenter() }; return 0L }
+val initialized: Long = initialize()
+fun main() {}

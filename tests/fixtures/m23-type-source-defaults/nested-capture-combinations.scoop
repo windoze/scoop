@@ -1,0 +1,49 @@
+public fun <A, B> genericCapture(seed: A, ignored: B, value: A = if (true) {
+    fun <C> copy(unused: C): A { return seed }
+    copy<B>(ignored)
+} else { seed }): A = value
+
+fun <X, Y> forward(left: X, right: Y): Y = genericCapture(right, left)
+
+fun localDefault(seed: String): String {
+    fun choose(value: String = if (true) {
+        fun copy(): String { return seed }
+        copy()
+    } else { seed }): String = value
+    return choose()
+}
+
+public fun capturedCallback(seed: String, value: () -> String = if (true) {
+    fun copy(): String { return seed }
+    val result = copy()
+    val callback: () -> String = { result }
+    callback
+} else {
+    val fallback: () -> String = { seed }
+    fallback
+}): () -> String = value
+
+public fun capturedReference(seed: String, value: () -> String = if (true) {
+    fun copy(): String { return seed }
+    val reference: () -> String = ::copy
+    reference
+} else {
+    val fallback: () -> String = { seed }
+    fallback
+}): () -> String = value
+
+fun unused(seed: String, value: () -> String = {
+    fun copy(): String { return seed }
+    copy()
+}): () -> String = value
+
+fun main() {
+    genericCapture("one", 1)
+    genericCapture(2, "two")
+    forward("left", 3)
+    localDefault("local")
+    capturedCallback("first")()
+    capturedCallback("second")()
+    capturedReference("first")()
+    capturedReference("second")()
+}

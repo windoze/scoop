@@ -1,0 +1,11 @@
+private open class StorageBase {}
+private class SecretStorage : StorageBase() {}
+public class Envelope {
+    private val storage: SecretStorage = SecretStorage()
+    private class Hidden {
+        internal class Nested {}
+    }
+    public object Cache {
+        private val number: Int = 8
+    }
+}

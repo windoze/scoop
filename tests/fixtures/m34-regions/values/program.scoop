@@ -1,0 +1,59 @@
+@Extern(lib = "m34_regions", name = "m34_region_stress") fun stressMode(): Boolean
+@Extern(lib = "m34_regions", name = "m34_region_moving") fun movingMode(): Boolean
+@Extern(lib = "m34_regions", name = "m34_region_count") fun regionCount(): ULong
+@Extern(lib = "m34_regions", name = "m34_region_minor_count") fun minorCount(): ULong
+
+interface Value { fun get(): Long }
+class Node(val value: Long, var next: Node?) : Value {
+    public override fun get(): Long = value
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun fill(roots: MutableArray<Node?>) {
+    var index = 0L
+    while (index < roots.size) { roots[index] = Some(Node(index, None)); index += 1L }
+}
+
+fun mutate(roots: MutableArray<Node?>, values: MutableArray<Value?>, cell: AtomicRef<Value>) {
+    roots[0L]!!.next = Some(Node(70L, roots[roots.size - 1L]))
+    values[0L] = Some(Node(71L, None))
+    values[values.size / 2L] = Some(Node(72L, None))
+    values[values.size - 1L] = Some(Node(73L, None))
+    cell.store(Node(74L, None))
+}
+
+@Unsafe fun minorCollection(moving: Boolean) {
+    if (moving) { gcCollect(); return }
+    val before = minorCount()
+    while (minorCount() == before) {
+        var index = 0L
+        while (index < 4096L) { val node = Node(index, None); index = node.value + 1L }
+    }
+}
+
+@Unsafe fun main() {
+    val stress = stressMode()
+    val count = if (stress) { 64L } else { 600000L }
+    val capacity = if (stress) { 8193L } else { 1100000L }
+    val roots = MutableArray<Node?>(count) { index -> None }
+    fill(roots)
+    val values = MutableArray<Value?>(capacity) { index -> None }
+    val cell = AtomicRef<Value>(roots[0L]!!)
+    gcCollect()
+    if (!stress) { check(regionCount() >= 2uL) }
+    mutate(roots, values, cell)
+    val copied = values.toArray()
+    minorCollection(movingMode())
+    check(roots[0L]!!.next!!.value == 70L)
+    check(roots[0L]!!.next!!.next!!.value == count - 1L)
+    check(values[0L]!!.get() == 71L && values[capacity / 2L]!!.get() == 72L)
+    check(values[capacity - 1L]!!.get() == 73L && cell.load().get() == 74L)
+    check(copied[0L]!! === values[0L]!!)
+    check(copied[capacity - 1L]!! === values[capacity - 1L]!!)
+    val held = (copied[0L]!!, roots[count - 1L]!!)
+    val closure: () -> Long = { copied[capacity - 1L]!!.get() }
+    gcCollect()
+    val (first, last) = held
+    check(first.get() + last.value + closure() == count + 143L)
+    println("region values")
+}

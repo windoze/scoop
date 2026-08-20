@@ -1,0 +1,6 @@
+// EXPECT-TRAP
+class M25UncaughtError() : Exception(Some("m25 uncaught"))
+
+fun main() {
+    throw M25UncaughtError()
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "setter of property `state` is not accessible",
+    "notes": [],
+    "origin": {
+      "cone": "a402de21bde1c8e27a317f81b2b7ee4f91936deeba0a46283c616d73e6140dbb",
+      "end": 181,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 176
+    },
+    "severity": "error"
+  }
+]

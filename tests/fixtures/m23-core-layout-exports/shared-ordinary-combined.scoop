@@ -1,0 +1,23 @@
+@NoGC public fun sharedOrdinaryCount(value: Int): Int = value
+public fun sharedOrdinaryText(value: String): String = value
+public val sharedOrdinaryReady: Boolean
+    get() = true
+
+public struct SharedOrdinaryEmpty()
+public struct SharedOrdinaryWide(val text: String, val marker: SharedOrdinaryEmpty, val amount: Long)
+public fun sharedOrdinaryWide(value: SharedOrdinaryWide): SharedOrdinaryWide = value
+public interface SharedOrdinarySource {
+    public fun read(marker: SharedOrdinaryEmpty): SharedOrdinaryWide
+}
+public class SharedOrdinaryHolder public constructor(public val stored: SharedOrdinaryWide): SharedOrdinarySource {
+    public override fun read(marker: SharedOrdinaryEmpty): SharedOrdinaryWide = stored
+}
+public object SharedOrdinaryAccess {
+    public fun pass(value: SharedOrdinaryWide): SharedOrdinaryWide = sharedOrdinaryWide(value)
+}
+
+public class SharedOrdinaryBox<T>(public val value: T)
+public class SharedOrdinaryDeferred(public val value: SharedOrdinaryBox<SharedOrdinaryWide>)
+public fun sharedOrdinaryDeferred(value: SharedOrdinaryDeferred): SharedOrdinaryDeferred = value
+public struct SharedOrdinaryDeferredValue(val value: SharedOrdinaryBox<SharedOrdinaryWide>)
+public fun sharedOrdinaryDeferredValue(value: SharedOrdinaryDeferredValue): SharedOrdinaryDeferredValue = value

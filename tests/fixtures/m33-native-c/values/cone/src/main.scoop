@@ -1,0 +1,45 @@
+@CLayout
+struct Pair(val number: Int, val flag: Boolean, val fraction: Double)
+
+@Extern(name = "m33_native_value")
+fun nativeValue(mode: Int): Int
+
+@GCLeaf @Extern(name = "m33_native_value")
+fun leafValue(mode: Int): Int
+
+@Extern(name = "m33_native_pair")
+fun nativePair(value: Pair): Pair
+
+@Extern(name = "m33_native_errno", captureErrno = true)
+fun captured(value: Int): (Int, Int)
+
+@Extern(name = "m33_native_count")
+fun nextCount(): Int
+
+@GCLeaf @Extern(name = "m33_native_message")
+fun message(): Ptr<Int8>
+
+class Cell(val value: Int)
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun <T> retain(value: T): T {
+    @Unsafe { expect(nativeValue(0) == 42) }
+    return value
+}
+
+fun main() {
+    val cell = retain(Cell(42))
+    gcCollect()
+    @Unsafe {
+        expect(nextCount() == 2 && nextCount() == 4)
+        expect(String.fromCString(message()) == "native")
+        expect(leafValue(1) == 42)
+        val pair = nativePair(Pair(cell.value, true, 0.5))
+        expect(pair.number == 42 + expectedPlatform())
+        expect(!pair.flag && pair.fraction == 0.75)
+        val saved = captured(cell.value)
+        gcCollect()
+        expect(saved == (42, 29))
+    }
+    println("native-c-ok")
+}

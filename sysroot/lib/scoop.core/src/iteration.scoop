@@ -1,0 +1,24 @@
+public interface Iterator<T> {
+    public fun next(): Option<T>
+}
+
+public interface Iterable<T> {
+    public operator fun iterator(): Iterator<T>
+}
+
+internal class ListIterator<T> internal constructor(
+    private val source: List<T>,
+    private var index: Long,
+    private var exhausted: Boolean
+) : Iterator<T> {
+    public override fun next(): Option<T> {
+        if (exhausted) { return None }
+        if (index >= source.size) {
+            exhausted = true
+            return None
+        }
+        val value = source[index]
+        index = index + 1L
+        return Some(value)
+    }
+}

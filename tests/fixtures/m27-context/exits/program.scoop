@@ -1,0 +1,67 @@
+class Binding(val value: Long)
+class TestFailure() : Exception(Some("scope failure"))
+
+context(binding: Binding)
+fun current(): Long = binding.value
+
+fun returnFromScope(): Long {
+    context(Binding(9)) {
+        gcCollect()
+        return current()
+    }
+}
+
+fun failingBinding(): Binding { throw TestFailure() }
+
+context(_: Binding)
+fun ownTry() {
+    try {
+        println("entered without binding")
+    } catch (error: MissingContextException) {
+        println("caught by own body")
+    }
+}
+
+fun main() {
+    context(Binding(1)) {
+        try {
+            context(Binding(2)) {
+                gcCollect()
+                throw TestFailure()
+            }
+        } catch (error: TestFailure) {
+            println(current())
+        }
+        println(returnFromScope())
+        println(current())
+        var index: Long = 0
+        while (index < 3) {
+            context(Binding(10 + index)) {
+                index += 1
+                if (index == 1) { continue }
+                break
+            }
+        }
+        println(current())
+        try {
+            context(failingBinding()) { println("binding should fail") }
+        } catch (error: TestFailure) {
+            println(current())
+        }
+        val result = context(Binding(3)) {
+            try {
+                "result-" + current().toString()
+            } finally {
+                gcCollect()
+            }
+        }
+        gcCollect()
+        println(result)
+        println(current())
+    }
+    try {
+        ownTry()
+    } catch (error: MissingContextException) {
+        println("caught by caller")
+    }
+}

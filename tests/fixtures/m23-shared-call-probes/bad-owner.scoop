@@ -1,0 +1,4 @@
+package consumer.callprobes
+import upstream.callprobes.*
+
+public fun result(): Int { val value = Reference<Int>(42); return 0 }

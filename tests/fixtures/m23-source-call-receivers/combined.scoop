@@ -1,0 +1,14 @@
+package receiver.consumer
+import receiver.provider.withDefault
+import receiver.provider.score
+
+private var Any.localScore: Int
+    get() = 9
+    set(value) {}
+
+public fun combined(): Int {
+    val first = withDefault()
+    "write".score = first
+    "local-write".localScore = "local-read".localScore
+    return "read".score
+}

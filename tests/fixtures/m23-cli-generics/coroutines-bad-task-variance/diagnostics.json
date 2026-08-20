@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `task` must be of type SuspendTask<BaseResult>, found DerivedTask; nominal application `SuspendTask` is invariant: first differing type argument 1 (`T`) is `DerivedResult` in `SuspendTask<DerivedResult>`, but `BaseResult` in `SuspendTask<BaseResult>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "f734f5efac6f6e803cb79dc8a4b6c636a70d77f235e33329e3fcbe0d4f9cae1e",
+      "end": 111,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  }
+]

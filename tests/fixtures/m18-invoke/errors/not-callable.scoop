@@ -1,0 +1,24 @@
+struct Plain() {
+    fun invoke(value: Int): Int = value
+}
+
+struct Inner() {
+    operator fun invoke(value: Int): Int = value
+}
+
+struct Outer() {
+    operator fun invoke(): Inner = Inner()
+}
+
+fun named(value: Int): Int = value
+
+fun main() {
+    val plain = Plain()
+    val first = (plain)(1)
+
+    val outer = Outer()
+    val recursive = outer(1)
+
+    val named = { value: String -> value }
+    val shadowed = named(1)
+}

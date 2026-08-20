@@ -1,0 +1,411 @@
+{
+  "schema": 1,
+  "complete": true,
+  "discovered": 3240,
+  "selected": 44,
+  "unselected": 3196,
+  "counts": {
+    "passed": 44
+  },
+  "variants": 58,
+  "processes": 154,
+  "stage_and_plan_goldens": 120,
+  "results": [
+    {
+      "name": "generic-delegate-closures-initializer-combined",
+      "status": "passed",
+      "seconds": 63.98252558300737,
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "legacy-m21-top-level-static-values",
+      "status": "passed",
+      "seconds": 10.760242708027363,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "legacy-m21-visibility-errors-access-domains",
+      "status": "passed",
+      "seconds": 2.4803452499909326,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m33-errno-values",
+      "status": "passed",
+      "seconds": 11.849441707949154,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-function-inference-artifacts",
+      "status": "passed",
+      "seconds": 13.340323166921735,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-function-inference-defaults",
+      "status": "passed",
+      "seconds": 10.651655625086278,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-function-inference-interface-defaults",
+      "status": "passed",
+      "seconds": 10.715312208980322,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-abstract-type",
+      "status": "passed",
+      "seconds": 2.2105273330817,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-accessors",
+      "status": "passed",
+      "seconds": 10.666310332948342,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-artifacts",
+      "status": "passed",
+      "seconds": 13.4906530410517,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-assignment-type",
+      "status": "passed",
+      "seconds": 2.192005541990511,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-basic",
+      "status": "passed",
+      "seconds": 10.499520791927353,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-block-getter",
+      "status": "passed",
+      "seconds": 2.1997108749346808,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-bottom-storage",
+      "status": "passed",
+      "seconds": 10.429606500081718,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-const-call",
+      "status": "passed",
+      "seconds": 2.3578248750418425,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-constants",
+      "status": "passed",
+      "seconds": 10.518826458021067,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-constructor-parameter",
+      "status": "passed",
+      "seconds": 2.06220883410424,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-contexts",
+      "status": "passed",
+      "seconds": 10.498371333931573,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-custom-getter",
+      "status": "passed",
+      "seconds": 2.0881753340363503,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-cycle",
+      "status": "passed",
+      "seconds": 2.2492269999347627,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-delegate-result",
+      "status": "passed",
+      "seconds": 2.090863583027385,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-delegates",
+      "status": "passed",
+      "seconds": 10.91618329193443,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-empty-array",
+      "status": "passed",
+      "seconds": 2.0782094579190016,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-explicit-type",
+      "status": "passed",
+      "seconds": 2.370828832965344,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-initialization",
+      "status": "passed",
+      "seconds": 11.089558875071816,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-initializer-capture",
+      "status": "passed",
+      "seconds": 2.1647750419797376,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-initializer-forward",
+      "status": "passed",
+      "seconds": 2.2372501250356436,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-initializer-suspend",
+      "status": "passed",
+      "seconds": 2.146837499924004,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-initializer-this",
+      "status": "passed",
+      "seconds": 2.1462512080324814,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-lambda-parameter",
+      "status": "passed",
+      "seconds": 2.1963474159128964,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-mixed-cycle",
+      "status": "passed",
+      "seconds": 2.2097447919659317,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-mutual-cycle",
+      "status": "passed",
+      "seconds": 2.36235674994532,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-no-source",
+      "status": "passed",
+      "seconds": 2.3626589589985088,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-nominals",
+      "status": "passed",
+      "seconds": 10.897017374983989,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-none",
+      "status": "passed",
+      "seconds": 2.265446832985617,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-option-omission",
+      "status": "passed",
+      "seconds": 2.2234801669837907,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-override-type",
+      "status": "passed",
+      "seconds": 2.163820334011689,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-overrides",
+      "status": "passed",
+      "seconds": 10.765416249982081,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-private-type",
+      "status": "passed",
+      "seconds": 2.290260084089823,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-raw-call",
+      "status": "passed",
+      "seconds": 2.163099040975794,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-raw-type",
+      "status": "passed",
+      "seconds": 2.1154126250185072,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-setter-type",
+      "status": "passed",
+      "seconds": 2.080616374965757,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-property-inference-suspend",
+      "status": "passed",
+      "seconds": 11.213115208083764,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "shared-constructor-bodies-combined",
+      "status": "passed",
+      "seconds": 16.091362499981187,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    }
+  ]
+}

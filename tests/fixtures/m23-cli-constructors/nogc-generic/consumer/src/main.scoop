@@ -1,0 +1,11 @@
+@NoGC fun makeNative(value: Int): Native<Int> = Native(value, true)
+
+fun main() {
+    if (makeNative(42).value != 42 || Recursive(42, true).value != 42) { throw IllegalStateException() }
+    if (Native<String>("managed").value != "managed") { throw IllegalStateException() }
+    if (Phantom<String>().code != 1) { throw IllegalStateException() }
+    if (WrapperValue(42, true).value != 42) { throw IllegalStateException() }
+    val wrapper: Wrapper<Int> = Wrapper(42)
+    val unrelated: Wrapper<String> = Wrapper<String>(true)
+    gcCollect()
+}

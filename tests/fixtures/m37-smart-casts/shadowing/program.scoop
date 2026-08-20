@@ -1,0 +1,10 @@
+fun main() {
+    var value: Any = "outer"
+    if (value !is String) return
+    for (number in [1, 2]) {
+        var value: Any = number
+        if (value !is Int) return
+        println(value + 1)
+    }
+    println(value.length)
+}

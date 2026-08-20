@@ -1,0 +1,11 @@
+fun verifyDomain(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class ConsumerChild : Child() {
+    fun inspect(): Int { state = 6; visible = 8; return execute(3) + state + visible }
+}
+
+fun main() {
+    verifyDomain(Child().read() == 1)
+    verifyDomain(Singleton.read() == 1)
+    verifyDomain(ConsumerChild().inspect() == 6)
+}

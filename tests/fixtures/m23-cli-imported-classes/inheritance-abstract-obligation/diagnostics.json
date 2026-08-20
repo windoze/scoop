@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Derived` does not implement abstract method `AbstractParent.read`",
+    "notes": [],
+    "origin": {
+      "cone": "204ff268f75f48fea9229fc4b17a7afb523a0aa3567c2924aa68e1b51b199388",
+      "end": 101,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 42
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Derived` does not implement abstract getter `AbstractParent.value`",
+    "notes": [],
+    "origin": {
+      "cone": "204ff268f75f48fea9229fc4b17a7afb523a0aa3567c2924aa68e1b51b199388",
+      "end": 101,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 42
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Derived` does not implement abstract setter `AbstractParent.value`",
+    "notes": [],
+    "origin": {
+      "cone": "204ff268f75f48fea9229fc4b17a7afb523a0aa3567c2924aa68e1b51b199388",
+      "end": 101,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 42
+    },
+    "severity": "error"
+  }
+]

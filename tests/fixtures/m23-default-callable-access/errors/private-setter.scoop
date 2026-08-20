@@ -1,0 +1,10 @@
+public class CallableAccessHost {
+    private var stored: Int = 0
+    public var visible: Int
+        get() = stored
+        private set(next) { stored = next }
+    public fun <T> leak(value: Int = if (true) {
+        this.visible = 3
+        this.visible
+    } else { 0 }): Int = value
+}

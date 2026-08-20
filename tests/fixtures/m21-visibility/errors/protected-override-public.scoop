@@ -1,0 +1,22 @@
+public open class Base {
+    public open fun execute(): Int = 1
+    public open var value: Int
+        get() = 1
+        set(value) {}
+}
+public class Child : Base() {
+    protected override fun execute(): Int = 2
+    protected override var value: Int
+        get() = 2
+        set(value) {}
+}
+public open class ProtectedBase {
+    protected open fun expanded(): Int = 3
+}
+public open class Expanded : ProtectedBase() {
+    public override fun expanded(): Int = 4
+}
+public class Narrowed : Expanded() {
+    protected override fun expanded(): Int = 5
+}
+fun main() {}

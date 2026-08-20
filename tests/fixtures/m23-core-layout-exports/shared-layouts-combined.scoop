@@ -1,0 +1,20 @@
+public struct SharedLayoutEmpty()
+public struct SharedLayoutPair(val first: SharedLayoutEmpty, val second: SharedLayoutEmpty)
+@CLayout(aligned = 16, packed = 2)
+@InteriorMutable
+public struct SharedLayoutPacket(val marker: UInt8, val payload: Long)
+public enum SharedLayoutChoice {
+    Empty,
+    Values(SharedLayoutPair, SharedLayoutPacket),
+    Text(String)
+}
+public interface SharedLayoutReadable {
+    @Unsafe public fun read(): SharedLayoutChoice
+}
+public open class SharedLayoutBase public constructor(public val tiny: Int8): SharedLayoutReadable {
+    @Unsafe public override fun read(): SharedLayoutChoice = SharedLayoutChoice.Empty
+}
+public class SharedLayoutLeaf public constructor(public val payload: Long): SharedLayoutBase(1)
+public object SharedLayoutStore {
+    public val cached: String = "layout"
+}

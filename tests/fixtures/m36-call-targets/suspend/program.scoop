@@ -1,0 +1,65 @@
+class Gate(var pending: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = pending!!
+        pending = None
+        continuation.resume(value)
+    }
+}
+
+interface Async<T> {
+    suspend fun read(value: T): T
+}
+
+class Worker(val base: Int, val gate: Gate): Async<Int> {
+    override suspend fun read(value: Int): Int {
+        println("method")
+        val delta = suspendCoroutine() { continuation: Continuation<Int> ->
+            gate.pending = Some(continuation)
+        }
+        gcCollect()
+        return base + value + delta
+    }
+}
+
+class Holder(var reader: Async<Int>)
+
+class Completion: Continuation<Int> {
+    public override fun resume(value: Int) { println(value) }
+    public override fun resumeWithException(exception: Throwable) { println("failed") }
+}
+
+fun <T> bind(receiver: Async<T>): suspend (T) -> T = receiver::read
+
+suspend fun accept(value: Any): Int = 42
+
+fun task(holder: Holder, gate: Gate): suspend () -> Int = suspend {
+    val bound = bind(holder.reader)
+    try {
+        val first = holder.reader.read(suspendCoroutine() { continuation: Continuation<Int> ->
+            gate.pending = Some(continuation)
+        })
+        val second = bound(1)
+        val exact: suspend (Any) -> Int = ::accept
+        val erased: Any = exact
+        val checked = erased as suspend (Int) -> Any
+        first + second + (checked(0) as Int)
+    } finally {
+        println("task-finally")
+    }
+}
+
+fun main() {
+    val gate = Gate(None)
+    val holder = Holder(Worker(10, gate))
+    startCoroutine(task(holder, gate), Completion())
+    println("argument-pending")
+    holder.reader = Worker(1000, gate)
+    gcCollect()
+    gate.complete(5)
+    println("method-pending")
+    gcCollect()
+    gate.complete(7)
+    println("reference-pending")
+    gcCollect()
+    gate.complete(11)
+}

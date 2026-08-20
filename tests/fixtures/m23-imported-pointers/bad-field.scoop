@@ -1,0 +1,3 @@
+private struct Cell(val number: Int)
+@Unsafe
+public fun bad(): Ptr<Int> { val cell = Cell(42); return addressOf(cell.number) }

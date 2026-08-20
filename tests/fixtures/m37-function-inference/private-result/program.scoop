@@ -1,0 +1,3 @@
+private class Secret {}
+public fun secret() = Secret()
+fun main() {}

@@ -1,0 +1,6 @@
+fun main() {
+    interface Value { fun get(): Int }
+    class Answer : Value { override fun get(): Int = 42 }
+    val value: Value = Answer()
+    println(value.get())
+}

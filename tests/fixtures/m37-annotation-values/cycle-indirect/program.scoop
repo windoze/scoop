@@ -1,0 +1,2 @@
+annotation class First(val next: Second)
+annotation class Second(val next: First)

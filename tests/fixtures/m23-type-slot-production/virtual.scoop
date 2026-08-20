@@ -1,0 +1,14 @@
+public abstract class Base public constructor() {
+    public abstract fun call(value: Int): Int
+    public open fun alpha(): Int = 2
+    public fun direct(): Int = 3
+    public open var value: Int
+        get() = 4
+        set(value) {}
+    internal open fun local(): Int = 5
+}
+public open class Derived public constructor() : Base() {
+    public final override fun call(value: Int): Int = value
+    public open fun middle(): Int = 6
+}
+public object Singleton : Derived()

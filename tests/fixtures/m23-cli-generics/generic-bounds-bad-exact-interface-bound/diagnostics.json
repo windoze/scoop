@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `genericInterfaceGet`: conflicting types for `U`: Int and String",
+    "notes": [],
+    "origin": {
+      "cone": "9ae7c2b7bbc3d0b13864f41f6bdfbd1cdb3a9cd416c2adfe4dfbc8ac08f6ce66",
+      "end": 124,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 54
+    },
+    "severity": "error"
+  }
+]

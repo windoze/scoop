@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid Cone.toml: TOML parse error at line 8, column 12\n  |\n8 | sources = [\"native.c\"]\n  |            ^^^^^^^^^^\ninvalid type: string \"native.c\", expected struct RawConditionalPath\n",
+    "notes": [],
+    "origin": {
+      "end": 129,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": 119
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

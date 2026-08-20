@@ -1,0 +1,196 @@
+schema = 1
+name = "imported-constructor-tuple-fields"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-imported-constructors/provider.scoop", "constructor-provider", "../../m23-imported-constructors/tuple-fields.scoop", "constructors-tuple-fields", "../../m23-imported-constructors/downstream.scoop", "downstream-tuple-fields", "../../m23-imported-constructors/runtime.ll", "../support/constructor-main.scoop", "value-runtime-constructor-tuple-fields"]
+tools = ["scoop", "scoopc", "llc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["imported-values", "constructor"]
+
+[vars]
+symbol_primary = "scoop$1$cb$d0b06676201cbd8b6edfd7b7fb5cf46d81fd2f803355e54f08b0c6ac74377e0a"
+symbol_check = "scoop$1$cb$b37462f0ecaaebe85ef00a17eba38d2b4232ac666bc9ad8e1218c5d56b5d68cf"
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_constructor-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/constructor-provider", "to" = "${work}/sources/constructor-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-constructors/provider.scoop", "to" = "${work}/sources/constructor-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/constructor-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructor-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/constructor-provider"}},
+]
+
+[[steps]]
+name = "prepare_constructors-tuple-fields"
+files = [
+  {"copy" = {"from" = "${fixture}/constructors-tuple-fields", "to" = "${work}/sources/constructors-tuple-fields"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-constructors/tuple-fields.scoop", "to" = "${work}/sources/constructors-tuple-fields/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/constructors-tuple-fields", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructors-tuple-fields/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/constructors-tuple-fields"}},
+]
+
+[[steps]]
+name = "prepare_downstream-tuple-fields"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream-tuple-fields", "to" = "${work}/sources/downstream-tuple-fields"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-constructors/downstream.scoop", "to" = "${work}/sources/downstream-tuple-fields/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/downstream-tuple-fields", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-tuple-fields/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_downstream_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/downstream-tuple-fields"}},
+]
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../m23-imported-constructors/runtime.ll", "to" = "${work}/native/abi.ll"}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @primary(", "new" = "declare void @\"${symbol_primary}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @primary(", "new" = "call void @\"${symbol_primary}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @check(", "new" = "declare i64 @\"${symbol_check}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @check(", "new" = "call i64 @\"${symbol_check}\"("}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${llc}", "-mtriple=${llvm_target}", "-filetype=obj", "-relocation-model=pic", "${work}/native/abi.ll", "-o", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_constructor_abi.a", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/abi.ll"}},
+  {"remove" = {"path" = "${work}/native/abi.o"}},
+]
+
+[[steps]]
+name = "prepare_value-runtime-constructor-tuple-fields"
+files = [
+  {"copy" = {"from" = "${fixture}/value-runtime-constructor-tuple-fields", "to" = "${work}/sources/value-runtime-constructor-tuple-fields"}},
+  {"copy" = {"from" = "${fixture}/../support/constructor-main.scoop", "to" = "${work}/sources/value-runtime-constructor-tuple-fields/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/value-runtime-constructor-tuple-fields", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "isolate"
+files = [
+  {"remove" = {"path" = "${work}/sources"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${program.result.root.path}", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 4},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:constructor-provider:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:constructors-tuple-fields:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:downstream-tuple-fields:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:value-runtime-constructor-tuple-fields:0.1.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=5 root=${symbol_prefix}scoop$$1$$re$$2dbaa9611b003acd99166d22cb4db9b3da7453053f02dc7fbd1bde235dc4b49f"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

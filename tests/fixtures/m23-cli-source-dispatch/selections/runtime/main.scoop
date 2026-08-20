@@ -1,0 +1,17 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val concrete = complete()
+    val pending: Pending = concrete
+    val obligation: Obligation = pending
+    verifyDispatch(concrete.evaluate() == 4 && obligation.evaluate() == 4 && pending.value == 2)
+    val selected = winner()
+    val root: Root = selected
+    verifyDispatch(root.evaluate() == 5 && root.value == 6)
+    verifyDispatch(Singleton.evaluate() == 5 && Singleton.value == 6)
+    verifyDispatch(Value().evaluate() == 7 && Value().value == 2)
+    verifyDispatch(Choice.One.evaluate() == 8 && Choice.One.value == 2)
+    val original: Virtual = finalValue()
+    verifyDispatch(original.compute() == 10)
+}

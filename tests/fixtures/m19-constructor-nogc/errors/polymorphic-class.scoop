@@ -1,0 +1,2 @@
+class Spiral<T>() { init { val next: Spiral<Spiral<T>> = Spiral<Spiral<T>>() } }
+fun main() {}

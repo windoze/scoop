@@ -1,0 +1,5 @@
+import upstream.classDefinitions.*
+
+public class Invalid<T> public constructor(value: T): Base<Unit, T>(Unit, value) {
+    public val inherited: Int = this.second
+}

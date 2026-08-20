@@ -1,0 +1,15 @@
+// EXPECT-DIAGNOSTICS
+
+struct ScoopOnly(val value: Int)
+
+struct Empty()
+
+@Extern(name = "consume_scoop_only")
+fun consumeScoopOnly(pointer: Ptr<ScoopOnly>)
+
+@Extern(name = "consume_empty")
+fun consumeEmpty(pointer: Ptr<Empty>)
+
+fun main() {
+    println(0)
+}

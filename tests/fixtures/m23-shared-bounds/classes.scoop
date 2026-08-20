@@ -1,0 +1,17 @@
+package consumer.sharedbounds
+
+import upstream.sharedbounds.*
+
+private open class LocalBase<T>(public val value: T)
+private class LocalChild<T>(value: T): LocalBase<T>(value)
+
+private fun <T> readBase(source: LocalBase<T>): T = source.value
+private fun <T, R: LocalBase<T>> readLocal(source: R): T = readBase(source)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val local = readLocal(LocalChild<T>(seed))
+    val imported = readClass(Child<T>(local))
+    return read(imported)
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

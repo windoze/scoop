@@ -1,0 +1,2 @@
+import bridge.*
+fun main() { val value = Hidden() }

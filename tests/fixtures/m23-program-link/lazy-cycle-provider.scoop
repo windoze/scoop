@@ -1,0 +1,13 @@
+package startup.cycle
+private fun trace(value: Long) { println(value) }
+private var attempts: Int = 0
+private fun left(): Long {
+    attempts += 1
+    @Unsafe { trace(1L) }
+    return Right.value
+}
+private object Left { val value: Long = left() }
+private object Right { val value: Long = Left.value }
+public fun readCycle(): Long = Left.value
+public fun count(): Int = attempts
+public class Box public constructor(public val value: Long)

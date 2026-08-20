@@ -1,0 +1,52 @@
+package m33.consumer
+import m33.errno.*
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_int")
+fun plain(value: Int, code: Int, mode: Int): Int
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_pair")
+fun plainPair(value: Pair, capture: Int): Pair
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_bool", captureErrno = CaptureEnabled)
+fun captureBoolean(value: Boolean): (Boolean, Int)
+
+class Cell(val number: Int)
+class LocalOwner {
+    release {
+        @Unsafe {
+            val (value, error) = capture(5, 55, -1)
+            record(value, error)
+        }
+    }
+}
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun discard() { val local = LocalOwner(); val imported = Owner(31); expect(imported.get() == 31) }
+
+fun main() {
+    val cell = Cell(42)
+    @Unsafe {
+        val saved = capture(7, 23, 0)
+        val (leafValue, leafError) = leafNoGc(13)
+        expect(leafValue == 13 && leafError == 17)
+        expect(plain(9, 101, -2) == 9)
+        gcCollect()
+        val (value, error) = saved
+        expect(value == 7 && error == 23)
+        val (pair, pairError) = capturePair(Pair(8, true, 1.25), 1)
+        expect(pair.number == 18 && !pair.flag && pair.fraction == 1.75 && pairError == 31)
+        val ordinary = plainPair(pair, 0)
+        expect(ordinary.number == 28 && ordinary.flag && ordinary.fraction == 2.25)
+        val (boolean, boolError) = captureBoolean(true)
+        expect(!boolean && boolError == 29)
+    }
+    expect(retained(cell) === cell)
+    expect(retained(17) == 17)
+    checkSuspension()
+    discard()
+    gcCollect()
+    gcCollect()
+    @Unsafe { expect(released() == 2) }
+    expect(cell.number == 42)
+    println("errno-artifacts-ok")
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable property `locked`",
+    "notes": [],
+    "origin": {
+      "cone": "dbcb6a947a7329c1adc708a48a9586e7de8086edd80ae43ebd7a3dd0bb5a4575",
+      "end": 171,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 165
+    },
+    "severity": "error"
+  }
+]

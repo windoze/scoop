@@ -1,0 +1,2 @@
+class Values { fun count(vararg values: Int): Long = values.size }
+fun main() { val count: (Values, Int) -> Long = Values::count }

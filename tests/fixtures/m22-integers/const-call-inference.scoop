@@ -1,0 +1,28 @@
+// EXPECT-COMPILE
+
+const val NARROW: Int8 = 2
+const val WIDE: Long = 2147483648
+const val LITERAL_NARROW: Boolean = 2 == NARROW
+const val NARROW_LITERAL: Boolean = NARROW == 2
+const val LITERAL_WIDE: Boolean = 1 == 2147483648
+const val WIDE_LITERAL: Boolean = 2147483648 == 1
+const val COMPARE_NARROW: Long = 1.compareTo(NARROW)
+const val EQUALS_WIDE: Boolean = 1.equals(WIDE)
+const val DIV_NARROW: Int8 = 6.div(NARROW)
+const val REM_WIDE: Long = 1.rem(WIDE)
+
+fun Int8.plus(other: Long): Int8 = this
+
+val EXTENSION_FALLBACK: Int8 = NARROW.plus(2L)
+
+fun main() {
+    println(LITERAL_NARROW)
+    println(NARROW_LITERAL)
+    println(LITERAL_WIDE)
+    println(WIDE_LITERAL)
+    println(COMPARE_NARROW)
+    println(EQUALS_WIDE)
+    println(DIV_NARROW)
+    println(REM_WIDE)
+    println(EXTENSION_FALLBACK)
+}

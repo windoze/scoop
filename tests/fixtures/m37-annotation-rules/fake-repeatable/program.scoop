@@ -1,0 +1,4 @@
+class Names { public annotation class Repeatable }
+@Names.Repeatable annotation class Once
+@Once @Once fun read() {}
+fun main() {}

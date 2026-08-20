@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `Base`: Int is not a subtype of String",
+    "notes": [],
+    "origin": {
+      "cone": "b9b31b8f841cfd1d768dfee1af0ab772e6664dd9756ced873e9ebec8fa6cadc1",
+      "end": 86,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 84
+    },
+    "severity": "error"
+  }
+]

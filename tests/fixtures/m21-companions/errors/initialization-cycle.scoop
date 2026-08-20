@@ -1,0 +1,7 @@
+class Host {
+    companion object {
+        val value: Int = Host.value
+    }
+}
+
+fun main() {}

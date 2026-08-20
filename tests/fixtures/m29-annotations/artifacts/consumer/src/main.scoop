@@ -1,0 +1,13 @@
+package consumer
+import bridge.Note as Label
+import bridge.Range
+import bridge.Value
+import bridge.DEFAULT_LABEL
+annotation class Local(val text: String = DEFAULT_LABEL)
+@Local @Label(DEFAULT_LABEL)
+public struct Holder(@Range val item: Value)
+fun main() {
+    val holder = Holder(Value(7))
+    if (holder.item.value != 7) { throw Throwable() }
+    println("annotation-artifacts-ok")
+}

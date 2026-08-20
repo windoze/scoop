@@ -1,0 +1,10 @@
+import dependency.classes.Counter
+import dependency.classes.CompanionHost.count as count
+
+public fun primary(): Counter {
+    count = 18
+    val first = count++
+    val second = ++count
+    count += 1
+    return Counter(if (first == 18 && second == 20) { count } else { 0 })
+}

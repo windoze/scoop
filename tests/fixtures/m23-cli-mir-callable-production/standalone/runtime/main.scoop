@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val token = Token()
+    verifyType(pass(token) == token && token.echo(token) == token)
+    verifyType(token.copy == token && token.extra(token) == token)
+}

@@ -1,0 +1,5 @@
+public fun check(): Int {
+    if (readerValue() != 7) { return 1 }
+    if (readerValue(19) != 19) { return 2 }
+    return 42
+}

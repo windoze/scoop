@@ -1,0 +1,5 @@
+fun <T> collect(vararg values: T): Array<T> = values
+
+fun main() {
+    collect()
+}

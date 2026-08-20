@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "lambda result must be of type Int, found String",
+    "notes": [],
+    "origin": {
+      "cone": "f7c312ad8ae02d09620a6ff7c1cc6cabd155f2b1b840a8329d81862e0dbb1db6",
+      "end": 119,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 99
+    },
+    "severity": "error"
+  }
+]

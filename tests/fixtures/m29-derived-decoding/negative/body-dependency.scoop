@@ -1,0 +1,6 @@
+public struct Item<T>(val value: T)
+public class Reader<T>(value: Decodable<T>) : Decodable<Item<T>> {
+    private val stored: Decodable<T> = value
+}
+
+fun main() {}

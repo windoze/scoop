@@ -1,0 +1,26 @@
+package provider
+public interface Left { public fun left(): Int }
+public interface Right { public fun right(): Int }
+public class Both : Left, Right {
+    public override fun left(): Int = 20
+    public override fun right(): Int = 22
+}
+public fun source(): Any {
+    val action: Any.() -> Both = { Both() }
+    return action
+}
+public fun <T> inspect(value: Any, seed: T): Int {
+    if (value !is T.() -> Left) return 0
+    val snapshot: Any = value
+    if (value !is T.() -> Right) return 1
+    if (snapshot !== value) return 2
+    val left = value as T.() -> Left
+    val right = (snapshot as? T.() -> Right)!!
+    gcCollect()
+    return left(seed).left() + right(seed).right()
+}
+public fun withDefault(value: Any, read: () -> Int = result@{
+    if (value !is Int.() -> Left) return@result 0
+    if (value !is Int.() -> Right) return@result 1
+    (value as Int.() -> Left)(0).left() + (value as Int.() -> Right)(0).right()
+}): Int = read()

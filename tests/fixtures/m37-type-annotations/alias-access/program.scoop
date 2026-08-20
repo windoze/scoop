@@ -1,0 +1,2 @@
+class Scope { private annotation class Hidden }
+fun f(x: @Scope.Hidden Int) {}

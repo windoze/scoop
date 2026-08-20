@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `bad` has non-GC-free return type String",
+    "notes": [],
+    "origin": {
+      "cone": "d62570f8015c50eb67dfc939b87535a18048ca049c6542de4a3201e356d29412",
+      "end": 81,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 38
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type String is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "d62570f8015c50eb67dfc939b87535a18048ca049c6542de4a3201e356d29412",
+      "end": 81,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 75
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` code may not call managed function `$get$answer`",
+    "notes": [],
+    "origin": {
+      "cone": "d62570f8015c50eb67dfc939b87535a18048ca049c6542de4a3201e356d29412",
+      "end": 81,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 75
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "refutable patterns are only allowed in `when`",
+    "notes": [],
+    "origin": {
+      "cone": "d58da5b6a11e01e9bcfbd20d7686b382e226f620c92eaa6a0d8db2c9d469679c",
+      "end": 98,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 87
+    },
+    "severity": "error"
+  }
+]

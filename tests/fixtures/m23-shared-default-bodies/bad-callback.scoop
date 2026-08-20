@@ -1,0 +1,2 @@
+import upstream.defaults.generic
+public fun result(): Int = generic<Int>(40, { "wrong" })

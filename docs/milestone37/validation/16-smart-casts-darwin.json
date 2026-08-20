@@ -1,0 +1,1122 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3596,
+  "selected": 123,
+  "unselected": 3473,
+  "counts": {
+    "passed": 123
+  },
+  "variants": 163,
+  "processes": 363,
+  "stage_and_plan_goldens": 290,
+  "results": [
+    {
+      "name": "m35-when-artifacts",
+      "status": "passed",
+      "seconds": 20.392640457954258,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m35-when-effects",
+      "status": "passed",
+      "seconds": 5.6617360829841346,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-alternative-smart-cast",
+      "status": "passed",
+      "seconds": 2.3978095420170575,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-boolean-constant-coverage",
+      "status": "passed",
+      "seconds": 2.2393825410399586,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-boolean-coverage",
+      "status": "passed",
+      "seconds": 2.193679250078276,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-case-alternatives",
+      "status": "passed",
+      "seconds": 1.9772170409560204,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-case-class-subject",
+      "status": "passed",
+      "seconds": 2.202366624958813,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-class-equality",
+      "status": "passed",
+      "seconds": 1.9803670409601182,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-contains-missing",
+      "status": "passed",
+      "seconds": 2.049061874859035,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-delegated-subject",
+      "status": "passed",
+      "seconds": 2.1601570420898497,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-duplicate-binding",
+      "status": "passed",
+      "seconds": 1.9747252501547337,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-duplicate-else",
+      "status": "passed",
+      "seconds": 1.9803603331092745,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-else-not-last",
+      "status": "passed",
+      "seconds": 1.9776557919103652,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-enum-coverage",
+      "status": "passed",
+      "seconds": 1.9823174579069018,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-escaping-smart-cast",
+      "status": "passed",
+      "seconds": 2.035210457863286,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-getter-smart-cast",
+      "status": "passed",
+      "seconds": 2.0106778328772634,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-guard-coverage",
+      "status": "passed",
+      "seconds": 2.0852162919472903,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-guard-failure-smart-cast",
+      "status": "passed",
+      "seconds": 2.040926915826276,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-initializer-scope",
+      "status": "passed",
+      "seconds": 2.0842262499500066,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-mixed-coverage",
+      "status": "passed",
+      "seconds": 1.9653432078193873,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-multiple-guard",
+      "status": "passed",
+      "seconds": 1.9752097080927342,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-mutable-smart-cast",
+      "status": "passed",
+      "seconds": 1.9699329170398414,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-nonboolean-condition",
+      "status": "passed",
+      "seconds": 1.9811147500295192,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-nonboolean-guard",
+      "status": "passed",
+      "seconds": 1.975546166067943,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-refutable-subject",
+      "status": "passed",
+      "seconds": 1.9834459170233458,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subject-scope",
+      "status": "passed",
+      "seconds": 1.9461082920897752,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-case",
+      "status": "passed",
+      "seconds": 1.9823989998549223,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-guard",
+      "status": "passed",
+      "seconds": 1.954558708006516,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-in",
+      "status": "passed",
+      "seconds": 1.9760992918163538,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-is",
+      "status": "passed",
+      "seconds": 1.9751790408045053,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-subjectless-value-coverage",
+      "status": "passed",
+      "seconds": 1.9810407918412238,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-user-equality-coverage",
+      "status": "passed",
+      "seconds": 1.9861436248756945,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-value-coverage",
+      "status": "passed",
+      "seconds": 2.0779137080535293,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-var-subject",
+      "status": "passed",
+      "seconds": 1.9986498327925801,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-error-wrong-subject-type",
+      "status": "passed",
+      "seconds": 1.9809587500058115,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-when-ordinary",
+      "status": "passed",
+      "seconds": 5.939608957851306,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-when-smart-casts",
+      "status": "passed",
+      "seconds": 5.109817791962996,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-when-subjects",
+      "status": "passed",
+      "seconds": 5.042377917096019,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-when-suspend-subject",
+      "status": "passed",
+      "seconds": 5.969352416926995,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-artifacts",
+      "status": "passed",
+      "seconds": 13.338439541170374,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-basic",
+      "status": "passed",
+      "seconds": 10.548765416024253,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-bindings",
+      "status": "passed",
+      "seconds": 10.211835625115782,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-body-scope",
+      "status": "passed",
+      "seconds": 2.011890625115484,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-callable-value",
+      "status": "passed",
+      "seconds": 2.0872487497981638,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-capture",
+      "status": "passed",
+      "seconds": 2.1933470419608057,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-cleanup",
+      "status": "passed",
+      "seconds": 10.194122707936913,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-condition-jumps",
+      "status": "passed",
+      "seconds": 10.865182125009596,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-condition-type",
+      "status": "passed",
+      "seconds": 2.1570087501313537,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-initializer-continue",
+      "status": "passed",
+      "seconds": 2.1796608751174062,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-local-call-capture",
+      "status": "passed",
+      "seconds": 2.0989893327932805,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-missing-while",
+      "status": "passed",
+      "seconds": 1.9833711669780314,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-nested-scope",
+      "status": "passed",
+      "seconds": 2.195986666949466,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-outer-continue",
+      "status": "passed",
+      "seconds": 2.0547640421427786,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-suspend",
+      "status": "passed",
+      "seconds": 10.804142375010997,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-do-while-uninitialized",
+      "status": "passed",
+      "seconds": 2.110590749885887,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-artifacts",
+      "status": "passed",
+      "seconds": 13.514119708910584,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-capture-closures",
+      "status": "passed",
+      "seconds": 10.212746958015487,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-capture-local-functions",
+      "status": "passed",
+      "seconds": 10.67132170801051,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-local-types-capture-type-view",
+      "status": "passed",
+      "seconds": 10.094493207987398,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-anonymous-boundary",
+      "status": "passed",
+      "seconds": 2.1892081249970943,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-artifacts",
+      "status": "passed",
+      "seconds": 12.986833665985614,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-basic",
+      "status": "passed",
+      "seconds": 10.346418249886483,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-break-outside",
+      "status": "passed",
+      "seconds": 2.192330707795918,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-break-value",
+      "status": "passed",
+      "seconds": 2.0607230002060533,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-cleanup",
+      "status": "passed",
+      "seconds": 10.228062291862443,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-continue-outside",
+      "status": "passed",
+      "seconds": 2.0817062079440802,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-dead-label",
+      "status": "passed",
+      "seconds": 2.1278790421783924,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-expressions",
+      "status": "passed",
+      "seconds": 10.842250084038824,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-for-source-boundary",
+      "status": "passed",
+      "seconds": 2.0589557921048254,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-label-newline",
+      "status": "passed",
+      "seconds": 1.9948732499033213,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-label-not-loop",
+      "status": "passed",
+      "seconds": 2.082071749959141,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-lambda-boundary",
+      "status": "passed",
+      "seconds": 2.0447051657829434,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-outer-callable",
+      "status": "passed",
+      "seconds": 2.051425457932055,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-suspend",
+      "status": "passed",
+      "seconds": 11.167766083031893,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-unknown-label",
+      "status": "passed",
+      "seconds": 2.055576833896339,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-artifacts",
+      "status": "passed",
+      "seconds": 13.358162041055039,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 9,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-boolean-snapshot",
+      "status": "passed",
+      "seconds": 10.563829584047198,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-boolean-write",
+      "status": "passed",
+      "seconds": 2.20048233284615,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-break-exit",
+      "status": "passed",
+      "seconds": 10.395249665947631,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-cast-loop",
+      "status": "passed",
+      "seconds": 10.048845708137378,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-catch-exit",
+      "status": "passed",
+      "seconds": 10.530289582908154,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-catch-unreachable",
+      "status": "passed",
+      "seconds": 9.821673708036542,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-catch-write",
+      "status": "passed",
+      "seconds": 2.1633522920310497,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-closures",
+      "status": "passed",
+      "seconds": 10.195699707837775,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-conditional-write",
+      "status": "passed",
+      "seconds": 2.0199412498623133,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-continue",
+      "status": "passed",
+      "seconds": 10.021026000147685,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-do-condition-continue",
+      "status": "passed",
+      "seconds": 9.772776582976803,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-do-continue",
+      "status": "passed",
+      "seconds": 1.9982082080096006,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-do-exit",
+      "status": "passed",
+      "seconds": 10.215060708113015,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-early-if",
+      "status": "passed",
+      "seconds": 9.907550749834627,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-finally-jump",
+      "status": "passed",
+      "seconds": 10.458115875022486,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-finally-overrides-return",
+      "status": "passed",
+      "seconds": 2.0501881670206785,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-finally-preserve",
+      "status": "passed",
+      "seconds": 10.284869333961979,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-finally-write",
+      "status": "passed",
+      "seconds": 2.267166582867503,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-for-stable",
+      "status": "passed",
+      "seconds": 10.319881249917671,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-for-write",
+      "status": "passed",
+      "seconds": 2.155440791975707,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-guarded-when",
+      "status": "passed",
+      "seconds": 2.0156309159938246,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-interfaces",
+      "status": "passed",
+      "seconds": 10.368353582918644,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-mutable-assigned",
+      "status": "passed",
+      "seconds": 2.099986624903977,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-mutable-closure",
+      "status": "passed",
+      "seconds": 2.1591368338558823,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-mutable-local",
+      "status": "passed",
+      "seconds": 10.376676915911958,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-mutable-local-class",
+      "status": "passed",
+      "seconds": 1.9717449580784887,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-mutable-local-function",
+      "status": "passed",
+      "seconds": 1.9811143749393523,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-normal-join",
+      "status": "passed",
+      "seconds": 10.262338625034317,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-partial-if",
+      "status": "passed",
+      "seconds": 2.179675582796335,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-partial-or",
+      "status": "passed",
+      "seconds": 2.0219371248967946,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-property",
+      "status": "passed",
+      "seconds": 2.2947214171290398,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-shadowing",
+      "status": "passed",
+      "seconds": 10.207726957974955,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-short-circuit",
+      "status": "passed",
+      "seconds": 10.147066832985729,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-short-circuit-write",
+      "status": "passed",
+      "seconds": 2.0998961250297725,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-snapshot",
+      "status": "passed",
+      "seconds": 10.10761116584763,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-suspend",
+      "status": "passed",
+      "seconds": 10.70108445896767,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-try-value",
+      "status": "passed",
+      "seconds": 9.99091741698794,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-updates",
+      "status": "passed",
+      "seconds": 10.632299541961402,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-when-exit",
+      "status": "passed",
+      "seconds": 9.618988917209208,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-when-loop",
+      "status": "passed",
+      "seconds": 10.232771791052073,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-when-snapshot-mutation",
+      "status": "passed",
+      "seconds": 10.027043707901612,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-when-snapshot-write",
+      "status": "passed",
+      "seconds": 2.1266437089070678,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-while-backedge",
+      "status": "passed",
+      "seconds": 1.9872033749707043,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-while-body",
+      "status": "passed",
+      "seconds": 9.989157875068486,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-while-break",
+      "status": "passed",
+      "seconds": 2.295942374970764,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-while-condition-write",
+      "status": "passed",
+      "seconds": 2.243321416899562,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-smart-casts-while-exit",
+      "status": "passed",
+      "seconds": 9.696009292034432,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    }
+  ]
+}

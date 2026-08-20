@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "native compilation: alias.c escapes the Cone root",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,6156 @@
+{
+  "schema": 1,
+  "platform": "gnu",
+  "production_commit": "8400796d6455e27bf95f5bf64a03fa2ec1bf88e5",
+  "runs": [
+    {
+      "name": "gnu-initial",
+      "kind": "observed",
+      "original_work": "/tmp/scoop-m35-linux-gnu",
+      "report": "gnu-initial.json",
+      "summary": {
+        "schema": 1,
+        "complete": false,
+        "discovered": 3065,
+        "selected": 600,
+        "unselected": 2465,
+        "counts": {
+          "failed": 6,
+          "passed": 174,
+          "inapplicable": 20,
+          "interrupted": 400
+        },
+        "variants": 176,
+        "processes": 951,
+        "stage_and_plan_goldens": 1140
+      },
+      "snapshot_verification": {
+        "checked_observations": 1128,
+        "distinct_snapshots": 1128,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "gnu-focused",
+      "kind": "observed",
+      "original_work": "/tmp/scoop-m35-linux-gnu-focused",
+      "report": "gnu-focused.json",
+      "summary": {
+        "schema": 1,
+        "complete": false,
+        "discovered": 3065,
+        "selected": 164,
+        "unselected": 2901,
+        "counts": {
+          "passed": 164
+        },
+        "variants": 172,
+        "processes": 393,
+        "stage_and_plan_goldens": 307
+      },
+      "snapshot_verification": {
+        "checked_observations": 307,
+        "distinct_snapshots": 306,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "gnu-repair-initial",
+      "kind": "observed",
+      "original_work": "/tmp/scoop-m35-linux-gnu-repair",
+      "report": "gnu-repair-initial.json",
+      "summary": {
+        "schema": 1,
+        "complete": false,
+        "discovered": 3065,
+        "selected": 6,
+        "unselected": 3059,
+        "counts": {
+          "failed": 5,
+          "passed": 1
+        },
+        "variants": 1,
+        "processes": 15,
+        "stage_and_plan_goldens": 16
+      },
+      "snapshot_verification": {
+        "checked_observations": 0,
+        "distinct_snapshots": 0,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "gnu-quota-repair",
+      "kind": "observed",
+      "original_work": "/home/chenxu/repos/scoop/target/m35-linux-validation/gnu-quota-repair",
+      "report": "gnu-quota-repair.json",
+      "summary": {
+        "schema": 1,
+        "complete": false,
+        "discovered": 3065,
+        "selected": 5,
+        "unselected": 3060,
+        "counts": {
+          "passed": 5
+        },
+        "variants": 5,
+        "processes": 31,
+        "stage_and_plan_goldens": 44
+      },
+      "snapshot_verification": {
+        "checked_observations": 44,
+        "distinct_snapshots": 44,
+        "mismatches": []
+      }
+    }
+  ],
+  "coverage": {
+    "fixtures": 364,
+    "counts": {
+      "passed": 344,
+      "inapplicable": 20
+    },
+    "variants": 354,
+    "processes": 1363,
+    "stage_and_plan_goldens": 1479
+  },
+  "unresolved": [],
+  "results": [
+    {
+      "name": "argument-inference-abi",
+      "status": "passed",
+      "seconds": 23.20023672399111,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-quota-repair"
+    },
+    {
+      "name": "argument-inference-ambiguous",
+      "status": "passed",
+      "seconds": 3.278064551996067,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-repair-initial"
+    },
+    {
+      "name": "argument-inference-arrays",
+      "status": "passed",
+      "seconds": 21.778751326957718,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-quota-repair"
+    },
+    {
+      "name": "argument-inference-bound",
+      "status": "passed",
+      "seconds": 3.6455347670125775,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-quota-repair"
+    },
+    {
+      "name": "argument-inference-callbacks",
+      "status": "passed",
+      "seconds": 131.2234513849835,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-invariant-array",
+      "status": "passed",
+      "seconds": 104.76682169100968,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-lambda-result",
+      "status": "passed",
+      "seconds": 105.33121253701393,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-missing-binder",
+      "status": "passed",
+      "seconds": 104.67861303599784,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-mixed-kind",
+      "status": "passed",
+      "seconds": 3.894801967020612,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-no-seed-default",
+      "status": "passed",
+      "seconds": 4.578794030006975,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-no-seed-reference",
+      "status": "passed",
+      "seconds": 4.77708775998326,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-no-seed-vararg",
+      "status": "passed",
+      "seconds": 4.157076082017738,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-nominals",
+      "status": "passed",
+      "seconds": 25.54384297603974,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-order",
+      "status": "passed",
+      "seconds": 25.46320320200175,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-overloads",
+      "status": "passed",
+      "seconds": 24.83488566498272,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-shared-fixed-point",
+      "status": "passed",
+      "seconds": 28.39186947204871,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "argument-inference-shared-mapping",
+      "status": "passed",
+      "seconds": 26.70035248500062,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "array-construction-abi",
+      "status": "passed",
+      "seconds": 31.81321127997944,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "cli-edited-core-root-artifact-consumer",
+      "status": "passed",
+      "seconds": 171.81435775599675,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "cli-process-source-observations",
+      "status": "passed",
+      "seconds": 173.2842618249706,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-dependencies-core-local",
+      "status": "passed",
+      "seconds": 163.4855892540072,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-base",
+      "status": "passed",
+      "seconds": 148.7580799240386,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-combined",
+      "status": "passed",
+      "seconds": 162.63612903101603,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-heap-zst-storage",
+      "status": "passed",
+      "seconds": 155.3683209500159,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-ordinary",
+      "status": "passed",
+      "seconds": 153.4064455620246,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-ordinary-consumer",
+      "status": "passed",
+      "seconds": 149.9222328919568,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-property-initialization-provider",
+      "status": "passed",
+      "seconds": 174.00706420396455,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-abi-combined",
+      "status": "passed",
+      "seconds": 214.28595952299656,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-abi-standalone",
+      "status": "passed",
+      "seconds": 185.03296960896114,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-accessors-combined",
+      "status": "passed",
+      "seconds": 197.75141468498623,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-accessors-standalone",
+      "status": "passed",
+      "seconds": 212.14382216101512,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-aliases-combined",
+      "status": "passed",
+      "seconds": 205.4477418200113,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-aliases-standalone",
+      "status": "passed",
+      "seconds": 199.18945590796648,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-callables-combined",
+      "status": "passed",
+      "seconds": 231.88459415198304,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-callables-standalone",
+      "status": "passed",
+      "seconds": 208.51286318100756,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-constructors-combined",
+      "status": "passed",
+      "seconds": 282.09763214498525,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-constructors-standalone",
+      "status": "passed",
+      "seconds": 234.03321813402,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-digests-combined",
+      "status": "passed",
+      "seconds": 264.5766983529902,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-digests-standalone",
+      "status": "passed",
+      "seconds": 237.8355600439827,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-dispatch-combined",
+      "status": "passed",
+      "seconds": 132.09357479697792,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-quota-repair"
+    },
+    {
+      "name": "core-layouts-shared-dispatch-standalone",
+      "status": "passed",
+      "seconds": 275.20999837096315,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-equality-combined",
+      "status": "passed",
+      "seconds": 124.03724084998248,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-quota-repair"
+    },
+    {
+      "name": "core-layouts-shared-equality-standalone",
+      "status": "passed",
+      "seconds": 243.9156277300208,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-init-abi-combined",
+      "status": "passed",
+      "seconds": 231.98688903998118,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-init-abi-standalone",
+      "status": "passed",
+      "seconds": 215.9230059569818,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-layouts-combined",
+      "status": "passed",
+      "seconds": 221.78188122995198,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-layouts-standalone",
+      "status": "passed",
+      "seconds": 201.52558680000948,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-lir-dispatch-combined",
+      "status": "passed",
+      "seconds": 252.22154021798633,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-lir-dispatch-standalone",
+      "status": "passed",
+      "seconds": 217.07408139895415,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-mir-combined",
+      "status": "passed",
+      "seconds": 218.44630417902954,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-mir-standalone",
+      "status": "passed",
+      "seconds": 215.82972538698232,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-objects-combined",
+      "status": "passed",
+      "seconds": 234.61761990300147,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-objects-standalone",
+      "status": "passed",
+      "seconds": 222.22611982602393,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-ordinary-combined",
+      "status": "passed",
+      "seconds": 230.75311783398502,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-ordinary-standalone",
+      "status": "passed",
+      "seconds": 197.80223976803245,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-production-combined",
+      "status": "passed",
+      "seconds": 219.8376244250103,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-production-standalone",
+      "status": "passed",
+      "seconds": 194.73806909198174,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-shapes-combined",
+      "status": "passed",
+      "seconds": 231.32557450601598,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-shapes-standalone",
+      "status": "passed",
+      "seconds": 214.57727471599355,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-td-combined",
+      "status": "passed",
+      "seconds": 235.13519546802854,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-td-standalone",
+      "status": "passed",
+      "seconds": 223.98255772900302,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-units-combined",
+      "status": "passed",
+      "seconds": 205.29566813295241,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-shared-units-standalone",
+      "status": "passed",
+      "seconds": 203.24034877400845,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-layouts-standalone",
+      "status": "passed",
+      "seconds": 184.48209850100102,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-library-publication-core",
+      "status": "passed",
+      "seconds": 367.9043108529877,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-library-publication-ordinary",
+      "status": "passed",
+      "seconds": 153.2154358859989,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-nominals-dispatch-varargs",
+      "status": "passed",
+      "seconds": 379.1670162480441,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-nominals-nominal-varargs",
+      "status": "passed",
+      "seconds": 371.30827563098865,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-nominals-storage-roots",
+      "status": "passed",
+      "seconds": 428.84224641596666,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-operations-equality-combined",
+      "status": "passed",
+      "seconds": 224.15171565796481,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-operations-members-equality-pattern-overflow",
+      "status": "passed",
+      "seconds": 171.397710411984,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-operations-members-equality-patterns",
+      "status": "passed",
+      "seconds": 53.127712101035286,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "core-values-prelude",
+      "status": "passed",
+      "seconds": 178.55332620604895,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "coroutines-closure-finally",
+      "status": "passed",
+      "seconds": 51.46318031300325,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "coroutines-failure-finally",
+      "status": "passed",
+      "seconds": 43.820323381980415,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "coroutines-function-values",
+      "status": "passed",
+      "seconds": 52.15540998702636,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "coroutines-immediate",
+      "status": "passed",
+      "seconds": 33.21420788898831,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "coroutines-lifecycle",
+      "status": "passed",
+      "seconds": 98.98146020399872,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "coroutines-suspension",
+      "status": "passed",
+      "seconds": 42.470605103997514,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "coroutines-value-task",
+      "status": "passed",
+      "seconds": 43.93606900901068,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "default-access-type-access-pointers",
+      "status": "passed",
+      "seconds": 189.30609119299334,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "default-properties-nominals",
+      "status": "passed",
+      "seconds": 16.465766627981793,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "evaluation-order-float-nothing-combined",
+      "status": "passed",
+      "seconds": 191.1548140659579,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "evaluation-order-identity-control-flow",
+      "status": "passed",
+      "seconds": 180.4968726299703,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "fact-providers-combined",
+      "status": "passed",
+      "seconds": 21.9814224660513,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "finite-mir-types-combined",
+      "status": "passed",
+      "seconds": 405.2970870399731,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "finite-mir-types-values",
+      "status": "passed",
+      "seconds": 208.01689148601145,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "function-adapters-dynamic",
+      "status": "passed",
+      "seconds": 34.399577700009104,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-abi",
+      "status": "passed",
+      "seconds": 30.37778201099718,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-basic",
+      "status": "passed",
+      "seconds": 28.092202076979447,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-bounds",
+      "status": "passed",
+      "seconds": 28.053874787001405,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-function-value-elements",
+      "status": "passed",
+      "seconds": 4.542036359955091,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-index-type",
+      "status": "passed",
+      "seconds": 4.620194189017639,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-iteration",
+      "status": "passed",
+      "seconds": 29.26881629199488,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-order",
+      "status": "passed",
+      "seconds": 29.782458809029777,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-spread-invariant",
+      "status": "passed",
+      "seconds": 5.207999664009549,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-spread-mutable",
+      "status": "passed",
+      "seconds": 5.475855371973012,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-spread-non-array",
+      "status": "passed",
+      "seconds": 4.8949679199722596,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-uninferrable-empty",
+      "status": "passed",
+      "seconds": 5.387876289023552,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-whole-and-elements",
+      "status": "passed",
+      "seconds": 4.894273002981208,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-whole-element",
+      "status": "passed",
+      "seconds": 5.243855377018917,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-arrays-write-immutable",
+      "status": "passed",
+      "seconds": 5.259969543025363,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-delegate-consumption-consumer",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-arity",
+      "status": "passed",
+      "seconds": 9.171655785001349,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-invariance",
+      "status": "passed",
+      "seconds": 7.822701684955973,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-ref",
+      "status": "passed",
+      "seconds": 5.475843753956724,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-shape-errors-nominals-bad-value",
+      "status": "passed",
+      "seconds": 5.212436997971963,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-shapes-nominals-combined",
+      "status": "passed",
+      "seconds": 29.321194046991877,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "generic-shapes-nominals-standalone",
+      "status": "passed",
+      "seconds": 29.462573745986447,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "global-state-enum-state",
+      "status": "passed",
+      "seconds": 28.99850588804111,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "implicit-array-capability-combined",
+      "status": "passed",
+      "seconds": 17.802506665000692,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-class-core-extension",
+      "status": "passed",
+      "seconds": 233.94825687794946,
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-aliases",
+      "status": "passed",
+      "seconds": 28.830888669996057,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-combined",
+      "status": "passed",
+      "seconds": 25.875152297958266,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-generic-alias",
+      "status": "passed",
+      "seconds": 4.983836751023773,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-managed-constructor",
+      "status": "passed",
+      "seconds": 4.710508871998172,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-nonconstructible-alias",
+      "status": "passed",
+      "seconds": 4.4464246010174975,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-private-constructor",
+      "status": "passed",
+      "seconds": 5.579728065989912,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-standalone",
+      "status": "passed",
+      "seconds": 28.864532878040336,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-structural",
+      "status": "passed",
+      "seconds": 28.363740606000647,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-tuple-constructor",
+      "status": "passed",
+      "seconds": 28.65431043499848,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-tuple-fields",
+      "status": "passed",
+      "seconds": 28.77838084002724,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-wrong-argument",
+      "status": "passed",
+      "seconds": 5.649859772005584,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-wrong-constructor-tuple",
+      "status": "passed",
+      "seconds": 5.7285705910180695,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-wrong-identity",
+      "status": "passed",
+      "seconds": 4.678711647982709,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-arity",
+      "status": "passed",
+      "seconds": 5.4809438129886985,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-field",
+      "status": "passed",
+      "seconds": 5.520633105013985,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-constructor-wrong-tuple-identity",
+      "status": "passed",
+      "seconds": 5.331869971007109,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-c-abi",
+      "status": "passed",
+      "seconds": 8.427990696043707,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-combined",
+      "status": "passed",
+      "seconds": 31.084990400006063,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-constructor-combinations",
+      "status": "passed",
+      "seconds": 28.309606190014165,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-constructor-duplicate-field",
+      "status": "passed",
+      "seconds": 4.942941982997581,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-constructor-missing-field",
+      "status": "passed",
+      "seconds": 5.175933170015924,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-constructor-shadowed",
+      "status": "passed",
+      "seconds": 5.528573527990375,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-constructor-type-arguments",
+      "status": "passed",
+      "seconds": 4.786809651006479,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-constructor-wrong-owner",
+      "status": "passed",
+      "seconds": 4.657947879983112,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-constructor-wrong-payload",
+      "status": "passed",
+      "seconds": 4.694175872951746,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-constructors",
+      "status": "passed",
+      "seconds": 28.259786554030143,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-guarded-coverage",
+      "status": "passed",
+      "seconds": 4.812200646963902,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-named-positional",
+      "status": "passed",
+      "seconds": 4.769806214026175,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-non-exhaustive",
+      "status": "passed",
+      "seconds": 4.931508127017878,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-patterns",
+      "status": "passed",
+      "seconds": 27.42953090200899,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-positional-named",
+      "status": "passed",
+      "seconds": 5.320008216018323,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-refutable-binding",
+      "status": "passed",
+      "seconds": 5.54551662603626,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-standalone",
+      "status": "passed",
+      "seconds": 27.56523654301418,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-unit-called",
+      "status": "passed",
+      "seconds": 5.231892784009688,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-wrong-identity",
+      "status": "passed",
+      "seconds": 4.558158689003903,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-wrong-pattern-field",
+      "status": "passed",
+      "seconds": 5.24344570498215,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-wrong-pattern-owner",
+      "status": "passed",
+      "seconds": 5.114001500012819,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-wrong-pattern-style",
+      "status": "passed",
+      "seconds": 4.910935052030254,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-enum-wrong-payload",
+      "status": "passed",
+      "seconds": 4.578559755987953,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-alias-erased",
+      "status": "passed",
+      "seconds": 8.051467219018377,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-alias-payload",
+      "status": "passed",
+      "seconds": 4.587109727959614,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-constructor-alias-payload",
+      "status": "passed",
+      "seconds": 4.816851373994723,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-contextual-payload",
+      "status": "passed",
+      "seconds": 4.247075830993708,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-immutable-omission",
+      "status": "passed",
+      "seconds": 4.730819584976416,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-invariance",
+      "status": "passed",
+      "seconds": 5.055433745961636,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-kind-bound",
+      "status": "passed",
+      "seconds": 4.262338170025032,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-local-alias-payload",
+      "status": "passed",
+      "seconds": 4.693871378956828,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-nested",
+      "status": "passed",
+      "seconds": 4.955147001019213,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-none-inference",
+      "status": "passed",
+      "seconds": 4.294280950969551,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-payload-arity",
+      "status": "passed",
+      "seconds": 4.242665783967823,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-positional-name",
+      "status": "passed",
+      "seconds": 4.294344835972879,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-shadow",
+      "status": "passed",
+      "seconds": 4.442790845001582,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-type-arity",
+      "status": "passed",
+      "seconds": 4.262595817970578,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-bad-unit-call",
+      "status": "passed",
+      "seconds": 4.509858397010248,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-construct",
+      "status": "passed",
+      "seconds": 24.7005738329608,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-defaults",
+      "status": "passed",
+      "seconds": 25.14822648098925,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-lexical",
+      "status": "passed",
+      "seconds": 25.931875254027545,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-qualified",
+      "status": "passed",
+      "seconds": 25.781488737033214,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-shadow",
+      "status": "passed",
+      "seconds": 25.139252733963076,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-static",
+      "status": "passed",
+      "seconds": 23.773750277992804,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-sugar",
+      "status": "passed",
+      "seconds": 24.832563134026714,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-options-values",
+      "status": "passed",
+      "seconds": 27.294656951969955,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "imported-pointer-construction-zst-nested",
+      "status": "passed",
+      "seconds": 27.81230770802358,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "iteration-abi",
+      "status": "passed",
+      "seconds": 42.132286239997484,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "iteration-basic",
+      "status": "passed",
+      "seconds": 33.563663035980426,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "iteration-binding-arity",
+      "status": "passed",
+      "seconds": 4.456512956006918,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "iteration-bounds",
+      "status": "passed",
+      "seconds": 33.94758723000996,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "iteration-capture",
+      "status": "passed",
+      "seconds": 35.78049070999259,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "iteration-escaping-break",
+      "status": "passed",
+      "seconds": 5.034601683029905,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "legacy-m18-invoke-invoke-semantics",
+      "status": "passed",
+      "seconds": 5.842433090962004,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m22-control-while-header",
+      "status": "passed",
+      "seconds": 5.255292209039908,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m22-integers-representation-matrix",
+      "status": "passed",
+      "seconds": 8.240793278964702,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m22-patterns-recursive-named-fields",
+      "status": "passed",
+      "seconds": 5.286914934986271,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m22-patterns-when-exhaustiveness",
+      "status": "passed",
+      "seconds": 5.2239102070452645,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m22-pointers-option-niche-consumers",
+      "status": "passed",
+      "seconds": 5.221938678994775,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m3-generics-generic-option",
+      "status": "passed",
+      "seconds": 5.286918511032127,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m3-generics-nested-option",
+      "status": "passed",
+      "seconds": 5.185061015014071,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m3-generics-option-basics",
+      "status": "passed",
+      "seconds": 5.284974218986463,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m5-arrays-array-elements",
+      "status": "passed",
+      "seconds": 6.434758307004813,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "legacy-m8-exceptions-control-expressions",
+      "status": "passed",
+      "seconds": 5.421455122996122,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m26-interpolation-contexts",
+      "status": "passed",
+      "seconds": 5.9754510700004175,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m27-context-callback-scopes",
+      "status": "passed",
+      "seconds": 5.8115855299984105,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 3,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m27-context-coroutine-exits",
+      "status": "passed",
+      "seconds": 7.383950098010246,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 3,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m27-context-exits",
+      "status": "passed",
+      "seconds": 5.43958492501406,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 3,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m28-cli-library-toolchain",
+      "status": "passed",
+      "seconds": 3.1085262420237996,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m28-cli-program",
+      "status": "passed",
+      "seconds": 15.917034904006869,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m28-cli-program-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "m28-deep-frames",
+      "status": "passed",
+      "seconds": 11.33697956497781,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m28-deep-frames-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "m28-native-dso",
+      "status": "passed",
+      "seconds": 10.39315489900764,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m30-floating-artifacts-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "m32-roots-control",
+      "status": "passed",
+      "seconds": 5.400931139010936,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m32-roots-gc-context",
+      "status": "passed",
+      "seconds": 11.009201281995047,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m33-native-cxx-reject-missing-driver",
+      "status": "passed",
+      "seconds": 0.2709834889974445,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m33-native-cxx-reject-missing-stdlib",
+      "status": "passed",
+      "seconds": 0.30674901901511475,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m33-native-cxx-reject-musl",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "m33-native-cxx-reject-target-mismatch",
+      "status": "passed",
+      "seconds": 0.2673857309855521,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m33-native-cxx-reject-version-mismatch",
+      "status": "passed",
+      "seconds": 0.30632388102822006,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m33-native-libraries-reject-dynamic-on-static",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "m33-native-libraries-reject-framework-on-linux",
+      "status": "passed",
+      "seconds": 4.710900054022204,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m33-native-safe-transitions-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "m33-platform-cone-musl-pie",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "m35-annotations-artifacts",
+      "status": "passed",
+      "seconds": 29.0166558289784,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-basic",
+      "status": "passed",
+      "seconds": 5.293689351994544,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-cache",
+      "status": "passed",
+      "seconds": 21.91632605000632,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-coding",
+      "status": "passed",
+      "seconds": 19.032011198985856,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-alias-mutable",
+      "status": "passed",
+      "seconds": 2.605749887006823,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-any-element",
+      "status": "passed",
+      "seconds": 2.63715670700185,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-array-for-scalar",
+      "status": "passed",
+      "seconds": 2.670829913986381,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-array-variable",
+      "status": "passed",
+      "seconds": 2.6055115049821325,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-builtin-array",
+      "status": "passed",
+      "seconds": 2.669297826010734,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-char-element",
+      "status": "passed",
+      "seconds": 2.6093136459821835,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-char-surrogate",
+      "status": "passed",
+      "seconds": 2.6059822370298207,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-const-array",
+      "status": "passed",
+      "seconds": 2.637581530958414,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-default-element",
+      "status": "passed",
+      "seconds": 2.6384461660054512,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-duplicate",
+      "status": "passed",
+      "seconds": 2.622781437006779,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-enum-element",
+      "status": "passed",
+      "seconds": 2.6065986679750495,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-factory",
+      "status": "passed",
+      "seconds": 2.6060915230191313,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-float-overflow",
+      "status": "passed",
+      "seconds": 2.638241511012893,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-float-suffix",
+      "status": "passed",
+      "seconds": 2.6063131610280834,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-function-element",
+      "status": "passed",
+      "seconds": 2.6059819500078447,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-integer-range",
+      "status": "passed",
+      "seconds": 2.6138481270172633,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-integer-signedness",
+      "status": "passed",
+      "seconds": 2.706715671985876,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-missing-comma",
+      "status": "passed",
+      "seconds": 2.6702861660160124,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-missing-required",
+      "status": "passed",
+      "seconds": 2.722360343032051,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-multidimensional",
+      "status": "passed",
+      "seconds": 2.70644809800433,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-mutable-array",
+      "status": "passed",
+      "seconds": 2.706691936997231,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-nested-annotation",
+      "status": "passed",
+      "seconds": 2.6714817950269207,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-nested-array",
+      "status": "passed",
+      "seconds": 2.622562587959692,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-object-element",
+      "status": "passed",
+      "seconds": 2.6709262709482573,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-option-element",
+      "status": "passed",
+      "seconds": 2.605736209952738,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-private-reference",
+      "status": "passed",
+      "seconds": 2.6063438020064496,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-runtime-expression",
+      "status": "passed",
+      "seconds": 2.6066599530167878,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-runtime-value",
+      "status": "passed",
+      "seconds": 2.6138324739877135,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-scalar-for-array",
+      "status": "passed",
+      "seconds": 2.638337504991796,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-serial-name-array",
+      "status": "passed",
+      "seconds": 2.609757622005418,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-shadow-array",
+      "status": "passed",
+      "seconds": 2.621441324998159,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-spread",
+      "status": "passed",
+      "seconds": 2.67015270300908,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-unknown-name",
+      "status": "passed",
+      "seconds": 2.606666333042085,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-unknown-reference",
+      "status": "passed",
+      "seconds": 2.613944103999529,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-annotations-error-wrong-element",
+      "status": "passed",
+      "seconds": 2.706490174983628,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-case-basic",
+      "status": "passed",
+      "seconds": 5.340000270982273,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-case-combined",
+      "status": "passed",
+      "seconds": 5.511622138961684,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-case-missing-prefix",
+      "status": "passed",
+      "seconds": 2.6386050999863073,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-artifacts",
+      "status": "passed",
+      "seconds": 23.32583161594812,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-captures",
+      "status": "passed",
+      "seconds": 5.719543705985416,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-error-alternative-capture",
+      "status": "passed",
+      "seconds": 2.6702678310102783,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-error-extension-ambiguity",
+      "status": "passed",
+      "seconds": 2.66999390500132,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-error-member-ambiguity",
+      "status": "passed",
+      "seconds": 2.6380332210101187,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-error-mutable-capture",
+      "status": "passed",
+      "seconds": 2.637511409993749,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-error-property-ambiguity",
+      "status": "passed",
+      "seconds": 2.6067427950329147,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-error-reference-ambiguity",
+      "status": "passed",
+      "seconds": 2.622051629005,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-suspend",
+      "status": "passed",
+      "seconds": 6.564108935010154,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-combinations-views",
+      "status": "passed",
+      "seconds": 5.847821028030012,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-artifacts",
+      "status": "passed",
+      "seconds": 21.311537437024526,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-basic",
+      "status": "passed",
+      "seconds": 5.502517449960578,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-cleanup",
+      "status": "passed",
+      "seconds": 5.201036528043915,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-bare-return",
+      "status": "passed",
+      "seconds": 2.513054860988632,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-constructor-return",
+      "status": "passed",
+      "seconds": 2.5061636210302822,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-default-elvis-return",
+      "status": "passed",
+      "seconds": 2.512983971973881,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-default-return",
+      "status": "passed",
+      "seconds": 2.5128665399970487,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-elvis-expected-type",
+      "status": "passed",
+      "seconds": 2.5695358169614337,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-elvis-left-type",
+      "status": "passed",
+      "seconds": 2.5051786130061373,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-expression-body-return",
+      "status": "passed",
+      "seconds": 2.505505245993845,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-initializer-bare-return",
+      "status": "passed",
+      "seconds": 2.5049254600307904,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-initializer-return",
+      "status": "passed",
+      "seconds": 2.5134295300231315,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-lambda-return",
+      "status": "passed",
+      "seconds": 2.505622173019219,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-local-expression-body-return",
+      "status": "passed",
+      "seconds": 2.5056846640072763,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-return-label",
+      "status": "passed",
+      "seconds": 2.5058255520416424,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-throw-type",
+      "status": "passed",
+      "seconds": 2.505242574028671,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-error-wrong-return-value",
+      "status": "passed",
+      "seconds": 2.505832885974087,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-operands",
+      "status": "passed",
+      "seconds": 5.238014022004791,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-jumps-suspend",
+      "status": "passed",
+      "seconds": 5.8634539089980535,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-artifacts",
+      "status": "passed",
+      "seconds": 21.98587666300591,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-basic",
+      "status": "passed",
+      "seconds": 6.11143140704371,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-effects",
+      "status": "passed",
+      "seconds": 5.338867086044047,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-double-trailing",
+      "status": "passed",
+      "seconds": 2.5055715210037306,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-duplicate-named",
+      "status": "passed",
+      "seconds": 2.5124582379939966,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-duplicate-positional",
+      "status": "passed",
+      "seconds": 2.5060773320146836,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-function-value-arity",
+      "status": "passed",
+      "seconds": 2.5373311049770564,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-lambda-return",
+      "status": "passed",
+      "seconds": 2.505621066025924,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-last-non-function",
+      "status": "passed",
+      "seconds": 2.50626050401479,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-last-vararg",
+      "status": "passed",
+      "seconds": 2.5058448489871807,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-named-jump-position",
+      "status": "passed",
+      "seconds": 2.521660005033482,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-non-callable",
+      "status": "passed",
+      "seconds": 2.5125156969879754,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-ordinary-to-suspend",
+      "status": "passed",
+      "seconds": 2.5060642029857263,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-parenthesized-position",
+      "status": "passed",
+      "seconds": 2.5072502859984525,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-required-prefix",
+      "status": "passed",
+      "seconds": 2.511743668001145,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-suspend-to-ordinary",
+      "status": "passed",
+      "seconds": 2.5057806400000118,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-ungrouped-result",
+      "status": "passed",
+      "seconds": 2.5054686309886165,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-unknown-name",
+      "status": "passed",
+      "seconds": 2.5050967839779332,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-error-vararg-parenthesized",
+      "status": "passed",
+      "seconds": 2.505460981046781,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-members",
+      "status": "passed",
+      "seconds": 5.601853741973173,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-trailing-suspend",
+      "status": "passed",
+      "seconds": 6.139562394993845,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-artifacts",
+      "status": "passed",
+      "seconds": 20.991316995001398,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-effects",
+      "status": "passed",
+      "seconds": 5.1012127959984355,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-alternative-smart-cast",
+      "status": "passed",
+      "seconds": 2.469535289972555,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-boolean-constant-coverage",
+      "status": "passed",
+      "seconds": 2.5059354879776947,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-boolean-coverage",
+      "status": "passed",
+      "seconds": 2.505571390967816,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-case-alternatives",
+      "status": "passed",
+      "seconds": 2.521208423015196,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-case-class-subject",
+      "status": "passed",
+      "seconds": 2.505971375037916,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-class-equality",
+      "status": "passed",
+      "seconds": 2.5050120590021834,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-contains-missing",
+      "status": "passed",
+      "seconds": 2.5134529499919154,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-delegated-subject",
+      "status": "passed",
+      "seconds": 2.5130450999713503,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-duplicate-binding",
+      "status": "passed",
+      "seconds": 2.469625936006196,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-duplicate-else",
+      "status": "passed",
+      "seconds": 2.504333729040809,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-else-not-last",
+      "status": "passed",
+      "seconds": 2.5055287489667535,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-enum-coverage",
+      "status": "passed",
+      "seconds": 2.5372126110014506,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-escaping-smart-cast",
+      "status": "passed",
+      "seconds": 2.5126724439905956,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-getter-smart-cast",
+      "status": "passed",
+      "seconds": 2.504974092997145,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-guard-coverage",
+      "status": "passed",
+      "seconds": 2.5056827120133676,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-guard-failure-smart-cast",
+      "status": "passed",
+      "seconds": 2.5364348189905286,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-initializer-scope",
+      "status": "passed",
+      "seconds": 2.4690707979607396,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-mixed-coverage",
+      "status": "passed",
+      "seconds": 2.504913237004075,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-multiple-guard",
+      "status": "passed",
+      "seconds": 2.5041172269848175,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-mutable-smart-cast",
+      "status": "passed",
+      "seconds": 2.5057929300237447,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-nonboolean-condition",
+      "status": "passed",
+      "seconds": 2.505317342991475,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-nonboolean-guard",
+      "status": "passed",
+      "seconds": 2.46946884598583,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-refutable-subject",
+      "status": "passed",
+      "seconds": 2.5057166459737346,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-subject-scope",
+      "status": "passed",
+      "seconds": 2.51275356503902,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-subjectless-case",
+      "status": "passed",
+      "seconds": 2.5060481280088425,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-subjectless-guard",
+      "status": "passed",
+      "seconds": 2.469499175029341,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-subjectless-in",
+      "status": "passed",
+      "seconds": 2.520844683982432,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-subjectless-is",
+      "status": "passed",
+      "seconds": 2.505635101988446,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-subjectless-value-coverage",
+      "status": "passed",
+      "seconds": 2.4695487509598024,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-user-equality-coverage",
+      "status": "passed",
+      "seconds": 2.505907630024012,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-value-coverage",
+      "status": "passed",
+      "seconds": 2.5058505940251052,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-var-subject",
+      "status": "passed",
+      "seconds": 2.4680030770250596,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-error-wrong-subject-type",
+      "status": "passed",
+      "seconds": 2.5060182849993,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-ordinary",
+      "status": "passed",
+      "seconds": 5.199169092986267,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-smart-casts",
+      "status": "passed",
+      "seconds": 5.229499871027656,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-subjects",
+      "status": "passed",
+      "seconds": 5.153816670004744,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "m35-when-suspend-subject",
+      "status": "passed",
+      "seconds": 5.979265684029087,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "native-link-archive-toc",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-cabi-dynamic",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-callback-tls-dynamic",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-dynamic-framework",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-dynamic-loader",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-dynamic-overlap",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-dynamic-reexport",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-dynamic-renamed",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-mixed",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-resolution-runtime-location",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-scoopabi-dynamic",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "native-link-storage-dynamic",
+      "status": "inapplicable",
+      "seconds": 0,
+      "variants": 0,
+      "processes": 0,
+      "snapshots": 0,
+      "message": "target is not declared applicable",
+      "message_sha256": "46fb38b85f1d24996bb7bdbc6e4b4748d1817dc13b413158b81e7ed0eb1c5d46",
+      "source_report": "gnu-initial"
+    },
+    {
+      "name": "protected-domains-protected-default-references",
+      "status": "passed",
+      "seconds": 15.69155192899052,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "rebuilt-core-option-edited-core",
+      "status": "passed",
+      "seconds": 100.20119747397257,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 10,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "shared-enums-aliases-equality",
+      "status": "passed",
+      "seconds": 18.13587749999715,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "shared-enums-qualified",
+      "status": "passed",
+      "seconds": 18.391242776007857,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "shared-native-calls-context",
+      "status": "passed",
+      "seconds": 19.38676249200944,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "shared-structs-combined",
+      "status": "passed",
+      "seconds": 20.100034685980063,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-focused"
+    },
+    {
+      "name": "shared-structs-standalone",
+      "status": "passed",
+      "seconds": 19.081150436017197,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "gnu-focused"
+    }
+  ],
+  "scope": {
+    "required_selection": "docs/milestone35/validation/linux-focused-selection.json",
+    "reason": "All M35 features, actual MIR/LIR differences, Linux-specific regressions and migrated semantic examples; Darwin already covers all shared front-end migration. Previously completed additional Linux results remain valid.",
+    "candidate_fixtures": 600,
+    "required_fixtures": 177,
+    "required_counts": {
+      "passed": 170,
+      "inapplicable": 7
+    },
+    "excluded_incomplete_candidates": [
+      {
+        "name": "intrinsic-source-shapes-consumers",
+        "status": "interrupted",
+        "seconds": 111.79181052499916,
+        "variants": 0,
+        "processes": 1,
+        "snapshots": 0,
+        "message": "fixture run interrupted",
+        "message_sha256": "e0967070fddefe59f92e9a82797ad58fc6a88c44c68409df745ae3b5f20ce421",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "intrinsic-source-shapes-declarations",
+        "status": "interrupted",
+        "seconds": 108.98862920701504,
+        "variants": 0,
+        "processes": 1,
+        "snapshots": 0,
+        "message": "fixture run interrupted",
+        "message_sha256": "e0967070fddefe59f92e9a82797ad58fc6a88c44c68409df745ae3b5f20ce421",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-defaults",
+        "status": "interrupted",
+        "seconds": 12.654574332991615,
+        "variants": 0,
+        "processes": 4,
+        "snapshots": 8,
+        "message": "fixture run interrupted",
+        "message_sha256": "e0967070fddefe59f92e9a82797ad58fc6a88c44c68409df745ae3b5f20ce421",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-extensions",
+        "status": "interrupted",
+        "seconds": 5.644152215041686,
+        "variants": 0,
+        "processes": 3,
+        "snapshots": 4,
+        "message": "fixture run interrupted",
+        "message_sha256": "e0967070fddefe59f92e9a82797ad58fc6a88c44c68409df745ae3b5f20ce421",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-immutable-binding",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-inference",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-missing-operator",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-multiple-applications",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-no-gc",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-order",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-private-operator",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-refutable-pattern",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-shadow-protocol",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-suspend-context",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "iteration-wrong-protocol",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m10-coroutines-gc-across-suspension",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m10-coroutines-generic-suspend-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m10-coroutines-suspend-control-flow",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m10-coroutines-suspend-member-dispatch",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m11-functions-capture-combinations",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m11-functions-function-containers",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m11-functions-suspend-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m11-functions-variance",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m12-ffi-pointers",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m13-callback-foreign-continuation",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m13-callback-foreign-continuation-failure",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m13-callback-managed-callback",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m14-generics-core-capabilities",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m15-moving-root-shapes",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m17-arguments-source-order",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m17-defaults-default-semantics",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m17-vararg-vararg-semantics",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m18-safe-call-safe-call-semantics",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m20-generics-expected-construction",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m20-generics-partial-type-arguments",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-aggregate-abi-aggregate-calls",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-binding-patterns-bare-variant-names",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-binding-patterns-errors-irrefutable-only",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-contextual-variants-basics",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-contextual-variants-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-integers-fixed-width",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-iteration-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-patterns-errors-qualified-variant-typo",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-patterns-errors-recursive-named-fields",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-patterns-errors-uint8-one-missing",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-patterns-errors-unary-plus-integer-pattern",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-patterns-errors-when-exhaustiveness",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-patterns-int8-complete-domain",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-patterns-nested-enum-primitives",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-patterns-suspicious-enum-catch-all",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-pointers-c-recursive-recursive-pointer",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-pointers-ffi-pointer-ffi-round-trip",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-pointers-pointer-invariants",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m22-ranges-semantics",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m25-eh-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m3-generics-errors-elvis-type-mismatch",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m3-generics-inference-order",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m4-enum-enum-basics",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m4-enum-enum-generics",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m4-enum-errors-guard-not-boolean",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m4-enum-errors-non-exhaustive",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m4-enum-errors-unknown-variant",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m4-enum-option-via-when",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m4-enum-when-expression",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m4-enum-when-guards",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m5-arrays-recursive-reference-scans",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m6-classes-interfaces",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m8-exceptions-errors-when-expression-result-type",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "legacy-m8-exceptions-return-paths",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-array-reject-count-type",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-array-reject-initializer-result",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-characters-basic",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-characters-cross-cone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-characters-reject-destructure",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-characters-reject-non-exhaustive",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-characters-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-interpolation-basic",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-interpolation-nested",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-strings-custom-list",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m26-strings-snapshots",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m27-context-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m27-context-callback-concurrent",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m27-context-coroutine-thread",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m27-context-gc-lifetimes",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-annotation-parameter-type",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-annotations-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-annotations-source",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-class-shapes-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-class-shapes-source",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-companion-applications",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-companion-bounds",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-companion-failure",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-container-decoding-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-container-decoding-composition",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-container-decoding-option",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-container-decoding-sequences",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-container-encoding-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-container-encoding-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-constructors",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-context",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-defaults",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-generics",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-precedence",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-records",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-recursion",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-decoding-variants",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-encoding-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-encoding-context",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-encoding-dependencies",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-encoding-precedence",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-encoding-records",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-encoding-variants",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-derived-encoding-visibility",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-list-encoding-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-list-encoding-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-serialization-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-serialization-containers",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-serialization-scalars",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-static-shapes-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-static-shapes-source",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-tuple-encoding-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-tuple-encoding-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-unit-encoding-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m29-unit-encoding-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-annotations",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-artifacts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-coroutine",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-json",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-patterns",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-reject-pattern-destructure",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-reject-pattern-fixed",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-reject-pattern-incomplete",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-reject-pattern-integer",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-reject-pattern-nan-guard",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-reject-pattern-recursive-incomplete",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m30-floating-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m31-gc-copy-ranges",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m31-local-effects",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m31-local-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m32-roots-casts",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m32-roots-evaluation",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m32-roots-functions",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m32-roots-members",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-atomics-concurrency",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-atomics-gc",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-atomics-value-storage",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-counted-pins-concurrent",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-direct-c-representations",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-errno-callbacks",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-gc-leaf-concurrent",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-native-safe-transitions",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-output-concurrent",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-platform-cone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m33-scoped-data-concurrent",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-allocation-accounting",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-allocation-threads",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-containers-builder",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-direct-c-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-interfaces-concurrency",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-interfaces-native",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-interfaces-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-maybe-uninit-gc",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-maybe-uninit-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-parallel-threads",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-poll-threads",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-regions-threads",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "m34-small-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "materialized-type-uses-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "namespace-enum-variants",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "native-link-callback-exception",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "native-link-callback-reentry",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "native-link-callback-tls-archive",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "native-link-callback-tls-object",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "program-link-lazy-cycle-root",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "program-link-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "program-read-read-basic",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "rebuilt-core-coroutine-rebuilt-core",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "release-blocks-lifecycle",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "runtime-images-lazy-cycle-root",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shape-materialization-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-argument-materialization-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-argument-materialization-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-abi",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-arity",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-class-rest",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-components",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-defaults-when",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-duplicate-field",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-immutable",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-incomplete-when",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-lambda-for",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-missing-operator",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-missing-rest",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-private-component",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-refutable",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-structs",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-unknown-field",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bindings-wrong-owner",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-bound-properties-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-call-probes-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-call-probes-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enum-definitions-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enum-definitions-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-arity",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-defaults-nested",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-hidden-prefix",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-incomplete",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-instances",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-named-style",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-wrong-alias",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-enums-wrong-prefix",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-literals-bad-exhaustiveness",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-literals-bad-literal",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-literals-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-literals-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-nominal-conditions-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-nominal-conditions-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-shapes-m18-safe-call-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-shapes-m22-integers-typealiases",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-struct-definitions-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-struct-definitions-duplicate",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-struct-definitions-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-struct-definitions-unknown",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-struct-definitions-wrong-type",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-value-layouts-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "shared-value-layouts-standalone",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "source-calls-occurrences-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "source-defaults-nested-parents",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "source-mir-types-generic-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "source-mir-types-generic-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "source-mir-types-private-storage",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "source-mir-types-private-storage-combined",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "source-mir-types-values",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      },
+      {
+        "name": "source-nominals-parameters",
+        "status": "interrupted",
+        "seconds": 0,
+        "variants": 0,
+        "processes": 0,
+        "snapshots": 0,
+        "message": "",
+        "source_report": "gnu-initial"
+      }
+    ]
+  }
+}

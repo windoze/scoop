@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "root"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:d-join" = {"version" = "0.1.0", "path" = "../d-join"}

@@ -1,0 +1,6 @@
+class Point(val x: Int, var y: Int)
+
+fun main() {
+    val p = Point(1, 2)
+    p.x = 3
+}

@@ -1,0 +1,29 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val values = defaultCombinations()
+    val array: Array<Int> = [7, 11]
+    val mutable: MutableArray<Int> = [13, 17]
+    verifyDefault(values.array<Int>(array)[0] == 7)
+    values.mutable<Int>(mutable)[0] = 19
+    verifyDefault(mutable[0] == 19)
+    verifyDefault(values.option<Int>(Some(23)) == Some(23))
+    verifyDefault(values.mimicArray<Int>(Mimics.Array(29)) == Mimics.Array(29))
+    verifyDefault(values.mimicMutable<Int>(Mimics.MutableArray(31)) == Mimics.MutableArray(31))
+    verifyDefault(values.mimicOption<Int>(Mimics.Option(37)) == Mimics.Option(37))
+    verifyDefault(values.mimicCallback<Int>(Mimics.ForeignCallback(41)) == Mimics.ForeignCallback(41))
+    verifyDefault(values.tuple((Unit, true)) == (Unit, true))
+    var number = 43
+    @Unsafe {
+        val pointer = addressOf(number)
+        val nested: Array<(Int, Ptr<Int>)> = [(47, pointer)]
+        val selected = values.nested<Int>(nested)[0]
+        verifyDefault(selected._1 == 47)
+        verifyDefault(selected._2.load() == 43)
+        val callback = foreignCallback<(Ptr<Unit>) -> Unit>({ Unit }, 0L, ForeignCallbackMode.Reusable)
+        val copied = values.callback<Ptr<Unit>>(callback)
+        verifyDefault(foreignCallbackState(copied) == ForeignCallbackState.Registered)
+        releaseForeignCallback(copied)
+    }
+}

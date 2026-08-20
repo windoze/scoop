@@ -1,0 +1,12 @@
+@CLayout(aligned = 16, packed = 2)
+@InteriorMutable
+public struct Packet(val value: Int, val extra: Long)
+@InteriorMutable
+public struct GenericCell<T>(val value: T)
+public class Container {
+    @InteriorMutable
+    private struct Hidden(val value: Int)
+    @InteriorMutable
+    protected struct Guarded(val value: Int)
+    public struct Plain(val value: Int)
+}

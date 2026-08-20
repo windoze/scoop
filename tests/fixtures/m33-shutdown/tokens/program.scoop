@@ -1,0 +1,19 @@
+@Extern(lib = "fixture_native", name = "m33_shutdown_register_atexit")
+fun registerAtExit()
+
+fun main() {
+    @Unsafe {
+        registerAtExit()
+        val message = "rooted-token"
+        val first = foreignCallback<(Ptr<Unit>) -> Unit>(
+            { write(message) }, 0, ForeignCallbackMode.Reusable
+        )
+        val retained = retainForeignCallback(first)
+        val second = foreignCallback<(Ptr<Unit>) -> Unit>(
+            { write(message) }, 0, ForeignCallbackMode.OneShot
+        )
+    }
+    gcCollect()
+    write("buffered-output")
+    writeError("before-shutdown\n")
+}

@@ -1,0 +1,11 @@
+package consumer.members
+
+import templates.members.*
+
+public class Derived public constructor(value: Int): ProtectedBox<Int>(value) {
+    protected override fun secret(): Int = super.secret() + 1
+    public fun read(): Int = this.secret()
+}
+
+public fun result(): Int = Derived(41).read()
+public fun <T> make(value: T): T = ProtectedChild<T>(value).read()

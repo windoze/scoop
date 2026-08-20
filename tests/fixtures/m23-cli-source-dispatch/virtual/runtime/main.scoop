@@ -1,0 +1,12 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val first = base()
+    verifyDispatch(first.zeta() == 1 && first.alpha() == 2 && first.direct() == 3)
+    val second = derived()
+    val parent: Base = second
+    verifyDispatch(parent.zeta() == 5 && second.middle() == 6 && second.alpha() == 2)
+    verifyDispatch(first.inspect() == 4 && second.inspect() == 4)
+    verifyDispatch(Singleton.zeta() == 5 && Singleton.middle() == 6)
+}

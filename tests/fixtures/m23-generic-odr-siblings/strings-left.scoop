@@ -1,0 +1,8 @@
+package sibling.left
+
+import dependency.odr.*
+
+public fun left(): String = constant<Int>()
+public fun leftOther(): String = otherConstant<Int>()
+public fun leftSelected(first: Boolean): String = selectedConstant<Int>(first)
+public fun <T> forwarded(): String = constant<T>()

@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "pattern has 1 element(s), but struct `Pair` has 2",
+    "notes": [],
+    "origin": {
+      "cone": "e5bede29f9e8dba2095812f4b291c6633ee8da0837e2715bf13a96f8477e4b30",
+      "end": 72,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 64
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "e5bede29f9e8dba2095812f4b291c6633ee8da0837e2715bf13a96f8477e4b30",
+      "end": 108,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 103
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` constructor `Bad` parameter `text` has non-GC-free type String",
+    "notes": [],
+    "origin": {
+      "kind": "source",
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "path": "main.scoop",
+      "start": 29,
+      "end": 72
+    },
+    "severity": "error"
+  }
+]

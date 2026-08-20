@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `LocalReader` does not implement abstract method `LocalBase.choose`",
+    "notes": [],
+    "origin": {
+      "cone": "cf405c41df0f8fabbe7b9dbf99a7659a9b30c8ebb98d73e96438a3e10cb705d3",
+      "end": 218,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 157
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `LocalReader` leaves interface method `FirstChoice.choose` abstract",
+    "notes": [],
+    "origin": {
+      "cone": "cf405c41df0f8fabbe7b9dbf99a7659a9b30c8ebb98d73e96438a3e10cb705d3",
+      "end": 218,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 157
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,6 @@
+@CLayout
+struct CBox<T>(val value: T)
+
+fun main() {
+    val invalid = CBox("managed")
+}

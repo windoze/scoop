@@ -1,0 +1,4 @@
+fun main() {
+    while (false) val hidden = 1
+    println(hidden)
+}

@@ -1,0 +1,2 @@
+class Owner(private val value: Option<ForeignCallback<(Int) -> Int>>) { release { val copy = value } }
+fun main() {}

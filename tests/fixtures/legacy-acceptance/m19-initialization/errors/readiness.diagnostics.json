@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `later` is not initialized during initializer of property `first` in class `ForwardRead`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 57,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 52
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `value` is not initialized during initializer of property `value` in class `SelfRead`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 146,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 141
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "field `later` is not initialized during init block in class `ForwardWrite`; initializing receiver cannot observe a field before its store completes",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 211,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 206
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable constructor parameter `value`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 417,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 412
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `hidden`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 321,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 315
+    },
+    "severity": "error"
+  }
+]

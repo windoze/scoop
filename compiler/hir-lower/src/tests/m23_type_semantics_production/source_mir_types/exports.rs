@@ -1,0 +1,107 @@
+use super::*;
+use scoop_mir as mir;
+use scoop_mir_lower::{
+    MirTypeBridgeDependencyTablesV1, MirTypeBridgeExportInputV1,
+    MirTypeBridgeExportProductionError as Error, lower_type_bridge_exports,
+};
+
+mod assertions;
+mod rejections;
+
+fn fixture(name: &str) -> (std::path::PathBuf, String) {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/m23-mir-export-assembly");
+    let source = std::fs::read_to_string(path.join(format!("{name}.scoop"))).unwrap();
+    (path, source)
+}
+
+fn with_exports<R>(
+    source: &str,
+    run: impl FnOnce(
+        MirTypeBridgeExportInputV1<'_>,
+        &mir::CanonicalParamFreeMirTypeExportsV1,
+        &mir::MirTypeBridgeExportConstituentsV1,
+    ) -> R,
+) -> R {
+    with_production(source, |output, input, hir, graph, _| {
+        let public = public_interface(output);
+        let core = trusted_core();
+        let world = core.world(input.module().cone);
+        let nominals = world
+            .direct_provider(ConeIdentity::CORE)
+            .unwrap()
+            .nominal_interfaces();
+        let classifier =
+            hir::NominalExactLeafClassifierV1::try_from_nominal_interfaces(nominals.records())
+                .unwrap();
+        let ordinary = scoop_mir_lower::lower_cross_cone_bridge_section(
+            input.module().cone,
+            &public,
+            &classifier,
+            input.foundation(),
+            &mir::SelectedExternalMirSet::empty(input.module().cone),
+        )
+        .unwrap();
+        let mut dependencies = dependencies::unit(input, graph).into_records();
+        if input
+            .module()
+            .meta
+            .source_exact_types
+            .get(&mir::Type::Boolean)
+            .is_some()
+        {
+            dependencies.extend(dependencies::boolean(input, graph).into_records());
+        }
+        let dependencies = mir::CanonicalParamFreeMirTypeExportsV1::try_new(dependencies).unwrap();
+        let context = MirTypeBridgeExportInputV1 {
+            hir: output,
+            public: &public,
+            source: hir,
+            mir: input,
+            ordinary: &ordinary,
+            dependency_objects: &[],
+            identities: graph,
+        };
+        let exports = produce(context, &[&dependencies]).unwrap();
+        run(context, &dependencies, &exports)
+    })
+}
+
+fn produce(
+    input: MirTypeBridgeExportInputV1<'_>,
+    types: &[&mir::CanonicalParamFreeMirTypeExportsV1],
+) -> Result<mir::MirTypeBridgeExportConstituentsV1, Error> {
+    lower_type_bridge_exports(
+        input,
+        MirTypeBridgeDependencyTablesV1 {
+            types,
+            callables: &[],
+            direct_callables: &[],
+            dispatch: &[],
+        },
+    )
+}
+
+#[test]
+fn actual_mir_export_assembly_completes_all_tables_and_keeps_ordinary_partition() {
+    for name in ["standalone", "combined"] {
+        let (_, source) = fixture(name);
+        let bytes = with_exports(&source, |input, dependencies, exports| {
+            assertions::actual(input, dependencies, exports);
+            assertions::roundtrip(input, dependencies, exports);
+            assertions::bytes(exports)
+        });
+        with_exports(
+            &format!("private struct Unrelated() {{}}\n{source}"),
+            |_, _, exports| assert_eq!(assertions::bytes(exports), bytes),
+        );
+    }
+}
+
+#[test]
+fn actual_mir_export_assembly_requires_complete_dependencies() {
+    let (_, source) = fixture("combined");
+    with_exports(&source, |input, dependencies, _| {
+        rejections::check(input, dependencies);
+    });
+}

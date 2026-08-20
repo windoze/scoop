@@ -1,0 +1,3 @@
+import nativelink.storage.*
+
+fun main() { @Unsafe { addressOf<Long>(counter) } }

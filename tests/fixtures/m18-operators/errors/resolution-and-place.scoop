@@ -1,0 +1,20 @@
+struct Plain() {
+    fun plus(other: Plain): Plain = this
+}
+
+struct ReadOnly() {
+    operator fun plus(other: ReadOnly): ReadOnly = this
+}
+
+class Ambiguous(var value: Int) {
+    operator fun plus(other: Int): Ambiguous = this
+    operator fun plusAssign(other: Int) {}
+}
+
+fun main() {
+    val plain = Plain() + Plain()
+    val readOnly = ReadOnly()
+    readOnly += ReadOnly()
+    val ambiguous = Ambiguous(0)
+    ambiguous += 1
+}

@@ -1,0 +1,4 @@
+import dependency.classes.Counter
+import dependency.classes.defaultQuotient
+
+public fun primary(): Counter = Counter(defaultQuotient())

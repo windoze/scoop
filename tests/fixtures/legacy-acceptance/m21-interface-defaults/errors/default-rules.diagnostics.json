@@ -1,0 +1,93 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "interface property `stored` cannot have storage, an initializer, or a delegate",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 500,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 481
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "private interface method `helper` must have a body",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 444,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 438
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Conflict` inherits conflicting defaults for `value` from Left.value and Right.value; declare an explicit override",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 119,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Missing` does not implement interface method `AbstractChild.number`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 267,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 238
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `InvalidValue` cannot implement mutable interface property `state`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 396,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 358
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "interface `IndirectParent` is not a direct superinterface of class `WrongQualifier`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 685,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 671
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "abstract interface getter `code` cannot be called with qualified `super`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 853,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 825
+    },
+    "severity": "error"
+  }
+]

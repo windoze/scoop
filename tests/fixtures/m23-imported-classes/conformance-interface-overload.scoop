@@ -1,0 +1,13 @@
+import dependency.classes.Counter
+import dependency.classes.Readable
+
+public interface LocalReader: Readable {
+    public override fun read(): Long = 20
+    public fun answer(extra: Any): Long = 0
+}
+public struct LocalValue(): LocalReader
+public fun localReader(): LocalReader = LocalValue()
+public fun primary(): Counter {
+    val extra: Long = 1
+    return Counter(LocalValue().answer(extra))
+}

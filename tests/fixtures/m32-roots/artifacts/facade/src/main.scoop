@@ -1,0 +1,8 @@
+package roots.facade
+
+public import roots.provider.*
+
+public fun adapted(): () -> Int = failure()
+public fun never(): Bottom = relay<Bottom>(failure())
+public fun defaulted(): Int = demand<Int>()
+public fun blank(): Array<Bottom> = empty()

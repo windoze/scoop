@@ -1,0 +1,48 @@
+public open class AccessBase public constructor() {
+    protected var inherited: Int = 1
+        private set(value) { field = value }
+}
+
+public class DomainCases public constructor() : AccessBase() {
+    public var visible: Int = 2
+        internal set(value) { field = value }
+
+    protected var narrower: Int = 8
+        private set(value) { field = value }
+
+    internal class InternalOwner {
+        internal var guarded: Int = 3
+            protected set(value) { field = value }
+
+        private class PrivateOwner {
+            internal var guarded: Int = 4
+                protected set(value) { field = value }
+        }
+    }
+
+    protected class ProtectedOwner {
+        protected var guarded: Int = 5
+            private set(value) { field = value }
+    }
+}
+
+public open class GenericBase<T> {}
+
+public class GenericOwner<T> : GenericBase<T>() {
+    protected var guarded: Int = 6
+        private set(value) { field = value }
+}
+
+public object Registry : AccessBase() {
+    public var visible: Int = 7
+        private set(value) { field = value }
+}
+
+private open class FileOwner {
+    internal var guarded: Int = 9
+        protected set(value) { field = value }
+}
+
+public class FileHolder {
+    private val owner: FileOwner = FileOwner()
+}

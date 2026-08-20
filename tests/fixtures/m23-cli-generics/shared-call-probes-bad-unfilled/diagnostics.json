@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `Empty`: cannot infer a unique type argument for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "c0396b7aa433597b28a127664a370609d5ca646faf28d290a5c402ffc91ef2a0",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 97
+    },
+    "severity": "error"
+  }
+]

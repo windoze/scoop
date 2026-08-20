@@ -1,0 +1,12 @@
+class Outer {
+    class Item(val value: Int) { fun read() = value }
+    fun make(): Item { val construct = ::Item; return construct(42) }
+}
+interface Reading { fun read(): Int }
+class Readable: Reading { override fun read() = 7 }
+fun <T: Reading> reader(): (T) -> Int = T::read
+fun main() {
+    val read = Outer.Item::read
+    println(read(Outer().make()))
+    println(reader<Readable>()(Readable()))
+}

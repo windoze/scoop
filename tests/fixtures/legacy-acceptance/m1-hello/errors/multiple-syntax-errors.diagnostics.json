@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "expected pattern, found `=`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 23,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 22
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "expected expression, found `}`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 67,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 66
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "expected parameter name, found `:`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 81,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "expected pattern, found `=`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 113,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 112
+    },
+    "severity": "error"
+  }
+]

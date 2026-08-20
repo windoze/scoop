@@ -1,0 +1,5 @@
+package integral.abi.bridge
+
+public import integral.abi.provider.*
+@Unsafe public fun again(value: Code = Code.High) = round(value)
+public fun <T> retain(value: T) = value

@@ -1,0 +1,5 @@
+class Selector
+
+fun main() {
+    val operation = Selector()::missing
+}

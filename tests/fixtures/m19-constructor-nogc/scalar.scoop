@@ -1,0 +1,26 @@
+@Unsafe @NoGC public fun touch(value: Int): Int = value
+public fun managedFlag(): Boolean = true
+public struct Scalar(val value: Int) {
+    @NoGC public constructor(): this(1) {}
+    @Unsafe @NoGC public constructor(value: Int, flag: Boolean): this(value) { touch(value) }
+}
+public struct Chain(val value: Int) {
+    @NoGC public constructor(): this(1, true) {}
+    @NoGC public constructor(value: Int, flag: Boolean): this(value) {}
+}
+public struct Defaulted(val value: Int) {
+    @NoGC public constructor(flag: Boolean = managedFlag()): this(1) {}
+}
+public struct Empty() {
+    @NoGC public constructor(flag: Boolean): this() {}
+}
+@NoGC fun empty(): Empty = Empty(true)
+@NoGC fun make(): Chain = Chain()
+@Unsafe @NoGC fun unsafeMake(): Scalar = Scalar(1, true)
+fun main() {
+    val scalar: Scalar = Scalar()
+    val zero: Empty = empty()
+    val chain: Chain = make()
+    val defaulted: Defaulted = Defaulted()
+    @Unsafe { unsafeMake() }
+}

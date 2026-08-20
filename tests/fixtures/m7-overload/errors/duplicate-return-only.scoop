@@ -1,0 +1,6 @@
+fun f(v: Int): Int = v
+fun f(v: Int): String = "x"
+
+fun main() {
+    println(f(1))
+}

@@ -1,0 +1,138 @@
+// EXPECT-COMPILE
+
+public class Node(val text: String)
+
+class InnerError(val payload: Node) : Exception(Some(payload.text))
+
+class OuterError(val payload: Node) : Exception(Some(payload.text))
+
+class Gate(var waiter: Continuation<Unit>?) {
+    fun complete() {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(Unit)
+    }
+
+    fun fail(error: Throwable) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resumeWithException(error)
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Unit> {
+    public final override fun register(continuation: Continuation<Unit>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun waitFor(gate: Gate) {
+    suspendCoroutine(Registration(gate))
+}
+
+suspend fun returnThroughNestedCleanup(innerGate: Gate, outerGate: Gate): Node {
+    val pending = Node("return-" + "node")
+    try {
+        try {
+            return pending
+        } finally {
+            try {
+                waitFor(innerGate)
+            } catch (error: InnerError) {
+                println("return-inner-caught")
+                println(error.payload.text)
+            }
+        }
+    } finally {
+        waitFor(outerGate)
+    }
+}
+
+suspend fun throwThroughNestedCleanup(innerGate: Gate, outerGate: Gate): Node {
+    val payload = Node("outer-" + "payload")
+    try {
+        try {
+            throw OuterError(payload)
+        } finally {
+            try {
+                waitFor(innerGate)
+            } catch (error: InnerError) {
+                println("throw-inner-caught")
+                println(error.payload.text)
+            }
+        }
+    } finally {
+        waitFor(outerGate)
+    }
+}
+
+class ReturnTask(val innerGate: Gate, val outerGate: Gate) : SuspendTask<Node> {
+    public final override suspend fun run(): Node {
+        return returnThroughNestedCleanup(innerGate, outerGate)
+    }
+}
+
+class ThrowTask(val innerGate: Gate, val outerGate: Gate) : SuspendTask<Node> {
+    public final override suspend fun run(): Node {
+        try {
+            return throwThroughNestedCleanup(innerGate, outerGate)
+        } catch (error: OuterError) {
+            println("outer-caught")
+            println(error.payload.text)
+            return error.payload
+        }
+    }
+}
+
+class RecordingCompletion(val label: String) : Continuation<Node> {
+    public final override fun resume(value: Node) {
+        println(label + "-done")
+        println(value.text)
+    }
+
+    public final override fun resumeWithException(exception: Throwable) {
+        println(label + "-unexpected-failure")
+    }
+}
+
+fun makeGarbage() {
+    var index = 0
+    while (index < 1000) {
+        val garbage = Node("garbage-" + "node")
+        index = index + 1
+    }
+}
+
+fun collectAndMove() {
+    gcCollect()
+    makeGarbage()
+    gcCollect()
+}
+
+fun main() {
+    val returnInner = Gate(None)
+    val returnOuter = Gate(None)
+    startCoroutine(
+        ReturnTask(returnInner, returnOuter),
+        RecordingCompletion("return")
+    )
+    println("return-inner-suspended")
+    collectAndMove()
+    returnInner.fail(InnerError(Node("return-inner-error")))
+    println("return-outer-suspended")
+    collectAndMove()
+    returnOuter.complete()
+
+    val throwInner = Gate(None)
+    val throwOuter = Gate(None)
+    startCoroutine(
+        ThrowTask(throwInner, throwOuter),
+        RecordingCompletion("throw")
+    )
+    println("throw-inner-suspended")
+    collectAndMove()
+    throwInner.fail(InnerError(Node("throw-inner-error")))
+    println("throw-outer-suspended")
+    collectAndMove()
+    throwOuter.complete()
+}

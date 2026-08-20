@@ -1,0 +1,100 @@
+use scoop_wire::{decode_canonical, encode};
+
+use super::*;
+
+const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+
+#[test]
+fn storage_wire_has_explicit_closed_variants_and_no_array_size_duplicate() {
+    let zst = ValueStorageLayoutV1::zero_sized(16).unwrap();
+    assert_eq!(encode(&zst).unwrap(), b"\xa2\x00\x01\x01\x10");
+    let value = ValueStorageLayoutV1::inline(8, 8, RefScan::References(vec![0])).unwrap();
+    let expected = b"\xa4\x00\x02\x01\x08\x02\x08\x03\xa2\x00\x02\x01\x81\x00";
+    assert_eq!(encode(&value).unwrap(), expected);
+    assert_eq!(
+        encode(&ArrayElementStorageV1::from_value(&value)).unwrap(),
+        expected
+    );
+    for value in [zst, value] {
+        let bytes = encode(&value).unwrap();
+        let decoded = decode_canonical::<DecodedValueStorageLayoutV1>(&bytes).unwrap();
+        assert_eq!(encode(&decoded).unwrap(), bytes);
+        assert_eq!(decoded.validate(TARGET).unwrap(), value);
+        let array = decode_canonical::<DecodedArrayElementStorageV1>(&bytes).unwrap();
+        assert_eq!(
+            array.validate(TARGET).unwrap(),
+            ArrayElementStorageV1::from_value(&value)
+        );
+    }
+}
+
+#[test]
+fn wire_rejects_unknown_tags_extra_fields_and_zero_scan_stride() {
+    for bytes in [
+        b"\xa1\x00\x03".as_slice(),
+        b"\xa3\x00\x01\x01\x01\x02\x00",
+        b"\xa5\x00\x02\x01\x08\x02\x08\x03\xa1\x00\x01\x04\x08",
+    ] {
+        assert!(decode_canonical::<DecodedValueStorageLayoutV1>(bytes).is_err());
+    }
+    // Runtime scan v1 has Array (tag 4), never a fixed Repeat (tag 5).
+    assert!(matches!(
+        decode_canonical::<DecodedRefScanV1>(b"\xa1\x00\x05")
+            .unwrap_err()
+            .kind(),
+        WireErrorKind::UnknownTag { tag: 5 }
+    ));
+    let array = b"\xa5\x00\x04\x01\x00\x02\x08\x03\x00\x04\xa2\x00\x02\x01\x81\x00";
+    assert_eq!(
+        decode_canonical::<DecodedRefScanV1>(array)
+            .unwrap()
+            .validate(),
+        Err(crate::RefScanValidationError::ZeroArrayStride)
+    );
+}
+
+#[test]
+fn decoded_storage_rechecks_target_and_reference_extent() {
+    for (bytes, expected) in [
+        (
+            b"\xa2\x00\x01\x01\x03".as_slice(),
+            TypeInstanceShapeError::AlignmentNotPowerOfTwo(3),
+        ),
+        (
+            b"\xa2\x00\x01\x01\x18\x20",
+            TypeInstanceShapeError::ManagedAlignmentTooLarge {
+                actual: 32,
+                maximum: 16,
+            },
+        ),
+        (
+            b"\xa4\x00\x02\x01\x08\x02\x08\x03\xa2\x00\x02\x01\x81\x08",
+            TypeInstanceShapeError::Scan(crate::RefScanValidationError::OutOfBounds {
+                offset: 8,
+                size: 8,
+                extent: 8,
+            }),
+        ),
+    ] {
+        let decoded = decode_canonical::<DecodedValueStorageLayoutV1>(bytes).unwrap();
+        assert_eq!(decoded.validate(TARGET), Err(expected));
+    }
+    let large = ValueStorageLayoutV1::inline(1_u64 << 63, 8, RefScan::None).unwrap();
+    assert!(
+        decode_canonical::<DecodedValueStorageLayoutV1>(&encode(&large).unwrap())
+            .unwrap()
+            .validate(TARGET)
+            .is_err()
+    );
+}
+
+#[test]
+fn scan_reader_preserves_wire_order_until_semantic_validation() {
+    let bytes = b"\xa2\x00\x02\x01\x82\x08\x00";
+    let decoded = decode_canonical::<DecodedRefScanV1>(bytes).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
+    assert_eq!(
+        decoded.validate(),
+        Err(crate::RefScanValidationError::UnorderedReferences)
+    );
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `bad` must be of type Reader<String>, found Reader<Int>; nominal application `Reader` is invariant: first differing type argument 1 (`T`) is `Int` in `Reader<Int>`, but `String` in `Reader<String>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "214321682878e87dff01b2fa39e8ec76b909e3c573ff49ac6cc494cb756252a4",
+      "end": 84,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 79
+    },
+    "severity": "error"
+  }
+]

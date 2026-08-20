@@ -1,0 +1,17 @@
+public class Host {
+    private class Hidden {}
+    public class Child<T> {}
+    private fun helper(): Int = 1
+    internal fun internalValue(): Int = helper()
+    public fun <T> echo(value: T): T = value
+    public val number: Int get() = helper()
+}
+public class Other {
+    public fun <T> echo(value: T): T = value
+}
+public struct Pair(val first: Int, val second: Int)
+public enum Choice {
+    Empty,
+    Positional(Int, Int),
+    Named { first: Int, second: Int }
+}

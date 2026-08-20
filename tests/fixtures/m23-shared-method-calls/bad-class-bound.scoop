@@ -1,0 +1,4 @@
+package consumer.methods
+import upstream.methods.*
+
+public fun bad(): Int = classRead<Int, Number>(Number(42))

@@ -1,0 +1,13 @@
+public class Box<T>(private val item: T) {
+    public fun read(): T = item
+    public fun <R> choose(other: R): R = other
+}
+
+public fun <T> T.echo(): T = this
+
+public fun <T> captured(value: T): () -> T {
+    fun local(): T = value
+    return { local() }
+}
+
+public fun <T> nested(value: T): () -> () -> T = { ({ value }) }

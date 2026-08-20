@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "generic-initialization-downstream-dispatch"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:generic-initialization-consumer-dispatch" = "0.1.0"

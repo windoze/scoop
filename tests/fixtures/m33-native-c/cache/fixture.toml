@@ -1,0 +1,146 @@
+schema = 1
+name = "m33-native-c-cache"
+inputs = ["cone", "reordered.toml"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "native", "cache"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "baseline"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run_baseline"
+argv = ["${baseline.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "irrelevant_edit"
+files = [
+ {write = {path = "${work}/cone/native/ignored.c", data = "#error not selected\n"}},
+ {write = {path = "${work}/cone/include/unused.h", data = "#error not included\n"}},
+ {copy = {from = "${fixture}/reordered.toml", to = "${work}/cone/Cone.toml"}},
+]
+
+[[steps]]
+name = "unchanged"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${unchanged.result.observations.child_invocations}", equals = []},
+ {actual = "${unchanged.result.root.artifact_fingerprint}", equals = "${baseline.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "edit_header"
+files = [{replace = {path = "${work}/cone/include/nested/value.h", old = "M33_VALUE 2", new = "M33_VALUE 3"}}]
+
+[[steps]]
+name = "header"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${header.result.observations.nodes.1.cache_key}", not_equals = "${baseline.result.observations.nodes.1.cache_key}"},
+ {actual = "${header.result.root.artifact_fingerprint}", not_equals = "${baseline.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "run_header"
+argv = ["${header.result.output}"]
+exit = 43
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_forced"
+files = [{replace = {path = "${work}/cone/forced.h", old = "M33_BIAS 0", new = "M33_BIAS 1"}}]
+
+[[steps]]
+name = "forced"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${forced.result.observations.nodes.1.cache_key}", not_equals = "${header.result.observations.nodes.1.cache_key}"},
+ {actual = "${forced.result.root.artifact_fingerprint}", not_equals = "${header.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "run_forced"
+argv = ["${forced.result.output}"]
+exit = 44
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_flags"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = "M33_OFFSET=40", new = "M33_OFFSET=41"}}]
+
+[[steps]]
+name = "flags"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${flags.result.observations.nodes.1.cache_key}", not_equals = "${forced.result.observations.nodes.1.cache_key}"},
+ {actual = "${flags.result.root.artifact_fingerprint}", not_equals = "${forced.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "run_flags"
+argv = ["${flags.result.output}"]
+exit = 45
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "edit_source"
+files = [{replace = {path = "${work}/cone/native/answer.c", old = "* M33_SCALE", new = "* M33_SCALE + 1"}}]
+
+[[steps]]
+name = "source"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${source.result.observations.nodes.1.cache_key}", not_equals = "${flags.result.observations.nodes.1.cache_key}"},
+ {actual = "${source.result.root.artifact_fingerprint}", not_equals = "${flags.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "run_source"
+argv = ["${source.result.output}"]
+exit = 46
+stdout = ""
+stderr = ""

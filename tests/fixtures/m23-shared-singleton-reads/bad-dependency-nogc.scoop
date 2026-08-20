@@ -1,0 +1,5 @@
+package consumer.singletons
+import upstream.singletons.*
+
+@NoGC public fun read(): Registry = Registry
+public fun result(): Int = 42

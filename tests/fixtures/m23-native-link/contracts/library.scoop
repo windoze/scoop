@@ -1,0 +1,2 @@
+@Extern(lib = "other_contract", name = "m23_contract")
+public fun entry(value: Int): Int

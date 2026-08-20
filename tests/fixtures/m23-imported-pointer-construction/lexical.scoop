@@ -1,0 +1,22 @@
+package consumer.construction
+
+import dependency.construction.lexicalCopy
+
+private struct Number(val value: Int)
+
+public fun <T> exercise(value: T): Int {
+    val number = Number(42)
+    @Unsafe {
+        val raw = addressOf(number).toULong()
+        fun read(): Number { @Unsafe { return Ptr<Number>(raw).load() } }
+        val closure: () -> Number = {
+            var loaded = number
+            @Unsafe { loaded = Ptr<Number>(raw).load() }
+            loaded
+        }
+        if (read().value != 42 || closure().value != 42) { return 1 }
+        return lexicalCopy<Number>(number).value
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

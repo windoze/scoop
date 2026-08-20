@@ -1,0 +1,10 @@
+fun length(value: Any): Long {
+    while (true) {
+        try {
+            if (value !is String) return 0L
+            break
+        } finally { println("cleanup") }
+    }
+    return value.length
+}
+fun main() { println(length("exit")); println(length(42)) }

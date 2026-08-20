@@ -1,0 +1,25 @@
+import dependency.api.runtimeValue as remote
+import dependency.api.imageValue
+import dependency.api.imageMutable
+import dependency.api.computedValue
+import dependency.api.receiverAnswer
+import dependency.api.receiverDefault
+import dependency.api.receiverScore
+
+fun defaultRead(value: Int = remote): Int = value
+public val localDefault: Int = defaultRead()
+public val localExplicit: Int = defaultRead(3)
+public val localTwice: Int = if (true) { remote } else { remote }
+public val localWrite: Int = if (true) { remote = 4; remote } else { remote }
+public val localComputed: Int = computedValue
+public val localImage: Int = imageValue
+public val localImageWrite: Int = if (true) { imageMutable = 6; imageMutable } else { imageMutable }
+
+public fun outside(): Int {
+    val initial = remote
+    val copiedDefault = receiverDefault()
+    "write".receiverScore = copiedDefault
+    val read = "read".receiverScore
+    return "combined".receiverAnswer()
+}
+public fun unusedDefault(value: Int = remote): Int = value

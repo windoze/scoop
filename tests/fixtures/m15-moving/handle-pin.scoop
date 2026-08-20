@@ -1,0 +1,19 @@
+class MovingResource(val text: String)
+
+fun main() {
+    @Unsafe {
+        val handle = getGcHandle(MovingResource("handle-" + "alive"))
+        gcCollect()
+        val fromHandle = releaseGcHandle(handle)
+        println(fromHandle.text)
+
+        val pinned = MovingResource("pinned-" + "alive")
+        val pinnedPointer = pin(pinned)
+        gcCollect()
+        val unpinned = unpin(pinnedPointer)
+        println(unpinned === pinned)
+
+        gcCollect()
+        println(unpinned.text)
+    }
+}

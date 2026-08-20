@@ -1,0 +1,5 @@
+package fixture.platform
+
+private fun part(): Int = 20
+fun commonValue(): Int = part()
+fun <T> choose(value: T): T = value

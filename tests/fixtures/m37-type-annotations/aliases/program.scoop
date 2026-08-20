@@ -1,0 +1,13 @@
+@Repeatable @Target([AnnotationTarget.TYPE])
+annotation class Mark(val n: Int)
+typealias Mix<A, B> = @Mark(1) (@Mark(2) B, @Mark(3) A, A)
+typealias Twice<T> = @Mark(4) Mix<@Mark(5) T, @Mark(6) T>
+typealias Fixed<T> = @Mark(7) Int
+fun same(value: @Mark(8) Mix<@Mark(9) Int, @Mark(10) Int>): Int = value._1 + value._2 + value._3
+fun <T> first(value: @Mark(11) Twice<@Mark(12) T>): T = value._1
+fun main() {
+    val discarded: Fixed<@Mark(13) String> = 42
+    println(discarded)
+    println(same((14, 14, 14)))
+    println(first<@Mark(20) String>(("alias", "same", "again")))
+}

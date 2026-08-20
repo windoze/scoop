@@ -1,0 +1,9 @@
+import dependency.generics.checked
+import dependency.generics.recover
+import dependency.generics.defaulted
+
+public fun guarded(): Int = checked(42, 1)
+
+public fun recovery(): Int = recover(Throwable(), 43)
+
+public fun defaultValue(): Int = defaulted(44)

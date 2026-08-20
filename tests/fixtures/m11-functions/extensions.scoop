@@ -1,0 +1,98 @@
+fun Int.bump(delta: Int): Int = this + delta
+
+fun <T> T.keep(): T = this
+
+fun String.decorate(suffix: String): String = this + suffix
+
+fun String.suffixer(): (String) -> String {
+    return { suffix -> this + suffix }
+}
+
+fun <T> T.echo(value: T): T = value
+
+fun Any.kind(): String = "any"
+fun String.kind(): String = "string"
+
+fun collide(value: Int): Int = value + 1
+fun Int.collide(): Int = this + 2
+
+class Named(val value: String) {
+    fun label(): String = "member-" + value
+}
+
+fun Named.label(): String = "extension"
+
+class MutableName(var value: String)
+
+fun MutableName.rename(next: String): String {
+    value = next
+    return value
+}
+
+struct Offset(val amount: Int)
+
+fun Offset.apply(value: Int): Int = value + amount
+
+class ReceiverFactory(var calls: Int) {
+    fun make(): String {
+        calls = calls + 1
+        return "once"
+    }
+}
+
+class ThrowingExtension
+
+fun ThrowingExtension.run(value: Int): Int {
+    if (value == 0) {
+        throw ArithmeticException()
+    }
+    return value
+}
+
+fun main() {
+    println(40.bump(2))
+    println("generic".keep())
+    println("specific".kind())
+    println(collide(39))
+    println(40.collide())
+
+    val named = Named("kept")
+    println(named.label())
+    val member = named::label
+    println(member())
+
+    val mutable = MutableName("old")
+    println(mutable.rename("new"))
+
+    println(Offset(2).apply(40))
+
+    val unbound: (String, String) -> String = ::decorate
+    val bound = "bound"::decorate
+    val genericUnbound: (String, String) -> String = ::echo
+    val genericBound: (String) -> String = "receiver"::echo
+    val capturedReceiver = "capture".suffixer()
+
+    val factory = ReceiverFactory(0)
+    val once = factory.make()::decorate
+    println(factory.calls)
+
+    var offset = Offset(2)
+    val snapshot = offset::apply
+    offset = Offset(100)
+
+    val throwing = ThrowingExtension()::run
+    gcCollect()
+    println(unbound("unbound", "-ok"))
+    println(bound("-ok"))
+    println(genericUnbound("ignored", "generic-unbound"))
+    println(genericBound("generic-bound"))
+    println(capturedReceiver("-this"))
+    println(once("-only"))
+    println(snapshot(40))
+    println(offset.apply(40))
+    try {
+        println(throwing(0))
+    } catch (exception: ArithmeticException) {
+        println("caught")
+    }
+}

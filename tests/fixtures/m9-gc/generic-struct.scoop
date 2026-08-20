@@ -1,0 +1,21 @@
+struct Box<T>(val value: T) {
+    fun get(): T = value
+}
+
+struct Pair<A, B>(val first: A, val second: B)
+
+interface Readable {
+    fun read(): String
+}
+
+struct Holder<T>(val value: T) : Readable {
+    override fun read(): String = "held"
+}
+
+fun main() {
+    val pair = Pair(Box(7), Box("seven"))
+    println(pair.first.get())
+    println(pair.second.get())
+    val readable: Readable = Holder(9)
+    println(readable.read())
+}

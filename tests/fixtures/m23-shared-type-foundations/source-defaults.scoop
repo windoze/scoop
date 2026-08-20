@@ -1,0 +1,11 @@
+package dependency.sourceDefaults
+
+public fun identity(value: Int): Int = value
+public open class Defaults protected constructor(value: Int = identity(1)) {
+    protected fun literal(value: Int = 2): Int = value
+    protected open fun count(value: Int = identity(3)): Int = value
+    protected fun invoke(value: Int = count()): Int = value
+}
+public class Derived : Defaults() {
+    protected override fun count(value: Int): Int = value
+}

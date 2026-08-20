@@ -1,0 +1,18 @@
+package consumer.equality
+
+import templates.equality.*
+
+public fun <T> exercise(value: T): Int {
+    val first = Key<T>(value, 42)
+    val same = Key<T>(value, 42)
+    val other = Key<T>(value, 1)
+    val left = Payload<Key<T>>(first, 2)
+    val right = Payload<Key<T>>(same, 2)
+    if (!comparePayloads(left, right)) { return 1 }
+    if (comparePayloads(left, Payload<Key<T>>(other, 2))) { return 2 }
+    if (left == Payload<Key<T>>(same, 3)) { return 3 }
+    if (left != right) { return 4 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(1)

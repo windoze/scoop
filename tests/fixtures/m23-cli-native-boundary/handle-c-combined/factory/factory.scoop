@@ -1,0 +1,10 @@
+@Extern(name = "verify_finished", lib = "m23_native_boundary")
+fun verifyFinished()
+
+public fun perform() {
+    main()
+    @Unsafe {
+        if (nativeHandle != GcHandle<Any>(9uL)) { throw IllegalStateException() }
+    }
+    @Unsafe { verifyFinished() }
+}

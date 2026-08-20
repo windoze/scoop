@@ -1,0 +1,5 @@
+public struct Item<T>(val value: T) {
+    public companion object : Decodable<Item<T>>
+}
+
+fun main() {}

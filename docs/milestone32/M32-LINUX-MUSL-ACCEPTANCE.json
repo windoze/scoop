@@ -1,0 +1,723 @@
+{
+  "schema": 1,
+  "complete": false,
+  "selection_complete": true,
+  "host": "nuc12",
+  "target": "x86_64-unknown-linux-musl",
+  "llvm": "22.1.2",
+  "discovered": 2601,
+  "selected": 67,
+  "unselected": 2534,
+  "counts": {
+    "passed": 67
+  },
+  "variants": 86,
+  "processes": 330,
+  "stage_and_plan_goldens": 449,
+  "source_runs": [
+    {
+      "report": "tmp/m32-linux/musl-roots/report.json",
+      "mode": "ordinary",
+      "selected": 42,
+      "counts": {
+        "passed": 42
+      }
+    },
+    {
+      "report": "tmp/m32-linux/musl-related-verify/report.json",
+      "mode": "ordinary",
+      "selected": 3,
+      "counts": {
+        "passed": 3
+      }
+    },
+    {
+      "report": "tmp/m32-linux/musl-native-verify/report.json",
+      "mode": "ordinary",
+      "selected": 6,
+      "counts": {
+        "passed": 6
+      }
+    },
+    {
+      "report": "tmp/m32-linux/musl-remaining-verify/report.json",
+      "mode": "ordinary",
+      "selected": 16,
+      "counts": {
+        "passed": 16
+      }
+    }
+  ],
+  "results": [
+    {
+      "name": "argument-inference-abi",
+      "status": "passed",
+      "seconds": 21.797925976999977,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-related-verify/report.json"
+    },
+    {
+      "name": "function-adapters-dynamic",
+      "status": "passed",
+      "seconds": 20.693621980997705,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-related-verify/report.json"
+    },
+    {
+      "name": "generic-helpers-combined",
+      "status": "passed",
+      "seconds": 21.432802295999863,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 17,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-related-verify/report.json"
+    },
+    {
+      "name": "hir-global-default-read",
+      "status": "passed",
+      "seconds": 14.613803216001543,
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "m32-roots-artifacts",
+      "status": "passed",
+      "seconds": 172.8476238539988,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 5,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-casts",
+      "status": "passed",
+      "seconds": 77.04117955000038,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-control",
+      "status": "passed",
+      "seconds": 76.97886586599998,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-coroutines",
+      "status": "passed",
+      "seconds": 176.6221771239998,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-evaluation",
+      "status": "passed",
+      "seconds": 7.076348491000317,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-functions",
+      "status": "passed",
+      "seconds": 7.34106040000006,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-gc-context",
+      "status": "passed",
+      "seconds": 91.28751984200062,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 8,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-members",
+      "status": "passed",
+      "seconds": 7.176862821001123,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 3,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-alias-constructor",
+      "status": "passed",
+      "seconds": 3.171091111000351,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-any-base",
+      "status": "passed",
+      "seconds": 3.1396199880000495,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-any-constructor",
+      "status": "passed",
+      "seconds": 3.2083674559999054,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-any-equality",
+      "status": "passed",
+      "seconds": 3.2089062289996946,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-any-member",
+      "status": "passed",
+      "seconds": 3.2407623789986246,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-any-type-arguments",
+      "status": "passed",
+      "seconds": 3.206084307999845,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-bare-return",
+      "status": "passed",
+      "seconds": 3.2080023910002637,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-conditional-return",
+      "status": "passed",
+      "seconds": 3.208299640000405,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-any-final",
+      "status": "passed",
+      "seconds": 2.608798901001137,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-duplicate",
+      "status": "passed",
+      "seconds": 2.6402815750006994,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-missing-any",
+      "status": "passed",
+      "seconds": 2.6088925439999002,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-missing-nothing",
+      "status": "passed",
+      "seconds": 2.5738482030010346,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-nothing-open",
+      "status": "passed",
+      "seconds": 2.610433080999428,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-companion",
+      "status": "passed",
+      "seconds": 2.6098612599998887,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-field",
+      "status": "passed",
+      "seconds": 2.673081273000207,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-method",
+      "status": "passed",
+      "seconds": 2.671920979000788,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-parameters",
+      "status": "passed",
+      "seconds": 2.610370353999315,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-primary-constructor",
+      "status": "passed",
+      "seconds": 2.610821186999601,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-private",
+      "status": "passed",
+      "seconds": 2.7107040350001625,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-release",
+      "status": "passed",
+      "seconds": 2.626156374999482,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-secondary-constructor",
+      "status": "passed",
+      "seconds": 2.6730913760002295,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-root-supertype",
+      "status": "passed",
+      "seconds": 2.7089576170001237,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-wrong-name",
+      "status": "passed",
+      "seconds": 2.541399518999242,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-core-wrong-target",
+      "status": "passed",
+      "seconds": 2.4727639130014722,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-fallthrough",
+      "status": "passed",
+      "seconds": 3.0394620509996457,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-nothing-base",
+      "status": "passed",
+      "seconds": 3.0713569580002513,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-nothing-constructor",
+      "status": "passed",
+      "seconds": 3.0714016490001086,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-nothing-type-arguments",
+      "status": "passed",
+      "seconds": 2.9690370640000765,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-option-invariant",
+      "status": "passed",
+      "seconds": 3.1209929380001995,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-unit-return",
+      "status": "passed",
+      "seconds": 3.0058946409990313,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-unresolved-generic",
+      "status": "passed",
+      "seconds": 3.1371313569998165,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-value-bound",
+      "status": "passed",
+      "seconds": 3.206832793999638,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-reject-value-return",
+      "status": "passed",
+      "seconds": 3.2707853600004455,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "m32-roots-shadow",
+      "status": "passed",
+      "seconds": 5.792527357001745,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-roots/report.json"
+    },
+    {
+      "name": "native-link-archive-chain",
+      "status": "passed",
+      "seconds": 9.651185362999968,
+      "variants": 1,
+      "processes": 11,
+      "snapshots": 6,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-archive-members",
+      "status": "passed",
+      "seconds": 9.42528949500047,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 5,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-cabi-archive",
+      "status": "passed",
+      "seconds": 180.8188365970018,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-cabi-object",
+      "status": "passed",
+      "seconds": 178.43019582600027,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-cabi-packed",
+      "status": "passed",
+      "seconds": 195.86539111599996,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-native-verify/report.json"
+    },
+    {
+      "name": "native-link-callback-exception",
+      "status": "passed",
+      "seconds": 167.79774276899843,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 18,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-callback-reentry",
+      "status": "passed",
+      "seconds": 196.18684699799996,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-native-verify/report.json"
+    },
+    {
+      "name": "native-link-callback-tls-archive",
+      "status": "passed",
+      "seconds": 204.30002187100035,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-callback-tls-object",
+      "status": "passed",
+      "seconds": 209.36789678599962,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-direct",
+      "status": "passed",
+      "seconds": 196.29859939000016,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-native-verify/report.json"
+    },
+    {
+      "name": "native-link-direct-candidates",
+      "status": "passed",
+      "seconds": 18.916780447001656,
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 6,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-direct-reexport",
+      "status": "passed",
+      "seconds": 202.2535970550016,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-formats-pointers",
+      "status": "passed",
+      "seconds": 12.011051981000492,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 5,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-native-verify/report.json"
+    },
+    {
+      "name": "native-link-runtime-gc",
+      "status": "passed",
+      "seconds": 186.11680714999966,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 10,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-runtime-handles",
+      "status": "passed",
+      "seconds": 190.63574201899974,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 18,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-scoopabi",
+      "status": "passed",
+      "seconds": 164.51532610199865,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-native-verify/report.json"
+    },
+    {
+      "name": "native-link-scoopabi-archive",
+      "status": "passed",
+      "seconds": 190.7557002359972,
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-scoopabi-object",
+      "status": "passed",
+      "seconds": 158.22566043200277,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-storage",
+      "status": "passed",
+      "seconds": 166.15704123799878,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 10,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-native-verify/report.json"
+    },
+    {
+      "name": "native-link-storage-archive",
+      "status": "passed",
+      "seconds": 159.03166974499982,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    },
+    {
+      "name": "native-link-storage-object",
+      "status": "passed",
+      "seconds": 157.42608990699955,
+      "variants": 2,
+      "processes": 10,
+      "snapshots": 26,
+      "message": "",
+      "source_report": "tmp/m32-linux/musl-remaining-verify/report.json"
+    }
+  ]
+}

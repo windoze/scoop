@@ -1,0 +1,2 @@
+fun f(value: Int?): String { val result = value ?: return 1; return "ok" }
+fun main() {}

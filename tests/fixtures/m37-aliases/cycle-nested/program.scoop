@@ -1,0 +1,2 @@
+class Host { typealias First<T> = Second<T>; typealias Second<U> = First<U> }
+fun main() {}

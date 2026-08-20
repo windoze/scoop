@@ -1,0 +1,31 @@
+@Extern(lib = "m28_versions", name = "m28_value")
+fun value(): Int
+
+@Extern(lib = "m28_versions", name = "m28_tls")
+@ThreadLocal
+var tls: Int
+
+@Extern(lib = "m28_versions", name = "m28_tls_read")
+fun readTls(): Int
+
+@Extern(lib = "m28_versions", name = "m28_initialized")
+val initialized: Int
+
+@Extern(lib = "m28_plain", name = "m28_plain")
+fun plain(): Int
+
+@Extern(lib = "m28_archive", name = "m28_marker")
+fun marker(): Int
+
+fun main() {
+    @Unsafe {
+        println(value())
+        println(tls)
+        println(initialized)
+        tls = 2
+        println(readTls())
+        println(value())
+        println(plain())
+        println(marker())
+    }
+}

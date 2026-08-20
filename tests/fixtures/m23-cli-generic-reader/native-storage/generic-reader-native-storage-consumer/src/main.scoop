@@ -1,0 +1,3 @@
+import dependency.nativeAddresses.echo
+
+public fun check(): Int = echo(42)

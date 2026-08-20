@@ -1,0 +1,27 @@
+fun constructorDefault(): Int {
+    println("constructor-default")
+    return 1
+}
+
+class GenericBox<T>(seed: T, val values: Array<T>) {
+    val first: T = seed
+
+    constructor(
+        seed: T,
+        marker: Int = constructorDefault(),
+        vararg rest: T
+    ) : this(seed, rest) {
+        println(marker)
+        println("generic-secondary")
+    }
+}
+
+fun main() {
+    val inferred = GenericBox("first")
+    println(inferred.first)
+    println(inferred.values.size)
+
+    val explicit = GenericBox<String>("head", 2, "tail-one", "tail-two")
+    println(explicit.first)
+    println(explicit.values.size)
+}

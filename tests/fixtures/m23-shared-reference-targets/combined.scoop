@@ -1,0 +1,34 @@
+package consumer.references
+import upstream.references.*
+
+private class LocalValue(val value: Int)
+
+private fun <T> throughDefault(value: T, copy: (T) -> T = ::identity): T = copy(value)
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    if (selfReference(42) != 42) { return 9 }
+    if (genericSelfReference<T>(seed, inspect) != inspect(seed)) { return 10 }
+    if (recursiveReference<T>(seed, inspect) != inspect(seed)) { return 8 }
+    if (inspect(declarationOnly<T>(seed)) != inspect(seed)) { return 7 }
+    val inherited = captured<T, Int>(seed, inspect)
+    val distinct = captured<T, Unit>(seed, inspect)
+    val first = captured<LocalValue, T>(LocalValue(42), { value -> value.value })
+    val second = captured<LocalValue, T>(LocalValue(43), { value -> value.value })
+    if (first() != 42 || second() != 45) { return 1 }
+    if (inherited() != distinct()) { return 2 }
+    val defaulted = fromDefault<T, Int>(seed, 0)
+    val defaultedAgain = fromDefault<T, Unit>(seed, Unit)
+    if (inspect(defaulted) != inspect(defaultedAgain)) { return 3 }
+    var owner = Box<Int>(42)
+    val snapshot: () -> Int = owner::read
+    owner = Box<Int>(43)
+    val next: () -> Int = owner::read
+    if (snapshot() != 42 || next() != 43) { return 4 }
+    val box = Box<T>(throughDefault<T>(seed))
+    if (inspect(memberDefault<T>(box)) != inspect(copyDefault<T>(seed))) { return 5 }
+    val retained: () -> T = fromDefault<T, Unit>(seed, Unit)::retain
+    if (inspect(retained()) != inspect(seed)) { return 6 }
+    return inherited()
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

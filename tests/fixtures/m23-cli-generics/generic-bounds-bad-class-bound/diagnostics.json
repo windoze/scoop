@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `classBound`: type argument `Value` for `T` must satisfy `ref`",
+    "notes": [],
+    "origin": {
+      "cone": "42324175c80511420caf2e9e8b63976b3e65e56c88990f0a913207ea1d08c655",
+      "end": 99,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 78
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `classBound`: type argument `Other` for `T` must satisfy upper bound `PlainBase`",
+    "notes": [],
+    "origin": {
+      "cone": "42324175c80511420caf2e9e8b63976b3e65e56c88990f0a913207ea1d08c655",
+      "end": 149,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 130
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,5 @@
+fun <T> choose(first: T, second: T): T = first
+fun main() {
+    val value: Double = choose(1f, 2.0)
+    println(value)
+}

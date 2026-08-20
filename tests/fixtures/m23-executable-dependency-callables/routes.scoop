@@ -1,0 +1,8 @@
+package consumer
+
+import dependency.api.run as directRun
+import facade.api.run as exportedRun
+
+public fun dormant(value: Boolean = exportedRun()): Boolean = value
+
+public fun invoke(): Boolean = directRun()

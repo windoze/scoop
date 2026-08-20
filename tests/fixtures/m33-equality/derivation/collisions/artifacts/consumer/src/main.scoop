@@ -1,0 +1,9 @@
+import collisions.*
+fun main() {
+    if (Plain(1).equals(Plain(1))) { throw Exception(Option.Some("plain equals")) }
+    if (Generic<Int>(1).equals(Generic<Int>(1))) { throw Exception(Option.Some("generic equals")) }
+    if (Choice.Entry(1).equals(Choice.Entry(1))) { throw Exception(Option.Some("enum equals")) }
+    if (!(Different(1) == Different(1))) { throw Exception(Option.Some("different signature")) }
+    if (Different(1) == Different(2)) { throw Exception(Option.Some("structural comparison")) }
+    println("equality member collisions")
+}

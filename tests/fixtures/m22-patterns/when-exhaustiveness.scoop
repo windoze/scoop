@@ -1,0 +1,75 @@
+enum Nested {
+    Item((Int, Boolean)),
+    Empty
+}
+
+enum BooleanBox {
+    Value(Boolean)
+}
+
+struct Flags(val first: Boolean, val second: Boolean)
+
+enum Structured {
+    Value(Flags, Unit)
+}
+
+enum Never {}
+
+fun impossible(value: Never): Int = when (value) {}
+
+fun optionValue(value: Int?): Int = when (value) {
+    case Some(number) -> number
+    case None -> -1
+}
+
+fun nestedValue(value: Nested): Int = when (value) {
+    case Item((number, flag)) if (flag) -> number
+    case Item((number, _)) -> number + 100
+    case Empty -> -1
+}
+
+fun booleanValue(value: BooleanBox): Int = when (value) {
+    case Value(false) -> 0
+    case Value(true) -> 1
+}
+
+fun pairValue(value: (Boolean, Boolean)): Int = when (value) {
+    case (false, _) -> 10
+    case (true, false) -> 20
+    case (true, true) -> 30
+}
+
+fun structuredValue(value: Structured): Int = when (value) {
+    case Value(Flags(false, _), ()) -> 40
+    case Value(Flags(true, _), Unit) -> 50
+}
+
+fun explicitEmpty(value: BooleanBox) {
+    when (value) {
+        case Value(_) -> {}
+        else -> {}
+    }
+}
+
+fun explicitFallback(value: Int?): Int = when (value) {
+    case Some(0) -> 0
+    case None -> 1
+    else -> 2
+}
+
+fun main() {
+    println(optionValue(Some(7)))
+    println(optionValue(None))
+    println(nestedValue(Nested.Item((7, true))))
+    println(nestedValue(Nested.Item((7, false))))
+    println(nestedValue(Nested.Empty))
+    println(booleanValue(BooleanBox.Value(false)))
+    println(booleanValue(BooleanBox.Value(true)))
+    println(pairValue((false, true)))
+    println(pairValue((true, false)))
+    println(pairValue((true, true)))
+    println(structuredValue(Structured.Value(Flags(false, true), Unit)))
+    println(structuredValue(Structured.Value(Flags(true, false), ())))
+    explicitEmpty(BooleanBox.Value(false))
+    println(explicitFallback(Some(1)))
+}

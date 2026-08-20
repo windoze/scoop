@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "early-root"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:early-chain" = {"version" = "0.1.0", "path" = "../early-chain"}

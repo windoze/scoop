@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3065,
+  "selected": 1,
+  "unselected": 3064,
+  "counts": {
+    "passed": 1
+  },
+  "variants": 1,
+  "processes": 12,
+  "stage_and_plan_goldens": 14,
+  "results": [
+    {
+      "name": "shared-enums-defaults-nested",
+      "status": "passed",
+      "seconds": 14.749717083061114,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    }
+  ]
+}

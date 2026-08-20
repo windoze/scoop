@@ -1,0 +1,4 @@
+package startup.later
+private fun trace(value: Long) { println(value) }
+private fun initialize(): Long { @Unsafe { trace(99L) }; return 99L }
+public val later: Long = initialize()

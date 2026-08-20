@@ -1,0 +1,9 @@
+package consumer.pointers
+
+import dependency.pointers.loadDefault
+
+public fun <T> exercise(value: T): Int {
+    @Unsafe { return loadDefault<Int>(42) }
+}
+
+public fun result(): Int = exercise<Int>(0)

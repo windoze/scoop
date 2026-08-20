@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "import target is not available in the current compilation unit",
+    "notes": [],
+    "origin": {
+      "cone": "a44d936b406cf3d3d9c452eaac1a39818d1e83ca0c43f75811925a101c2bcaeb",
+      "end": 22,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 7
+    },
+    "severity": "error"
+  }
+]

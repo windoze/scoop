@@ -1,0 +1,41 @@
+interface Named {
+    fun name(): String
+}
+
+interface Left {}
+interface Right {}
+
+open class Node<T>(val value: T) : Named, Left, Right {
+    override fun name(): String = "node"
+    open fun read(): T = value
+    final fun tag(): String = "base"
+}
+
+class StringNode(value: String) : Node<String>(value) {
+    override fun name(): String = "derived"
+    override fun read(): String = "virtual"
+}
+
+fun <T> direct(node: T): String
+    where T : Node<String> =
+    node.tag()
+
+fun <T> virtual(node: T): String
+    where T : Node<String> =
+    node.read()
+
+fun <T> inheritedInterface(node: T): String
+    where T : Node<String> =
+    node.name()
+
+fun <T> combined(node: T): String
+    where T : Node<String>, T : Left, T : Right =
+    node.tag()
+
+fun main() {
+    val node = StringNode("value")
+    println(direct(node))
+    println(virtual(node))
+    println(inheritedInterface(node))
+    println(combined(node))
+}

@@ -1,0 +1,5 @@
+fun <T> T.keep(): T = this
+
+fun main() {
+    val reference = ::keep
+}

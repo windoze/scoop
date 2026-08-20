@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling an unsafe dependency function requires an unsafe context",
+    "notes": [],
+    "origin": {
+      "cone": "e8b0515707b276700b50310fc36137b982bdcc0289585de92fbd92df458b0506",
+      "end": 97,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,25 @@
+sealed interface Event {}
+class Text(val value: String) : Event
+object Stop : Event {}
+fun subject(): Event { println("subject"); return Text("live") }
+fun reject(): Boolean { println("guard"); gcCollect(); return false }
+fun describe(): String = when (val value = subject()) {
+    is Text if reject() -> "wrong"
+    is Text -> value.value
+    is Stop -> "stop"
+}
+fun main() {
+    println(describe())
+    var count = 0
+    outer@ do {
+        count += 1
+        try {
+            val value: Event = if (count == 1) Text("first") else Stop
+            when (value) {
+                is Text -> { println(value.value); continue@outer }
+                is Stop -> break@outer
+            }
+        } finally { println("finally"); gcCollect() }
+    } while (true)
+    println(count)
+}

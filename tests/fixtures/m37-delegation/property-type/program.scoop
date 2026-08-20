@@ -1,0 +1,4 @@
+interface I { val value: Int }
+interface J { val value: String }
+class Host(a: I, b: J) : I by a, J by b
+fun main() {}

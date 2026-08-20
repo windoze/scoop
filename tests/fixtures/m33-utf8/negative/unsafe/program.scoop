@@ -1,0 +1,2 @@
+fun decode(pointer: Ptr<UInt8>): String = String.fromUtf8(pointer, 1L)
+fun main() {}

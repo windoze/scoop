@@ -1,0 +1,7 @@
+class Vault {
+    private class Secret
+}
+
+fun reveal(value: Vault.Secret) {}
+
+fun main() {}

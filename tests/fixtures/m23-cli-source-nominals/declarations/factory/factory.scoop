@@ -1,0 +1,8 @@
+private class Concrete<T>(private val item: T) : Abstract<T>() {
+    public override fun value(): T = item
+}
+public fun base(): Base = Base()
+public fun <T> abstractValue(value: T): Abstract<T> = Concrete(value)
+public fun <T> finalValue(value: T): T = Final(value).item
+public fun defaultNumber(value: Defaults): Int = value.number
+public fun internalDefault(): Defaults = Defaults(true)

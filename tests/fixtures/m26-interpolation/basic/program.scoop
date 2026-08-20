@@ -1,0 +1,18 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    check(f"" == "")
+    check(f"text only" == "text only")
+    check(f"${1}${2}${3}" == "123")
+    check(f"雪:${'🚀'}:${'\u0000'}:${42}:${true}" == "雪:🚀:\u0000:42:true")
+    check(f"${(-128).toInt8()}/${255.toUInt8()}/${(-32768).toInt16()}/${65535.toUInt16()}" == "-128/255/-32768/65535")
+    check(f"${-2147483648}/${4294967295u}/${-9223372036854775808L}/${18446744073709551615uL}" == "-2147483648/4294967295/-9223372036854775808/18446744073709551615")
+    check(f"price $ 9 $$ $9" == "price $ 9 $$ $9")
+    val values = Array<String>(3L) { index -> f"n${index}" }
+    val parts: MutableList<String> = ArrayList<String>()
+    for (value in values) { parts.add(f"<${value}>") }
+    gcCollect()
+    check(parts[0L] == "<n0>" && parts[2L] == "<n2>")
+    val text = f"${values[1L]}雪"
+    check(text.length == 3L && text.byteLength == 5L && text[2L] == '雪')
+    println(42)
+}

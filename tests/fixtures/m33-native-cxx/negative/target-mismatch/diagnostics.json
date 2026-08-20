@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "native C++ toolchain: paired C++ driver -dumpmachine mismatch: \"aarch64-linux-gnu\", expected \"x86_64-linux-gnu\"; C++ required by dev.m33:cxx-config:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

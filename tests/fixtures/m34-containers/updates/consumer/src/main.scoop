@@ -1,0 +1,40 @@
+import index.provider.*
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun tableReceiver(table: Indexed): Indexed { mark(1); return table }
+fun index(): Long { mark(2); return 0L }
+fun right(): Int { mark(5); return 7 }
+fun gridIndex(value: Int): Long { mark(value); return value.toInt64() }
+
+class UpdateFailure : Exception(None)
+
+fun fail(): Int { mark(5); throw UpdateFailure() }
+
+fun main() {
+    check(localUpdate() == 14)
+    val table = Indexed()
+    events = 0
+    tableReceiver(table)[index()] += right()
+    check(events == 1234567 && table.value() == 14)
+
+    events = 0
+    val old = table[index()]++
+    check(events == 23467 && old == 17 && table.value() == 12)
+    events = 0
+    val updated = ++table[index()]
+    check(events == 23467 && updated == 16 && table.value() == 10)
+
+    events = 0
+    var caught = false
+    try { table[index()] += fail() } catch (failure: UpdateFailure) { caught = true }
+    check(caught && events == 2345 && table.value() == 10)
+
+    val grid = Grid()
+    events = 0
+    grid[gridIndex(2), gridIndex(3)] += right()
+    check(events == 23457 && grid.value() == 27)
+
+    updateLists()
+    println("index updates")
+}

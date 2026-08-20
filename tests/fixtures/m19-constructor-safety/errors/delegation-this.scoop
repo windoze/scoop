@@ -1,0 +1,3 @@
+class Box @Unsafe constructor(value: Int) {
+    @Safe constructor(): this(1) {}
+}

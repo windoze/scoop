@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "delegate-siblings-consumer"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:delegate-siblings-provider" = "0.1.0"
+"dev.example:delegate-siblings-left" = "0.1.0"
+"dev.example:delegate-siblings-right" = "0.1.0"

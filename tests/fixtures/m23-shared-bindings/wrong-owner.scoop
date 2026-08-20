@@ -1,0 +1,5 @@
+import upstream.bindings.*
+public fun check(): Int {
+    val Other(value, extra) = Pair<Int>(42, 0)
+    return value + extra
+}

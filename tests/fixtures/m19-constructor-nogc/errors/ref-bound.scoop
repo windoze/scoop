@@ -1,0 +1,2 @@
+struct Bad<T : ref>(val value: T) { @NoGC constructor(value: T, flag: Boolean): this(value) {} }
+fun main() {}

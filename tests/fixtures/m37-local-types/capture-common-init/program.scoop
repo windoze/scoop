@@ -1,0 +1,15 @@
+interface Read { fun read(): Int }
+class Container {
+    val result: Read = if (true) {
+        val value = 42
+        object: Read { override fun read(): Int = value }
+    } else {
+        object: Read { override fun read(): Int = 0 }
+    }
+    constructor(value: Int) {}
+    constructor(value: String) {}
+}
+fun main() {
+    println(Container(1).result.read())
+    println(Container("second").result.read())
+}

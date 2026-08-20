@@ -1,0 +1,3 @@
+enum Color { Red, Blue
+ operator fun equals(other: Color): Boolean = false }
+fun main() { when (Color.Red) { Red -> {}; Blue -> {} } }
