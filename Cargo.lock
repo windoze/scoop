@@ -105,6 +105,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cab834c73d247e67f4fae452806d17d3c7501756d98c8808d7c9c7aa7d18f973"
 
 [[package]]
+name = "scoop-ast"
+version = "0.0.0"
+
+[[package]]
 name = "scoop-codegen"
 version = "0.0.0"
 dependencies = [
@@ -115,40 +119,67 @@ dependencies = [
 [[package]]
 name = "scoop-hir"
 version = "0.0.0"
+
+[[package]]
+name = "scoop-hir-lower"
+version = "0.0.0"
 dependencies = [
- "scoop-parser",
+ "scoop-ast",
+ "scoop-hir",
 ]
 
 [[package]]
 name = "scoop-lir"
 version = "0.0.0"
+
+[[package]]
+name = "scoop-lir-lower"
+version = "0.0.0"
 dependencies = [
+ "scoop-lir",
  "scoop-mir",
 ]
 
 [[package]]
 name = "scoop-mir"
 version = "0.0.0"
+
+[[package]]
+name = "scoop-mir-lower"
+version = "0.0.0"
 dependencies = [
  "scoop-hir",
+ "scoop-mir",
 ]
 
 [[package]]
 name = "scoop-parser"
 version = "0.0.0"
+dependencies = [
+ "scoop-ast",
+]
 
 [[package]]
 name = "scoop-slib"
 version = "0.0.0"
+dependencies = [
+ "scoop-hir",
+ "scoop-lir",
+ "scoop-mir",
+]
 
 [[package]]
 name = "scoopc"
 version = "0.0.0"
 dependencies = [
+ "scoop-ast",
  "scoop-codegen",
  "scoop-hir",
+ "scoop-hir-lower",
  "scoop-lir",
+ "scoop-lir-lower",
  "scoop-mir",
+ "scoop-mir-lower",
  "scoop-parser",
  "scoop-slib",
 ]

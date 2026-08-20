@@ -4,4 +4,3 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-scoop-hir.workspace = true

@@ -8,9 +8,13 @@ name = "scoopc"
 path = "src/main.rs"
 
 [dependencies]
-scoop-parser.workspace = true
-scoop-hir.workspace = true
-scoop-mir.workspace = true
-scoop-lir.workspace = true
+scoop-ast.workspace = true
 scoop-codegen.workspace = true
+scoop-hir-lower.workspace = true
+scoop-hir.workspace = true
+scoop-lir-lower.workspace = true
+scoop-lir.workspace = true
+scoop-mir-lower.workspace = true
+scoop-mir.workspace = true
+scoop-parser.workspace = true
 scoop-slib.workspace = true

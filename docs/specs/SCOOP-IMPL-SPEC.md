@@ -15,6 +15,8 @@
 
 ## 2. 编译器 pipeline
 
+**模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现；stage 之间的编排由 driver 负责（见 2.7）。
+
 ### 2.1 parser / AST
 
 解析源代码，为每个源文件生成语法树。

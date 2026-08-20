@@ -1,4 +1,5 @@
-//! HIR stage: desugaring, type check, overload resolution, instantiation
-//! requests. All compile-time errors are reported here.
+//! HIR definitions and HIR meta (generic HIR representation,
+//! instantiation requests): the data channel between HIR and MIR,
+//! and the HIR-layer `.slib` metadata format.
 //!
-//! See `SCOOP-IMPL-SPEC.md` section 2.2.
+//! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.2.

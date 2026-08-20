@@ -1,10 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
+    "compiler/ast",
     "compiler/parser",
     "compiler/hir",
+    "compiler/hir-lower",
     "compiler/mir",
+    "compiler/mir-lower",
     "compiler/lir",
+    "compiler/lir-lower",
     "compiler/codegen",
     "compiler/slib",
     "compiler/driver",
@@ -18,9 +22,13 @@ rust-version = "1.85"
 # LLVM 22.1（与当前 Rust 工具链自带的 LLVM 版本一致）
 inkwell = { version = "0.10", features = ["llvm22-1"] }
 
+scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }
 scoop-hir = { path = "compiler/hir" }
+scoop-hir-lower = { path = "compiler/hir-lower" }
 scoop-mir = { path = "compiler/mir" }
+scoop-mir-lower = { path = "compiler/mir-lower" }
 scoop-lir = { path = "compiler/lir" }
+scoop-lir-lower = { path = "compiler/lir-lower" }
 scoop-codegen = { path = "compiler/codegen" }
 scoop-slib = { path = "compiler/slib" }

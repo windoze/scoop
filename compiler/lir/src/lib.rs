@@ -1,5 +1,4 @@
-//! LIR stage: type layout, statepoint insertion, exception lowering.
-//! LIR contains nothing Scoop-specific and is mechanically translatable
-//! to the target IR.
+//! LIR definitions and LIR meta (type layouts): the data channel
+//! between LIR and codegen, and the LIR-layer `.slib` metadata format.
 //!
-//! See `SCOOP-IMPL-SPEC.md` section 2.4.
+//! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.4.

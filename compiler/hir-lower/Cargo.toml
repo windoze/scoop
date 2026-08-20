@@ -1,6 +1,8 @@
 [package]
-name = "scoop-hir"
+name = "scoop-hir-lower"
 edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+scoop-ast.workspace = true
+scoop-hir.workspace = true
