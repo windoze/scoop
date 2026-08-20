@@ -13,6 +13,8 @@ members = [
     "compiler/slib",
     "compiler/driver",
 ]
+# One-off technical spikes (docs/ROADMAP.md M0) carry their own
+# `[workspace]` table and are intentionally not members.
 
 [workspace.package]
 edition = "2024"
@@ -21,6 +23,8 @@ rust-version = "1.85"
 [workspace.dependencies]
 # LLVM 22.1（与当前 Rust 工具链自带的 LLVM 版本一致）
 inkwell = { version = "0.10", features = ["llvm22-1"] }
+clap = { version = "4", features = ["derive"] }
+insta = { version = "1" }
 
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }

@@ -1,0 +1,5 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: rendered
+---
+error: no compilation stage is available yet (milestone M0: harness only, see docs/ROADMAP.md)

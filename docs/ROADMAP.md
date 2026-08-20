@@ -18,10 +18,10 @@
 
 每个里程碑都是全链路可运行的（parser → HIR → MIR → LIR → codegen → 可执行文件）。
 
-### M0 技术 spike
+### M0 技术 spike ✅（2026-08-21 完成）
 
-- 独立一次性程序验证 inkwell 的 statepoint + stackmap + landingpad 全链路（不进主线代码）；
-- 建立 fixture runner、golden dump 设施与 CLI 骨架。
+- ~~独立一次性程序验证 inkwell 的 statepoint + stackmap + landingpad 全链路（不进主线代码）~~——`spikes/llvm-gc/`（独立 workspace），inkwell 0.10 + LLVM 22.1.8 验证通过：`rewrite-statepoints-for-gc` 正常改写、`.o` 含 `__llvm_stackmaps` 与 `gcc_except_tab`；
+- ~~建立 fixture runner、golden dump 设施与 CLI 骨架~~——`compiler/driver/tests/fixtures.rs`（insta 快照），`scoopc` CLI 拆为 lib + 薄 bin（clap），冒烟 fixture `tests/fixtures/m0-smoke/hello.scoop` 端到端通过。
 
 ### M1 hello world
 

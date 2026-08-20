@@ -7,7 +7,12 @@ rust-version.workspace = true
 name = "scoopc"
 path = "src/main.rs"
 
+[lib]
+name = "scoopc"
+path = "src/lib.rs"
+
 [dependencies]
+clap.workspace = true
 scoop-ast.workspace = true
 scoop-codegen.workspace = true
 scoop-hir-lower.workspace = true
@@ -18,3 +23,6 @@ scoop-mir-lower.workspace = true
 scoop-mir.workspace = true
 scoop-parser.workspace = true
 scoop-slib.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
