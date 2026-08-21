@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m2-values/errors/struct-arity.scoop:4:13: error: struct `Point` takes exactly 2 arguments, but 1 were supplied

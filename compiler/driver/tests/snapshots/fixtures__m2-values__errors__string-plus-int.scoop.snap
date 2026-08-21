@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m2-values/errors/string-plus-int.scoop:2:13: error: operator `+` requires Int operands, found String and Int

@@ -3,47 +3,68 @@
 //!
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.2.
 //!
-//! M1 (DESIGN.md 2.3): allocates the well-known types (`Unit`, `String`)
-//! and the builtin output functions (`print` / `println`) first, then
-//! resolves top-level names and lowers bodies. Every expression leaves
-//! this stage with its type filled in, every call with its target
-//! resolved to a `FunctionId`.
+//! M2 (milestone2 DESIGN.md 2.2): on top of M1 this stage registers
+//! struct declarations, resolves type annotations, checks every
+//! expression (every `Expr` leaves with its `ty` filled in, every field
+//! access with a resolved `FieldRef`), and tracks block-level lexical
+//! scopes for local `val` / `var` declarations.
 
-use std::collections::HashMap;
+mod expr;
+mod scope;
+mod stmt;
+#[cfg(test)]
+mod tests;
+mod types;
+
+use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use ast::{Diagnostic, Span, StatementKind};
-use hir::{Builtin, Function, FunctionId, FunctionKind, Type, TypeId};
+use ast::{Diagnostic, Span};
+use hir::{Builtin, Function, FunctionId, FunctionKind, StructDecl, StructId, Type, TypeId};
+use scope::Scopes;
 
 /// Lower a parsed source file to HIR.
 ///
-/// All semantic errors of the M1 subset are diagnosed here with spans;
+/// All semantic errors of the M2 subset are diagnosed here with spans;
 /// downstream stages (MIR, LIR) never fail.
 pub fn lower(file: &ast::SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
     Lowerer::new(file.span).run(file)
 }
 
-struct Lowerer {
-    types: Arena<Type>,
-    functions: Arena<Function>,
-    top_level: Vec<FunctionId>,
-    unit: TypeId,
-    string: TypeId,
-    print: FunctionId,
-    println: FunctionId,
-    /// Top-level function symbol table (builtins included).
-    symbols: HashMap<String, FunctionId>,
+pub(crate) struct Lowerer {
+    pub(crate) types: Arena<Type>,
+    pub(crate) structs: Arena<StructDecl>,
+    pub(crate) functions: Arena<Function>,
+    pub(crate) top_level: Vec<FunctionId>,
+    pub(crate) unit: TypeId,
+    pub(crate) int: TypeId,
+    pub(crate) boolean: TypeId,
+    pub(crate) string: TypeId,
+    pub(crate) print: FunctionId,
+    pub(crate) println: FunctionId,
+    /// Function namespace (builtins included). Struct names live in a
+    /// separate namespace: a struct and a function may share a name.
+    pub(crate) functions_by_name: HashMap<String, FunctionId>,
+    /// Struct namespace: name → (declaration, value type of the struct).
+    pub(crate) structs_by_name: HashMap<String, (StructId, TypeId)>,
+    /// Locals of the body currently being lowered (taken into the
+    /// finished `hir::Body`).
+    pub(crate) locals: Arena<hir::Local>,
+    pub(crate) scopes: Scopes,
     diagnostics: Vec<Diagnostic>,
 }
 
 impl Lowerer {
     fn new(file_span: Span) -> Self {
-        // Well-known types are allocated first (impl spec 2.2).
+        // Well-known types are allocated first, in a fixed order
+        // (impl spec 2.2): Unit, Int, Boolean, String.
         let mut types = Arena::new();
         let unit = types.alloc(Type::Unit);
+        let int = types.alloc(Type::Int);
+        let boolean = types.alloc(Type::Boolean);
         let string = types.alloc(Type::String);
 
         // Builtin output functions (temporary until M11, DESIGN.md 5.2).
@@ -60,49 +81,86 @@ impl Lowerer {
             span: file_span,
         });
 
-        let symbols = HashMap::from([
+        let functions_by_name = HashMap::from([
             ("print".to_string(), print),
             ("println".to_string(), println),
         ]);
 
         Lowerer {
             types,
+            structs: Arena::new(),
             functions,
             top_level: vec![print, println],
             unit,
+            int,
+            boolean,
             string,
             print,
             println,
-            symbols,
+            functions_by_name,
+            structs_by_name: HashMap::new(),
+            locals: Arena::new(),
+            scopes: Scopes::new(),
             diagnostics: Vec::new(),
         }
     }
 
     fn run(mut self, file: &ast::SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
-        // Pass 1: declare user functions, so calls resolve regardless of
-        // declaration order.
+        // Pass 1: declare structs and functions, so bodies and field
+        // types resolve regardless of declaration order. Structs and
+        // functions occupy separate namespaces.
+        let mut user_structs = Vec::new();
         let mut user_functions = Vec::new();
-        for decl in &file.functions {
-            if self.symbols.contains_key(&decl.name.text) {
-                self.error(
-                    decl.name.span,
-                    format!("duplicate function `{}`", decl.name.text),
-                );
-                continue;
+        for decl in &file.declarations {
+            match decl {
+                ast::Decl::Struct(decl) => {
+                    if self.structs_by_name.contains_key(&decl.name.text) {
+                        self.error(
+                            decl.name.span,
+                            format!("duplicate struct `{}`", decl.name.text),
+                        );
+                        continue;
+                    }
+                    let id = self.structs.alloc(StructDecl {
+                        name: decl.name.text.clone(),
+                        fields: Vec::new(),
+                        span: decl.span,
+                    });
+                    let ty = self.types.alloc(Type::Struct(id));
+                    self.structs_by_name
+                        .insert(decl.name.text.clone(), (id, ty));
+                    user_structs.push((id, decl));
+                }
+                ast::Decl::Function(decl) => {
+                    if self.functions_by_name.contains_key(&decl.name.text) {
+                        self.error(
+                            decl.name.span,
+                            format!("duplicate function `{}`", decl.name.text),
+                        );
+                        continue;
+                    }
+                    let id = self.functions.alloc(Function {
+                        name: decl.name.text.clone(),
+                        kind: FunctionKind::User(hir::Body {
+                            locals: Arena::new(),
+                            statements: Vec::new(),
+                        }),
+                        span: decl.span,
+                    });
+                    self.top_level.push(id);
+                    self.functions_by_name.insert(decl.name.text.clone(), id);
+                    user_functions.push((id, decl));
+                }
             }
-            let id = self.functions.alloc(Function {
-                name: decl.name.text.clone(),
-                kind: FunctionKind::User(hir::Body {
-                    statements: Vec::new(),
-                }),
-                span: decl.span,
-            });
-            self.top_level.push(id);
-            self.symbols.insert(decl.name.text.clone(), id);
-            user_functions.push((id, decl));
         }
 
-        // Pass 2: lower bodies.
+        // Pass 2: resolve struct fields (all struct names are known now,
+        // so fields may reference later-declared structs).
+        for (id, decl) in user_structs {
+            self.resolve_fields(id, decl);
+        }
+
+        // Pass 3: lower bodies.
         for (id, decl) in user_functions {
             let body = self.lower_body(decl);
             self.functions[id].kind = FunctionKind::User(body);
@@ -110,7 +168,7 @@ impl Lowerer {
 
         // A module without `main` never reaches HIR (hir docs); it is a
         // diagnostic here, attributed to the whole file.
-        let entry = match self.symbols.get("main") {
+        let entry = match self.functions_by_name.get("main") {
             Some(&id) => Some(id),
             None => {
                 self.error(
@@ -129,8 +187,11 @@ impl Lowerer {
         Ok(hir::Module {
             types: self.types,
             functions: self.functions,
+            structs: self.structs,
             top_level: self.top_level,
             unit: self.unit,
+            int: self.int,
+            boolean: self.boolean,
             string: self.string,
             print: self.print,
             println: self.println,
@@ -138,325 +199,35 @@ impl Lowerer {
         })
     }
 
-    fn lower_body(&mut self, decl: &ast::FunctionDecl) -> hir::Body {
-        let mut statements = Vec::new();
-        for statement in &decl.body.statements {
-            match &statement.kind {
-                StatementKind::Expr(expr) => {
-                    let Some(lowered) = self.lower_expr(expr) else {
-                        continue; // diagnostic already recorded
-                    };
-                    // M1 statements are function calls (DESIGN.md 1).
-                    if matches!(lowered.kind, hir::ExprKind::Call { .. }) {
-                        statements.push(hir::Statement {
-                            expr: lowered,
-                            span: statement.span,
-                        });
-                    } else {
-                        self.error(
-                            statement.span,
-                            "statement must be a function call".to_string(),
-                        );
-                    }
-                }
+    /// Resolve the field types of a struct declaration. Fields with
+    /// duplicate names or unresolvable types are diagnosed and dropped;
+    /// the module is rejected anyway once any diagnostic is recorded.
+    fn resolve_fields(&mut self, id: StructId, decl: &ast::StructDecl) {
+        let mut seen = HashSet::new();
+        let mut fields = Vec::new();
+        for field in &decl.fields {
+            if !seen.insert(field.name.text.clone()) {
+                self.error(
+                    field.name.span,
+                    format!(
+                        "duplicate field `{}` in struct `{}`",
+                        field.name.text, decl.name.text
+                    ),
+                );
+                continue;
             }
+            let Some(ty) = self.resolve_type_ref(&field.ty) else {
+                continue; // diagnostic already recorded
+            };
+            fields.push(hir::Field {
+                name: field.name.text.clone(),
+                ty,
+            });
         }
-        hir::Body { statements }
+        self.structs[id].fields = fields;
     }
 
-    /// Lower an expression, recording a diagnostic and returning `None`
-    /// on error.
-    fn lower_expr(&mut self, expr: &ast::Expr) -> Option<hir::Expr> {
-        match expr {
-            ast::Expr::StringLiteral { value, span } => Some(hir::Expr {
-                kind: hir::ExprKind::StringLiteral(value.clone()),
-                ty: self.string,
-                span: *span,
-            }),
-            ast::Expr::Call(call) => self.lower_call(call),
-        }
-    }
-
-    fn lower_call(&mut self, call: &ast::CallExpr) -> Option<hir::Expr> {
-        let function = match self.symbols.get(&call.callee.text) {
-            Some(&id) => id,
-            None => {
-                self.error(
-                    call.callee.span,
-                    format!("unknown function `{}`", call.callee.text),
-                );
-                return None;
-            }
-        };
-        let name = self.functions[function].name.clone();
-        let is_builtin = matches!(self.functions[function].kind, FunctionKind::Builtin(_));
-
-        // M1: builtins take exactly one `String` argument, user functions
-        // take none; every function returns `Unit`.
-        let args = if is_builtin {
-            if call.args.len() != 1 {
-                let supplied = call.args.len();
-                self.error(
-                    call.span,
-                    format!("`{name}` takes exactly 1 argument, but {supplied} were supplied"),
-                );
-                return None;
-            }
-            let arg = self.lower_expr(&call.args[0])?;
-            if arg.ty != self.string {
-                let found = self.type_name(arg.ty);
-                self.error(
-                    arg.span,
-                    format!("argument of `{name}` must be of type String, found {found}"),
-                );
-                return None;
-            }
-            vec![arg]
-        } else {
-            if !call.args.is_empty() {
-                let supplied = call.args.len();
-                self.error(
-                    call.span,
-                    format!("function `{name}` takes no arguments, but {supplied} were supplied"),
-                );
-                return None;
-            }
-            Vec::new()
-        };
-
-        Some(hir::Expr {
-            kind: hir::ExprKind::Call { function, args },
-            ty: self.unit,
-            span: call.span,
-        })
-    }
-
-    fn type_name(&self, ty: TypeId) -> &'static str {
-        match self.types[ty] {
-            Type::Unit => "Unit",
-            Type::String => "String",
-        }
-    }
-
-    fn error(&mut self, span: Span, message: String) {
+    pub(crate) fn error(&mut self, span: Span, message: String) {
         self.diagnostics.push(Diagnostic::at(span, message));
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ast::{Block, CallExpr, Expr, FunctionDecl, Ident, SourceFile, Statement};
-
-    fn ident(text: &str, span: Span) -> Ident {
-        Ident {
-            text: text.to_string(),
-            span,
-        }
-    }
-
-    fn str_lit(value: &str) -> Expr {
-        Expr::StringLiteral {
-            value: value.to_string(),
-            span: Span::new(0, 0),
-        }
-    }
-
-    fn call_at(name: &str, args: Vec<Expr>, callee_span: Span, call_span: Span) -> Expr {
-        Expr::Call(CallExpr {
-            callee: ident(name, callee_span),
-            args,
-            span: call_span,
-        })
-    }
-
-    fn call(name: &str, args: Vec<Expr>) -> Expr {
-        call_at(name, args, Span::new(0, 0), Span::new(0, 0))
-    }
-
-    fn stmt(expr: Expr) -> Statement {
-        Statement {
-            kind: StatementKind::Expr(expr),
-            span: Span::new(0, 0),
-        }
-    }
-
-    fn fun(name: &str, statements: Vec<Statement>) -> FunctionDecl {
-        FunctionDecl {
-            name: ident(name, Span::new(0, 0)),
-            body: Block {
-                statements,
-                span: Span::new(0, 0),
-            },
-            span: Span::new(0, 0),
-        }
-    }
-
-    fn file(functions: Vec<FunctionDecl>) -> SourceFile {
-        SourceFile {
-            functions,
-            span: Span::new(0, 100),
-        }
-    }
-
-    /// `main` calls `println("hello, world")` then `helper()`, which
-    /// calls `print("!")` — the M1 hello world shape (DESIGN.md 1).
-    fn hello_world() -> SourceFile {
-        file(vec![
-            fun(
-                "main",
-                vec![
-                    stmt(call("println", vec![str_lit("hello, world")])),
-                    stmt(call("helper", vec![])),
-                ],
-            ),
-            fun("helper", vec![stmt(call("print", vec![str_lit("!")]))]),
-        ])
-    }
-
-    #[test]
-    fn lowers_hello_world() {
-        let module = lower(&hello_world()).expect("hello world must lower");
-
-        // Well-known types and builtins are allocated first.
-        assert_eq!(module.types[module.unit], Type::Unit);
-        assert_eq!(module.types[module.string], Type::String);
-        assert!(matches!(
-            module.functions[module.print].kind,
-            FunctionKind::Builtin(Builtin::Print)
-        ));
-        assert!(matches!(
-            module.functions[module.println].kind,
-            FunctionKind::Builtin(Builtin::Println)
-        ));
-
-        // Entry point is `main`.
-        assert_eq!(module.functions[module.entry].name, "main");
-
-        // Golden dump locks the output structure.
-        let expected = "\
-Module
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
-    Call println : Unit
-      StringLiteral \"hello, world\" : String
-    Call helper : Unit
-  fun helper
-    Call print : Unit
-      StringLiteral \"!\" : String
-  entry main
-";
-        assert_eq!(hir::dump(&module), expected);
-    }
-
-    #[test]
-    fn duplicate_function_is_an_error() {
-        let file = file(vec![fun("main", vec![]), fun("main", vec![])]);
-        let errors = lower(&file).expect_err("duplicate `main` must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "duplicate function `main`");
-    }
-
-    #[test]
-    fn redeclaring_a_builtin_is_an_error() {
-        let file = file(vec![fun("main", vec![]), fun("print", vec![])]);
-        let errors = lower(&file).expect_err("redeclaring `print` must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "duplicate function `print`");
-    }
-
-    #[test]
-    fn unknown_function_is_an_error_with_callee_span() {
-        let callee_span = Span::new(10, 15);
-        let file = file(vec![fun(
-            "main",
-            vec![stmt(call_at("hello", vec![], callee_span, Span::new(0, 0)))],
-        )]);
-        let errors = lower(&file).expect_err("unknown callee must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "unknown function `hello`");
-        assert_eq!(errors[0].span, Some(callee_span));
-    }
-
-    #[test]
-    fn print_requires_exactly_one_argument() {
-        for args in [vec![], vec![str_lit("a"), str_lit("b")]] {
-            let supplied = args.len();
-            let file = file(vec![fun("main", vec![stmt(call("print", args))])]);
-            let errors = lower(&file).expect_err("wrong arity must fail");
-            assert_eq!(errors.len(), 1);
-            assert_eq!(
-                errors[0].message,
-                format!("`print` takes exactly 1 argument, but {supplied} were supplied")
-            );
-        }
-    }
-
-    #[test]
-    fn print_argument_must_be_a_string() {
-        // `helper()` has type `Unit`, not `String`.
-        let file = file(vec![
-            fun(
-                "main",
-                vec![stmt(call("println", vec![call("helper", vec![])]))],
-            ),
-            fun("helper", vec![]),
-        ]);
-        let errors = lower(&file).expect_err("non-String argument must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(
-            errors[0].message,
-            "argument of `println` must be of type String, found Unit"
-        );
-    }
-
-    #[test]
-    fn user_function_takes_no_arguments() {
-        let file = file(vec![
-            fun("main", vec![stmt(call("helper", vec![str_lit("x")]))]),
-            fun("helper", vec![]),
-        ]);
-        let errors = lower(&file).expect_err("argument to `helper` must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(
-            errors[0].message,
-            "function `helper` takes no arguments, but 1 were supplied"
-        );
-    }
-
-    #[test]
-    fn missing_main_is_an_error_with_file_span() {
-        let file = file(vec![fun("helper", vec![])]);
-        let errors = lower(&file).expect_err("missing `main` must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(
-            errors[0].message,
-            "missing entry point: declare `fun main()`"
-        );
-        assert_eq!(errors[0].span, Some(file.span));
-    }
-
-    #[test]
-    fn bare_literal_statement_is_an_error() {
-        let file = file(vec![fun("main", vec![stmt(str_lit("dangling"))])]);
-        let errors = lower(&file).expect_err("literal statement must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "statement must be a function call");
-    }
-
-    #[test]
-    fn collects_multiple_diagnostics() {
-        let file = file(vec![fun(
-            "main",
-            vec![
-                stmt(call("missing_one", vec![])),
-                stmt(call("missing_two", vec![])),
-            ],
-        )]);
-        let errors = lower(&file).expect_err("unknown callees must fail");
-        assert_eq!(errors.len(), 2);
-        assert_eq!(errors[0].message, "unknown function `missing_one`");
-        assert_eq!(errors[1].message, "unknown function `missing_two`");
     }
 }

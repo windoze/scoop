@@ -1,0 +1,80 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  struct Point
+    field x: Int
+    field y: Int
+  fun main
+    val p
+      Call Point
+        IntLiteral 1
+        IntLiteral 2
+    Call println
+      FieldAccess x
+        Var p
+    Call println
+      FieldAccess y
+        Var p
+
+== hir ==
+Module
+  struct Point
+    field x: Int
+    field y: Int
+  fun print <builtin Print>
+  fun println <builtin Println>
+  fun main
+    val p: Point
+      StructInit Point : Point
+        IntLiteral 1 : Int
+        IntLiteral 2 : Int
+    Call println : Unit
+      FieldAccess field 0 : Int
+        Local p : Point
+    Call println : Unit
+      FieldAccess field 1 : Int
+        Local p : Point
+  entry main
+
+== mir ==
+Module
+  struct Point (x: Int, y: Int)
+  fun main @scoop_main
+    val p: Point
+      StructInit Point
+        IntLiteral 1
+        IntLiteral 2
+    Call @scoop_rt_println_int direct
+      FieldAccess 0
+        Local p
+    Call @scoop_rt_println_int direct
+      FieldAccess 1
+        Local p
+  entry @scoop_main
+
+== lir ==
+Module
+  fun @scoop_main
+    local %0 p: {i64, i64}
+  block entry
+    t0 = aggregate (1, 2) : {i64, i64}
+    store t0 -> local0
+    t1 = extract local0, 0 : i64
+    call @scoop_rt_println_int(t1)
+    t2 = aggregate () : {}
+    t3 = extract local0, 1 : i64
+    call @scoop_rt_println_int(t3)
+    t4 = aggregate () : {}
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Point size=16 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+1
+2

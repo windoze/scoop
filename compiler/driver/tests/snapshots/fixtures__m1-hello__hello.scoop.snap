@@ -40,8 +40,8 @@ Module
   fun main @scoop_main
     Call @scoop.hello direct
     Call @scoop.world direct
-  str scoop.str.0 @"hello"
-  str scoop.str.1 @", world"
+  str @scoop.str.0 "hello"
+  str @scoop.str.1 ", world"
   entry @scoop_main
 
 == lir ==
@@ -49,13 +49,25 @@ Module
   global @scoop.str.0 = "hello"
   global @scoop.str.1 = ", world"
   fun @scoop.hello
-    call @scoop_rt_print(@scoop.str.0)
+  block entry
+    call @scoop_rt_print(global0)
+    t0 = aggregate () : {}
+    ret
   fun @scoop.world
-    call @scoop_rt_println(@scoop.str.1)
+  block entry
+    call @scoop_rt_println(global1)
+    t0 = aggregate () : {}
+    ret
   fun @scoop_main
+  block entry
     call @scoop.hello()
+    t0 = aggregate () : {}
     call @scoop.world()
+    t1 = aggregate () : {}
+    ret
   layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 
 == run ==

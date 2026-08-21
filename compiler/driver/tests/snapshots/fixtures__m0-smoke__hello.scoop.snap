@@ -22,15 +22,20 @@ Module
   fun main @scoop_main
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
-  str scoop.str.0 @"hello, world"
+  str @scoop.str.0 "hello, world"
   entry @scoop_main
 
 == lir ==
 Module
   global @scoop.str.0 = "hello, world"
   fun @scoop_main
-    call @scoop_rt_print(@scoop.str.0)
+  block entry
+    call @scoop_rt_print(global0)
+    t0 = aggregate () : {}
+    ret
   layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
 
 == run ==

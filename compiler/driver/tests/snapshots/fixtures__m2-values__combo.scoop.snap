@@ -1,0 +1,224 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  struct Tagged
+    field tag: String
+    field pair: (Int, String)
+  fun main
+    val a
+      Call Tagged
+        StringLiteral "p"
+        TupleLiteral
+          IntLiteral 1
+          StringLiteral "one"
+    val b
+      Call Tagged
+        StringLiteral "p"
+        TupleLiteral
+          IntLiteral 1
+          StringLiteral "one"
+    Call println
+      Binary Eq
+        Var a
+        Var b
+    Call println
+      FieldAccess _2
+        FieldAccess pair
+          Var a
+    var count
+      IntLiteral 0
+    while
+      Binary Lt
+        Var count
+        IntLiteral 2
+      Call println
+        FieldAccess tag
+          Var a
+      assign count
+        Binary Add
+          Var count
+          IntLiteral 1
+
+== hir ==
+Module
+  struct Tagged
+    field tag: String
+    field pair: (Int, String)
+  fun print <builtin Print>
+  fun println <builtin Println>
+  fun main
+    val a: Tagged
+      StructInit Tagged : Tagged
+        StringLiteral "p" : String
+        TupleLiteral : (Int, String)
+          IntLiteral 1 : Int
+          StringLiteral "one" : String
+    val b: Tagged
+      StructInit Tagged : Tagged
+        StringLiteral "p" : String
+        TupleLiteral : (Int, String)
+          IntLiteral 1 : Int
+          StringLiteral "one" : String
+    Call println : Unit
+      Binary Eq : Boolean
+        Local a : Tagged
+        Local b : Tagged
+    Call println : Unit
+      FieldAccess _2 : String
+        FieldAccess field 1 : (Int, String)
+          Local a : Tagged
+    var count: Int
+      IntLiteral 0 : Int
+    while
+      Binary Lt : Boolean
+        Local count : Int
+        IntLiteral 2 : Int
+      Call println : Unit
+        FieldAccess field 0 : String
+          Local a : Tagged
+      assign count
+        Binary Add : Int
+          Local count : Int
+          IntLiteral 1 : Int
+  entry main
+
+== mir ==
+Module
+  struct Tagged (tag: String, pair: (Int, String))
+  fun main @scoop_main
+    val a: Tagged
+      StructInit Tagged
+        StringConst @scoop.str.0
+        TupleLiteral
+          IntLiteral 1
+          StringConst @scoop.str.1
+    val b: Tagged
+      StructInit Tagged
+        StringConst @scoop.str.2
+        TupleLiteral
+          IntLiteral 1
+          StringConst @scoop.str.3
+    Call @scoop_rt_println_boolean direct
+      Binary And
+        Call @scoop_rt_string_eq direct
+          FieldAccess 0
+            Local a
+          FieldAccess 0
+            Local b
+        Binary And
+          Binary IntEq
+            FieldAccess 0
+              FieldAccess 1
+                Local a
+            FieldAccess 0
+              FieldAccess 1
+                Local b
+          Call @scoop_rt_string_eq direct
+            FieldAccess 1
+              FieldAccess 1
+                Local a
+            FieldAccess 1
+              FieldAccess 1
+                Local b
+    Call @scoop_rt_println direct
+      FieldAccess 1
+        FieldAccess 1
+          Local a
+    var count: Int
+      IntLiteral 0
+    while
+      Binary IntLt
+        Local count
+        IntLiteral 2
+      Call @scoop_rt_println direct
+        FieldAccess 0
+          Local a
+      assign count
+        Binary IntAdd
+          Local count
+          IntLiteral 1
+  str @scoop.str.0 "p"
+  str @scoop.str.1 "one"
+  str @scoop.str.2 "p"
+  str @scoop.str.3 "one"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "p"
+  global @scoop.str.1 = "one"
+  global @scoop.str.2 = "p"
+  global @scoop.str.3 = "one"
+  fun @scoop_main
+    local %0 a: {ptr, {i64, ptr}}
+    local %1 b: {ptr, {i64, ptr}}
+    local %2 count: i64
+    local %3 $sc.1: i1
+    local %4 $sc.2: i1
+  block entry
+    t0 = aggregate (1, global1) : {i64, ptr}
+    t1 = aggregate (global0, t0) : {ptr, {i64, ptr}}
+    store t1 -> local0
+    t2 = aggregate (1, global3) : {i64, ptr}
+    t3 = aggregate (global2, t2) : {ptr, {i64, ptr}}
+    store t3 -> local1
+    t4 = extract local0, 0 : ptr
+    t5 = extract local1, 0 : ptr
+    t6 = call @scoop_rt_string_eq(t4, t5) : i1
+    store t6 -> local3
+    cbr t6 then @sc.rhs.1 else @sc.merge.2
+  block sc.rhs.1
+    t7 = extract local0, 1 : {i64, ptr}
+    t8 = extract t7, 0 : i64
+    t9 = extract local1, 1 : {i64, ptr}
+    t10 = extract t9, 0 : i64
+    t11 = Eq t8, t10 : i1
+    store t11 -> local4
+    cbr t11 then @sc.rhs.3 else @sc.merge.4
+  block sc.merge.2
+    call @scoop_rt_println_boolean(local3)
+    t17 = aggregate () : {}
+    t18 = extract local0, 1 : {i64, ptr}
+    t19 = extract t18, 1 : ptr
+    call @scoop_rt_println(t19)
+    t20 = aggregate () : {}
+    store 0 -> local2
+    br @while.cond.5
+  block sc.rhs.3
+    t12 = extract local0, 1 : {i64, ptr}
+    t13 = extract t12, 1 : ptr
+    t14 = extract local1, 1 : {i64, ptr}
+    t15 = extract t14, 1 : ptr
+    t16 = call @scoop_rt_string_eq(t13, t15) : i1
+    store t16 -> local4
+    br @sc.merge.4
+  block sc.merge.4
+    store local4 -> local3
+    br @sc.merge.2
+  block while.cond.5
+    t21 = Lt local2, 2 : i1
+    cbr t21 then @while.body.6 else @while.exit.7
+  block while.body.6
+    t22 = extract local0, 0 : ptr
+    call @scoop_rt_println(t22)
+    t23 = aggregate () : {}
+    t24 = Add local2, 1 : i64
+    store t24 -> local2
+    br @while.cond.5
+  block while.exit.7
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Tagged size=24 align=8 refs=[0, 16]
+  layout (Int, String) size=16 align=8 refs=[8]
+  entry @scoop_main
+
+== run ==
+true
+one
+p
+p

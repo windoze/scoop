@@ -1,18 +1,20 @@
-//! Unit tests: valid programs of every shape, spans, escapes, comments,
-//! optional semicolons, and every diagnostic the M1 parser can produce.
+//! Unit tests carried over from M1: valid programs of every M1 shape,
+//! spans, escapes, comments, optional semicolons, and the diagnostics
+//! whose behavior M2 keeps. M2-only syntax and diagnostics live in
+//! `tests_m2.rs`.
 
-use scoop_ast::{Expr, Span, StatementKind};
+use scoop_ast::{Decl, Expr, Span, StatementKind};
 
 use crate::parse;
 
-fn ok(source: &str) -> scoop_ast::SourceFile {
+pub(crate) fn ok(source: &str) -> scoop_ast::SourceFile {
     parse(source).unwrap_or_else(|diagnostics| panic!("should parse: {diagnostics:?}"))
 }
 
 /// Asserts fail-fast (exactly one diagnostic) and returns its span + message.
-fn err(source: &str) -> (Span, String) {
+pub(crate) fn err(source: &str) -> (Span, String) {
     let diagnostics = parse(source).expect_err("should fail");
-    assert_eq!(diagnostics.len(), 1, "M1 is fail-fast");
+    assert_eq!(diagnostics.len(), 1, "M2 is fail-fast");
     let diagnostic = diagnostics.into_iter().next().unwrap();
     (
         diagnostic.span.expect("parser diagnostics carry a span"),
@@ -20,9 +22,16 @@ fn err(source: &str) -> (Span, String) {
     )
 }
 
+pub(crate) fn only_function(file: &scoop_ast::SourceFile) -> &scoop_ast::FunctionDecl {
+    assert_eq!(file.declarations.len(), 1);
+    let Decl::Function(function) = &file.declarations[0] else {
+        panic!("expected a function declaration");
+    };
+    function
+}
+
 fn only_stmt(file: &scoop_ast::SourceFile) -> &scoop_ast::Statement {
-    assert_eq!(file.functions.len(), 1);
-    let statements = &file.functions[0].body.statements;
+    let statements = &only_function(file).body.statements;
     assert_eq!(statements.len(), 1);
     &statements[0]
 }
@@ -32,21 +41,21 @@ fn only_stmt(file: &scoop_ast::SourceFile) -> &scoop_ast::Statement {
 #[test]
 fn empty_file() {
     let file = ok("");
-    assert!(file.functions.is_empty());
+    assert!(file.declarations.is_empty());
     assert_eq!(file.span, Span::new(0, 0));
 }
 
 #[test]
 fn comments_only_file() {
     let file = ok("// nothing here\n/* and\nnothing\nhere either */\n");
-    assert!(file.functions.is_empty());
+    assert!(file.declarations.is_empty());
 }
 
 #[test]
 fn empty_function() {
     let file = ok("fun main() {}");
-    assert_eq!(file.functions.len(), 1);
-    let function = &file.functions[0];
+    assert_eq!(file.declarations.len(), 1);
+    let function = only_function(&file);
     assert_eq!(function.name.text, "main");
     assert_eq!(function.name.span, Span::new(4, 8));
     assert_eq!(function.span, Span::new(0, 13));
@@ -66,10 +75,17 @@ fn hello_world() {
 #[test]
 fn multiple_functions_and_calls() {
     let file = ok("fun greet() {\n    println(\"hi\")\n}\n\nfun main() {\n    greet()\n}\n");
-    assert_eq!(file.functions.len(), 2);
-    assert_eq!(file.functions[0].name.text, "greet");
-    assert_eq!(file.functions[1].name.text, "main");
-    let stmt = &file.functions[1].body.statements[0];
+    assert_eq!(file.declarations.len(), 2);
+    let Decl::Function(greet) = &file.declarations[0] else {
+        panic!("expected a function declaration");
+    };
+    assert_eq!(greet.name.text, "greet");
+    let main = &file.declarations[1];
+    let Decl::Function(main) = main else {
+        panic!("expected a function declaration");
+    };
+    assert_eq!(main.name.text, "main");
+    let stmt = &main.body.statements[0];
     let StatementKind::Expr(Expr::Call(call)) = &stmt.kind else {
         panic!("expected a call statement");
     };
@@ -108,27 +124,38 @@ fn line_and_block_comments() {
     let file = ok(
         "// leading\nfun main() { /* inline */ print(\"a\") // trailing\n    /* multi\nline */ print(\"b\")\n}\n",
     );
-    let statements = &file.functions[0].body.statements;
+    let statements = &only_function(&file).body.statements;
     assert_eq!(statements.len(), 2);
 }
 
 #[test]
 fn optional_semicolons() {
     let file = ok("fun main() {\n    print(\"a\");\n    print(\"b\"); print(\"c\")\n}\n");
-    let statements = &file.functions[0].body.statements;
+    let statements = &only_function(&file).body.statements;
     assert_eq!(statements.len(), 3);
 }
 
 #[test]
 fn last_statement_before_closing_brace_needs_no_separator() {
     let file = ok("fun main() { print(\"a\") }");
-    assert_eq!(file.functions[0].body.statements.len(), 1);
+    assert_eq!(only_function(&file).body.statements.len(), 1);
+}
+
+#[test]
+fn bare_identifier_is_a_var_expression() {
+    // M1 rejected this; in M2 a bare identifier is a `Var` expression.
+    let file = ok("fun main() { foo }");
+    let stmt = only_stmt(&file);
+    let StatementKind::Expr(Expr::Var(ident)) = &stmt.kind else {
+        panic!("expected a variable expression");
+    };
+    assert_eq!(ident.text, "foo");
 }
 
 #[test]
 fn spans_are_byte_offsets() {
     let file = ok("fun main() {\n    print(\"hi\")\n}\n");
-    let function = &file.functions[0];
+    let function = only_function(&file);
     assert_eq!(function.span, Span::new(0, 30));
     assert_eq!(function.body.span, Span::new(11, 30));
     let stmt = &function.body.statements[0];
@@ -160,6 +187,12 @@ fn unexpected_non_ascii_character() {
 }
 
 #[test]
+fn single_ampersand_is_unexpected() {
+    let (_, message) = err("fun main() { a & b }");
+    assert_eq!(message, "unexpected character `&`");
+}
+
+#[test]
 fn unterminated_string_literal() {
     let (span, message) = err("fun main() {\n    print(\"abc\n}\n");
     assert_eq!(span, Span::new(23, 27));
@@ -184,7 +217,7 @@ fn unterminated_block_comment() {
 fn parameters_not_supported() {
     let (span, message) = err("fun f(x: Int) {}");
     assert_eq!(span, Span::new(6, 7));
-    assert_eq!(message, "parameters are not supported yet (milestone M1)");
+    assert_eq!(message, "parameters are not supported yet (milestone M2)");
 }
 
 #[test]
@@ -193,34 +226,21 @@ fn return_type_annotation_not_supported() {
     assert_eq!(span, Span::new(7, 8));
     assert_eq!(
         message,
-        "return type annotations are not supported yet (milestone M1)"
+        "return type annotations are not supported yet (milestone M2)"
     );
 }
 
 #[test]
-fn val_not_supported() {
-    let (span, message) = err("fun main() {\n    val x\n}\n");
-    assert_eq!(span, Span::new(17, 20));
-    assert_eq!(
-        message,
-        "variable declarations are not supported yet (milestone M1)"
-    );
+fn val_without_initializer() {
+    let (_, message) = err("fun main() {\n    val x\n}\n");
+    assert_eq!(message, "expected `=`, found `}`");
 }
 
 #[test]
-fn var_not_supported() {
-    let (_, message) = err("fun main() { var y }");
-    assert_eq!(
-        message,
-        "variable declarations are not supported yet (milestone M1)"
-    );
-}
-
-#[test]
-fn top_level_must_be_fun() {
+fn top_level_must_be_fun_or_struct() {
     let (span, message) = err("main() {}");
     assert_eq!(span, Span::new(0, 4));
-    assert_eq!(message, "expected `fun`, found `main`");
+    assert_eq!(message, "expected `fun` or `struct`, found `main`");
 }
 
 #[test]
@@ -247,12 +267,6 @@ fn unclosed_body() {
     let (span, message) = err("fun main() {\n    print(\"a\")\n");
     assert_eq!(span, Span::new(28, 28));
     assert_eq!(message, "expected `}`, found end of file");
-}
-
-#[test]
-fn bare_identifier_is_not_a_statement() {
-    let (_, message) = err("fun main() { foo }");
-    assert_eq!(message, "expected `(`, found `}`");
 }
 
 #[test]
