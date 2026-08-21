@@ -1,0 +1,12 @@
+fun hello() {
+    print("hello")
+}
+
+fun world() {
+    println(", world")
+}
+
+fun main() {
+    hello()
+    world()
+}

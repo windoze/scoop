@@ -12,6 +12,7 @@ name = "scoopc"
 path = "src/lib.rs"
 
 [dependencies]
+cc.workspace = true
 clap.workspace = true
 scoop-ast.workspace = true
 scoop-codegen.workspace = true

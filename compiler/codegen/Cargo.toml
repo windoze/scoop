@@ -6,3 +6,6 @@ rust-version.workspace = true
 [dependencies]
 inkwell.workspace = true
 scoop-lir.workspace = true
+
+[dev-dependencies]
+la-arena.workspace = true

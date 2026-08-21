@@ -4,5 +4,9 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+la-arena.workspace = true
 scoop-lir.workspace = true
 scoop-mir.workspace = true
+
+[dev-dependencies]
+scoop-ast.workspace = true

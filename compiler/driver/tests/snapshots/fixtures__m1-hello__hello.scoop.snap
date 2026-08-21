@@ -1,0 +1,62 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  fun hello
+    Call print
+      StringLiteral "hello"
+  fun world
+    Call println
+      StringLiteral ", world"
+  fun main
+    Call hello
+    Call world
+
+== hir ==
+Module
+  fun print <builtin Print>
+  fun println <builtin Println>
+  fun hello
+    Call print : Unit
+      StringLiteral "hello" : String
+  fun world
+    Call println : Unit
+      StringLiteral ", world" : String
+  fun main
+    Call hello : Unit
+    Call world : Unit
+  entry main
+
+== mir ==
+Module
+  fun hello @scoop.hello
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
+  fun world @scoop.world
+    Call @scoop_rt_println direct
+      StringConst @scoop.str.1
+  fun main @scoop_main
+    Call @scoop.hello direct
+    Call @scoop.world direct
+  str scoop.str.0 @"hello"
+  str scoop.str.1 @", world"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "hello"
+  global @scoop.str.1 = ", world"
+  fun @scoop.hello
+    call @scoop_rt_print(@scoop.str.0)
+  fun @scoop.world
+    call @scoop_rt_println(@scoop.str.1)
+  fun @scoop_main
+    call @scoop.hello()
+    call @scoop.world()
+  layout String size=16 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+hello, world

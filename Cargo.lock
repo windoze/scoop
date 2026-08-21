@@ -225,6 +225,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
+name = "la-arena"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3752f229dcc5a481d60f385fa479ff46818033d881d2d801aa27dffcfb5e8306"
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -320,17 +326,23 @@ name = "scoop-codegen"
 version = "0.0.0"
 dependencies = [
  "inkwell",
+ "la-arena",
  "scoop-lir",
 ]
 
 [[package]]
 name = "scoop-hir"
 version = "0.0.0"
+dependencies = [
+ "la-arena",
+ "scoop-ast",
+]
 
 [[package]]
 name = "scoop-hir-lower"
 version = "0.0.0"
 dependencies = [
+ "la-arena",
  "scoop-ast",
  "scoop-hir",
 ]
@@ -338,11 +350,16 @@ dependencies = [
 [[package]]
 name = "scoop-lir"
 version = "0.0.0"
+dependencies = [
+ "la-arena",
+]
 
 [[package]]
 name = "scoop-lir-lower"
 version = "0.0.0"
 dependencies = [
+ "la-arena",
+ "scoop-ast",
  "scoop-lir",
  "scoop-mir",
 ]
@@ -350,11 +367,17 @@ dependencies = [
 [[package]]
 name = "scoop-mir"
 version = "0.0.0"
+dependencies = [
+ "la-arena",
+ "scoop-ast",
+]
 
 [[package]]
 name = "scoop-mir-lower"
 version = "0.0.0"
 dependencies = [
+ "la-arena",
+ "scoop-ast",
  "scoop-hir",
  "scoop-mir",
 ]
@@ -379,6 +402,7 @@ dependencies = [
 name = "scoopc"
 version = "0.0.0"
 dependencies = [
+ "cc",
  "clap",
  "insta",
  "scoop-ast",

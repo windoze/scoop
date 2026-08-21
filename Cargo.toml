@@ -25,6 +25,8 @@ rust-version = "1.85"
 inkwell = { version = "0.10", features = ["llvm22-1"] }
 clap = { version = "4", features = ["derive"] }
 insta = { version = "1" }
+la-arena = { version = "0.3" }
+cc = { version = "1" }
 
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }

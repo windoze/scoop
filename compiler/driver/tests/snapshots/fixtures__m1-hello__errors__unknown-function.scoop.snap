@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m1-hello/errors/unknown-function.scoop:2:5: error: unknown function `greet`

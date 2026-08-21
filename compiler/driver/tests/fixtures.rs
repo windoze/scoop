@@ -1,11 +1,21 @@
-//! Fixture runner: runs every `tests/fixtures/**/*.scoop` through the
-//! compiler and snapshot-tests the rendered diagnostics (golden dump).
+//! Fixture runner: compiles and runs every `tests/fixtures/**/*.scoop`
+//! through the full pipeline and snapshot-tests a single merged snapshot
+//! per fixture (rendered diagnostics on failure; stage dumps plus the
+//! program's stdout on success).
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+
+fn workspace_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("workspace root exists")
+}
 
 fn fixture_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")
+    workspace_root().join("tests/fixtures")
 }
 
 fn collect_fixtures(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -34,19 +44,48 @@ fn fixtures() {
     );
 
     for fixture in fixtures {
-        let name = fixture
+        // Snapshot name and diagnostic file name are both relative to
+        // `tests/fixtures` so snapshots stay portable across machines.
+        let relative = fixture
             .strip_prefix(&root)
             .expect("fixture under root")
             .to_string_lossy()
-            .replace('/', "__");
-        let rendered = match scoopc::compile_file(&fixture) {
-            Ok(()) => "OK".to_string(),
-            Err(diagnostics) => diagnostics
-                .iter()
-                .map(|d| d.message.as_str())
-                .collect::<Vec<_>>()
-                .join("\n"),
+            .replace('\\', "/");
+        let name = relative.replace('/', "__");
+        let out_dir = workspace_root()
+            .join("target/fixtures-out")
+            .join(name.trim_end_matches(".scoop"));
+
+        let snapshot = match scoopc::compile_file(&fixture, &out_dir) {
+            Ok(success) => {
+                let run = Command::new(&success.binary)
+                    .output()
+                    .unwrap_or_else(|e| panic!("cannot run {}: {e}", success.binary.display()));
+                assert!(
+                    run.status.success(),
+                    "{relative}: compiled binary exited with {}",
+                    run.status
+                );
+                format!(
+                    "== ast ==\n{}\n== hir ==\n{}\n== mir ==\n{}\n== lir ==\n{}\n== run ==\n{}",
+                    success.dumps.ast,
+                    success.dumps.hir,
+                    success.dumps.mir,
+                    success.dumps.lir,
+                    String::from_utf8_lossy(&run.stdout),
+                )
+            }
+            Err(diagnostics) => {
+                let source = fs::read_to_string(&fixture)
+                    .unwrap_or_else(|e| panic!("cannot read {}: {e}", fixture.display()));
+                let rendered = diagnostics
+                    .iter()
+                    .map(|d| d.render(&relative, &source))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                format!("== diagnostics ==\n{rendered}\n")
+            }
         };
-        insta::assert_snapshot!(name, rendered);
+        insta::assert_snapshot!(name, snapshot);
     }
 }
