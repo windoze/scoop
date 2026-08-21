@@ -170,15 +170,16 @@ tuple 是匿名的积类型，无需声明。
 ```
 val t1 = (1, "hello")                       // 类型自动推断为 (Int, String)
 val t2: (Int, Float, String) = (42, 4.2, "world")
-val u1: Unit = (,)                          // 0 元 tuple
-val u2 = Unit                               // Unit 即 0 元 tuple 的值
+val u1: Unit = ()                           // Unit（0 元 tuple）字面量
+val u2 = Unit                               // Unit 既是类型名也是该值的构造器
+val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 ```
 
 规则：
 
 - tuple 类型记作 `(T1, T2, ...)`，tuple 字面量记作 `(e1, e2, ...)`。
-- **0 元 tuple 必须写成 `(,)`**（以消除与空括号表达式的歧义）；其类型名为 `Unit`，`Unit` 既是类型名也是该值的构造器。
-- 1 元 tuple 不存在：`(e)` 就是带括号的表达式 `e` 本身。
+- **0 元 tuple 写作 `()`**；其类型名为 `Unit`，`Unit` 既是类型名也是该值的构造器，`()` 与 `Unit` 等价。
+- **1 元 tuple 必须写作 `(e,)`**（尾随逗号），类型记作 `(T,)`；`(e)` 是带括号的表达式 `e` 本身。消歧汇总：`()` = Unit；`(e)` = 括号表达式；`(e,)` = 1 元 tuple；`(e1, e2, ...)` = 多元 tuple。
 - 元素通过解构（见 4.6）或位置访问：`val (a, b) = t1`、`t1._1`、`t1._2`（位置访问从 `_1` 开始）。
 - tuple 是值类型：immutable、无 identity、结构相等。
 - tuple 不支持实现 interface、不支持命名字段；需要命名请使用 struct。
