@@ -1,0 +1,126 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  fun main
+    val t
+      TupleLiteral
+        IntLiteral 1
+        StringLiteral "hello"
+        BoolLiteral true
+    Call println
+      FieldAccess _1
+        Var t
+    Call println
+      FieldAccess _2
+        Var t
+    Call println
+      FieldAccess _3
+        Var t
+    val u
+      UnitLiteral
+    val s
+      TupleLiteral
+        IntLiteral 42
+    Call println
+      FieldAccess _1
+        Var s
+
+== hir ==
+Module
+  fun print <builtin Print>
+  fun println <builtin Println>
+  fun main
+    val t: (Int, String, Boolean)
+      TupleLiteral : (Int, String, Boolean)
+        IntLiteral 1 : Int
+        StringLiteral "hello" : String
+        BoolLiteral true : Boolean
+    Call println : Unit
+      FieldAccess _1 : Int
+        Local t : (Int, String, Boolean)
+    Call println : Unit
+      FieldAccess _2 : String
+        Local t : (Int, String, Boolean)
+    Call println : Unit
+      FieldAccess _3 : Boolean
+        Local t : (Int, String, Boolean)
+    val u: Unit
+      UnitLiteral : Unit
+    val s: (Int)
+      TupleLiteral : (Int)
+        IntLiteral 42 : Int
+    Call println : Unit
+      FieldAccess _1 : Int
+        Local s : (Int)
+  entry main
+
+== mir ==
+Module
+  fun main @scoop_main
+    val t: (Int, String, Boolean)
+      TupleLiteral
+        IntLiteral 1
+        StringConst @scoop.str.0
+        BoolLiteral true
+    Call @scoop_rt_println_int direct
+      FieldAccess 0
+        Local t
+    Call @scoop_rt_println direct
+      FieldAccess 1
+        Local t
+    Call @scoop_rt_println_boolean direct
+      FieldAccess 2
+        Local t
+    val u: Unit
+      UnitLiteral
+    val s: (Int)
+      TupleLiteral
+        IntLiteral 42
+    Call @scoop_rt_println_int direct
+      FieldAccess 0
+        Local s
+  str @scoop.str.0 "hello"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "hello"
+  fun @scoop_main
+    local %0 t: {i64, ptr, i1}
+    local %1 u: {}
+    local %2 s: {i64}
+  block entry
+    t0 = aggregate (1, global0, true) : {i64, ptr, i1}
+    store t0 -> local0
+    t1 = extract local0, 0 : i64
+    call @scoop_rt_println_int(t1)
+    t2 = aggregate () : {}
+    t3 = extract local0, 1 : ptr
+    call @scoop_rt_println(t3)
+    t4 = aggregate () : {}
+    t5 = extract local0, 2 : i1
+    call @scoop_rt_println_boolean(t5)
+    t6 = aggregate () : {}
+    t7 = aggregate () : {}
+    store t7 -> local1
+    t8 = aggregate (42) : {i64}
+    store t8 -> local2
+    t9 = extract local2, 0 : i64
+    call @scoop_rt_println_int(t9)
+    t10 = aggregate () : {}
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout (Int, String, Boolean) size=24 align=8 refs=[8]
+  layout (Int) size=8 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+1
+hello
+true
+42

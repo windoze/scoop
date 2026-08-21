@@ -27,7 +27,7 @@
 
 顶层函数、`String` 字面量、`fun main`、调用 runtime 的 print。GC 用 always-leak 实现（分配即 malloc、不回收）；单 Cone；不插 statepoint。
 
-### M2 值类型基础
+### M2 值类型基础 ✅（2026-08-22 完成，设计见 `docs/milestone2/DESIGN.md`）
 
 struct / tuple、字段访问、`val` / `var`、if / while、结构相等。
 

@@ -1,11 +1,12 @@
-/* Scoop runtime: object model and runtime entry points (M1 minimal set).
+/* Scoop runtime: object model and runtime entry points.
  *
  * See docs/specs/SCOOP-RUNTIME-SPEC.md section 2 (object model) and
- * docs/milestone1/DESIGN.md section 3 (M1 runtime).
+ * docs/milestone2/DESIGN.md section 3 (M2 runtime additions).
  */
 #ifndef SCOOP_RT_H
 #define SCOOP_RT_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -38,6 +39,15 @@ void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 
 void scoop_rt_print(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
+
+/* M2 additions (DESIGN section 3): String concat / structural equality
+ * and Int / Boolean builtin output. */
+const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b);
+bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b);
+void scoop_rt_print_int(int64_t value);
+void scoop_rt_println_int(int64_t value);
+void scoop_rt_print_boolean(bool value);
+void scoop_rt_println_boolean(bool value);
 
 /* Entry point provided by the compiled user program (its `fun main`). */
 void scoop_main(void);

@@ -1,18 +1,27 @@
-//! Hand-written lexer for the M1 source subset.
+//! Hand-written lexer for the M2 source subset.
 //!
 //! Produces a flat token vector for the parser. Lexing is fail-fast: the
 //! first un-lexable input yields one diagnostic and no tokens at all.
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M1 subset. `Colon` exists only so the parser can
-/// reject return type annotations with a dedicated diagnostic instead of a
-/// generic lex error.
+/// Token kinds of the M2 subset. Reserved words are dedicated variants;
+/// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
+/// it is not a reserved word).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
     Fun,
+    Struct,
+    Val,
+    Var,
+    If,
+    Else,
+    While,
+    True,
+    False,
     Ident(String),
     Str(String),
+    Int(i64),
     LParen,
     RParen,
     LBrace,
@@ -20,6 +29,21 @@ pub(crate) enum TokenKind {
     Comma,
     Semicolon,
     Colon,
+    Dot,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Bang,
+    BangEqual,
+    Equal,
+    EqualEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    AmpAmp,
+    PipePipe,
     Eof,
 }
 
@@ -39,8 +63,17 @@ impl Token {
     pub fn describe(&self) -> String {
         match &self.kind {
             TokenKind::Fun => "`fun`".to_string(),
+            TokenKind::Struct => "`struct`".to_string(),
+            TokenKind::Val => "`val`".to_string(),
+            TokenKind::Var => "`var`".to_string(),
+            TokenKind::If => "`if`".to_string(),
+            TokenKind::Else => "`else`".to_string(),
+            TokenKind::While => "`while`".to_string(),
+            TokenKind::True => "`true`".to_string(),
+            TokenKind::False => "`false`".to_string(),
             TokenKind::Ident(name) => format!("`{name}`"),
             TokenKind::Str(_) => "string literal".to_string(),
+            TokenKind::Int(_) => "integer literal".to_string(),
             TokenKind::LParen => "`(`".to_string(),
             TokenKind::RParen => "`)`".to_string(),
             TokenKind::LBrace => "`{`".to_string(),
@@ -48,6 +81,21 @@ impl Token {
             TokenKind::Comma => "`,`".to_string(),
             TokenKind::Semicolon => "`;`".to_string(),
             TokenKind::Colon => "`:`".to_string(),
+            TokenKind::Dot => "`.`".to_string(),
+            TokenKind::Plus => "`+`".to_string(),
+            TokenKind::Minus => "`-`".to_string(),
+            TokenKind::Star => "`*`".to_string(),
+            TokenKind::Slash => "`/`".to_string(),
+            TokenKind::Bang => "`!`".to_string(),
+            TokenKind::BangEqual => "`!=`".to_string(),
+            TokenKind::Equal => "`=`".to_string(),
+            TokenKind::EqualEqual => "`==`".to_string(),
+            TokenKind::Less => "`<`".to_string(),
+            TokenKind::LessEqual => "`<=`".to_string(),
+            TokenKind::Greater => "`>`".to_string(),
+            TokenKind::GreaterEqual => "`>=`".to_string(),
+            TokenKind::AmpAmp => "`&&`".to_string(),
+            TokenKind::PipePipe => "`||`".to_string(),
             TokenKind::Eof => "end of file".to_string(),
         }
     }
@@ -115,8 +163,71 @@ impl<'a> Lexer<'a> {
                     self.pos += 1;
                     TokenKind::Colon
                 }
+                '.' => {
+                    self.pos += 1;
+                    TokenKind::Dot
+                }
+                '+' => {
+                    self.pos += 1;
+                    TokenKind::Plus
+                }
+                '-' => {
+                    self.pos += 1;
+                    TokenKind::Minus
+                }
+                '*' => {
+                    self.pos += 1;
+                    TokenKind::Star
+                }
+                // No `/*` ambiguity: comment openers are consumed by
+                // `skip_trivia`, so a `/` reaching here is always division.
+                '/' => {
+                    self.pos += 1;
+                    TokenKind::Slash
+                }
+                '!' => {
+                    self.pos += 1;
+                    if self.eat('=') {
+                        TokenKind::BangEqual
+                    } else {
+                        TokenKind::Bang
+                    }
+                }
+                '=' => {
+                    self.pos += 1;
+                    if self.eat('=') {
+                        TokenKind::EqualEqual
+                    } else {
+                        TokenKind::Equal
+                    }
+                }
+                '<' => {
+                    self.pos += 1;
+                    if self.eat('=') {
+                        TokenKind::LessEqual
+                    } else {
+                        TokenKind::Less
+                    }
+                }
+                '>' => {
+                    self.pos += 1;
+                    if self.eat('=') {
+                        TokenKind::GreaterEqual
+                    } else {
+                        TokenKind::Greater
+                    }
+                }
+                '&' if self.source[self.pos + 1..].starts_with('&') => {
+                    self.pos += 2;
+                    TokenKind::AmpAmp
+                }
+                '|' if self.source[self.pos + 1..].starts_with('|') => {
+                    self.pos += 2;
+                    TokenKind::PipePipe
+                }
                 '"' => self.lex_string()?,
-                c if is_ident_start(c) => self.lex_ident(),
+                c if c.is_ascii_digit() => self.lex_int()?,
+                c if is_ident_start(c) => self.lex_ident()?,
                 c => {
                     self.pos += c.len_utf8();
                     return Err(Diagnostic::at(
@@ -135,6 +246,16 @@ impl<'a> Lexer<'a> {
 
     fn peek_char(&self) -> Option<char> {
         self.source[self.pos..].chars().next()
+    }
+
+    /// Consumes `expected` if it is the next char; returns whether it did.
+    fn eat(&mut self, expected: char) -> bool {
+        if self.peek_char() == Some(expected) {
+            self.pos += expected.len_utf8();
+            true
+        } else {
+            false
+        }
     }
 
     fn span_from(&self, start: usize) -> Span {
@@ -167,7 +288,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// `pos` is at the opening `/*`. M1 block comments do not nest.
+    /// `pos` is at the opening `/*`. M2 block comments do not nest.
     fn skip_block_comment(&mut self) -> Result<(), Diagnostic> {
         let start = self.pos;
         self.pos += 2;
@@ -192,7 +313,26 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn lex_ident(&mut self) -> TokenKind {
+    /// `pos` is at the first digit. M2 integers are decimal i64 only.
+    fn lex_int(&mut self) -> Result<TokenKind, Diagnostic> {
+        let start = self.pos;
+        while let Some(c) = self.peek_char() {
+            if !c.is_ascii_digit() {
+                break;
+            }
+            self.pos += 1;
+        }
+        let text = &self.source[start..self.pos];
+        match text.parse::<i64>() {
+            Ok(value) => Ok(TokenKind::Int(value)),
+            Err(_) => Err(Diagnostic::at(
+                self.span_from(start),
+                format!("integer literal `{text}` is out of range (Int is i64)"),
+            )),
+        }
+    }
+
+    fn lex_ident(&mut self) -> Result<TokenKind, Diagnostic> {
         let start = self.pos;
         while let Some(c) = self.peek_char() {
             if !is_ident_continue(c) {
@@ -201,14 +341,30 @@ impl<'a> Lexer<'a> {
             self.pos += c.len_utf8();
         }
         let text = &self.source[start..self.pos];
-        if text == "fun" {
-            TokenKind::Fun
-        } else {
-            TokenKind::Ident(text.to_string())
+        // `f"..."` (string interpolation) lexes as `f` + a string literal;
+        // catch it here for a dedicated diagnostic.
+        if text == "f" && self.peek_char() == Some('"') {
+            return Err(Diagnostic::at(
+                self.span_from(start),
+                "string interpolation is not supported yet (milestone M2)",
+            ));
         }
+        let kind = match text {
+            "fun" => TokenKind::Fun,
+            "struct" => TokenKind::Struct,
+            "val" => TokenKind::Val,
+            "var" => TokenKind::Var,
+            "if" => TokenKind::If,
+            "else" => TokenKind::Else,
+            "while" => TokenKind::While,
+            "true" => TokenKind::True,
+            "false" => TokenKind::False,
+            _ => TokenKind::Ident(text.to_string()),
+        };
+        Ok(kind)
     }
 
-    /// `pos` is at the opening `"`. The returned string is unescaped; M1
+    /// `pos` is at the opening `"`. The returned string is unescaped; M2
     /// supports `\n`, `\t`, `\\` and `\"` only.
     fn lex_string(&mut self) -> Result<TokenKind, Diagnostic> {
         let start = self.pos;

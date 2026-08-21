@@ -1,0 +1,153 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  fun main
+    var n
+      IntLiteral 0
+    var sum
+      IntLiteral 0
+    while
+      Binary Lt
+        Var n
+        IntLiteral 5
+      assign n
+        Binary Add
+          Var n
+          IntLiteral 1
+      if
+        Binary Eq
+          Binary Mul
+            Binary Div
+              Var n
+              IntLiteral 2
+            IntLiteral 2
+          Var n
+        assign sum
+          Binary Add
+            Var sum
+            Var n
+      else
+        assign sum
+          Binary Sub
+            Var sum
+            IntLiteral 1
+    Call println
+      Var sum
+
+== hir ==
+Module
+  fun print <builtin Print>
+  fun println <builtin Println>
+  fun main
+    var n: Int
+      IntLiteral 0 : Int
+    var sum: Int
+      IntLiteral 0 : Int
+    while
+      Binary Lt : Boolean
+        Local n : Int
+        IntLiteral 5 : Int
+      assign n
+        Binary Add : Int
+          Local n : Int
+          IntLiteral 1 : Int
+      if
+        Binary Eq : Boolean
+          Binary Mul : Int
+            Binary Div : Int
+              Local n : Int
+              IntLiteral 2 : Int
+            IntLiteral 2 : Int
+          Local n : Int
+        assign sum
+          Binary Add : Int
+            Local sum : Int
+            Local n : Int
+      else
+        assign sum
+          Binary Sub : Int
+            Local sum : Int
+            IntLiteral 1 : Int
+    Call println : Unit
+      Local sum : Int
+  entry main
+
+== mir ==
+Module
+  fun main @scoop_main
+    var n: Int
+      IntLiteral 0
+    var sum: Int
+      IntLiteral 0
+    while
+      Binary IntLt
+        Local n
+        IntLiteral 5
+      assign n
+        Binary IntAdd
+          Local n
+          IntLiteral 1
+      if
+        Binary IntEq
+          Binary IntMul
+            Binary IntDiv
+              Local n
+              IntLiteral 2
+            IntLiteral 2
+          Local n
+        assign sum
+          Binary IntAdd
+            Local sum
+            Local n
+      else
+        assign sum
+          Binary IntSub
+            Local sum
+            IntLiteral 1
+    Call @scoop_rt_println_int direct
+      Local sum
+  entry @scoop_main
+
+== lir ==
+Module
+  fun @scoop_main
+    local %0 n: i64
+    local %1 sum: i64
+  block entry
+    store 0 -> local0
+    store 0 -> local1
+    br @while.cond.1
+  block while.cond.1
+    t0 = Lt local0, 5 : i1
+    cbr t0 then @while.body.2 else @while.exit.3
+  block while.body.2
+    t1 = Add local0, 1 : i64
+    store t1 -> local0
+    t2 = SDiv local0, 2 : i64
+    t3 = Mul t2, 2 : i64
+    t4 = Eq t3, local0 : i1
+    cbr t4 then @if.then.4 else @if.else.5
+  block while.exit.3
+    call @scoop_rt_println_int(local1)
+    t7 = aggregate () : {}
+    ret
+  block if.then.4
+    t5 = Add local1, local0 : i64
+    store t5 -> local1
+    br @if.merge.6
+  block if.else.5
+    t6 = Sub local1, 1 : i64
+    store t6 -> local1
+    br @if.merge.6
+  block if.merge.6
+    br @while.cond.1
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+
+== run ==
+3
