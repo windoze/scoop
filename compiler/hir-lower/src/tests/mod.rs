@@ -1,24 +1,44 @@
-//! Test builders (M3 AST) and the M1 test suite, adapted to the M3
-//! AST/HIR contracts.
+//! Test builders (M4 AST) and the M1 test suite, adapted to the M4
+//! AST/HIR contracts and the multi-file `lower` entry point.
+//!
+//! Every test compiles the user file together with a minimal
+//! `scoop.core` (`core_file()`: the `Option<T>` enum plus the
+//! `rt_print` / `rt_println` intrinsics), mirroring the driver's
+//! sysroot convention — core files first, the user file last.
 
 mod m2;
 mod m3;
+mod m4;
 
 use super::*;
 use ast::{
     BinOp, Block, CallExpr, Decl, Expr, FieldAccess, FieldDecl, FieldSelector, FunctionBody,
     FunctionDecl, Ident, Param, SourceFile, Statement, StatementKind, StructDecl as AstStructDecl,
-    TypeRef, TypeRefKind, UnOp, ValDecl,
+    TypeRef, TypeRefKind, UnOp, ValDecl, VariantDecl, VariantDeclKind, VariantFieldDecl,
 };
 
 pub(crate) fn sp() -> Span {
     Span::new(0, 0)
 }
 
+/// A span for a trailing `..` rest marker: the split between leading
+/// and trailing elements is recovered by span comparison, so a
+/// trailing rest must sort after the (zero-span) builder patterns.
+pub(crate) fn trailing_rest() -> Span {
+    Span::new(u32::MAX - 1, u32::MAX)
+}
+
 pub(crate) fn ident(text: &str) -> Ident {
     Ident {
         text: text.to_string(),
         span: sp(),
+    }
+}
+
+pub(crate) fn ident_at(text: &str, span: Span) -> Ident {
+    Ident {
+        text: text.to_string(),
+        span,
     }
 }
 
@@ -78,7 +98,7 @@ pub(crate) fn tuple_lit(elements: Vec<Expr>) -> Expr {
 }
 
 /// The `Name(...)` construction node (parser output when `Name` is
-/// known to be a struct).
+/// known to be a struct or an enum variant path).
 pub(crate) fn struct_init(name: &str, args: Vec<Expr>) -> Expr {
     Expr::StructInit {
         name: ident(name),
@@ -151,12 +171,13 @@ pub(crate) fn unary(op: UnOp, operand: Expr) -> Expr {
     }
 }
 
-/// The `None` literal (parsed as an identifier, recognized by HIR).
+/// The `None` variant construction (parsed as an identifier, resolved
+/// by HIR against the core `Option` enum).
 pub(crate) fn none() -> Expr {
     var("None")
 }
 
-/// The builtin `Some(x)` constructor (parsed as a plain call).
+/// The `Some(x)` variant construction (parsed as a plain call).
 pub(crate) fn some(value: Expr) -> Expr {
     call("Some", vec![value])
 }
@@ -172,6 +193,71 @@ pub(crate) fn elvis(lhs: Expr, rhs: Expr) -> Expr {
 pub(crate) fn null_assert(operand: Expr) -> Expr {
     Expr::NullAssert {
         operand: Box::new(operand),
+        span: sp(),
+    }
+}
+
+// --- patterns ---
+
+pub(crate) fn pat_bind(name: &str) -> ast::Pattern {
+    ast::Pattern::Binding(ident(name))
+}
+
+pub(crate) fn pat_bind_at(name: &str, span: Span) -> ast::Pattern {
+    ast::Pattern::Binding(ident_at(name, span))
+}
+
+pub(crate) fn pat_wild() -> ast::Pattern {
+    ast::Pattern::Wildcard { span: sp() }
+}
+
+pub(crate) fn pat_lit(expr: Expr) -> ast::Pattern {
+    ast::Pattern::Literal {
+        expr: Box::new(expr),
+        span: sp(),
+    }
+}
+
+/// `Path?(p1, p2, ..)` — enum positional variant or struct positional.
+pub(crate) fn pat_pos(
+    path: &[&str],
+    elements: Vec<ast::Pattern>,
+    rest: Option<Span>,
+) -> ast::Pattern {
+    ast::Pattern::Positional {
+        path: path.iter().map(|p| ident(p)).collect(),
+        elements,
+        rest,
+        span: sp(),
+    }
+}
+
+/// `Path?{ f1, f2: renamed, .. }` — enum named-field variant or
+/// struct field pattern.
+pub(crate) fn pat_named(
+    path: &[&str],
+    fields: Vec<(&str, Option<&str>)>,
+    rest: Option<Span>,
+) -> ast::Pattern {
+    ast::Pattern::Named {
+        path: path.iter().map(|p| ident(p)).collect(),
+        fields: fields
+            .into_iter()
+            .map(|(name, rename)| ast::FieldPattern {
+                name: ident(name),
+                rename: rename.map(ident),
+                span: sp(),
+            })
+            .collect(),
+        rest,
+        span: sp(),
+    }
+}
+
+pub(crate) fn pat_tuple(elements: Vec<ast::Pattern>, rest: Option<Span>) -> ast::Pattern {
+    ast::Pattern::Tuple {
+        elements,
+        rest,
         span: sp(),
     }
 }
@@ -200,7 +286,7 @@ pub(crate) fn var_(name: &str, init: Expr) -> Statement {
     Statement {
         kind: StatementKind::ValDecl(ValDecl {
             mutable: true,
-            name: ident(name),
+            target: pat_bind(name),
             ty: None,
             init,
             span: sp(),
@@ -213,11 +299,59 @@ pub(crate) fn val_ty(name: &str, ty: Option<TypeRef>, init: Expr) -> Statement {
     Statement {
         kind: StatementKind::ValDecl(ValDecl {
             mutable: false,
-            name: ident(name),
+            target: pat_bind(name),
             ty,
             init,
             span: sp(),
         }),
+        span: sp(),
+    }
+}
+
+/// A destructuring `val` / `var` declaration (spec 4.6).
+pub(crate) fn val_pat(
+    mutable: bool,
+    target: ast::Pattern,
+    ty: Option<TypeRef>,
+    init: Expr,
+) -> Statement {
+    Statement {
+        kind: StatementKind::ValDecl(ValDecl {
+            mutable,
+            target,
+            ty,
+            init,
+            span: sp(),
+        }),
+        span: sp(),
+    }
+}
+
+pub(crate) fn when_stmt(
+    subject: Expr,
+    arms: Vec<ast::WhenArm>,
+    else_body: Option<Vec<Statement>>,
+) -> Statement {
+    Statement {
+        kind: StatementKind::When(ast::When {
+            subject,
+            arms,
+            else_body: else_body.map(block),
+            span: sp(),
+        }),
+        span: sp(),
+    }
+}
+
+pub(crate) fn arm(
+    pattern: ast::Pattern,
+    guard: Option<Expr>,
+    body: Vec<Statement>,
+) -> ast::WhenArm {
+    ast::WhenArm {
+        pattern,
+        guard,
+        body: block(body),
         span: sp(),
     }
 }
@@ -291,6 +425,7 @@ pub(crate) fn fun_sig(
     statements: Vec<Statement>,
 ) -> Decl {
     Decl::Function(FunctionDecl {
+        annotations: Vec::new(),
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -316,6 +451,7 @@ pub(crate) fn fun_expr(
     expr: Expr,
 ) -> Decl {
     Decl::Function(FunctionDecl {
+        annotations: Vec::new(),
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -328,6 +464,30 @@ pub(crate) fn fun_expr(
             .collect(),
         return_ty,
         body: FunctionBody::Expr(Box::new(expr)),
+        span: sp(),
+    })
+}
+
+/// `@Intrinsic("...") fun name(params)` (core library only).
+pub(crate) fn intrinsic_fun(name: &str, intrinsic: &str, params: Vec<(&str, TypeRef)>) -> Decl {
+    Decl::Function(FunctionDecl {
+        annotations: vec![ast::Annotation {
+            name: ident("Intrinsic"),
+            value: Some(intrinsic.to_string()),
+            span: sp(),
+        }],
+        name: ident(name),
+        type_params: Vec::new(),
+        params: params
+            .into_iter()
+            .map(|(name, ty)| Param {
+                name: ident(name),
+                ty,
+                span: sp(),
+            })
+            .collect(),
+        return_ty: None,
+        body: FunctionBody::Block(block(vec![])),
         span: sp(),
     })
 }
@@ -347,11 +507,103 @@ pub(crate) fn struct_decl(name: &str, fields: Vec<(&str, TypeRef)>) -> Decl {
     })
 }
 
+pub(crate) fn enum_decl(name: &str, type_params: Vec<&str>, variants: Vec<VariantDecl>) -> Decl {
+    Decl::Enum(ast::EnumDecl {
+        name: ident(name),
+        type_params: type_params.into_iter().map(ident).collect(),
+        variants,
+        span: sp(),
+    })
+}
+
+pub(crate) fn variant_unit(name: &str) -> VariantDecl {
+    VariantDecl {
+        name: ident(name),
+        kind: VariantDeclKind::Unit,
+        span: sp(),
+    }
+}
+
+pub(crate) fn variant_positional(name: &str, types: Vec<TypeRef>) -> VariantDecl {
+    VariantDecl {
+        name: ident(name),
+        kind: VariantDeclKind::Positional(types),
+        span: sp(),
+    }
+}
+
+pub(crate) fn variant_named(name: &str, fields: Vec<(&str, TypeRef)>) -> VariantDecl {
+    VariantDecl {
+        name: ident(name),
+        kind: VariantDeclKind::Named(
+            fields
+                .into_iter()
+                .map(|(name, ty)| VariantFieldDecl {
+                    name: ident(name),
+                    ty,
+                    default: None,
+                    span: sp(),
+                })
+                .collect(),
+        ),
+        span: sp(),
+    }
+}
+
+pub(crate) fn variant_constructor(
+    name: &str,
+    fields: Vec<(&str, TypeRef, Option<Expr>)>,
+) -> VariantDecl {
+    VariantDecl {
+        name: ident(name),
+        kind: VariantDeclKind::Constructor(
+            fields
+                .into_iter()
+                .map(|(name, ty, default)| VariantFieldDecl {
+                    name: ident(name),
+                    ty,
+                    default,
+                    span: sp(),
+                })
+                .collect(),
+        ),
+        span: sp(),
+    }
+}
+
 pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
     SourceFile {
         declarations,
         span: Span::new(0, 100),
     }
+}
+
+/// The minimal `scoop.core` (sysroot): the `Option<T>` enum (spec 7.2)
+/// and the `rt_print` / `rt_println` intrinsics (milestone4 DESIGN.md
+/// 1.3).
+pub(crate) fn core_file() -> SourceFile {
+    file(vec![
+        enum_decl(
+            "Option",
+            vec!["T"],
+            vec![
+                variant_positional("Some", vec![ty_named("T")]),
+                variant_unit("None"),
+            ],
+        ),
+        intrinsic_fun("print", "rt_print", vec![("message", ty_named("String"))]),
+        intrinsic_fun(
+            "println",
+            "rt_println",
+            vec![("message", ty_named("String"))],
+        ),
+    ])
+}
+
+/// Lower a user file together with the minimal `scoop.core`, mirroring
+/// the driver's sysroot convention (core files first, user file last).
+pub(crate) fn lower_user(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
+    lower(&[core_file(), user])
 }
 
 /// `main` calls `println("hello, world")` then `helper()`, which
@@ -372,21 +624,15 @@ fn hello_world() -> SourceFile {
 
 #[test]
 fn lowers_hello_world() {
-    let module = lower(&hello_world()).expect("hello world must lower");
+    let module = lower_user(hello_world()).expect("hello world must lower");
 
     // Well-known types are allocated first, in a fixed order.
     assert_eq!(module.types[module.unit], Type::Unit);
     assert_eq!(module.types[module.int], Type::Int);
     assert_eq!(module.types[module.boolean], Type::Boolean);
     assert_eq!(module.types[module.string], Type::String);
-    assert!(matches!(
-        module.functions[module.print].kind,
-        FunctionKind::Builtin(Builtin::Print)
-    ));
-    assert!(matches!(
-        module.functions[module.println].kind,
-        FunctionKind::Builtin(Builtin::Println)
-    ));
+    // `Option` comes from the core library.
+    assert_eq!(module.enums[module.option_enum].name, "Option");
 
     // Entry point is `main`.
     assert_eq!(module.functions[module.entry].name, "main");
@@ -394,8 +640,11 @@ fn lowers_hello_world() {
     // Golden dump locks the output structure.
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
     Call println : Unit
       StringLiteral \"hello, world\" : String
@@ -411,15 +660,17 @@ Module
 #[test]
 fn duplicate_function_is_an_error() {
     let file = file(vec![fun("main", vec![]), fun("main", vec![])]);
-    let errors = lower(&file).expect_err("duplicate `main` must fail");
+    let errors = lower_user(file).expect_err("duplicate `main` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "duplicate function `main`");
+    // The duplicate is in the user file (index 1; core is index 0).
+    assert_eq!(errors[0].file, 1);
 }
 
 #[test]
-fn redeclaring_a_builtin_is_an_error() {
+fn redeclaring_a_core_function_is_an_error() {
     let file = file(vec![fun("main", vec![]), fun("print", vec![])]);
-    let errors = lower(&file).expect_err("redeclaring `print` must fail");
+    let errors = lower_user(file).expect_err("redeclaring `print` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "duplicate function `print`");
 }
@@ -431,7 +682,7 @@ fn unknown_function_is_an_error_with_callee_span() {
         "main",
         vec![stmt(call_at("hello", vec![], callee_span))],
     )]);
-    let errors = lower(&file).expect_err("unknown callee must fail");
+    let errors = lower_user(file).expect_err("unknown callee must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "unknown function `hello`");
     assert_eq!(errors[0].span, Some(callee_span));
@@ -442,7 +693,7 @@ fn print_requires_exactly_one_argument() {
     for args in [vec![], vec![str_lit("a"), str_lit("b")]] {
         let supplied = args.len();
         let file = file(vec![fun("main", vec![stmt(call("print", args))])]);
-        let errors = lower(&file).expect_err("wrong arity must fail");
+        let errors = lower_user(file).expect_err("wrong arity must fail");
         assert_eq!(errors.len(), 1);
         assert_eq!(
             errors[0].message,
@@ -453,7 +704,7 @@ fn print_requires_exactly_one_argument() {
 
 #[test]
 fn print_argument_must_be_printable() {
-    // `helper()` has type `Unit`, which is not printable in M2.
+    // `helper()` has type `Unit`, which is not printable.
     let file = file(vec![
         fun(
             "main",
@@ -461,7 +712,7 @@ fn print_argument_must_be_printable() {
         ),
         fun("helper", vec![]),
     ]);
-    let errors = lower(&file).expect_err("non-printable argument must fail");
+    let errors = lower_user(file).expect_err("non-printable argument must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -475,7 +726,7 @@ fn user_function_arity_is_an_error() {
         fun("main", vec![stmt(call("helper", vec![str_lit("x")]))]),
         fun("helper", vec![]),
     ]);
-    let errors = lower(&file).expect_err("argument to `helper` must fail");
+    let errors = lower_user(file).expect_err("argument to `helper` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -486,7 +737,7 @@ fn user_function_arity_is_an_error() {
 #[test]
 fn missing_main_is_an_error_with_file_span() {
     let file = file(vec![fun("helper", vec![])]);
-    let errors = lower(&file).expect_err("missing `main` must fail");
+    let errors = lower_user(file.clone()).expect_err("missing `main` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -498,7 +749,7 @@ fn missing_main_is_an_error_with_file_span() {
 #[test]
 fn bare_literal_statement_is_an_error() {
     let file = file(vec![fun("main", vec![stmt(str_lit("dangling"))])]);
-    let errors = lower(&file).expect_err("literal statement must fail");
+    let errors = lower_user(file).expect_err("literal statement must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "statement must be a function call");
 }
@@ -512,7 +763,7 @@ fn collects_multiple_diagnostics() {
             stmt(call("missing_two", vec![])),
         ],
     )]);
-    let errors = lower(&file).expect_err("unknown callees must fail");
+    let errors = lower_user(file).expect_err("unknown callees must fail");
     assert_eq!(errors.len(), 2);
     assert_eq!(errors[0].message, "unknown function `missing_one`");
     assert_eq!(errors[1].message, "unknown function `missing_two`");

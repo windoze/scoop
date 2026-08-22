@@ -4,6 +4,15 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
   fun hello()
     Call print
       StringLiteral "hello"
@@ -16,8 +25,11 @@ SourceFile
 
 == hir ==
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun hello(): Unit
     Call print : Unit
       StringLiteral "hello" : String

@@ -1,9 +1,11 @@
-//! Expression lowering and type checking (milestone3 DESIGN.md 2.2).
+//! Expression lowering and type checking (milestone3 DESIGN.md 2.2,
+//! milestone4 DESIGN.md 3.2).
 //!
 //! Every expression that survives this stage carries its type
 //! (`hir::Expr::ty`); calls resolve to a `FunctionId` (plus inferred
 //! type arguments for generic callees), struct constructions to a
-//! `StructId`, field accesses to a `FieldRef`.
+//! `StructId`, variant constructions to a `(EnumId, variant index)`
+//! pair, field accesses to a `FieldRef`.
 //!
 //! Two cross-cutting mechanisms:
 //!
@@ -21,15 +23,19 @@
 //! so sink statements execute exactly where the owning statement does.
 //! (`while` conditions are the one place where this would change
 //! semantics — they re-evaluate per iteration — and are rejected by
-//! the while-statement lowering.)
+//! the while-statement lowering; `when` guards reject them too.)
 //!
 //! **Expected-type hint.** `lower_expr` receives the type the context
 //! expects, when known: `val` annotations, assignment targets, function
 //! argument positions, the other side of `==` / `!=`, the right side of
-//! `?:`, and the function return type at `return`. The only consumer is
-//! the `None` literal (and `Some`, which strips one `Option` layer):
-//! every other expression ignores the hint and mismatches are reported
-//! by the context's own type check.
+//! `?:`, and the function return type at `return`. The consumers are
+//! the variant constructors whose type arguments cannot be inferred
+//! from arguments: a unit variant (`None`, `Color.Red` on a generic
+//! enum) takes its type arguments from the hint, and `Some(x)` seeds
+//! its inference from an expected `Option<T>` (this is what types
+//! `Some(None)` under an `Int??` annotation). Every other expression
+//! ignores the hint and mismatches are reported by the context's own
+//! type check.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -73,22 +79,25 @@ impl Lowerer {
             ast::Expr::TupleLiteral { elements, span } => {
                 self.lower_tuple_literal(elements, *span, sink)
             }
-            ast::Expr::StructInit { name, args, span } => {
-                let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) else {
+            // `Name(args...)` where the parser already knows `Name` is
+            // a type (struct or enum variant path).
+            ast::Expr::StructInit { name, args, span } => match self.classify_constructor(name)? {
+                Constructor::Struct { struct_id, ty } => {
+                    self.lower_struct_init(struct_id, ty, args, *span, sink)
+                }
+                Constructor::Variant { enum_id, variant } => {
+                    self.lower_variant_construct(enum_id, variant, args, *span, sink, expected)
+                }
+                Constructor::Unmatched => {
                     self.error(name.span, format!("unknown struct `{}`", name.text));
-                    return None;
-                };
-                self.lower_struct_init(struct_id, ty, args, *span, sink)
-            }
-            // `None` is a reserved literal (DESIGN.md 2.1: parsed as an
-            // identifier, recognized here); it is not shadowed by
-            // locals.
-            ast::Expr::Var(name) if name.text == "None" => self.lower_none(name.span, expected),
-            ast::Expr::Var(name) => self.lower_var(name),
+                    None
+                }
+            },
+            ast::Expr::Var(name) => self.lower_var(name, expected),
             ast::Expr::FieldAccess(access) if access.safe => {
                 self.lower_safe_field_access(access, sink)
             }
-            ast::Expr::FieldAccess(access) => self.lower_field_access(access, sink),
+            ast::Expr::FieldAccess(access) => self.lower_field_access(access, sink, expected),
             ast::Expr::Call(call) => self.lower_call(call, sink, expected),
             ast::Expr::Binary { op, lhs, rhs, span } => {
                 self.lower_binary(*op, lhs, rhs, *span, sink)
@@ -128,7 +137,26 @@ impl Lowerer {
         })
     }
 
-    fn lower_var(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
+    /// A bare identifier in expression position. The `Option` variants
+    /// (`Some` / `None`) are visible without a prefix (spec 7.2 default
+    /// import) and take precedence over locals (M3 behavior); every
+    /// other enum's variants need the `E.V` prefix (M4 simplification,
+    /// milestone4 DESIGN.md 3.2).
+    fn lower_var(&mut self, name: &ast::Ident, expected: Option<TypeId>) -> Option<hir::Expr> {
+        if let Some((enum_id, variant)) = self.option_variant(&name.text) {
+            if self.enums[enum_id].variants[variant as usize]
+                .fields
+                .is_empty()
+            {
+                return self.lower_unit_variant(name, enum_id, variant, expected);
+            }
+            let text = &name.text;
+            self.error(
+                name.span,
+                format!("variant `{text}` of `Option` takes arguments; use `{text}(...)` to construct it"),
+            );
+            return None;
+        }
         let Some(local) = self.scopes.lookup(&name.text) else {
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
@@ -141,65 +169,221 @@ impl Lowerer {
         })
     }
 
-    /// The `None` literal has no inherent type (any `Option<T>` fits);
-    /// it takes its type from the expected-type hint.
-    fn lower_none(&mut self, span: Span, expected: Option<TypeId>) -> Option<hir::Expr> {
-        match expected {
-            Some(ty) if matches!(self.types[ty], Type::Option(_)) => Some(hir::Expr {
-                kind: ExprKind::NoneLiteral,
-                ty,
-                span,
-            }),
-            _ => {
-                self.error(span, "cannot infer the type of `None`".to_string());
-                None
+    /// A unit variant construction (`None`, `Color.Red`): the variant
+    /// carries no fields, so the enum's type arguments (if any) must
+    /// come from the expected-type hint — the M3 `None` inference
+    /// rule, generalized.
+    fn lower_unit_variant(
+        &mut self,
+        name: &ast::Ident,
+        enum_id: hir::EnumId,
+        variant: u32,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let arity = self.enums[enum_id].type_params.len();
+        let type_args = if arity == 0 {
+            Vec::new()
+        } else {
+            let inferred = expected.and_then(|ty| match self.types[ty].clone() {
+                Type::Enum(id, args) if id == enum_id && args.len() == arity => Some(args),
+                _ => None,
+            });
+            match inferred {
+                Some(args) => args,
+                None => {
+                    self.error(
+                        name.span,
+                        format!("cannot infer the type of `{}`", name.text),
+                    );
+                    return None;
+                }
             }
-        }
+        };
+        let ty = self.intern_type(Type::Enum(enum_id, type_args.clone()));
+        Some(hir::Expr {
+            kind: ExprKind::VariantConstruct {
+                enum_id,
+                variant,
+                type_args,
+                args: Vec::new(),
+            },
+            ty,
+            span: name.span,
+        })
     }
 
-    /// `Name(args...)` in call position: `Some` is the builtin Option
-    /// constructor, then the name resolves in the struct namespace
-    /// (construction), then in the function namespace (direct call).
+    /// What a `Name` / `Name(...)` construction site resolves to. A
+    /// dotted path `E.V` is always an enum variant; a bare name is a
+    /// globally visible `Option` variant (`Some` / `None`), then a
+    /// struct, then — for `Call` nodes only — a function.
+    fn classify_constructor(&mut self, name: &ast::Ident) -> Option<Constructor> {
+        if let Some((enum_name, variant_name)) = name.text.split_once('.') {
+            let Some(&enum_id) = self.enums_by_name.get(enum_name) else {
+                self.error(name.span, format!("unknown enum `{enum_name}`"));
+                return None;
+            };
+            let Some(variant) = self.find_variant(enum_id, variant_name) else {
+                self.error(
+                    name.span,
+                    format!("enum `{enum_name}` has no variant `{variant_name}`"),
+                );
+                return None;
+            };
+            return Some(Constructor::Variant { enum_id, variant });
+        }
+        if let Some((enum_id, variant)) = self.option_variant(&name.text) {
+            return Some(Constructor::Variant { enum_id, variant });
+        }
+        if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
+            return Some(Constructor::Struct { struct_id, ty });
+        }
+        Some(Constructor::Unmatched)
+    }
+
+    /// `Name(args...)` in call position: a variant or struct
+    /// construction when the name resolves as one, a direct function
+    /// call otherwise.
     fn lower_call(
         &mut self,
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        // `Some(x)` is recognized as the builtin constructor (DESIGN.md
-        // 2.1: parsed as a plain call); it takes precedence over any
-        // user declaration of the same name.
-        if call.callee.text == "Some" {
-            if call.args.len() != 1 {
-                let supplied = call.args.len();
+        match self.classify_constructor(&call.callee)? {
+            Constructor::Variant { enum_id, variant } => self
+                .lower_variant_construct(enum_id, variant, &call.args, call.span, sink, expected),
+            Constructor::Struct { struct_id, ty } => {
+                self.lower_struct_init(struct_id, ty, &call.args, call.span, sink)
+            }
+            Constructor::Unmatched => self.lower_function_call(call, sink),
+        }
+    }
+
+    /// Variant construction (`Some(x)`, `Shape.Circle(1)`,
+    /// `E.WithDefault(1)` with a trailing default filled in). The
+    /// variant behaves like a generic constructor function: type
+    /// arguments are seeded from an expected `E<...>` hint and then
+    /// inferred from the arguments (the same binding mechanism as
+    /// generic calls), and each argument is checked against the
+    /// instantiated field type.
+    fn lower_variant_construct(
+        &mut self,
+        enum_id: hir::EnumId,
+        variant: u32,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let enum_name = self.enums[enum_id].name.clone();
+        let type_params = self.enums[enum_id].type_params.clone();
+        let variant_name = self.enums[enum_id].variants[variant as usize].name.clone();
+        let fields: Vec<(String, TypeId)> = self.enums[enum_id].variants[variant as usize]
+            .fields
+            .iter()
+            .map(|field| (field.name.clone(), field.ty))
+            .collect();
+        let total = fields.len();
+        let supplied = args.len();
+        if supplied > total {
+            self.error(
+                span,
+                format!(
+                    "variant `{variant_name}` of `{enum_name}` takes exactly {total} {}, but {supplied} were supplied",
+                    if total == 1 { "argument" } else { "arguments" }
+                ),
+            );
+            return None;
+        }
+
+        let mut bindings = vec![None; type_params.len()];
+        if let Some(expected) = expected {
+            if let Type::Enum(id, expected_args) = self.types[expected].clone() {
+                if id == enum_id && expected_args.len() == type_params.len() {
+                    for (binding, arg) in bindings.iter_mut().zip(expected_args) {
+                        *binding = Some(arg);
+                    }
+                }
+            }
+        }
+        let mut lowered = Vec::with_capacity(total);
+        for (arg_expr, (_, field_ty)) in args.iter().zip(&fields) {
+            let hint = self.try_substitute(*field_ty, &bindings);
+            let arg = self.lower_expr(arg_expr, sink, hint)?;
+            if !self.bind_type_args(*field_ty, arg.ty, &mut bindings, &type_params, arg.span) {
+                return None; // conflict diagnostic already recorded
+            }
+            lowered.push(arg);
+        }
+
+        // Arity first: missing trailing fields must have
+        // constructor-style defaults (checked before inference so a
+        // short call reports arity, not an unbound type argument).
+        for index in supplied..total {
+            if self.enums[enum_id].variants[variant as usize].defaults[index].is_none() {
                 self.error(
-                    call.span,
-                    format!("`Some` takes exactly 1 argument, but {supplied} were supplied"),
+                    span,
+                    format!(
+                        "variant `{variant_name}` of `{enum_name}` takes exactly {total} {}, but {supplied} were supplied",
+                        if total == 1 { "argument" } else { "arguments" }
+                    ),
                 );
                 return None;
             }
-            // `Some` wraps one more Option layer: with an expected
-            // `Option<T>` the argument hint is `T` (this is what types
-            // `Some(None)` under an `Int??` annotation).
-            let arg_hint = match expected {
-                Some(ty) => match self.types[ty].clone() {
-                    Type::Option(inner) => Some(inner),
-                    _ => None,
-                },
-                None => None,
-            };
-            let value = self.lower_expr(&call.args[0], sink, arg_hint)?;
-            let ty = self.intern_type(Type::Option(value.ty));
-            return Some(hir::Expr {
-                kind: ExprKind::SomeWrap(Box::new(value)),
-                ty,
-                span: call.span,
-            });
         }
-        if let Some(&(struct_id, ty)) = self.structs_by_name.get(&call.callee.text) {
-            return self.lower_struct_init(struct_id, ty, &call.args, call.span, sink);
+
+        let mut type_args = Vec::with_capacity(bindings.len());
+        for (binding, param_name) in bindings.into_iter().zip(&type_params) {
+            match binding {
+                Some(ty) => type_args.push(ty),
+                None => {
+                    self.error(
+                        span,
+                        format!(
+                            "cannot infer type argument `{param_name}` for `{enum_name}.{variant_name}`"
+                        ),
+                    );
+                    return None;
+                }
+            }
         }
-        self.lower_function_call(call, sink)
+
+        // Argument types must match the instantiated field types.
+        for ((field_name, field_ty), arg) in fields.iter().zip(&lowered) {
+            let expected = self.instantiate_ty(*field_ty, &type_args);
+            if !self.types_equal(expected, arg.ty) {
+                let expected_name = self.type_name(expected);
+                let found = self.type_name(arg.ty);
+                self.error(
+                    arg.span,
+                    format!(
+                        "argument for field `{field_name}` of `{enum_name}.{variant_name}` must be of type {expected_name}, found {found}"
+                    ),
+                );
+                return None;
+            }
+        }
+
+        // Fill the trailing defaults (already lowered and type-checked
+        // at the declaration site).
+        for index in supplied..total {
+            let default = self.enums[enum_id].variants[variant as usize].defaults[index]
+                .as_ref()
+                .expect("missing defaults were rejected above");
+            lowered.push(clone_literal(default));
+        }
+
+        let ty = self.intern_type(Type::Enum(enum_id, type_args.clone()));
+        Some(hir::Expr {
+            kind: ExprKind::VariantConstruct {
+                enum_id,
+                variant,
+                type_args,
+                args: lowered,
+            },
+            ty,
+            span,
+        })
     }
 
     fn lower_function_call(
@@ -218,13 +402,19 @@ impl Lowerer {
             }
         };
         let name = self.functions[function].name.clone();
-        let is_builtin = matches!(self.functions[function].kind, hir::FunctionKind::Builtin(_));
 
-        // Builtins take exactly one `String` / `Int` / `Boolean`
-        // argument and return `Unit`. A type parameter is not
-        // printable: `T` is unconstrained, so there is no way to prove
-        // it at the definition site (DESIGN.md 2.2).
-        if is_builtin {
+        // Intrinsics are checked against the registry's signature rules
+        // (impl spec 2.10), not their declared parameter list: the M4
+        // entries `rt_print` / `rt_println` take exactly one
+        // `String` / `Int` / `Boolean` argument and return `Unit`
+        // (M2/M3 behavior, milestone4 DESIGN.md 1.3). A type parameter
+        // is not printable: `T` is unconstrained, so there is no way to
+        // prove it at the definition site.
+        if let hir::FunctionKind::Intrinsic(intrinsic) = &self.functions[function].kind {
+            debug_assert!(
+                matches!(intrinsic.as_str(), "rt_print" | "rt_println"),
+                "every registry entry needs a signature rule here"
+            );
             if call.args.len() != 1 {
                 let supplied = call.args.len();
                 self.error(
@@ -337,11 +527,12 @@ impl Lowerer {
         })
     }
 
-    /// Bind type arguments by matching a parameter type against the
-    /// argument type: `T` binds to the argument type, `Option<T>` vs
-    /// `Option<Int>` recurses (so `T = Int`), tuples match
-    /// elementwise. Anything else is left to the argument type check.
-    /// Returns `false` after recording a conflict diagnostic.
+    /// Bind type arguments by matching a parameter (or variant field)
+    /// type against the argument type: `T` binds to the argument type,
+    /// `Option<T>` vs `Option<Int>` recurses (so `T = Int`) — as do
+    /// other enum applications — and tuples match elementwise. Anything
+    /// else is left to the argument type check. Returns `false` after
+    /// recording a conflict diagnostic.
     fn bind_type_args(
         &mut self,
         param_ty: TypeId,
@@ -376,8 +567,14 @@ impl Lowerer {
                     }
                 }
             }
-            (Type::Option(param_inner), Type::Option(arg_inner)) => {
-                self.bind_type_args(param_inner, arg_inner, bindings, type_params, span)
+            (Type::Enum(param_id, param_args), Type::Enum(arg_id, arg_args))
+                if param_id == arg_id && param_args.len() == arg_args.len() =>
+            {
+                let mut ok = true;
+                for (param, arg) in param_args.iter().zip(arg_args.iter()) {
+                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                }
+                ok
             }
             (Type::Tuple(param_elements), Type::Tuple(arg_elements))
                 if param_elements.len() == arg_elements.len() =>
@@ -455,7 +652,16 @@ impl Lowerer {
         &mut self,
         access: &ast::FieldAccess,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        // `E.V` where `E` is an enum: a unit variant construction
+        // (`Color.Red`). Variants with fields are constructors and must
+        // be called (`E.V(...)`).
+        if let ast::Expr::Var(name) = &*access.receiver {
+            if let Some(&enum_id) = self.enums_by_name.get(&name.text) {
+                return self.lower_qualified_variant(enum_id, access, expected);
+            }
+        }
         let receiver = self.lower_expr(&access.receiver, sink, None)?;
         let (field, ty) = self.resolve_field(receiver.ty, &access.selector)?;
         Some(hir::Expr {
@@ -466,6 +672,42 @@ impl Lowerer {
             ty,
             span: access.span,
         })
+    }
+
+    /// `E.V` with `E` an enum (see `lower_field_access`).
+    fn lower_qualified_variant(
+        &mut self,
+        enum_id: hir::EnumId,
+        access: &ast::FieldAccess,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let enum_name = self.enums[enum_id].name.clone();
+        let ast::FieldSelector::Name(variant_name) = &access.selector else {
+            self.error(
+                access.span,
+                format!("enum `{enum_name}` has no variants selected by index"),
+            );
+            return None;
+        };
+        let Some(variant) = self.find_variant(enum_id, &variant_name.text) else {
+            self.error(
+                variant_name.span,
+                format!("enum `{enum_name}` has no variant `{}`", variant_name.text),
+            );
+            return None;
+        };
+        let arity = self.enums[enum_id].variants[variant as usize].fields.len();
+        if arity != 0 {
+            let vname = &variant_name.text;
+            self.error(
+                access.span,
+                format!(
+                    "variant `{vname}` of `{enum_name}` takes {arity} argument(s); use `{enum_name}.{vname}(...)` to construct it"
+                ),
+            );
+            return None;
+        }
+        self.lower_unit_variant(variant_name, enum_id, variant, expected)
     }
 
     /// `receiver?.field`: the receiver must be an `Option<S>`; the
@@ -479,7 +721,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let receiver = self.lower_expr(&access.receiver, sink, None)?;
-        let Type::Option(inner) = self.types[receiver.ty].clone() else {
+        let Some(inner) = self.as_option(receiver.ty) else {
             let found = self.type_name(receiver.ty);
             self.error(
                 access.span,
@@ -488,7 +730,7 @@ impl Lowerer {
             return None;
         };
         let (field, field_ty) = self.resolve_field(inner, &access.selector)?;
-        let result_ty = self.intern_type(Type::Option(field_ty));
+        let result_ty = self.option_type(field_ty);
         let span = access.span;
         let then_value = move |tmp: hir::Expr| {
             let unwrapped = hir::Expr {
@@ -546,7 +788,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let lhs = self.lower_expr(lhs, sink, None)?;
-        let Type::Option(inner) = self.types[lhs.ty].clone() else {
+        let Some(inner) = self.as_option(lhs.ty) else {
             let found = self.type_name(lhs.ty);
             self.error(
                 span,
@@ -596,7 +838,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let operand = self.lower_expr(operand, sink, None)?;
-        let Type::Option(inner) = self.types[operand.ty].clone() else {
+        let Some(inner) = self.as_option(operand.ty) else {
             let found = self.type_name(operand.ty);
             self.error(
                 span,
@@ -633,7 +875,7 @@ impl Lowerer {
         let tmp = self.alloc_hidden("opt", option_ty);
         sink.push(hir::Statement {
             kind: hir::StatementKind::ValDecl {
-                local: tmp,
+                pattern: hir::Pattern::Binding { local: tmp },
                 init: receiver,
             },
             span,
@@ -651,7 +893,7 @@ impl Lowerer {
         let result = self.alloc_hidden("res", result_ty);
         let then_body = vec![hir::Statement {
             kind: hir::StatementKind::ValDecl {
-                local: result,
+                pattern: hir::Pattern::Binding { local: result },
                 init: then_value(tmp_expr(span)),
             },
             span,
@@ -659,7 +901,7 @@ impl Lowerer {
         let mut else_body = else_branch.statements;
         else_body.push(hir::Statement {
             kind: hir::StatementKind::ValDecl {
-                local: result,
+                pattern: hir::Pattern::Binding { local: result },
                 init: else_branch.value,
             },
             span,
@@ -766,10 +1008,10 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let (op, symbol) = convert_bin_op(op);
-        // `x == None` / `None == x`: the `None` literal takes its type
-        // from the other operand (expected-type hint), so the other
-        // side is lowered first. (`None` itself is side-effect free,
-        // so lowering order is unobservable here.)
+        // `x == None` / `None == x`: the `None` construction takes its
+        // type from the other operand (expected-type hint), so the
+        // other side is lowered first. (`None` itself is side-effect
+        // free, so lowering order is unobservable here.)
         let (lhs, rhs) = if matches!(op, hir::BinOp::Eq | hir::BinOp::Ne)
             && is_none_literal(lhs)
             && !is_none_literal(rhs)
@@ -809,8 +1051,10 @@ impl Lowerer {
             }
             hir::BinOp::Eq | hir::BinOp::Ne => {
                 // Every type supports structural equality (including
-                // type parameters and Options — `== None` relies on
-                // this); the two sides just have to agree.
+                // type parameters and enums — `== None` relies on
+                // this); the two sides just have to agree. The
+                // expansion over enum payloads happens in MIR
+                // (milestone4 DESIGN.md 3.3).
                 if !self.types_equal(lhs.ty, rhs.ty) {
                     let lhs_ty = self.type_name(lhs.ty);
                     let rhs_ty = self.type_name(rhs.ty);
@@ -908,6 +1152,20 @@ impl Lowerer {
     }
 }
 
+/// What a `Name` / `Name(...)` construction site resolved to (see
+/// `classify_constructor`).
+enum Constructor {
+    Variant {
+        enum_id: hir::EnumId,
+        variant: u32,
+    },
+    Struct {
+        struct_id: hir::StructId,
+        ty: TypeId,
+    },
+    Unmatched,
+}
+
 /// The else half of a `?.` / `?:` desugaring: the statements evaluating
 /// the fallback (lazily, inside the branch), then the fallback value.
 struct ElseBranch {
@@ -915,9 +1173,30 @@ struct ElseBranch {
     value: hir::Expr,
 }
 
-/// Whether the expression is the `None` literal (see `lower_expr`).
+/// Whether the expression is the `None` construction (see
+/// `lower_binary`).
 fn is_none_literal(expr: &ast::Expr) -> bool {
     matches!(expr, ast::Expr::Var(name) if name.text == "None")
+}
+
+/// Copy a variant field default. Defaults are literals
+/// (`resolve_variant_default` enforces this), so copying is trivial.
+fn clone_literal(expr: &hir::Expr) -> hir::Expr {
+    let kind = match &expr.kind {
+        ExprKind::IntLiteral(value) => ExprKind::IntLiteral(*value),
+        ExprKind::StringLiteral(value) => ExprKind::StringLiteral(value.clone()),
+        ExprKind::BoolLiteral(value) => ExprKind::BoolLiteral(*value),
+        ExprKind::Unary { op, operand } => ExprKind::Unary {
+            op: *op,
+            operand: Box::new(clone_literal(operand)),
+        },
+        _ => unreachable!("variant defaults are literals (resolve_variant_default)"),
+    };
+    hir::Expr {
+        kind,
+        ty: expr.ty,
+        span: expr.span,
+    }
 }
 
 fn convert_bin_op(op: ast::BinOp) -> (hir::BinOp, &'static str) {

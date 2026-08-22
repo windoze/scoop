@@ -1,0 +1,10 @@
+enum Color { Red, Green, Blue }
+
+fun main() {
+    val c = Color.Red
+    when (c) {
+        Red -> println("red")
+        Color.Yellow -> println("yellow")
+        else -> println("other")
+    }
+}

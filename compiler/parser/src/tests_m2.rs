@@ -3,7 +3,9 @@
 //! expression grammar (precedence, postfix access, unit/tuple/paren
 //! disambiguation), and every M2 "not supported" diagnostic.
 
-use scoop_ast::{BinOp, Decl, Expr, FieldSelector, Span, StatementKind, TypeRefKind, UnOp};
+use scoop_ast::{
+    BinOp, Decl, Expr, FieldSelector, Pattern, Span, StatementKind, TypeRefKind, UnOp,
+};
 
 use crate::tests::{block_body, err, ok, only_function};
 
@@ -104,8 +106,11 @@ fn val_decl_with_type_annotation() {
         panic!("expected a val declaration");
     };
     assert!(!decl.mutable);
-    assert_eq!(decl.name.text, "x");
-    assert_eq!(decl.name.span, Span::new(21, 22));
+    let Pattern::Binding(name) = &decl.target else {
+        panic!("expected a binding pattern");
+    };
+    assert_eq!(name.text, "x");
+    assert_eq!(name.span, Span::new(21, 22));
     let ty = decl.ty.as_ref().expect("type annotation present");
     assert!(matches!(&ty.kind, TypeRefKind::Named(name) if name.text == "Int"));
     assert_eq!(decl.span, Span::new(17, 32));
@@ -404,28 +409,12 @@ fun main() {\n\
 // --- M2 "not supported" diagnostics ----------------------------------------
 
 #[test]
-fn enum_not_supported() {
-    let (span, message) = err("enum Color { RED }");
-    assert_eq!(span, Span::new(0, 4));
-    assert_eq!(message, "enums are not supported yet (milestone M3)");
-}
-
-#[test]
-fn when_statement_not_supported() {
-    let (span, message) = err("fun main() {\n    when (x) {\n    }\n}\n");
-    assert_eq!(span, Span::new(17, 21));
-    assert_eq!(
-        message,
-        "`when` expressions are not supported yet (milestone M3)"
-    );
-}
-
-#[test]
 fn when_expression_not_supported() {
+    // M4 adds the `when` statement; the expression form stays unsupported.
     let (_, message) = err("fun main() { val x = when (y) {} }");
     assert_eq!(
         message,
-        "`when` expressions are not supported yet (milestone M3)"
+        "`when` expressions are not supported yet (milestone M4)"
     );
 }
 

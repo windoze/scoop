@@ -1,0 +1,193 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  fun main()
+    val a: Int?
+      Call Some
+        IntLiteral 10
+    when
+      Var a
+      arm Some(v)
+        Call println
+          Var v
+      arm None
+        Call println
+          StringLiteral "none"
+    val b: Int?
+      Var None
+    when
+      Var b
+      arm Some(v)
+        Call println
+          Var v
+      arm None
+        Call println
+          StringLiteral "none"
+
+== hir ==
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
+  fun main(): Unit
+    val local0
+      VariantConstruct Option.Some<Int> : Option<Int>
+        IntLiteral 10 : Int
+    when
+      Local a : Option<Int>
+      arm variant0(0: local1)
+        Call println : Unit
+          Local v : Int
+      arm variant1()
+        Call println : Unit
+          StringLiteral "none" : String
+    val local2
+      VariantConstruct Option.None<Int> : Option<Int>
+    when
+      Local b : Option<Int>
+      arm variant0(0: local3)
+        Call println : Unit
+          Local v : Int
+      arm variant1()
+        Call println : Unit
+          StringLiteral "none" : String
+  entry main
+
+== mir ==
+Module
+  enum Option$I
+    Some(_1: Int)
+    None()
+  fun main @scoop_main() -> Unit
+    val a: Option$I<Int>
+      VariantConstruct Option$I<Int> v0
+        IntLiteral 10
+    val $when.1: Option$I<Int>
+      Local a
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.1
+        IntLiteral 0
+      val v: Int
+        EnumField v0 f0
+          Local $when.1
+      Call @scoop_rt_println_int direct
+        Local v
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 1
+        Call @scoop_rt_println direct
+          StringConst @scoop.str.0
+    val b: Option$I<Int>
+      VariantConstruct Option$I<Int> v1
+    val $when.2: Option$I<Int>
+      Local b
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.2
+        IntLiteral 0
+      val v: Int
+        EnumField v0 f0
+          Local $when.2
+      Call @scoop_rt_println_int direct
+        Local v
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.2
+          IntLiteral 1
+        Call @scoop_rt_println direct
+          StringConst @scoop.str.1
+  str @scoop.str.0 "none"
+  str @scoop.str.1 "none"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "none"
+  global @scoop.str.1 = "none"
+  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  fun @scoop_main() -> void
+    local %0 a: enum0
+    local %1 v: i64
+    local %2 b: enum0
+    local %3 v: i64
+    local %4 $when.1: enum0
+    local %5 $when.2: enum0
+  block entry
+    t0 = enum_wrap e0 v0 (10) : enum0
+    store t0 -> local0
+    store local0 -> local4
+    t1 = enum_tag e0 local4 : i64
+    t2 = Eq t1, 0 : i1
+    cbr t2 then @if.then.1 else @if.else.2
+  block if.then.1
+    t3 = enum_field e0 v0 f0 local4 : i64
+    store t3 -> local1
+    call @scoop_rt_println_int(local1)
+    t4 = aggregate () : {}
+    br @if.merge.3
+  block if.else.2
+    t5 = enum_tag e0 local4 : i64
+    t6 = Eq t5, 1 : i1
+    cbr t6 then @if.then.4 else @if.merge.5
+  block if.merge.3
+    t8 = enum_wrap e0 v1 () : enum0
+    store t8 -> local2
+    store local2 -> local5
+    t9 = enum_tag e0 local5 : i64
+    t10 = Eq t9, 0 : i1
+    cbr t10 then @if.then.6 else @if.else.7
+  block if.then.4
+    call @scoop_rt_println(global0)
+    t7 = aggregate () : {}
+    br @if.merge.5
+  block if.merge.5
+    br @if.merge.3
+  block if.then.6
+    t11 = enum_field e0 v0 f0 local5 : i64
+    store t11 -> local3
+    call @scoop_rt_println_int(local3)
+    t12 = aggregate () : {}
+    br @if.merge.8
+  block if.else.7
+    t13 = enum_tag e0 local5 : i64
+    t14 = Eq t13, 1 : i1
+    cbr t14 then @if.then.9 else @if.merge.10
+  block if.merge.8
+    ret
+  block if.then.9
+    call @scoop_rt_println(global1)
+    t15 = aggregate () : {}
+    br @if.merge.10
+  block if.merge.10
+    br @if.merge.8
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option$I size=16 align=8 enum-refs=[[], []]
+  entry @scoop_main
+
+== run ==
+10
+none

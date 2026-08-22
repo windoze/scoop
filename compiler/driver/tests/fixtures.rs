@@ -97,11 +97,16 @@ fn fixtures() {
                 )
             }
             Err(diagnostics) => {
-                let rendered = diagnostics
-                    .iter()
-                    .map(|d| d.render(&relative, &source))
-                    .collect::<Vec<_>>()
-                    .join("\n");
+                // Diagnostics carry the index of their input file (core
+                // files first, the user fixture last). Name the fixture
+                // relative to `tests/fixtures` so snapshots stay portable.
+                let mut inputs = scoopc::load_inputs(&fixture).unwrap_or_default();
+                if let Some(user) = inputs.last_mut() {
+                    user.name = relative.clone();
+                    user.source = source.clone();
+                }
+                let rendered =
+                    scoopc::render_diagnostics(&diagnostics, &inputs, &relative, &source);
                 format!("== diagnostics ==\n{rendered}\n")
             }
         };

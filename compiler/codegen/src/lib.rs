@@ -23,8 +23,8 @@ use inkwell::values::{BasicValueEnum, GlobalValue, IntValue, PointerValue, Value
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    BinOp, Function, Global, GlobalInit, Instruction, LirType, Module, TempId, Terminator, UnOp,
-    Value,
+    BinOp, EnumDef, EnumRepr, Function, Global, GlobalInit, Instruction, LirType, Module, TempId,
+    Terminator, UnOp, Value,
 };
 
 /// Error produced while translating LIR or emitting the object file.
@@ -125,13 +125,14 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     // otherwise declare the symbol as extern, and the later definition
     // would be renamed with a `.N` suffix by LLVM, breaking the link).
     for function in &module.functions {
-        declare_function(&context, &llvm, function)?;
+        declare_function(&context, &llvm, &module.enums, function)?;
     }
     for function in &module.functions {
         emit_function(
             &context,
             &llvm,
             &builder,
+            &module.enums,
             &module.globals,
             &globals,
             function,
@@ -161,9 +162,11 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
 }
 
 /// The LLVM type of a (non-void) LIR type: aggregates are literal
-/// structs per the layout in LIR meta; Unit is the empty struct `{}`.
+/// structs per the layout in LIR meta; Unit is the empty struct `{}`;
+/// enums follow their fixed representation (spec 7.4).
 fn basic_ty<'ctx>(
     context: &'ctx Context,
+    enums: &Arena<EnumDef>,
     ty: &LirType,
 ) -> Result<BasicTypeEnum<'ctx>, CodegenError> {
     Ok(match ty {
@@ -178,11 +181,44 @@ fn basic_ty<'ctx>(
         LirType::Aggregate(elements) => {
             let fields: Vec<BasicTypeEnum> = elements
                 .iter()
-                .map(|element| basic_ty(context, element))
+                .map(|element| basic_ty(context, enums, element))
                 .collect::<Result<_, _>>()?;
             context.struct_type(&fields, false).into()
         }
+        LirType::Enum(id) => match &enums[*id].repr {
+            // Niche optimization: the value is a bare pointer.
+            EnumRepr::Niche { .. } => context.ptr_type(AddressSpace::default()).into(),
+            EnumRepr::Tagged {
+                payload_size,
+                payload_align,
+                ..
+            } => tagged_ty(context, *payload_size, *payload_align).into(),
+        },
     })
+}
+
+/// Byte offset of the payload area inside a tagged enum value: right
+/// after the i64 tag, rounded up to the payload alignment.
+fn payload_offset(payload_align: u64) -> u64 {
+    8u64.max(payload_align)
+}
+
+/// `{ i64 tag, [M x i8] payload }` where the payload area starts at
+/// `payload_offset(payload_align)` and spans `payload_size` bytes
+/// (M covers the alignment padding plus the payload).
+fn tagged_ty(
+    context: &Context,
+    payload_size: u64,
+    payload_align: u64,
+) -> inkwell::types::StructType<'_> {
+    let bytes = (payload_offset(payload_align) - 8) + payload_size;
+    context.struct_type(
+        &[
+            context.i64_type().into(),
+            context.i8_type().array_type(bytes as u32).into(),
+        ],
+        false,
+    )
 }
 
 fn arena_index<T>(id: Idx<T>) -> usize {
@@ -202,6 +238,10 @@ struct FnEmitter<'a, 'ctx> {
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
     llvm_function: inkwell::values::FunctionValue<'ctx>,
+    /// Entry block; enum temporaries are alloca'd here (see
+    /// `entry_alloca`).
+    entry_block: inkwell::basic_block::BasicBlock<'ctx>,
+    enums: &'a Arena<EnumDef>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [GlobalValue<'ctx>],
     allocas: Vec<PointerValue<'ctx>>,
@@ -217,7 +257,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let function = self.function;
         Ok(match value {
             Value::Local(id) => {
-                let ty = basic_ty(context, &function.locals[id].ty)?;
+                let ty = basic_ty(context, self.enums, &function.locals[id].ty)?;
                 self.builder
                     .build_load(ty, self.allocas[arena_index(id)], &function.locals[id].name)
                     .map_err(|e| CodegenError(format!("load %{}: {e}", function.locals[id].name)))?
@@ -284,7 +324,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(*out, result.into());
             }
             Instruction::MakeAggregate { out, elements } => {
-                let ty = basic_ty(context, &function.temps[*out].ty)?.into_struct_type();
+                let ty =
+                    basic_ty(context, self.enums, &function.temps[*out].ty)?.into_struct_type();
                 let name = format!("t{}", out.into_raw().into_u32());
                 let mut aggregate = ty.get_undef();
                 for (index, element) in elements.iter().enumerate() {
@@ -332,8 +373,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let param_tys: Vec<BasicMetadataTypeEnum> = args
                     .iter()
                     .map(|arg| {
-                        basic_ty(context, &function.value_ty(self.globals_arena, *arg))
-                            .map(Into::into)
+                        basic_ty(
+                            context,
+                            self.enums,
+                            &function.value_ty(self.globals_arena, *arg),
+                        )
+                        .map(Into::into)
                     })
                     .collect::<Result<_, _>>()?;
                 let fn_ty = if symbol == scoop_lir::TRAP_SYMBOL {
@@ -343,9 +388,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .fn_type(&[ptr_ty(context).into()], false)
                 } else {
                     match out {
-                        Some(temp) => {
-                            basic_ty(context, &function.temps[*temp].ty)?.fn_type(&param_tys, false)
-                        }
+                        Some(temp) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
+                            .fn_type(&param_tys, false),
                         None => context.void_type().fn_type(&param_tys, false),
                     }
                 };
@@ -374,111 +418,172 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                 }
             }
-            Instruction::IsSome { out, operand } => {
-                // Representation fixed by the operand's LIR type (LIR
-                // meta, spec 7.4): niche pointer or `{ i1, T }` tag.
-                let operand_ty = function.value_ty(self.globals_arena, *operand);
-                let operand = self.value(*operand)?;
+            Instruction::EnumWrap {
+                out,
+                enum_id,
+                variant,
+                fields,
+            } => {
+                let def = &self.enums[*enum_id];
                 let name = format!("t{}", out.into_raw().into_u32());
-                let result: IntValue = match operand_ty {
-                    LirType::Ptr => builder
-                        .build_int_compare(
-                            IntPredicate::NE,
-                            operand.into_pointer_value(),
-                            ptr_ty(context).const_null(),
-                            &name,
-                        )
-                        .map_err(|e| {
+                let result: BasicValueEnum = match &def.repr {
+                    EnumRepr::Niche { payload_variant } => {
+                        if *variant == *payload_variant {
+                            // The payload is the bare pointer itself.
+                            self.value(fields[0])?
+                        } else {
+                            // The payload-less variant is the null pointer.
+                            ptr_ty(context).const_null().into()
+                        }
+                    }
+                    EnumRepr::Tagged {
+                        variants,
+                        payload_size,
+                        payload_align,
+                    } => {
+                        // Tagged values travel through memory: build the
+                        // `{ i64 tag, [M x i8] payload }` aggregate in an
+                        // entry-block alloca, then load it as a whole.
+                        let ty = tagged_ty(context, *payload_size, *payload_align);
+                        let slot = self.entry_alloca(ty.into(), "enum_wrap")?;
+                        let tag_ptr = self.tag_ptr(slot, ty)?;
+                        builder
+                            .build_store(
+                                tag_ptr,
+                                context.i64_type().const_int(*variant as u64, false),
+                            )
+                            .map_err(|e| {
+                                CodegenError(format!(
+                                    "enum_wrap tag @{symbol}: {e}",
+                                    symbol = function.symbol
+                                ))
+                            })?;
+                        let field_tys = &variants[*variant as usize];
+                        if !field_tys.is_empty() {
+                            let payload_ptr =
+                                self.payload_ptr(slot, *payload_align, "payload_ptr")?;
+                            for (index, field) in fields.iter().enumerate() {
+                                let field_ptr = self.variant_field_ptr(
+                                    payload_ptr,
+                                    field_tys,
+                                    index as u32,
+                                    "field_ptr",
+                                )?;
+                                builder
+                                    .build_store(field_ptr, self.value(*field)?)
+                                    .map_err(|e| {
+                                        CodegenError(format!(
+                                            "enum_wrap field @{symbol}: {e}",
+                                            symbol = function.symbol
+                                        ))
+                                    })?;
+                            }
+                        }
+                        builder.build_load(ty, slot, &name).map_err(|e| {
                             CodegenError(format!(
-                                "is_some @{symbol}: {e}",
-                                symbol = function.symbol
-                            ))
-                        })?,
-                    _ => builder
-                        .build_extract_value(operand.into_struct_value(), 0, &name)
-                        .map_err(|e| {
-                            CodegenError(format!(
-                                "is_some @{symbol}: {e}",
+                                "enum_wrap @{symbol}: {e}",
                                 symbol = function.symbol
                             ))
                         })?
-                        .into_int_value(),
+                    }
                 };
-                self.temps.insert(*out, result.into());
+                self.temps.insert(*out, result);
             }
-            Instruction::Unwrap { out, operand } => {
-                let operand_ty = function.value_ty(self.globals_arena, *operand);
+            Instruction::EnumTag {
+                out,
+                enum_id,
+                operand,
+            } => {
+                let def = &self.enums[*enum_id];
                 let operand = self.value(*operand)?;
-                let result = match operand_ty {
-                    // Niche pointer: the payload is the pointer itself.
-                    LirType::Ptr => operand,
-                    _ => {
-                        let name = format!("t{}", out.into_raw().into_u32());
-                        builder
-                            .build_extract_value(operand.into_struct_value(), 1, &name)
+                let name = format!("t{}", out.into_raw().into_u32());
+                let result: BasicValueEnum = match &def.repr {
+                    // Niche: the tag value is the variant index — null ↔
+                    // the payload-less variant, non-null ↔ the payload
+                    // variant.
+                    EnumRepr::Niche { payload_variant } => {
+                        let non_null = builder
+                            .build_int_compare(
+                                IntPredicate::NE,
+                                operand.into_pointer_value(),
+                                ptr_ty(context).const_null(),
+                                "non_null",
+                            )
                             .map_err(|e| {
                                 CodegenError(format!(
-                                    "unwrap @{symbol}: {e}",
+                                    "enum_tag @{symbol}: {e}",
                                     symbol = function.symbol
                                 ))
-                            })?
-                    }
-                };
-                self.temps.insert(*out, result);
-            }
-            Instruction::SomeWrap { out, value } => {
-                let out_ty = &function.temps[*out].ty;
-                let value = self.value(*value)?;
-                let result = match out_ty {
-                    // Niche pointer: `Some(p)` is the pointer itself.
-                    LirType::Ptr => value,
-                    _ => {
-                        let ty = basic_ty(context, out_ty)?.into_struct_type();
-                        let name = format!("t{}", out.into_raw().into_u32());
-                        let mut wrapped = ty.get_undef();
-                        for (index, element) in [
-                            (0, context.bool_type().const_int(1, false).into()),
-                            (1, value),
-                        ] {
-                            wrapped = builder
-                                .build_insert_value(wrapped, element, index, &name)
-                                .map_err(|e| {
-                                    CodegenError(format!(
-                                        "some_wrap @{symbol}: {e}",
-                                        symbol = function.symbol
-                                    ))
-                                })?
-                                .into_struct_value();
-                        }
-                        wrapped.into()
-                    }
-                };
-                self.temps.insert(*out, result);
-            }
-            Instruction::NoneConst { out } => {
-                let out_ty = &function.temps[*out].ty;
-                let result: BasicValueEnum = match out_ty {
-                    // Niche pointer: `None` is the null pointer.
-                    LirType::Ptr => ptr_ty(context).const_null().into(),
-                    _ => {
-                        // `{ false, undef }`: only the tag is meaningful.
-                        let ty = basic_ty(context, out_ty)?.into_struct_type();
-                        let name = format!("t{}", out.into_raw().into_u32());
+                            })?;
+                        let i64_ty = context.i64_type();
                         builder
-                            .build_insert_value(
-                                ty.get_undef(),
-                                context.bool_type().const_int(0, false),
-                                0,
+                            .build_select(
+                                non_null,
+                                i64_ty.const_int(*payload_variant as u64, false),
+                                i64_ty.const_int((1 - *payload_variant) as u64, false),
                                 &name,
                             )
                             .map_err(|e| {
                                 CodegenError(format!(
-                                    "none @{symbol}: {e}",
+                                    "enum_tag @{symbol}: {e}",
                                     symbol = function.symbol
                                 ))
                             })?
-                            .into_struct_value()
-                            .into()
+                    }
+                    EnumRepr::Tagged { .. } => builder
+                        .build_extract_value(operand.into_struct_value(), 0, &name)
+                        .map_err(|e| {
+                            CodegenError(format!(
+                                "enum_tag @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?,
+                };
+                self.temps.insert(*out, result);
+            }
+            Instruction::EnumField {
+                out,
+                enum_id,
+                variant,
+                index,
+                operand,
+            } => {
+                let def = &self.enums[*enum_id];
+                let operand = self.value(*operand)?;
+                let name = format!("t{}", out.into_raw().into_u32());
+                let result: BasicValueEnum = match &def.repr {
+                    // Niche: the payload is the pointer itself; lir-lower
+                    // only emits this on paths where the tag is known.
+                    EnumRepr::Niche { .. } => operand,
+                    EnumRepr::Tagged {
+                        variants,
+                        payload_size,
+                        payload_align,
+                    } => {
+                        // Reverse of EnumWrap: spill the aggregate into an
+                        // entry-block alloca, then load the field out of
+                        // the payload area.
+                        let ty = tagged_ty(context, *payload_size, *payload_align);
+                        let slot = self.entry_alloca(ty.into(), "enum_field")?;
+                        builder.build_store(slot, operand).map_err(|e| {
+                            CodegenError(format!(
+                                "enum_field @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                        let payload_ptr = self.payload_ptr(slot, *payload_align, "payload_ptr")?;
+                        let field_tys = &variants[*variant as usize];
+                        let field_ptr =
+                            self.variant_field_ptr(payload_ptr, field_tys, *index, "field_ptr")?;
+                        let field_ty = basic_ty(context, self.enums, &field_tys[*index as usize])?;
+                        builder
+                            .build_load(field_ty, field_ptr, &name)
+                            .map_err(|e| {
+                                CodegenError(format!(
+                                    "enum_field @{symbol}: {e}",
+                                    symbol = function.symbol
+                                ))
+                            })?
                     }
                 };
                 self.temps.insert(*out, result);
@@ -486,22 +591,142 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
         Ok(())
     }
+
+    /// Allocate a temporary in the entry block. Enum values are
+    /// materialized through memory (see EnumWrap / EnumField); allocas
+    /// must dominate every use, so they go before the first instruction
+    /// of the entry block alongside the locals' slots.
+    fn entry_alloca(
+        &self,
+        ty: BasicTypeEnum<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let builder = self.builder;
+        let current = builder
+            .get_insert_block()
+            .ok_or_else(|| CodegenError("builder has no insertion block".to_string()))?;
+        match self.entry_block.get_first_instruction() {
+            Some(first) => builder.position_at(self.entry_block, &first),
+            None => builder.position_at_end(self.entry_block),
+        }
+        let alloca = builder.build_alloca(ty, name).map_err(|e| {
+            CodegenError(format!(
+                "alloca {name} @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        })?;
+        builder.position_at_end(current);
+        Ok(alloca)
+    }
+
+    /// Address of the tag field of a tagged enum value in memory.
+    fn tag_ptr(
+        &self,
+        slot: PointerValue<'ctx>,
+        ty: inkwell::types::StructType<'ctx>,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        // SAFETY: constant indexes 0, 0 address the i64 tag of the
+        // `{ i64, [M x i8] }` object `slot` points to.
+        unsafe {
+            self.builder.build_gep(
+                ty,
+                slot,
+                &[
+                    self.context.i32_type().const_zero(),
+                    self.context.i32_type().const_zero(),
+                ],
+                "tag_ptr",
+            )
+        }
+        .map_err(|e| {
+            CodegenError(format!(
+                "tag gep @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        })
+    }
+
+    /// Address of the payload area of a tagged enum value in memory.
+    /// Pointers are opaque, so a byte-wise i8 GEP needs no bitcast.
+    fn payload_ptr(
+        &self,
+        slot: PointerValue<'ctx>,
+        payload_align: u64,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        // SAFETY: the payload area starts at `payload_offset` bytes into
+        // the `{ i64, [M x i8] }` object `slot` points to.
+        unsafe {
+            self.builder.build_gep(
+                self.context.i8_type(),
+                slot,
+                &[self
+                    .context
+                    .i32_type()
+                    .const_int(payload_offset(payload_align), false)],
+                name,
+            )
+        }
+        .map_err(|e| {
+            CodegenError(format!(
+                "payload gep @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        })
+    }
+
+    /// Address of field `index` of a variant payload, viewing the
+    /// payload area as the variant's field struct.
+    fn variant_field_ptr(
+        &self,
+        payload_ptr: PointerValue<'ctx>,
+        field_tys: &[LirType],
+        index: u32,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let fields: Vec<BasicTypeEnum> = field_tys
+            .iter()
+            .map(|ty| basic_ty(self.context, self.enums, ty))
+            .collect::<Result<_, _>>()?;
+        let variant_ty = self.context.struct_type(&fields, false);
+        // SAFETY: `payload_ptr` addresses a payload area at least as
+        // large as the variant's field struct; indexes 0, `index`
+        // address the field within it.
+        unsafe {
+            self.builder.build_gep(
+                variant_ty,
+                payload_ptr,
+                &[
+                    self.context.i32_type().const_zero(),
+                    self.context.i32_type().const_int(index as u64, false),
+                ],
+                name,
+            )
+        }
+        .map_err(|e| {
+            CodegenError(format!(
+                "field gep @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        })
+    }
 }
 
 /// Translate one LIR function. Signature (parameters and return type)
 /// comes from LIR; parameters are SSA values (`Value::Param`).
 fn fn_type_of<'ctx>(
     context: &'ctx Context,
+    enums: &Arena<EnumDef>,
     function: &Function,
 ) -> Result<inkwell::types::FunctionType<'ctx>, CodegenError> {
     let param_tys: Vec<BasicMetadataTypeEnum> = function
         .params
         .iter()
-        .map(|ty| basic_ty(context, ty).map(Into::into))
+        .map(|ty| basic_ty(context, enums, ty).map(Into::into))
         .collect::<Result<_, _>>()?;
     Ok(match &function.return_ty {
         LirType::Void => context.void_type().fn_type(&param_tys, false),
-        return_ty => basic_ty(context, return_ty)?.fn_type(&param_tys, false),
+        return_ty => basic_ty(context, enums, return_ty)?.fn_type(&param_tys, false),
     })
 }
 
@@ -509,9 +734,10 @@ fn fn_type_of<'ctx>(
 fn declare_function<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
+    enums: &Arena<EnumDef>,
     function: &Function,
 ) -> Result<(), CodegenError> {
-    let fn_ty = fn_type_of(context, function)?;
+    let fn_ty = fn_type_of(context, enums, function)?;
     llvm.add_function(&function.symbol, fn_ty, None);
     Ok(())
 }
@@ -520,6 +746,7 @@ fn emit_function<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     builder: &inkwell::builder::Builder<'ctx>,
+    enums: &Arena<EnumDef>,
     globals_arena: &Arena<Global>,
     globals: &[GlobalValue<'ctx>],
     function: &Function,
@@ -541,6 +768,8 @@ fn emit_function<'ctx>(
         builder,
         function,
         llvm_function,
+        entry_block: blocks[arena_index(function.entry)],
+        enums,
         globals_arena,
         globals,
         allocas: Vec::with_capacity(function.locals.len()),
@@ -552,7 +781,7 @@ fn emit_function<'ctx>(
     // positioning at its end places the allocas before every instruction.
     builder.position_at_end(blocks[arena_index(function.entry)]);
     for (_, local) in function.locals.iter() {
-        let ty = basic_ty(context, &local.ty)?;
+        let ty = basic_ty(context, enums, &local.ty)?;
         emitter.allocas.push(
             builder
                 .build_alloca(ty, &local.name)
@@ -613,7 +842,10 @@ fn emit_function<'ctx>(
 #[cfg(test)]
 mod tests {
     use la_arena::Arena;
-    use scoop_lir::{BasicBlock, Global, GlobalInit, Layout, LirMeta, Local, Temp};
+    use scoop_lir::{
+        BasicBlock, EnumDef, EnumRepr, Global, GlobalInit, Layout, LayoutKind, LirMeta, Local,
+        Temp, VariantLayout,
+    };
 
     use super::*;
 
@@ -785,6 +1017,7 @@ mod tests {
 
         Module {
             globals,
+            enums: Arena::default(),
             functions: vec![Function {
                 symbol: "scoop_main".to_string(),
                 params: vec![],
@@ -800,7 +1033,9 @@ mod tests {
                     name: "String".to_string(),
                     size: 16,
                     align: 8,
-                    ref_field_offsets: vec![],
+                    kind: LayoutKind::Plain {
+                        ref_field_offsets: vec![],
+                    },
                 }],
             },
         }
@@ -819,119 +1054,244 @@ mod tests {
         std::fs::remove_file(&output).ok();
     }
 
-    /// An M3-shaped module: functions with parameters and return values,
-    /// both Option representations (niche pointer for `Option<String>`,
-    /// `{ i1, T }` tag for `Option<Int>`) exercised through IsSome /
-    /// Unwrap / SomeWrap / NoneConst, a CString global, a trap call and
-    /// an unreachable terminator.
-    fn option_module() -> Module {
+    /// An M4-shaped module: a tagged enum with three variants (0/1/2
+    /// fields of different types) and a niche enum (two variants,
+    /// `Option<String>`-style), both exercised through EnumWrap /
+    /// EnumTag / EnumField.
+    fn enum_module() -> Module {
         let mut globals = Arena::default();
         let trap_message = globals.alloc(Global {
             symbol: "scoop.trap.0".to_string(),
             init: GlobalInit::CString("unwrap on None".to_string()),
         });
-
-        // fun @scoop.identity$I(x: i64) -> i64 = x
-        let mut identity_blocks = Arena::default();
-        let identity_entry = identity_blocks.alloc(BasicBlock {
-            name: "entry".to_string(),
-            instructions: vec![],
-            terminator: Terminator::Return {
-                value: Some(Value::Param(0)),
+        let mut enums = Arena::default();
+        // enum Shape { Dot, Circle(Int), Rect(Int, String) } — tagged
+        // `{ i64, [16 x i8] }` (payload `{ i64, ptr }` = 16 bytes).
+        let shape = enums.alloc(EnumDef {
+            name: "Shape".to_string(),
+            repr: EnumRepr::Tagged {
+                variants: vec![vec![], vec![LirType::I64], vec![LirType::I64, LirType::Ptr]],
+                payload_size: 16,
+                payload_align: 8,
             },
         });
-        let identity = Function {
-            symbol: "scoop.identity$I".to_string(),
-            params: vec![LirType::I64],
+        // enum Option<String> { None, Some(String) } — niche pointer.
+        let option = enums.alloc(EnumDef {
+            name: "Option<String>".to_string(),
+            repr: EnumRepr::Niche { payload_variant: 1 },
+        });
+        let shape_ty = LirType::Enum(shape);
+        let option_ty = LirType::Enum(option);
+
+        // fun @scoop.tagged(s: Shape, p: ptr) -> i64: all three enum
+        // instructions on the tagged representation, including a local
+        // of enum type (alloca + store + load).
+        let mut tagged_locals = Arena::default();
+        let s2 = tagged_locals.alloc(Local {
+            name: "s2".to_string(),
+            ty: shape_ty.clone(),
+        });
+        let mut tagged_temps = Arena::default();
+        let t0 = tagged_temps.alloc(Temp {
+            ty: shape_ty.clone(),
+        }); // enum_wrap v0 ()
+        let t1 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag t0
+        let t2 = tagged_temps.alloc(Temp {
+            ty: shape_ty.clone(),
+        }); // enum_wrap v1 (7)
+        let t3 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_field v1 f0 t2
+        let t4 = tagged_temps.alloc(Temp {
+            ty: shape_ty.clone(),
+        }); // enum_wrap v2 (t3, p)
+        let t5 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag s (param)
+        let t6 = tagged_temps.alloc(Temp { ty: LirType::Ptr }); // enum_field v2 f1 s2 (local)
+        let t7 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_field v2 f0 t4
+        let t8 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t1 + t3
+        let t9 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t5 + t7
+        let t10 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t8 + t9
+        let mut tagged_blocks = Arena::default();
+        let tagged_entry = tagged_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::EnumWrap {
+                    out: t0,
+                    enum_id: shape,
+                    variant: 0,
+                    fields: vec![],
+                },
+                Instruction::EnumTag {
+                    out: t1,
+                    enum_id: shape,
+                    operand: Value::Temp(t0),
+                },
+                Instruction::EnumWrap {
+                    out: t2,
+                    enum_id: shape,
+                    variant: 1,
+                    fields: vec![Value::IntConst(7)],
+                },
+                Instruction::EnumField {
+                    out: t3,
+                    enum_id: shape,
+                    variant: 1,
+                    index: 0,
+                    operand: Value::Temp(t2),
+                },
+                Instruction::EnumWrap {
+                    out: t4,
+                    enum_id: shape,
+                    variant: 2,
+                    fields: vec![Value::Temp(t3), Value::Param(1)],
+                },
+                Instruction::EnumTag {
+                    out: t5,
+                    enum_id: shape,
+                    operand: Value::Param(0),
+                },
+                Instruction::Store {
+                    local: s2,
+                    value: Value::Temp(t4),
+                },
+                Instruction::EnumField {
+                    out: t6,
+                    enum_id: shape,
+                    variant: 2,
+                    index: 1,
+                    operand: Value::Local(s2),
+                },
+                Instruction::EnumField {
+                    out: t7,
+                    enum_id: shape,
+                    variant: 2,
+                    index: 0,
+                    operand: Value::Temp(t4),
+                },
+                Instruction::BinOp {
+                    out: t8,
+                    op: BinOp::Add,
+                    lhs: Value::Temp(t1),
+                    rhs: Value::Temp(t3),
+                },
+                Instruction::BinOp {
+                    out: t9,
+                    op: BinOp::Add,
+                    lhs: Value::Temp(t5),
+                    rhs: Value::Temp(t7),
+                },
+                Instruction::BinOp {
+                    out: t10,
+                    op: BinOp::Add,
+                    lhs: Value::Temp(t8),
+                    rhs: Value::Temp(t9),
+                },
+                // Use the extracted pointer so nothing is dead.
+                Instruction::Call {
+                    out: None,
+                    symbol: "scoop_rt_println".to_string(),
+                    args: vec![Value::Temp(t6)],
+                },
+            ],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(t10)),
+            },
+        });
+        let tagged = Function {
+            symbol: "scoop.tagged".to_string(),
+            params: vec![shape_ty.clone(), LirType::Ptr],
             return_ty: LirType::I64,
-            locals: Arena::default(),
-            temps: Arena::default(),
-            blocks: identity_blocks,
-            entry: identity_entry,
+            locals: tagged_locals,
+            temps: tagged_temps,
+            blocks: tagged_blocks,
+            entry: tagged_entry,
         };
 
-        // fun @scoop.option_ptr(o: ptr) -> i1: all four Option
-        // instructions on the niche-pointer representation.
-        let mut ptr_temps = Arena::default();
-        let ptr_t0 = ptr_temps.alloc(Temp { ty: LirType::I1 }); // is_some o
-        let ptr_t1 = ptr_temps.alloc(Temp { ty: LirType::Ptr }); // unwrap o
-        let ptr_t2 = ptr_temps.alloc(Temp { ty: LirType::Ptr }); // some_wrap t1
-        let ptr_t3 = ptr_temps.alloc(Temp { ty: LirType::Ptr }); // none
-        let ptr_t4 = ptr_temps.alloc(Temp { ty: LirType::I1 }); // is_some t3
-        let mut ptr_blocks = Arena::default();
-        let ptr_entry = ptr_blocks.alloc(BasicBlock {
+        // fun @scoop.niche(o: Option<String>) -> i64: all three enum
+        // instructions on the niche representation (null ↔ variant 0).
+        let mut niche_locals = Arena::default();
+        let o2 = niche_locals.alloc(Local {
+            name: "o2".to_string(),
+            ty: option_ty.clone(),
+        });
+        let mut niche_temps = Arena::default();
+        let n0 = niche_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag o (param)
+        let n1 = niche_temps.alloc(Temp { ty: LirType::Ptr }); // enum_field v1 f0 o
+        let n2 = niche_temps.alloc(Temp {
+            ty: option_ty.clone(),
+        }); // enum_wrap v1 (n1)
+        let n3 = niche_temps.alloc(Temp {
+            ty: option_ty.clone(),
+        }); // enum_wrap v0 () → null
+        let n4 = niche_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag n3
+        let n5 = niche_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag o2 (local)
+        let n6 = niche_temps.alloc(Temp { ty: LirType::I64 }); // n0 + n4
+        let n7 = niche_temps.alloc(Temp { ty: LirType::I64 }); // n6 + n5
+        let mut niche_blocks = Arena::default();
+        let niche_entry = niche_blocks.alloc(BasicBlock {
             name: "entry".to_string(),
             instructions: vec![
-                Instruction::IsSome {
-                    out: ptr_t0,
+                Instruction::EnumTag {
+                    out: n0,
+                    enum_id: option,
                     operand: Value::Param(0),
                 },
-                Instruction::Unwrap {
-                    out: ptr_t1,
+                Instruction::EnumField {
+                    out: n1,
+                    enum_id: option,
+                    variant: 1,
+                    index: 0,
                     operand: Value::Param(0),
                 },
-                Instruction::SomeWrap {
-                    out: ptr_t2,
-                    value: Value::Temp(ptr_t1),
+                Instruction::EnumWrap {
+                    out: n2,
+                    enum_id: option,
+                    variant: 1,
+                    fields: vec![Value::Temp(n1)],
                 },
-                Instruction::NoneConst { out: ptr_t3 },
-                Instruction::IsSome {
-                    out: ptr_t4,
-                    operand: Value::Temp(ptr_t3),
+                Instruction::Store {
+                    local: o2,
+                    value: Value::Temp(n2),
+                },
+                Instruction::EnumWrap {
+                    out: n3,
+                    enum_id: option,
+                    variant: 0,
+                    fields: vec![],
+                },
+                Instruction::EnumTag {
+                    out: n4,
+                    enum_id: option,
+                    operand: Value::Temp(n3),
+                },
+                Instruction::EnumTag {
+                    out: n5,
+                    enum_id: option,
+                    operand: Value::Local(o2),
+                },
+                Instruction::BinOp {
+                    out: n6,
+                    op: BinOp::Add,
+                    lhs: Value::Temp(n0),
+                    rhs: Value::Temp(n4),
+                },
+                Instruction::BinOp {
+                    out: n7,
+                    op: BinOp::Add,
+                    lhs: Value::Temp(n6),
+                    rhs: Value::Temp(n5),
                 },
             ],
             terminator: Terminator::Return {
-                value: Some(Value::Temp(ptr_t4)),
+                value: Some(Value::Temp(n7)),
             },
         });
-        let option_ptr = Function {
-            symbol: "scoop.option_ptr".to_string(),
-            params: vec![LirType::Ptr],
-            return_ty: LirType::I1,
-            locals: Arena::default(),
-            temps: ptr_temps,
-            blocks: ptr_blocks,
-            entry: ptr_entry,
-        };
-
-        // fun @scoop.option_tag(o: { i1, i64 }) -> { i1, i64 }: all four
-        // Option instructions on the tagged representation.
-        let tag_ty = LirType::Aggregate(vec![LirType::I1, LirType::I64]);
-        let mut tag_temps = Arena::default();
-        let tag_t0 = tag_temps.alloc(Temp { ty: LirType::I1 }); // is_some o
-        let tag_t1 = tag_temps.alloc(Temp { ty: LirType::I64 }); // unwrap o
-        let tag_t2 = tag_temps.alloc(Temp { ty: tag_ty.clone() }); // some_wrap t1
-        let tag_t3 = tag_temps.alloc(Temp { ty: tag_ty.clone() }); // none
-        let mut tag_blocks = Arena::default();
-        let tag_entry = tag_blocks.alloc(BasicBlock {
-            name: "entry".to_string(),
-            instructions: vec![
-                Instruction::IsSome {
-                    out: tag_t0,
-                    operand: Value::Param(0),
-                },
-                Instruction::Unwrap {
-                    out: tag_t1,
-                    operand: Value::Param(0),
-                },
-                Instruction::SomeWrap {
-                    out: tag_t2,
-                    value: Value::Temp(tag_t1),
-                },
-                Instruction::NoneConst { out: tag_t3 },
-            ],
-            terminator: Terminator::Return {
-                value: Some(Value::Temp(tag_t2)),
-            },
-        });
-        let option_tag = Function {
-            symbol: "scoop.option_tag".to_string(),
-            params: vec![tag_ty.clone()],
-            return_ty: tag_ty,
-            locals: Arena::default(),
-            temps: tag_temps,
-            blocks: tag_blocks,
-            entry: tag_entry,
+        let niche = Function {
+            symbol: "scoop.niche".to_string(),
+            params: vec![option_ty.clone()],
+            return_ty: LirType::I64,
+            locals: niche_locals,
+            temps: niche_temps,
+            blocks: niche_blocks,
+            entry: niche_entry,
         };
 
         // fun @scoop.trap_on_none(): the `!!`-on-None path — trap call
@@ -958,24 +1318,64 @@ mod tests {
 
         Module {
             globals,
-            functions: vec![identity, option_ptr, option_tag, trap_on_none],
-            entry_symbol: "scoop.identity$I".to_string(),
+            enums,
+            functions: vec![tagged, niche, trap_on_none],
+            entry_symbol: "scoop.tagged".to_string(),
             meta: LirMeta {
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 16,
-                    align: 8,
-                    ref_field_offsets: vec![],
-                }],
+                layouts: vec![
+                    Layout {
+                        name: "String".to_string(),
+                        size: 16,
+                        align: 8,
+                        kind: LayoutKind::Plain {
+                            ref_field_offsets: vec![],
+                        },
+                    },
+                    Layout {
+                        name: "Shape".to_string(),
+                        size: 24,
+                        align: 8,
+                        kind: LayoutKind::Enum {
+                            variants: vec![
+                                VariantLayout {
+                                    ref_field_offsets: vec![],
+                                },
+                                VariantLayout {
+                                    ref_field_offsets: vec![],
+                                },
+                                VariantLayout {
+                                    ref_field_offsets: vec![8],
+                                },
+                            ],
+                        },
+                    },
+                    Layout {
+                        name: "Option<String>".to_string(),
+                        size: 8,
+                        align: 8,
+                        kind: LayoutKind::Enum {
+                            variants: vec![
+                                VariantLayout {
+                                    ref_field_offsets: vec![],
+                                },
+                                VariantLayout {
+                                    ref_field_offsets: vec![0],
+                                },
+                            ],
+                        },
+                    },
+                ],
             },
         }
     }
 
     #[test]
-    fn emits_m3_features() {
-        let module = option_module();
+    fn emits_m4_enums() {
+        let module = enum_module();
         let output =
-            std::env::temp_dir().join(format!("scoop_codegen_m3_test_{}.o", std::process::id()));
+            std::env::temp_dir().join(format!("scoop_codegen_m4_test_{}.o", std::process::id()));
+        // `emit_object` verifies the LLVM module before writing, so a
+        // successful return means `module.verify()` passed.
         emit_object(&module, &output).expect("emit object");
         let len = std::fs::metadata(&output)
             .expect("object file exists")

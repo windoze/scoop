@@ -1,14 +1,20 @@
 //! Statement lowering: declarations, assignments, control flow,
 //! `return` and block-level scoping (milestone2 DESIGN.md 2.2,
 //! milestone3 DESIGN.md 2.2).
+//!
+//! M4 (milestone4 DESIGN.md 3.2): statement-level `when` with pattern
+//! arms, guards and exhaustiveness checking, and destructuring
+//! `val` / `var` declarations (the binding target is a pattern, not
+//! just an identifier).
 
 use scoop_ast as ast;
 use scoop_hir as hir;
 
 use ast::Span;
-use hir::FunctionId;
+use hir::{FunctionId, Type, TypeId};
 
 use crate::Lowerer;
+use crate::patterns::PatternCtx;
 
 impl Lowerer {
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
@@ -163,9 +169,9 @@ impl Lowerer {
                 };
                 // M1 rule, unchanged: expression statements are calls
                 // (declarations, assignments and control flow are their
-                // own statement kinds since M2). Note `Some(...)`
-                // lowers to `SomeWrap`, not `Call`, so it is rejected
-                // here like struct constructions are.
+                // own statement kinds since M2). Constructions lower to
+                // `StructInit` / `VariantConstruct`, not `Call`, so they
+                // are rejected here.
                 if matches!(lowered.kind, hir::ExprKind::Call { .. }) {
                     out.extend(sink);
                     hir::StatementKind::Expr(lowered)
@@ -219,6 +225,12 @@ impl Lowerer {
             }
             ast::StatementKind::ValDecl(decl) => {
                 let Some(kind) = self.lower_val_decl(decl, out) else {
+                    return;
+                };
+                kind
+            }
+            ast::StatementKind::When(when) => {
+                let Some(kind) = self.lower_when(when, out) else {
                     return;
                 };
                 kind
@@ -283,7 +295,12 @@ impl Lowerer {
     /// guarantees it): the declared type is the annotation when present
     /// (the initializer must match it exactly), the initializer's type
     /// otherwise. The annotation is the initializer's expected-type
-    /// hint (this is what types a `None` literal).
+    /// hint (this is what types a `None` construction).
+    ///
+    /// The binding target is a pattern (spec 4.6): a plain `val x` is
+    /// `Pattern::Binding`, destructuring uses tuple/struct patterns.
+    /// Only irrefutable patterns are allowed here — `lower_pattern`
+    /// with `in_when: false` rejects enum variants and literals.
     fn lower_val_decl(
         &mut self,
         decl: &ast::ValDecl,
@@ -304,7 +321,7 @@ impl Lowerer {
                         decl.init.span(),
                         format!(
                             "initializer of `{}` must be of type {expected_name}, found {found}",
-                            decl.name.text
+                            ast::dump_pattern(&decl.target)
                         ),
                     );
                     return None;
@@ -313,21 +330,117 @@ impl Lowerer {
             }
             None => init.ty,
         };
-        if self.scopes.is_declared_here(&decl.name.text) {
+        // The pattern is lowered after the initializer, so bindings are
+        // not visible in their own initializer.
+        let pattern = self.lower_pattern(
+            &decl.target,
+            ty,
+            PatternCtx {
+                mutable: decl.mutable,
+                in_when: false,
+            },
+        )?;
+        out.extend(sink);
+        Some(hir::StatementKind::ValDecl { pattern, init })
+    }
+
+    /// Statement-level `when` (spec 5; the expression form is not in
+    /// M4). The subject must be an enum, tuple or struct — the M4
+    /// subset has no Kotlin-style condition `when`. Pattern bindings
+    /// scope over the arm's guard and body; exhaustiveness is checked
+    /// over the whole statement.
+    fn lower_when(
+        &mut self,
+        when: &ast::When,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        let mut sink = Vec::new();
+        let subject = self.lower_expr(&when.subject, &mut sink, None)?;
+        if !matches!(
+            self.types[subject.ty],
+            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..)
+        ) {
+            let found = self.type_name(subject.ty);
             self.error(
-                decl.name.span,
-                format!("`{}` is already declared in this scope", decl.name.text),
+                when.subject.span(),
+                format!("`when` subject must be an enum, tuple or struct, found {found}"),
             );
             return None;
         }
-        let local = self.locals.alloc(hir::Local {
-            name: decl.name.text.clone(),
-            ty,
-            mutable: decl.mutable,
-        });
-        self.scopes.declare(decl.name.text.clone(), local);
+        // The subject is evaluated exactly once, right before the
+        // `when`, so desugaring statements belong before it.
         out.extend(sink);
-        Some(hir::StatementKind::ValDecl { local, init })
+
+        let mut arms = Vec::with_capacity(when.arms.len());
+        let mut arms_ok = true;
+        for arm in &when.arms {
+            self.scopes.push();
+            let lowered = self.lower_arm(arm, subject.ty);
+            self.scopes.pop();
+            match lowered {
+                Some(arm) => arms.push(arm),
+                None => arms_ok = false,
+            }
+        }
+        let else_body = when.else_body.as_ref().map(|b| self.lower_block(b));
+        // With a failed arm the coverage information is unreliable;
+        // the module is rejected anyway, so skip the exhaustiveness
+        // check to avoid noise.
+        if arms_ok {
+            self.check_exhaustiveness(when.span, subject.ty, &arms, else_body.is_some());
+        }
+        Some(hir::StatementKind::When(hir::When {
+            subject,
+            arms,
+            else_body,
+        }))
+    }
+
+    /// One `when` arm: pattern (its bindings are in scope), optional
+    /// guard (must be `Boolean`), body block.
+    fn lower_arm(&mut self, arm: &ast::WhenArm, subject_ty: TypeId) -> Option<hir::WhenArm> {
+        let pattern = self.lower_pattern(
+            &arm.pattern,
+            subject_ty,
+            PatternCtx {
+                mutable: false,
+                in_when: true,
+            },
+        )?;
+        let guard = match &arm.guard {
+            Some(guard) => {
+                let mut sink = Vec::new();
+                let guard_expr = self.lower_expr(guard, &mut sink, None)?;
+                // A guard is evaluated once per arm attempt, but sink
+                // statements would execute unconditionally before the
+                // arm body; reject desugaring operators (same rule as
+                // while conditions).
+                if !sink.is_empty() {
+                    self.error(
+                        guard.span(),
+                        "`?.` and `?:` are not allowed in a when guard".to_string(),
+                    );
+                    return None;
+                }
+                if guard_expr.ty != self.boolean {
+                    let found = self.type_name(guard_expr.ty);
+                    self.error(
+                        guard.span(),
+                        format!("when guard must be Boolean, found {found}"),
+                    );
+                    return None;
+                }
+                Some(guard_expr)
+            }
+            None => None,
+        };
+        let body = self.lower_block(&arm.body);
+        Some(hir::WhenArm {
+            pattern,
+            guard,
+            body,
+            span: arm.span,
+        })
     }
 
     /// Assignment targets a declared, mutable local; the value type

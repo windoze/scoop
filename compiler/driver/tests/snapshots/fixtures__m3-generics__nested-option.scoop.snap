@@ -4,6 +4,15 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
   fun main()
     val a: Int??
       Call Some
@@ -34,68 +43,71 @@ SourceFile
 
 == hir ==
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val a: Option<Option<Int>>
-      SomeWrap : Option<Option<Int>>
-        SomeWrap : Option<Int>
+    val local0
+      VariantConstruct Option.Some<Option<Int>> : Option<Option<Int>>
+        VariantConstruct Option.Some<Int> : Option<Int>
           IntLiteral 1 : Int
-    val b: Option<Option<Int>>
-      SomeWrap : Option<Option<Int>>
-        NoneLiteral : Option<Int>
-    val c: Option<Option<Int>>
-      NoneLiteral : Option<Option<Int>>
-    val $opt.0: Option<Int>
+    val local1
+      VariantConstruct Option.Some<Option<Int>> : Option<Option<Int>>
+        VariantConstruct Option.None<Int> : Option<Int>
+    val local2
+      VariantConstruct Option.None<Option<Int>> : Option<Option<Int>>
+    val local3
       Unwrap trap=true : Option<Int>
         Local a : Option<Option<Int>>
     if
       IsSome : Boolean
         Local $opt.0 : Option<Int>
-      val $res.1: Int
+      val local4
         Unwrap trap=false : Int
           Local $opt.0 : Option<Int>
     else
-      val $res.1: Int
+      val local4
         IntLiteral 0 : Int
     Call println : Unit
       Local $res.1 : Int
-    val $opt.2: Option<Int>
+    val local5
       Unwrap trap=true : Option<Int>
         Local b : Option<Option<Int>>
     if
       IsSome : Boolean
         Local $opt.2 : Option<Int>
-      val $res.3: Int
+      val local6
         Unwrap trap=false : Int
           Local $opt.2 : Option<Int>
     else
-      val $res.3: Int
+      val local6
         IntLiteral 0 : Int
     Call println : Unit
       Local $res.3 : Int
-    val $opt.4: Option<Option<Int>>
+    val local7
       Local c : Option<Option<Int>>
     if
       IsSome : Boolean
         Local $opt.4 : Option<Option<Int>>
-      val $res.5: Option<Int>
+      val local8
         Unwrap trap=false : Option<Int>
           Local $opt.4 : Option<Option<Int>>
     else
-      val $res.5: Option<Int>
-        SomeWrap : Option<Int>
+      val local8
+        VariantConstruct Option.Some<Int> : Option<Int>
           IntLiteral 3 : Int
-    val $opt.6: Option<Int>
+    val local9
       Local $res.5 : Option<Int>
     if
       IsSome : Boolean
         Local $opt.6 : Option<Int>
-      val $res.7: Int
+      val local10
         Unwrap trap=false : Int
           Local $opt.6 : Option<Int>
     else
-      val $res.7: Int
+      val local10
         IntLiteral 0 : Int
     Call println : Unit
       Local $res.7 : Int
@@ -103,163 +115,229 @@ Module
 
 == mir ==
 Module
+  enum Option$I
+    Some(_1: Int)
+    None()
+  enum Option$EOption$I_IX
+    Some(_1: Option$I<Int>)
+    None()
   fun main @scoop_main() -> Unit
-    val a: Option<Option<Int>>
-      SomeWrap
-        SomeWrap
+    val a: Option$EOption$I_IX<Option$I<Int>>
+      VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
+        VariantConstruct Option$I<Int> v0
           IntLiteral 1
-    val b: Option<Option<Int>>
-      SomeWrap
-        NoneLiteral
-    val c: Option<Option<Int>>
-      NoneLiteral
-    val $opt.0: Option<Int>
-      Unwrap trap=true
-        Local a
+    val b: Option$EOption$I_IX<Option$I<Int>>
+      VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
+        VariantConstruct Option$I<Int> v1
+    val c: Option$EOption$I_IX<Option$I<Int>>
+      VariantConstruct Option$EOption$I_IX<Option$I<Int>> v1
+    val $opt.1: Option$EOption$I_IX<Option$I<Int>>
+      Local a
     if
-      IsSome
-        Local $opt.0
+      Binary IntEq
+        EnumTag
+          Local $opt.1
+        IntLiteral 0
+      val $uw.2: Option$I<Int>
+        EnumField v0 f0
+          Local $opt.1
+    else
+      Call @scoop_rt_trap direct
+        StringConst @scoop.str.0
+    val $opt.0: Option$I<Int>
+      Local $uw.2
+    if
+      Binary IntEq
+        EnumTag
+          Local $opt.0
+        IntLiteral 0
       val $res.1: Int
-        Unwrap trap=false
+        EnumField v0 f0
           Local $opt.0
     else
       val $res.1: Int
         IntLiteral 0
     Call @scoop_rt_println_int direct
       Local $res.1
-    val $opt.2: Option<Int>
-      Unwrap trap=true
-        Local b
+    val $opt.3: Option$EOption$I_IX<Option$I<Int>>
+      Local b
     if
-      IsSome
-        Local $opt.2
+      Binary IntEq
+        EnumTag
+          Local $opt.3
+        IntLiteral 0
+      val $uw.4: Option$I<Int>
+        EnumField v0 f0
+          Local $opt.3
+    else
+      Call @scoop_rt_trap direct
+        StringConst @scoop.str.1
+    val $opt.2: Option$I<Int>
+      Local $uw.4
+    if
+      Binary IntEq
+        EnumTag
+          Local $opt.2
+        IntLiteral 0
       val $res.3: Int
-        Unwrap trap=false
+        EnumField v0 f0
           Local $opt.2
     else
       val $res.3: Int
         IntLiteral 0
     Call @scoop_rt_println_int direct
       Local $res.3
-    val $opt.4: Option<Option<Int>>
+    val $opt.4: Option$EOption$I_IX<Option$I<Int>>
       Local c
     if
-      IsSome
-        Local $opt.4
-      val $res.5: Option<Int>
-        Unwrap trap=false
+      Binary IntEq
+        EnumTag
+          Local $opt.4
+        IntLiteral 0
+      val $res.5: Option$I<Int>
+        EnumField v0 f0
           Local $opt.4
     else
-      val $res.5: Option<Int>
-        SomeWrap
+      val $res.5: Option$I<Int>
+        VariantConstruct Option$I<Int> v0
           IntLiteral 3
-    val $opt.6: Option<Int>
+    val $opt.6: Option$I<Int>
       Local $res.5
     if
-      IsSome
-        Local $opt.6
+      Binary IntEq
+        EnumTag
+          Local $opt.6
+        IntLiteral 0
       val $res.7: Int
-        Unwrap trap=false
+        EnumField v0 f0
           Local $opt.6
     else
       val $res.7: Int
         IntLiteral 0
     Call @scoop_rt_println_int direct
       Local $res.7
+  str @scoop.str.0 "unwrap on None (function main)"
+  str @scoop.str.1 "unwrap on None (function main)"
   entry @scoop_main
 
 == lir ==
 Module
+  global @scoop.str.0 = "unwrap on None (function main)"
+  global @scoop.str.1 = "unwrap on None (function main)"
   global @scoop.cstr.0 = c"unwrap on None (function main)"
+  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  enum Option$EOption$I_IX tagged size=16 align=8 variants=(enum0) ()
   fun @scoop_main() -> void
-    local %0 a: {i1, {i1, i64}}
-    local %1 b: {i1, {i1, i64}}
-    local %2 c: {i1, {i1, i64}}
-    local %3 $opt.0: {i1, i64}
+    local %0 a: enum1
+    local %1 b: enum1
+    local %2 c: enum1
+    local %3 $opt.0: enum0
     local %4 $res.1: i64
-    local %5 $opt.2: {i1, i64}
+    local %5 $opt.2: enum0
     local %6 $res.3: i64
-    local %7 $opt.4: {i1, {i1, i64}}
-    local %8 $res.5: {i1, i64}
-    local %9 $opt.6: {i1, i64}
+    local %7 $opt.4: enum1
+    local %8 $res.5: enum0
+    local %9 $opt.6: enum0
     local %10 $res.7: i64
+    local %11 $opt.1: enum1
+    local %12 $uw.2: enum0
+    local %13 $opt.3: enum1
+    local %14 $uw.4: enum0
   block entry
-    t0 = some_wrap 1 : {i1, i64}
-    t1 = some_wrap t0 : {i1, {i1, i64}}
+    t0 = enum_wrap e0 v0 (1) : enum0
+    t1 = enum_wrap e1 v0 (t0) : enum1
     store t1 -> local0
-    t2 = none : {i1, i64}
-    t3 = some_wrap t2 : {i1, {i1, i64}}
+    t2 = enum_wrap e0 v1 () : enum0
+    t3 = enum_wrap e1 v0 (t2) : enum1
     store t3 -> local1
-    t4 = none : {i1, {i1, i64}}
+    t4 = enum_wrap e1 v1 () : enum1
     store t4 -> local2
-    t5 = is_some local0 : i1
-    cbr t5 then @unwrap.ok.1 else @unwrap.trap.2
-  block unwrap.ok.1
-    t6 = unwrap local0 : {i1, i64}
-    store t6 -> local3
-    t7 = is_some local3 : i1
-    cbr t7 then @if.then.3 else @if.else.4
-  block unwrap.trap.2
-    call @scoop_rt_trap(global0)
+    store local0 -> local11
+    t5 = enum_tag e1 local11 : i64
+    t6 = Eq t5, 0 : i1
+    cbr t6 then @if.then.1 else @if.else.2
+  block if.then.1
+    t7 = enum_field e1 v0 f0 local11 : enum0
+    store t7 -> local12
+    br @if.merge.3
+  block if.else.2
+    br @unwrap.trap.4
+  block if.merge.3
+    store local12 -> local3
+    t8 = enum_tag e0 local3 : i64
+    t9 = Eq t8, 0 : i1
+    cbr t9 then @if.then.5 else @if.else.6
+  block unwrap.trap.4
+    call @scoop_rt_trap(global2)
     unreachable
-  block if.then.3
-    t8 = unwrap local3 : i64
-    store t8 -> local4
-    br @if.merge.5
-  block if.else.4
+  block if.then.5
+    t10 = enum_field e0 v0 f0 local3 : i64
+    store t10 -> local4
+    br @if.merge.7
+  block if.else.6
     store 0 -> local4
-    br @if.merge.5
-  block if.merge.5
+    br @if.merge.7
+  block if.merge.7
     call @scoop_rt_println_int(local4)
-    t9 = aggregate () : {}
-    t10 = is_some local1 : i1
-    cbr t10 then @unwrap.ok.6 else @unwrap.trap.2
-  block unwrap.ok.6
-    t11 = unwrap local1 : {i1, i64}
-    store t11 -> local5
-    t12 = is_some local5 : i1
-    cbr t12 then @if.then.7 else @if.else.8
-  block if.then.7
-    t13 = unwrap local5 : i64
-    store t13 -> local6
-    br @if.merge.9
-  block if.else.8
+    t11 = aggregate () : {}
+    store local1 -> local13
+    t12 = enum_tag e1 local13 : i64
+    t13 = Eq t12, 0 : i1
+    cbr t13 then @if.then.8 else @if.else.9
+  block if.then.8
+    t14 = enum_field e1 v0 f0 local13 : enum0
+    store t14 -> local14
+    br @if.merge.10
+  block if.else.9
+    br @unwrap.trap.4
+  block if.merge.10
+    store local14 -> local5
+    t15 = enum_tag e0 local5 : i64
+    t16 = Eq t15, 0 : i1
+    cbr t16 then @if.then.11 else @if.else.12
+  block if.then.11
+    t17 = enum_field e0 v0 f0 local5 : i64
+    store t17 -> local6
+    br @if.merge.13
+  block if.else.12
     store 0 -> local6
-    br @if.merge.9
-  block if.merge.9
+    br @if.merge.13
+  block if.merge.13
     call @scoop_rt_println_int(local6)
-    t14 = aggregate () : {}
+    t18 = aggregate () : {}
     store local2 -> local7
-    t15 = is_some local7 : i1
-    cbr t15 then @if.then.10 else @if.else.11
-  block if.then.10
-    t16 = unwrap local7 : {i1, i64}
-    store t16 -> local8
-    br @if.merge.12
-  block if.else.11
-    t17 = some_wrap 3 : {i1, i64}
-    store t17 -> local8
-    br @if.merge.12
-  block if.merge.12
+    t19 = enum_tag e1 local7 : i64
+    t20 = Eq t19, 0 : i1
+    cbr t20 then @if.then.14 else @if.else.15
+  block if.then.14
+    t21 = enum_field e1 v0 f0 local7 : enum0
+    store t21 -> local8
+    br @if.merge.16
+  block if.else.15
+    t22 = enum_wrap e0 v0 (3) : enum0
+    store t22 -> local8
+    br @if.merge.16
+  block if.merge.16
     store local8 -> local9
-    t18 = is_some local9 : i1
-    cbr t18 then @if.then.13 else @if.else.14
-  block if.then.13
-    t19 = unwrap local9 : i64
-    store t19 -> local10
-    br @if.merge.15
-  block if.else.14
+    t23 = enum_tag e0 local9 : i64
+    t24 = Eq t23, 0 : i1
+    cbr t24 then @if.then.17 else @if.else.18
+  block if.then.17
+    t25 = enum_field e0 v0 f0 local9 : i64
+    store t25 -> local10
+    br @if.merge.19
+  block if.else.18
     store 0 -> local10
-    br @if.merge.15
-  block if.merge.15
+    br @if.merge.19
+  block if.merge.19
     call @scoop_rt_println_int(local10)
-    t20 = aggregate () : {}
+    t26 = aggregate () : {}
     ret
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option<Option<Int>> size=24 align=8 refs=[]
-  layout Option<Int> size=16 align=8 refs=[]
+  layout Option$I size=16 align=8 enum-refs=[[], []]
+  layout Option$EOption$I_IX size=24 align=8 enum-refs=[[], []]
   entry @scoop_main
 
 == run ==

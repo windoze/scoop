@@ -1,0 +1,4 @@
+[cone]
+group = "scoop"
+name = "scoop.core"
+version = "0.1.0"

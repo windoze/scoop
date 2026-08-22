@@ -194,23 +194,35 @@ impl Parser {
                     span: token.span,
                 })
             }
+            TokenKind::When => Err(Diagnostic::at(
+                token.span,
+                "`when` expressions are not supported yet (milestone M4)",
+            )),
             TokenKind::Ident(text) => {
-                if text == "when" {
-                    return Err(Diagnostic::at(
-                        token.span,
-                        "`when` expressions are not supported yet (milestone M3)",
-                    ));
-                }
                 self.pos += 1;
                 // `Unit` is an ordinary identifier; in expression position
                 // it denotes the unit value (spec section 4.3).
                 if text == "Unit" {
                     return Ok(Expr::UnitLiteral { span: token.span });
                 }
-                let ident = Ident {
+                let mut ident = Ident {
                     text,
                     span: token.span,
                 };
+                // `E.V(args)` — a qualified variant construction
+                // (`Shape.Circle(5)`): collapse the dotted path into the
+                // callee name and let HIR resolve it. Without a call the
+                // dot stays ordinary field access (`Color.Red`, `p.x`).
+                if self.at_dotted_path_call() {
+                    while matches!(self.peek().kind, TokenKind::Dot) {
+                        self.bump(); // `.`
+                        let segment = self.expect_ident("variant name")?;
+                        ident.text.push('.');
+                        ident.text.push_str(&segment.text);
+                        ident.span = Span::new(ident.span.start, segment.span.end);
+                    }
+                    return self.parse_call(ident);
+                }
                 if matches!(self.peek().kind, TokenKind::LParen) {
                     return self.parse_call(ident);
                 }
@@ -219,6 +231,26 @@ impl Parser {
             TokenKind::LParen => self.parse_paren_expr(),
             _ => self.unexpected("expression"),
         }
+    }
+
+    /// True when the current position starts a dotted path `(.Ident)+`
+    /// that ends at `(` — a qualified constructor call `E.V(args)`.
+    fn at_dotted_path_call(&self) -> bool {
+        let mut index = self.pos;
+        while matches!(
+            self.tokens.get(index).map(|token| &token.kind),
+            Some(TokenKind::Dot)
+        ) && matches!(
+            self.tokens.get(index + 1).map(|token| &token.kind),
+            Some(TokenKind::Ident(_))
+        ) {
+            index += 2;
+        }
+        index > self.pos
+            && matches!(
+                self.tokens.get(index).map(|token| &token.kind),
+                Some(TokenKind::LParen)
+            )
     }
 
     /// `callee(args...)` — `callee` is already consumed. Struct

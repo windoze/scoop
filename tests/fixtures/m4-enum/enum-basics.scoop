@@ -1,0 +1,41 @@
+enum Color { Red, Green, Blue }
+
+enum Shape {
+    Circle(Int),
+    Rect(Int, Int),
+    Named { w: Int, h: Int },
+    WithDefault(val d: Int = 7)
+}
+
+fun main() {
+    val c = Color.Red
+    when (c) {
+        Red -> println("red")
+        Green -> println("green")
+        Blue -> println("blue")
+    }
+    val s = Shape.Circle(5)
+    when (s) {
+        Circle(r) -> println(r)
+        Rect(w, h) -> println(w + h)
+        Named { w, .. } -> println(w)
+        WithDefault(d) -> println(d)
+    }
+    val r = Shape.Rect(3, 4)
+    when (r) {
+        Circle(x) -> println(x)
+        Rect(w, h) -> println(w + h)
+        Named { w, .. } -> println(w)
+        WithDefault(d) -> println(d)
+    }
+    val d = Shape.WithDefault()
+    when (d) {
+        WithDefault(x) -> println(x)
+        else -> println("other")
+    }
+    val d2 = Shape.WithDefault(3)
+    when (d2) {
+        WithDefault(x) -> println(x)
+        else -> println("other")
+    }
+}

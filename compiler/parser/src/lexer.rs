@@ -1,21 +1,23 @@
-//! Hand-written lexer for the M3 source subset.
+//! Hand-written lexer for the M4 source subset.
 //!
 //! Produces a flat token vector for the parser. Lexing is fail-fast: the
 //! first un-lexable input yields one diagnostic and no tokens at all.
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M3 subset. Reserved words are dedicated variants;
+/// Token kinds of the M4 subset. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
     Fun,
     Struct,
+    Enum,
     Val,
     Var,
     If,
     Else,
+    When,
     While,
     Return,
     True,
@@ -30,7 +32,10 @@ pub(crate) enum TokenKind {
     Comma,
     Semicolon,
     Colon,
+    At,
     Dot,
+    DotDot,
+    Arrow,
     Question,
     QuestionDot,
     QuestionColon,
@@ -68,10 +73,12 @@ impl Token {
         match &self.kind {
             TokenKind::Fun => "`fun`".to_string(),
             TokenKind::Struct => "`struct`".to_string(),
+            TokenKind::Enum => "`enum`".to_string(),
             TokenKind::Val => "`val`".to_string(),
             TokenKind::Var => "`var`".to_string(),
             TokenKind::If => "`if`".to_string(),
             TokenKind::Else => "`else`".to_string(),
+            TokenKind::When => "`when`".to_string(),
             TokenKind::While => "`while`".to_string(),
             TokenKind::Return => "`return`".to_string(),
             TokenKind::True => "`true`".to_string(),
@@ -86,7 +93,10 @@ impl Token {
             TokenKind::Comma => "`,`".to_string(),
             TokenKind::Semicolon => "`;`".to_string(),
             TokenKind::Colon => "`:`".to_string(),
+            TokenKind::At => "`@`".to_string(),
             TokenKind::Dot => "`.`".to_string(),
+            TokenKind::DotDot => "`..`".to_string(),
+            TokenKind::Arrow => "`->`".to_string(),
             TokenKind::Question => "`?`".to_string(),
             TokenKind::QuestionDot => "`?.`".to_string(),
             TokenKind::QuestionColon => "`?:`".to_string(),
@@ -171,9 +181,20 @@ impl<'a> Lexer<'a> {
                     self.pos += 1;
                     TokenKind::Colon
                 }
+                '@' => {
+                    self.pos += 1;
+                    TokenKind::At
+                }
+                // `..` is the rest marker in pattern positions (spec 4.6);
+                // the range operator shares the token but only appears in
+                // expression positions (not in the M4 subset).
                 '.' => {
                     self.pos += 1;
-                    TokenKind::Dot
+                    if self.eat('.') {
+                        TokenKind::DotDot
+                    } else {
+                        TokenKind::Dot
+                    }
                 }
                 '?' => {
                     self.pos += 1;
@@ -191,7 +212,13 @@ impl<'a> Lexer<'a> {
                 }
                 '-' => {
                     self.pos += 1;
-                    TokenKind::Minus
+                    // `->` separates a `when` arm's pattern from its body.
+                    // No valid expression has `-` immediately before `>`.
+                    if self.eat('>') {
+                        TokenKind::Arrow
+                    } else {
+                        TokenKind::Minus
+                    }
                 }
                 '*' => {
                     self.pos += 1;
@@ -370,10 +397,12 @@ impl<'a> Lexer<'a> {
         let kind = match text {
             "fun" => TokenKind::Fun,
             "struct" => TokenKind::Struct,
+            "enum" => TokenKind::Enum,
             "val" => TokenKind::Val,
             "var" => TokenKind::Var,
             "if" => TokenKind::If,
             "else" => TokenKind::Else,
+            "when" => TokenKind::When,
             "while" => TokenKind::While,
             "return" => TokenKind::Return,
             "true" => TokenKind::True,

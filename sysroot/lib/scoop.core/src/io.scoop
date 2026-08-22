@@ -1,0 +1,10 @@
+// Output functions (temporary intrinsics until M11; see
+// docs/milestone1/DESIGN.md 5.2 and docs/milestone4/DESIGN.md 1.3).
+// The declared parameter type is documentary: the intrinsic registry
+// accepts one String, Int or Boolean argument.
+
+@Intrinsic("rt_print")
+fun print(message: String)
+
+@Intrinsic("rt_println")
+fun println(message: String)

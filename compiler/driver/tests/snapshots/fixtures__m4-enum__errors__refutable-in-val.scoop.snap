@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m4-enum/errors/refutable-in-val.scoop:3:9: error: refutable patterns are only allowed in `when`
+m4-enum/errors/refutable-in-val.scoop:4:13: error: unknown variable `x`

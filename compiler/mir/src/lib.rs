@@ -14,6 +14,7 @@ use scoop_ast::Span;
 pub type FunctionId = Idx<Function>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;
+pub type EnumId = Idx<EnumDef>;
 pub type LocalId = Idx<Local>;
 
 /// Mangled symbol of the program entry point (called by the C runtime).
@@ -46,7 +47,15 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
             let inner: Vec<String> = elements.iter().map(|t| encode_type(module, t)).collect();
             format!("T{}X", inner.join("_"))
         }
-        Type::Option(inner) => format!("O{}X", encode_type(module, inner)),
+        Type::Enum(id, args) => {
+            let name = &module.enums[*id].name;
+            if args.is_empty() {
+                format!("E{name}")
+            } else {
+                let inner: Vec<String> = args.iter().map(|t| encode_type(module, t)).collect();
+                format!("E{}_{}X", name, inner.join("_"))
+            }
+        }
     }
 }
 
@@ -58,8 +67,8 @@ pub enum Type {
     String,
     Struct(StructId),
     Tuple(Vec<Type>),
-    /// Instantiated `Option<T>` (builtin until M4, see hir::Type).
-    Option(Box<Type>),
+    /// An instantiated enum type (including `Option<T>` since M4).
+    Enum(EnumId, Vec<Type>),
 }
 
 #[derive(Debug)]
@@ -72,6 +81,22 @@ pub struct StructDef {
 pub struct Field {
     pub name: String,
     pub ty: Type,
+}
+
+/// An instantiated enum definition (M4): variants with concrete field
+/// types. `name` is the mangled instance name (e.g. `Option$I`).
+#[derive(Debug)]
+pub struct EnumDef {
+    pub name: String,
+    pub variants: Vec<VariantDef>,
+}
+
+#[derive(Debug)]
+pub struct VariantDef {
+    pub name: String,
+    /// Fields in declaration order (named and positional forms both
+    /// normalized; positional fields carry `_1`-style names).
+    pub fields: Vec<Field>,
 }
 
 #[derive(Debug)]
@@ -88,6 +113,7 @@ pub struct Module {
     pub top_level: Vec<FunctionId>,
     pub strings: Arena<StringConst>,
     pub structs: Arena<StructDef>,
+    pub enums: Arena<EnumDef>,
     pub entry: FunctionId,
     pub meta: MirMeta,
 }
@@ -198,17 +224,21 @@ pub enum Expr {
         op: UnOp,
         operand: Box<Expr>,
     },
-    /// `Some(value)`.
-    SomeWrap(Box<Expr>),
-    /// The `None` literal; the producing instruction carries the
-    /// concrete `Option<T>` type at LIR.
-    NoneLiteral,
-    /// Test whether an `Option<T>` is `Some`.
-    IsSome(Box<Expr>),
-    /// Unwrap an `Option<T>`; `trap_on_none` comes from `!!`.
-    Unwrap {
+    /// Variant construction; `ty` is the instantiated enum type.
+    /// `fields` are the variant's field values in declaration order.
+    VariantConstruct {
+        ty: Type,
+        variant: u32,
+        fields: Vec<Expr>,
+    },
+    /// Read the variant tag of an enum value (Int).
+    EnumTag(Box<Expr>),
+    /// Read field `index` of variant `variant` from an enum value.
+    /// Only evaluated on a path where the tag is known to match.
+    EnumField {
         operand: Box<Expr>,
-        trap_on_none: bool,
+        variant: u32,
+        index: u32,
     },
 }
 
@@ -250,6 +280,9 @@ pub enum RuntimeFn {
     PrintlnBoolean,
     StringConcat,
     StringEq,
+    /// Noreturn runtime trap, called with a message string constant
+    /// (M4: `!!` on `None`; M8: real exceptions).
+    Trap,
 }
 
 impl RuntimeFn {
@@ -263,6 +296,7 @@ impl RuntimeFn {
             RuntimeFn::PrintlnBoolean => "scoop_rt_println_boolean",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",
             RuntimeFn::StringEq => "scoop_rt_string_eq",
+            RuntimeFn::Trap => "scoop_rt_trap",
         }
     }
 }
@@ -305,6 +339,17 @@ pub fn dump(module: &Module) -> String {
             .collect();
         out.push_str(&format!("  struct {} ({})\n", def.name, fields.join(", ")));
     }
+    for (_, def) in module.enums.iter() {
+        out.push_str(&format!("  enum {}\n", def.name));
+        for variant in &def.variants {
+            let fields: Vec<String> = variant
+                .fields
+                .iter()
+                .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))
+                .collect();
+            out.push_str(&format!("    {}({})\n", variant.name, fields.join(", ")));
+        }
+    }
     for &id in &module.top_level {
         let function = &module.functions[id];
         let params: Vec<String> = function
@@ -346,7 +391,15 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, t)).collect();
             format!("({})", inner.join(", "))
         }
-        Type::Option(inner) => format!("Option<{}>", type_name(module, inner)),
+        Type::Enum(id, args) => {
+            let name = &module.enums[*id].name;
+            if args.is_empty() {
+                name.clone()
+            } else {
+                let inner: Vec<String> = args.iter().map(|t| type_name(module, t)).collect();
+                format!("{}<{}>", name, inner.join(", "))
+            }
+        }
     }
 }
 
@@ -454,20 +507,30 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}Unary {op:?}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::SomeWrap(operand) => {
-            out.push_str(&format!("{pad}SomeWrap\n"));
-            dump_expr(module, locals, operand, indent + 1, out);
-        }
-        Expr::NoneLiteral => out.push_str(&format!("{pad}NoneLiteral\n")),
-        Expr::IsSome(operand) => {
-            out.push_str(&format!("{pad}IsSome\n"));
-            dump_expr(module, locals, operand, indent + 1, out);
-        }
-        Expr::Unwrap {
-            operand,
-            trap_on_none,
+        Expr::VariantConstruct {
+            ty,
+            variant,
+            fields,
         } => {
-            out.push_str(&format!("{pad}Unwrap trap={trap_on_none}\n"));
+            out.push_str(&format!(
+                "{pad}VariantConstruct {} v{}\n",
+                type_name(module, ty),
+                variant
+            ));
+            for field in fields {
+                dump_expr(module, locals, field, indent + 1, out);
+            }
+        }
+        Expr::EnumTag(operand) => {
+            out.push_str(&format!("{pad}EnumTag\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::EnumField {
+            operand,
+            variant,
+            index,
+        } => {
+            out.push_str(&format!("{pad}EnumField v{variant} f{index}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
     }

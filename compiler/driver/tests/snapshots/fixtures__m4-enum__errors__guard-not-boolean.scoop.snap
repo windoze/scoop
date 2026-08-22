@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m4-enum/errors/guard-not-boolean.scoop:6:20: error: when guard must be Boolean, found Int
