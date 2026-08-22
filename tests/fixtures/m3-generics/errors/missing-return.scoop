@@ -1,0 +1,8 @@
+fun f(): Int {
+    val x = 1
+    println(x)
+}
+
+fun main() {
+    println(f())
+}

@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m3-generics/errors/none-no-context.scoop:2:13: error: cannot infer the type of `None`

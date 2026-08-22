@@ -5,13 +5,13 @@
 
 use scoop_ast::{BinOp, Decl, Expr, FieldSelector, Span, StatementKind, TypeRefKind, UnOp};
 
-use crate::tests::{err, ok, only_function};
+use crate::tests::{block_body, err, ok, only_function};
 
 /// Parses `expr` as the initializer of `val x = <expr>` and returns it.
-fn init_expr(expr: &str) -> Expr {
+pub(crate) fn init_expr(expr: &str) -> Expr {
     let file = ok(&format!("fun main() {{\n    val x = {expr}\n}}\n"));
     let function = only_function(&file);
-    let StatementKind::ValDecl(decl) = &function.body.statements[0].kind else {
+    let StatementKind::ValDecl(decl) = &block_body(function).statements[0].kind else {
         panic!("expected a val declaration");
     };
     decl.init.clone()
@@ -19,11 +19,11 @@ fn init_expr(expr: &str) -> Expr {
 
 /// Dumps `fun main() { <statement> }`, stripping the wrapper and the
 /// function body's base indentation.
-fn stmt_dump(statement: &str) -> String {
+pub(crate) fn stmt_dump(statement: &str) -> String {
     let file = ok(&format!("fun main() {{\n    {statement}\n}}\n"));
     let dump = scoop_ast::dump(&file);
     let body = dump
-        .strip_prefix("SourceFile\n  fun main\n")
+        .strip_prefix("SourceFile\n  fun main()\n")
         .expect("dump starts with the function header");
     let mut out = String::new();
     for line in body.lines() {
@@ -98,7 +98,7 @@ fn mixed_declarations() {
 fn val_decl_with_type_annotation() {
     let file = ok("fun main() {\n    val x: Int = 42\n}\n");
     let function = only_function(&file);
-    let stmt = &function.body.statements[0];
+    let stmt = &block_body(function).statements[0];
     assert_eq!(stmt.span, Span::new(17, 32));
     let StatementKind::ValDecl(decl) = &stmt.kind else {
         panic!("expected a val declaration");
@@ -119,7 +119,7 @@ fn val_decl_with_type_annotation() {
 fn var_decl_without_type_annotation() {
     let file = ok("fun main() {\n    var n = 0\n}\n");
     let function = only_function(&file);
-    let StatementKind::ValDecl(decl) = &function.body.statements[0].kind else {
+    let StatementKind::ValDecl(decl) = &block_body(function).statements[0].kind else {
         panic!("expected a var declaration");
     };
     assert!(decl.mutable);
@@ -131,7 +131,7 @@ fn var_decl_without_type_annotation() {
 fn assign_statement() {
     let file = ok("fun main() {\n    n = n + 1\n}\n");
     let function = only_function(&file);
-    let stmt = &function.body.statements[0];
+    let stmt = &block_body(function).statements[0];
     assert_eq!(stmt.span, Span::new(17, 26));
     let StatementKind::Assign(assign) = &stmt.kind else {
         panic!("expected an assignment");
@@ -149,12 +149,12 @@ fn assign_statement() {
 fn assign_vs_equality() {
     // `=` at statement start is assignment; `==` is an expression.
     let assign = ok("fun main() { a = 1 }");
-    let StatementKind::Assign(_) = &only_function(&assign).body.statements[0].kind else {
+    let StatementKind::Assign(_) = &block_body(only_function(&assign)).statements[0].kind else {
         panic!("expected an assignment");
     };
     let equality = ok("fun main() { a == 1 }");
     let StatementKind::Expr(Expr::Binary { op: BinOp::Eq, .. }) =
-        &only_function(&equality).body.statements[0].kind
+        &block_body(only_function(&equality)).statements[0].kind
     else {
         panic!("expected an equality expression");
     };
@@ -169,7 +169,7 @@ fn if_else_statement() {
 #[test]
 fn if_without_else() {
     let file = ok("fun main() { if (a) {} }");
-    let StatementKind::If(if_) = &only_function(&file).body.statements[0].kind else {
+    let StatementKind::If(if_) = &block_body(only_function(&file)).statements[0].kind else {
         panic!("expected an if statement");
     };
     assert!(if_.else_block.is_none());
@@ -178,7 +178,7 @@ fn if_without_else() {
 #[test]
 fn else_may_start_on_the_next_line() {
     let file = ok("fun main() { if (a) {\n} else {\n} }");
-    let StatementKind::If(if_) = &only_function(&file).body.statements[0].kind else {
+    let StatementKind::If(if_) = &block_body(only_function(&file)).statements[0].kind else {
         panic!("expected an if statement");
     };
     assert!(if_.else_block.is_some());
@@ -397,7 +397,7 @@ fun main() {\n\
     let file = ok(source);
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  struct Point\n    field x: Int\n    field y: Int\n  fun main\n    val p\n      Call Point\n        IntLiteral 1\n        IntLiteral 2\n    var q\n      TupleLiteral\n        IntLiteral 1\n        StringLiteral \"hello\"\n    val x\n      FieldAccess x\n        Var p\n    var n\n      IntLiteral 0\n    while\n      Binary Lt\n        Var n\n        IntLiteral 3\n      assign n\n        Binary Add\n          Var n\n          IntLiteral 1\n    if\n      Binary And\n        Binary Eq\n          Var p\n          Call Point\n            IntLiteral 1\n            IntLiteral 2\n        Binary Gt\n          Var x\n          IntLiteral 0\n      Call println\n        StringLiteral \"ok\"\n    else\n      Call println\n        StringLiteral \"ng\"\n    val u\n      UnitLiteral\n    val s\n      TupleLiteral\n        IntLiteral 42\n"
+        "SourceFile\n  struct Point\n    field x: Int\n    field y: Int\n  fun main()\n    val p\n      Call Point\n        IntLiteral 1\n        IntLiteral 2\n    var q\n      TupleLiteral\n        IntLiteral 1\n        StringLiteral \"hello\"\n    val x\n      FieldAccess x\n        Var p\n    var n\n      IntLiteral 0\n    while\n      Binary Lt\n        Var n\n        IntLiteral 3\n      assign n\n        Binary Add\n          Var n\n          IntLiteral 1\n    if\n      Binary And\n        Binary Eq\n          Var p\n          Call Point\n            IntLiteral 1\n            IntLiteral 2\n        Binary Gt\n          Var x\n          IntLiteral 0\n      Call println\n        StringLiteral \"ok\"\n    else\n      Call println\n        StringLiteral \"ng\"\n    val u\n      UnitLiteral\n    val s\n      TupleLiteral\n        IntLiteral 42\n"
     );
 }
 
@@ -407,7 +407,7 @@ fun main() {\n\
 fn enum_not_supported() {
     let (span, message) = err("enum Color { RED }");
     assert_eq!(span, Span::new(0, 4));
-    assert_eq!(message, "enums are not supported yet (milestone M2)");
+    assert_eq!(message, "enums are not supported yet (milestone M3)");
 }
 
 #[test]
@@ -416,7 +416,7 @@ fn when_statement_not_supported() {
     assert_eq!(span, Span::new(17, 21));
     assert_eq!(
         message,
-        "`when` expressions are not supported yet (milestone M2)"
+        "`when` expressions are not supported yet (milestone M3)"
     );
 }
 
@@ -425,7 +425,7 @@ fn when_expression_not_supported() {
     let (_, message) = err("fun main() { val x = when (y) {} }");
     assert_eq!(
         message,
-        "`when` expressions are not supported yet (milestone M2)"
+        "`when` expressions are not supported yet (milestone M3)"
     );
 }
 
@@ -433,7 +433,7 @@ fn when_expression_not_supported() {
 fn for_loop_not_supported() {
     let (span, message) = err("fun main() { for (i in xs) {} }");
     assert_eq!(span, Span::new(13, 16));
-    assert_eq!(message, "`for` loops are not supported yet (milestone M2)");
+    assert_eq!(message, "`for` loops are not supported yet (milestone M3)");
 }
 
 #[test]
@@ -442,7 +442,7 @@ fn string_interpolation_not_supported() {
     assert_eq!(span, Span::new(25, 26));
     assert_eq!(
         message,
-        "string interpolation is not supported yet (milestone M2)"
+        "string interpolation is not supported yet (milestone M3)"
     );
 }
 
@@ -472,7 +472,7 @@ fn field_default_value_not_supported() {
     assert_eq!(span, Span::new(20, 21));
     assert_eq!(
         message,
-        "field default values are not supported yet (milestone M2)"
+        "field default values are not supported yet (milestone M3)"
     );
 }
 
@@ -482,7 +482,7 @@ fn struct_member_body_not_supported() {
     assert_eq!(span, Span::new(21, 22));
     assert_eq!(
         message,
-        "struct member declarations are not supported yet (milestone M2)"
+        "struct member declarations are not supported yet (milestone M3)"
     );
 }
 

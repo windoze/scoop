@@ -7,7 +7,7 @@ SourceFile
   struct Tagged
     field tag: String
     field pair: (Int, String)
-  fun main
+  fun main()
     val a
       Call Tagged
         StringLiteral "p"
@@ -47,9 +47,9 @@ Module
   struct Tagged
     field tag: String
     field pair: (Int, String)
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     val a: Tagged
       StructInit Tagged : Tagged
         StringLiteral "p" : String
@@ -88,7 +88,7 @@ Module
 == mir ==
 Module
   struct Tagged (tag: String, pair: (Int, String))
-  fun main @scoop_main
+  fun main @scoop_main() -> Unit
     val a: Tagged
       StructInit Tagged
         StringConst @scoop.str.0
@@ -152,7 +152,7 @@ Module
   global @scoop.str.1 = "one"
   global @scoop.str.2 = "p"
   global @scoop.str.3 = "one"
-  fun @scoop_main
+  fun @scoop_main() -> void
     local %0 a: {ptr, {i64, ptr}}
     local %1 b: {ptr, {i64, ptr}}
     local %2 count: i64

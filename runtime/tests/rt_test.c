@@ -52,4 +52,8 @@ void scoop_main(void) {
     scoop_rt_println_int(-7);
     scoop_rt_print_boolean(true);
     scoop_rt_println_boolean(false);
+
+    /* scoop_rt_trap (M3) aborts the process, so it is not exercised
+     * here; its trap path is covered end-to-end by EXPECT-TRAP compiler
+     * fixtures. */
 }

@@ -1,13 +1,14 @@
-//! Test builders (M2 AST) and the M1 test suite, adapted to the M2
+//! Test builders (M3 AST) and the M1 test suite, adapted to the M3
 //! AST/HIR contracts.
 
 mod m2;
+mod m3;
 
 use super::*;
 use ast::{
-    BinOp, Block, CallExpr, Decl, Expr, FieldAccess, FieldDecl, FieldSelector, FunctionDecl, Ident,
-    SourceFile, Statement, StatementKind, StructDecl as AstStructDecl, TypeRef, TypeRefKind, UnOp,
-    ValDecl,
+    BinOp, Block, CallExpr, Decl, Expr, FieldAccess, FieldDecl, FieldSelector, FunctionBody,
+    FunctionDecl, Ident, Param, SourceFile, Statement, StatementKind, StructDecl as AstStructDecl,
+    TypeRef, TypeRefKind, UnOp, ValDecl,
 };
 
 pub(crate) fn sp() -> Span {
@@ -33,6 +34,13 @@ pub(crate) fn ty_named(name: &str) -> TypeRef {
 pub(crate) fn ty_tuple(elements: Vec<TypeRef>) -> TypeRef {
     TypeRef {
         kind: TypeRefKind::Tuple(elements),
+        span: sp(),
+    }
+}
+
+pub(crate) fn ty_nullable(inner: TypeRef) -> TypeRef {
+    TypeRef {
+        kind: TypeRefKind::Nullable(Box::new(inner)),
         span: sp(),
     }
 }
@@ -102,6 +110,17 @@ pub(crate) fn field(receiver: Expr, name: &str) -> Expr {
     Expr::FieldAccess(FieldAccess {
         receiver: Box::new(receiver),
         selector: FieldSelector::Name(ident(name)),
+        safe: false,
+        span: sp(),
+    })
+}
+
+/// The `?.` safe field access.
+pub(crate) fn safe_field(receiver: Expr, name: &str) -> Expr {
+    Expr::FieldAccess(FieldAccess {
+        receiver: Box::new(receiver),
+        selector: FieldSelector::Name(ident(name)),
+        safe: true,
         span: sp(),
     })
 }
@@ -110,6 +129,7 @@ pub(crate) fn index(receiver: Expr, n: u32) -> Expr {
     Expr::FieldAccess(FieldAccess {
         receiver: Box::new(receiver),
         selector: FieldSelector::Index(n, sp()),
+        safe: false,
         span: sp(),
     })
 }
@@ -131,11 +151,43 @@ pub(crate) fn unary(op: UnOp, operand: Expr) -> Expr {
     }
 }
 
+/// The `None` literal (parsed as an identifier, recognized by HIR).
+pub(crate) fn none() -> Expr {
+    var("None")
+}
+
+/// The builtin `Some(x)` constructor (parsed as a plain call).
+pub(crate) fn some(value: Expr) -> Expr {
+    call("Some", vec![value])
+}
+
+pub(crate) fn elvis(lhs: Expr, rhs: Expr) -> Expr {
+    Expr::Elvis {
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+        span: sp(),
+    }
+}
+
+pub(crate) fn null_assert(operand: Expr) -> Expr {
+    Expr::NullAssert {
+        operand: Box::new(operand),
+        span: sp(),
+    }
+}
+
 // --- statements ---
 
 pub(crate) fn stmt(expr: Expr) -> Statement {
     Statement {
         kind: StatementKind::Expr(expr),
+        span: sp(),
+    }
+}
+
+pub(crate) fn ret(value: Option<Expr>) -> Statement {
+    Statement {
+        kind: StatementKind::Return { value },
         span: sp(),
     }
 }
@@ -224,10 +276,58 @@ pub(crate) fn block(statements: Vec<Statement>) -> Block {
 
 // --- declarations ---
 
+/// A plain `fun name() { ... }` (no type parameters, no parameters, no
+/// return type annotation).
 pub(crate) fn fun(name: &str, statements: Vec<Statement>) -> Decl {
+    fun_sig(name, vec![], vec![], None, statements)
+}
+
+/// A block-bodied function with a full signature.
+pub(crate) fn fun_sig(
+    name: &str,
+    type_params: Vec<&str>,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    statements: Vec<Statement>,
+) -> Decl {
     Decl::Function(FunctionDecl {
         name: ident(name),
-        body: block(statements),
+        type_params: type_params.into_iter().map(ident).collect(),
+        params: params
+            .into_iter()
+            .map(|(name, ty)| Param {
+                name: ident(name),
+                ty,
+                span: sp(),
+            })
+            .collect(),
+        return_ty,
+        body: FunctionBody::Block(block(statements)),
+        span: sp(),
+    })
+}
+
+/// An expression-bodied function: `fun f(...) [: T] = expr`.
+pub(crate) fn fun_expr(
+    name: &str,
+    type_params: Vec<&str>,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    expr: Expr,
+) -> Decl {
+    Decl::Function(FunctionDecl {
+        name: ident(name),
+        type_params: type_params.into_iter().map(ident).collect(),
+        params: params
+            .into_iter()
+            .map(|(name, ty)| Param {
+                name: ident(name),
+                ty,
+                span: sp(),
+            })
+            .collect(),
+        return_ty,
+        body: FunctionBody::Expr(Box::new(expr)),
         span: sp(),
     })
 }
@@ -294,13 +394,13 @@ fn lowers_hello_world() {
     // Golden dump locks the output structure.
     let expected = "\
 Module
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     Call println : Unit
       StringLiteral \"hello, world\" : String
     Call helper : Unit
-  fun helper
+  fun helper(): Unit
     Call print : Unit
       StringLiteral \"!\" : String
   entry main
@@ -370,7 +470,7 @@ fn print_argument_must_be_printable() {
 }
 
 #[test]
-fn user_function_takes_no_arguments() {
+fn user_function_arity_is_an_error() {
     let file = file(vec![
         fun("main", vec![stmt(call("helper", vec![str_lit("x")]))]),
         fun("helper", vec![]),
@@ -379,7 +479,7 @@ fn user_function_takes_no_arguments() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "function `helper` takes no arguments, but 1 were supplied"
+        "function `helper` takes exactly 0 arguments, but 1 were supplied"
     );
 }
 

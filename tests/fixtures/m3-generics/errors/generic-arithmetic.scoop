@@ -1,0 +1,5 @@
+fun <T> f(x: T): T = x + 1
+
+fun main() {
+    println(f(1))
+}

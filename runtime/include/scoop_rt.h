@@ -49,6 +49,11 @@ void scoop_rt_println_int(int64_t value);
 void scoop_rt_print_boolean(bool value);
 void scoop_rt_println_boolean(bool value);
 
+/* M3 addition (DESIGN section 3.1): fatal trap for `!!` on `None`.
+ * Writes the message to stderr and aborts; replaced by a real
+ * UnwrapException throw in M8. */
+_Noreturn void scoop_rt_trap(const char *message);
+
 /* Entry point provided by the compiled user program (its `fun main`). */
 void scoop_main(void);
 

@@ -28,6 +28,28 @@ pub fn mangle_function(name: &str, is_entry: bool) -> String {
     }
 }
 
+/// Mangle a monomorphized instance: `scoop.<name>$<encoded type args>`.
+pub fn mangle_instance(module: &Module, name: &str, type_args: &[Type]) -> String {
+    let args: Vec<String> = type_args.iter().map(|t| encode_type(module, t)).collect();
+    format!("scoop.{name}${}", args.join("_"))
+}
+
+/// Compact type encoding for mangling (e.g. `scoop.identity$I`).
+pub fn encode_type(module: &Module, ty: &Type) -> String {
+    match ty {
+        Type::Unit => "U".to_string(),
+        Type::Int => "I".to_string(),
+        Type::Boolean => "B".to_string(),
+        Type::String => "S".to_string(),
+        Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Tuple(elements) => {
+            let inner: Vec<String> = elements.iter().map(|t| encode_type(module, t)).collect();
+            format!("T{}X", inner.join("_"))
+        }
+        Type::Option(inner) => format!("O{}X", encode_type(module, inner)),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Unit,
@@ -36,6 +58,8 @@ pub enum Type {
     String,
     Struct(StructId),
     Tuple(Vec<Type>),
+    /// Instantiated `Option<T>` (builtin until M4, see hir::Type).
+    Option(Box<Type>),
 }
 
 #[derive(Debug)]
@@ -91,9 +115,20 @@ pub struct StringConst {
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
-    /// Mangled symbol; `scoop.<name>`, or `scoop_main` for the entry.
+    /// Mangled symbol; `scoop.<name>`, `scoop.<name>$<args>` for
+    /// monomorphized instances, or `scoop_main` for the entry.
     pub symbol: String,
+    pub params: Vec<Param>,
+    pub return_ty: Type,
     pub body: Body,
+}
+
+#[derive(Debug)]
+pub struct Param {
+    pub name: String,
+    pub ty: Type,
+    /// Parameters are (immutable) locals.
+    pub local: LocalId,
 }
 
 #[derive(Debug)]
@@ -111,6 +146,10 @@ pub struct Statement {
 #[derive(Debug)]
 pub enum StatementKind {
     Expr(Expr),
+    Return {
+        /// Absent in `Unit` functions (bare `return`).
+        value: Option<Expr>,
+    },
     ValDecl {
         local: LocalId,
         init: Expr,
@@ -158,6 +197,18 @@ pub enum Expr {
     Unary {
         op: UnOp,
         operand: Box<Expr>,
+    },
+    /// `Some(value)`.
+    SomeWrap(Box<Expr>),
+    /// The `None` literal; the producing instruction carries the
+    /// concrete `Option<T>` type at LIR.
+    NoneLiteral,
+    /// Test whether an `Option<T>` is `Some`.
+    IsSome(Box<Expr>),
+    /// Unwrap an `Option<T>`; `trap_on_none` comes from `!!`.
+    Unwrap {
+        operand: Box<Expr>,
+        trap_on_none: bool,
     },
 }
 
@@ -256,7 +307,18 @@ pub fn dump(module: &Module) -> String {
     }
     for &id in &module.top_level {
         let function = &module.functions[id];
-        out.push_str(&format!("  fun {} @{}\n", function.name, function.symbol));
+        let params: Vec<String> = function
+            .params
+            .iter()
+            .map(|p| format!("{}: {}", p.name, type_name(module, &p.ty)))
+            .collect();
+        out.push_str(&format!(
+            "  fun {} @{}({}) -> {}\n",
+            function.name,
+            function.symbol,
+            params.join(", "),
+            type_name(module, &function.return_ty)
+        ));
         dump_statements(
             module,
             &function.body.locals,
@@ -284,6 +346,7 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, t)).collect();
             format!("({})", inner.join(", "))
         }
+        Type::Option(inner) => format!("Option<{}>", type_name(module, inner)),
     }
 }
 
@@ -298,6 +361,12 @@ fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
+            StatementKind::Return { value } => {
+                out.push_str(&format!("{pad}return\n"));
+                if let Some(value) = value {
+                    dump_expr(module, locals, value, indent + 1, out);
+                }
+            }
             StatementKind::ValDecl { local, init } => {
                 let local = &locals[*local];
                 let keyword = if local.mutable { "var" } else { "val" };
@@ -383,6 +452,22 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         Expr::Unary { op, operand } => {
             out.push_str(&format!("{pad}Unary {op:?}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::SomeWrap(operand) => {
+            out.push_str(&format!("{pad}SomeWrap\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::NoneLiteral => out.push_str(&format!("{pad}NoneLiteral\n")),
+        Expr::IsSome(operand) => {
+            out.push_str(&format!("{pad}IsSome\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::Unwrap {
+            operand,
+            trap_on_none,
+        } => {
+            out.push_str(&format!("{pad}Unwrap trap={trap_on_none}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
     }

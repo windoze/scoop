@@ -24,6 +24,13 @@ pub enum Type {
     String,
     Struct(StructId),
     Tuple(Vec<TypeId>),
+    /// `Option<T>` — a compiler builtin until enums land in M4
+    /// (docs/milestone3/DESIGN.md 5.1).
+    Option(TypeId),
+    /// A function type parameter, by index into
+    /// `Function::type_params`. Only appears inside generic function
+    /// bodies; instantiated MIR never contains it.
+    Param(u32),
 }
 
 /// Structural type equality (tuple types are compared by elements).
@@ -34,6 +41,8 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
         (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Option(x), Type::Option(y)) => types_equal(module, *x, *y),
+        (Type::Param(x), Type::Param(y)) => x == y,
         (Type::Tuple(xs), Type::Tuple(ys)) => {
             xs.len() == ys.len()
                 && xs
@@ -57,6 +66,8 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, *t)).collect();
             format!("({})", inner.join(", "))
         }
+        Type::Option(inner) => format!("Option<{}>", type_name(module, *inner)),
+        Type::Param(index) => format!("T{index}"),
     }
 }
 
@@ -78,6 +89,17 @@ pub struct Module {
     pub println: FunctionId,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
+    /// Instantiation requests: (generic function, resolved type
+    /// arguments), deduplicated, including nested requests from
+    /// generic function bodies (impl spec 2.2).
+    pub instantiations: Vec<Instantiation>,
+}
+
+/// A monomorphization request produced by HIR and materialized by MIR.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Instantiation {
+    pub function: FunctionId,
+    pub type_args: Vec<TypeId>,
 }
 
 #[derive(Debug)]
@@ -96,8 +118,20 @@ pub struct Field {
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
+    /// Generic type parameter names; empty for non-generic functions.
+    pub type_params: Vec<String>,
+    pub params: Vec<Param>,
+    pub return_ty: TypeId,
     pub kind: FunctionKind,
     pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct Param {
+    pub name: String,
+    pub ty: TypeId,
+    /// Parameters are (immutable) locals.
+    pub local: LocalId,
 }
 
 #[derive(Debug)]
@@ -134,6 +168,10 @@ pub struct Statement {
 #[derive(Debug)]
 pub enum StatementKind {
     Expr(Expr),
+    Return {
+        /// Absent in `Unit` functions (bare `return`).
+        value: Option<Expr>,
+    },
     ValDecl {
         local: LocalId,
         init: Expr,
@@ -179,6 +217,8 @@ pub enum ExprKind {
     },
     Call {
         function: FunctionId,
+        /// Resolved type arguments; empty for non-generic callees.
+        type_args: Vec<TypeId>,
         args: Vec<Expr>,
     },
     Binary {
@@ -189,6 +229,20 @@ pub enum ExprKind {
     Unary {
         op: UnOp,
         operand: Box<Expr>,
+    },
+    // The following are produced by hir-lower's Option desugaring
+    // (`?.` / `?:` / `!!`), not directly by surface syntax.
+    /// `Some(value)`.
+    SomeWrap(Box<Expr>),
+    /// The `None` literal; its type is `Expr::ty` (an `Option<T>`).
+    NoneLiteral,
+    /// Test whether an `Option<T>` is `Some`.
+    IsSome(Box<Expr>),
+    /// Unwrap an `Option<T>`; `trap_on_none` comes from `!!`
+    /// (M3: trap; M8: `UnwrapException`).
+    Unwrap {
+        operand: Box<Expr>,
+        trap_on_none: bool,
     },
 }
 
@@ -238,12 +292,29 @@ pub fn dump(module: &Module) -> String {
     }
     for &id in &module.top_level {
         let function = &module.functions[id];
+        let type_params = if function.type_params.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", function.type_params.join(", "))
+        };
+        let params: Vec<String> = function
+            .params
+            .iter()
+            .map(|p| format!("{}: {}", p.name, type_name(module, p.ty)))
+            .collect();
+        let signature = format!(
+            "{}{}({}): {}",
+            function.name,
+            type_params,
+            params.join(", "),
+            type_name(module, function.return_ty)
+        );
         match &function.kind {
             FunctionKind::Builtin(builtin) => {
-                out.push_str(&format!("  fun {} <builtin {builtin:?}>\n", function.name));
+                out.push_str(&format!("  fun {signature} <builtin {builtin:?}>\n"));
             }
             FunctionKind::User(body) => {
-                out.push_str(&format!("  fun {}\n", function.name));
+                out.push_str(&format!("  fun {signature}\n"));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
             }
         }
@@ -252,6 +323,18 @@ pub fn dump(module: &Module) -> String {
         "  entry {}\n",
         module.functions[module.entry].name
     ));
+    for instantiation in &module.instantiations {
+        let args: Vec<String> = instantiation
+            .type_args
+            .iter()
+            .map(|t| type_name(module, *t))
+            .collect();
+        out.push_str(&format!(
+            "  instance {}<{}>\n",
+            module.functions[instantiation.function].name,
+            args.join(", ")
+        ));
+    }
     out
 }
 
@@ -266,6 +349,12 @@ fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
+            StatementKind::Return { value } => {
+                out.push_str(&format!("{pad}return\n"));
+                if let Some(value) = value {
+                    dump_expr(module, locals, value, indent + 1, out);
+                }
+            }
             StatementKind::ValDecl { local, init } => {
                 let local = &locals[*local];
                 let keyword = if local.mutable { "var" } else { "val" };
@@ -338,9 +427,19 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}FieldAccess {field} : {ty}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
         }
-        ExprKind::Call { function, args } => {
+        ExprKind::Call {
+            function,
+            type_args,
+            args,
+        } => {
             let callee = &module.functions[*function];
-            out.push_str(&format!("{pad}Call {} : {ty}\n", callee.name));
+            let type_args = if type_args.is_empty() {
+                String::new()
+            } else {
+                let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
+                format!("<{}>", args.join(", "))
+            };
+            out.push_str(&format!("{pad}Call {}{type_args} : {ty}\n", callee.name));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
@@ -352,6 +451,22 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         ExprKind::Unary { op, operand } => {
             out.push_str(&format!("{pad}Unary {op:?} : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::SomeWrap(operand) => {
+            out.push_str(&format!("{pad}SomeWrap : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::NoneLiteral => out.push_str(&format!("{pad}NoneLiteral : {ty}\n")),
+        ExprKind::IsSome(operand) => {
+            out.push_str(&format!("{pad}IsSome : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::Unwrap {
+            operand,
+            trap_on_none,
+        } => {
+            out.push_str(&format!("{pad}Unwrap trap={trap_on_none} : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
     }

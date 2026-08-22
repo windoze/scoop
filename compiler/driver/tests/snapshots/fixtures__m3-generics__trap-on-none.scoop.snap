@@ -1,0 +1,61 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  fun main()
+    val x: Int?
+      Var None
+    Call println
+      NullAssert
+        Var x
+
+== hir ==
+Module
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
+    val x: Option<Int>
+      NoneLiteral : Option<Int>
+    Call println : Unit
+      Unwrap trap=true : Int
+        Local x : Option<Int>
+  entry main
+
+== mir ==
+Module
+  fun main @scoop_main() -> Unit
+    val x: Option<Int>
+      NoneLiteral
+    Call @scoop_rt_println_int direct
+      Unwrap trap=true
+        Local x
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.cstr.0 = c"unwrap on None (function main)"
+  fun @scoop_main() -> void
+    local %0 x: {i1, i64}
+  block entry
+    t0 = none : {i1, i64}
+    store t0 -> local0
+    t1 = is_some local0 : i1
+    cbr t1 then @unwrap.ok.1 else @unwrap.trap.2
+  block unwrap.ok.1
+    t2 = unwrap local0 : i64
+    call @scoop_rt_println_int(t2)
+    t3 = aggregate () : {}
+    ret
+  block unwrap.trap.2
+    call @scoop_rt_trap(global0)
+    unreachable
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option<Int> size=16 align=8 refs=[]
+  entry @scoop_main
+
+== trap ==
+scoop: trap: unwrap on None (function main)

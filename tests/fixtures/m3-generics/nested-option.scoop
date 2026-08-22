@@ -1,0 +1,8 @@
+fun main() {
+    val a: Int?? = Some(Some(1))
+    val b: Int?? = Some(None)
+    val c: Int?? = None
+    println(a!! ?: 0)
+    println(b!! ?: 0)
+    println((c ?: Some(3)) ?: 0)
+}

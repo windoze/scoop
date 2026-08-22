@@ -1,11 +1,11 @@
-//! Hand-written lexer for the M2 source subset.
+//! Hand-written lexer for the M3 source subset.
 //!
 //! Produces a flat token vector for the parser. Lexing is fail-fast: the
 //! first un-lexable input yields one diagnostic and no tokens at all.
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M2 subset. Reserved words are dedicated variants;
+/// Token kinds of the M3 subset. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word).
 #[derive(Debug, Clone, PartialEq)]
@@ -17,6 +17,7 @@ pub(crate) enum TokenKind {
     If,
     Else,
     While,
+    Return,
     True,
     False,
     Ident(String),
@@ -30,6 +31,9 @@ pub(crate) enum TokenKind {
     Semicolon,
     Colon,
     Dot,
+    Question,
+    QuestionDot,
+    QuestionColon,
     Plus,
     Minus,
     Star,
@@ -69,6 +73,7 @@ impl Token {
             TokenKind::If => "`if`".to_string(),
             TokenKind::Else => "`else`".to_string(),
             TokenKind::While => "`while`".to_string(),
+            TokenKind::Return => "`return`".to_string(),
             TokenKind::True => "`true`".to_string(),
             TokenKind::False => "`false`".to_string(),
             TokenKind::Ident(name) => format!("`{name}`"),
@@ -82,6 +87,9 @@ impl Token {
             TokenKind::Semicolon => "`;`".to_string(),
             TokenKind::Colon => "`:`".to_string(),
             TokenKind::Dot => "`.`".to_string(),
+            TokenKind::Question => "`?`".to_string(),
+            TokenKind::QuestionDot => "`?.`".to_string(),
+            TokenKind::QuestionColon => "`?:`".to_string(),
             TokenKind::Plus => "`+`".to_string(),
             TokenKind::Minus => "`-`".to_string(),
             TokenKind::Star => "`*`".to_string(),
@@ -166,6 +174,16 @@ impl<'a> Lexer<'a> {
                 '.' => {
                     self.pos += 1;
                     TokenKind::Dot
+                }
+                '?' => {
+                    self.pos += 1;
+                    if self.eat('.') {
+                        TokenKind::QuestionDot
+                    } else if self.eat(':') {
+                        TokenKind::QuestionColon
+                    } else {
+                        TokenKind::Question
+                    }
                 }
                 '+' => {
                     self.pos += 1;
@@ -346,7 +364,7 @@ impl<'a> Lexer<'a> {
         if text == "f" && self.peek_char() == Some('"') {
             return Err(Diagnostic::at(
                 self.span_from(start),
-                "string interpolation is not supported yet (milestone M2)",
+                "string interpolation is not supported yet (milestone M3)",
             ));
         }
         let kind = match text {
@@ -357,6 +375,7 @@ impl<'a> Lexer<'a> {
             "if" => TokenKind::If,
             "else" => TokenKind::Else,
             "while" => TokenKind::While,
+            "return" => TokenKind::Return,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
             _ => TokenKind::Ident(text.to_string()),

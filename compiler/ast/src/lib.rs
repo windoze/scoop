@@ -80,6 +80,8 @@ pub enum TypeRefKind {
     Tuple(Vec<TypeRef>),
     /// The `Unit` type name (also written `()` in type position).
     Unit,
+    /// `T?` — desugars to `Option<T>` in HIR (spec 7.1).
+    Nullable(Box<TypeRef>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -111,8 +113,28 @@ pub struct FieldDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl {
     pub name: Ident,
-    pub body: Block,
+    /// Generic type parameters (`fun <T> f(...)`); empty for
+    /// non-generic functions.
+    pub type_params: Vec<Ident>,
+    pub params: Vec<Param>,
+    /// Return type annotation; absent means `Unit`.
+    pub return_ty: Option<TypeRef>,
+    pub body: FunctionBody,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Param {
+    pub name: Ident,
+    pub ty: TypeRef,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FunctionBody {
+    Block(Block),
+    /// `fun f(...) [: T] = expr`
+    Expr(Box<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -130,6 +152,11 @@ pub struct Statement {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind {
     Expr(Expr),
+    /// `return` with an optional value (bare `return` in `Unit`
+    /// functions).
+    Return {
+        value: Option<Expr>,
+    },
     ValDecl(ValDecl),
     Assign(Assign),
     If(If),
@@ -213,6 +240,18 @@ pub enum Expr {
         operand: Box<Expr>,
         span: Span,
     },
+    /// `expr!!` — unwrap an `Option`, trapping on `None` (M3; real
+    /// exception in M8).
+    NullAssert {
+        operand: Box<Expr>,
+        span: Span,
+    },
+    /// `lhs ?: rhs` (spec 7.3).
+    Elvis {
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+        span: Span,
+    },
 }
 
 impl Expr {
@@ -225,7 +264,9 @@ impl Expr {
             | Expr::TupleLiteral { span, .. }
             | Expr::StructInit { span, .. }
             | Expr::Binary { span, .. }
-            | Expr::Unary { span, .. } => *span,
+            | Expr::Unary { span, .. }
+            | Expr::NullAssert { span, .. }
+            | Expr::Elvis { span, .. } => *span,
             Expr::Var(ident) => ident.span,
             Expr::FieldAccess(access) => access.span,
             Expr::Call(call) => call.span,
@@ -237,6 +278,8 @@ impl Expr {
 pub struct FieldAccess {
     pub receiver: Box<Expr>,
     pub selector: FieldSelector,
+    /// `?.` (spec 7.3) instead of `.`.
+    pub safe: bool,
     pub span: Span,
 }
 
@@ -294,8 +337,39 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Function(f) => {
-                out.push_str(&format!("  fun {}\n", f.name.text));
-                dump_block(&f.body, 2, &mut out);
+                let type_params = if f.type_params.is_empty() {
+                    String::new()
+                } else {
+                    let names: Vec<&str> = f.type_params.iter().map(|p| p.text.as_str()).collect();
+                    format!("<{}>", names.join(", "))
+                };
+                let params: Vec<String> = f
+                    .params
+                    .iter()
+                    .map(|p| format!("{}: {}", p.name.text, dump_type_ref(&p.ty)))
+                    .collect();
+                let ret = f
+                    .return_ty
+                    .as_ref()
+                    .map(|t| format!(": {}", dump_type_ref(t)))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "  fun {}{}({}){}\n",
+                    f.name.text,
+                    type_params,
+                    params.join(", "),
+                    ret
+                ));
+                match &f.body {
+                    FunctionBody::Block(block) => dump_block(block, 2, &mut out),
+                    FunctionBody::Expr(expr) => {
+                        out.push_str(
+                            "    =
+",
+                        );
+                        dump_expr(expr, 3, &mut out);
+                    }
+                }
             }
         }
     }
@@ -310,6 +384,7 @@ fn dump_type_ref(ty: &TypeRef) -> String {
             let inner: Vec<String> = elements.iter().map(dump_type_ref).collect();
             format!("({})", inner.join(", "))
         }
+        TypeRefKind::Nullable(inner) => format!("{}?", dump_type_ref(inner)),
     }
 }
 
@@ -323,6 +398,12 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match &statement.kind {
         StatementKind::Expr(expr) => dump_expr(expr, indent, out),
+        StatementKind::Return { value } => {
+            out.push_str(&format!("{pad}return\n"));
+            if let Some(value) = value {
+                dump_expr(value, indent + 1, out);
+            }
+        }
         StatementKind::ValDecl(decl) => {
             let keyword = if decl.mutable { "var" } else { "val" };
             let ty = decl.ty.as_ref().map(dump_type_ref);
@@ -382,7 +463,8 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 FieldSelector::Name(name) => name.text.clone(),
                 FieldSelector::Index(index, _) => format!("_{index}"),
             };
-            out.push_str(&format!("{pad}FieldAccess {selector}\n"));
+            let marker = if access.safe { "?" } else { "" };
+            out.push_str(&format!("{pad}FieldAccess {marker}{selector}\n"));
             dump_expr(&access.receiver, indent + 1, out);
         }
         Expr::Call(call) => {
@@ -399,6 +481,15 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::Unary { op, operand, .. } => {
             out.push_str(&format!("{pad}Unary {op:?}\n"));
             dump_expr(operand, indent + 1, out);
+        }
+        Expr::NullAssert { operand, .. } => {
+            out.push_str(&format!("{pad}NullAssert\n"));
+            dump_expr(operand, indent + 1, out);
+        }
+        Expr::Elvis { lhs, rhs, .. } => {
+            out.push_str(&format!("{pad}Elvis\n"));
+            dump_expr(lhs, indent + 1, out);
+            dump_expr(rhs, indent + 1, out);
         }
     }
 }

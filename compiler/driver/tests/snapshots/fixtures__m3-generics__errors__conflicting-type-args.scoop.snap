@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m3-generics/errors/conflicting-type-args.scoop:4:21: error: conflicting types for `T`: Int and String

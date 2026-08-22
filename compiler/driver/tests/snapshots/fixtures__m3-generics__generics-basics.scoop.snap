@@ -1,0 +1,130 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  fun identity<T>(x: T): T
+    =
+      Var x
+  fun first<T, U>(a: T, b: U): T
+    =
+      Var a
+  fun main()
+    Call println
+      Call identity
+        IntLiteral 42
+    Call println
+      Call identity
+        StringLiteral "hi"
+    Call println
+      Call identity
+        BoolLiteral true
+    Call println
+      Call first
+        IntLiteral 1
+        StringLiteral "two"
+
+== hir ==
+Module
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun identity<T>(x: T0): T0
+    return
+      Local x : T0
+  fun first<T, U>(a: T0, b: T1): T0
+    return
+      Local a : T0
+  fun main(): Unit
+    Call println : Unit
+      Call identity<Int> : Int
+        IntLiteral 42 : Int
+    Call println : Unit
+      Call identity<String> : String
+        StringLiteral "hi" : String
+    Call println : Unit
+      Call identity<Boolean> : Boolean
+        BoolLiteral true : Boolean
+    Call println : Unit
+      Call first<Int, String> : Int
+        IntLiteral 1 : Int
+        StringLiteral "two" : String
+  entry main
+  instance identity<Int>
+  instance identity<String>
+  instance identity<Boolean>
+  instance first<Int, String>
+
+== mir ==
+Module
+  fun main @scoop_main() -> Unit
+    Call @scoop_rt_println_int direct
+      Call @scoop.identity$I direct
+        IntLiteral 42
+    Call @scoop_rt_println direct
+      Call @scoop.identity$S direct
+        StringConst @scoop.str.0
+    Call @scoop_rt_println_boolean direct
+      Call @scoop.identity$B direct
+        BoolLiteral true
+    Call @scoop_rt_println_int direct
+      Call @scoop.first$I_S direct
+        IntLiteral 1
+        StringConst @scoop.str.1
+  fun identity @scoop.identity$I(x: Int) -> Int
+    return
+      Local x
+  fun identity @scoop.identity$S(x: String) -> String
+    return
+      Local x
+  fun identity @scoop.identity$B(x: Boolean) -> Boolean
+    return
+      Local x
+  fun first @scoop.first$I_S(a: Int, b: String) -> Int
+    return
+      Local a
+  str @scoop.str.0 "hi"
+  str @scoop.str.1 "two"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "hi"
+  global @scoop.str.1 = "two"
+  fun @scoop_main() -> void
+  block entry
+    t0 = call @scoop.identity$I(42) : i64
+    call @scoop_rt_println_int(t0)
+    t1 = aggregate () : {}
+    t2 = call @scoop.identity$S(global0) : ptr
+    call @scoop_rt_println(t2)
+    t3 = aggregate () : {}
+    t4 = call @scoop.identity$B(true) : i1
+    call @scoop_rt_println_boolean(t4)
+    t5 = aggregate () : {}
+    t6 = call @scoop.first$I_S(1, global1) : i64
+    call @scoop_rt_println_int(t6)
+    t7 = aggregate () : {}
+    ret
+  fun @scoop.identity$I(i64) -> i64
+  block entry
+    ret param0
+  fun @scoop.identity$S(ptr) -> ptr
+  block entry
+    ret param0
+  fun @scoop.identity$B(i1) -> i1
+  block entry
+    ret param0
+  fun @scoop.first$I_S(i64, ptr) -> i64
+  block entry
+    ret param0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+
+== run ==
+42
+hi
+true
+1

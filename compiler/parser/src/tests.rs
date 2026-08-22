@@ -3,7 +3,7 @@
 //! whose behavior M2 keeps. M2-only syntax and diagnostics live in
 //! `tests_m2.rs`.
 
-use scoop_ast::{Decl, Expr, Span, StatementKind};
+use scoop_ast::{Decl, Expr, FunctionBody, FunctionDecl, Span, StatementKind};
 
 use crate::parse;
 
@@ -14,7 +14,7 @@ pub(crate) fn ok(source: &str) -> scoop_ast::SourceFile {
 /// Asserts fail-fast (exactly one diagnostic) and returns its span + message.
 pub(crate) fn err(source: &str) -> (Span, String) {
     let diagnostics = parse(source).expect_err("should fail");
-    assert_eq!(diagnostics.len(), 1, "M2 is fail-fast");
+    assert_eq!(diagnostics.len(), 1, "M3 is fail-fast");
     let diagnostic = diagnostics.into_iter().next().unwrap();
     (
         diagnostic.span.expect("parser diagnostics carry a span"),
@@ -30,8 +30,15 @@ pub(crate) fn only_function(file: &scoop_ast::SourceFile) -> &scoop_ast::Functio
     function
 }
 
+pub(crate) fn block_body(function: &FunctionDecl) -> &scoop_ast::Block {
+    match &function.body {
+        FunctionBody::Block(block) => block,
+        FunctionBody::Expr(_) => panic!("expected a block body"),
+    }
+}
+
 fn only_stmt(file: &scoop_ast::SourceFile) -> &scoop_ast::Statement {
-    let statements = &only_function(file).body.statements;
+    let statements = &block_body(only_function(file)).statements;
     assert_eq!(statements.len(), 1);
     &statements[0]
 }
@@ -59,8 +66,12 @@ fn empty_function() {
     assert_eq!(function.name.text, "main");
     assert_eq!(function.name.span, Span::new(4, 8));
     assert_eq!(function.span, Span::new(0, 13));
-    assert_eq!(function.body.span, Span::new(11, 13));
-    assert!(function.body.statements.is_empty());
+    assert!(function.type_params.is_empty());
+    assert!(function.params.is_empty());
+    assert!(function.return_ty.is_none());
+    let body = block_body(function);
+    assert_eq!(body.span, Span::new(11, 13));
+    assert!(body.statements.is_empty());
 }
 
 #[test]
@@ -68,7 +79,7 @@ fn hello_world() {
     let file = ok("fun main() {\n    print(\"hello, world\")\n    println(\"!\")\n}\n");
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun main\n    Call print\n      StringLiteral \"hello, world\"\n    Call println\n      StringLiteral \"!\"\n"
+        "SourceFile\n  fun main()\n    Call print\n      StringLiteral \"hello, world\"\n    Call println\n      StringLiteral \"!\"\n"
     );
 }
 
@@ -85,7 +96,7 @@ fn multiple_functions_and_calls() {
         panic!("expected a function declaration");
     };
     assert_eq!(main.name.text, "main");
-    let stmt = &main.body.statements[0];
+    let stmt = &block_body(main).statements[0];
     let StatementKind::Expr(Expr::Call(call)) = &stmt.kind else {
         panic!("expected a call statement");
     };
@@ -124,21 +135,21 @@ fn line_and_block_comments() {
     let file = ok(
         "// leading\nfun main() { /* inline */ print(\"a\") // trailing\n    /* multi\nline */ print(\"b\")\n}\n",
     );
-    let statements = &only_function(&file).body.statements;
+    let statements = &block_body(only_function(&file)).statements;
     assert_eq!(statements.len(), 2);
 }
 
 #[test]
 fn optional_semicolons() {
     let file = ok("fun main() {\n    print(\"a\");\n    print(\"b\"); print(\"c\")\n}\n");
-    let statements = &only_function(&file).body.statements;
+    let statements = &block_body(only_function(&file)).statements;
     assert_eq!(statements.len(), 3);
 }
 
 #[test]
 fn last_statement_before_closing_brace_needs_no_separator() {
     let file = ok("fun main() { print(\"a\") }");
-    assert_eq!(only_function(&file).body.statements.len(), 1);
+    assert_eq!(block_body(only_function(&file)).statements.len(), 1);
 }
 
 #[test]
@@ -157,8 +168,9 @@ fn spans_are_byte_offsets() {
     let file = ok("fun main() {\n    print(\"hi\")\n}\n");
     let function = only_function(&file);
     assert_eq!(function.span, Span::new(0, 30));
-    assert_eq!(function.body.span, Span::new(11, 30));
-    let stmt = &function.body.statements[0];
+    let body = block_body(function);
+    assert_eq!(body.span, Span::new(11, 30));
+    let stmt = &body.statements[0];
     assert_eq!(stmt.span, Span::new(17, 28));
     let StatementKind::Expr(Expr::Call(call)) = &stmt.kind else {
         panic!("expected a call statement");
@@ -214,23 +226,6 @@ fn unterminated_block_comment() {
 }
 
 #[test]
-fn parameters_not_supported() {
-    let (span, message) = err("fun f(x: Int) {}");
-    assert_eq!(span, Span::new(6, 7));
-    assert_eq!(message, "parameters are not supported yet (milestone M2)");
-}
-
-#[test]
-fn return_type_annotation_not_supported() {
-    let (span, message) = err("fun f(): Int {}");
-    assert_eq!(span, Span::new(7, 8));
-    assert_eq!(
-        message,
-        "return type annotations are not supported yet (milestone M2)"
-    );
-}
-
-#[test]
 fn val_without_initializer() {
     let (_, message) = err("fun main() {\n    val x\n}\n");
     assert_eq!(message, "expected `=`, found `}`");
@@ -259,7 +254,7 @@ fn missing_parameter_list() {
 #[test]
 fn missing_body() {
     let (_, message) = err("fun main() x");
-    assert_eq!(message, "expected `{`, found `x`");
+    assert_eq!(message, "expected `{` or `=`, found `x`");
 }
 
 #[test]

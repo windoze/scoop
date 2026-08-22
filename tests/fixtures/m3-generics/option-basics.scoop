@@ -1,0 +1,13 @@
+struct Point(val x: Int, val y: Int)
+
+fun main() {
+    val a: Int? = Some(41)
+    println(a ?: 0)
+    val b: Int? = None
+    println(b ?: 99)
+    val p: Point? = Some(Point(10, 20))
+    println(p?.x ?: 0)
+    val q: Point? = None
+    println(q?.x ?: 0)
+    println(a!! + 1)
+}

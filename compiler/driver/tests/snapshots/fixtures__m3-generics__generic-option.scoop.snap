@@ -1,0 +1,308 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  fun unwrapOr<T>(o: T?, fallback: T): T
+    return
+      Elvis
+        Var o
+        Var fallback
+  fun isPresent<T>(o: T?): Boolean
+    if
+      Binary Eq
+        Var o
+        Var None
+      return
+        BoolLiteral false
+    return
+      BoolLiteral true
+  fun main()
+    Call println
+      Call unwrapOr
+        Call Some
+          IntLiteral 7
+        IntLiteral 0
+    val e: Int?
+      Var None
+    Call println
+      Call unwrapOr
+        Var e
+        IntLiteral 9
+    Call println
+      Call isPresent
+        Call Some
+          StringLiteral "x"
+    Call println
+      Call isPresent
+        Var e
+
+== hir ==
+Module
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun unwrapOr<T>(o: Option<T0>, fallback: T0): T0
+    val $opt.0: Option<T0>
+      Local o : Option<T0>
+    if
+      IsSome : Boolean
+        Local $opt.0 : Option<T0>
+      val $res.1: T0
+        Unwrap trap=false : T0
+          Local $opt.0 : Option<T0>
+    else
+      val $res.1: T0
+        Local fallback : T0
+    return
+      Local $res.1 : T0
+  fun isPresent<T>(o: Option<T0>): Boolean
+    if
+      Binary Eq : Boolean
+        Local o : Option<T0>
+        NoneLiteral : Option<T0>
+      return
+        BoolLiteral false : Boolean
+    return
+      BoolLiteral true : Boolean
+  fun main(): Unit
+    Call println : Unit
+      Call unwrapOr<Int> : Int
+        SomeWrap : Option<Int>
+          IntLiteral 7 : Int
+        IntLiteral 0 : Int
+    val e: Option<Int>
+      NoneLiteral : Option<Int>
+    Call println : Unit
+      Call unwrapOr<Int> : Int
+        Local e : Option<Int>
+        IntLiteral 9 : Int
+    Call println : Unit
+      Call isPresent<String> : Boolean
+        SomeWrap : Option<String>
+          StringLiteral "x" : String
+    Call println : Unit
+      Call isPresent<Int> : Boolean
+        Local e : Option<Int>
+  entry main
+  instance unwrapOr<Int>
+  instance isPresent<String>
+  instance isPresent<Int>
+
+== mir ==
+Module
+  fun main @scoop_main() -> Unit
+    Call @scoop_rt_println_int direct
+      Call @scoop.unwrapOr$I direct
+        SomeWrap
+          IntLiteral 7
+        IntLiteral 0
+    val e: Option<Int>
+      NoneLiteral
+    Call @scoop_rt_println_int direct
+      Call @scoop.unwrapOr$I direct
+        Local e
+        IntLiteral 9
+    Call @scoop_rt_println_boolean direct
+      Call @scoop.isPresent$S direct
+        SomeWrap
+          StringConst @scoop.str.0
+    Call @scoop_rt_println_boolean direct
+      Call @scoop.isPresent$I direct
+        Local e
+  fun unwrapOr @scoop.unwrapOr$I(o: Option<Int>, fallback: Int) -> Int
+    val $opt.0: Option<Int>
+      Local o
+    if
+      IsSome
+        Local $opt.0
+      val $res.1: Int
+        Unwrap trap=false
+          Local $opt.0
+    else
+      val $res.1: Int
+        Local fallback
+    return
+      Local $res.1
+  fun isPresent @scoop.isPresent$S(o: Option<String>) -> Boolean
+    if
+      Binary Or
+        Binary And
+          Binary And
+            IsSome
+              Local o
+            BoolLiteral false
+          Call @scoop_rt_string_eq direct
+            Unwrap trap=false
+              Local o
+            Unwrap trap=false
+              NoneLiteral
+        Binary And
+          Unary BoolNot
+            IsSome
+              Local o
+          BoolLiteral true
+      return
+        BoolLiteral false
+    return
+      BoolLiteral true
+  fun isPresent @scoop.isPresent$I(o: Option<Int>) -> Boolean
+    if
+      Binary Or
+        Binary And
+          Binary And
+            IsSome
+              Local o
+            BoolLiteral false
+          Binary IntEq
+            Unwrap trap=false
+              Local o
+            Unwrap trap=false
+              NoneLiteral
+        Binary And
+          Unary BoolNot
+            IsSome
+              Local o
+          BoolLiteral true
+      return
+        BoolLiteral false
+    return
+      BoolLiteral true
+  str @scoop.str.0 "x"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "x"
+  fun @scoop_main() -> void
+    local %0 e: {i1, i64}
+  block entry
+    t0 = some_wrap 7 : {i1, i64}
+    t1 = call @scoop.unwrapOr$I(t0, 0) : i64
+    call @scoop_rt_println_int(t1)
+    t2 = aggregate () : {}
+    t3 = none : {i1, i64}
+    store t3 -> local0
+    t4 = call @scoop.unwrapOr$I(local0, 9) : i64
+    call @scoop_rt_println_int(t4)
+    t5 = aggregate () : {}
+    t6 = some_wrap global0 : ptr
+    t7 = call @scoop.isPresent$S(t6) : i1
+    call @scoop_rt_println_boolean(t7)
+    t8 = aggregate () : {}
+    t9 = call @scoop.isPresent$I(local0) : i1
+    call @scoop_rt_println_boolean(t9)
+    t10 = aggregate () : {}
+    ret
+  fun @scoop.unwrapOr$I({i1, i64}, i64) -> i64
+    local %0 $opt.0: {i1, i64}
+    local %1 $res.1: i64
+  block entry
+    store param0 -> local0
+    t0 = is_some local0 : i1
+    cbr t0 then @if.then.1 else @if.else.2
+  block if.then.1
+    t1 = unwrap local0 : i64
+    store t1 -> local1
+    br @if.merge.3
+  block if.else.2
+    store param1 -> local1
+    br @if.merge.3
+  block if.merge.3
+    ret local1
+  fun @scoop.isPresent$S(ptr) -> i1
+    local %0 $sc.1: i1
+    local %1 $sc.2: i1
+    local %2 $sc.3: i1
+    local %3 $sc.4: i1
+  block entry
+    t0 = is_some param0 : i1
+    store t0 -> local2
+    cbr t0 then @sc.rhs.1 else @sc.merge.2
+  block sc.rhs.1
+    store false -> local2
+    br @sc.merge.2
+  block sc.merge.2
+    store local2 -> local1
+    cbr local2 then @sc.rhs.3 else @sc.merge.4
+  block sc.rhs.3
+    t1 = unwrap param0 : ptr
+    t2 = none : ptr
+    t3 = unwrap t2 : ptr
+    t4 = call @scoop_rt_string_eq(t1, t3) : i1
+    store t4 -> local1
+    br @sc.merge.4
+  block sc.merge.4
+    store local1 -> local0
+    cbr local1 then @sc.merge.6 else @sc.rhs.5
+  block sc.rhs.5
+    t5 = is_some param0 : i1
+    t6 = Not t5 : i1
+    store t6 -> local3
+    cbr t6 then @sc.rhs.7 else @sc.merge.8
+  block sc.merge.6
+    cbr local0 then @if.then.9 else @if.merge.10
+  block sc.rhs.7
+    store true -> local3
+    br @sc.merge.8
+  block sc.merge.8
+    store local3 -> local0
+    br @sc.merge.6
+  block if.then.9
+    ret false
+  block if.merge.10
+    ret true
+  fun @scoop.isPresent$I({i1, i64}) -> i1
+    local %0 $sc.1: i1
+    local %1 $sc.2: i1
+    local %2 $sc.3: i1
+    local %3 $sc.4: i1
+  block entry
+    t0 = is_some param0 : i1
+    store t0 -> local2
+    cbr t0 then @sc.rhs.1 else @sc.merge.2
+  block sc.rhs.1
+    store false -> local2
+    br @sc.merge.2
+  block sc.merge.2
+    store local2 -> local1
+    cbr local2 then @sc.rhs.3 else @sc.merge.4
+  block sc.rhs.3
+    t1 = unwrap param0 : i64
+    t2 = none : {i1, i64}
+    t3 = unwrap t2 : i64
+    t4 = Eq t1, t3 : i1
+    store t4 -> local1
+    br @sc.merge.4
+  block sc.merge.4
+    store local1 -> local0
+    cbr local1 then @sc.merge.6 else @sc.rhs.5
+  block sc.rhs.5
+    t5 = is_some param0 : i1
+    t6 = Not t5 : i1
+    store t6 -> local3
+    cbr t6 then @sc.rhs.7 else @sc.merge.8
+  block sc.merge.6
+    cbr local0 then @if.then.9 else @if.merge.10
+  block sc.rhs.7
+    store true -> local3
+    br @sc.merge.8
+  block sc.merge.8
+    store local3 -> local0
+    br @sc.merge.6
+  block if.then.9
+    ret false
+  block if.merge.10
+    ret true
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option<Int> size=16 align=8 refs=[]
+  layout Option<String> size=8 align=8 refs=[0]
+  entry @scoop_main
+
+== run ==
+7
+9
+true
+false
