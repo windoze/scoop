@@ -35,9 +35,9 @@ struct / tuple、字段访问、`val` / `var`、if / while、结构相等。
 
 单态化、`enum Option<T>`（暂为编译器内建）、`T?` 脱糖与 `?.` / `?:` / `!!`（spec 第 7 章）。Option 是核心设施，越早越好。
 
-### M4 enum 与模式匹配
+### M4 enum 与模式匹配 ✅（2026-08-22 完成，设计见 `docs/milestone4/DESIGN.md`）
 
-enum 变体、when 扩展模式、守卫、穷尽性、解构声明与 `..`（spec 第 4、5 章）。
+enum 变体、when 扩展模式、守卫、穷尽性、解构声明与 `..`（spec 第 4、5 章）。同时建立了 sysroot 框架（`sysroot/lib/scoop.core`），`Option` 与 `print`/`println` 的硬编码定义正式迁移入 core 库。
 
 ### M5 数组
 

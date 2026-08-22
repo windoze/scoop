@@ -5,8 +5,8 @@ rust-version.workspace = true
 
 [dependencies]
 la-arena.workspace = true
+scoop-ast.workspace = true
 scoop-hir.workspace = true
 scoop-mir.workspace = true
 
 [dev-dependencies]
-scoop-ast.workspace = true

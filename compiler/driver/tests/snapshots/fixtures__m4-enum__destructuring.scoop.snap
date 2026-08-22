@@ -1,0 +1,234 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  struct S
+    field f1: Int
+    field f2: Int
+    field f3: Int
+  fun main()
+    val t
+      TupleLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+        IntLiteral 4
+    val (x, y, ..@99)
+      Var t
+    Call println
+      Binary Add
+        Var x
+        Var y
+    val s
+      Call S
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    val S{f1, ..}
+      Var s
+    Call println
+      Var f1
+    val (n, S{f2, ..})
+      TupleLiteral
+        IntLiteral 9
+        Var s
+    Call println
+      Binary Add
+        Var n
+        Var f2
+    val S(a, _, c)
+      Var s
+    Call println
+      Binary Add
+        Var a
+        Var c
+
+== hir ==
+Module
+  struct S
+    field f1: Int
+    field f2: Int
+    field f3: Int
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
+  fun main(): Unit
+    val local0
+      TupleLiteral : (Int, Int, Int, Int)
+        IntLiteral 1 : Int
+        IntLiteral 2 : Int
+        IntLiteral 3 : Int
+        IntLiteral 4 : Int
+    val (local1, _, _, local2)
+      Local t : (Int, Int, Int, Int)
+    Call println : Unit
+      Binary Add : Int
+        Local x : Int
+        Local y : Int
+    val local3
+      StructInit S : S
+        IntLiteral 1 : Int
+        IntLiteral 2 : Int
+        IntLiteral 3 : Int
+    val struct(0: local4)
+      Local s : S
+    Call println : Unit
+      Local f1 : Int
+    val (local5, struct(1: local6))
+      TupleLiteral : (Int, S)
+        IntLiteral 9 : Int
+        Local s : S
+    Call println : Unit
+      Binary Add : Int
+        Local n : Int
+        Local f2 : Int
+    val struct(0: local7, 1: _, 2: local8)
+      Local s : S
+    Call println : Unit
+      Binary Add : Int
+        Local a : Int
+        Local c : Int
+  entry main
+
+== mir ==
+Module
+  struct S (f1: Int, f2: Int, f3: Int)
+  fun main @scoop_main() -> Unit
+    val t: (Int, Int, Int, Int)
+      TupleLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+        IntLiteral 4
+    val $bind.1: (Int, Int, Int, Int)
+      Local t
+    val x: Int
+      FieldAccess 0
+        Local $bind.1
+    val y: Int
+      FieldAccess 3
+        Local $bind.1
+    Call @scoop_rt_println_int direct
+      Binary IntAdd
+        Local x
+        Local y
+    val s: S
+      StructInit S
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    val $bind.2: S
+      Local s
+    val f1: Int
+      FieldAccess 0
+        Local $bind.2
+    Call @scoop_rt_println_int direct
+      Local f1
+    val $bind.3: (Int, S)
+      TupleLiteral
+        IntLiteral 9
+        Local s
+    val n: Int
+      FieldAccess 0
+        Local $bind.3
+    val f2: Int
+      FieldAccess 1
+        FieldAccess 1
+          Local $bind.3
+    Call @scoop_rt_println_int direct
+      Binary IntAdd
+        Local n
+        Local f2
+    val $bind.4: S
+      Local s
+    val a: Int
+      FieldAccess 0
+        Local $bind.4
+    val c: Int
+      FieldAccess 2
+        Local $bind.4
+    Call @scoop_rt_println_int direct
+      Binary IntAdd
+        Local a
+        Local c
+  entry @scoop_main
+
+== lir ==
+Module
+  fun @scoop_main() -> void
+    local %0 t: {i64, i64, i64, i64}
+    local %1 x: i64
+    local %2 y: i64
+    local %3 s: {i64, i64, i64}
+    local %4 f1: i64
+    local %5 n: i64
+    local %6 f2: i64
+    local %7 a: i64
+    local %8 c: i64
+    local %9 $bind.1: {i64, i64, i64, i64}
+    local %10 $bind.2: {i64, i64, i64}
+    local %11 $bind.3: {i64, {i64, i64, i64}}
+    local %12 $bind.4: {i64, i64, i64}
+  block entry
+    t0 = aggregate (1, 2, 3, 4) : {i64, i64, i64, i64}
+    store t0 -> local0
+    store local0 -> local9
+    t1 = extract local9, 0 : i64
+    store t1 -> local1
+    t2 = extract local9, 3 : i64
+    store t2 -> local2
+    t3 = Add local1, local2 : i64
+    call @scoop_rt_println_int(t3)
+    t4 = aggregate () : {}
+    t5 = aggregate (1, 2, 3) : {i64, i64, i64}
+    store t5 -> local3
+    store local3 -> local10
+    t6 = extract local10, 0 : i64
+    store t6 -> local4
+    call @scoop_rt_println_int(local4)
+    t7 = aggregate () : {}
+    t8 = aggregate (9, local3) : {i64, {i64, i64, i64}}
+    store t8 -> local11
+    t9 = extract local11, 0 : i64
+    store t9 -> local5
+    t10 = extract local11, 1 : {i64, i64, i64}
+    t11 = extract t10, 1 : i64
+    store t11 -> local6
+    t12 = Add local5, local6 : i64
+    call @scoop_rt_println_int(t12)
+    t13 = aggregate () : {}
+    store local3 -> local12
+    t14 = extract local12, 0 : i64
+    store t14 -> local7
+    t15 = extract local12, 2 : i64
+    store t15 -> local8
+    t16 = Add local7, local8 : i64
+    call @scoop_rt_println_int(t16)
+    t17 = aggregate () : {}
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout S size=24 align=8 refs=[]
+  layout (Int, Int, Int, Int) size=32 align=8 refs=[]
+  layout (Int, S) size=32 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+5
+1
+11
+4

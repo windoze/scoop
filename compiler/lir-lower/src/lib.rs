@@ -3,7 +3,7 @@
 //! to the target IR.
 //!
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.4 and
-//! `docs/milestone2/DESIGN.md` section 2.4.
+//! `docs/milestone4/DESIGN.md` section 3.4.
 //!
 //! M2: structured MIR control flow becomes basic blocks with
 //! terminators, and `&&` / `||` are expanded here into short-circuit
@@ -14,18 +14,25 @@
 //! which the M9 GC depends on — are computed into the LIR meta. This
 //! stage never fails: all errors were already reported by hir-lower.
 //!
-//! M3: function signatures and Option. Parameters are SSA values
-//! (`Value::Param`), not stack slots — they are immutable, so no store
-//! ever targets them. `Unit`-returning functions are void at the LLVM
-//! level: their `return` carries no value (Unit values are still
-//! materialized as empty aggregates where produced; they are just
-//! never returned). `Option<T>` gets its spec 7.4 layout: the niche
-//! pointer form when `T` maps to `Ptr` (`None` = null), else the
-//! `{ i1 tag, T payload }` aggregate. The MIR Option nodes map onto
-//! the corresponding LIR instructions, which codegen translates
-//! mechanically per the out temp's type, and `!!` (`Unwrap` with
-//! `trap_on_none`) branches to a per-function shared trap block that
-//! calls `scoop_rt_trap` (noreturn) with a `CString` message global.
+//! M3: function signatures. Parameters are SSA values (`Value::Param`),
+//! not stack slots — they are immutable, so no store ever targets them.
+//! `Unit`-returning functions are void at the LLVM level: their
+//! `return` carries no value (Unit values are still materialized as
+//! empty aggregates where produced; they are just never returned).
+//!
+//! M4: enums. Every MIR enum definition gets an `EnumDef` with a fixed
+//! representation (spec 7.4): the niche pointer form when there are
+//! exactly two variants, one without fields and the other with a
+//! single field mapping to `Ptr` (`None` = null — this is
+//! `Option<String>`); otherwise the `{ i64 tag, [N x i8] payload }`
+//! tagged form with N and alignment taken from the largest variant.
+//! The MIR enum operations map onto `EnumWrap` / `EnumTag` /
+//! `EnumField`, which codegen translates mechanically per the
+//! representation. A trap call (`!!` on `None`) branches to a
+//! per-function shared trap block that calls `scoop_rt_trap`
+//! (noreturn) with a `CString` message global. Enum layouts in the
+//! meta keep per-variant reference offsets — scanning an enum value
+//! depends on its tag (runtime spec 2.2).
 
 use std::collections::HashMap;
 
@@ -46,7 +53,11 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         global_map.insert(id, global);
     }
 
-    // Tuple / Option types encountered while mapping value types, in
+    // Enum definitions with fixed representations, in the MIR arena's
+    // order: `mir::EnumId` and `lir::EnumDefId` align.
+    let enums = lower_enums(module);
+
+    // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
     let mut layout_types = Vec::new();
     // Trap message globals (`scoop.cstr.N`), numbered in creation order.
@@ -66,26 +77,176 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         })
         .collect();
 
+    let layouts = layouts(module, &enums, &layout_types);
     lir::Module {
         globals,
+        enums,
         functions,
         entry_symbol: module.functions[module.entry].symbol.clone(),
-        meta: lir::LirMeta {
-            layouts: layouts(module, &layout_types),
-        },
+        meta: lir::LirMeta { layouts },
     }
 }
 
-/// The meta layouts (DESIGN 2.4): the runtime `String` object header,
-/// the `Int` / `Boolean` scalars, every struct in declaration order,
-/// and every tuple / Option type that appears in the module.
-fn layouts(module: &mir::Module, from_code: &[mir::Type]) -> Vec<lir::Layout> {
-    // Tuple / Option types reachable from struct declarations appear
+/// The `lir::EnumDefId` of a MIR enum (the arenas are transposed 1:1).
+fn enum_def_id(id: mir::EnumId) -> lir::EnumDefId {
+    lir::EnumDefId::from_raw(id.into_raw())
+}
+
+/// Fix the representation of every MIR enum definition (spec 7.4).
+fn lower_enums(module: &mir::Module) -> Arena<lir::EnumDef> {
+    let mut reprs: Vec<Option<lir::EnumRepr>> = Vec::new();
+    reprs.resize_with(module.enums.len(), || None);
+    for (id, _) in module.enums.iter() {
+        compute_repr(module, &mut reprs, id);
+    }
+    let mut enums = Arena::new();
+    for ((_, def), repr) in module.enums.iter().zip(reprs) {
+        enums.alloc(lir::EnumDef {
+            name: def.name.clone(),
+            repr: repr.expect("compute_repr fills every entry"),
+        });
+    }
+    enums
+}
+
+/// Every enum type nested inside `ty` (through tuple elements and
+/// struct fields), for representation sizing.
+fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>) {
+    match ty {
+        mir::Type::Enum(id, _) => out.push(*id),
+        mir::Type::Tuple(elements) => {
+            for element in elements {
+                nested_enums(module, element, out);
+            }
+        }
+        mir::Type::Struct(id) => {
+            for field in &module.structs[*id].fields {
+                nested_enums(module, &field.ty, out);
+            }
+        }
+        mir::Type::Unit | mir::Type::Int | mir::Type::Boolean | mir::Type::String => {}
+    }
+}
+
+/// Compute (memoized) the representation of one enum: the niche
+/// pointer form when there are exactly two variants, one without
+/// fields and the other with exactly one field mapping to `Ptr`;
+/// otherwise the tagged form `{ i64 tag, [N x i8] payload }` with N
+/// and alignment taken from the largest variant. Nested enums are
+/// computed first because variant sizing needs their shapes.
+fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id: mir::EnumId) {
+    let index = id.into_raw().into_u32() as usize;
+    if reprs[index].is_some() {
+        return;
+    }
+    let def = &module.enums[id];
+    let mut nested = Vec::new();
+    for variant in &def.variants {
+        for field in &variant.fields {
+            nested_enums(module, &field.ty, &mut nested);
+        }
+    }
+    for nested_id in nested {
+        // A by-value recursive enum is infinitely sized; hir-lower
+        // rejects it before this stage.
+        assert!(nested_id != id, "a by-value recursive enum is unsized");
+        compute_repr(module, reprs, nested_id);
+    }
+
+    // The niche check needs only the mapped field types, not sizes.
+    if def.variants.len() == 2 {
+        let has_unit = def.variants.iter().any(|v| v.fields.is_empty());
+        let payload = def
+            .variants
+            .iter()
+            .enumerate()
+            .find(|(_, v)| !v.fields.is_empty());
+        if let (true, Some((payload_index, payload_variant))) = (has_unit, payload) {
+            if payload_variant.fields.len() == 1
+                && lir_type(module, &payload_variant.fields[0].ty) == lir::LirType::Ptr
+            {
+                reprs[index] = Some(lir::EnumRepr::Niche {
+                    payload_variant: payload_index as u32,
+                });
+                return;
+            }
+        }
+    }
+
+    // Tagged form: field types per variant, and the payload big
+    // enough for the largest variant.
+    let enum_shape = |id: mir::EnumId| {
+        repr_shape(
+            reprs[id.into_raw().into_u32() as usize]
+                .as_ref()
+                .expect("nested enum representations are computed first"),
+        )
+    };
+    let mut payload_size = 0u64;
+    let mut payload_align = 1u64;
+    let mut variants = Vec::new();
+    for variant in &def.variants {
+        let fields: Vec<lir::LirType> = variant
+            .fields
+            .iter()
+            .map(|field| lir_type(module, &field.ty))
+            .collect();
+        let field_types: Vec<mir::Type> = variant
+            .fields
+            .iter()
+            .map(|field| field.ty.clone())
+            .collect();
+        let (_, size, align) = aggregate_shape(module, &enum_shape, &field_types);
+        payload_size = payload_size.max(size);
+        payload_align = payload_align.max(align);
+        variants.push(fields);
+    }
+    reprs[index] = Some(lir::EnumRepr::Tagged {
+        variants,
+        payload_size,
+        payload_align,
+    });
+}
+
+/// Size and alignment of an enum value from its representation: the
+/// niche form is a bare pointer; the tagged form is `{ i64 tag,
+/// [N x i8] payload }` (8-byte tag, payload at offset 8).
+fn repr_shape(repr: &lir::EnumRepr) -> (u64, u64) {
+    match repr {
+        lir::EnumRepr::Niche { .. } => (8, 8),
+        lir::EnumRepr::Tagged {
+            payload_size,
+            payload_align,
+            ..
+        } => {
+            let align = 8.max(*payload_align);
+            ((8 + payload_size).next_multiple_of(align), align)
+        }
+    }
+}
+
+/// The meta layouts (DESIGN 2.4 / 3.4): the runtime `String` object
+/// header, the `Int` / `Boolean` scalars, every struct in declaration
+/// order, every enum in declaration order (with per-variant reference
+/// offsets), and every tuple type that appears in the module.
+fn layouts(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    from_code: &[mir::Type],
+) -> Vec<lir::Layout> {
+    // Tuple types reachable from struct / enum declarations appear
     // even when no code value mentions them directly.
     let mut types = Vec::new();
     for (_, def) in module.structs.iter() {
         for field in &def.fields {
             record_layout_types(&field.ty, &mut types);
+        }
+    }
+    for (_, def) in module.enums.iter() {
+        for variant in &def.variants {
+            for field in &variant.fields {
+                record_layout_types(&field.ty, &mut types);
+            }
         }
     }
     for ty in from_code {
@@ -99,22 +260,23 @@ fn layouts(module: &mir::Module, from_code: &[mir::Type]) -> Vec<lir::Layout> {
     ];
     for (_, def) in module.structs.iter() {
         let fields: Vec<mir::Type> = def.fields.iter().map(|field| field.ty.clone()).collect();
-        layouts.push(aggregate_layout(module, def.name.clone(), &fields));
+        layouts.push(aggregate_layout(module, enums, def.name.clone(), &fields));
+    }
+    for (id, def) in module.enums.iter() {
+        layouts.push(enum_layout(module, enums, id, def));
     }
     for ty in &types {
         match ty {
             mir::Type::Tuple(elements) => {
                 layouts.push(aggregate_layout(
                     module,
+                    enums,
                     mir::type_name(module, ty),
                     elements,
                 ));
             }
-            mir::Type::Option(inner) => {
-                layouts.push(option_layout(module, mir::type_name(module, ty), inner));
-            }
-            // `record_layout_types` only records tuples and Options.
-            _ => unreachable!("only tuple and Option types get layouts"),
+            // `record_layout_types` only records tuples.
+            _ => unreachable!("only tuple types get layouts"),
         }
     }
     layouts
@@ -128,7 +290,9 @@ fn string_layout() -> lir::Layout {
         name: "String".to_string(),
         size: 16,
         align: 8,
-        ref_field_offsets: Vec::new(),
+        kind: lir::LayoutKind::Plain {
+            ref_field_offsets: Vec::new(),
+        },
     }
 }
 
@@ -137,39 +301,118 @@ fn scalar_layout(name: &str, size: u64, align: u64) -> lir::Layout {
         name: name.to_string(),
         size,
         align,
-        ref_field_offsets: Vec::new(),
+        kind: lir::LayoutKind::Plain {
+            ref_field_offsets: Vec::new(),
+        },
     }
 }
 
 /// Layout of an aggregate value (struct / tuple / Unit): fields in
 /// declaration order at their natural alignment. `ref_field_offsets`
-/// lists the byte offset of every String reference, including
-/// references nested inside aggregate fields — the M9 GC scans
-/// exactly these offsets.
-fn aggregate_layout(module: &mir::Module, name: String, fields: &[mir::Type]) -> lir::Layout {
-    let (offsets, size, align) = aggregate_shape(module, fields);
+/// lists the byte offset of every reference, including references
+/// nested inside aggregate fields — the M9 GC scans exactly these
+/// offsets.
+fn aggregate_layout(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    name: String,
+    fields: &[mir::Type],
+) -> lir::Layout {
+    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let (offsets, size, align) = aggregate_shape(module, &enum_shape, fields);
     let mut refs = Vec::new();
     for (field, offset) in fields.iter().zip(offsets) {
-        collect_ref_offsets(module, field, offset, &mut refs);
+        collect_ref_offsets(module, enums, field, offset, &mut refs);
     }
     lir::Layout {
         name,
         size,
         align,
-        ref_field_offsets: refs,
+        kind: lir::LayoutKind::Plain {
+            ref_field_offsets: refs,
+        },
+    }
+}
+
+/// Layout of an enum value: niche form is a bare pointer (the value
+/// *is* the reference, hence the payload variant's `refs=[0]`);
+/// tagged form records, per variant, the absolute byte offsets of the
+/// variant's references inside the value — the payload sits behind
+/// the 8-byte tag, so payload offsets shift by 8.
+fn enum_layout(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    id: mir::EnumId,
+    def: &mir::EnumDef,
+) -> lir::Layout {
+    match &enums[enum_def_id(id)].repr {
+        lir::EnumRepr::Niche { .. } => lir::Layout {
+            name: def.name.clone(),
+            size: 8,
+            align: 8,
+            kind: lir::LayoutKind::Enum {
+                variants: def
+                    .variants
+                    .iter()
+                    .map(|variant| lir::VariantLayout {
+                        ref_field_offsets: if variant.fields.is_empty() {
+                            Vec::new()
+                        } else {
+                            vec![0]
+                        },
+                    })
+                    .collect(),
+            },
+        },
+        lir::EnumRepr::Tagged { .. } => {
+            let (size, align) = repr_shape(&enums[enum_def_id(id)].repr);
+            let enum_shape = |eid: mir::EnumId| repr_shape(&enums[enum_def_id(eid)].repr);
+            let variants = def
+                .variants
+                .iter()
+                .map(|variant| {
+                    let field_types: Vec<mir::Type> = variant
+                        .fields
+                        .iter()
+                        .map(|field| field.ty.clone())
+                        .collect();
+                    let (offsets, _, _) = aggregate_shape(module, &enum_shape, &field_types);
+                    let mut refs = Vec::new();
+                    for (field, offset) in field_types.iter().zip(offsets) {
+                        // The payload sits behind the 8-byte tag.
+                        collect_ref_offsets(module, enums, field, 8 + offset, &mut refs);
+                    }
+                    lir::VariantLayout {
+                        ref_field_offsets: refs,
+                    }
+                })
+                .collect();
+            lir::Layout {
+                name: def.name.clone(),
+                size,
+                align,
+                kind: lir::LayoutKind::Enum { variants },
+            }
+        }
     }
 }
 
 /// Field offsets plus total size and alignment of an aggregate with
 /// the given field types: each field sits at the next offset aligned
 /// to its own alignment, and the size is rounded up to the aggregate
-/// alignment (natural layout, as for LLVM literal structs).
-fn aggregate_shape(module: &mir::Module, fields: &[mir::Type]) -> (Vec<u64>, u64, u64) {
+/// alignment (natural layout, as for LLVM literal structs). Enum
+/// shapes come from `enum_shape`, so the same code serves both the
+/// representation-computation phase and completed modules.
+fn aggregate_shape(
+    module: &mir::Module,
+    enum_shape: &dyn Fn(mir::EnumId) -> (u64, u64),
+    fields: &[mir::Type],
+) -> (Vec<u64>, u64, u64) {
     let mut offsets = Vec::with_capacity(fields.len());
     let mut size = 0u64;
     let mut align = 1u64;
     for field in fields {
-        let (field_size, field_align) = size_align(module, field);
+        let (field_size, field_align) = size_align(module, enum_shape, field);
         let offset = size.next_multiple_of(field_align);
         offsets.push(offset);
         size = offset + field_size;
@@ -178,27 +421,14 @@ fn aggregate_shape(module: &mir::Module, fields: &[mir::Type]) -> (Vec<u64>, u64
     (offsets, size.next_multiple_of(align), align)
 }
 
-/// Layout of an `Option<T>` value (spec 7.4, DESIGN 2.4): when the
-/// payload maps to a pointer (String and future reference types) the
-/// Option is the pointer itself with `None` = null (the niche form —
-/// the value *is* the reference, hence `refs=[0]`); otherwise it is
-/// the `{ i1 tag, T payload }` aggregate at natural alignment.
-fn option_layout(module: &mir::Module, name: String, inner: &mir::Type) -> lir::Layout {
-    if lir_type(module, inner) == lir::LirType::Ptr {
-        lir::Layout {
-            name,
-            size: 8,
-            align: 8,
-            ref_field_offsets: vec![0],
-        }
-    } else {
-        aggregate_layout(module, name, &[mir::Type::Boolean, inner.clone()])
-    }
-}
-
 /// Size and alignment of a value of type `ty`. `String` is a
-/// reference (pointer-sized); aggregates recurse.
-fn size_align(module: &mir::Module, ty: &mir::Type) -> (u64, u64) {
+/// reference (pointer-sized); aggregates recurse; enums take their
+/// representation's shape.
+fn size_align(
+    module: &mir::Module,
+    enum_shape: &dyn Fn(mir::EnumId) -> (u64, u64),
+    ty: &mir::Type,
+) -> (u64, u64) {
     match ty {
         mir::Type::Unit => (0, 1),
         mir::Type::Int => (8, 8),
@@ -210,28 +440,26 @@ fn size_align(module: &mir::Module, ty: &mir::Type) -> (u64, u64) {
                 .iter()
                 .map(|field| field.ty.clone())
                 .collect();
-            let (_, size, align) = aggregate_shape(module, &fields);
+            let (_, size, align) = aggregate_shape(module, enum_shape, &fields);
             (size, align)
         }
         mir::Type::Tuple(elements) => {
-            let (_, size, align) = aggregate_shape(module, elements);
+            let (_, size, align) = aggregate_shape(module, enum_shape, elements);
             (size, align)
         }
-        mir::Type::Option(inner) => {
-            if lir_type(module, inner) == lir::LirType::Ptr {
-                (8, 8) // niche form: a pointer
-            } else {
-                let (_, size, align) =
-                    aggregate_shape(module, &[mir::Type::Boolean, inner.as_ref().clone()]);
-                (size, align)
-            }
-        }
+        mir::Type::Enum(id, _) => enum_shape(*id),
     }
 }
 
-/// Byte offsets (relative to `base`) of every String reference inside
-/// a value of type `ty`, recursing into aggregate fields.
-fn collect_ref_offsets(module: &mir::Module, ty: &mir::Type, base: u64, offsets: &mut Vec<u64>) {
+/// Byte offsets (relative to `base`) of every reference inside a value
+/// of type `ty`, recursing into aggregate fields.
+fn collect_ref_offsets(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    ty: &mir::Type,
+    base: u64,
+    offsets: &mut Vec<u64>,
+) {
     let fields: Vec<mir::Type> = match ty {
         mir::Type::String => {
             offsets.push(base);
@@ -243,31 +471,34 @@ fn collect_ref_offsets(module: &mir::Module, ty: &mir::Type, base: u64, offsets:
             .map(|field| field.ty.clone())
             .collect(),
         mir::Type::Tuple(elements) => elements.clone(),
-        mir::Type::Option(inner) if lir_type(module, inner) == lir::LirType::Ptr => {
+        mir::Type::Enum(id, _) => match &enums[enum_def_id(*id)].repr {
             // Niche form: the value itself is the reference (or null).
-            offsets.push(base);
-            return;
-        }
-        // Tag form: references are the payload's, at the payload's
-        // offset behind the `i1` tag.
-        mir::Type::Option(inner) => vec![mir::Type::Boolean, inner.as_ref().clone()],
+            lir::EnumRepr::Niche { .. } => {
+                offsets.push(base);
+                return;
+            }
+            // Tagged form: the reference offsets depend on the tag and
+            // live in the enum's own `LayoutKind::Enum` entry; a flat
+            // per-aggregate offset list cannot express them (runtime
+            // spec 2.2, M9).
+            lir::EnumRepr::Tagged { .. } => return,
+        },
         // Scalars contain no references.
         mir::Type::Unit | mir::Type::Int | mir::Type::Boolean => return,
     };
-    let (field_offsets, _, _) = aggregate_shape(module, &fields);
+    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let (field_offsets, _, _) = aggregate_shape(module, &enum_shape, &fields);
     for (field, offset) in fields.iter().zip(field_offsets) {
-        collect_ref_offsets(module, field, base + offset, offsets);
+        collect_ref_offsets(module, enums, field, base + offset, offsets);
     }
 }
 
-/// Record every tuple / Option type reachable from `ty`
-/// (first-appearance order, duplicates skipped) so each gets a meta
-/// layout.
+/// Record every tuple type reachable from `ty` (first-appearance
+/// order, duplicates skipped) so each gets a meta layout. Structs and
+/// enums are covered by their own declaration-driven layout sections.
 fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
-    let elements: &[mir::Type] = match ty {
-        mir::Type::Tuple(elements) => elements,
-        mir::Type::Option(inner) => std::slice::from_ref(inner.as_ref()),
-        _ => return,
+    let mir::Type::Tuple(elements) = ty else {
+        return;
     };
     if !types.contains(ty) {
         types.push(ty.clone());
@@ -277,10 +508,11 @@ fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
     }
 }
 
-/// Map a MIR type onto its LIR value type (DESIGN 2.4): Unit is the
-/// empty aggregate, String a reference, struct / tuple literal
-/// aggregates of their mapped fields, and `Option<T>` either the niche
-/// pointer (payload maps to `Ptr`) or the `{ i1, T }` aggregate.
+/// Map a MIR type onto its LIR value type (DESIGN 2.4 / 3.4): Unit is
+/// the empty aggregate, String a reference, struct / tuple literal
+/// aggregates of their mapped fields, and enums `LirType::Enum` —
+/// their representation lives in the `EnumDef`, so the mapping is the
+/// identity on enum ids.
 fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
@@ -297,14 +529,7 @@ fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         mir::Type::Tuple(elements) => {
             lir::LirType::Aggregate(elements.iter().map(|e| lir_type(module, e)).collect())
         }
-        mir::Type::Option(inner) => {
-            let inner = lir_type(module, inner);
-            if inner == lir::LirType::Ptr {
-                inner // niche: `None` is the null pointer
-            } else {
-                lir::LirType::Aggregate(vec![lir::LirType::I1, inner])
-            }
-        }
+        mir::Type::Enum(id, _) => lir::LirType::Enum(enum_def_id(*id)),
     }
 }
 
@@ -402,12 +627,11 @@ fn lower_function(
         hidden_count: 0,
         mir_return_ty: function.return_ty.clone(),
         returns_void,
-        function_name: &function.name,
         trap_block: None,
-        current_returns: false,
+        current_sealed: false,
     };
     lowerer.lower_statements(&function.body.statements);
-    if !lowerer.current_returns {
+    if !lowerer.current_sealed {
         // Unit functions fall off the end with a bare return; non-Unit
         // functions always end in `return` (hir-lower enforces it,
         // DESIGN 1).
@@ -439,9 +663,9 @@ enum LocalSlot {
 /// Per-function lowering state: locals, temps, and the basic blocks
 /// built so far. Invariant: the `current` block is always unsealed
 /// (its terminator is a placeholder); a block is sealed exactly when
-/// control flow leaves it. `current_returns` tracks whether the
-/// current block was sealed by a `return`, so structured control flow
-/// does not seal it again with a branch.
+/// control flow leaves it. `current_sealed` tracks whether the current
+/// block was already sealed (by a `return`, or by a trap call), so
+/// structured control flow does not seal it again with a branch.
 struct FunctionLowerer<'a> {
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for `expr_ty`).
@@ -450,8 +674,7 @@ struct FunctionLowerer<'a> {
     /// Sink for trap message globals (`scoop.cstr.N`).
     globals: &'a mut Arena<lir::Global>,
     cstr_count: &'a mut usize,
-    /// Sink for tuple / Option types encountered in value types (meta
-    /// layouts).
+    /// Sink for tuple types encountered in value types (meta layouts).
     layout_types: &'a mut Vec<mir::Type>,
     local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
@@ -464,12 +687,10 @@ struct FunctionLowerer<'a> {
     /// The function's MIR return type (`Unit` ⇒ void at LLVM level).
     mir_return_ty: mir::Type,
     returns_void: bool,
-    /// Source name, for trap messages.
-    function_name: &'a str,
     /// The shared trap block for `!!` failures, created on first use.
     trap_block: Option<lir::BlockId>,
-    /// Whether the current block was sealed by a `return` statement.
-    current_returns: bool,
+    /// Whether the current block was already sealed.
+    current_sealed: bool,
 }
 
 impl FunctionLowerer<'_> {
@@ -490,7 +711,7 @@ impl FunctionLowerer<'_> {
     /// Make `block` the current (unsealed) block.
     fn enter(&mut self, block: lir::BlockId) {
         self.current = block;
-        self.current_returns = false;
+        self.current_sealed = false;
     }
 
     fn push(&mut self, instruction: lir::Instruction) {
@@ -531,18 +752,17 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    /// The LIR value type of a MIR type; tuple / Option types are
-    /// recorded for the meta layouts on the way.
+    /// The LIR value type of a MIR type; tuple types are recorded for
+    /// the meta layouts on the way.
     fn value_type(&mut self, ty: &mir::Type) -> lir::LirType {
         record_layout_types(ty, self.layout_types);
         lir_type(self.module, ty)
     }
 
     /// The MIR type of an expression (MIR expressions don't carry
-    /// types, so they are reconstructed from locals and struct defs).
-    /// `NoneLiteral` has no intrinsic type — it is always lowered with
-    /// its type from context (see `lower_expr`) and never reaches this
-    /// function.
+    /// types, so they are reconstructed from locals and struct / enum
+    /// defs). `VariantConstruct` is the one MIR expression that does
+    /// carry its type.
     fn expr_ty(&self, expr: &mir::Expr) -> mir::Type {
         match expr {
             mir::Expr::StringConst(_) => mir::Type::String,
@@ -560,6 +780,19 @@ impl FunctionLowerer<'_> {
                 // mir-lower only emits field accesses on aggregates.
                 _ => unreachable!("field access on a non-aggregate"),
             },
+            mir::Expr::VariantConstruct { ty, .. } => ty.clone(),
+            mir::Expr::EnumTag(_) => mir::Type::Int,
+            mir::Expr::EnumField {
+                operand,
+                variant,
+                index,
+            } => match self.expr_ty(operand) {
+                mir::Type::Enum(id, _) => self.module.enums[id].variants[*variant as usize].fields
+                    [*index as usize]
+                    .ty
+                    .clone(),
+                _ => unreachable!("enum field access on a non-enum"),
+            },
             mir::Expr::Call(call) => match call.target.callee {
                 mir::Callee::User(id) => self.module.functions[id].return_ty.clone(),
                 mir::Callee::Runtime(function) => match function {
@@ -570,7 +803,9 @@ impl FunctionLowerer<'_> {
                     | mir::RuntimeFn::PrintInt
                     | mir::RuntimeFn::PrintlnInt
                     | mir::RuntimeFn::PrintBoolean
-                    | mir::RuntimeFn::PrintlnBoolean => mir::Type::Unit,
+                    | mir::RuntimeFn::PrintlnBoolean
+                    // The trap is noreturn; its statement is typed Unit.
+                    | mir::RuntimeFn::Trap => mir::Type::Unit,
                 },
             },
             mir::Expr::Binary { op, .. } => match op {
@@ -592,14 +827,6 @@ impl FunctionLowerer<'_> {
             mir::Expr::Unary { op, .. } => match op {
                 mir::UnOp::IntNeg => mir::Type::Int,
                 mir::UnOp::BoolNot => mir::Type::Boolean,
-            },
-            mir::Expr::SomeWrap(operand) => mir::Type::Option(Box::new(self.expr_ty(operand))),
-            // See the doc comment: typed by context, never reached here.
-            mir::Expr::NoneLiteral => unreachable!("NoneLiteral is typed by context"),
-            mir::Expr::IsSome(_) => mir::Type::Boolean,
-            mir::Expr::Unwrap { operand, .. } => match self.expr_ty(operand) {
-                mir::Type::Option(inner) => *inner,
-                _ => unreachable!("unwrap operand is an Option"),
             },
         }
     }
@@ -653,7 +880,7 @@ impl FunctionLowerer<'_> {
                     (false, None) => unreachable!("non-Unit `return` without a value"),
                 };
                 self.seal(lir::Terminator::Return { value });
-                self.current_returns = true;
+                self.current_sealed = true;
             }
             mir::StatementKind::If {
                 cond,
@@ -671,14 +898,15 @@ impl FunctionLowerer<'_> {
                 });
                 self.enter(then_block);
                 self.lower_statements(then_body);
-                // A branch ending in `return` is sealed already.
-                if !self.current_returns {
+                // A branch ending in `return` / a trap is sealed
+                // already.
+                if !self.current_sealed {
                     self.seal(lir::Terminator::Br(merge_block));
                 }
                 if let (Some(else_body), Some(else_block)) = (else_body, else_block) {
                     self.enter(else_block);
                     self.lower_statements(else_body);
-                    if !self.current_returns {
+                    if !self.current_sealed {
                         self.seal(lir::Terminator::Br(merge_block));
                     }
                 }
@@ -698,7 +926,7 @@ impl FunctionLowerer<'_> {
                 });
                 self.enter(body_block);
                 self.lower_statements(body);
-                if !self.current_returns {
+                if !self.current_sealed {
                     self.seal(lir::Terminator::Br(cond_block));
                 }
                 self.enter(exit_block);
@@ -711,7 +939,7 @@ impl FunctionLowerer<'_> {
     /// evaluates to. The type comes from the context (the local's
     /// declared type, the callee's parameter type, the enclosing
     /// aggregate's field type, ...); MIR expressions carry none, and
-    /// `NoneLiteral` is only meaningful with this context type.
+    /// `VariantConstruct` carries its own.
     fn lower_expr(&mut self, expr: &mir::Expr, ty: &mir::Type) -> lir::Value {
         match expr {
             mir::Expr::StringConst(id) => lir::Value::Global(self.global_map[id]),
@@ -756,6 +984,75 @@ impl FunctionLowerer<'_> {
                 });
                 lir::Value::Temp(out)
             }
+            // The enum operations map onto the corresponding LIR
+            // instructions; the concrete representation (niche pointer
+            // or tagged union) is fixed by the `EnumDef`, so codegen
+            // translates them mechanically.
+            mir::Expr::VariantConstruct {
+                ty,
+                variant,
+                fields,
+            } => {
+                let mir::Type::Enum(enum_id, _) = ty else {
+                    unreachable!("a variant construction has an enum type")
+                };
+                let field_types: Vec<mir::Type> = self.module.enums[*enum_id].variants
+                    [*variant as usize]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty.clone())
+                    .collect();
+                let fields: Vec<lir::Value> = fields
+                    .iter()
+                    .zip(&field_types)
+                    .map(|(field, ty)| self.lower_expr(field, ty))
+                    .collect();
+                let out_ty = self.value_type(ty);
+                let out = self.new_temp(out_ty);
+                self.push(lir::Instruction::EnumWrap {
+                    out,
+                    enum_id: enum_def_id(*enum_id),
+                    variant: *variant,
+                    fields,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::EnumTag(operand) => {
+                let operand_ty = self.expr_ty(operand);
+                let mir::Type::Enum(enum_id, _) = &operand_ty else {
+                    unreachable!("a tag read's operand is an enum value")
+                };
+                let operand = self.lower_expr(operand, &operand_ty);
+                let out = self.new_temp(lir::LirType::I64);
+                self.push(lir::Instruction::EnumTag {
+                    out,
+                    enum_id: enum_def_id(*enum_id),
+                    operand,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::EnumField {
+                operand,
+                variant,
+                index,
+            } => {
+                let operand_ty = self.expr_ty(operand);
+                let mir::Type::Enum(enum_id, _) = &operand_ty else {
+                    unreachable!("an enum field read's operand is an enum value")
+                };
+                let enum_id = *enum_id;
+                let operand = self.lower_expr(operand, &operand_ty);
+                let out_ty = self.value_type(ty);
+                let out = self.new_temp(out_ty);
+                self.push(lir::Instruction::EnumField {
+                    out,
+                    enum_id: enum_def_id(enum_id),
+                    variant: *variant,
+                    index: *index,
+                    operand,
+                });
+                lir::Value::Temp(out)
+            }
             mir::Expr::Call(call) => self.lower_call(call, ty),
             mir::Expr::Binary { op, lhs, rhs } => match op {
                 mir::BinOp::And => self.lower_short_circuit(lhs, rhs, true),
@@ -788,105 +1085,28 @@ impl FunctionLowerer<'_> {
                 });
                 lir::Value::Temp(out)
             }
-            // The Option nodes map onto the corresponding LIR
-            // instructions; the concrete representation (niche pointer
-            // or `{ i1, T }` tagged union) was fixed by `lir_type`, so
-            // codegen translates them mechanically per the out temp's
-            // type.
-            mir::Expr::SomeWrap(operand) => {
-                let mir::Type::Option(payload) = ty else {
-                    unreachable!("SomeWrap has an Option type")
-                };
-                let payload = payload.as_ref().clone();
-                let value = self.lower_expr(operand, &payload);
-                let ty = self.value_type(ty);
-                let out = self.new_temp(ty);
-                self.push(lir::Instruction::SomeWrap { out, value });
-                lir::Value::Temp(out)
-            }
-            mir::Expr::NoneLiteral => {
-                let ty = self.value_type(ty);
-                let out = self.new_temp(ty);
-                self.push(lir::Instruction::NoneConst { out });
-                lir::Value::Temp(out)
-            }
-            mir::Expr::IsSome(operand) => {
-                // mir-lower folds `isSome(None)`, so the operand type
-                // is always reconstructable here.
-                let operand_ty = self.expr_ty(operand);
-                record_layout_types(&operand_ty, self.layout_types);
-                let operand = self.lower_expr(operand, &operand_ty);
-                let out = self.new_temp(lir::LirType::I1);
-                self.push(lir::Instruction::IsSome { out, operand });
-                lir::Value::Temp(out)
-            }
-            mir::Expr::Unwrap {
-                operand,
-                trap_on_none,
-            } => self.lower_unwrap(operand, *trap_on_none, ty),
         }
-    }
-
-    /// `unwrap` at payload type `ty`. With `trap_on_none` (`!!`), the
-    /// payload extraction is guarded by an `isSome` branch to the
-    /// function's shared trap block (DESIGN 2.4 / 5.3); without it
-    /// (`?.` / `?:` desugars, or the Option equality expansion), the
-    /// guard already exists in the surrounding control flow and the
-    /// instruction stands alone.
-    fn lower_unwrap(
-        &mut self,
-        operand: &mir::Expr,
-        trap_on_none: bool,
-        ty: &mir::Type,
-    ) -> lir::Value {
-        let option_ty = mir::Type::Option(Box::new(ty.clone()));
-        record_layout_types(&option_ty, self.layout_types);
-        let operand = self.lower_expr(operand, &option_ty);
-        if !trap_on_none {
-            let ty = self.value_type(ty);
-            let out = self.new_temp(ty);
-            self.push(lir::Instruction::Unwrap { out, operand });
-            return lir::Value::Temp(out);
-        }
-        let is_some = self.new_temp(lir::LirType::I1);
-        self.push(lir::Instruction::IsSome {
-            out: is_some,
-            operand,
-        });
-        let ok_block = self.new_block("unwrap.ok");
-        let trap_block = self.trap_block();
-        self.seal(lir::Terminator::CondBr {
-            cond: lir::Value::Temp(is_some),
-            then_block: ok_block,
-            else_block: trap_block,
-        });
-        self.enter(ok_block);
-        let ty = self.value_type(ty);
-        let out = self.new_temp(ty);
-        self.push(lir::Instruction::Unwrap { out, operand });
-        lir::Value::Temp(out)
     }
 
     /// The shared trap block for `!!` failures in this function (one
     /// per function, created on first use): calls the runtime trap —
     /// `void scoop_rt_trap(ptr)`, noreturn — with the message global
     /// and ends `unreachable`.
-    fn trap_block(&mut self) -> lir::BlockId {
+    fn trap_block(&mut self, message: &str) -> lir::BlockId {
         if let Some(block) = self.trap_block {
             return block;
         }
-        let message = format!("unwrap on None (function {})", self.function_name);
         let symbol = format!("scoop.cstr.{}", *self.cstr_count);
         *self.cstr_count += 1;
         let global = self.globals.alloc(lir::Global {
             symbol,
-            init: lir::GlobalInit::CString(message),
+            init: lir::GlobalInit::CString(message.to_string()),
         });
         let block = self.new_block("unwrap.trap");
         // Fill the trap block out of line; the caller seals the
-        // suspended current block with the conditional branch.
+        // suspended current block with the branch.
         let saved = self.current;
-        let saved_returns = self.current_returns;
+        let saved_sealed = self.current_sealed;
         self.enter(block);
         self.push(lir::Instruction::Call {
             out: None,
@@ -896,7 +1116,7 @@ impl FunctionLowerer<'_> {
         self.seal(lir::Terminator::Unreachable);
         self.trap_block = Some(block);
         self.current = saved;
-        self.current_returns = saved_returns;
+        self.current_sealed = saved_sealed;
         block
     }
 
@@ -996,6 +1216,22 @@ impl FunctionLowerer<'_> {
                     lir::Value::Temp(out)
                 }
             }
+            mir::Callee::Runtime(mir::RuntimeFn::Trap) => {
+                // The trap call (from `!!`) only appears as a
+                // statement: the current block branches to the
+                // function's shared trap block and is sealed, so
+                // anything after it is unreachable. The message string
+                // constant becomes a `CString` global.
+                let message = match &call.args[0] {
+                    mir::Expr::StringConst(id) => self.module.strings[*id].value.clone(),
+                    _ => unreachable!("the trap message is a string constant"),
+                };
+                let trap = self.trap_block(&message);
+                self.seal(lir::Terminator::Br(trap));
+                self.current_sealed = true;
+                // Dead value: the block is sealed, nothing consumes it.
+                lir::Value::IntConst(0)
+            }
             mir::Callee::Runtime(function) => {
                 let symbol = function.symbol().to_string();
                 let arg_types: Vec<mir::Type> = match function {
@@ -1009,6 +1245,8 @@ impl FunctionLowerer<'_> {
                     mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringEq => {
                         vec![mir::Type::String, mir::Type::String]
                     }
+                    // Handled by the arm above.
+                    mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
                 };
                 let args: Vec<lir::Value> = call
                     .args
@@ -1036,6 +1274,7 @@ impl FunctionLowerer<'_> {
                         });
                         self.unit_value()
                     }
+                    mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
                 }
             }
         }
@@ -1056,7 +1295,6 @@ impl FunctionLowerer<'_> {
         lir::Value::Temp(out)
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1069,6 +1307,7 @@ mod tests {
         functions: Arena<mir::Function>,
         strings: Arena<mir::StringConst>,
         structs: Arena<mir::StructDef>,
+        enums: Arena<mir::EnumDef>,
         top_level: Vec<mir::FunctionId>,
     }
 
@@ -1078,8 +1317,30 @@ mod tests {
                 functions: Arena::new(),
                 strings: Arena::new(),
                 structs: Arena::new(),
+                enums: Arena::new(),
                 top_level: Vec::new(),
             }
+        }
+
+        /// `enum Option<T> { Some(T), None }` instantiated at
+        /// `payload`, named as mir-lower names its instances.
+        fn option_enum(&mut self, name: &str, payload: mir::Type) -> mir::EnumId {
+            self.enums.alloc(mir::EnumDef {
+                name: name.to_string(),
+                variants: vec![
+                    mir::VariantDef {
+                        name: "Some".to_string(),
+                        fields: vec![mir::Field {
+                            name: "_1".to_string(),
+                            ty: payload,
+                        }],
+                    },
+                    mir::VariantDef {
+                        name: "None".to_string(),
+                        fields: Vec::new(),
+                    },
+                ],
+            })
         }
 
         fn string(&mut self, value: &str) -> mir::StringConstId {
@@ -1154,10 +1415,19 @@ mod tests {
                 top_level: self.top_level,
                 strings: self.strings,
                 structs: self.structs,
+                enums: self.enums,
                 entry,
                 meta: mir::MirMeta::default(),
             }
         }
+    }
+
+    /// The reference-field offsets of a plain (non-enum) layout.
+    fn plain_refs(layout: &lir::Layout) -> &[u64] {
+        let lir::LayoutKind::Plain { ref_field_offsets } = &layout.kind else {
+            panic!("expected a plain layout")
+        };
+        ref_field_offsets
     }
 
     fn local(name: &str, ty: mir::Type) -> mir::Local {
@@ -1732,7 +2002,7 @@ Module
             .find(|l| l.name == "Point")
             .expect("a layout per struct");
         assert_eq!((layout.size, layout.align), (16, 8));
-        assert!(layout.ref_field_offsets.is_empty());
+        assert!(plain_refs(layout).is_empty());
     }
 
     #[test]
@@ -1809,29 +2079,29 @@ Module
 
         let string = by_name("String");
         assert_eq!((string.size, string.align), (16, 8));
-        assert!(string.ref_field_offsets.is_empty());
+        assert!(plain_refs(string).is_empty());
 
         // S { a: Int @0, s: String @8 }: size 16, align 8, refs [8].
         let s_layout = by_name("S");
         assert_eq!((s_layout.size, s_layout.align), (16, 8));
-        assert_eq!(s_layout.ref_field_offsets, [8]);
+        assert_eq!(plain_refs(s_layout), [8]);
 
         // Outer { flag: Boolean @0, pair: (String, Int) @8 } with the
         // String at pair+0: size 24, align 8, refs [8].
         let outer = by_name("Outer");
         assert_eq!((outer.size, outer.align), (24, 8));
-        assert_eq!(outer.ref_field_offsets, [8]);
+        assert_eq!(plain_refs(outer), [8]);
 
         // The tuple field type gets its own layout too.
         let pair_layout = by_name("(String, Int)");
         assert_eq!((pair_layout.size, pair_layout.align), (16, 8));
-        assert_eq!(pair_layout.ref_field_offsets, [0]);
+        assert_eq!(plain_refs(pair_layout), [0]);
 
         // (Boolean, Int): Int is 8-aligned, so it sits at offset 8 and
         // the size rounds up to 16.
         let padded = by_name("(Boolean, Int)");
         assert_eq!((padded.size, padded.align), (16, 8));
-        assert!(padded.ref_field_offsets.is_empty());
+        assert!(plain_refs(padded).is_empty());
     }
 
     fn param(name: &str, ty: mir::Type, local: mir::LocalId) -> mir::Param {
@@ -1840,10 +2110,6 @@ Module
             ty,
             local,
         }
-    }
-
-    fn option(inner: mir::Type) -> mir::Type {
-        mir::Type::Option(Box::new(inner))
     }
 
     fn return_stmt(value: mir::Expr) -> mir::Statement {
@@ -1961,147 +2227,375 @@ Module
         assert_eq!(lir::dump(&module), expected);
     }
 
-    /// main holding `o: Option<T>` through a None / isSome / unwrap /
-    /// SomeWrap round-trip; shared shell of the two layout tests.
-    fn option_round_trip(option_ty: mir::Type, payload_ty: mir::Type) -> mir::Module {
+    /// The LIR enum definition transposed from a MIR enum (the arenas
+    /// align 1:1).
+    fn edef(module: &lir::Module, id: mir::EnumId) -> &lir::EnumDef {
+        &module.enums[lir::EnumDefId::from_raw(id.into_raw())]
+    }
+
+    /// main holding `o: Option<T>` through a None / tag / field /
+    /// wrap round-trip; shared shell of the two representation tests.
+    fn option_round_trip(name: &str, payload: mir::Type) -> mir::Module {
         let mut b = Builder::new();
+        let option = b.option_enum(name, payload.clone());
+        let option_ty = mir::Type::Enum(option, vec![payload.clone()]);
         let mut locals = Arena::new();
         let o = locals.alloc(local("o", option_ty.clone()));
-        let flag = locals.alloc(local("b", mir::Type::Boolean));
-        let payload = locals.alloc(local("p", payload_ty));
-        let o2 = locals.alloc(local("o2", option_ty));
+        let t = locals.alloc(local("t", mir::Type::Int));
+        let p = locals.alloc(local("p", payload));
+        let o2 = locals.alloc(local("o2", option_ty.clone()));
         let main = b.main(
             locals,
             vec![
-                val_decl(o, mir::Expr::NoneLiteral),
-                val_decl(flag, mir::Expr::IsSome(Box::new(mir::Expr::Local(o)))),
+                // None
                 val_decl(
-                    payload,
-                    mir::Expr::Unwrap {
-                        operand: Box::new(mir::Expr::Local(o)),
-                        trap_on_none: false,
+                    o,
+                    mir::Expr::VariantConstruct {
+                        ty: option_ty.clone(),
+                        variant: 1,
+                        fields: Vec::new(),
                     },
                 ),
-                val_decl(o2, mir::Expr::SomeWrap(Box::new(mir::Expr::Local(payload)))),
+                val_decl(t, mir::Expr::EnumTag(Box::new(mir::Expr::Local(o)))),
+                val_decl(
+                    p,
+                    mir::Expr::EnumField {
+                        operand: Box::new(mir::Expr::Local(o)),
+                        variant: 0,
+                        index: 0,
+                    },
+                ),
+                val_decl(
+                    o2,
+                    mir::Expr::VariantConstruct {
+                        ty: option_ty,
+                        variant: 0,
+                        fields: vec![mir::Expr::Local(p)],
+                    },
+                ),
             ],
         );
         b.finish(main)
     }
 
     #[test]
-    fn option_of_string_uses_the_niche_layout() {
-        // Option<String>: the payload maps to `Ptr`, so the Option is
+    fn option_of_string_uses_the_niche_representation() {
+        // Option<String>: the payload maps to `Ptr`, so the value is
         // the pointer itself with None = null (spec 7.4).
-        let module = option_round_trip(option(mir::Type::String), mir::Type::String);
-        let module = lower(&module);
+        let module = lower(&option_round_trip("Option$S", mir::Type::String));
 
         let expected = "\
 Module
+  enum Option$S niche(payload_variant=0)
   fun @scoop_main() -> void
-    local %0 o: ptr
-    local %1 b: i1
+    local %0 o: enum0
+    local %1 t: i64
     local %2 p: ptr
-    local %3 o2: ptr
+    local %3 o2: enum0
   block entry
-    t0 = none : ptr
+    t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
-    t1 = is_some local0 : i1
+    t1 = enum_tag e0 local0 : i64
     store t1 -> local1
-    t2 = unwrap local0 : ptr
+    t2 = enum_field e0 v0 f0 local0 : ptr
     store t2 -> local2
-    t3 = some_wrap local2 : ptr
+    t3 = enum_wrap e0 v0 (local2) : enum0
     store t3 -> local3
     ret
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option<String> size=8 align=8 refs=[0]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
     }
 
     #[test]
-    fn option_of_int_uses_the_tag_layout() {
-        // Option<Int>: the `{ i1 tag, Int payload }` aggregate.
-        let module = option_round_trip(option(mir::Type::Int), mir::Type::Int);
-        let module = lower(&module);
+    fn option_of_int_uses_the_tagged_representation() {
+        // Option<Int>: the `{ i64 tag, [8 x i8] payload }` tagged
+        // form — size 16, align 8.
+        let module = lower(&option_round_trip("Option$I", mir::Type::Int));
 
         let expected = "\
 Module
+  enum Option$I tagged size=8 align=8 variants=(i64) ()
   fun @scoop_main() -> void
-    local %0 o: {i1, i64}
-    local %1 b: i1
+    local %0 o: enum0
+    local %1 t: i64
     local %2 p: i64
-    local %3 o2: {i1, i64}
+    local %3 o2: enum0
   block entry
-    t0 = none : {i1, i64}
+    t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
-    t1 = is_some local0 : i1
+    t1 = enum_tag e0 local0 : i64
     store t1 -> local1
-    t2 = unwrap local0 : i64
+    t2 = enum_field e0 v0 f0 local0 : i64
     store t2 -> local2
-    t3 = some_wrap local2 : {i1, i64}
+    t3 = enum_wrap e0 v0 (local2) : enum0
     store t3 -> local3
     ret
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option<Int> size=16 align=8 refs=[]
+  layout Option$I size=16 align=8 enum-refs=[[], []]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
     }
 
     #[test]
-    fn trap_on_none_branches_to_a_shared_trap_block() {
-        // fun f(o: Option<Int>): Int { return o!! + o!! }
+    fn niche_detection_requires_exactly_one_pointer_payload() {
         let mut b = Builder::new();
-        let option_int = option(mir::Type::Int);
+        let option_s = b.option_enum("Option$S", mir::Type::String);
+        let option_i = b.option_enum("Option$I", mir::Type::Int);
+        // Reversed declaration order: the payload variant comes second.
+        let flip = b.enums.alloc(mir::EnumDef {
+            name: "Flip".to_string(),
+            variants: vec![
+                mir::VariantDef {
+                    name: "Naught".to_string(),
+                    fields: Vec::new(),
+                },
+                mir::VariantDef {
+                    name: "Value".to_string(),
+                    fields: vec![mir::Field {
+                        name: "_1".to_string(),
+                        ty: mir::Type::String,
+                    }],
+                },
+            ],
+        });
+        // Two variants, but the payload variant has two fields: tagged.
+        let pair_or_none = b.enums.alloc(mir::EnumDef {
+            name: "PairOrNone".to_string(),
+            variants: vec![
+                mir::VariantDef {
+                    name: "Pair".to_string(),
+                    fields: vec![
+                        mir::Field {
+                            name: "_1".to_string(),
+                            ty: mir::Type::Int,
+                        },
+                        mir::Field {
+                            name: "_2".to_string(),
+                            ty: mir::Type::Int,
+                        },
+                    ],
+                },
+                mir::VariantDef {
+                    name: "Empty".to_string(),
+                    fields: Vec::new(),
+                },
+            ],
+        });
+        let main = b.main(Arena::new(), Vec::new());
+        let module = lower(&b.finish(main));
+
+        assert!(matches!(
+            edef(&module, option_s).repr,
+            lir::EnumRepr::Niche { payload_variant: 0 }
+        ));
+        assert!(matches!(
+            edef(&module, flip).repr,
+            lir::EnumRepr::Niche { payload_variant: 1 }
+        ));
+        let lir::EnumRepr::Tagged {
+            variants,
+            payload_size,
+            payload_align,
+        } = &edef(&module, option_i).repr
+        else {
+            panic!("Option<Int> must use the tagged representation")
+        };
+        assert_eq!(variants.as_slice(), &[vec![lir::LirType::I64], Vec::new()]);
+        assert_eq!((*payload_size, *payload_align), (8, 8));
+        assert!(matches!(
+            edef(&module, pair_or_none).repr,
+            lir::EnumRepr::Tagged { .. }
+        ));
+    }
+
+    #[test]
+    fn tagged_enum_layout_records_per_variant_ref_offsets() {
+        let mut b = Builder::new();
+        // enum Msg { Text(String), Pair(Boolean, String), Empty }
+        b.enums.alloc(mir::EnumDef {
+            name: "Msg".to_string(),
+            variants: vec![
+                mir::VariantDef {
+                    name: "Text".to_string(),
+                    fields: vec![mir::Field {
+                        name: "value".to_string(),
+                        ty: mir::Type::String,
+                    }],
+                },
+                mir::VariantDef {
+                    name: "Pair".to_string(),
+                    fields: vec![
+                        mir::Field {
+                            name: "flag".to_string(),
+                            ty: mir::Type::Boolean,
+                        },
+                        mir::Field {
+                            name: "s".to_string(),
+                            ty: mir::Type::String,
+                        },
+                    ],
+                },
+                mir::VariantDef {
+                    name: "Empty".to_string(),
+                    fields: Vec::new(),
+                },
+            ],
+        });
+        // A niche enum inside a struct: the value itself is the
+        // reference.
+        let option_s = b.option_enum("Option$S", mir::Type::String);
+        let _s = b.strukt(
+            "S",
+            &[("o", mir::Type::Enum(option_s, vec![mir::Type::String]))],
+        );
+        let main = b.main(Arena::new(), Vec::new());
+        let module = lower(&b.finish(main));
+
+        let by_name = |name: &str| {
+            module
+                .meta
+                .layouts
+                .iter()
+                .find(|l| l.name == name)
+                .unwrap_or_else(|| panic!("missing layout for {name}"))
+        };
+
+        // Msg: the largest variant is Pair (Boolean + String at
+        // payload offsets 0 and 8), so the tagged value is 8 + 16
+        // bytes at align 8.
+        let msg_layout = by_name("Msg");
+        assert_eq!((msg_layout.size, msg_layout.align), (24, 8));
+        let lir::LayoutKind::Enum { variants } = &msg_layout.kind else {
+            panic!("an enum layout keeps per-variant offsets")
+        };
+        // Text: the String at payload offset 0, absolute offset 8
+        // (behind the 8-byte tag); Pair: the String at payload offset
+        // 8, absolute 16; Empty: no references.
+        assert_eq!(variants[0].ref_field_offsets, [8]);
+        assert_eq!(variants[1].ref_field_offsets, [16]);
+        assert!(variants[2].ref_field_offsets.is_empty());
+
+        // The niche layout: the payload variant is the reference
+        // itself; the unit variant has none.
+        let option_layout = by_name("Option$S");
+        assert_eq!((option_layout.size, option_layout.align), (8, 8));
+        let lir::LayoutKind::Enum { variants } = &option_layout.kind else {
+            panic!("an enum layout keeps per-variant offsets")
+        };
+        assert_eq!(variants[0].ref_field_offsets, [0]);
+        assert!(variants[1].ref_field_offsets.is_empty());
+
+        // S { o: Option<String> }: the niche value at offset 0 is the
+        // struct's reference field.
+        let s_layout = by_name("S");
+        assert_eq!((s_layout.size, s_layout.align), (8, 8));
+        assert_eq!(plain_refs(s_layout), [0]);
+    }
+
+    #[test]
+    fn trap_calls_branch_to_a_shared_trap_block() {
+        // fun f(o: Option<Int>): Int { return o!! + o!! } — in the
+        // mir-lower shape: each `o!!` is `if (tag == Some) { val $uw =
+        // field0 } else { trap(msg) }`.
+        let mut b = Builder::new();
+        let option_i = b.option_enum("Option$I", mir::Type::Int);
+        let option_ty = mir::Type::Enum(option_i, vec![mir::Type::Int]);
+        let message = b.string("unwrap on None (function f)");
         let mut locals = Arena::new();
-        let o = locals.alloc(local("o", option_int.clone()));
-        let unwrap = || mir::Expr::Unwrap {
-            operand: Box::new(mir::Expr::Local(o)),
-            trap_on_none: true,
+        let o = locals.alloc(local("o", option_ty.clone()));
+        let uw1 = locals.alloc(local("$uw.1", mir::Type::Int));
+        let uw2 = locals.alloc(local("$uw.2", mir::Type::Int));
+        let unwrap = |result: mir::LocalId| {
+            stmt(mir::StatementKind::If {
+                cond: binary(
+                    mir::BinOp::IntEq,
+                    mir::Expr::EnumTag(Box::new(mir::Expr::Local(o))),
+                    mir::Expr::IntLiteral(0),
+                ),
+                then_body: vec![val_decl(
+                    result,
+                    mir::Expr::EnumField {
+                        operand: Box::new(mir::Expr::Local(o)),
+                        variant: 0,
+                        index: 0,
+                    },
+                )],
+                else_body: Some(vec![expr_stmt(runtime_call(
+                    mir::RuntimeFn::Trap,
+                    vec![mir::Expr::StringConst(message)],
+                ))]),
+            })
         };
         let f = b.user_fn_full(
             "f",
             "scoop.f",
-            vec![param("o", option_int, o)],
+            vec![param("o", option_ty, o)],
             mir::Type::Int,
             locals,
-            vec![return_stmt(binary(mir::BinOp::IntAdd, unwrap(), unwrap()))],
+            vec![
+                unwrap(uw1),
+                unwrap(uw2),
+                return_stmt(binary(
+                    mir::BinOp::IntAdd,
+                    mir::Expr::Local(uw1),
+                    mir::Expr::Local(uw2),
+                )),
+            ],
         );
         let _ = f;
-        let main = b.main(Arena::new(), vec![]);
+        let main = b.main(Arena::new(), Vec::new());
         let module = lower(&b.finish(main));
 
         // Both `!!` share the one trap block of the function.
         let expected = "\
 Module
+  global @scoop.str.0 = \"unwrap on None (function f)\"
   global @scoop.cstr.0 = c\"unwrap on None (function f)\"
-  fun @scoop.f({i1, i64}) -> i64
+  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  fun @scoop.f(enum0) -> i64
+    local %0 $uw.1: i64
+    local %1 $uw.2: i64
   block entry
-    t0 = is_some param0 : i1
-    cbr t0 then @unwrap.ok.1 else @unwrap.trap.2
-  block unwrap.ok.1
-    t1 = unwrap param0 : i64
-    t2 = is_some param0 : i1
-    cbr t2 then @unwrap.ok.3 else @unwrap.trap.2
-  block unwrap.trap.2
-    call @scoop_rt_trap(global0)
+    t0 = enum_tag e0 param0 : i64
+    t1 = Eq t0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    t2 = enum_field e0 v0 f0 param0 : i64
+    store t2 -> local0
+    br @if.merge.3
+  block if.else.2
+    br @unwrap.trap.4
+  block if.merge.3
+    t3 = enum_tag e0 param0 : i64
+    t4 = Eq t3, 0 : i1
+    cbr t4 then @if.then.5 else @if.else.6
+  block unwrap.trap.4
+    call @scoop_rt_trap(global1)
     unreachable
-  block unwrap.ok.3
-    t3 = unwrap param0 : i64
-    t4 = Add t1, t3 : i64
-    ret t4
+  block if.then.5
+    t5 = enum_field e0 v0 f0 param0 : i64
+    store t5 -> local1
+    br @if.merge.7
+  block if.else.6
+    br @unwrap.trap.4
+  block if.merge.7
+    t6 = Add local0, local1 : i64
+    ret t6
   fun @scoop_main() -> void
   block entry
     ret
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option<Int> size=16 align=8 refs=[]
+  layout Option$I size=16 align=8 enum-refs=[[], []]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);

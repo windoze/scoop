@@ -1,0 +1,5 @@
+fun main() {
+    val t = (1, 2, 3, 4)
+    val (a, .., b, ..) = t
+    println(a + b)
+}

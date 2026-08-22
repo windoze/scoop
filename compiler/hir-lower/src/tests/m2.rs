@@ -21,7 +21,7 @@ fn struct_construction_and_field_access() {
             ],
         ),
     ]);
-    let module = lower(&file).expect("struct program must lower");
+    let module = lower_user(file).expect("struct program must lower");
 
     // The struct type is allocated right after the well-known types.
     assert!(matches!(module.types[module.int], Type::Int));
@@ -30,14 +30,17 @@ Module
   struct Point
     field x: Int
     field y: Int
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val p: Point
+    val local0
       StructInit Point : Point
         IntLiteral 1 : Int
         IntLiteral 2 : Int
-    val x: Int
+    val local1
       FieldAccess field 0 : Int
         Local p : Point
     Call println : Unit
@@ -56,7 +59,7 @@ fn struct_init_node_also_constructs() {
             vec![val("p", struct_init("Point", vec![int_lit(1)]))],
         ),
     ]);
-    let module = lower(&file).expect("StructInit node must lower");
+    let module = lower_user(file).expect("StructInit node must lower");
     let dump = hir::dump(&module);
     assert!(dump.contains("StructInit Point : Point"), "{dump}");
 }
@@ -71,7 +74,7 @@ fn struct_shadows_function_in_call_position() {
         fun("Point", vec![]),
         fun("main", vec![val("p", call("Point", vec![int_lit(5)]))]),
     ]);
-    let module = lower(&file).expect("struct/function name sharing must lower");
+    let module = lower_user(file).expect("struct/function name sharing must lower");
     let dump = hir::dump(&module);
     assert!(dump.contains("StructInit Point : Point"), "{dump}");
     assert!(dump.contains("fun Point"), "{dump}");
@@ -91,7 +94,7 @@ fn struct_fields_may_reference_later_structs() {
             ],
         ),
     ]);
-    lower(&file).expect("forward struct references must lower");
+    lower_user(file).expect("forward struct references must lower");
 }
 
 // --- positive: tuples ---
@@ -113,24 +116,27 @@ fn tuples_and_indexing() {
             stmt(call("print", vec![index(var("t"), 1)])),
         ],
     )]);
-    let module = lower(&file).expect("tuple program must lower");
+    let module = lower_user(file).expect("tuple program must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    var q: (Int, String)
+    val local0
       TupleLiteral : (Int, String)
         IntLiteral 1 : Int
         StringLiteral \"hello\" : String
-    val s: String
+    val local1
       FieldAccess _2 : String
         Local q : (Int, String)
     Call println : Unit
       Local s : String
-    val u: Unit
+    val local2
       UnitLiteral : Unit
-    val t: (Int)
+    val local3
       TupleLiteral : (Int)
         IntLiteral 42 : Int
     Call print : Unit
@@ -190,7 +196,7 @@ fn structs_and_tuples_nest() {
             ],
         ),
     ]);
-    lower(&file).expect("nested struct/tuple program must lower");
+    lower_user(file).expect("nested struct/tuple program must lower");
 }
 
 // --- positive: operators and control flow ---
@@ -216,13 +222,16 @@ fn var_rebinding_and_control_flow() {
             ),
         ],
     )]);
-    let module = lower(&file).expect("control flow program must lower");
+    let module = lower_user(file).expect("control flow program must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    var n: Int
+    val local0
       IntLiteral 0 : Int
     while
       Binary Lt : Boolean
@@ -274,7 +283,7 @@ fn unary_operators_and_all_printables() {
             stmt(call("print", vec![var("or")])),
         ],
     )]);
-    lower(&file).expect("operator program must lower");
+    lower_user(file).expect("operator program must lower");
 }
 
 // --- positive: scopes ---
@@ -300,23 +309,26 @@ fn inner_scopes_shadow_and_do_not_leak() {
             ]),
         ],
     )]);
-    let module = lower(&file).expect("shadowing program must lower");
+    let module = lower_user(file).expect("shadowing program must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val x: Int
+    val local0
       IntLiteral 1 : Int
     if
       BoolLiteral true : Boolean
-      val x: String
+      val local1
         StringLiteral \"inner\" : String
       Call println : Unit
         Local x : String
     Call println : Unit
       Local x : Int
-    val y: Int
+    val local2
       IntLiteral 2 : Int
     Call println : Unit
       Local y : Int
@@ -334,7 +346,7 @@ fn duplicate_struct_is_an_error() {
         struct_decl("Point", vec![]),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("duplicate struct must fail");
+    let errors = lower_user(file).expect_err("duplicate struct must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "duplicate struct `Point`");
 }
@@ -348,7 +360,7 @@ fn duplicate_field_is_an_error() {
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("duplicate field must fail");
+    let errors = lower_user(file).expect_err("duplicate field must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "duplicate field `x` in struct `Point`");
 }
@@ -359,7 +371,7 @@ fn unknown_field_type_is_an_error() {
         struct_decl("Point", vec![("z", ty_named("Foo"))]),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("unknown field type must fail");
+    let errors = lower_user(file).expect_err("unknown field type must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "unknown type `Foo`");
 }
@@ -379,7 +391,7 @@ fn struct_init_arity_is_an_error() {
             ),
             fun("main", vec![val("p", call("Point", args))]),
         ]);
-        let errors = lower(&file).expect_err("wrong arity must fail");
+        let errors = lower_user(file).expect_err("wrong arity must fail");
         assert_eq!(errors.len(), 1);
         assert_eq!(
             errors[0].message,
@@ -396,7 +408,7 @@ fn struct_init_arity_singular_noun() {
         struct_decl("Box", vec![("v", ty_named("Int"))]),
         fun("main", vec![val("b", call("Box", vec![]))]),
     ]);
-    let errors = lower(&file).expect_err("wrong arity must fail");
+    let errors = lower_user(file).expect_err("wrong arity must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -416,7 +428,7 @@ fn struct_init_field_type_is_an_error() {
             vec![val("p", call("Point", vec![int_lit(1), str_lit("s")]))],
         ),
     ]);
-    let errors = lower(&file).expect_err("field type mismatch must fail");
+    let errors = lower_user(file).expect_err("field type mismatch must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -430,7 +442,7 @@ fn unknown_struct_init_node_is_an_error() {
         "main",
         vec![val("p", struct_init("Foo", vec![]))],
     )]);
-    let errors = lower(&file).expect_err("unknown struct must fail");
+    let errors = lower_user(file).expect_err("unknown struct must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "unknown struct `Foo`");
 }
@@ -443,7 +455,7 @@ fn initializer_type_mismatch_is_an_error() {
         "main",
         vec![val_ty("x", Some(ty_named("Int")), str_lit("s"))],
     )]);
-    let errors = lower(&file).expect_err("annotation mismatch must fail");
+    let errors = lower_user(file).expect_err("annotation mismatch must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -457,7 +469,7 @@ fn unknown_annotation_type_is_an_error() {
         "main",
         vec![val_ty("x", Some(ty_named("Foo")), int_lit(1))],
     )]);
-    let errors = lower(&file).expect_err("unknown annotation must fail");
+    let errors = lower_user(file).expect_err("unknown annotation must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "unknown type `Foo`");
 }
@@ -468,7 +480,7 @@ fn redeclaration_in_same_scope_is_an_error() {
         "main",
         vec![val("x", int_lit(1)), val("x", int_lit(2))],
     )]);
-    let errors = lower(&file).expect_err("redeclaration must fail");
+    let errors = lower_user(file).expect_err("redeclaration must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "`x` is already declared in this scope");
 }
@@ -481,7 +493,7 @@ fn assign_to_immutable_variable_is_an_error_with_target_span() {
         a.target.span = target_span;
     }
     let file = file(vec![fun("main", vec![val("x", int_lit(1)), assignment])]);
-    let errors = lower(&file).expect_err("assigning to a val must fail");
+    let errors = lower_user(file).expect_err("assigning to a val must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "cannot assign to immutable variable `x`");
     assert_eq!(errors[0].span, Some(target_span));
@@ -490,7 +502,7 @@ fn assign_to_immutable_variable_is_an_error_with_target_span() {
 #[test]
 fn assign_to_unknown_variable_is_an_error() {
     let file = file(vec![fun("main", vec![assign("x", int_lit(2))])]);
-    let errors = lower(&file).expect_err("assigning to an unknown name must fail");
+    let errors = lower_user(file).expect_err("assigning to an unknown name must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "unknown variable `x`");
 }
@@ -501,7 +513,7 @@ fn assign_type_mismatch_is_an_error() {
         "main",
         vec![var_("x", int_lit(1)), assign("x", str_lit("s"))],
     )]);
-    let errors = lower(&file).expect_err("assignment mismatch must fail");
+    let errors = lower_user(file).expect_err("assignment mismatch must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -518,7 +530,7 @@ fn variable_out_of_scope_is_an_error() {
             stmt(call("println", vec![var("y")])),
         ],
     )]);
-    let errors = lower(&file).expect_err("out-of-scope reference must fail");
+    let errors = lower_user(file).expect_err("out-of-scope reference must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "unknown variable `y`");
 }
@@ -532,7 +544,7 @@ fn if_body_does_not_leak_is_an_error() {
             stmt(call("println", vec![var("y")])),
         ],
     )]);
-    let errors = lower(&file).expect_err("out-of-scope reference must fail");
+    let errors = lower_user(file).expect_err("out-of-scope reference must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "unknown variable `y`");
 }
@@ -543,7 +555,7 @@ fn unknown_variable_read_is_an_error() {
         "main",
         vec![stmt(call("println", vec![var("y")]))],
     )]);
-    let errors = lower(&file).expect_err("unknown variable must fail");
+    let errors = lower_user(file).expect_err("unknown variable must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "unknown variable `y`");
 }
@@ -556,7 +568,7 @@ fn arithmetic_requires_int_operands() {
         "main",
         vec![val("x", binary(BinOp::Add, int_lit(1), str_lit("s")))],
     )]);
-    let errors = lower(&file).expect_err("non-Int arithmetic must fail");
+    let errors = lower_user(file).expect_err("non-Int arithmetic must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -570,7 +582,7 @@ fn comparison_requires_int_operands() {
         "main",
         vec![val("x", binary(BinOp::Lt, str_lit("a"), str_lit("b")))],
     )]);
-    let errors = lower(&file).expect_err("non-Int comparison must fail");
+    let errors = lower_user(file).expect_err("non-Int comparison must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -584,7 +596,7 @@ fn equality_requires_matching_types() {
         "main",
         vec![val("x", binary(BinOp::Eq, int_lit(1), str_lit("s")))],
     )]);
-    let errors = lower(&file).expect_err("mismatched equality must fail");
+    let errors = lower_user(file).expect_err("mismatched equality must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -598,7 +610,7 @@ fn logical_and_requires_boolean_operands() {
         "main",
         vec![val("x", binary(BinOp::And, int_lit(1), bool_lit(true)))],
     )]);
-    let errors = lower(&file).expect_err("non-Boolean `&&` must fail");
+    let errors = lower_user(file).expect_err("non-Boolean `&&` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -612,7 +624,7 @@ fn negation_requires_an_int_operand() {
         "main",
         vec![val("x", unary(UnOp::Neg, str_lit("s")))],
     )]);
-    let errors = lower(&file).expect_err("non-Int negation must fail");
+    let errors = lower_user(file).expect_err("non-Int negation must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -626,7 +638,7 @@ fn logical_not_requires_a_boolean_operand() {
         "main",
         vec![val("x", unary(UnOp::Not, int_lit(1)))],
     )]);
-    let errors = lower(&file).expect_err("non-Boolean `!` must fail");
+    let errors = lower_user(file).expect_err("non-Boolean `!` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -639,7 +651,7 @@ fn logical_not_requires_a_boolean_operand() {
 #[test]
 fn if_condition_must_be_boolean() {
     let file = file(vec![fun("main", vec![if_stmt(int_lit(1), vec![], None)])]);
-    let errors = lower(&file).expect_err("Int condition must fail");
+    let errors = lower_user(file).expect_err("Int condition must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "if condition must be Boolean, found Int");
 }
@@ -647,7 +659,7 @@ fn if_condition_must_be_boolean() {
 #[test]
 fn while_condition_must_be_boolean() {
     let file = file(vec![fun("main", vec![while_stmt(str_lit("x"), vec![])])]);
-    let errors = lower(&file).expect_err("String condition must fail");
+    let errors = lower_user(file).expect_err("String condition must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -669,7 +681,7 @@ fn unknown_struct_field_is_an_error() {
             ],
         ),
     ]);
-    let errors = lower(&file).expect_err("unknown field must fail");
+    let errors = lower_user(file).expect_err("unknown field must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "struct `Point` has no field `z`");
 }
@@ -686,7 +698,7 @@ fn struct_index_access_is_an_error() {
             ],
         ),
     ]);
-    let errors = lower(&file).expect_err("index on struct must fail");
+    let errors = lower_user(file).expect_err("index on struct must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "struct `Point` has no field `_1`");
 }
@@ -701,7 +713,7 @@ fn tuple_index_out_of_bounds_is_an_error() {
                 val("z", index(var("q"), n)),
             ],
         )]);
-        let errors = lower(&file).expect_err("out-of-bounds index must fail");
+        let errors = lower_user(file).expect_err("out-of-bounds index must fail");
         assert_eq!(errors.len(), 1);
         assert_eq!(
             errors[0].message,
@@ -719,7 +731,7 @@ fn tuple_named_field_is_an_error() {
             val("z", field(var("q"), "x")),
         ],
     )]);
-    let errors = lower(&file).expect_err("named access on tuple must fail");
+    let errors = lower_user(file).expect_err("named access on tuple must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -733,12 +745,12 @@ fn field_access_on_scalar_is_an_error() {
         "main",
         vec![val("n", int_lit(1)), val("z", field(var("n"), "x"))],
     )]);
-    let errors = lower(&file).expect_err("field access on Int must fail");
+    let errors = lower_user(file).expect_err("field access on Int must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "type `Int` has no fields");
 }
 
-// --- negative: builtins and statements ---
+// --- negative: core intrinsics and statements ---
 
 #[test]
 fn print_rejects_non_printable_types() {
@@ -761,7 +773,7 @@ fn print_rejects_non_printable_types() {
             point.clone(),
             fun("main", vec![stmt(call("print", vec![arg]))]),
         ]);
-        let errors = lower(&file).expect_err("non-printable argument must fail");
+        let errors = lower_user(file).expect_err("non-printable argument must fail");
         assert_eq!(errors.len(), 1);
         assert_eq!(
             errors[0].message,
@@ -776,7 +788,7 @@ fn struct_init_statement_is_not_a_call() {
         struct_decl("Point", vec![("x", ty_named("Int"))]),
         fun("main", vec![stmt(call("Point", vec![int_lit(1)]))]),
     ]);
-    let errors = lower(&file).expect_err("construction statement must fail");
+    let errors = lower_user(file).expect_err("construction statement must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "statement must be a function call");
 }
@@ -784,7 +796,7 @@ fn struct_init_statement_is_not_a_call() {
 #[test]
 fn empty_tuple_literal_is_an_error() {
     let file = file(vec![fun("main", vec![val("t", tuple_lit(vec![]))])]);
-    let errors = lower(&file).expect_err("empty tuple literal must fail");
+    let errors = lower_user(file).expect_err("empty tuple literal must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,

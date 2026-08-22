@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m4-enum/errors/unknown-variant.scoop:7:15: error: enum `Color` has no variant `Yellow`

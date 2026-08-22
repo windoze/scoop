@@ -4,6 +4,15 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
   struct Point
     field x: Int
     field y: Int
@@ -49,96 +58,99 @@ Module
   struct Point
     field x: Int
     field y: Int
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val a: Option<Int>
-      SomeWrap : Option<Int>
+    val local0
+      VariantConstruct Option.Some<Int> : Option<Int>
         IntLiteral 41 : Int
-    val $opt.0: Option<Int>
+    val local1
       Local a : Option<Int>
     if
       IsSome : Boolean
         Local $opt.0 : Option<Int>
-      val $res.1: Int
+      val local2
         Unwrap trap=false : Int
           Local $opt.0 : Option<Int>
     else
-      val $res.1: Int
+      val local2
         IntLiteral 0 : Int
     Call println : Unit
       Local $res.1 : Int
-    val b: Option<Int>
-      NoneLiteral : Option<Int>
-    val $opt.2: Option<Int>
+    val local3
+      VariantConstruct Option.None<Int> : Option<Int>
+    val local4
       Local b : Option<Int>
     if
       IsSome : Boolean
         Local $opt.2 : Option<Int>
-      val $res.3: Int
+      val local5
         Unwrap trap=false : Int
           Local $opt.2 : Option<Int>
     else
-      val $res.3: Int
+      val local5
         IntLiteral 99 : Int
     Call println : Unit
       Local $res.3 : Int
-    val p: Option<Point>
-      SomeWrap : Option<Point>
+    val local6
+      VariantConstruct Option.Some<Point> : Option<Point>
         StructInit Point : Point
           IntLiteral 10 : Int
           IntLiteral 20 : Int
-    val $opt.4: Option<Point>
+    val local7
       Local p : Option<Point>
     if
       IsSome : Boolean
         Local $opt.4 : Option<Point>
-      val $res.5: Option<Int>
+      val local8
         SomeWrap : Option<Int>
           FieldAccess field 0 : Int
             Unwrap trap=false : Point
               Local $opt.4 : Option<Point>
     else
-      val $res.5: Option<Int>
+      val local8
         NoneLiteral : Option<Int>
-    val $opt.6: Option<Int>
+    val local9
       Local $res.5 : Option<Int>
     if
       IsSome : Boolean
         Local $opt.6 : Option<Int>
-      val $res.7: Int
+      val local10
         Unwrap trap=false : Int
           Local $opt.6 : Option<Int>
     else
-      val $res.7: Int
+      val local10
         IntLiteral 0 : Int
     Call println : Unit
       Local $res.7 : Int
-    val q: Option<Point>
-      NoneLiteral : Option<Point>
-    val $opt.8: Option<Point>
+    val local11
+      VariantConstruct Option.None<Point> : Option<Point>
+    val local12
       Local q : Option<Point>
     if
       IsSome : Boolean
         Local $opt.8 : Option<Point>
-      val $res.9: Option<Int>
+      val local13
         SomeWrap : Option<Int>
           FieldAccess field 0 : Int
             Unwrap trap=false : Point
               Local $opt.8 : Option<Point>
     else
-      val $res.9: Option<Int>
+      val local13
         NoneLiteral : Option<Int>
-    val $opt.10: Option<Int>
+    val local14
       Local $res.9 : Option<Int>
     if
       IsSome : Boolean
         Local $opt.10 : Option<Int>
-      val $res.11: Int
+      val local15
         Unwrap trap=false : Int
           Local $opt.10 : Option<Int>
     else
-      val $res.11: Int
+      val local15
         IntLiteral 0 : Int
     Call println : Unit
       Local $res.11 : Int
@@ -152,231 +164,280 @@ Module
 == mir ==
 Module
   struct Point (x: Int, y: Int)
+  enum Option$I
+    Some(_1: Int)
+    None()
+  enum Option$Point
+    Some(_1: Point)
+    None()
   fun main @scoop_main() -> Unit
-    val a: Option<Int>
-      SomeWrap
+    val a: Option$I<Int>
+      VariantConstruct Option$I<Int> v0
         IntLiteral 41
-    val $opt.0: Option<Int>
+    val $opt.0: Option$I<Int>
       Local a
     if
-      IsSome
-        Local $opt.0
+      Binary IntEq
+        EnumTag
+          Local $opt.0
+        IntLiteral 0
       val $res.1: Int
-        Unwrap trap=false
+        EnumField v0 f0
           Local $opt.0
     else
       val $res.1: Int
         IntLiteral 0
     Call @scoop_rt_println_int direct
       Local $res.1
-    val b: Option<Int>
-      NoneLiteral
-    val $opt.2: Option<Int>
+    val b: Option$I<Int>
+      VariantConstruct Option$I<Int> v1
+    val $opt.2: Option$I<Int>
       Local b
     if
-      IsSome
-        Local $opt.2
+      Binary IntEq
+        EnumTag
+          Local $opt.2
+        IntLiteral 0
       val $res.3: Int
-        Unwrap trap=false
+        EnumField v0 f0
           Local $opt.2
     else
       val $res.3: Int
         IntLiteral 99
     Call @scoop_rt_println_int direct
       Local $res.3
-    val p: Option<Point>
-      SomeWrap
+    val p: Option$Point<Point>
+      VariantConstruct Option$Point<Point> v0
         StructInit Point
           IntLiteral 10
           IntLiteral 20
-    val $opt.4: Option<Point>
+    val $opt.4: Option$Point<Point>
       Local p
     if
-      IsSome
-        Local $opt.4
-      val $res.5: Option<Int>
-        SomeWrap
+      Binary IntEq
+        EnumTag
+          Local $opt.4
+        IntLiteral 0
+      val $res.5: Option$I<Int>
+        VariantConstruct Option$I<Int> v0
           FieldAccess 0
-            Unwrap trap=false
+            EnumField v0 f0
               Local $opt.4
     else
-      val $res.5: Option<Int>
-        NoneLiteral
-    val $opt.6: Option<Int>
+      val $res.5: Option$I<Int>
+        VariantConstruct Option$I<Int> v1
+    val $opt.6: Option$I<Int>
       Local $res.5
     if
-      IsSome
-        Local $opt.6
+      Binary IntEq
+        EnumTag
+          Local $opt.6
+        IntLiteral 0
       val $res.7: Int
-        Unwrap trap=false
+        EnumField v0 f0
           Local $opt.6
     else
       val $res.7: Int
         IntLiteral 0
     Call @scoop_rt_println_int direct
       Local $res.7
-    val q: Option<Point>
-      NoneLiteral
-    val $opt.8: Option<Point>
+    val q: Option$Point<Point>
+      VariantConstruct Option$Point<Point> v1
+    val $opt.8: Option$Point<Point>
       Local q
     if
-      IsSome
-        Local $opt.8
-      val $res.9: Option<Int>
-        SomeWrap
+      Binary IntEq
+        EnumTag
+          Local $opt.8
+        IntLiteral 0
+      val $res.9: Option$I<Int>
+        VariantConstruct Option$I<Int> v0
           FieldAccess 0
-            Unwrap trap=false
+            EnumField v0 f0
               Local $opt.8
     else
-      val $res.9: Option<Int>
-        NoneLiteral
-    val $opt.10: Option<Int>
+      val $res.9: Option$I<Int>
+        VariantConstruct Option$I<Int> v1
+    val $opt.10: Option$I<Int>
       Local $res.9
     if
-      IsSome
-        Local $opt.10
+      Binary IntEq
+        EnumTag
+          Local $opt.10
+        IntLiteral 0
       val $res.11: Int
-        Unwrap trap=false
+        EnumField v0 f0
           Local $opt.10
     else
       val $res.11: Int
         IntLiteral 0
     Call @scoop_rt_println_int direct
       Local $res.11
+    val $opt.1: Option$I<Int>
+      Local a
+    if
+      Binary IntEq
+        EnumTag
+          Local $opt.1
+        IntLiteral 0
+      val $uw.2: Int
+        EnumField v0 f0
+          Local $opt.1
+    else
+      Call @scoop_rt_trap direct
+        StringConst @scoop.str.0
     Call @scoop_rt_println_int direct
       Binary IntAdd
-        Unwrap trap=true
-          Local a
+        Local $uw.2
         IntLiteral 1
+  str @scoop.str.0 "unwrap on None (function main)"
   entry @scoop_main
 
 == lir ==
 Module
+  global @scoop.str.0 = "unwrap on None (function main)"
   global @scoop.cstr.0 = c"unwrap on None (function main)"
+  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  enum Option$Point tagged size=16 align=8 variants=({i64, i64}) ()
   fun @scoop_main() -> void
-    local %0 a: {i1, i64}
-    local %1 $opt.0: {i1, i64}
+    local %0 a: enum0
+    local %1 $opt.0: enum0
     local %2 $res.1: i64
-    local %3 b: {i1, i64}
-    local %4 $opt.2: {i1, i64}
+    local %3 b: enum0
+    local %4 $opt.2: enum0
     local %5 $res.3: i64
-    local %6 p: {i1, {i64, i64}}
-    local %7 $opt.4: {i1, {i64, i64}}
-    local %8 $res.5: {i1, i64}
-    local %9 $opt.6: {i1, i64}
+    local %6 p: enum1
+    local %7 $opt.4: enum1
+    local %8 $res.5: enum0
+    local %9 $opt.6: enum0
     local %10 $res.7: i64
-    local %11 q: {i1, {i64, i64}}
-    local %12 $opt.8: {i1, {i64, i64}}
-    local %13 $res.9: {i1, i64}
-    local %14 $opt.10: {i1, i64}
+    local %11 q: enum1
+    local %12 $opt.8: enum1
+    local %13 $res.9: enum0
+    local %14 $opt.10: enum0
     local %15 $res.11: i64
+    local %16 $opt.1: enum0
+    local %17 $uw.2: i64
   block entry
-    t0 = some_wrap 41 : {i1, i64}
+    t0 = enum_wrap e0 v0 (41) : enum0
     store t0 -> local0
     store local0 -> local1
-    t1 = is_some local1 : i1
-    cbr t1 then @if.then.1 else @if.else.2
+    t1 = enum_tag e0 local1 : i64
+    t2 = Eq t1, 0 : i1
+    cbr t2 then @if.then.1 else @if.else.2
   block if.then.1
-    t2 = unwrap local1 : i64
-    store t2 -> local2
+    t3 = enum_field e0 v0 f0 local1 : i64
+    store t3 -> local2
     br @if.merge.3
   block if.else.2
     store 0 -> local2
     br @if.merge.3
   block if.merge.3
     call @scoop_rt_println_int(local2)
-    t3 = aggregate () : {}
-    t4 = none : {i1, i64}
-    store t4 -> local3
+    t4 = aggregate () : {}
+    t5 = enum_wrap e0 v1 () : enum0
+    store t5 -> local3
     store local3 -> local4
-    t5 = is_some local4 : i1
-    cbr t5 then @if.then.4 else @if.else.5
+    t6 = enum_tag e0 local4 : i64
+    t7 = Eq t6, 0 : i1
+    cbr t7 then @if.then.4 else @if.else.5
   block if.then.4
-    t6 = unwrap local4 : i64
-    store t6 -> local5
+    t8 = enum_field e0 v0 f0 local4 : i64
+    store t8 -> local5
     br @if.merge.6
   block if.else.5
     store 99 -> local5
     br @if.merge.6
   block if.merge.6
     call @scoop_rt_println_int(local5)
-    t7 = aggregate () : {}
-    t8 = aggregate (10, 20) : {i64, i64}
-    t9 = some_wrap t8 : {i1, {i64, i64}}
-    store t9 -> local6
+    t9 = aggregate () : {}
+    t10 = aggregate (10, 20) : {i64, i64}
+    t11 = enum_wrap e1 v0 (t10) : enum1
+    store t11 -> local6
     store local6 -> local7
-    t10 = is_some local7 : i1
-    cbr t10 then @if.then.7 else @if.else.8
+    t12 = enum_tag e1 local7 : i64
+    t13 = Eq t12, 0 : i1
+    cbr t13 then @if.then.7 else @if.else.8
   block if.then.7
-    t11 = unwrap local7 : {i64, i64}
-    t12 = extract t11, 0 : i64
-    t13 = some_wrap t12 : {i1, i64}
-    store t13 -> local8
+    t14 = enum_field e1 v0 f0 local7 : {i64, i64}
+    t15 = extract t14, 0 : i64
+    t16 = enum_wrap e0 v0 (t15) : enum0
+    store t16 -> local8
     br @if.merge.9
   block if.else.8
-    t14 = none : {i1, i64}
-    store t14 -> local8
+    t17 = enum_wrap e0 v1 () : enum0
+    store t17 -> local8
     br @if.merge.9
   block if.merge.9
     store local8 -> local9
-    t15 = is_some local9 : i1
-    cbr t15 then @if.then.10 else @if.else.11
+    t18 = enum_tag e0 local9 : i64
+    t19 = Eq t18, 0 : i1
+    cbr t19 then @if.then.10 else @if.else.11
   block if.then.10
-    t16 = unwrap local9 : i64
-    store t16 -> local10
+    t20 = enum_field e0 v0 f0 local9 : i64
+    store t20 -> local10
     br @if.merge.12
   block if.else.11
     store 0 -> local10
     br @if.merge.12
   block if.merge.12
     call @scoop_rt_println_int(local10)
-    t17 = aggregate () : {}
-    t18 = none : {i1, {i64, i64}}
-    store t18 -> local11
+    t21 = aggregate () : {}
+    t22 = enum_wrap e1 v1 () : enum1
+    store t22 -> local11
     store local11 -> local12
-    t19 = is_some local12 : i1
-    cbr t19 then @if.then.13 else @if.else.14
+    t23 = enum_tag e1 local12 : i64
+    t24 = Eq t23, 0 : i1
+    cbr t24 then @if.then.13 else @if.else.14
   block if.then.13
-    t20 = unwrap local12 : {i64, i64}
-    t21 = extract t20, 0 : i64
-    t22 = some_wrap t21 : {i1, i64}
-    store t22 -> local13
+    t25 = enum_field e1 v0 f0 local12 : {i64, i64}
+    t26 = extract t25, 0 : i64
+    t27 = enum_wrap e0 v0 (t26) : enum0
+    store t27 -> local13
     br @if.merge.15
   block if.else.14
-    t23 = none : {i1, i64}
-    store t23 -> local13
+    t28 = enum_wrap e0 v1 () : enum0
+    store t28 -> local13
     br @if.merge.15
   block if.merge.15
     store local13 -> local14
-    t24 = is_some local14 : i1
-    cbr t24 then @if.then.16 else @if.else.17
+    t29 = enum_tag e0 local14 : i64
+    t30 = Eq t29, 0 : i1
+    cbr t30 then @if.then.16 else @if.else.17
   block if.then.16
-    t25 = unwrap local14 : i64
-    store t25 -> local15
+    t31 = enum_field e0 v0 f0 local14 : i64
+    store t31 -> local15
     br @if.merge.18
   block if.else.17
     store 0 -> local15
     br @if.merge.18
   block if.merge.18
     call @scoop_rt_println_int(local15)
-    t26 = aggregate () : {}
-    t27 = is_some local0 : i1
-    cbr t27 then @unwrap.ok.19 else @unwrap.trap.20
-  block unwrap.ok.19
-    t28 = unwrap local0 : i64
-    t29 = Add t28, 1 : i64
-    call @scoop_rt_println_int(t29)
-    t30 = aggregate () : {}
+    t32 = aggregate () : {}
+    store local0 -> local16
+    t33 = enum_tag e0 local16 : i64
+    t34 = Eq t33, 0 : i1
+    cbr t34 then @if.then.19 else @if.else.20
+  block if.then.19
+    t35 = enum_field e0 v0 f0 local16 : i64
+    store t35 -> local17
+    br @if.merge.21
+  block if.else.20
+    br @unwrap.trap.22
+  block if.merge.21
+    t36 = Add local17, 1 : i64
+    call @scoop_rt_println_int(t36)
+    t37 = aggregate () : {}
     ret
-  block unwrap.trap.20
-    call @scoop_rt_trap(global0)
+  block unwrap.trap.22
+    call @scoop_rt_trap(global1)
     unreachable
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Point size=16 align=8 refs=[]
-  layout Option<Int> size=16 align=8 refs=[]
-  layout Option<Point> size=24 align=8 refs=[]
+  layout Option$I size=16 align=8 enum-refs=[[], []]
+  layout Option$Point size=24 align=8 enum-refs=[[], []]
   entry @scoop_main
 
 == run ==

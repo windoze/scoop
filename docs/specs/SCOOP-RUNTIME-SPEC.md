@@ -37,6 +37,7 @@ Runtime 是编译产物的支撑层，职责包括：
 - 类型标识（`is` / `as` 检查用）；
 - 实例大小与对齐；
 - **引用字段位图/描述**（GC 扫描对象内部引用用）；
+- **enum 的引用扫描按 tag 分派**：enum 的 TypeDescriptor 携带 per-variant 的引用偏移表（LIR meta 的 `LayoutKind::Enum`，见 impl spec 2.4）；扫描 enum 值时先读 tag，再按对应变体的偏移表扫描。niche 表示的 enum（spec 7.4）整体就是一个引用，无表；
 - 父类型信息（接口、父类）；
 - 虚分派结构：内嵌 **vtable 指针**与 **itable 数组**（itable 以接口 TypeDescriptor 指针为键）。`Any` 的 `equals` / `hashCode` / `toString` 是 vtable 的固定前三个槽位；装箱值类型的表项指向 this 调整 thunk（impl spec 2.9）。
 

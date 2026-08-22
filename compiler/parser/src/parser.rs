@@ -1,18 +1,20 @@
-//! Recursive-descent parser for the M3 subset: token vector -> AST.
+//! Recursive-descent parser for the M4 subset: token vector -> AST.
 //!
-//! M3 is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the first
+//! M4 is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the first
 //! error aborts parsing with a single spanned diagnostic. Constructs that
-//! are lexically recognizable but outside the subset (`enum`, `when`,
-//! `for`, string interpolation, field assignment) get dedicated "not
-//! supported" diagnostics rather than generic syntax errors. Expression
-//! parsing lives in `expr.rs`.
+//! are lexically recognizable but outside the subset (`for`, `when`
+//! expressions, string interpolation, field assignment) get dedicated
+//! "not supported" diagnostics rather than generic syntax errors.
+//! Declaration parsing lives in `decl.rs`, expression parsing in
+//! `expr.rs`, and pattern parsing in `pattern.rs`.
 
 use scoop_ast::{
-    Assign, Block, Decl, Diagnostic, Expr, FieldDecl, FunctionBody, FunctionDecl, Ident, If, Param,
-    SourceFile, Span, Statement, StatementKind, StructDecl, TypeRef, TypeRefKind, ValDecl, While,
+    Assign, Block, Diagnostic, Expr, Ident, If, SourceFile, Span, Statement, StatementKind,
+    TypeRef, TypeRefKind, ValDecl, When, WhenArm, While,
 };
 
 use crate::lexer::{Token, TokenKind, lex};
+use crate::pattern::pattern_span;
 
 pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Diagnostic> {
     let tokens = lex(source)?;
@@ -84,142 +86,6 @@ impl Parser {
         }
     }
 
-    fn parse_decl(&mut self) -> Result<Decl, Diagnostic> {
-        match &self.peek().kind {
-            TokenKind::Fun => Ok(Decl::Function(self.parse_function()?)),
-            TokenKind::Struct => Ok(Decl::Struct(self.parse_struct()?)),
-            TokenKind::Ident(text) if text == "enum" => Err(Diagnostic::at(
-                self.peek().span,
-                "enums are not supported yet (milestone M3)",
-            )),
-            _ => self.unexpected("`fun` or `struct`"),
-        }
-    }
-
-    /// `fun <T, ...>? <name>(<param>, ...)?: <ret>? <body>` — the type
-    /// parameter list sits between `fun` and the name (a `<` right after
-    /// `fun` is unambiguous here), parameters carry mandatory type
-    /// annotations, and the return type defaults to `Unit` when absent.
-    /// The body is a block or an expression body (`= expr`).
-    fn parse_function(&mut self) -> Result<FunctionDecl, Diagnostic> {
-        let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
-        let mut type_params = Vec::new();
-        if matches!(self.peek().kind, TokenKind::Less) {
-            self.bump();
-            loop {
-                type_params.push(self.expect_ident("type parameter name")?);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-            self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
-        }
-        let name = self.expect_ident("function name")?;
-        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let mut params = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            loop {
-                let param_name = self.expect_ident("parameter name")?;
-                self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
-                let ty = self.parse_type_ref()?;
-                params.push(Param {
-                    span: Span::new(param_name.span.start, ty.span.end),
-                    name: param_name,
-                    ty,
-                });
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-        }
-        self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
-            self.bump();
-            Some(self.parse_type_ref()?)
-        } else {
-            None
-        };
-        let (body, end) = match self.peek().kind {
-            TokenKind::LBrace => {
-                let block = self.parse_block()?;
-                let end = block.span.end;
-                (FunctionBody::Block(block), end)
-            }
-            TokenKind::Equal => {
-                self.bump();
-                let expr = self.parse_expr()?;
-                let end = expr.span().end;
-                (FunctionBody::Expr(Box::new(expr)), end)
-            }
-            _ => return self.unexpected("`{` or `=`"),
-        };
-        Ok(FunctionDecl {
-            name,
-            type_params,
-            params,
-            return_ty,
-            body,
-            span: Span::new(fun.span.start, end),
-        })
-    }
-
-    /// `struct <name>(val <field>: <type>, ...)` — M2 structs are a primary
-    /// constructor only: all-`val` fields, no defaults, no member body.
-    fn parse_struct(&mut self) -> Result<StructDecl, Diagnostic> {
-        let keyword = self.expect("`struct`", |k| matches!(k, TokenKind::Struct))?;
-        let name = self.expect_ident("struct name")?;
-        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let mut fields = Vec::new();
-        if matches!(self.peek().kind, TokenKind::RParen) {
-            // A fieldless struct is outside the M2 subset.
-            return self.unexpected("field declaration");
-        }
-        loop {
-            if matches!(self.peek().kind, TokenKind::Var) {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "`var` struct fields are not supported (value types are immutable)",
-                ));
-            }
-            let val = self.expect("`val`", |k| matches!(k, TokenKind::Val))?;
-            let field_name = self.expect_ident("field name")?;
-            self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
-            let ty = self.parse_type_ref()?;
-            if matches!(self.peek().kind, TokenKind::Equal) {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "field default values are not supported yet (milestone M3)",
-                ));
-            }
-            fields.push(FieldDecl {
-                span: Span::new(val.span.start, ty.span.end),
-                name: field_name,
-                ty,
-            });
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-            } else {
-                break;
-            }
-        }
-        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        if matches!(self.peek().kind, TokenKind::LBrace) {
-            return Err(Diagnostic::at(
-                self.peek().span,
-                "struct member declarations are not supported yet (milestone M3)",
-            ));
-        }
-        Ok(StructDecl {
-            name,
-            fields,
-            span: Span::new(keyword.span.start, close.span.end),
-        })
-    }
-
     /// A type annotation: a named type, `Unit` (also written `()`), or a
     /// tuple type `(T1, T2, ...)`, each with any number of `?` suffixes
     /// (`T?` is `Option<T>`, and `T??` does not collapse — spec 7.1).
@@ -246,6 +112,28 @@ impl Parser {
                     Ok(TypeRef {
                         kind: TypeRefKind::Unit,
                         span: token.span,
+                    })
+                } else if matches!(self.peek().kind, TokenKind::Less) {
+                    // Generic type application `Name<T1, T2>`: `<`
+                    // directly after a type name is unambiguous in
+                    // type position.
+                    let start = token.span.start;
+                    self.bump();
+                    let mut args = vec![self.parse_type_ref()?];
+                    while matches!(self.peek().kind, TokenKind::Comma) {
+                        self.bump();
+                        args.push(self.parse_type_ref()?);
+                    }
+                    let close = self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
+                    Ok(TypeRef {
+                        kind: TypeRefKind::Generic(
+                            Ident {
+                                text,
+                                span: token.span,
+                            },
+                            args,
+                        ),
+                        span: Span::new(start, close.span.end),
                     })
                 } else {
                     Ok(TypeRef {
@@ -292,7 +180,7 @@ impl Parser {
         }
     }
 
-    fn parse_block(&mut self) -> Result<Block, Diagnostic> {
+    pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {
         let open = self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
         let mut statements = Vec::new();
         loop {
@@ -333,6 +221,7 @@ impl Parser {
         match &self.peek().kind {
             TokenKind::Val | TokenKind::Var => self.parse_val_decl(),
             TokenKind::If => self.parse_if(),
+            TokenKind::When => self.parse_when(),
             TokenKind::While => self.parse_while(),
             TokenKind::Return => self.parse_return(),
             TokenKind::LBrace => {
@@ -342,6 +231,10 @@ impl Parser {
                     kind: StatementKind::Block(block),
                 })
             }
+            TokenKind::At => Err(Diagnostic::at(
+                self.peek().span,
+                "annotations are only allowed on function declarations (milestone M4)",
+            )),
             TokenKind::Ident(text) if text == "for" => Err(Diagnostic::at(
                 self.peek().span,
                 "`for` loops are not supported yet (milestone M3)",
@@ -369,12 +262,14 @@ impl Parser {
         }
     }
 
-    /// `(val|var) <name> (: <type>)? = <expr>` — the initializer is
-    /// mandatory in M2.
+    /// `(val|var) <pattern> (: <type>)? = <expr>` — the initializer is
+    /// mandatory. A plain identifier target is `Pattern::Binding`;
+    /// destructuring uses tuple/struct patterns (spec 4.6). `var` with a
+    /// pattern behaves like `val` (value types are immutable).
     fn parse_val_decl(&mut self) -> Result<Statement, Diagnostic> {
         let keyword = self.bump();
         let mutable = matches!(keyword.kind, TokenKind::Var);
-        let name = self.expect_ident("variable name")?;
+        let target = self.parse_pattern()?;
         let ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_ref()?)
@@ -388,7 +283,7 @@ impl Parser {
             span,
             kind: StatementKind::ValDecl(ValDecl {
                 mutable,
-                name,
+                target,
                 ty,
                 init,
                 span,
@@ -439,6 +334,83 @@ impl Parser {
                 else_block,
                 span,
             }),
+        })
+    }
+
+    /// `when (<subject>) { <arm>* (else -> <block>)? }` — statement-level
+    /// pattern matching (spec chapter 5). An arm is
+    /// `<pattern> (if (<guard>))? -> <body>` where the body is a block or
+    /// a single expression statement (`Red -> println("red")`, spec 5.1);
+    /// arms end like statements, and `else` must be the last one.
+    fn parse_when(&mut self) -> Result<Statement, Diagnostic> {
+        let keyword = self.bump(); // `when`
+        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
+        let subject = self.parse_expr()?;
+        self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+        self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
+        let mut arms = Vec::new();
+        let mut else_body = None;
+        let close = loop {
+            match self.peek().kind {
+                TokenKind::RBrace => break self.bump(),
+                TokenKind::Eof => return self.unexpected("`}`"),
+                TokenKind::Else => {
+                    self.bump();
+                    self.expect("`->`", |k| matches!(k, TokenKind::Arrow))?;
+                    else_body = Some(self.parse_arm_body()?);
+                    // `else` must be the last arm.
+                    break self.expect("`}`", |k| matches!(k, TokenKind::RBrace))?;
+                }
+                _ => {
+                    let pattern = self.parse_pattern()?;
+                    let guard = if matches!(self.peek().kind, TokenKind::If) {
+                        self.bump();
+                        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
+                        let guard = self.parse_expr()?;
+                        self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+                        Some(guard)
+                    } else {
+                        None
+                    };
+                    self.expect("`->`", |k| matches!(k, TokenKind::Arrow))?;
+                    let body = self.parse_arm_body()?;
+                    let span = Span::new(pattern_span(&pattern).start, body.span.end);
+                    arms.push(WhenArm {
+                        pattern,
+                        guard,
+                        body,
+                        span,
+                    });
+                    self.expect_statement_end()?;
+                }
+            }
+        };
+        let span = Span::new(keyword.span.start, close.span.end);
+        Ok(Statement {
+            span,
+            kind: StatementKind::When(When {
+                subject,
+                arms,
+                else_body,
+                span,
+            }),
+        })
+    }
+
+    /// A `when` arm body: a block, or a single expression statement
+    /// wrapped in a synthetic block (the AST keeps `Block` either way).
+    fn parse_arm_body(&mut self) -> Result<Block, Diagnostic> {
+        if matches!(self.peek().kind, TokenKind::LBrace) {
+            return self.parse_block();
+        }
+        let expr = self.parse_expr()?;
+        let span = expr.span();
+        Ok(Block {
+            statements: vec![Statement {
+                kind: StatementKind::Expr(expr),
+                span,
+            }],
+            span,
         })
     }
 

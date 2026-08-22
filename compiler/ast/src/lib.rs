@@ -20,6 +20,9 @@ impl Span {
 /// driver-level failures (unreadable file, linker failure) lack one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnostic {
+    /// Index into the driver's input file list; 0-based. Single-file
+    /// compiles (and the parser, which sees one file) always use 0.
+    pub file: usize,
     pub span: Option<Span>,
     pub message: String,
 }
@@ -27,6 +30,7 @@ pub struct Diagnostic {
 impl Diagnostic {
     pub fn at(span: Span, message: impl Into<String>) -> Self {
         Diagnostic {
+            file: 0,
             span: Some(span),
             message: message.into(),
         }
@@ -77,6 +81,8 @@ pub struct TypeRef {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeRefKind {
     Named(Ident),
+    /// `Name<T1, T2>` — a generic type application (e.g. `Box<Int>`).
+    Generic(Ident, Vec<TypeRef>),
     Tuple(Vec<TypeRef>),
     /// The `Unit` type name (also written `()` in type position).
     Unit,
@@ -94,6 +100,46 @@ pub struct SourceFile {
 pub enum Decl {
     Function(FunctionDecl),
     Struct(StructDecl),
+    Enum(EnumDecl),
+}
+
+/// `enum E<T> { ... }` (spec 4.2).
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumDecl {
+    pub name: Ident,
+    pub type_params: Vec<Ident>,
+    pub variants: Vec<VariantDecl>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariantDecl {
+    pub name: Ident,
+    pub kind: VariantDeclKind,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariantDeclKind {
+    /// `SimpleVariant`
+    Unit,
+    /// `VariantWithValue(Int, String)` — unnamed fields.
+    Positional(Vec<TypeRef>),
+    /// `Variant { f1: Int, f2: String }` — block-style named fields.
+    Named(Vec<VariantFieldDecl>),
+    /// `Variant(val f1: Int, val f2: String = "...")` —
+    /// constructor-style named fields (spec 4.2); defaults are
+    /// constant expressions in M4 (DESIGN.md 5.4).
+    Constructor(Vec<VariantFieldDecl>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariantFieldDecl {
+    pub name: Ident,
+    pub ty: TypeRef,
+    /// Constructor-style variants only.
+    pub default: Option<Expr>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -112,6 +158,8 @@ pub struct FieldDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl {
+    /// M4: at most `@Intrinsic("name")`, sysroot only (DESIGN.md 1.3).
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     /// Generic type parameters (`fun <T> f(...)`); empty for
     /// non-generic functions.
@@ -120,6 +168,14 @@ pub struct FunctionDecl {
     /// Return type annotation; absent means `Unit`.
     pub return_ty: Option<TypeRef>,
     pub body: FunctionBody,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Annotation {
+    pub name: Ident,
+    /// The single string argument of `@Intrinsic("name")`.
+    pub value: Option<String>,
     pub span: Span,
 }
 
@@ -157,6 +213,8 @@ pub enum StatementKind {
     Return {
         value: Option<Expr>,
     },
+    /// Pattern `when` (spec 5). Statement-level only in M4.
+    When(When),
     ValDecl(ValDecl),
     Assign(Assign),
     If(If),
@@ -164,10 +222,72 @@ pub enum StatementKind {
     Block(Block),
 }
 
+/// `when (subject) { arms... }` with an optional trailing `else`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct When {
+    pub subject: Expr,
+    pub arms: Vec<WhenArm>,
+    pub else_body: Option<Block>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhenArm {
+    pub pattern: Pattern,
+    pub guard: Option<Expr>,
+    pub body: Block,
+    pub span: Span,
+}
+
+/// A pattern (spec 4.6 / 5). Syntactically, enum variant patterns and
+/// struct patterns share their shapes; HIR resolves which is which.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Pattern {
+    /// A plain binding name.
+    Binding(Ident),
+    /// `_`
+    Wildcard { span: Span },
+    /// A literal matched by equality (`0`, `"x"`, `true`).
+    Literal { expr: Box<Expr>, span: Span },
+    /// `Path?(p1, p2)` — enum positional variant or struct positional;
+    /// `rest` is the `..` marker.
+    Positional {
+        /// `E.V` as `[E, V]`, or bare `[V]`.
+        path: Vec<Ident>,
+        elements: Vec<Pattern>,
+        rest: Option<Span>,
+        span: Span,
+    },
+    /// `Path?{ f1, f2: renamed, .. }` — enum named-field variant or
+    /// struct field pattern.
+    Named {
+        path: Vec<Ident>,
+        fields: Vec<FieldPattern>,
+        rest: Option<Span>,
+        span: Span,
+    },
+    /// `(p1, p2)` — tuple pattern.
+    Tuple {
+        elements: Vec<Pattern>,
+        rest: Option<Span>,
+        span: Span,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldPattern {
+    pub name: Ident,
+    /// `field: renamed` — the binding name when it differs.
+    pub rename: Option<Ident>,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ValDecl {
     pub mutable: bool,
-    pub name: Ident,
+    /// Binding target: a plain identifier is `Pattern::Binding`;
+    /// destructuring uses tuple/struct patterns (spec 4.6).
+    pub target: Pattern,
     /// Type annotation; genuinely optional (inferred when absent).
     pub ty: Option<TypeRef>,
     pub init: Expr,
@@ -326,6 +446,51 @@ pub fn dump(file: &SourceFile) -> String {
     let mut out = String::from("SourceFile\n");
     for decl in &file.declarations {
         match decl {
+            Decl::Enum(e) => {
+                let type_params = if e.type_params.is_empty() {
+                    String::new()
+                } else {
+                    let names: Vec<&str> = e.type_params.iter().map(|p| p.text.as_str()).collect();
+                    format!("<{}>", names.join(", "))
+                };
+                out.push_str(&format!("  enum {}{}\n", e.name.text, type_params));
+                for variant in &e.variants {
+                    match &variant.kind {
+                        VariantDeclKind::Unit => {
+                            out.push_str(&format!("    {}\n", variant.name.text))
+                        }
+                        VariantDeclKind::Positional(types) => {
+                            let types: Vec<String> = types.iter().map(dump_type_ref).collect();
+                            out.push_str(&format!(
+                                "    {}({})\n",
+                                variant.name.text,
+                                types.join(", ")
+                            ));
+                        }
+                        VariantDeclKind::Named(fields) | VariantDeclKind::Constructor(fields) => {
+                            let kind = if matches!(variant.kind, VariantDeclKind::Constructor(_)) {
+                                "ctor"
+                            } else {
+                                "named"
+                            };
+                            out.push_str(&format!("    {} <{}>\n", variant.name.text, kind));
+                            for field in fields {
+                                let default = field
+                                    .default
+                                    .as_ref()
+                                    .map(|_| " = <expr>")
+                                    .unwrap_or_default();
+                                out.push_str(&format!(
+                                    "      {}: {}{}\n",
+                                    field.name.text,
+                                    dump_type_ref(&field.ty),
+                                    default
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
             Decl::Struct(s) => {
                 out.push_str(&format!("  struct {}\n", s.name.text));
                 for field in &s.fields {
@@ -337,6 +502,14 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Function(f) => {
+                for annotation in &f.annotations {
+                    let value = annotation
+                        .value
+                        .as_ref()
+                        .map(|v| format!("({v:?})"))
+                        .unwrap_or_default();
+                    out.push_str(&format!("    @{}{}\n", annotation.name.text, value));
+                }
                 let type_params = if f.type_params.is_empty() {
                     String::new()
                 } else {
@@ -379,6 +552,10 @@ pub fn dump(file: &SourceFile) -> String {
 fn dump_type_ref(ty: &TypeRef) -> String {
     match &ty.kind {
         TypeRefKind::Named(name) => name.text.clone(),
+        TypeRefKind::Generic(name, args) => {
+            let inner: Vec<String> = args.iter().map(dump_type_ref).collect();
+            format!("{}<{}>", name.text, inner.join(", "))
+        }
         TypeRefKind::Unit => "Unit".to_string(),
         TypeRefKind::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(dump_type_ref).collect();
@@ -408,8 +585,32 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             let keyword = if decl.mutable { "var" } else { "val" };
             let ty = decl.ty.as_ref().map(dump_type_ref);
             let ty = ty.map(|t| format!(": {t}")).unwrap_or_default();
-            out.push_str(&format!("{pad}{keyword} {}{ty}\n", decl.name.text));
+            out.push_str(&format!(
+                "{pad}{keyword} {}{ty}\n",
+                dump_pattern(&decl.target)
+            ));
             dump_expr(&decl.init, indent + 1, out);
+        }
+        StatementKind::When(when) => {
+            out.push_str(&format!("{pad}when\n"));
+            dump_expr(&when.subject, indent + 1, out);
+            for arm in &when.arms {
+                out.push_str(&format!(
+                    "{}  arm {}{}\n",
+                    pad,
+                    dump_pattern(&arm.pattern),
+                    if arm.guard.is_some() {
+                        " if <guard>"
+                    } else {
+                        ""
+                    }
+                ));
+                dump_block(&arm.body, indent + 2, out);
+            }
+            if let Some(else_body) = &when.else_body {
+                out.push_str(&format!("{pad}  else\n"));
+                dump_block(else_body, indent + 2, out);
+            }
         }
         StatementKind::Assign(assign) => {
             out.push_str(&format!("{pad}assign {}\n", assign.target.text));
@@ -432,6 +633,59 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
         StatementKind::Block(block) => {
             out.push_str(&format!("{pad}block\n"));
             dump_block(block, indent + 1, out);
+        }
+    }
+}
+
+/// Compact one-line pattern rendering for dumps.
+pub fn dump_pattern(pattern: &Pattern) -> String {
+    match pattern {
+        Pattern::Binding(name) => name.text.clone(),
+        Pattern::Wildcard { .. } => "_".to_string(),
+        Pattern::Literal { expr, .. } => format!("{:?}", expr).chars().take(40).collect(),
+        Pattern::Positional {
+            path,
+            elements,
+            rest,
+            ..
+        } => {
+            let path = path
+                .iter()
+                .map(|p| p.text.as_str())
+                .collect::<Vec<_>>()
+                .join(".");
+            let mut parts: Vec<String> = elements.iter().map(dump_pattern).collect();
+            if rest.is_some() {
+                parts.push("..".to_string());
+            }
+            format!("{}({})", path, parts.join(", "))
+        }
+        Pattern::Named {
+            path, fields, rest, ..
+        } => {
+            let path = path
+                .iter()
+                .map(|p| p.text.as_str())
+                .collect::<Vec<_>>()
+                .join(".");
+            let mut parts: Vec<String> = fields
+                .iter()
+                .map(|f| match &f.rename {
+                    Some(rename) => format!("{}: {}", f.name.text, rename.text),
+                    None => f.name.text.clone(),
+                })
+                .collect();
+            if rest.is_some() {
+                parts.push("..".to_string());
+            }
+            format!("{}{{{}}}", path, parts.join(", "))
+        }
+        Pattern::Tuple { elements, rest, .. } => {
+            let mut parts: Vec<String> = elements.iter().map(dump_pattern).collect();
+            if let Some(rest) = rest {
+                parts.push(format!("..@{}", rest.start));
+            }
+            format!("({})", parts.join(", "))
         }
     }
 }

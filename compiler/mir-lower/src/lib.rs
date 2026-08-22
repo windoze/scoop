@@ -2,7 +2,7 @@
 //! vtable/itable construction, suspend-to-state-machine lowering.
 //!
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.3 and
-//! `docs/milestone2/DESIGN.md` section 2.3.
+//! `docs/milestone4/DESIGN.md` section 3.3.
 //!
 //! M2: value types. HIR types are mapped onto MIR types (the struct
 //! arena is transposed in declaration order, field types recursively);
@@ -14,22 +14,31 @@
 //! LIR's job. This stage never fails: all errors were already reported
 //! by hir-lower.
 //!
-//! M3: monomorphization and Option. Generic functions have no MIR body
-//! of their own; each instantiation request `(generic fn, concrete
-//! type args)` produces one instance whose body is the generic body
-//! with `Param(i)` substituted by `type_args[i]` (recursively through
-//! tuple / Option types). Requests discovered while lowering an
-//! instance body (generic functions calling generic functions) extend
-//! a worklist that is drained to a fixed point; identical requests are
-//! deduplicated by mangled symbol. Function parameters, return types
-//! and `return` statements pass through, as do the Option nodes
-//! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) — the Option
-//! representation is LIR's layout decision. Equality on `Option<T>`
-//! is expanded here into tag tests plus a payload comparison.
+//! M3: monomorphization. Generic functions have no MIR body of their
+//! own; each instantiation request `(generic fn, concrete type args)`
+//! produces one instance whose body is the generic body with `Param(i)`
+//! substituted by `type_args[i]`. Requests discovered while lowering an
+//! instance body extend a worklist that is drained to a fixed point;
+//! identical requests are deduplicated by mangled symbol.
+//!
+//! M4: enums and pattern matching. Enum types are instantiated like
+//! generic functions — one `mir::EnumDef` per `(enum, concrete type
+//! args)`, named by the mangled instance name (`Option$I`) and
+//! deduplicated on it; `when` becomes a structured decision sequence
+//! (the subject is evaluated once into a hidden local; each arm is a
+//! tag comparison, then the field bindings, then the guard nested so a
+//! failed guard falls through to the next arm). The HIR Option nodes
+//! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) become generic
+//! enum operations; a trapping `Unwrap` (`!!`) becomes an if/else whose
+//! else branch calls the runtime trap. Equality on enums expands into a
+//! tag comparison plus a per-variant payload comparison. `print` /
+//! `println` arrive as `@Intrinsic` functions from scoop.core and still
+//! map onto the M2/M3 per-type runtime shims.
 
 use std::collections::HashMap;
 
 use la_arena::Arena;
+use scoop_ast::Span;
 use scoop_hir as hir;
 use scoop_mir as mir;
 
@@ -43,13 +52,16 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         struct_map: HashMap::new(),
         function_map: HashMap::new(),
         instances: InstanceRegistry::default(),
+        enums: EnumRegistry::default(),
+        shell: mangling_shell(&Arena::new()),
+        option_variants: (0, 0),
     }
     .run(module)
 }
 
 struct Lowerer {
     functions: Arena<mir::Function>,
-    /// User functions in declaration order (builtins have no MIR body).
+    /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,
     structs: Arena<mir::StructDef>,
@@ -59,18 +71,30 @@ struct Lowerer {
     /// generic functions resolve through `instances`).
     function_map: HashMap<hir::FunctionId, mir::FunctionId>,
     instances: InstanceRegistry,
+    enums: EnumRegistry,
+    /// Mangling shell: the struct / enum names `mir::encode_type`
+    /// reads, kept in sync with the real arenas (same ids).
+    shell: mir::Module,
+    /// Declaration indices of `Option`'s `Some` / `None` variants.
+    option_variants: (u32, u32),
 }
 
 impl Lowerer {
     fn run(mut self, module: &hir::Module) -> mir::Module {
+        // Struct ids first (field types can reference any struct
+        // regardless of declaration order), then the mangling shell
+        // (struct names for `encode_type`), then the field types
+        // themselves — which can instantiate enums.
         self.lower_structs(module);
-        let shell = mangling_shell(&self.structs);
+        self.shell = mangling_shell(&self.structs);
+        self.fill_struct_fields(module);
+        self.option_variants = option_variants(module);
 
         // Declare non-generic user functions first, so calls resolve
-        // regardless of declaration order. Builtins have no body; their
-        // callsites map to `Callee::Runtime` shims (see `print_fn`).
-        // Generic functions have no MIR body of their own — only their
-        // monomorphized instances do.
+        // regardless of declaration order. Intrinsics have no body;
+        // their callsites map to `Callee::Runtime` shims (see
+        // `BodyLowerer::lower_call`). Generic functions have no MIR
+        // body of their own — only their monomorphized instances do.
         let mut user_functions = Vec::new();
         for &hir_id in &module.top_level {
             let function = &module.functions[hir_id];
@@ -100,7 +124,7 @@ impl Lowerer {
         }
 
         for (hir_id, mir_id) in user_functions {
-            let (params, return_ty, body) = self.lower_user_function(module, hir_id, None, &shell);
+            let (params, return_ty, body) = self.lower_user_function(module, hir_id, None);
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -120,16 +144,21 @@ impl Lowerer {
             {
                 continue;
             }
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                subst: None,
+            };
             let type_args: Vec<mir::Type> = instantiation
                 .type_args
                 .iter()
-                .map(|&ty| lower_type(module, &self.struct_map, ty, None))
+                .map(|&ty| types.lower(ty, &mut self.enums, &mut self.shell))
                 .collect();
             self.instances.get_or_create(
                 module,
                 &mut self.functions,
                 &mut self.top_level,
-                &shell,
+                &self.shell,
                 instantiation.function,
                 type_args,
             );
@@ -143,7 +172,7 @@ impl Lowerer {
             let (hir_id, type_args, mir_id) = self.instances.pending[next].clone();
             next += 1;
             let (params, return_ty, body) =
-                self.lower_user_function(module, hir_id, Some(&type_args), &shell);
+                self.lower_user_function(module, hir_id, Some(&type_args));
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -158,6 +187,7 @@ impl Lowerer {
             top_level: self.top_level,
             strings: self.strings,
             structs: self.structs,
+            enums: self.enums.defs,
             entry,
             meta: mir::MirMeta::default(),
         }
@@ -171,7 +201,6 @@ impl Lowerer {
         module: &hir::Module,
         hir_id: hir::FunctionId,
         subst: Option<&[mir::Type]>,
-        shell: &mir::Module,
     ) -> (Vec<mir::Param>, mir::Type, mir::Body) {
         let function = &module.functions[hir_id];
         let hir::FunctionKind::User(body) = &function.kind else {
@@ -186,16 +215,21 @@ impl Lowerer {
             functions: &mut self.functions,
             top_level: &mut self.top_level,
             instances: &mut self.instances,
-            shell,
+            enums: &mut self.enums,
+            shell: &mut self.shell,
             subst,
             local_map: HashMap::new(),
+            locals: Arena::new(),
+            hidden_count: 0,
+            prelude: Vec::new(),
+            option_variants: self.option_variants,
+            function_name: &function.name,
         }
         .lower_function(function, body)
     }
 
-    /// Transpose the HIR struct arena into MIR in declaration order.
-    /// Field types are mapped in a second pass, so a struct field can
-    /// reference any struct regardless of declaration order.
+    /// Transpose the HIR struct arena into MIR in declaration order
+    /// (ids only; field types are filled by `fill_struct_fields`).
     fn lower_structs(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
             let mir_id = self.structs.alloc(mir::StructDef {
@@ -204,15 +238,25 @@ impl Lowerer {
             });
             self.struct_map.insert(hir_id, mir_id);
         }
+    }
+
+    /// Fill the MIR struct field types. This runs after the mangling
+    /// shell exists, because field types can instantiate enums.
+    fn fill_struct_fields(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                subst: None,
+            };
             let fields = decl
                 .fields
                 .iter()
                 .map(|field| mir::Field {
                     name: field.name.clone(),
-                    // Struct declarations are not generic in M3, so
+                    // Struct declarations are not generic in M4, so
                     // field types never mention `Param`.
-                    ty: lower_type(module, &self.struct_map, field.ty, None),
+                    ty: types.lower(field.ty, &mut self.enums, &mut self.shell),
                 })
                 .collect();
             self.structs[self.struct_map[&hir_id]].fields = fields;
@@ -220,10 +264,10 @@ impl Lowerer {
     }
 }
 
-/// `mir::mangle_instance` takes `&mir::Module` but only ever reads
-/// struct names (via `encode_type`); this shell provides exactly those.
-/// Its struct arena shares the real arena's declaration order, so
-/// struct ids align.
+/// `mir::mangle_instance` / `mir::encode_type` take `&mir::Module` but
+/// only ever read struct and enum names; this shell provides exactly
+/// those. Its arenas share the real arenas' allocation order, so ids
+/// align.
 fn mangling_shell(structs: &Arena<mir::StructDef>) -> mir::Module {
     let mut shell_structs = Arena::new();
     for (_, def) in structs.iter() {
@@ -248,9 +292,24 @@ fn mangling_shell(structs: &Arena<mir::StructDef>) -> mir::Module {
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: shell_structs,
+        enums: Arena::new(),
         entry,
         meta: mir::MirMeta::default(),
     }
+}
+
+/// The declaration indices of `Option`'s `Some` / `None` variants.
+/// hir-lower guarantees scoop.core defines a suitable `Option`.
+fn option_variants(module: &hir::Module) -> (u32, u32) {
+    let decl = &module.enums[module.option_enum];
+    let find = |name: &str| {
+        decl.variants
+            .iter()
+            .position(|variant| variant.name == name)
+            .unwrap_or_else(|| panic!("scoop.core's Option must have a `{name}` variant"))
+            as u32
+    };
+    (find("Some"), find("None"))
 }
 
 /// Whether a HIR type mentions no type parameters.
@@ -258,8 +317,128 @@ fn is_concrete(module: &hir::Module, ty: hir::TypeId) -> bool {
     match &module.types[ty] {
         hir::Type::Param(_) => false,
         hir::Type::Tuple(elements) => elements.iter().all(|&e| is_concrete(module, e)),
-        hir::Type::Option(inner) => is_concrete(module, *inner),
+        hir::Type::Enum(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
         _ => true,
+    }
+}
+
+/// Shared type-lowering context: the HIR type arena, the struct map,
+/// and the active substitution (`Param(i)` resolves through `subst`,
+/// the concrete type arguments of the instance / enum being lowered;
+/// non-generic bodies never contain it).
+#[derive(Clone, Copy)]
+struct Types<'a> {
+    module: &'a hir::Module,
+    struct_map: &'a HashMap<hir::StructId, mir::StructId>,
+    subst: Option<&'a [mir::Type]>,
+}
+
+impl Types<'_> {
+    /// Map a HIR type onto its MIR type. Aggregate shapes are
+    /// preserved: structs keep their (remapped) id, tuples their mapped
+    /// element types; enum types instantiate their definition on
+    /// demand.
+    fn lower(
+        &self,
+        ty: hir::TypeId,
+        enums: &mut EnumRegistry,
+        shell: &mut mir::Module,
+    ) -> mir::Type {
+        match &self.module.types[ty] {
+            hir::Type::Unit => mir::Type::Unit,
+            hir::Type::Int => mir::Type::Int,
+            hir::Type::Boolean => mir::Type::Boolean,
+            hir::Type::String => mir::Type::String,
+            hir::Type::Struct(id) => mir::Type::Struct(self.struct_map[id]),
+            hir::Type::Tuple(elements) => mir::Type::Tuple(
+                elements
+                    .iter()
+                    .map(|&element| self.lower(element, enums, shell))
+                    .collect(),
+            ),
+            hir::Type::Enum(id, args) => {
+                let args: Vec<mir::Type> = args
+                    .iter()
+                    .map(|&arg| self.lower(arg, enums, shell))
+                    .collect();
+                let enum_id = enums.get_or_create(self, shell, *id, args.clone());
+                mir::Type::Enum(enum_id, args)
+            }
+            hir::Type::Param(index) => self
+                .subst
+                .expect("hir::Type::Param only appears with a substitution")[*index as usize]
+                .clone(),
+        }
+    }
+}
+
+/// Instantiated enum definitions (DESIGN 3.3): one `mir::EnumDef` per
+/// `(enum, concrete type args)`, deduplicated by mangled instance name
+/// (`Option$I`, or the plain name for non-generic enums).
+#[derive(Default)]
+struct EnumRegistry {
+    defs: Arena<mir::EnumDef>,
+    /// Mangled instance name -> enum. The name encodes the enum and
+    /// its type arguments, so it is the deduplication key.
+    by_name: HashMap<String, mir::EnumId>,
+}
+
+impl EnumRegistry {
+    fn get_or_create(
+        &mut self,
+        types: &Types,
+        shell: &mut mir::Module,
+        hir_id: hir::EnumId,
+        args: Vec<mir::Type>,
+    ) -> mir::EnumId {
+        let decl = &types.module.enums[hir_id];
+        // Nested arguments are instantiated first (their shell entries
+        // exist), so `encode_type` can render them here.
+        let name = if args.is_empty() {
+            decl.name.clone()
+        } else {
+            let encoded: Vec<String> = args.iter().map(|ty| mir::encode_type(shell, ty)).collect();
+            format!("{}${}", decl.name, encoded.join("_"))
+        };
+        if let Some(&id) = self.by_name.get(&name) {
+            return id;
+        }
+        let id = self.defs.alloc(mir::EnumDef {
+            name: name.clone(),
+            variants: Vec::new(),
+        });
+        // Keep the mangling shell's enum arena in sync (same ids) so
+        // `encode_type` can render this instance inside another one.
+        shell.enums.alloc(mir::EnumDef {
+            name: name.clone(),
+            variants: Vec::new(),
+        });
+        self.by_name.insert(name, id);
+        // Fill the definition eagerly: the id is already registered, so
+        // variant fields mentioning this same enum terminate. Variant
+        // field types mention the enum's own type parameters, which the
+        // instance's type arguments replace.
+        let variant_types = Types {
+            subst: Some(&args),
+            ..*types
+        };
+        let variants = decl
+            .variants
+            .iter()
+            .map(|variant| mir::VariantDef {
+                name: variant.name.clone(),
+                fields: variant
+                    .fields
+                    .iter()
+                    .map(|field| mir::Field {
+                        name: field.name.clone(),
+                        ty: variant_types.lower(field.ty, self, shell),
+                    })
+                    .collect(),
+            })
+            .collect();
+        self.defs[id].variants = variants;
+        id
     }
 }
 
@@ -309,41 +488,9 @@ impl InstanceRegistry {
     }
 }
 
-/// Map a HIR type onto its MIR type. Aggregate shapes are preserved:
-/// structs keep their (remapped) id, tuples and Options their mapped
-/// element / payload types. `Param(i)` resolves through `subst`, the
-/// concrete type arguments of the instance being lowered; non-generic
-/// bodies never contain it.
-fn lower_type(
-    module: &hir::Module,
-    struct_map: &HashMap<hir::StructId, mir::StructId>,
-    ty: hir::TypeId,
-    subst: Option<&[mir::Type]>,
-) -> mir::Type {
-    match &module.types[ty] {
-        hir::Type::Unit => mir::Type::Unit,
-        hir::Type::Int => mir::Type::Int,
-        hir::Type::Boolean => mir::Type::Boolean,
-        hir::Type::String => mir::Type::String,
-        hir::Type::Struct(id) => mir::Type::Struct(struct_map[id]),
-        hir::Type::Tuple(elements) => mir::Type::Tuple(
-            elements
-                .iter()
-                .map(|&element| lower_type(module, struct_map, element, subst))
-                .collect(),
-        ),
-        hir::Type::Option(inner) => {
-            mir::Type::Option(Box::new(lower_type(module, struct_map, *inner, subst)))
-        }
-        hir::Type::Param(index) => subst
-            .expect("hir::Type::Param only appears in generic function bodies")[*index as usize]
-            .clone(),
-    }
-}
-
-/// Map a `print` / `println` call onto the per-type runtime shim
-/// (DESIGN 5.2). hir-lower rejects arguments of any other type, so
-/// only String / Int / Boolean can reach this stage.
+/// Map a `print` / `println` intrinsic call onto the per-type runtime
+/// shim (DESIGN 1.3). hir-lower rejects arguments of any other type,
+/// so only String / Int / Boolean can reach this stage.
 fn print_fn(module: &hir::Module, ty: hir::TypeId, newline: bool) -> mir::RuntimeFn {
     use mir::RuntimeFn::*;
     match (&module.types[ty], newline) {
@@ -368,21 +515,44 @@ struct BodyLowerer<'a> {
     functions: &'a mut Arena<mir::Function>,
     top_level: &'a mut Vec<mir::FunctionId>,
     instances: &'a mut InstanceRegistry,
-    shell: &'a mir::Module,
+    /// Instantiated enum definitions, filled on creation (variant
+    /// field types feed pattern lowering and the equality expansion).
+    enums: &'a mut EnumRegistry,
+    /// Mangling shell (enum / struct names for `encode_type`).
+    shell: &'a mut mir::Module,
     /// Concrete type arguments of the instance being lowered; `None`
     /// for non-generic bodies (which never mention `Param`).
     subst: Option<&'a [mir::Type]>,
     /// HIR local -> MIR local (same declaration order per body).
     local_map: HashMap<hir::LocalId, mir::LocalId>,
+    /// MIR locals, including the hidden ones created during lowering
+    /// (`when` subjects, destructuring slots, `!!` temporaries).
+    locals: Arena<mir::Local>,
+    hidden_count: usize,
+    /// Statement kinds that must precede the statement currently being
+    /// lowered (the trap test of `!!`); drained by the caller.
+    prelude: Vec<mir::StatementKind>,
+    /// Declaration indices of `Option::Some` / `Option::None`.
+    option_variants: (u32, u32),
+    /// Source name of the function, for trap messages.
+    function_name: &'a str,
 }
 
 /// A step from a compared operand down to the sub-value at an equality
-/// leaf: a struct field / tuple element access, or `unwrap` into an
-/// `Option` payload.
+/// leaf: a struct field / tuple element access, or an enum variant
+/// field extraction.
 #[derive(Clone, Copy)]
 enum Access {
     Field(u32),
-    Unwrap,
+    EnumField { variant: u32, index: u32 },
+}
+
+/// An equality operand: either a HIR expression (re-lowered at each
+/// leaf — see `expand_equality`'s purity note) or the hidden local a
+/// `when` subject / destructured value was evaluated into.
+enum Opd<'a> {
+    Hir(&'a hir::Expr),
+    Local(mir::LocalId),
 }
 
 impl BodyLowerer<'_> {
@@ -391,11 +561,11 @@ impl BodyLowerer<'_> {
         function: &hir::Function,
         body: &hir::Body,
     ) -> (Vec<mir::Param>, mir::Type, mir::Body) {
-        let mut locals = Arena::new();
         for (hir_id, local) in body.locals.iter() {
-            let mir_id = locals.alloc(mir::Local {
+            let ty = self.lower_type(local.ty);
+            let mir_id = self.locals.alloc(mir::Local {
                 name: local.name.clone(),
-                ty: self.lower_type(local.ty),
+                ty,
                 mutable: local.mutable,
             });
             self.local_map.insert(hir_id, mir_id);
@@ -411,51 +581,389 @@ impl BodyLowerer<'_> {
             .collect();
         let return_ty = self.lower_type(function.return_ty);
         let statements = self.lower_statements(&body.statements);
-        (params, return_ty, mir::Body { locals, statements })
+        (
+            params,
+            return_ty,
+            mir::Body {
+                locals: self.locals,
+                statements,
+            },
+        )
     }
 
-    fn lower_type(&self, ty: hir::TypeId) -> mir::Type {
-        lower_type(self.module, self.struct_map, ty, self.subst)
+    fn lower_type(&mut self, ty: hir::TypeId) -> mir::Type {
+        Types {
+            module: self.module,
+            struct_map: self.struct_map,
+            subst: self.subst,
+        }
+        .lower(ty, self.enums, self.shell)
+    }
+
+    /// A fresh hidden local (`$<prefix>.<n>`), compiler-generated.
+    fn new_hidden(&mut self, prefix: &str, ty: mir::Type, mutable: bool) -> mir::LocalId {
+        self.hidden_count += 1;
+        self.locals.alloc(mir::Local {
+            name: format!("${prefix}.{}", self.hidden_count),
+            ty,
+            mutable,
+        })
+    }
+
+    /// Emit the queued prelude statements (the trap tests of `!!`)
+    /// before the statement they belong to.
+    fn drain_prelude(&mut self, span: Span, out: &mut Vec<mir::Statement>) {
+        out.extend(
+            self.prelude
+                .drain(..)
+                .map(|kind| mir::Statement { kind, span }),
+        );
     }
 
     fn lower_statements(&mut self, statements: &[hir::Statement]) -> Vec<mir::Statement> {
-        statements
-            .iter()
-            .map(|statement| self.lower_statement(statement))
-            .collect()
+        let mut out = Vec::new();
+        for statement in statements {
+            self.lower_statement(statement, &mut out);
+        }
+        out
     }
 
-    fn lower_statement(&mut self, statement: &hir::Statement) -> mir::Statement {
+    fn lower_statement(&mut self, statement: &hir::Statement, out: &mut Vec<mir::Statement>) {
+        let span = statement.span;
         let kind = match &statement.kind {
-            hir::StatementKind::Expr(expr) => mir::StatementKind::Expr(self.lower_expr(expr)),
-            hir::StatementKind::Return { value } => mir::StatementKind::Return {
-                value: value.as_ref().map(|value| self.lower_expr(value)),
-            },
-            hir::StatementKind::ValDecl { local, init } => mir::StatementKind::ValDecl {
-                local: self.local_map[local],
-                init: self.lower_expr(init),
-            },
-            hir::StatementKind::Assign { local, value } => mir::StatementKind::Assign {
-                local: self.local_map[local],
-                value: self.lower_expr(value),
-            },
+            hir::StatementKind::Expr(expr) => {
+                let expr = self.lower_expr(expr);
+                self.drain_prelude(span, out);
+                mir::StatementKind::Expr(expr)
+            }
+            hir::StatementKind::Return { value } => {
+                let value = value.as_ref().map(|value| self.lower_expr(value));
+                self.drain_prelude(span, out);
+                mir::StatementKind::Return { value }
+            }
+            hir::StatementKind::ValDecl { pattern, init } => {
+                self.lower_val_decl(pattern, init, span, out);
+                return;
+            }
+            hir::StatementKind::Assign { local, value } => {
+                let local = self.local_map[local];
+                let value = self.lower_expr(value);
+                self.drain_prelude(span, out);
+                mir::StatementKind::Assign { local, value }
+            }
             hir::StatementKind::If {
                 cond,
                 then_body,
                 else_body,
-            } => mir::StatementKind::If {
-                cond: self.lower_expr(cond),
-                then_body: self.lower_statements(then_body),
-                else_body: else_body.as_ref().map(|body| self.lower_statements(body)),
-            },
-            hir::StatementKind::While { cond, body } => mir::StatementKind::While {
-                cond: self.lower_expr(cond),
-                body: self.lower_statements(body),
-            },
+            } => {
+                let cond = self.lower_expr(cond);
+                self.drain_prelude(span, out);
+                let then_body = self.lower_statements(then_body);
+                let else_body = else_body.as_ref().map(|body| self.lower_statements(body));
+                mir::StatementKind::If {
+                    cond,
+                    then_body,
+                    else_body,
+                }
+            }
+            hir::StatementKind::While { cond, body } => {
+                self.lower_while(cond, body, span, out);
+                return;
+            }
+            hir::StatementKind::When(when) => {
+                self.lower_when(when, span, out);
+                return;
+            }
         };
-        mir::Statement {
-            kind,
-            span: statement.span,
+        out.push(mir::Statement { kind, span });
+    }
+
+    /// A `val` declaration: either the plain M1–M3 binding form, or a
+    /// destructuring declaration (spec 4.6) whose init value is
+    /// evaluated once into a hidden local that the pattern's bindings
+    /// extract from.
+    fn lower_val_decl(
+        &mut self,
+        pattern: &hir::Pattern,
+        init: &hir::Expr,
+        span: Span,
+        out: &mut Vec<mir::Statement>,
+    ) {
+        if let hir::Pattern::Binding { local } = pattern {
+            let local = self.local_map[local];
+            let init = self.lower_expr(init);
+            self.drain_prelude(span, out);
+            out.push(mir::Statement {
+                kind: mir::StatementKind::ValDecl { local, init },
+                span,
+            });
+            return;
+        }
+        let ty = self.lower_type(init.ty);
+        let init = self.lower_expr(init);
+        self.drain_prelude(span, out);
+        let slot = self.new_hidden("bind", ty.clone(), false);
+        out.push(mir::Statement {
+            kind: mir::StatementKind::ValDecl { local: slot, init },
+            span,
+        });
+        let mut path = Vec::new();
+        let mut bindings = Vec::new();
+        let cond = self.lower_pattern(pattern, slot, &mut path, &ty, &mut bindings);
+        // hir-lower only emits irrefutable patterns (tuple / struct /
+        // binding / wildcard) in destructuring declarations.
+        debug_assert!(cond.is_none(), "destructuring patterns are irrefutable");
+        for (local, init) in bindings {
+            out.push(mir::Statement {
+                kind: mir::StatementKind::ValDecl { local, init },
+                span,
+            });
+        }
+    }
+
+    fn lower_while(
+        &mut self,
+        cond: &hir::Expr,
+        body: &[hir::Statement],
+        span: Span,
+        out: &mut Vec<mir::Statement>,
+    ) {
+        let cond_mir = self.lower_expr(cond);
+        if self.prelude.is_empty() {
+            let body = self.lower_statements(body);
+            out.push(mir::Statement {
+                kind: mir::StatementKind::While {
+                    cond: cond_mir,
+                    body,
+                },
+                span,
+            });
+            return;
+        }
+        // The condition contains a trap test (`!!`), which is a
+        // statement sequence and must run on every iteration:
+        // `P; while (C) B` becomes `P; var $c = C; while ($c) { B; P;
+        // $c = C }`. The condition and its prelude are lowered twice;
+        // each execution path still evaluates them exactly once per
+        // iteration.
+        self.drain_prelude(span, out);
+        let cond_local = self.new_hidden("cond", mir::Type::Boolean, true);
+        out.push(mir::Statement {
+            kind: mir::StatementKind::ValDecl {
+                local: cond_local,
+                init: cond_mir,
+            },
+            span,
+        });
+        let mut body = self.lower_statements(body);
+        let cond_again = self.lower_expr(cond);
+        let prelude_again = std::mem::take(&mut self.prelude);
+        body.extend(
+            prelude_again
+                .into_iter()
+                .map(|kind| mir::Statement { kind, span }),
+        );
+        body.push(mir::Statement {
+            kind: mir::StatementKind::Assign {
+                local: cond_local,
+                value: cond_again,
+            },
+            span,
+        });
+        out.push(mir::Statement {
+            kind: mir::StatementKind::While {
+                cond: mir::Expr::Local(cond_local),
+                body,
+            },
+            span,
+        });
+    }
+
+    /// `when` becomes a decision sequence (DESIGN 3.3): the subject is
+    /// evaluated once into a hidden local, then the arms chain if/else
+    /// tests; the `else` arm is the fallback.
+    fn lower_when(&mut self, when: &hir::When, span: Span, out: &mut Vec<mir::Statement>) {
+        let subject_ty = self.lower_type(when.subject.ty);
+        let subject_init = self.lower_expr(&when.subject);
+        self.drain_prelude(span, out);
+        let subject = self.new_hidden("when", subject_ty.clone(), false);
+        out.push(mir::Statement {
+            kind: mir::StatementKind::ValDecl {
+                local: subject,
+                init: subject_init,
+            },
+            span,
+        });
+        let mut chain =
+            self.lower_arms(&when.arms, subject, &subject_ty, when.else_body.as_deref());
+        out.append(&mut chain);
+    }
+
+    /// Lower `arms` into the decision sequence: each arm is
+    /// `if (<pattern condition>) { <bindings>; [if (<guard>) <body>
+    /// else <next>] } else <next>` — a failed guard falls through to
+    /// the next arm. With no guard the arm body is the then branch
+    /// directly; an unconditionally matching arm (binding / wildcard,
+    /// no guard) is inlined and makes the remaining arms unreachable
+    /// (hir-lower rejects those). Exhaustiveness was checked at HIR,
+    /// so the innermost else can only be reached via `else_body`.
+    fn lower_arms(
+        &mut self,
+        arms: &[hir::WhenArm],
+        subject: mir::LocalId,
+        subject_ty: &mir::Type,
+        else_body: Option<&[hir::Statement]>,
+    ) -> Vec<mir::Statement> {
+        let Some((arm, rest)) = arms.split_first() else {
+            return else_body
+                .map(|body| self.lower_statements(body))
+                .unwrap_or_default();
+        };
+        let mut path = Vec::new();
+        let mut bindings = Vec::new();
+        let cond = self.lower_pattern(&arm.pattern, subject, &mut path, subject_ty, &mut bindings);
+        let mut then: Vec<mir::Statement> = bindings
+            .into_iter()
+            .map(|(local, init)| mir::Statement {
+                kind: mir::StatementKind::ValDecl { local, init },
+                span: arm.span,
+            })
+            .collect();
+        if let Some(guard) = &arm.guard {
+            let guard_cond = self.lower_expr(guard);
+            let guard_prelude = std::mem::take(&mut self.prelude);
+            then.extend(guard_prelude.into_iter().map(|kind| mir::Statement {
+                kind,
+                span: arm.span,
+            }));
+            let body = self.lower_statements(&arm.body);
+            let next = self.lower_arms(rest, subject, subject_ty, else_body);
+            then.push(mir::Statement {
+                kind: mir::StatementKind::If {
+                    cond: guard_cond,
+                    then_body: body,
+                    else_body: non_empty(next),
+                },
+                span: arm.span,
+            });
+        } else {
+            then.extend(self.lower_statements(&arm.body));
+        }
+        let Some(cond) = cond else {
+            // Matches unconditionally; `rest` is unreachable.
+            return then;
+        };
+        let next = self.lower_arms(rest, subject, subject_ty, else_body);
+        vec![mir::Statement {
+            kind: mir::StatementKind::If {
+                cond,
+                then_body: then,
+                else_body: non_empty(next),
+            },
+            span: arm.span,
+        }]
+    }
+
+    /// Lower a pattern matching the value at `root` + `path` (of MIR
+    /// type `ty`): returns the match condition (`None` when the
+    /// pattern matches unconditionally) and appends the binding
+    /// initializers — `local = <value at path>` — in declaration
+    /// order. The condition's `&&` chain short-circuits at LIR, so a
+    /// variant field is only extracted once its tag test has passed.
+    fn lower_pattern(
+        &mut self,
+        pattern: &hir::Pattern,
+        root: mir::LocalId,
+        path: &mut Vec<Access>,
+        ty: &mir::Type,
+        bindings: &mut Vec<(mir::LocalId, mir::Expr)>,
+    ) -> Option<mir::Expr> {
+        match pattern {
+            hir::Pattern::Binding { local } => {
+                let init = self.accessed(&Opd::Local(root), path);
+                bindings.push((self.local_map[local], init));
+                None
+            }
+            hir::Pattern::Wildcard => None,
+            // A literal matches by equality (the M2/M3 expansion).
+            hir::Pattern::Literal(literal) => {
+                Some(self.expand_equality(&Opd::Local(root), &Opd::Hir(literal), ty, path, false))
+            }
+            hir::Pattern::Variant {
+                variant, fields, ..
+            } => {
+                let mir::Type::Enum(enum_id, _) = ty else {
+                    unreachable!("a variant pattern matches an enum value")
+                };
+                let enum_id = *enum_id;
+                let variant = *variant;
+                let tag = mir::Expr::EnumTag(Box::new(self.accessed(&Opd::Local(root), path)));
+                let mut cond = mir::Expr::Binary {
+                    op: mir::BinOp::IntEq,
+                    lhs: Box::new(tag),
+                    rhs: Box::new(mir::Expr::IntLiteral(i64::from(variant))),
+                };
+                for (index, sub) in fields {
+                    let field_ty = self.enums.defs[enum_id].variants[variant as usize].fields
+                        [*index as usize]
+                        .ty
+                        .clone();
+                    path.push(Access::EnumField {
+                        variant,
+                        index: *index,
+                    });
+                    if let Some(sub_cond) = self.lower_pattern(sub, root, path, &field_ty, bindings)
+                    {
+                        cond = and(cond, sub_cond);
+                    }
+                    path.pop();
+                }
+                Some(cond)
+            }
+            hir::Pattern::Tuple(elements) => {
+                let mir::Type::Tuple(element_types) = ty else {
+                    unreachable!("a tuple pattern matches a tuple value")
+                };
+                let element_types = element_types.clone();
+                let mut cond: Option<mir::Expr> = None;
+                for (index, sub) in elements.iter().enumerate() {
+                    path.push(Access::Field(index as u32));
+                    if let Some(sub_cond) =
+                        self.lower_pattern(sub, root, path, &element_types[index], bindings)
+                    {
+                        cond = Some(match cond {
+                            None => sub_cond,
+                            Some(acc) => and(acc, sub_cond),
+                        });
+                    }
+                    path.pop();
+                }
+                cond
+            }
+            hir::Pattern::Struct { fields, .. } => {
+                let mir::Type::Struct(struct_id) = ty else {
+                    unreachable!("a struct pattern matches a struct value")
+                };
+                let field_types: Vec<mir::Type> = self.structs[*struct_id]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty.clone())
+                    .collect();
+                let mut cond: Option<mir::Expr> = None;
+                for (index, sub) in fields {
+                    path.push(Access::Field(*index));
+                    if let Some(sub_cond) =
+                        self.lower_pattern(sub, root, path, &field_types[*index as usize], bindings)
+                    {
+                        cond = Some(match cond {
+                            None => sub_cond,
+                            Some(acc) => and(acc, sub_cond),
+                        });
+                    }
+                    path.pop();
+                }
+                cond
+            }
         }
     }
 
@@ -480,6 +988,11 @@ impl BodyLowerer<'_> {
             hir::ExprKind::StructInit { struct_id, args } => mir::Expr::StructInit {
                 struct_id: self.struct_map[struct_id],
                 args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+            },
+            hir::ExprKind::VariantConstruct { variant, args, .. } => mir::Expr::VariantConstruct {
+                ty: self.lower_type(expr.ty),
+                variant: *variant,
+                fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
             },
             hir::ExprKind::Local(local) => mir::Expr::Local(self.local_map[local]),
             hir::ExprKind::FieldAccess { receiver, field } => {
@@ -508,32 +1021,113 @@ impl BodyLowerer<'_> {
                 };
                 mir::Expr::Unary { op, operand }
             }
-            // The Option nodes pass through unchanged; the
-            // representation (niche vs. tagged) is LIR's layout
-            // decision (DESIGN 2.3).
+            // The Option nodes (hir-lower's `?.` / `?:` / `!!`
+            // desugars) become generic enum operations on core's
+            // `Option` enum (DESIGN 3.3).
             hir::ExprKind::SomeWrap(operand) => {
-                mir::Expr::SomeWrap(Box::new(self.lower_expr(operand)))
+                let (some, _) = self.option_variants;
+                mir::Expr::VariantConstruct {
+                    ty: self.lower_type(expr.ty),
+                    variant: some,
+                    fields: vec![self.lower_expr(operand)],
+                }
             }
-            hir::ExprKind::NoneLiteral => mir::Expr::NoneLiteral,
+            hir::ExprKind::NoneLiteral => {
+                let (_, none) = self.option_variants;
+                mir::Expr::VariantConstruct {
+                    ty: self.lower_type(expr.ty),
+                    variant: none,
+                    fields: Vec::new(),
+                }
+            }
             hir::ExprKind::IsSome(operand) => {
-                // `isSome(None)` folds to `false`; this also keeps MIR
-                // `IsSome` from ever wrapping `NoneLiteral`, whose type
-                // is not recoverable at LIR (see `tag_leaf`).
+                let (some, _) = self.option_variants;
                 let operand = self.lower_expr(operand);
-                if matches!(operand, mir::Expr::NoneLiteral) {
-                    mir::Expr::BoolLiteral(false)
-                } else {
-                    mir::Expr::IsSome(Box::new(operand))
+                mir::Expr::Binary {
+                    op: mir::BinOp::IntEq,
+                    lhs: Box::new(mir::Expr::EnumTag(Box::new(operand))),
+                    rhs: Box::new(mir::Expr::IntLiteral(i64::from(some))),
                 }
             }
             hir::ExprKind::Unwrap {
                 operand,
                 trap_on_none,
-            } => mir::Expr::Unwrap {
-                operand: Box::new(self.lower_expr(operand)),
-                trap_on_none: *trap_on_none,
-            },
+            } => {
+                let (some, _) = self.option_variants;
+                if *trap_on_none {
+                    self.trapping_unwrap(operand, expr.ty, expr.span, some)
+                } else {
+                    // The surrounding control flow already guarantees
+                    // `Some` (`?.` / `?:` desugars, the equality
+                    // expansion).
+                    mir::Expr::EnumField {
+                        operand: Box::new(self.lower_expr(operand)),
+                        variant: some,
+                        index: 0,
+                    }
+                }
+            }
         }
+    }
+
+    /// `x!!`: the operand is evaluated once into a hidden local, then
+    /// `if (tag == Some) { val $uw = <field 0> } else { trap }`. The
+    /// if/else is queued in `prelude` — it must precede the statement
+    /// this expression belongs to — and the expression itself becomes
+    /// the result local. The trap message is an ordinary string
+    /// constant; LIR turns the trap call into a `CString` global plus
+    /// a noreturn `scoop_rt_trap` call.
+    fn trapping_unwrap(
+        &mut self,
+        operand: &hir::Expr,
+        result_ty: hir::TypeId,
+        span: Span,
+        some: u32,
+    ) -> mir::Expr {
+        let option_ty = self.lower_type(operand.ty);
+        let payload_ty = self.lower_type(result_ty);
+        let value = self.lower_expr(operand);
+        let slot = self.new_hidden("opt", option_ty, false);
+        let result = self.new_hidden("uw", payload_ty, false);
+        let message = format!("unwrap on None (function {})", self.function_name);
+        let symbol = format!("scoop.str.{}", self.strings.len());
+        let message = self.strings.alloc(mir::StringConst {
+            value: message,
+            symbol,
+        });
+        self.prelude.push(mir::StatementKind::ValDecl {
+            local: slot,
+            init: value,
+        });
+        self.prelude.push(mir::StatementKind::If {
+            cond: mir::Expr::Binary {
+                op: mir::BinOp::IntEq,
+                lhs: Box::new(mir::Expr::EnumTag(Box::new(mir::Expr::Local(slot)))),
+                rhs: Box::new(mir::Expr::IntLiteral(i64::from(some))),
+            },
+            then_body: vec![mir::Statement {
+                kind: mir::StatementKind::ValDecl {
+                    local: result,
+                    init: mir::Expr::EnumField {
+                        operand: Box::new(mir::Expr::Local(slot)),
+                        variant: some,
+                        index: 0,
+                    },
+                },
+                span,
+            }],
+            else_body: Some(vec![mir::Statement {
+                kind: mir::StatementKind::Expr(mir::Expr::Call(mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
+                    },
+                    args: vec![mir::Expr::StringConst(message)],
+                })),
+                span,
+            }]),
+        });
+        mir::Expr::Local(result)
     }
 
     fn lower_call(
@@ -542,27 +1136,40 @@ impl BodyLowerer<'_> {
         type_args: &[hir::TypeId],
         args: &[hir::Expr],
     ) -> mir::Expr {
-        let callee = if function == self.module.print || function == self.module.println {
-            // hir-lower enforces exactly one argument (DESIGN 5.2).
-            let newline = function == self.module.println;
-            mir::Callee::Runtime(print_fn(self.module, args[0].ty, newline))
-        } else if self.module.functions[function].type_params.is_empty() {
-            mir::Callee::User(self.function_map[&function])
-        } else {
+        let callee = match &self.module.functions[function].kind {
+            // `@Intrinsic` functions (scoop.core, DESIGN 1.3): the
+            // registry holds only the output intrinsics, whose calls
+            // map onto the per-type runtime shims. hir-lower enforces
+            // exactly one String / Int / Boolean argument.
+            hir::FunctionKind::Intrinsic(name) => {
+                let newline = match name.as_str() {
+                    "rt_print" => false,
+                    "rt_println" => true,
+                    _ => unreachable!("hir-lower rejects unknown intrinsics"),
+                };
+                mir::Callee::Runtime(print_fn(self.module, args[0].ty, newline))
+            }
+            hir::FunctionKind::User(_)
+                if self.module.functions[function].type_params.is_empty() =>
+            {
+                mir::Callee::User(self.function_map[&function])
+            }
             // Generic callee: the call's type arguments may mention the
             // enclosing instance's `Param`s; substitution concretizes
             // them, and the instance is created on demand (its body is
             // lowered when the worklist drains).
-            let type_args: Vec<mir::Type> =
-                type_args.iter().map(|&ty| self.lower_type(ty)).collect();
-            mir::Callee::User(self.instances.get_or_create(
-                self.module,
-                self.functions,
-                self.top_level,
-                self.shell,
-                function,
-                type_args,
-            ))
+            hir::FunctionKind::User(_) => {
+                let type_args: Vec<mir::Type> =
+                    type_args.iter().map(|&ty| self.lower_type(ty)).collect();
+                mir::Callee::User(self.instances.get_or_create(
+                    self.module,
+                    self.functions,
+                    self.top_level,
+                    self.shell,
+                    function,
+                    type_args,
+                ))
+            }
         };
         self.call(callee, &args.iter().collect::<Vec<_>>())
     }
@@ -598,11 +1205,11 @@ impl BodyLowerer<'_> {
             // (monomorphized) operand type.
             hir::BinOp::Eq => {
                 let ty = self.lower_type(lhs.ty);
-                self.expand_equality(lhs, rhs, &ty, &[], false)
+                self.expand_equality(&Opd::Hir(lhs), &Opd::Hir(rhs), &ty, &[], false)
             }
             hir::BinOp::Ne => {
                 let ty = self.lower_type(lhs.ty);
-                self.expand_equality(lhs, rhs, &ty, &[], true)
+                self.expand_equality(&Opd::Hir(lhs), &Opd::Hir(rhs), &ty, &[], true)
             }
             // `&&` / `||` stay single operators; LIR expands the
             // short-circuit into basic blocks (DESIGN 2.4).
@@ -618,7 +1225,7 @@ impl BodyLowerer<'_> {
     }
 
     /// Expand `==` / `!=` on operands of the concrete (monomorphized)
-    /// type `ty` (DESIGN 2.3):
+    /// type `ty` (DESIGN 2.3 / 3.3):
     ///
     /// - Int / Boolean: the primitive MIR comparison;
     /// - String: a `scoop_rt_string_eq` call (`!=` wraps it in `!`);
@@ -626,28 +1233,28 @@ impl BodyLowerer<'_> {
     ///   `==`; `!=` folds per-field `!=` with `||` — the De Morgan
     ///   dual of the `==` tree, equivalent to negating it because
     ///   field access is pure;
-    /// - `Option<T>`: `(isSome(a) && isSome(b) && unwrap(a) == unwrap(b))
-    ///   || (!isSome(a) && !isSome(b))`; `!=` is again the De Morgan
-    ///   dual. The payload comparison recurses through this same
-    ///   expansion at `path + [Unwrap]`;
+    /// - enum: the tags must be equal, and for every payload-carrying
+    ///   variant `i`, `tag != i || <fields equal>` — the De Morgan
+    ///   dual for `!=`. Unit variants carry no payload, so the tag
+    ///   comparison covers them;
     /// - Unit (the empty tuple): a constant — `() == ()` is always
     ///   `true`, `() != ()` always `false`.
     ///
-    /// `path` is the chain of field accesses and `unwrap`s from the
-    /// top-level operands down to the values compared at this level.
-    /// The HIR operands are re-lowered at each leaf; this duplicates
-    /// structure, not effects, because everything that can appear as
-    /// an operand here is pure (M2 assumption, still valid in M3):
-    /// field access, `isSome` / `unwrap`, and calls — value-returning
-    /// calls (new in M3) are treated as pure by convention, and
+    /// `path` is the chain of field accesses and variant field
+    /// extractions from the top-level operands down to the values
+    /// compared at this level. HIR operands are re-lowered at each
+    /// leaf; this duplicates structure, not effects, because
+    /// everything that can appear as an operand here is pure (M2
+    /// assumption, still valid in M4): field access, and calls —
+    /// value-returning calls are treated as pure by convention, and
     /// Unit-returning calls cannot appear because both operands share
     /// the compared type. If impure value-returning calls ever become
     /// observable, this expansion must route the operands through
     /// hidden temporaries instead of re-lowering them.
     fn expand_equality(
         &mut self,
-        lhs: &hir::Expr,
-        rhs: &hir::Expr,
+        lhs: &Opd,
+        rhs: &Opd,
         ty: &mir::Type,
         path: &[Access],
         negate: bool,
@@ -699,80 +1306,119 @@ impl BodyLowerer<'_> {
                 let elements = elements.clone();
                 self.expand_fields(lhs, rhs, &elements, path, negate)
             }
-            mir::Type::Option(payload) => {
-                let payload = payload.as_ref().clone();
-                self.expand_option_equality(lhs, rhs, &payload, path, negate)
+            mir::Type::Enum(id, _) => {
+                let id = *id;
+                self.expand_enum_equality(lhs, rhs, id, path, negate)
             }
         }
     }
 
-    /// `Option<T>` equality: both `Some` compares the payloads, both
-    /// `None` is equal, a mix is unequal —
-    /// `(isSome(a) && isSome(b) && unwrap(a) == unwrap(b))
-    ///  || (!isSome(a) && !isSome(b))`.
-    /// For `!=` the whole tree is dualized: `And` / `Or` swapped, the
-    /// `isSome` leaves negated, the payload compared with `!=`.
-    fn expand_option_equality(
+    /// Enum equality (DESIGN 3.3): `tag(a) == tag(b)` and, for every
+    /// payload-carrying variant `i`, `tag(a) != i || <fields equal>`.
+    /// The fields are only extracted once the tag is known to match
+    /// (`&&` / `||` short-circuit at LIR). For `!=` the whole tree is
+    /// dualized: `And` / `Or` swapped, the tag leaves negated, the
+    /// fields compared with `!=`.
+    fn expand_enum_equality(
         &mut self,
-        lhs: &hir::Expr,
-        rhs: &hir::Expr,
-        payload: &mir::Type,
+        lhs: &Opd,
+        rhs: &Opd,
+        enum_id: mir::EnumId,
         path: &[Access],
         negate: bool,
     ) -> mir::Expr {
-        let mut payload_path = path.to_vec();
-        payload_path.push(Access::Unwrap);
-        let payload_comparison = self.expand_equality(lhs, rhs, payload, &payload_path, negate);
-        let combine = |a: mir::Expr, b: mir::Expr| mir::Expr::Binary {
+        let variants: Vec<Vec<mir::Type>> = self.enums.defs[enum_id]
+            .variants
+            .iter()
+            .map(|variant| {
+                variant
+                    .fields
+                    .iter()
+                    .map(|field| field.ty.clone())
+                    .collect()
+            })
+            .collect();
+        let tag_comparison = mir::Expr::Binary {
             op: if negate {
-                mir::BinOp::Or
+                mir::BinOp::IntNe
             } else {
-                mir::BinOp::And
+                mir::BinOp::IntEq
             },
-            lhs: Box::new(a),
-            rhs: Box::new(b),
+            lhs: Box::new(mir::Expr::EnumTag(Box::new(self.accessed(lhs, path)))),
+            rhs: Box::new(mir::Expr::EnumTag(Box::new(self.accessed(rhs, path)))),
         };
-        let both_some = combine(
-            combine(
-                self.tag_leaf(lhs, path, !negate),
-                self.tag_leaf(rhs, path, !negate),
-            ),
-            payload_comparison,
-        );
-        let both_none = combine(
-            self.tag_leaf(lhs, path, negate),
-            self.tag_leaf(rhs, path, negate),
-        );
-        mir::Expr::Binary {
-            op: if negate {
-                mir::BinOp::And
-            } else {
-                mir::BinOp::Or
-            },
-            lhs: Box::new(both_some),
-            rhs: Box::new(both_none),
-        }
-    }
-
-    /// An `isSome` leaf of the Option equality tree: `isSome(operand)`
-    /// when `positive`, `!isSome(operand)` otherwise. Constant-folded
-    /// for a textual `None` operand — which also keeps MIR `IsSome`
-    /// from ever wrapping `NoneLiteral`, whose type is not recoverable
-    /// at LIR (the node carries no type and the context does not
-    /// provide one there).
-    fn tag_leaf(&mut self, expr: &hir::Expr, path: &[Access], positive: bool) -> mir::Expr {
-        let operand = self.accessed(expr, path);
-        if matches!(operand, mir::Expr::NoneLiteral) {
-            return mir::Expr::BoolLiteral(!positive);
-        }
-        let is_some = mir::Expr::IsSome(Box::new(operand));
-        if positive {
-            is_some
-        } else {
-            mir::Expr::Unary {
-                op: mir::UnOp::BoolNot,
-                operand: Box::new(is_some),
+        let mut combined: Option<mir::Expr> = None;
+        for (variant, field_types) in variants.iter().enumerate() {
+            // Unit variants carry no payload; the tag comparison
+            // covers them.
+            if field_types.is_empty() {
+                continue;
             }
+            let variant = variant as u32;
+            let guard = mir::Expr::Binary {
+                op: if negate {
+                    mir::BinOp::IntEq
+                } else {
+                    mir::BinOp::IntNe
+                },
+                lhs: Box::new(mir::Expr::EnumTag(Box::new(self.accessed(lhs, path)))),
+                rhs: Box::new(mir::Expr::IntLiteral(i64::from(variant))),
+            };
+            let mut fields: Option<mir::Expr> = None;
+            for (index, field_ty) in field_types.iter().enumerate() {
+                let mut field_path = path.to_vec();
+                field_path.push(Access::EnumField {
+                    variant,
+                    index: index as u32,
+                });
+                let comparison = self.expand_equality(lhs, rhs, field_ty, &field_path, negate);
+                fields = Some(match fields {
+                    None => comparison,
+                    Some(acc) => mir::Expr::Binary {
+                        op: if negate {
+                            mir::BinOp::Or
+                        } else {
+                            mir::BinOp::And
+                        },
+                        lhs: Box::new(acc),
+                        rhs: Box::new(comparison),
+                    },
+                });
+            }
+            let fields = fields.expect("payload-carrying variant");
+            let clause = mir::Expr::Binary {
+                op: if negate {
+                    mir::BinOp::And
+                } else {
+                    mir::BinOp::Or
+                },
+                lhs: Box::new(guard),
+                rhs: Box::new(fields),
+            };
+            combined = Some(match combined {
+                None => clause,
+                Some(acc) => mir::Expr::Binary {
+                    op: if negate {
+                        mir::BinOp::Or
+                    } else {
+                        mir::BinOp::And
+                    },
+                    lhs: Box::new(acc),
+                    rhs: Box::new(clause),
+                },
+            });
+        }
+        match combined {
+            None => tag_comparison,
+            Some(clauses) => mir::Expr::Binary {
+                op: if negate {
+                    mir::BinOp::Or
+                } else {
+                    mir::BinOp::And
+                },
+                lhs: Box::new(tag_comparison),
+                rhs: Box::new(clauses),
+            },
         }
     }
 
@@ -781,8 +1427,8 @@ impl BodyLowerer<'_> {
     /// empty aggregate compares as the corresponding constant.
     fn expand_fields(
         &mut self,
-        lhs: &hir::Expr,
-        rhs: &hir::Expr,
+        lhs: &Opd,
+        rhs: &Opd,
         field_types: &[mir::Type],
         path: &[Access],
         negate: bool,
@@ -809,32 +1455,31 @@ impl BodyLowerer<'_> {
     }
 
     /// Primitive comparison of the operand sub-values at `path`.
-    fn comparison(
-        &mut self,
-        op: mir::BinOp,
-        lhs: &hir::Expr,
-        rhs: &hir::Expr,
-        path: &[Access],
-    ) -> mir::Expr {
+    fn comparison(&mut self, op: mir::BinOp, lhs: &Opd, rhs: &Opd, path: &[Access]) -> mir::Expr {
         let lhs = Box::new(self.accessed(lhs, path));
         let rhs = Box::new(self.accessed(rhs, path));
         mir::Expr::Binary { op, lhs, rhs }
     }
 
-    /// Lower an equality operand and wrap it in the `path` accesses.
-    /// `Unwrap` steps never trap: the equality tree only evaluates
-    /// them once both operands are known to be `Some`.
-    fn accessed(&mut self, expr: &hir::Expr, path: &[Access]) -> mir::Expr {
-        let mut lowered = self.lower_expr(expr);
+    /// Produce the operand value and wrap it in the `path` accesses.
+    /// Variant field extractions never fail: the decision sequence and
+    /// the equality tree only evaluate them once the tag is known to
+    /// match.
+    fn accessed(&mut self, opd: &Opd, path: &[Access]) -> mir::Expr {
+        let mut lowered = match opd {
+            Opd::Hir(expr) => self.lower_expr(expr),
+            Opd::Local(local) => mir::Expr::Local(*local),
+        };
         for access in path {
             lowered = match access {
                 Access::Field(index) => mir::Expr::FieldAccess {
                     receiver: Box::new(lowered),
                     index: *index,
                 },
-                Access::Unwrap => mir::Expr::Unwrap {
+                Access::EnumField { variant, index } => mir::Expr::EnumField {
                     operand: Box::new(lowered),
-                    trap_on_none: false,
+                    variant: *variant,
+                    index: *index,
                 },
             };
         }
@@ -842,6 +1487,23 @@ impl BodyLowerer<'_> {
     }
 }
 
+/// Combine two conditions with `&&` (short-circuits at LIR).
+fn and(lhs: mir::Expr, rhs: mir::Expr) -> mir::Expr {
+    mir::Expr::Binary {
+        op: mir::BinOp::And,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
+}
+
+/// `Some(statements)` unless empty (an absent else branch).
+fn non_empty(statements: Vec<mir::Statement>) -> Option<Vec<mir::Statement>> {
+    if statements.is_empty() {
+        None
+    } else {
+        Some(statements)
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -849,17 +1511,20 @@ mod tests {
 
     const SPAN: Span = Span { start: 0, end: 0 };
 
-    /// HIR module shell as hir-lower produces it: well-known types and
-    /// the builtin output functions allocated first.
+    /// HIR module shell as hir-lower produces it: well-known types,
+    /// the intrinsic output functions and core's `Option` enum
+    /// allocated first.
     struct Harness {
         types: Arena<hir::Type>,
         functions: Arena<hir::Function>,
         structs: Arena<hir::StructDecl>,
+        enums: Arena<hir::EnumDecl>,
         top_level: Vec<hir::FunctionId>,
         unit: hir::TypeId,
         int: hir::TypeId,
         boolean: hir::TypeId,
         string: hir::TypeId,
+        option_enum: hir::EnumId,
         print: hir::FunctionId,
         println: hir::FunctionId,
         instantiations: Vec<hir::Instantiation>,
@@ -878,7 +1543,7 @@ mod tests {
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: unit,
-                kind: hir::FunctionKind::Builtin(hir::Builtin::Print),
+                kind: hir::FunctionKind::Intrinsic("rt_print".to_string()),
                 span: SPAN,
             });
             let println = functions.alloc(hir::Function {
@@ -886,22 +1551,53 @@ mod tests {
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: unit,
-                kind: hir::FunctionKind::Builtin(hir::Builtin::Println),
+                kind: hir::FunctionKind::Intrinsic("rt_println".to_string()),
+                span: SPAN,
+            });
+            // scoop.core's `enum Option<T> { Some(T), None }`.
+            let t = types.alloc(hir::Type::Param(0));
+            let mut enums = Arena::new();
+            let option_enum = enums.alloc(hir::EnumDecl {
+                name: "Option".to_string(),
+                type_params: vec!["T".to_string()],
+                variants: vec![
+                    hir::Variant {
+                        name: "Some".to_string(),
+                        fields: vec![hir::Field {
+                            name: "_1".to_string(),
+                            ty: t,
+                        }],
+                        defaults: vec![None],
+                    },
+                    hir::Variant {
+                        name: "None".to_string(),
+                        fields: Vec::new(),
+                        defaults: Vec::new(),
+                    },
+                ],
                 span: SPAN,
             });
             Harness {
                 types,
                 functions,
                 structs: Arena::new(),
+                enums,
                 top_level: vec![print, println],
                 unit,
                 int,
                 boolean,
                 string,
+                option_enum,
                 print,
                 println,
                 instantiations: Vec::new(),
             }
+        }
+
+        /// `Option<inner>` (core's enum applied to one argument).
+        fn option(&mut self, inner: hir::TypeId) -> hir::TypeId {
+            self.types
+                .alloc(hir::Type::Enum(self.option_enum, vec![inner]))
         }
 
         fn strukt(&mut self, name: &str, fields: &[(&str, hir::TypeId)]) -> hir::StructId {
@@ -959,13 +1655,13 @@ mod tests {
                 types: self.types,
                 functions: self.functions,
                 structs: self.structs,
+                enums: self.enums,
                 top_level: self.top_level,
                 unit: self.unit,
                 int: self.int,
                 boolean: self.boolean,
                 string: self.string,
-                print: self.print,
-                println: self.println,
+                option_enum: self.option_enum,
                 entry,
                 instantiations: self.instantiations,
             }
@@ -993,7 +1689,10 @@ mod tests {
     }
 
     fn val_decl(local: hir::LocalId, init: hir::Expr) -> hir::Statement {
-        stmt(hir::StatementKind::ValDecl { local, init })
+        stmt(hir::StatementKind::ValDecl {
+            pattern: hir::Pattern::Binding { local },
+            init,
+        })
     }
 
     fn expr_stmt(expr: hir::Expr) -> hir::Statement {
@@ -1117,8 +1816,9 @@ Module
     #[test]
     fn repeated_literals_get_separate_constants_deterministically() {
         let mut hir_module = hello_world();
-        // Add another `println("hello, world")` to `main`.
-        let println = hir_module.println;
+        // Add another `println("hello, world")` to `main`. `println`
+        // is the second intrinsic function in `top_level`.
+        let println = hir_module.top_level[1];
         let string = hir_module.string;
         let unit = hir_module.unit;
         let main_id = hir_module.entry;
@@ -2045,11 +2745,11 @@ Module
     }
 
     #[test]
-    fn instance_symbols_encode_option_and_tuple_arguments() {
+    fn instance_symbols_encode_enum_and_tuple_arguments() {
         let mut h = Harness::new();
         let f = identity_fn(&mut h, "f");
         let (int, string) = (h.int, h.string);
-        let option_int = h.types.alloc(hir::Type::Option(int));
+        let option_int = h.option(int);
         let pair = h.tuple(&[int, string]);
         let main = h.user_fn(
             "main",
@@ -2066,13 +2766,17 @@ Module
             .iter()
             .map(|&id| module.functions[id].symbol.as_str())
             .collect();
-        assert_eq!(symbols, ["scoop.f$OIX", "scoop.f$TI_SX"]);
-        // Substitution recurses into Option / tuple types.
+        // An enum argument encodes as `E<instance name>_<args>X`
+        // (`mir::encode_type`); the instance name itself already
+        // embeds the encoded arguments.
+        assert_eq!(symbols, ["scoop.f$EOption$I_IX", "scoop.f$TI_SX"]);
+        // Substitution recurses into enum / tuple types.
         let option_instance = &module.functions[module.top_level[1]];
-        assert_eq!(
-            option_instance.params[0].ty,
-            mir::Type::Option(Box::new(mir::Type::Int))
-        );
+        let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {
+            panic!("the Option<Int> instance parameter must be an enum type")
+        };
+        assert_eq!(module.enums[*enum_id].name, "Option$I");
+        assert_eq!(args.as_slice(), &[mir::Type::Int]);
         let tuple_instance = &module.functions[module.top_level[2]];
         assert_eq!(
             tuple_instance.return_ty,
@@ -2081,12 +2785,90 @@ Module
     }
 
     #[test]
-    fn option_nodes_pass_through() {
+    fn enum_instances_are_created_once_with_substituted_fields() {
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        // A non-generic enum.
+        let color = h.enums.alloc(hir::EnumDecl {
+            name: "Color".to_string(),
+            type_params: Vec::new(),
+            variants: ["Red", "Green", "Blue"]
+                .iter()
+                .map(|name| hir::Variant {
+                    name: name.to_string(),
+                    fields: Vec::new(),
+                    defaults: Vec::new(),
+                })
+                .collect(),
+            span: SPAN,
+        });
+        let color_ty = h.types.alloc(hir::Type::Enum(color, Vec::new()));
+        let option_int = h.option(int);
+        let option_string = h.option(string);
+        // f1 holds Option<Int> and Color; f2 holds Option<Int> again
+        // (a duplicate request) and Option<String>.
+        let mut locals1 = Arena::new();
+        locals1.alloc(local("o", option_int));
+        locals1.alloc(local("c", color_ty));
+        let _f1 = h.user_fn(
+            "f1",
+            hir::Body {
+                locals: locals1,
+                statements: Vec::new(),
+            },
+        );
+        let mut locals2 = Arena::new();
+        locals2.alloc(local("o", option_int));
+        locals2.alloc(local("s", option_string));
+        let _f2 = h.user_fn(
+            "f2",
+            hir::Body {
+                locals: locals2,
+                statements: Vec::new(),
+            },
+        );
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        // One definition per (enum, type args), in creation order; the
+        // duplicate Option<Int> request was deduplicated by name.
+        let names: Vec<&str> = module
+            .enums
+            .iter()
+            .map(|(_, def)| def.name.as_str())
+            .collect();
+        assert_eq!(names, ["Option$I", "Color", "Option$S"]);
+
+        // The variant field types are substituted with the instance's
+        // type arguments.
+        let option_int_def = &module.enums[la_arena::Idx::from_raw(0.into())];
+        assert_eq!(option_int_def.variants[0].name, "Some");
+        assert_eq!(option_int_def.variants[0].fields[0].ty, mir::Type::Int);
+        let option_string_def = &module.enums[la_arena::Idx::from_raw(2.into())];
+        assert_eq!(
+            option_string_def.variants[0].fields[0].ty,
+            mir::Type::String
+        );
+        // Color's variants are all unit variants.
+        let color_def = &module.enums[la_arena::Idx::from_raw(1.into())];
+        assert_eq!(color_def.variants.len(), 3);
+        assert!(color_def.variants.iter().all(|v| v.fields.is_empty()));
+    }
+
+    #[test]
+    fn option_nodes_become_generic_enum_operations() {
         let mut h = Harness::new();
         let (int, boolean) = (h.int, h.boolean);
-        let option_int = h.types.alloc(hir::Type::Option(int));
+        let option_int = h.option(int);
         let mut locals = Arena::new();
         let o = locals.alloc(local("o", option_int));
+        let n = locals.alloc(local("n", option_int));
         let b = locals.alloc(local("b", boolean));
         let y = locals.alloc(local("y", int));
         let main = h.user_fn(
@@ -2101,11 +2883,72 @@ Module
                             option_int,
                         ),
                     ),
+                    val_decl(n, expr(hir::ExprKind::NoneLiteral, option_int)),
                     val_decl(
                         b,
                         expr(
                             hir::ExprKind::IsSome(Box::new(local_ref(o, option_int))),
                             boolean,
+                        ),
+                    ),
+                    val_decl(
+                        y,
+                        expr(
+                            hir::ExprKind::Unwrap {
+                                operand: Box::new(local_ref(o, option_int)),
+                                trap_on_none: false,
+                            },
+                            int,
+                        ),
+                    ),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let expected = "\
+Module
+  enum Option$I
+    Some(_1: Int)
+    None()
+  fun main @scoop_main() -> Unit
+    val o: Option$I<Int>
+      VariantConstruct Option$I<Int> v0
+        IntLiteral 41
+    val n: Option$I<Int>
+      VariantConstruct Option$I<Int> v1
+    val b: Boolean
+      Binary IntEq
+        EnumTag
+          Local o
+        IntLiteral 0
+    val y: Int
+      EnumField v0 f0
+        Local o
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn trapping_unwrap_becomes_a_guarded_extraction() {
+        // val o = Some(1); val y = o!!
+        let mut h = Harness::new();
+        let int = h.int;
+        let option_int = h.option(int);
+        let mut locals = Arena::new();
+        let o = locals.alloc(local("o", option_int));
+        let y = locals.alloc(local("y", int));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    val_decl(
+                        o,
+                        expr(
+                            hir::ExprKind::SomeWrap(Box::new(int_lit(&h, 1))),
+                            option_int,
                         ),
                     ),
                     val_decl(
@@ -2123,41 +2966,44 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let body = &module.functions[module.entry].body;
-        assert!(matches!(
-            &body.statements[0].kind,
-            mir::StatementKind::ValDecl {
-                init: mir::Expr::SomeWrap(operand),
-                ..
-            } if matches!(operand.as_ref(), mir::Expr::IntLiteral(41))
-        ));
-        assert!(matches!(
-            &body.statements[1].kind,
-            mir::StatementKind::ValDecl {
-                init: mir::Expr::IsSome(_),
-                ..
-            }
-        ));
-        assert!(matches!(
-            &body.statements[2].kind,
-            mir::StatementKind::ValDecl {
-                init: mir::Expr::Unwrap {
-                    trap_on_none: true,
-                    ..
-                },
-                ..
-            }
-        ));
-        // The local carrying the Option keeps its type.
-        let (_, o_local) = body.locals.iter().next().expect("the Option local");
-        assert_eq!(o_local.ty, mir::Type::Option(Box::new(mir::Type::Int)));
+        // The operand is evaluated once into `$opt.1`; the tag test
+        // guards the extraction, and the else branch calls the runtime
+        // trap with the message string constant.
+        let expected = "\
+Module
+  enum Option$I
+    Some(_1: Int)
+    None()
+  fun main @scoop_main() -> Unit
+    val o: Option$I<Int>
+      VariantConstruct Option$I<Int> v0
+        IntLiteral 1
+    val $opt.1: Option$I<Int>
+      Local o
+    if
+      Binary IntEq
+        EnumTag
+          Local $opt.1
+        IntLiteral 0
+      val $uw.2: Int
+        EnumField v0 f0
+          Local $opt.1
+    else
+      Call @scoop_rt_trap direct
+        StringConst @scoop.str.0
+    val y: Int
+      Local $uw.2
+  str @scoop.str.0 \"unwrap on None (function main)\"
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
     }
 
     /// `val a: Option<Int> = None; val b = Some(1); val r = a <op> b`
-    /// — the shared shell of the Option equality tests.
+    /// — the shared shell of the enum equality tests.
     fn option_comparison(mut h: Harness, op: hir::BinOp) -> mir::Module {
         let (int, boolean) = (h.int, h.boolean);
-        let option_int = h.types.alloc(hir::Type::Option(int));
+        let option_int = h.option(int);
         let mut locals = Arena::new();
         let a = locals.alloc(local("a", option_int));
         let b = locals.alloc(local("b", option_int));
@@ -2186,135 +3032,395 @@ Module
     }
 
     #[test]
-    fn option_equality_expands_through_tags() {
+    fn enum_equality_compares_tags_then_payloads() {
         let h = Harness::new();
         let module = option_comparison(h, hir::BinOp::Eq);
 
-        // Both Some compares the payloads, both None is equal.
+        // Tags equal, and for the payload-carrying variant:
+        // `tag != Some || payloads equal`. The unit variant (None) is
+        // covered by the tag comparison alone.
         let expected = "\
 Module
+  enum Option$I
+    Some(_1: Int)
+    None()
   fun main @scoop_main() -> Unit
-    val a: Option<Int>
-      NoneLiteral
-    val b: Option<Int>
-      SomeWrap
-        IntLiteral 1
-    val r: Boolean
-      Binary Or
-        Binary And
-          Binary And
-            IsSome
-              Local a
-            IsSome
-              Local b
-          Binary IntEq
-            Unwrap trap=false
-              Local a
-            Unwrap trap=false
-              Local b
-        Binary And
-          Unary BoolNot
-            IsSome
-              Local a
-          Unary BoolNot
-            IsSome
-              Local b
-  entry @scoop_main
-";
-        assert_eq!(mir::dump(&module), expected);
-    }
-
-    #[test]
-    fn option_inequality_is_the_dual_tree() {
-        let h = Harness::new();
-        let module = option_comparison(h, hir::BinOp::Ne);
-
-        // The De Morgan dual: `And` / `Or` swapped, `isSome` leaves
-        // negated, the payload compared with `!=`.
-        let expected = "\
-Module
-  fun main @scoop_main() -> Unit
-    val a: Option<Int>
-      NoneLiteral
-    val b: Option<Int>
-      SomeWrap
+    val a: Option$I<Int>
+      VariantConstruct Option$I<Int> v1
+    val b: Option$I<Int>
+      VariantConstruct Option$I<Int> v0
         IntLiteral 1
     val r: Boolean
       Binary And
-        Binary Or
-          Binary Or
-            Unary BoolNot
-              IsSome
-                Local a
-            Unary BoolNot
-              IsSome
-                Local b
-          Binary IntNe
-            Unwrap trap=false
-              Local a
-            Unwrap trap=false
-              Local b
-        Binary Or
-          IsSome
+        Binary IntEq
+          EnumTag
             Local a
-          IsSome
+          EnumTag
             Local b
+        Binary Or
+          Binary IntNe
+            EnumTag
+              Local a
+            IntLiteral 0
+          Binary IntEq
+            EnumField v0 f0
+              Local a
+            EnumField v0 f0
+              Local b
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);
     }
 
     #[test]
-    fn none_comparison_folds_is_some_on_the_literal() {
+    fn enum_inequality_is_the_dual_tree() {
+        let h = Harness::new();
+        let module = option_comparison(h, hir::BinOp::Ne);
+
+        // The De Morgan dual: `And` / `Or` swapped, the tag leaves
+        // negated, the payload compared with `!=`.
+        let expected = "\
+Module
+  enum Option$I
+    Some(_1: Int)
+    None()
+  fun main @scoop_main() -> Unit
+    val a: Option$I<Int>
+      VariantConstruct Option$I<Int> v1
+    val b: Option$I<Int>
+      VariantConstruct Option$I<Int> v0
+        IntLiteral 1
+    val r: Boolean
+      Binary Or
+        Binary IntNe
+          EnumTag
+            Local a
+          EnumTag
+            Local b
+        Binary And
+          Binary IntEq
+            EnumTag
+              Local a
+            IntLiteral 0
+          Binary IntNe
+            EnumField v0 f0
+              Local a
+            EnumField v0 f0
+              Local b
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    fn when_stmt(
+        subject: hir::Expr,
+        arms: Vec<hir::WhenArm>,
+        else_body: Option<Vec<hir::Statement>>,
+    ) -> hir::Statement {
+        stmt(hir::StatementKind::When(hir::When {
+            subject,
+            arms,
+            else_body,
+        }))
+    }
+
+    fn arm(
+        pattern: hir::Pattern,
+        guard: Option<hir::Expr>,
+        body: Vec<hir::Statement>,
+    ) -> hir::WhenArm {
+        hir::WhenArm {
+            pattern,
+            guard,
+            body,
+            span: SPAN,
+        }
+    }
+
+    #[test]
+    fn when_lowers_to_a_decision_sequence() {
+        // val o = Some(1); when (o) { Some(x) -> print(x); None -> println("none") }
         let mut h = Harness::new();
         let int = h.int;
-        let boolean = h.boolean;
-        let option_int = h.types.alloc(hir::Type::Option(int));
+        let option_enum = h.option_enum;
+        let option_int = h.option(int);
         let mut locals = Arena::new();
-        let a = locals.alloc(local("a", option_int));
-        let r = locals.alloc(local("r", boolean));
-        // val r = a == None
+        let o = locals.alloc(local("o", option_int));
+        let x = locals.alloc(local("x", int));
         let main = h.user_fn(
             "main",
             hir::Body {
                 locals,
-                statements: vec![val_decl(
-                    r,
-                    binary(
-                        hir::BinOp::Eq,
-                        local_ref(a, option_int),
-                        expr(hir::ExprKind::NoneLiteral, option_int),
-                        boolean,
+                statements: vec![
+                    val_decl(
+                        o,
+                        expr(
+                            hir::ExprKind::SomeWrap(Box::new(int_lit(&h, 1))),
+                            option_int,
+                        ),
                     ),
+                    when_stmt(
+                        local_ref(o, option_int),
+                        vec![
+                            arm(
+                                hir::Pattern::Variant {
+                                    enum_id: option_enum,
+                                    variant: 0,
+                                    fields: vec![(0, hir::Pattern::Binding { local: x })],
+                                },
+                                None,
+                                vec![expr_stmt(call(&h, h.print, vec![local_ref(x, int)]))],
+                            ),
+                            arm(
+                                hir::Pattern::Variant {
+                                    enum_id: option_enum,
+                                    variant: 1,
+                                    fields: Vec::new(),
+                                },
+                                None,
+                                vec![expr_stmt(call(&h, h.println, vec![str_lit(&h, "none")]))],
+                            ),
+                        ],
+                        None,
+                    ),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        // The subject is evaluated once into `$when.1`; each arm is a
+        // tag comparison, then the field bindings, then the body; a
+        // failed tag test falls through to the next arm.
+        let expected = "\
+Module
+  enum Option$I
+    Some(_1: Int)
+    None()
+  fun main @scoop_main() -> Unit
+    val o: Option$I<Int>
+      VariantConstruct Option$I<Int> v0
+        IntLiteral 1
+    val $when.1: Option$I<Int>
+      Local o
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.1
+        IntLiteral 0
+      val x: Int
+        EnumField v0 f0
+          Local $when.1
+      Call @scoop_rt_print_int direct
+        Local x
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 1
+        Call @scoop_rt_println direct
+          StringConst @scoop.str.0
+  str @scoop.str.0 \"none\"
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn a_failed_guard_falls_through_to_the_next_arm() {
+        // when (o) { Some(x) if (x > 0) -> print(x); else -> println("neg") }
+        let mut h = Harness::new();
+        let int = h.int;
+        let option_enum = h.option_enum;
+        let option_int = h.option(int);
+        let mut locals = Arena::new();
+        let o = locals.alloc(local("o", option_int));
+        let x = locals.alloc(local("x", int));
+        let else_body = || vec![expr_stmt(call(&h, h.println, vec![str_lit(&h, "neg")]))];
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![when_stmt(
+                    local_ref(o, option_int),
+                    vec![arm(
+                        hir::Pattern::Variant {
+                            enum_id: option_enum,
+                            variant: 0,
+                            fields: vec![(0, hir::Pattern::Binding { local: x })],
+                        },
+                        Some(binary(
+                            hir::BinOp::Gt,
+                            local_ref(x, int),
+                            int_lit(&h, 0),
+                            h.boolean,
+                        )),
+                        vec![expr_stmt(call(&h, h.print, vec![local_ref(x, int)]))],
+                    )],
+                    Some(else_body()),
                 )],
             },
         );
         let module = lower(&h.finish(main));
 
-        // `isSome(None)` folds to `false` / `!isSome(None)` to `true`;
-        // MIR `IsSome` therefore never wraps `NoneLiteral` (its type
-        // would not be recoverable at LIR). The payload comparison is
-        // dead code behind `false && ...` but still well-formed.
+        // The guard nests inside the tag test's then branch; failing
+        // it falls through to the next arm — the `else` body here,
+        // which is lowered once per fallthrough edge.
         let expected = "\
 Module
+  enum Option$I
+    Some(_1: Int)
+    None()
   fun main @scoop_main() -> Unit
-    val r: Boolean
-      Binary Or
-        Binary And
-          Binary And
-            IsSome
-              Local a
-            BoolLiteral false
-          Binary IntEq
-            Unwrap trap=false
-              Local a
-            Unwrap trap=false
-              NoneLiteral
-        Binary And
-          Unary BoolNot
-            IsSome
-              Local a
-          BoolLiteral true
+    val $when.1: Option$I<Int>
+      Local o
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.1
+        IntLiteral 0
+      val x: Int
+        EnumField v0 f0
+          Local $when.1
+      if
+        Binary IntGt
+          Local x
+          IntLiteral 0
+        Call @scoop_rt_print_int direct
+          Local x
+      else
+        Call @scoop_rt_println direct
+          StringConst @scoop.str.0
+    else
+      Call @scoop_rt_println direct
+        StringConst @scoop.str.1
+  str @scoop.str.0 \"neg\"
+  str @scoop.str.1 \"neg\"
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn literal_patterns_match_by_equality() {
+        // when (n) { 1 -> println("one"); else -> println("other") }
+        let mut h = Harness::new();
+        let int = h.int;
+        let mut locals = Arena::new();
+        let n = locals.alloc(local("n", int));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![when_stmt(
+                    local_ref(n, int),
+                    vec![arm(
+                        hir::Pattern::Literal(int_lit(&h, 1)),
+                        None,
+                        vec![expr_stmt(call(&h, h.println, vec![str_lit(&h, "one")]))],
+                    )],
+                    Some(vec![expr_stmt(call(
+                        &h,
+                        h.println,
+                        vec![str_lit(&h, "other")],
+                    ))]),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let body = &module.functions[module.entry].body;
+        // val $when.1 = n; if ($when.1 == 1) ... else ...
+        let mir::StatementKind::If {
+            cond:
+                mir::Expr::Binary {
+                    op: mir::BinOp::IntEq,
+                    lhs,
+                    rhs,
+                },
+            else_body: Some(_),
+            ..
+        } = &body.statements[1].kind
+        else {
+            panic!("a literal pattern must lower to an equality test")
+        };
+        assert!(matches!(
+            lhs.as_ref(),
+            mir::Expr::Local(local) if body.locals[*local].name == "$when.1"
+        ));
+        assert!(matches!(rhs.as_ref(), mir::Expr::IntLiteral(1)));
+    }
+
+    #[test]
+    fn destructuring_val_declarations_extract_bindings() {
+        // val (a, b) = (1, "x"); val Point { x, .. } = p
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        let point = h.strukt("Point", &[("x", int), ("y", int)]);
+        let point_ty = h.types.alloc(hir::Type::Struct(point));
+        let pair = h.tuple(&[int, string]);
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", int));
+        let b = locals.alloc(local("b", string));
+        let p = locals.alloc(local("p", point_ty));
+        let x = locals.alloc(local("x", int));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    stmt(hir::StatementKind::ValDecl {
+                        pattern: hir::Pattern::Tuple(vec![
+                            hir::Pattern::Binding { local: a },
+                            hir::Pattern::Binding { local: b },
+                        ]),
+                        init: expr(
+                            hir::ExprKind::TupleLiteral(vec![int_lit(&h, 1), str_lit(&h, "x")]),
+                            pair,
+                        ),
+                    }),
+                    val_decl(
+                        p,
+                        struct_init(point, point_ty, vec![int_lit(&h, 3), int_lit(&h, 4)]),
+                    ),
+                    stmt(hir::StatementKind::ValDecl {
+                        pattern: hir::Pattern::Struct {
+                            struct_id: point,
+                            fields: vec![(0, hir::Pattern::Binding { local: x })],
+                        },
+                        init: local_ref(p, point_ty),
+                    }),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        // Each destructuring declaration evaluates its init once into
+        // a hidden local, then binds the extracted fields.
+        let expected = "\
+Module
+  struct Point (x: Int, y: Int)
+  fun main @scoop_main() -> Unit
+    val $bind.1: (Int, String)
+      TupleLiteral
+        IntLiteral 1
+        StringConst @scoop.str.0
+    val a: Int
+      FieldAccess 0
+        Local $bind.1
+    val b: String
+      FieldAccess 1
+        Local $bind.1
+    val p: Point
+      StructInit Point
+        IntLiteral 3
+        IntLiteral 4
+    val $bind.2: Point
+      Local p
+    val x: Int
+      FieldAccess 0
+        Local $bind.2
+  str @scoop.str.0 \"x\"
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);

@@ -14,6 +14,7 @@ pub type GlobalId = Idx<Global>;
 pub type LocalId = Idx<Local>;
 pub type TempId = Idx<Temp>;
 pub type BlockId = Idx<BasicBlock>;
+pub type EnumDefId = Idx<EnumDef>;
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -30,6 +31,9 @@ pub enum LirType {
     Ptr,
     /// struct / tuple values: an LLVM literal struct.
     Aggregate(Vec<LirType>),
+    /// An enum value; the representation is fixed by
+    /// `EnumDef::repr` (niche pointer or tagged union, spec 7.4).
+    Enum(EnumDefId),
 }
 
 impl LirType {
@@ -43,6 +47,7 @@ impl LirType {
                 let inner: Vec<String> = elements.iter().map(LirType::dump).collect();
                 format!("{{{}}}", inner.join(", "))
             }
+            LirType::Enum(id) => format!("enum{}", id.into_raw()),
         }
     }
 }
@@ -50,6 +55,9 @@ impl LirType {
 #[derive(Debug)]
 pub struct Module {
     pub globals: Arena<Global>,
+    /// Enum definitions with fixed representations (indexed by
+    /// `EnumDefId`).
+    pub enums: Arena<EnumDef>,
     pub functions: Vec<Function>,
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
@@ -67,7 +75,23 @@ pub struct Layout {
     pub name: String,
     pub size: u64,
     pub align: u64,
-    /// Byte offsets of reference fields (for the GC bitmap, M9).
+    pub kind: LayoutKind,
+}
+
+#[derive(Debug)]
+pub enum LayoutKind {
+    Plain {
+        /// Byte offsets of reference fields (for the GC bitmap, M9).
+        ref_field_offsets: Vec<u64>,
+    },
+    /// Enum layouts keep per-variant reference offsets: scanning an
+    /// enum value depends on its tag (runtime spec 2.2, see
+    /// docs/milestone4/DESIGN.md section 7).
+    Enum { variants: Vec<VariantLayout> },
+}
+
+#[derive(Debug)]
+pub struct VariantLayout {
     pub ref_field_offsets: Vec<u64>,
 }
 
@@ -75,6 +99,31 @@ pub struct Layout {
 pub struct Global {
     pub symbol: String,
     pub init: GlobalInit,
+}
+
+/// An enum definition with its representation fixed by lir-lower.
+#[derive(Debug)]
+pub struct EnumDef {
+    pub name: String,
+    pub repr: EnumRepr,
+}
+
+#[derive(Debug)]
+pub enum EnumRepr {
+    /// Niche optimization (spec 7.4): two variants, one without
+    /// payload, the other a single reference field — the value is a
+    /// bare pointer, `None`-style variant is 0.
+    Niche {
+        /// Index of the payload-carrying variant.
+        payload_variant: u32,
+    },
+    /// `{ i64 tag, [N x i8] payload }`.
+    Tagged {
+        /// Field types of each variant, in declaration order.
+        variants: Vec<Vec<LirType>>,
+        payload_size: u64,
+        payload_align: u64,
+    },
 }
 
 #[derive(Debug)]
@@ -183,18 +232,31 @@ pub enum Instruction {
         symbol: String,
         args: Vec<Value>,
     },
-    /// Option operations. The concrete representation (niche pointer
-    /// or `{ i1, T }` tagged union) was fixed by lir-lower per the
-    /// operand's type (spec 7.4), so codegen translates these
+    /// Enum operations. The representation (niche pointer or tagged
+    /// union) is fixed by `EnumDef::repr`, so codegen translates these
     /// mechanically.
-    /// Test whether an `Option` value is `Some` (result `I1`).
-    IsSome { out: TempId, operand: Value },
-    /// Extract the payload (result = the `T` inside `Option<T>`).
-    Unwrap { out: TempId, operand: Value },
-    /// Wrap a payload into `Some(value)`.
-    SomeWrap { out: TempId, value: Value },
-    /// Produce `None` of the `out` temp's `Option<T>` type.
-    NoneConst { out: TempId },
+    /// Construct a variant value.
+    EnumWrap {
+        out: TempId,
+        enum_id: EnumDefId,
+        variant: u32,
+        fields: Vec<Value>,
+    },
+    /// Read the variant tag (result `I64`; niche: null test).
+    EnumTag {
+        out: TempId,
+        enum_id: EnumDefId,
+        operand: Value,
+    },
+    /// Read field `index` of variant `variant`; only emitted on paths
+    /// where the tag is known to match.
+    EnumField {
+        out: TempId,
+        enum_id: EnumDefId,
+        variant: u32,
+        index: u32,
+        operand: Value,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -246,6 +308,34 @@ pub fn dump(module: &Module) -> String {
             }
         }
     }
+    for (_, def) in module.enums.iter() {
+        match &def.repr {
+            EnumRepr::Niche { payload_variant } => out.push_str(&format!(
+                "  enum {} niche(payload_variant={})\n",
+                def.name, payload_variant
+            )),
+            EnumRepr::Tagged {
+                variants,
+                payload_size,
+                payload_align,
+            } => {
+                let variants: Vec<String> = variants
+                    .iter()
+                    .map(|fields| {
+                        let inner: Vec<String> = fields.iter().map(LirType::dump).collect();
+                        format!("({})", inner.join(", "))
+                    })
+                    .collect();
+                out.push_str(&format!(
+                    "  enum {} tagged size={} align={} variants={}\n",
+                    def.name,
+                    payload_size,
+                    payload_align,
+                    variants.join(" ")
+                ));
+            }
+        }
+    }
     for function in &module.functions {
         let params: Vec<String> = function.params.iter().map(LirType::dump).collect();
         out.push_str(&format!(
@@ -291,10 +381,22 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for layout in &module.meta.layouts {
-        out.push_str(&format!(
-            "  layout {} size={} align={} refs={:?}\n",
-            layout.name, layout.size, layout.align, layout.ref_field_offsets
-        ));
+        match &layout.kind {
+            LayoutKind::Plain { ref_field_offsets } => out.push_str(&format!(
+                "  layout {} size={} align={} refs={:?}\n",
+                layout.name, layout.size, layout.align, ref_field_offsets
+            )),
+            LayoutKind::Enum { variants } => out.push_str(&format!(
+                "  layout {} size={} align={} enum-refs={:?}\n",
+                layout.name,
+                layout.size,
+                layout.align,
+                variants
+                    .iter()
+                    .map(|v| v.ref_field_offsets.clone())
+                    .collect::<Vec<_>>()
+            )),
+        }
     }
     out.push_str(&format!("  entry @{}\n", module.entry_symbol));
     out
@@ -370,27 +472,46 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
                 None => buf.push_str(&format!("    call @{}({})\n", symbol, args.join(", "))),
             }
         }
-        Instruction::IsSome { out, operand } => buf.push_str(&format!(
-            "    t{} = is_some {} : {}\n",
+        Instruction::EnumWrap {
+            out,
+            enum_id,
+            variant,
+            fields,
+        } => {
+            let fields: Vec<String> = fields.iter().map(|f| value_name(*f)).collect();
+            buf.push_str(&format!(
+                "    t{} = enum_wrap e{} v{} ({}) : {}\n",
+                out.into_raw(),
+                enum_id.into_raw(),
+                variant,
+                fields.join(", "),
+                function.temps[*out].ty.dump()
+            ))
+        }
+        Instruction::EnumTag {
+            out,
+            enum_id,
+            operand,
+        } => buf.push_str(&format!(
+            "    t{} = enum_tag e{} {} : {}\n",
             out.into_raw(),
+            enum_id.into_raw(),
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),
-        Instruction::Unwrap { out, operand } => buf.push_str(&format!(
-            "    t{} = unwrap {} : {}\n",
+        Instruction::EnumField {
+            out,
+            enum_id,
+            variant,
+            index,
+            operand,
+        } => buf.push_str(&format!(
+            "    t{} = enum_field e{} v{} f{} {} : {}\n",
             out.into_raw(),
+            enum_id.into_raw(),
+            variant,
+            index,
             value_name(*operand),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::SomeWrap { out, value } => buf.push_str(&format!(
-            "    t{} = some_wrap {} : {}\n",
-            out.into_raw(),
-            value_name(*value),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::NoneConst { out } => buf.push_str(&format!(
-            "    t{} = none : {}\n",
-            out.into_raw(),
             function.temps[*out].ty.dump()
         )),
     }

@@ -1,0 +1,462 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  enum E
+    Num(Int)
+    Pair(Int, Int)
+    Empty
+  fun main()
+    val v
+      Call E.Num
+        IntLiteral 42
+    when
+      Var v
+      arm Num(n) if <guard>
+        Call println
+          StringLiteral "big"
+      arm Num(n)
+        Call println
+          Var n
+      arm Pair(a, b)
+        Call println
+          Binary Add
+            Var a
+            Var b
+      arm Empty
+        Call println
+          StringLiteral "empty"
+    val w
+      Call E.Pair
+        IntLiteral 3
+        IntLiteral 4
+    when
+      Var w
+      arm Num(n)
+        Call println
+          Var n
+      arm Pair(a, _) if <guard>
+        Call println
+          StringLiteral "big pair"
+      else
+        Call println
+          StringLiteral "other"
+    val e
+      FieldAccess Empty
+        Var E
+    when
+      Var e
+      arm Empty
+        Call println
+          StringLiteral "empty"
+      else
+        Call println
+          StringLiteral "not empty"
+
+== hir ==
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  enum E
+    Num(_1: Int)
+    Pair(_1: Int, _2: Int)
+    Empty()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
+  fun main(): Unit
+    val local0
+      VariantConstruct E.Num : E
+        IntLiteral 42 : Int
+    when
+      Local v : E
+      arm variant0(0: local1) if <guard>
+        Call println : Unit
+          StringLiteral "big" : String
+      arm variant0(0: local2)
+        Call println : Unit
+          Local n : Int
+      arm variant1(0: local3, 1: local4)
+        Call println : Unit
+          Binary Add : Int
+            Local a : Int
+            Local b : Int
+      arm variant2()
+        Call println : Unit
+          StringLiteral "empty" : String
+    val local5
+      VariantConstruct E.Pair : E
+        IntLiteral 3 : Int
+        IntLiteral 4 : Int
+    when
+      Local w : E
+      arm variant0(0: local6)
+        Call println : Unit
+          Local n : Int
+      arm variant1(0: local7, 1: _) if <guard>
+        Call println : Unit
+          StringLiteral "big pair" : String
+      else
+        Call println : Unit
+          StringLiteral "other" : String
+    val local8
+      VariantConstruct E.Empty : E
+    when
+      Local e : E
+      arm variant2()
+        Call println : Unit
+          StringLiteral "empty" : String
+      else
+        Call println : Unit
+          StringLiteral "not empty" : String
+  entry main
+
+== mir ==
+Module
+  enum E
+    Num(_1: Int)
+    Pair(_1: Int, _2: Int)
+    Empty()
+  fun main @scoop_main() -> Unit
+    val v: E
+      VariantConstruct E v0
+        IntLiteral 42
+    val $when.1: E
+      Local v
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.1
+        IntLiteral 0
+      val n: Int
+        EnumField v0 f0
+          Local $when.1
+      if
+        Binary IntGt
+          Local n
+          IntLiteral 100
+        Call @scoop_rt_println direct
+          StringConst @scoop.str.0
+      else
+        if
+          Binary IntEq
+            EnumTag
+              Local $when.1
+            IntLiteral 0
+          val n: Int
+            EnumField v0 f0
+              Local $when.1
+          Call @scoop_rt_println_int direct
+            Local n
+        else
+          if
+            Binary IntEq
+              EnumTag
+                Local $when.1
+              IntLiteral 1
+            val a: Int
+              EnumField v1 f0
+                Local $when.1
+            val b: Int
+              EnumField v1 f1
+                Local $when.1
+            Call @scoop_rt_println_int direct
+              Binary IntAdd
+                Local a
+                Local b
+          else
+            if
+              Binary IntEq
+                EnumTag
+                  Local $when.1
+                IntLiteral 2
+              Call @scoop_rt_println direct
+                StringConst @scoop.str.1
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+        val n: Int
+          EnumField v0 f0
+            Local $when.1
+        Call @scoop_rt_println_int direct
+          Local n
+      else
+        if
+          Binary IntEq
+            EnumTag
+              Local $when.1
+            IntLiteral 1
+          val a: Int
+            EnumField v1 f0
+              Local $when.1
+          val b: Int
+            EnumField v1 f1
+              Local $when.1
+          Call @scoop_rt_println_int direct
+            Binary IntAdd
+              Local a
+              Local b
+        else
+          if
+            Binary IntEq
+              EnumTag
+                Local $when.1
+              IntLiteral 2
+            Call @scoop_rt_println direct
+              StringConst @scoop.str.2
+    val w: E
+      VariantConstruct E v1
+        IntLiteral 3
+        IntLiteral 4
+    val $when.2: E
+      Local w
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.2
+        IntLiteral 0
+      val n: Int
+        EnumField v0 f0
+          Local $when.2
+      Call @scoop_rt_println_int direct
+        Local n
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.2
+          IntLiteral 1
+        val a: Int
+          EnumField v1 f0
+            Local $when.2
+        if
+          Binary IntGt
+            Local a
+            IntLiteral 10
+          Call @scoop_rt_println direct
+            StringConst @scoop.str.3
+        else
+          Call @scoop_rt_println direct
+            StringConst @scoop.str.4
+      else
+        Call @scoop_rt_println direct
+          StringConst @scoop.str.5
+    val e: E
+      VariantConstruct E v2
+    val $when.3: E
+      Local e
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.3
+        IntLiteral 2
+      Call @scoop_rt_println direct
+        StringConst @scoop.str.6
+    else
+      Call @scoop_rt_println direct
+        StringConst @scoop.str.7
+  str @scoop.str.0 "big"
+  str @scoop.str.1 "empty"
+  str @scoop.str.2 "empty"
+  str @scoop.str.3 "big pair"
+  str @scoop.str.4 "other"
+  str @scoop.str.5 "other"
+  str @scoop.str.6 "empty"
+  str @scoop.str.7 "not empty"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "big"
+  global @scoop.str.1 = "empty"
+  global @scoop.str.2 = "empty"
+  global @scoop.str.3 = "big pair"
+  global @scoop.str.4 = "other"
+  global @scoop.str.5 = "other"
+  global @scoop.str.6 = "empty"
+  global @scoop.str.7 = "not empty"
+  enum E tagged size=16 align=8 variants=(i64) (i64, i64) ()
+  fun @scoop_main() -> void
+    local %0 v: enum0
+    local %1 n: i64
+    local %2 n: i64
+    local %3 a: i64
+    local %4 b: i64
+    local %5 w: enum0
+    local %6 n: i64
+    local %7 a: i64
+    local %8 e: enum0
+    local %9 $when.1: enum0
+    local %10 $when.2: enum0
+    local %11 $when.3: enum0
+  block entry
+    t0 = enum_wrap e0 v0 (42) : enum0
+    store t0 -> local0
+    store local0 -> local9
+    t1 = enum_tag e0 local9 : i64
+    t2 = Eq t1, 0 : i1
+    cbr t2 then @if.then.1 else @if.else.2
+  block if.then.1
+    t3 = enum_field e0 v0 f0 local9 : i64
+    store t3 -> local1
+    t4 = Gt local1, 100 : i1
+    cbr t4 then @if.then.4 else @if.else.5
+  block if.else.2
+    t19 = enum_tag e0 local9 : i64
+    t20 = Eq t19, 0 : i1
+    cbr t20 then @if.then.15 else @if.else.16
+  block if.merge.3
+    t32 = enum_wrap e0 v1 (3, 4) : enum0
+    store t32 -> local5
+    store local5 -> local10
+    t33 = enum_tag e0 local10 : i64
+    t34 = Eq t33, 0 : i1
+    cbr t34 then @if.then.23 else @if.else.24
+  block if.then.4
+    call @scoop_rt_println(global0)
+    t5 = aggregate () : {}
+    br @if.merge.6
+  block if.else.5
+    t6 = enum_tag e0 local9 : i64
+    t7 = Eq t6, 0 : i1
+    cbr t7 then @if.then.7 else @if.else.8
+  block if.merge.6
+    br @if.merge.3
+  block if.then.7
+    t8 = enum_field e0 v0 f0 local9 : i64
+    store t8 -> local2
+    call @scoop_rt_println_int(local2)
+    t9 = aggregate () : {}
+    br @if.merge.9
+  block if.else.8
+    t10 = enum_tag e0 local9 : i64
+    t11 = Eq t10, 1 : i1
+    cbr t11 then @if.then.10 else @if.else.11
+  block if.merge.9
+    br @if.merge.6
+  block if.then.10
+    t12 = enum_field e0 v1 f0 local9 : i64
+    store t12 -> local3
+    t13 = enum_field e0 v1 f1 local9 : i64
+    store t13 -> local4
+    t14 = Add local3, local4 : i64
+    call @scoop_rt_println_int(t14)
+    t15 = aggregate () : {}
+    br @if.merge.12
+  block if.else.11
+    t16 = enum_tag e0 local9 : i64
+    t17 = Eq t16, 2 : i1
+    cbr t17 then @if.then.13 else @if.merge.14
+  block if.merge.12
+    br @if.merge.9
+  block if.then.13
+    call @scoop_rt_println(global1)
+    t18 = aggregate () : {}
+    br @if.merge.14
+  block if.merge.14
+    br @if.merge.12
+  block if.then.15
+    t21 = enum_field e0 v0 f0 local9 : i64
+    store t21 -> local2
+    call @scoop_rt_println_int(local2)
+    t22 = aggregate () : {}
+    br @if.merge.17
+  block if.else.16
+    t23 = enum_tag e0 local9 : i64
+    t24 = Eq t23, 1 : i1
+    cbr t24 then @if.then.18 else @if.else.19
+  block if.merge.17
+    br @if.merge.3
+  block if.then.18
+    t25 = enum_field e0 v1 f0 local9 : i64
+    store t25 -> local3
+    t26 = enum_field e0 v1 f1 local9 : i64
+    store t26 -> local4
+    t27 = Add local3, local4 : i64
+    call @scoop_rt_println_int(t27)
+    t28 = aggregate () : {}
+    br @if.merge.20
+  block if.else.19
+    t29 = enum_tag e0 local9 : i64
+    t30 = Eq t29, 2 : i1
+    cbr t30 then @if.then.21 else @if.merge.22
+  block if.merge.20
+    br @if.merge.17
+  block if.then.21
+    call @scoop_rt_println(global2)
+    t31 = aggregate () : {}
+    br @if.merge.22
+  block if.merge.22
+    br @if.merge.20
+  block if.then.23
+    t35 = enum_field e0 v0 f0 local10 : i64
+    store t35 -> local6
+    call @scoop_rt_println_int(local6)
+    t36 = aggregate () : {}
+    br @if.merge.25
+  block if.else.24
+    t37 = enum_tag e0 local10 : i64
+    t38 = Eq t37, 1 : i1
+    cbr t38 then @if.then.26 else @if.else.27
+  block if.merge.25
+    t44 = enum_wrap e0 v2 () : enum0
+    store t44 -> local8
+    store local8 -> local11
+    t45 = enum_tag e0 local11 : i64
+    t46 = Eq t45, 2 : i1
+    cbr t46 then @if.then.32 else @if.else.33
+  block if.then.26
+    t39 = enum_field e0 v1 f0 local10 : i64
+    store t39 -> local7
+    t40 = Gt local7, 10 : i1
+    cbr t40 then @if.then.29 else @if.else.30
+  block if.else.27
+    call @scoop_rt_println(global5)
+    t43 = aggregate () : {}
+    br @if.merge.28
+  block if.merge.28
+    br @if.merge.25
+  block if.then.29
+    call @scoop_rt_println(global3)
+    t41 = aggregate () : {}
+    br @if.merge.31
+  block if.else.30
+    call @scoop_rt_println(global4)
+    t42 = aggregate () : {}
+    br @if.merge.31
+  block if.merge.31
+    br @if.merge.28
+  block if.then.32
+    call @scoop_rt_println(global6)
+    t47 = aggregate () : {}
+    br @if.merge.34
+  block if.else.33
+    call @scoop_rt_println(global7)
+    t48 = aggregate () : {}
+    br @if.merge.34
+  block if.merge.34
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout E size=24 align=8 enum-refs=[[], [], []]
+  entry @scoop_main
+
+== run ==
+42
+other
+empty

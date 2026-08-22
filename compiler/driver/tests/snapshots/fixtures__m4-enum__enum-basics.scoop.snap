@@ -1,0 +1,601 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  enum Color
+    Red
+    Green
+    Blue
+  enum Shape
+    Circle(Int)
+    Rect(Int, Int)
+    Named <named>
+      w: Int
+      h: Int
+    WithDefault <ctor>
+      d: Int = <expr>
+  fun main()
+    val c
+      FieldAccess Red
+        Var Color
+    when
+      Var c
+      arm Red
+        Call println
+          StringLiteral "red"
+      arm Green
+        Call println
+          StringLiteral "green"
+      arm Blue
+        Call println
+          StringLiteral "blue"
+    val s
+      Call Shape.Circle
+        IntLiteral 5
+    when
+      Var s
+      arm Circle(r)
+        Call println
+          Var r
+      arm Rect(w, h)
+        Call println
+          Binary Add
+            Var w
+            Var h
+      arm Named{w, ..}
+        Call println
+          Var w
+      arm WithDefault(d)
+        Call println
+          Var d
+    val r
+      Call Shape.Rect
+        IntLiteral 3
+        IntLiteral 4
+    when
+      Var r
+      arm Circle(x)
+        Call println
+          Var x
+      arm Rect(w, h)
+        Call println
+          Binary Add
+            Var w
+            Var h
+      arm Named{w, ..}
+        Call println
+          Var w
+      arm WithDefault(d)
+        Call println
+          Var d
+    val d
+      Call Shape.WithDefault
+    when
+      Var d
+      arm WithDefault(x)
+        Call println
+          Var x
+      else
+        Call println
+          StringLiteral "other"
+    val d2
+      Call Shape.WithDefault
+        IntLiteral 3
+    when
+      Var d2
+      arm WithDefault(x)
+        Call println
+          Var x
+      else
+        Call println
+          StringLiteral "other"
+
+== hir ==
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  enum Color
+    Red()
+    Green()
+    Blue()
+  enum Shape
+    Circle(_1: Int)
+    Rect(_1: Int, _2: Int)
+    Named(w: Int, h: Int)
+    WithDefault(d: Int)
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
+  fun main(): Unit
+    val local0
+      VariantConstruct Color.Red : Color
+    when
+      Local c : Color
+      arm variant0()
+        Call println : Unit
+          StringLiteral "red" : String
+      arm variant1()
+        Call println : Unit
+          StringLiteral "green" : String
+      arm variant2()
+        Call println : Unit
+          StringLiteral "blue" : String
+    val local1
+      VariantConstruct Shape.Circle : Shape
+        IntLiteral 5 : Int
+    when
+      Local s : Shape
+      arm variant0(0: local2)
+        Call println : Unit
+          Local r : Int
+      arm variant1(0: local3, 1: local4)
+        Call println : Unit
+          Binary Add : Int
+            Local w : Int
+            Local h : Int
+      arm variant2(0: local5)
+        Call println : Unit
+          Local w : Int
+      arm variant3(0: local6)
+        Call println : Unit
+          Local d : Int
+    val local7
+      VariantConstruct Shape.Rect : Shape
+        IntLiteral 3 : Int
+        IntLiteral 4 : Int
+    when
+      Local r : Shape
+      arm variant0(0: local8)
+        Call println : Unit
+          Local x : Int
+      arm variant1(0: local9, 1: local10)
+        Call println : Unit
+          Binary Add : Int
+            Local w : Int
+            Local h : Int
+      arm variant2(0: local11)
+        Call println : Unit
+          Local w : Int
+      arm variant3(0: local12)
+        Call println : Unit
+          Local d : Int
+    val local13
+      VariantConstruct Shape.WithDefault : Shape
+        IntLiteral 7 : Int
+    when
+      Local d : Shape
+      arm variant3(0: local14)
+        Call println : Unit
+          Local x : Int
+      else
+        Call println : Unit
+          StringLiteral "other" : String
+    val local15
+      VariantConstruct Shape.WithDefault : Shape
+        IntLiteral 3 : Int
+    when
+      Local d2 : Shape
+      arm variant3(0: local16)
+        Call println : Unit
+          Local x : Int
+      else
+        Call println : Unit
+          StringLiteral "other" : String
+  entry main
+
+== mir ==
+Module
+  enum Color
+    Red()
+    Green()
+    Blue()
+  enum Shape
+    Circle(_1: Int)
+    Rect(_1: Int, _2: Int)
+    Named(w: Int, h: Int)
+    WithDefault(d: Int)
+  fun main @scoop_main() -> Unit
+    val c: Color
+      VariantConstruct Color v0
+    val $when.1: Color
+      Local c
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.1
+        IntLiteral 0
+      Call @scoop_rt_println direct
+        StringConst @scoop.str.0
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 1
+        Call @scoop_rt_println direct
+          StringConst @scoop.str.1
+      else
+        if
+          Binary IntEq
+            EnumTag
+              Local $when.1
+            IntLiteral 2
+          Call @scoop_rt_println direct
+            StringConst @scoop.str.2
+    val s: Shape
+      VariantConstruct Shape v0
+        IntLiteral 5
+    val $when.2: Shape
+      Local s
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.2
+        IntLiteral 0
+      val r: Int
+        EnumField v0 f0
+          Local $when.2
+      Call @scoop_rt_println_int direct
+        Local r
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.2
+          IntLiteral 1
+        val w: Int
+          EnumField v1 f0
+            Local $when.2
+        val h: Int
+          EnumField v1 f1
+            Local $when.2
+        Call @scoop_rt_println_int direct
+          Binary IntAdd
+            Local w
+            Local h
+      else
+        if
+          Binary IntEq
+            EnumTag
+              Local $when.2
+            IntLiteral 2
+          val w: Int
+            EnumField v2 f0
+              Local $when.2
+          Call @scoop_rt_println_int direct
+            Local w
+        else
+          if
+            Binary IntEq
+              EnumTag
+                Local $when.2
+              IntLiteral 3
+            val d: Int
+              EnumField v3 f0
+                Local $when.2
+            Call @scoop_rt_println_int direct
+              Local d
+    val r: Shape
+      VariantConstruct Shape v1
+        IntLiteral 3
+        IntLiteral 4
+    val $when.3: Shape
+      Local r
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.3
+        IntLiteral 0
+      val x: Int
+        EnumField v0 f0
+          Local $when.3
+      Call @scoop_rt_println_int direct
+        Local x
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.3
+          IntLiteral 1
+        val w: Int
+          EnumField v1 f0
+            Local $when.3
+        val h: Int
+          EnumField v1 f1
+            Local $when.3
+        Call @scoop_rt_println_int direct
+          Binary IntAdd
+            Local w
+            Local h
+      else
+        if
+          Binary IntEq
+            EnumTag
+              Local $when.3
+            IntLiteral 2
+          val w: Int
+            EnumField v2 f0
+              Local $when.3
+          Call @scoop_rt_println_int direct
+            Local w
+        else
+          if
+            Binary IntEq
+              EnumTag
+                Local $when.3
+              IntLiteral 3
+            val d: Int
+              EnumField v3 f0
+                Local $when.3
+            Call @scoop_rt_println_int direct
+              Local d
+    val d: Shape
+      VariantConstruct Shape v3
+        IntLiteral 7
+    val $when.4: Shape
+      Local d
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.4
+        IntLiteral 3
+      val x: Int
+        EnumField v3 f0
+          Local $when.4
+      Call @scoop_rt_println_int direct
+        Local x
+    else
+      Call @scoop_rt_println direct
+        StringConst @scoop.str.3
+    val d2: Shape
+      VariantConstruct Shape v3
+        IntLiteral 3
+    val $when.5: Shape
+      Local d2
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.5
+        IntLiteral 3
+      val x: Int
+        EnumField v3 f0
+          Local $when.5
+      Call @scoop_rt_println_int direct
+        Local x
+    else
+      Call @scoop_rt_println direct
+        StringConst @scoop.str.4
+  str @scoop.str.0 "red"
+  str @scoop.str.1 "green"
+  str @scoop.str.2 "blue"
+  str @scoop.str.3 "other"
+  str @scoop.str.4 "other"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "red"
+  global @scoop.str.1 = "green"
+  global @scoop.str.2 = "blue"
+  global @scoop.str.3 = "other"
+  global @scoop.str.4 = "other"
+  enum Color tagged size=0 align=1 variants=() () ()
+  enum Shape tagged size=16 align=8 variants=(i64) (i64, i64) (i64, i64) (i64)
+  fun @scoop_main() -> void
+    local %0 c: enum0
+    local %1 s: enum1
+    local %2 r: i64
+    local %3 w: i64
+    local %4 h: i64
+    local %5 w: i64
+    local %6 d: i64
+    local %7 r: enum1
+    local %8 x: i64
+    local %9 w: i64
+    local %10 h: i64
+    local %11 w: i64
+    local %12 d: i64
+    local %13 d: enum1
+    local %14 x: i64
+    local %15 d2: enum1
+    local %16 x: i64
+    local %17 $when.1: enum0
+    local %18 $when.2: enum1
+    local %19 $when.3: enum1
+    local %20 $when.4: enum1
+    local %21 $when.5: enum1
+  block entry
+    t0 = enum_wrap e0 v0 () : enum0
+    store t0 -> local0
+    store local0 -> local17
+    t1 = enum_tag e0 local17 : i64
+    t2 = Eq t1, 0 : i1
+    cbr t2 then @if.then.1 else @if.else.2
+  block if.then.1
+    call @scoop_rt_println(global0)
+    t3 = aggregate () : {}
+    br @if.merge.3
+  block if.else.2
+    t4 = enum_tag e0 local17 : i64
+    t5 = Eq t4, 1 : i1
+    cbr t5 then @if.then.4 else @if.else.5
+  block if.merge.3
+    t10 = enum_wrap e1 v0 (5) : enum1
+    store t10 -> local1
+    store local1 -> local18
+    t11 = enum_tag e1 local18 : i64
+    t12 = Eq t11, 0 : i1
+    cbr t12 then @if.then.9 else @if.else.10
+  block if.then.4
+    call @scoop_rt_println(global1)
+    t6 = aggregate () : {}
+    br @if.merge.6
+  block if.else.5
+    t7 = enum_tag e0 local17 : i64
+    t8 = Eq t7, 2 : i1
+    cbr t8 then @if.then.7 else @if.merge.8
+  block if.merge.6
+    br @if.merge.3
+  block if.then.7
+    call @scoop_rt_println(global2)
+    t9 = aggregate () : {}
+    br @if.merge.8
+  block if.merge.8
+    br @if.merge.6
+  block if.then.9
+    t13 = enum_field e1 v0 f0 local18 : i64
+    store t13 -> local2
+    call @scoop_rt_println_int(local2)
+    t14 = aggregate () : {}
+    br @if.merge.11
+  block if.else.10
+    t15 = enum_tag e1 local18 : i64
+    t16 = Eq t15, 1 : i1
+    cbr t16 then @if.then.12 else @if.else.13
+  block if.merge.11
+    t29 = enum_wrap e1 v1 (3, 4) : enum1
+    store t29 -> local7
+    store local7 -> local19
+    t30 = enum_tag e1 local19 : i64
+    t31 = Eq t30, 0 : i1
+    cbr t31 then @if.then.20 else @if.else.21
+  block if.then.12
+    t17 = enum_field e1 v1 f0 local18 : i64
+    store t17 -> local3
+    t18 = enum_field e1 v1 f1 local18 : i64
+    store t18 -> local4
+    t19 = Add local3, local4 : i64
+    call @scoop_rt_println_int(t19)
+    t20 = aggregate () : {}
+    br @if.merge.14
+  block if.else.13
+    t21 = enum_tag e1 local18 : i64
+    t22 = Eq t21, 2 : i1
+    cbr t22 then @if.then.15 else @if.else.16
+  block if.merge.14
+    br @if.merge.11
+  block if.then.15
+    t23 = enum_field e1 v2 f0 local18 : i64
+    store t23 -> local5
+    call @scoop_rt_println_int(local5)
+    t24 = aggregate () : {}
+    br @if.merge.17
+  block if.else.16
+    t25 = enum_tag e1 local18 : i64
+    t26 = Eq t25, 3 : i1
+    cbr t26 then @if.then.18 else @if.merge.19
+  block if.merge.17
+    br @if.merge.14
+  block if.then.18
+    t27 = enum_field e1 v3 f0 local18 : i64
+    store t27 -> local6
+    call @scoop_rt_println_int(local6)
+    t28 = aggregate () : {}
+    br @if.merge.19
+  block if.merge.19
+    br @if.merge.17
+  block if.then.20
+    t32 = enum_field e1 v0 f0 local19 : i64
+    store t32 -> local8
+    call @scoop_rt_println_int(local8)
+    t33 = aggregate () : {}
+    br @if.merge.22
+  block if.else.21
+    t34 = enum_tag e1 local19 : i64
+    t35 = Eq t34, 1 : i1
+    cbr t35 then @if.then.23 else @if.else.24
+  block if.merge.22
+    t48 = enum_wrap e1 v3 (7) : enum1
+    store t48 -> local13
+    store local13 -> local20
+    t49 = enum_tag e1 local20 : i64
+    t50 = Eq t49, 3 : i1
+    cbr t50 then @if.then.31 else @if.else.32
+  block if.then.23
+    t36 = enum_field e1 v1 f0 local19 : i64
+    store t36 -> local9
+    t37 = enum_field e1 v1 f1 local19 : i64
+    store t37 -> local10
+    t38 = Add local9, local10 : i64
+    call @scoop_rt_println_int(t38)
+    t39 = aggregate () : {}
+    br @if.merge.25
+  block if.else.24
+    t40 = enum_tag e1 local19 : i64
+    t41 = Eq t40, 2 : i1
+    cbr t41 then @if.then.26 else @if.else.27
+  block if.merge.25
+    br @if.merge.22
+  block if.then.26
+    t42 = enum_field e1 v2 f0 local19 : i64
+    store t42 -> local11
+    call @scoop_rt_println_int(local11)
+    t43 = aggregate () : {}
+    br @if.merge.28
+  block if.else.27
+    t44 = enum_tag e1 local19 : i64
+    t45 = Eq t44, 3 : i1
+    cbr t45 then @if.then.29 else @if.merge.30
+  block if.merge.28
+    br @if.merge.25
+  block if.then.29
+    t46 = enum_field e1 v3 f0 local19 : i64
+    store t46 -> local12
+    call @scoop_rt_println_int(local12)
+    t47 = aggregate () : {}
+    br @if.merge.30
+  block if.merge.30
+    br @if.merge.28
+  block if.then.31
+    t51 = enum_field e1 v3 f0 local20 : i64
+    store t51 -> local14
+    call @scoop_rt_println_int(local14)
+    t52 = aggregate () : {}
+    br @if.merge.33
+  block if.else.32
+    call @scoop_rt_println(global3)
+    t53 = aggregate () : {}
+    br @if.merge.33
+  block if.merge.33
+    t54 = enum_wrap e1 v3 (3) : enum1
+    store t54 -> local15
+    store local15 -> local21
+    t55 = enum_tag e1 local21 : i64
+    t56 = Eq t55, 3 : i1
+    cbr t56 then @if.then.34 else @if.else.35
+  block if.then.34
+    t57 = enum_field e1 v3 f0 local21 : i64
+    store t57 -> local16
+    call @scoop_rt_println_int(local16)
+    t58 = aggregate () : {}
+    br @if.merge.36
+  block if.else.35
+    call @scoop_rt_println(global4)
+    t59 = aggregate () : {}
+    br @if.merge.36
+  block if.merge.36
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Color size=8 align=8 enum-refs=[[], [], []]
+  layout Shape size=24 align=8 enum-refs=[[], [], [], []]
+  entry @scoop_main
+
+== run ==
+red
+5
+7
+7
+3

@@ -4,6 +4,15 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
   struct Point
     field x: Int
     field y: Int
@@ -84,14 +93,17 @@ Module
   struct Line
     field a: Point
     field b: Point
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val p1: Point
+    val local0
       StructInit Point : Point
         IntLiteral 1 : Int
         IntLiteral 2 : Int
-    val p3: Point
+    val local1
       StructInit Point : Point
         IntLiteral 3 : Int
         IntLiteral 4 : Int
@@ -109,11 +121,11 @@ Module
       Binary Ne : Boolean
         Local p1 : Point
         Local p3 : Point
-    val l1: Line
+    val local2
       StructInit Line : Line
         Local p1 : Point
         Local p3 : Point
-    val l2: Line
+    val local3
       StructInit Line : Line
         StructInit Point : Point
           IntLiteral 1 : Int
@@ -125,7 +137,7 @@ Module
       Binary Eq : Boolean
         Local l1 : Line
         Local l2 : Line
-    val t1: (Int, String)
+    val local4
       TupleLiteral : (Int, String)
         IntLiteral 1 : Int
         StringLiteral "a" : String

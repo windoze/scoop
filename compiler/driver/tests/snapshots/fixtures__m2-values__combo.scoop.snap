@@ -4,6 +4,15 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
   struct Tagged
     field tag: String
     field pair: (Int, String)
@@ -47,16 +56,19 @@ Module
   struct Tagged
     field tag: String
     field pair: (Int, String)
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val a: Tagged
+    val local0
       StructInit Tagged : Tagged
         StringLiteral "p" : String
         TupleLiteral : (Int, String)
           IntLiteral 1 : Int
           StringLiteral "one" : String
-    val b: Tagged
+    val local1
       StructInit Tagged : Tagged
         StringLiteral "p" : String
         TupleLiteral : (Int, String)
@@ -70,7 +82,7 @@ Module
       FieldAccess _2 : String
         FieldAccess field 1 : (Int, String)
           Local a : Tagged
-    var count: Int
+    val local2
       IntLiteral 0 : Int
     while
       Binary Lt : Boolean

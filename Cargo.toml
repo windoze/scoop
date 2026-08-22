@@ -27,6 +27,7 @@ clap = { version = "4", features = ["derive"] }
 insta = { version = "1" }
 la-arena = { version = "0.3" }
 cc = { version = "1" }
+toml = { version = "0.8" }
 
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }

@@ -25,11 +25,14 @@ fn expression_body_and_parameters() {
             ))],
         ),
     ]);
-    let module = lower(&file).expect("expression body must lower");
+    let module = lower_user(file).expect("expression body must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun double(x: Int): Int
     return
       Binary Mul : Int
@@ -62,7 +65,7 @@ fn block_body_with_return_and_parameters() {
             ))],
         ),
     ]);
-    let module = lower(&file).expect("block body must lower");
+    let module = lower_user(file).expect("block body must lower");
     let dump = hir::dump(&module);
     assert!(dump.contains("fun add(a: Int, b: Int): Int"), "{dump}");
     assert!(dump.contains("Call add : Int"), "{dump}");
@@ -77,11 +80,14 @@ fn return_with_unit_value_is_a_bare_return() {
         fun("main", vec![stmt(call("f", vec![]))]),
         fun("f", vec![ret(Some(call("println", vec![str_lit("x")])))]),
     ]);
-    let module = lower(&file).expect("Unit return with value must lower");
+    let module = lower_user(file).expect("Unit return with value must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
     Call f : Unit
   fun f(): Unit
@@ -113,11 +119,14 @@ fn generic_identity_infers_type_arguments() {
             ],
         ),
     ]);
-    let module = lower(&file).expect("generic identity must lower");
+    let module = lower_user(file).expect("generic identity must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun identity<T>(x: T0): T0
     return
       Local x : T0
@@ -152,7 +161,7 @@ fn multiple_type_parameters() {
             vec![val("p", call("pair", vec![int_lit(1), str_lit("s")]))],
         ),
     ]);
-    let module = lower(&file).expect("two type parameters must lower");
+    let module = lower_user(file).expect("two type parameters must lower");
     let dump = hir::dump(&module);
     assert!(
         dump.contains("fun pair<T, U>(a: T0, b: T1): (T0, T1)"),
@@ -184,7 +193,7 @@ fn generic_equality_is_allowed() {
             ))],
         ),
     ]);
-    lower(&file).expect("generic equality must lower");
+    lower_user(file).expect("generic equality must lower");
 }
 
 /// A generic call inside a generic body records an instantiation
@@ -219,11 +228,14 @@ fn nested_generic_calls_record_param_instantiations() {
             ))],
         ),
     ]);
-    let module = lower(&file).expect("nested generic calls must lower");
+    let module = lower_user(file).expect("nested generic calls must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun identity<T>(x: T0): T0
     return
       Local x : T0
@@ -270,28 +282,31 @@ fn generic_option_roundtrip() {
             ],
         ),
     ]);
-    let module = lower(&file).expect("generic Option function must lower");
+    let module = lower_user(file).expect("generic Option function must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun unwrapOr<T>(o: Option<T0>, fallback: T0): T0
-    val $opt.0: Option<T0>
+    val local2
       Local o : Option<T0>
     if
       IsSome : Boolean
         Local $opt.0 : Option<T0>
-      val $res.1: T0
+      val local3
         Unwrap trap=false : T0
           Local $opt.0 : Option<T0>
     else
-      val $res.1: T0
+      val local3
         Local fallback : T0
     return
       Local $res.1 : T0
   fun main(): Unit
-    val a: Option<Int>
-      SomeWrap : Option<Int>
+    val local0
+      VariantConstruct Option.Some<Int> : Option<Int>
         IntLiteral 41 : Int
     Call println : Unit
       Call unwrapOr<Int> : Int
@@ -321,20 +336,23 @@ fn some_none_and_nullable_annotations() {
             ),
         ],
     )]);
-    let module = lower(&file).expect("Option constructors must lower");
+    let module = lower_user(file).expect("Option constructors must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val a: Option<Int>
-      SomeWrap : Option<Int>
+    val local0
+      VariantConstruct Option.Some<Int> : Option<Int>
         IntLiteral 41 : Int
-    val b: Option<Int>
-      NoneLiteral : Option<Int>
-    val c: Option<Option<Int>>
-      SomeWrap : Option<Option<Int>>
-        NoneLiteral : Option<Int>
+    val local1
+      VariantConstruct Option.None<Int> : Option<Int>
+    val local2
+      VariantConstruct Option.Some<Option<Int>> : Option<Option<Int>>
+        VariantConstruct Option.None<Int> : Option<Int>
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -359,34 +377,37 @@ fn safe_field_access_desugars_to_hidden_locals() {
             ],
         ),
     ]);
-    let module = lower(&file).expect("safe field access must lower");
+    let module = lower_user(file).expect("safe field access must lower");
     let expected = "\
 Module
   struct Point
     field x: Int
     field y: Int
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val p: Option<Point>
-      SomeWrap : Option<Point>
+    val local0
+      VariantConstruct Option.Some<Point> : Option<Point>
         StructInit Point : Point
           IntLiteral 1 : Int
           IntLiteral 2 : Int
-    val $opt.0: Option<Point>
+    val local1
       Local p : Option<Point>
     if
       IsSome : Boolean
         Local $opt.0 : Option<Point>
-      val $res.1: Option<Int>
+      val local2
         SomeWrap : Option<Int>
           FieldAccess field 0 : Int
             Unwrap trap=false : Point
               Local $opt.0 : Option<Point>
     else
-      val $res.1: Option<Int>
+      val local2
         NoneLiteral : Option<Int>
-    val x: Option<Int>
+    val local3
       Local $res.1 : Option<Int>
   entry main
 ";
@@ -402,27 +423,30 @@ fn elvis_desugars_to_hidden_locals() {
             val("b", elvis(var("a"), int_lit(0))),
         ],
     )]);
-    let module = lower(&file).expect("elvis must lower");
+    let module = lower_user(file).expect("elvis must lower");
     let expected = "\
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val a: Option<Int>
-      SomeWrap : Option<Int>
+    val local0
+      VariantConstruct Option.Some<Int> : Option<Int>
         IntLiteral 41 : Int
-    val $opt.0: Option<Int>
+    val local1
       Local a : Option<Int>
     if
       IsSome : Boolean
         Local $opt.0 : Option<Int>
-      val $res.1: Int
+      val local2
         Unwrap trap=false : Int
           Local $opt.0 : Option<Int>
     else
-      val $res.1: Int
+      val local2
         IntLiteral 0 : Int
-    val b: Int
+    val local3
       Local $res.1 : Int
   entry main
 ";
@@ -448,13 +472,26 @@ fn chained_safe_field_access() {
             ],
         ),
     ]);
-    let module = lower(&file).expect("chained safe access must lower");
+    let module = lower_user(file).expect("chained safe access must lower");
     let dump = hir::dump(&module);
-    // w?.p : Option<Point>, then ?.x : Option<Int>.
-    assert!(dump.contains("val $opt.0: Option<Wrap>"), "{dump}");
-    assert!(dump.contains("val $res.1: Option<Point>"), "{dump}");
-    assert!(dump.contains("val $opt.2: Option<Point>"), "{dump}");
-    assert!(dump.contains("val x: Option<Int>"), "{dump}");
+    // w?.p : Option<Point>, then ?.x : Option<Int>. Hidden locals are
+    // numbered per body: w, $opt.0, $res.1, $opt.2, $res.3, x.
+    assert!(
+        dump.contains("val local1\n      Local w : Option<Wrap>"),
+        "{dump}"
+    );
+    assert!(
+        dump.contains("val local2\n        SomeWrap : Option<Point>"),
+        "{dump}"
+    );
+    assert!(
+        dump.contains("val local3\n      Local $res.1 : Option<Point>"),
+        "{dump}"
+    );
+    assert!(
+        dump.contains("val local5\n      Local $res.3 : Option<Int>"),
+        "{dump}"
+    );
 }
 
 #[test]
@@ -467,10 +504,10 @@ fn null_assert_unwraps_with_trap() {
             stmt(call("println", vec![var("x")])),
         ],
     )]);
-    let module = lower(&file).expect("null assert must lower");
+    let module = lower_user(file).expect("null assert must lower");
     let dump = hir::dump(&module);
     assert!(
-        dump.contains("val x: Int\n      Unwrap trap=true : Int\n        Local a : Option<Int>"),
+        dump.contains("val local1\n      Unwrap trap=true : Int\n        Local a : Option<Int>"),
         "{dump}"
     );
 }
@@ -494,9 +531,12 @@ fn none_equality_comparison() {
                 ),
             ],
         )]);
-        let module = lower(&file).expect("`== None` must lower");
+        let module = lower_user(file).expect("`== None` must lower");
         let dump = hir::dump(&module);
-        assert!(dump.contains("NoneLiteral : Option<Int>"), "{dump}");
+        assert!(
+            dump.contains("VariantConstruct Option.None<Int> : Option<Int>"),
+            "{dump}"
+        );
     }
 }
 
@@ -514,7 +554,7 @@ fn return_type_mismatch_is_an_error() {
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("return mismatch must fail");
+    let errors = lower_user(file).expect_err("return mismatch must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -533,7 +573,7 @@ fn non_unit_function_must_end_with_return() {
             fun_sig("f", vec![], vec![], Some(ty_named("Int")), body),
             fun("main", vec![]),
         ]);
-        let errors = lower(&file).expect_err("missing return must fail");
+        let errors = lower_user(file).expect_err("missing return must fail");
         assert_eq!(errors.len(), 1);
         assert_eq!(
             errors[0].message,
@@ -548,7 +588,7 @@ fn bare_return_in_non_unit_function_is_an_error() {
         fun_sig("f", vec![], vec![], Some(ty_named("Int")), vec![ret(None)]),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("bare return must fail");
+    let errors = lower_user(file).expect_err("bare return must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -562,7 +602,7 @@ fn return_value_must_match_unit() {
         fun("main", vec![]),
         fun("f", vec![ret(Some(int_lit(1)))]),
     ]);
-    let errors = lower(&file).expect_err("non-Unit value in Unit function must fail");
+    let errors = lower_user(file).expect_err("non-Unit value in Unit function must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -576,7 +616,7 @@ fn expression_body_type_mismatch_is_an_error() {
         fun_expr("f", vec![], vec![], Some(ty_named("Int")), str_lit("s")),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("body mismatch must fail");
+    let errors = lower_user(file).expect_err("body mismatch must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -590,7 +630,7 @@ fn duplicate_type_parameter_is_an_error() {
         fun_sig("f", vec!["T", "T"], vec![], None, vec![]),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("duplicate type parameter must fail");
+    let errors = lower_user(file).expect_err("duplicate type parameter must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "duplicate type parameter `T`");
 }
@@ -607,7 +647,7 @@ fn duplicate_parameter_is_an_error() {
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("duplicate parameter must fail");
+    let errors = lower_user(file).expect_err("duplicate parameter must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "duplicate parameter `x`");
 }
@@ -615,7 +655,7 @@ fn duplicate_parameter_is_an_error() {
 #[test]
 fn generic_main_is_an_error() {
     let file = file(vec![fun_sig("main", vec!["T"], vec![], None, vec![])]);
-    let errors = lower(&file).expect_err("generic main must fail");
+    let errors = lower_user(file).expect_err("generic main must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "`main` must not be generic");
 }
@@ -637,7 +677,7 @@ fn unbound_type_argument_is_an_error() {
             vec![stmt(call("println", vec![call("f", vec![int_lit(1)])]))],
         ),
     ]);
-    let errors = lower(&file).expect_err("unbound type argument must fail");
+    let errors = lower_user(file).expect_err("unbound type argument must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "cannot infer type argument `T` for `f`");
 }
@@ -657,7 +697,7 @@ fn conflicting_type_arguments_are_an_error() {
             vec![val("x", call("f", vec![int_lit(1), str_lit("s")]))],
         ),
     ]);
-    let errors = lower(&file).expect_err("conflicting bindings must fail");
+    let errors = lower_user(file).expect_err("conflicting bindings must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -677,7 +717,7 @@ fn argument_type_mismatch_is_an_error() {
         ),
         fun("main", vec![stmt(call("f", vec![str_lit("s")]))]),
     ]);
-    let errors = lower(&file).expect_err("argument mismatch must fail");
+    let errors = lower_user(file).expect_err("argument mismatch must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -699,7 +739,7 @@ fn arithmetic_on_a_type_parameter_is_an_error() {
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("arithmetic on `T` must fail");
+    let errors = lower_user(file).expect_err("arithmetic on `T` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -720,7 +760,7 @@ fn print_of_a_type_parameter_is_an_error() {
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower(&file).expect_err("print of `T` must fail");
+    let errors = lower_user(file).expect_err("print of `T` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -733,7 +773,7 @@ fn print_of_a_type_parameter_is_an_error() {
 #[test]
 fn null_assert_on_non_option_is_an_error() {
     let file = file(vec![fun("main", vec![val("x", null_assert(int_lit(1)))])]);
-    let errors = lower(&file).expect_err("`!!` on Int must fail");
+    let errors = lower_user(file).expect_err("`!!` on Int must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -753,7 +793,7 @@ fn safe_field_access_on_non_option_is_an_error() {
             ],
         ),
     ]);
-    let errors = lower(&file).expect_err("`?.` on Point must fail");
+    let errors = lower_user(file).expect_err("`?.` on Point must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -767,7 +807,7 @@ fn elvis_on_non_option_is_an_error() {
         "main",
         vec![val("x", elvis(int_lit(1), int_lit(0)))],
     )]);
-    let errors = lower(&file).expect_err("`?:` on Int must fail");
+    let errors = lower_user(file).expect_err("`?:` on Int must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -784,7 +824,7 @@ fn elvis_right_hand_side_must_match() {
             val("x", elvis(var("a"), str_lit("s"))),
         ],
     )]);
-    let errors = lower(&file).expect_err("elvis rhs mismatch must fail");
+    let errors = lower_user(file).expect_err("elvis rhs mismatch must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
@@ -796,7 +836,7 @@ fn elvis_right_hand_side_must_match() {
 fn none_without_expected_type_is_an_error() {
     for init in [none(), some(none())] {
         let file = file(vec![fun("main", vec![val("x", init)])]);
-        let errors = lower(&file).expect_err("untyped `None` must fail");
+        let errors = lower_user(file).expect_err("untyped `None` must fail");
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].message, "cannot infer the type of `None`");
     }
@@ -805,11 +845,11 @@ fn none_without_expected_type_is_an_error() {
 #[test]
 fn some_arity_is_an_error() {
     let file = file(vec![fun("main", vec![val("x", call("Some", vec![]))])]);
-    let errors = lower(&file).expect_err("`Some` arity must fail");
+    let errors = lower_user(file).expect_err("`Some` arity must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "`Some` takes exactly 1 argument, but 0 were supplied"
+        "variant `Some` of `Option` takes exactly 1 argument, but 0 were supplied"
     );
 }
 
@@ -829,7 +869,7 @@ fn desugaring_in_while_condition_is_an_error() {
             while_stmt(elvis(var("a"), bool_lit(false)), vec![]),
         ],
     )]);
-    let errors = lower(&file).expect_err("elvis in while condition must fail");
+    let errors = lower_user(file).expect_err("elvis in while condition must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,

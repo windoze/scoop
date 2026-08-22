@@ -58,13 +58,16 @@ fn main() -> ExitCode {
                 ExitCode::SUCCESS
             }
             Err(diagnostics) => {
+                // Map each diagnostic's file index back to its input;
+                // diagnostics raised before loading finished (bad
+                // sysroot, unreadable file) fall back to the user file.
+                let inputs = scoopc::load_inputs(&file).unwrap_or_default();
+                let name = file.display().to_string();
                 let source = std::fs::read_to_string(&file).unwrap_or_default();
-                for diagnostic in &diagnostics {
-                    eprintln!(
-                        "{}",
-                        diagnostic.render(&file.display().to_string(), &source)
-                    );
-                }
+                eprintln!(
+                    "{}",
+                    scoopc::render_diagnostics(&diagnostics, &inputs, &name, &source)
+                );
                 ExitCode::FAILURE
             }
         },

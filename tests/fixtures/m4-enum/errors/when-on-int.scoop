@@ -1,0 +1,5 @@
+fun main() {
+    when (1) {
+        else -> println("x")
+    }
+}

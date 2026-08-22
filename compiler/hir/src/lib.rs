@@ -1,12 +1,13 @@
 //! HIR definitions and HIR meta: the data channel between HIR and MIR.
 //!
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.2 and
-//! `docs/milestone2/DESIGN.md` section 2.2.
+//! `docs/milestone4/DESIGN.md` section 3.2.
 //!
 //! Structural completeness rules (see AGENTS.md): every expression
 //! carries its resolved type (`Expr::ty`), every call carries its
-//! resolved target, field accesses carry a resolved `FieldRef`, and a
-//! module always has an entry point (`Module::entry`).
+//! resolved target and type arguments, patterns carry resolved
+//! variant/field indices and binding locals, and a module always has
+//! an entry point (`Module::entry`).
 
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
@@ -14,6 +15,7 @@ use scoop_ast::Span;
 pub type TypeId = Idx<Type>;
 pub type FunctionId = Idx<Function>;
 pub type StructId = Idx<StructDecl>;
+pub type EnumId = Idx<EnumDecl>;
 pub type LocalId = Idx<Local>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,16 +26,18 @@ pub enum Type {
     String,
     Struct(StructId),
     Tuple(Vec<TypeId>),
-    /// `Option<T>` — a compiler builtin until enums land in M4
-    /// (docs/milestone3/DESIGN.md 5.1).
-    Option(TypeId),
+    /// An enum type with resolved type arguments (empty for
+    /// non-generic enums). `Option<T>` is one of these since M4
+    /// (defined in `scoop.core`).
+    Enum(EnumId, Vec<TypeId>),
     /// A function type parameter, by index into
     /// `Function::type_params`. Only appears inside generic function
     /// bodies; instantiated MIR never contains it.
     Param(u32),
 }
 
-/// Structural type equality (tuple types are compared by elements).
+/// Structural type equality (tuple types are compared by elements,
+/// enum types by identity plus arguments).
 pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
     match (&module.types[a], &module.types[b]) {
         (Type::Unit, Type::Unit)
@@ -41,8 +45,6 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
         (Type::Struct(x), Type::Struct(y)) => x == y,
-        (Type::Option(x), Type::Option(y)) => types_equal(module, *x, *y),
-        (Type::Param(x), Type::Param(y)) => x == y,
         (Type::Tuple(xs), Type::Tuple(ys)) => {
             xs.len() == ys.len()
                 && xs
@@ -50,6 +52,15 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
                     .zip(ys.iter())
                     .all(|(x, y)| types_equal(module, *x, *y))
         }
+        (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
+            x == y
+                && x_args.len() == y_args.len()
+                && x_args
+                    .iter()
+                    .zip(y_args.iter())
+                    .all(|(x, y)| types_equal(module, *x, *y))
+        }
+        (Type::Param(x), Type::Param(y)) => x == y,
         _ => false,
     }
 }
@@ -62,11 +73,19 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Enum(id, args) => {
+            let name = &module.enums[*id].name;
+            if args.is_empty() {
+                name.clone()
+            } else {
+                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                format!("{}<{}>", name, inner.join(", "))
+            }
+        }
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, *t)).collect();
             format!("({})", inner.join(", "))
         }
-        Type::Option(inner) => format!("Option<{}>", type_name(module, *inner)),
         Type::Param(index) => format!("T{index}"),
     }
 }
@@ -76,17 +95,19 @@ pub struct Module {
     pub types: Arena<Type>,
     pub functions: Arena<Function>,
     pub structs: Arena<StructDecl>,
-    /// Top-level functions in declaration order (builtins included).
+    pub enums: Arena<EnumDecl>,
+    /// Top-level functions in declaration order (core library first,
+    /// then user code).
     pub top_level: Vec<FunctionId>,
     /// Well-known types, allocated first by hir-lower.
     pub unit: TypeId,
     pub int: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    /// Builtin output functions (temporary until M11, see
-    /// docs/milestone1/DESIGN.md 5.2 and milestone2 DESIGN.md 5.2).
-    pub print: FunctionId,
-    pub println: FunctionId,
+    /// The `Option` enum from `scoop.core` (the desugar target of
+    /// `T?`, spec 7.1). Guaranteed present: a core library without a
+    /// suitable `Option` definition is a driver-level error.
+    pub option_enum: EnumId,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Instantiation requests: (generic function, resolved type
@@ -107,6 +128,25 @@ pub struct StructDecl {
     pub name: String,
     pub fields: Vec<Field>,
     pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct EnumDecl {
+    pub name: String,
+    pub type_params: Vec<String>,
+    pub variants: Vec<Variant>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct Variant {
+    pub name: String,
+    /// Fields in declaration order; unit variants have none. Named and
+    /// constructor-style fields carry their names (and defaults),
+    /// positional fields have generated `_1`-style names.
+    pub fields: Vec<Field>,
+    /// Constructor-style default values (constant expressions in M4).
+    pub defaults: Vec<Option<Expr>>,
 }
 
 #[derive(Debug)]
@@ -137,13 +177,9 @@ pub struct Param {
 #[derive(Debug)]
 pub enum FunctionKind {
     User(Body),
-    Builtin(Builtin),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Builtin {
-    Print,
-    Println,
+    /// A `@Intrinsic("name")` function (spec 13.1); the name is
+    /// guaranteed to be in the compiler's intrinsic registry.
+    Intrinsic(String),
 }
 
 #[derive(Debug)]
@@ -173,7 +209,7 @@ pub enum StatementKind {
         value: Option<Expr>,
     },
     ValDecl {
-        local: LocalId,
+        pattern: Pattern,
         init: Expr,
     },
     Assign {
@@ -189,6 +225,49 @@ pub enum StatementKind {
     While {
         cond: Expr,
         body: Vec<Statement>,
+    },
+    /// Pattern `when` (spec 5); checked for exhaustiveness at HIR.
+    When(When),
+}
+
+#[derive(Debug)]
+pub struct When {
+    pub subject: Expr,
+    pub arms: Vec<WhenArm>,
+    pub else_body: Option<Vec<Statement>>,
+}
+
+#[derive(Debug)]
+pub struct WhenArm {
+    pub pattern: Pattern,
+    pub guard: Option<Expr>,
+    pub body: Vec<Statement>,
+    pub span: Span,
+}
+
+/// A fully resolved pattern (spec 4.6 / 5): variant/field positions
+/// are declaration indices, bindings are locals. Named and positional
+/// forms are both normalized to `(field index, subpattern)` pairs in
+/// declaration order.
+#[derive(Debug)]
+pub enum Pattern {
+    Binding {
+        local: LocalId,
+    },
+    Wildcard,
+    /// A literal matched by equality (the expression is a literal).
+    Literal(Expr),
+    Variant {
+        enum_id: EnumId,
+        /// Variant index in declaration order.
+        variant: u32,
+        /// `(field index, subpattern)` in declaration order.
+        fields: Vec<(u32, Pattern)>,
+    },
+    Tuple(Vec<Pattern>),
+    Struct {
+        struct_id: StructId,
+        fields: Vec<(u32, Pattern)>,
     },
 }
 
@@ -208,6 +287,15 @@ pub enum ExprKind {
     TupleLiteral(Vec<Expr>),
     StructInit {
         struct_id: StructId,
+        args: Vec<Expr>,
+    },
+    /// Variant construction (`Some(x)`, `Color.Red`, `E.Named(f = 1)`);
+    /// `args` are the variant's fields in declaration order, with
+    /// constructor-style defaults already filled in.
+    VariantConstruct {
+        enum_id: EnumId,
+        variant: u32,
+        type_args: Vec<TypeId>,
         args: Vec<Expr>,
     },
     Local(LocalId),
@@ -231,7 +319,8 @@ pub enum ExprKind {
         operand: Box<Expr>,
     },
     // The following are produced by hir-lower's Option desugaring
-    // (`?.` / `?:` / `!!`), not directly by surface syntax.
+    // (`?.` / `?:` / `!!`), not directly by surface syntax. MIR turns
+    // them into generic enum operations (spec 7.3).
     /// `Some(value)`.
     SomeWrap(Box<Expr>),
     /// The `None` literal; its type is `Expr::ty` (an `Option<T>`).
@@ -277,6 +366,11 @@ pub enum UnOp {
     Not,
 }
 
+/// The compiler's intrinsic registry (impl spec 2.10, M4 slice):
+/// signature rule + runtime symbol mapping live with the lowerers;
+/// this table is the single source of truth for valid names.
+pub const INTRINSIC_REGISTRY: &[&str] = &["rt_print", "rt_println"];
+
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
@@ -288,6 +382,22 @@ pub fn dump(module: &Module) -> String {
                 field.name,
                 type_name(module, field.ty)
             ));
+        }
+    }
+    for (_, decl) in module.enums.iter() {
+        let type_params = if decl.type_params.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", decl.type_params.join(", "))
+        };
+        out.push_str(&format!("  enum {}{}\n", decl.name, type_params));
+        for variant in &decl.variants {
+            let fields: Vec<String> = variant
+                .fields
+                .iter()
+                .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
+                .collect();
+            out.push_str(&format!("    {}({})\n", variant.name, fields.join(", ")));
         }
     }
     for &id in &module.top_level {
@@ -310,8 +420,8 @@ pub fn dump(module: &Module) -> String {
             type_name(module, function.return_ty)
         );
         match &function.kind {
-            FunctionKind::Builtin(builtin) => {
-                out.push_str(&format!("  fun {signature} <builtin {builtin:?}>\n"));
+            FunctionKind::Intrinsic(name) => {
+                out.push_str(&format!("  fun {signature} <intrinsic {name}>\n"));
             }
             FunctionKind::User(body) => {
                 out.push_str(&format!("  fun {signature}\n"));
@@ -355,14 +465,8 @@ fn dump_statements(
                     dump_expr(module, locals, value, indent + 1, out);
                 }
             }
-            StatementKind::ValDecl { local, init } => {
-                let local = &locals[*local];
-                let keyword = if local.mutable { "var" } else { "val" };
-                out.push_str(&format!(
-                    "{pad}{keyword} {}: {}\n",
-                    local.name,
-                    type_name(module, local.ty)
-                ));
+            StatementKind::ValDecl { pattern, init } => {
+                out.push_str(&format!("{pad}val {}\n", dump_pattern(pattern)));
                 dump_expr(module, locals, init, indent + 1, out);
             }
             StatementKind::Assign { local, value } => {
@@ -387,6 +491,56 @@ fn dump_statements(
                 dump_expr(module, locals, cond, indent + 1, out);
                 dump_statements(module, locals, body, indent + 1, out);
             }
+            StatementKind::When(when) => {
+                out.push_str(&format!("{pad}when\n"));
+                dump_expr(module, locals, &when.subject, indent + 1, out);
+                for arm in &when.arms {
+                    out.push_str(&format!(
+                        "{}  arm {}{}\n",
+                        pad,
+                        dump_pattern(&arm.pattern),
+                        if arm.guard.is_some() {
+                            " if <guard>"
+                        } else {
+                            ""
+                        }
+                    ));
+                    dump_statements(module, locals, &arm.body, indent + 2, out);
+                }
+                if let Some(else_body) = &when.else_body {
+                    out.push_str(&format!("{pad}  else\n"));
+                    dump_statements(module, locals, else_body, indent + 2, out);
+                }
+            }
+        }
+    }
+}
+
+/// Compact one-line pattern rendering for dumps.
+pub fn dump_pattern(pattern: &Pattern) -> String {
+    match pattern {
+        Pattern::Binding { local } => format!("local{}", local.into_raw()),
+        Pattern::Wildcard => "_".to_string(),
+        Pattern::Literal(expr) => format!("<lit {:?}>", expr.kind).chars().take(40).collect(),
+        Pattern::Variant {
+            variant, fields, ..
+        } => {
+            let fields: Vec<String> = fields
+                .iter()
+                .map(|(i, p)| format!("{i}: {}", dump_pattern(p)))
+                .collect();
+            format!("variant{}({})", variant, fields.join(", "))
+        }
+        Pattern::Tuple(elements) => {
+            let parts: Vec<String> = elements.iter().map(dump_pattern).collect();
+            format!("({})", parts.join(", "))
+        }
+        Pattern::Struct { fields, .. } => {
+            let fields: Vec<String> = fields
+                .iter()
+                .map(|(i, p)| format!("{i}: {}", dump_pattern(p)))
+                .collect();
+            format!("struct({})", fields.join(", "))
         }
     }
 }
@@ -411,6 +565,27 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!(
                 "{pad}StructInit {} : {ty}\n",
                 module.structs[*struct_id].name
+            ));
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
+        ExprKind::VariantConstruct {
+            enum_id,
+            variant,
+            type_args,
+            args,
+        } => {
+            let decl = &module.enums[*enum_id];
+            let type_args = if type_args.is_empty() {
+                String::new()
+            } else {
+                let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
+                format!("<{}>", args.join(", "))
+            };
+            out.push_str(&format!(
+                "{pad}VariantConstruct {}.{}{type_args} : {ty}\n",
+                decl.name, decl.variants[*variant as usize].name
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);

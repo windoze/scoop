@@ -186,10 +186,15 @@ fn spans_are_byte_offsets() {
 // --- diagnostics ----------------------------------------------------------
 
 #[test]
-fn unexpected_character() {
+fn annotation_in_statement_position() {
+    // M4: `@` lexes (annotations on function declarations); inside a body
+    // it gets a dedicated diagnostic.
     let (span, message) = err("fun main() {\n    @\n}\n");
     assert_eq!(span, Span::new(17, 18));
-    assert_eq!(message, "unexpected character `@`");
+    assert_eq!(
+        message,
+        "annotations are only allowed on function declarations (milestone M4)"
+    );
 }
 
 #[test]
@@ -232,10 +237,10 @@ fn val_without_initializer() {
 }
 
 #[test]
-fn top_level_must_be_fun_or_struct() {
+fn top_level_must_be_a_declaration() {
     let (span, message) = err("main() {}");
     assert_eq!(span, Span::new(0, 4));
-    assert_eq!(message, "expected `fun` or `struct`, found `main`");
+    assert_eq!(message, "expected `fun`, `struct` or `enum`, found `main`");
 }
 
 #[test]

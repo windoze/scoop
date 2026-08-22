@@ -24,6 +24,7 @@ scoop-mir-lower.workspace = true
 scoop-mir.workspace = true
 scoop-parser.workspace = true
 scoop-slib.workspace = true
+toml.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

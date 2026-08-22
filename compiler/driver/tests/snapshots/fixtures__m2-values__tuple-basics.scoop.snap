@@ -4,6 +4,15 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
   fun main()
     val t
       TupleLiteral
@@ -30,10 +39,13 @@ SourceFile
 
 == hir ==
 Module
-  fun print(): Unit <builtin Print>
-  fun println(): Unit <builtin Println>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
   fun main(): Unit
-    val t: (Int, String, Boolean)
+    val local0
       TupleLiteral : (Int, String, Boolean)
         IntLiteral 1 : Int
         StringLiteral "hello" : String
@@ -47,9 +59,9 @@ Module
     Call println : Unit
       FieldAccess _3 : Boolean
         Local t : (Int, String, Boolean)
-    val u: Unit
+    val local1
       UnitLiteral : Unit
-    val s: (Int)
+    val local2
       TupleLiteral : (Int)
         IntLiteral 42 : Int
     Call println : Unit
