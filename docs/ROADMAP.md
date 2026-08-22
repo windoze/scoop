@@ -31,9 +31,9 @@
 
 struct / tuple、字段访问、`val` / `var`、if / while、结构相等。
 
-### M3 泛型与 Option
+### M3 泛型与 Option ✅（2026-08-22 完成，设计见 `docs/milestone3/DESIGN.md`）
 
-单态化、`enum Option<T>`、`T?` 脱糖与 `?.` / `?:` / `!!`（spec 第 7 章）。Option 是核心设施，越早越好。
+单态化、`enum Option<T>`（暂为编译器内建）、`T?` 脱糖与 `?.` / `?:` / `!!`（spec 第 7 章）。Option 是核心设施，越早越好。
 
 ### M4 enum 与模式匹配
 

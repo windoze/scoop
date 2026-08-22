@@ -1,0 +1,7 @@
+fun <T> f(x: T) {
+    println(x)
+}
+
+fun main() {
+    f(1)
+}

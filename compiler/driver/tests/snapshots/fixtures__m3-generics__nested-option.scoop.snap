@@ -1,0 +1,268 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  fun main()
+    val a: Int??
+      Call Some
+        Call Some
+          IntLiteral 1
+    val b: Int??
+      Call Some
+        Var None
+    val c: Int??
+      Var None
+    Call println
+      Elvis
+        NullAssert
+          Var a
+        IntLiteral 0
+    Call println
+      Elvis
+        NullAssert
+          Var b
+        IntLiteral 0
+    Call println
+      Elvis
+        Elvis
+          Var c
+          Call Some
+            IntLiteral 3
+        IntLiteral 0
+
+== hir ==
+Module
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
+    val a: Option<Option<Int>>
+      SomeWrap : Option<Option<Int>>
+        SomeWrap : Option<Int>
+          IntLiteral 1 : Int
+    val b: Option<Option<Int>>
+      SomeWrap : Option<Option<Int>>
+        NoneLiteral : Option<Int>
+    val c: Option<Option<Int>>
+      NoneLiteral : Option<Option<Int>>
+    val $opt.0: Option<Int>
+      Unwrap trap=true : Option<Int>
+        Local a : Option<Option<Int>>
+    if
+      IsSome : Boolean
+        Local $opt.0 : Option<Int>
+      val $res.1: Int
+        Unwrap trap=false : Int
+          Local $opt.0 : Option<Int>
+    else
+      val $res.1: Int
+        IntLiteral 0 : Int
+    Call println : Unit
+      Local $res.1 : Int
+    val $opt.2: Option<Int>
+      Unwrap trap=true : Option<Int>
+        Local b : Option<Option<Int>>
+    if
+      IsSome : Boolean
+        Local $opt.2 : Option<Int>
+      val $res.3: Int
+        Unwrap trap=false : Int
+          Local $opt.2 : Option<Int>
+    else
+      val $res.3: Int
+        IntLiteral 0 : Int
+    Call println : Unit
+      Local $res.3 : Int
+    val $opt.4: Option<Option<Int>>
+      Local c : Option<Option<Int>>
+    if
+      IsSome : Boolean
+        Local $opt.4 : Option<Option<Int>>
+      val $res.5: Option<Int>
+        Unwrap trap=false : Option<Int>
+          Local $opt.4 : Option<Option<Int>>
+    else
+      val $res.5: Option<Int>
+        SomeWrap : Option<Int>
+          IntLiteral 3 : Int
+    val $opt.6: Option<Int>
+      Local $res.5 : Option<Int>
+    if
+      IsSome : Boolean
+        Local $opt.6 : Option<Int>
+      val $res.7: Int
+        Unwrap trap=false : Int
+          Local $opt.6 : Option<Int>
+    else
+      val $res.7: Int
+        IntLiteral 0 : Int
+    Call println : Unit
+      Local $res.7 : Int
+  entry main
+
+== mir ==
+Module
+  fun main @scoop_main() -> Unit
+    val a: Option<Option<Int>>
+      SomeWrap
+        SomeWrap
+          IntLiteral 1
+    val b: Option<Option<Int>>
+      SomeWrap
+        NoneLiteral
+    val c: Option<Option<Int>>
+      NoneLiteral
+    val $opt.0: Option<Int>
+      Unwrap trap=true
+        Local a
+    if
+      IsSome
+        Local $opt.0
+      val $res.1: Int
+        Unwrap trap=false
+          Local $opt.0
+    else
+      val $res.1: Int
+        IntLiteral 0
+    Call @scoop_rt_println_int direct
+      Local $res.1
+    val $opt.2: Option<Int>
+      Unwrap trap=true
+        Local b
+    if
+      IsSome
+        Local $opt.2
+      val $res.3: Int
+        Unwrap trap=false
+          Local $opt.2
+    else
+      val $res.3: Int
+        IntLiteral 0
+    Call @scoop_rt_println_int direct
+      Local $res.3
+    val $opt.4: Option<Option<Int>>
+      Local c
+    if
+      IsSome
+        Local $opt.4
+      val $res.5: Option<Int>
+        Unwrap trap=false
+          Local $opt.4
+    else
+      val $res.5: Option<Int>
+        SomeWrap
+          IntLiteral 3
+    val $opt.6: Option<Int>
+      Local $res.5
+    if
+      IsSome
+        Local $opt.6
+      val $res.7: Int
+        Unwrap trap=false
+          Local $opt.6
+    else
+      val $res.7: Int
+        IntLiteral 0
+    Call @scoop_rt_println_int direct
+      Local $res.7
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.cstr.0 = c"unwrap on None (function main)"
+  fun @scoop_main() -> void
+    local %0 a: {i1, {i1, i64}}
+    local %1 b: {i1, {i1, i64}}
+    local %2 c: {i1, {i1, i64}}
+    local %3 $opt.0: {i1, i64}
+    local %4 $res.1: i64
+    local %5 $opt.2: {i1, i64}
+    local %6 $res.3: i64
+    local %7 $opt.4: {i1, {i1, i64}}
+    local %8 $res.5: {i1, i64}
+    local %9 $opt.6: {i1, i64}
+    local %10 $res.7: i64
+  block entry
+    t0 = some_wrap 1 : {i1, i64}
+    t1 = some_wrap t0 : {i1, {i1, i64}}
+    store t1 -> local0
+    t2 = none : {i1, i64}
+    t3 = some_wrap t2 : {i1, {i1, i64}}
+    store t3 -> local1
+    t4 = none : {i1, {i1, i64}}
+    store t4 -> local2
+    t5 = is_some local0 : i1
+    cbr t5 then @unwrap.ok.1 else @unwrap.trap.2
+  block unwrap.ok.1
+    t6 = unwrap local0 : {i1, i64}
+    store t6 -> local3
+    t7 = is_some local3 : i1
+    cbr t7 then @if.then.3 else @if.else.4
+  block unwrap.trap.2
+    call @scoop_rt_trap(global0)
+    unreachable
+  block if.then.3
+    t8 = unwrap local3 : i64
+    store t8 -> local4
+    br @if.merge.5
+  block if.else.4
+    store 0 -> local4
+    br @if.merge.5
+  block if.merge.5
+    call @scoop_rt_println_int(local4)
+    t9 = aggregate () : {}
+    t10 = is_some local1 : i1
+    cbr t10 then @unwrap.ok.6 else @unwrap.trap.2
+  block unwrap.ok.6
+    t11 = unwrap local1 : {i1, i64}
+    store t11 -> local5
+    t12 = is_some local5 : i1
+    cbr t12 then @if.then.7 else @if.else.8
+  block if.then.7
+    t13 = unwrap local5 : i64
+    store t13 -> local6
+    br @if.merge.9
+  block if.else.8
+    store 0 -> local6
+    br @if.merge.9
+  block if.merge.9
+    call @scoop_rt_println_int(local6)
+    t14 = aggregate () : {}
+    store local2 -> local7
+    t15 = is_some local7 : i1
+    cbr t15 then @if.then.10 else @if.else.11
+  block if.then.10
+    t16 = unwrap local7 : {i1, i64}
+    store t16 -> local8
+    br @if.merge.12
+  block if.else.11
+    t17 = some_wrap 3 : {i1, i64}
+    store t17 -> local8
+    br @if.merge.12
+  block if.merge.12
+    store local8 -> local9
+    t18 = is_some local9 : i1
+    cbr t18 then @if.then.13 else @if.else.14
+  block if.then.13
+    t19 = unwrap local9 : i64
+    store t19 -> local10
+    br @if.merge.15
+  block if.else.14
+    store 0 -> local10
+    br @if.merge.15
+  block if.merge.15
+    call @scoop_rt_println_int(local10)
+    t20 = aggregate () : {}
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option<Option<Int>> size=24 align=8 refs=[]
+  layout Option<Int> size=16 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+1
+0
+3

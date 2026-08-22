@@ -6,8 +6,9 @@
 //!
 //! All locals become `alloca`s at the top of the entry block; SSA
 //! construction is left to LLVM's mem2reg. Temps are SSA values kept in a
-//! map. User functions are `void()`; runtime functions are declared at
-//! their call sites with the signature implied by the operands.
+//! map. Function signatures come from LIR (`params` / `return_ty`);
+//! runtime functions are declared at their call sites with the signature
+//! implied by the operands.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -105,9 +106,27 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
                 ));
                 globals.push(llvm_global);
             }
+            GlobalInit::CString(value) => {
+                // [N+1 x i8] c"...\00" (e.g. trap messages); private,
+                // only referenced from within the module.
+                let bytes = value.as_bytes();
+                let ty = i8_ty.array_type(bytes.len() as u32 + 1);
+                let llvm_global = llvm.add_global(ty, None, &global.symbol);
+                llvm_global.set_constant(true);
+                llvm_global.set_linkage(inkwell::module::Linkage::Private);
+                llvm_global.set_initializer(&context.const_string(bytes, true));
+                globals.push(llvm_global);
+            }
         }
     }
 
+    // Two passes: declare every function first so call sites never
+    // create shadow extern declarations (a forward call would
+    // otherwise declare the symbol as extern, and the later definition
+    // would be renamed with a `.N` suffix by LLVM, breaking the link).
+    for function in &module.functions {
+        declare_function(&context, &llvm, function)?;
+    }
     for function in &module.functions {
         emit_function(
             &context,
@@ -170,6 +189,11 @@ fn arena_index<T>(id: Idx<T>) -> usize {
     id.into_raw().into_u32() as usize
 }
 
+/// The (opaque) pointer type shared by all `LirType::Ptr` values.
+fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
+    context.ptr_type(AddressSpace::default())
+}
+
 /// Per-function emission state: everything instruction translation
 /// needs, bundled to keep signatures small.
 struct FnEmitter<'a, 'ctx> {
@@ -177,6 +201,7 @@ struct FnEmitter<'a, 'ctx> {
     llvm: &'a LlvmModule<'ctx>,
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
+    llvm_function: inkwell::values::FunctionValue<'ctx>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [GlobalValue<'ctx>],
     allocas: Vec<PointerValue<'ctx>>,
@@ -197,6 +222,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .build_load(ty, self.allocas[arena_index(id)], &function.locals[id].name)
                     .map_err(|e| CodegenError(format!("load %{}: {e}", function.locals[id].name)))?
             }
+            Value::Param(index) => self
+                .llvm_function
+                .get_nth_param(index)
+                .ok_or_else(|| CodegenError(format!("param {index} out of range")))?,
             Value::Temp(id) => *self.temps.get(&id).ok_or_else(|| {
                 CodegenError(format!(
                     "temp t{} used before definition",
@@ -307,11 +336,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             .map(Into::into)
                     })
                     .collect::<Result<_, _>>()?;
-                let fn_ty = match out {
-                    Some(temp) => {
-                        basic_ty(context, &function.temps[*temp].ty)?.fn_type(&param_tys, false)
+                let fn_ty = if symbol == scoop_lir::TRAP_SYMBOL {
+                    // Fixed runtime contract: void scoop_rt_trap(ptr).
+                    context
+                        .void_type()
+                        .fn_type(&[ptr_ty(context).into()], false)
+                } else {
+                    match out {
+                        Some(temp) => {
+                            basic_ty(context, &function.temps[*temp].ty)?.fn_type(&param_tys, false)
+                        }
+                        None => context.void_type().fn_type(&param_tys, false),
                     }
-                    None => context.void_type().fn_type(&param_tys, false),
                 };
                 let callee = self
                     .llvm
@@ -338,12 +374,148 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                 }
             }
+            Instruction::IsSome { out, operand } => {
+                // Representation fixed by the operand's LIR type (LIR
+                // meta, spec 7.4): niche pointer or `{ i1, T }` tag.
+                let operand_ty = function.value_ty(self.globals_arena, *operand);
+                let operand = self.value(*operand)?;
+                let name = format!("t{}", out.into_raw().into_u32());
+                let result: IntValue = match operand_ty {
+                    LirType::Ptr => builder
+                        .build_int_compare(
+                            IntPredicate::NE,
+                            operand.into_pointer_value(),
+                            ptr_ty(context).const_null(),
+                            &name,
+                        )
+                        .map_err(|e| {
+                            CodegenError(format!(
+                                "is_some @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?,
+                    _ => builder
+                        .build_extract_value(operand.into_struct_value(), 0, &name)
+                        .map_err(|e| {
+                            CodegenError(format!(
+                                "is_some @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?
+                        .into_int_value(),
+                };
+                self.temps.insert(*out, result.into());
+            }
+            Instruction::Unwrap { out, operand } => {
+                let operand_ty = function.value_ty(self.globals_arena, *operand);
+                let operand = self.value(*operand)?;
+                let result = match operand_ty {
+                    // Niche pointer: the payload is the pointer itself.
+                    LirType::Ptr => operand,
+                    _ => {
+                        let name = format!("t{}", out.into_raw().into_u32());
+                        builder
+                            .build_extract_value(operand.into_struct_value(), 1, &name)
+                            .map_err(|e| {
+                                CodegenError(format!(
+                                    "unwrap @{symbol}: {e}",
+                                    symbol = function.symbol
+                                ))
+                            })?
+                    }
+                };
+                self.temps.insert(*out, result);
+            }
+            Instruction::SomeWrap { out, value } => {
+                let out_ty = &function.temps[*out].ty;
+                let value = self.value(*value)?;
+                let result = match out_ty {
+                    // Niche pointer: `Some(p)` is the pointer itself.
+                    LirType::Ptr => value,
+                    _ => {
+                        let ty = basic_ty(context, out_ty)?.into_struct_type();
+                        let name = format!("t{}", out.into_raw().into_u32());
+                        let mut wrapped = ty.get_undef();
+                        for (index, element) in [
+                            (0, context.bool_type().const_int(1, false).into()),
+                            (1, value),
+                        ] {
+                            wrapped = builder
+                                .build_insert_value(wrapped, element, index, &name)
+                                .map_err(|e| {
+                                    CodegenError(format!(
+                                        "some_wrap @{symbol}: {e}",
+                                        symbol = function.symbol
+                                    ))
+                                })?
+                                .into_struct_value();
+                        }
+                        wrapped.into()
+                    }
+                };
+                self.temps.insert(*out, result);
+            }
+            Instruction::NoneConst { out } => {
+                let out_ty = &function.temps[*out].ty;
+                let result: BasicValueEnum = match out_ty {
+                    // Niche pointer: `None` is the null pointer.
+                    LirType::Ptr => ptr_ty(context).const_null().into(),
+                    _ => {
+                        // `{ false, undef }`: only the tag is meaningful.
+                        let ty = basic_ty(context, out_ty)?.into_struct_type();
+                        let name = format!("t{}", out.into_raw().into_u32());
+                        builder
+                            .build_insert_value(
+                                ty.get_undef(),
+                                context.bool_type().const_int(0, false),
+                                0,
+                                &name,
+                            )
+                            .map_err(|e| {
+                                CodegenError(format!(
+                                    "none @{symbol}: {e}",
+                                    symbol = function.symbol
+                                ))
+                            })?
+                            .into_struct_value()
+                            .into()
+                    }
+                };
+                self.temps.insert(*out, result);
+            }
         }
         Ok(())
     }
 }
 
-/// Translate one LIR function. All M2 user functions are `void()`.
+/// Translate one LIR function. Signature (parameters and return type)
+/// comes from LIR; parameters are SSA values (`Value::Param`).
+fn fn_type_of<'ctx>(
+    context: &'ctx Context,
+    function: &Function,
+) -> Result<inkwell::types::FunctionType<'ctx>, CodegenError> {
+    let param_tys: Vec<BasicMetadataTypeEnum> = function
+        .params
+        .iter()
+        .map(|ty| basic_ty(context, ty).map(Into::into))
+        .collect::<Result<_, _>>()?;
+    Ok(match &function.return_ty {
+        LirType::Void => context.void_type().fn_type(&param_tys, false),
+        return_ty => basic_ty(context, return_ty)?.fn_type(&param_tys, false),
+    })
+}
+
+/// Declare a function with its final symbol and signature.
+fn declare_function<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    function: &Function,
+) -> Result<(), CodegenError> {
+    let fn_ty = fn_type_of(context, function)?;
+    llvm.add_function(&function.symbol, fn_ty, None);
+    Ok(())
+}
+
 fn emit_function<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -352,8 +524,10 @@ fn emit_function<'ctx>(
     globals: &[GlobalValue<'ctx>],
     function: &Function,
 ) -> Result<(), CodegenError> {
-    let void_ty = context.void_type();
-    let llvm_function = llvm.add_function(&function.symbol, void_ty.fn_type(&[], false), None);
+    // Pre-declared in the first pass (see `emit_object`).
+    let llvm_function = llvm
+        .get_function(&function.symbol)
+        .expect("function declared in the first pass");
 
     // All blocks up front so terminators can reference them in any order.
     let mut blocks = Vec::with_capacity(function.blocks.len());
@@ -366,6 +540,7 @@ fn emit_function<'ctx>(
         llvm,
         builder,
         function,
+        llvm_function,
         globals_arena,
         globals,
         allocas: Vec::with_capacity(function.locals.len()),
@@ -410,10 +585,25 @@ fn emit_function<'ctx>(
                     )
                     .map_err(|e| CodegenError(format!("cbr @{}: {e}", block.name)))?;
             }
-            Terminator::Return => {
+            Terminator::Return { value } => {
+                let value = value
+                    .map(|value| emitter.value(value))
+                    .transpose()
+                    .map_err(|e: CodegenError| {
+                        CodegenError(format!("ret @{}: {}", function.symbol, e.0))
+                    })?;
                 builder
-                    .build_return(None)
+                    .build_return(
+                        value
+                            .as_ref()
+                            .map(|v| v as &dyn inkwell::values::BasicValue),
+                    )
                     .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+            }
+            Terminator::Unreachable => {
+                builder
+                    .build_unreachable()
+                    .map_err(|e| CodegenError(format!("unreachable @{}: {e}", function.symbol)))?;
             }
         }
     }
@@ -484,7 +674,7 @@ mod tests {
             blocks.alloc(BasicBlock {
                 name: name.to_string(),
                 instructions: vec![],
-                terminator: Terminator::Return,
+                terminator: Terminator::Return { value: None },
             })
         };
         let entry = placeholder(&mut blocks, "entry");
@@ -590,13 +780,15 @@ mod tests {
                     value: Value::Temp(t7),
                 },
             ],
-            terminator: Terminator::Return,
+            terminator: Terminator::Return { value: None },
         };
 
         Module {
             globals,
             functions: vec![Function {
                 symbol: "scoop_main".to_string(),
+                params: vec![],
+                return_ty: LirType::Void,
                 locals,
                 temps,
                 blocks,
@@ -619,6 +811,171 @@ mod tests {
         let module = values_module();
         let output =
             std::env::temp_dir().join(format!("scoop_codegen_test_{}.o", std::process::id()));
+        emit_object(&module, &output).expect("emit object");
+        let len = std::fs::metadata(&output)
+            .expect("object file exists")
+            .len();
+        assert!(len > 0, "object file is empty");
+        std::fs::remove_file(&output).ok();
+    }
+
+    /// An M3-shaped module: functions with parameters and return values,
+    /// both Option representations (niche pointer for `Option<String>`,
+    /// `{ i1, T }` tag for `Option<Int>`) exercised through IsSome /
+    /// Unwrap / SomeWrap / NoneConst, a CString global, a trap call and
+    /// an unreachable terminator.
+    fn option_module() -> Module {
+        let mut globals = Arena::default();
+        let trap_message = globals.alloc(Global {
+            symbol: "scoop.trap.0".to_string(),
+            init: GlobalInit::CString("unwrap on None".to_string()),
+        });
+
+        // fun @scoop.identity$I(x: i64) -> i64 = x
+        let mut identity_blocks = Arena::default();
+        let identity_entry = identity_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![],
+            terminator: Terminator::Return {
+                value: Some(Value::Param(0)),
+            },
+        });
+        let identity = Function {
+            symbol: "scoop.identity$I".to_string(),
+            params: vec![LirType::I64],
+            return_ty: LirType::I64,
+            locals: Arena::default(),
+            temps: Arena::default(),
+            blocks: identity_blocks,
+            entry: identity_entry,
+        };
+
+        // fun @scoop.option_ptr(o: ptr) -> i1: all four Option
+        // instructions on the niche-pointer representation.
+        let mut ptr_temps = Arena::default();
+        let ptr_t0 = ptr_temps.alloc(Temp { ty: LirType::I1 }); // is_some o
+        let ptr_t1 = ptr_temps.alloc(Temp { ty: LirType::Ptr }); // unwrap o
+        let ptr_t2 = ptr_temps.alloc(Temp { ty: LirType::Ptr }); // some_wrap t1
+        let ptr_t3 = ptr_temps.alloc(Temp { ty: LirType::Ptr }); // none
+        let ptr_t4 = ptr_temps.alloc(Temp { ty: LirType::I1 }); // is_some t3
+        let mut ptr_blocks = Arena::default();
+        let ptr_entry = ptr_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::IsSome {
+                    out: ptr_t0,
+                    operand: Value::Param(0),
+                },
+                Instruction::Unwrap {
+                    out: ptr_t1,
+                    operand: Value::Param(0),
+                },
+                Instruction::SomeWrap {
+                    out: ptr_t2,
+                    value: Value::Temp(ptr_t1),
+                },
+                Instruction::NoneConst { out: ptr_t3 },
+                Instruction::IsSome {
+                    out: ptr_t4,
+                    operand: Value::Temp(ptr_t3),
+                },
+            ],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(ptr_t4)),
+            },
+        });
+        let option_ptr = Function {
+            symbol: "scoop.option_ptr".to_string(),
+            params: vec![LirType::Ptr],
+            return_ty: LirType::I1,
+            locals: Arena::default(),
+            temps: ptr_temps,
+            blocks: ptr_blocks,
+            entry: ptr_entry,
+        };
+
+        // fun @scoop.option_tag(o: { i1, i64 }) -> { i1, i64 }: all four
+        // Option instructions on the tagged representation.
+        let tag_ty = LirType::Aggregate(vec![LirType::I1, LirType::I64]);
+        let mut tag_temps = Arena::default();
+        let tag_t0 = tag_temps.alloc(Temp { ty: LirType::I1 }); // is_some o
+        let tag_t1 = tag_temps.alloc(Temp { ty: LirType::I64 }); // unwrap o
+        let tag_t2 = tag_temps.alloc(Temp { ty: tag_ty.clone() }); // some_wrap t1
+        let tag_t3 = tag_temps.alloc(Temp { ty: tag_ty.clone() }); // none
+        let mut tag_blocks = Arena::default();
+        let tag_entry = tag_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::IsSome {
+                    out: tag_t0,
+                    operand: Value::Param(0),
+                },
+                Instruction::Unwrap {
+                    out: tag_t1,
+                    operand: Value::Param(0),
+                },
+                Instruction::SomeWrap {
+                    out: tag_t2,
+                    value: Value::Temp(tag_t1),
+                },
+                Instruction::NoneConst { out: tag_t3 },
+            ],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(tag_t2)),
+            },
+        });
+        let option_tag = Function {
+            symbol: "scoop.option_tag".to_string(),
+            params: vec![tag_ty.clone()],
+            return_ty: tag_ty,
+            locals: Arena::default(),
+            temps: tag_temps,
+            blocks: tag_blocks,
+            entry: tag_entry,
+        };
+
+        // fun @scoop.trap_on_none(): the `!!`-on-None path — trap call
+        // (noreturn) followed by unreachable.
+        let mut trap_blocks = Arena::default();
+        let trap_entry = trap_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![Instruction::Call {
+                out: None,
+                symbol: scoop_lir::TRAP_SYMBOL.to_string(),
+                args: vec![Value::Global(trap_message)],
+            }],
+            terminator: Terminator::Unreachable,
+        });
+        let trap_on_none = Function {
+            symbol: "scoop.trap_on_none".to_string(),
+            params: vec![],
+            return_ty: LirType::Void,
+            locals: Arena::default(),
+            temps: Arena::default(),
+            blocks: trap_blocks,
+            entry: trap_entry,
+        };
+
+        Module {
+            globals,
+            functions: vec![identity, option_ptr, option_tag, trap_on_none],
+            entry_symbol: "scoop.identity$I".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 16,
+                    align: 8,
+                    ref_field_offsets: vec![],
+                }],
+            },
+        }
+    }
+
+    #[test]
+    fn emits_m3_features() {
+        let module = option_module();
+        let output =
+            std::env::temp_dir().join(format!("scoop_codegen_m3_test_{}.o", std::process::id()));
         emit_object(&module, &output).expect("emit object");
         let len = std::fs::metadata(&output)
             .expect("object file exists")

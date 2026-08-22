@@ -30,9 +30,9 @@ Module
   struct Point
     field x: Int
     field y: Int
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     val p: Point
       StructInit Point : Point
         IntLiteral 1 : Int
@@ -116,9 +116,9 @@ fn tuples_and_indexing() {
     let module = lower(&file).expect("tuple program must lower");
     let expected = "\
 Module
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     var q: (Int, String)
       TupleLiteral : (Int, String)
         IntLiteral 1 : Int
@@ -219,9 +219,9 @@ fn var_rebinding_and_control_flow() {
     let module = lower(&file).expect("control flow program must lower");
     let expected = "\
 Module
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     var n: Int
       IntLiteral 0 : Int
     while
@@ -303,9 +303,9 @@ fn inner_scopes_shadow_and_do_not_leak() {
     let module = lower(&file).expect("shadowing program must lower");
     let expected = "\
 Module
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     val x: Int
       IntLiteral 1 : Int
     if

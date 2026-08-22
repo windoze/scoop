@@ -1,15 +1,15 @@
-//! Recursive-descent parser for the M2 subset: token vector -> AST.
+//! Recursive-descent parser for the M3 subset: token vector -> AST.
 //!
-//! M2 is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the first
+//! M3 is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the first
 //! error aborts parsing with a single spanned diagnostic. Constructs that
-//! are lexically recognizable but outside the subset (parameters, return
-//! type annotations, `enum`, `when`, `for`, string interpolation, field
-//! assignment) get dedicated "not supported" diagnostics rather than
-//! generic syntax errors. Expression parsing lives in `expr.rs`.
+//! are lexically recognizable but outside the subset (`enum`, `when`,
+//! `for`, string interpolation, field assignment) get dedicated "not
+//! supported" diagnostics rather than generic syntax errors. Expression
+//! parsing lives in `expr.rs`.
 
 use scoop_ast::{
-    Assign, Block, Decl, Diagnostic, Expr, FieldDecl, FunctionDecl, Ident, If, SourceFile, Span,
-    Statement, StatementKind, StructDecl, TypeRef, TypeRefKind, ValDecl, While,
+    Assign, Block, Decl, Diagnostic, Expr, FieldDecl, FunctionBody, FunctionDecl, Ident, If, Param,
+    SourceFile, Span, Statement, StatementKind, StructDecl, TypeRef, TypeRefKind, ValDecl, While,
 };
 
 use crate::lexer::{Token, TokenKind, lex};
@@ -90,36 +90,80 @@ impl Parser {
             TokenKind::Struct => Ok(Decl::Struct(self.parse_struct()?)),
             TokenKind::Ident(text) if text == "enum" => Err(Diagnostic::at(
                 self.peek().span,
-                "enums are not supported yet (milestone M2)",
+                "enums are not supported yet (milestone M3)",
             )),
             _ => self.unexpected("`fun` or `struct`"),
         }
     }
 
-    /// `fun <name>() { ... }` — M2 has no parameters and no return type
-    /// annotation.
+    /// `fun <T, ...>? <name>(<param>, ...)?: <ret>? <body>` — the type
+    /// parameter list sits between `fun` and the name (a `<` right after
+    /// `fun` is unambiguous here), parameters carry mandatory type
+    /// annotations, and the return type defaults to `Unit` when absent.
+    /// The body is a block or an expression body (`= expr`).
     fn parse_function(&mut self) -> Result<FunctionDecl, Diagnostic> {
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
+        let mut type_params = Vec::new();
+        if matches!(self.peek().kind, TokenKind::Less) {
+            self.bump();
+            loop {
+                type_params.push(self.expect_ident("type parameter name")?);
+                if matches!(self.peek().kind, TokenKind::Comma) {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+            self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
+        }
         let name = self.expect_ident("function name")?;
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
+        let mut params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RParen) {
-            return Err(Diagnostic::at(
-                self.peek().span,
-                "parameters are not supported yet (milestone M2)",
-            ));
+            loop {
+                let param_name = self.expect_ident("parameter name")?;
+                self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
+                let ty = self.parse_type_ref()?;
+                params.push(Param {
+                    span: Span::new(param_name.span.start, ty.span.end),
+                    name: param_name,
+                    ty,
+                });
+                if matches!(self.peek().kind, TokenKind::Comma) {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
         }
-        self.bump(); // `)`
-        if matches!(self.peek().kind, TokenKind::Colon) {
-            return Err(Diagnostic::at(
-                self.peek().span,
-                "return type annotations are not supported yet (milestone M2)",
-            ));
-        }
-        let body = self.parse_block()?;
+        self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+        let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+        let (body, end) = match self.peek().kind {
+            TokenKind::LBrace => {
+                let block = self.parse_block()?;
+                let end = block.span.end;
+                (FunctionBody::Block(block), end)
+            }
+            TokenKind::Equal => {
+                self.bump();
+                let expr = self.parse_expr()?;
+                let end = expr.span().end;
+                (FunctionBody::Expr(Box::new(expr)), end)
+            }
+            _ => return self.unexpected("`{` or `=`"),
+        };
         Ok(FunctionDecl {
             name,
-            span: Span::new(fun.span.start, body.span.end),
+            type_params,
+            params,
+            return_ty,
             body,
+            span: Span::new(fun.span.start, end),
         })
     }
 
@@ -148,7 +192,7 @@ impl Parser {
             if matches!(self.peek().kind, TokenKind::Equal) {
                 return Err(Diagnostic::at(
                     self.peek().span,
-                    "field default values are not supported yet (milestone M2)",
+                    "field default values are not supported yet (milestone M3)",
                 ));
             }
             fields.push(FieldDecl {
@@ -166,7 +210,7 @@ impl Parser {
         if matches!(self.peek().kind, TokenKind::LBrace) {
             return Err(Diagnostic::at(
                 self.peek().span,
-                "struct member declarations are not supported yet (milestone M2)",
+                "struct member declarations are not supported yet (milestone M3)",
             ));
         }
         Ok(StructDecl {
@@ -177,10 +221,23 @@ impl Parser {
     }
 
     /// A type annotation: a named type, `Unit` (also written `()`), or a
-    /// tuple type `(T1, T2, ...)`. Disambiguation mirrors expressions
-    /// (spec section 4.3): `(T)` is just `T` in parentheses, `(T,)` a
-    /// 1-tuple type.
+    /// tuple type `(T1, T2, ...)`, each with any number of `?` suffixes
+    /// (`T?` is `Option<T>`, and `T??` does not collapse — spec 7.1).
+    /// Parenthesized disambiguation mirrors expressions (spec section
+    /// 4.3): `(T)` is just `T` in parentheses, `(T,)` a 1-tuple type.
     pub(crate) fn parse_type_ref(&mut self) -> Result<TypeRef, Diagnostic> {
+        let mut ty = self.parse_type_atom()?;
+        while matches!(self.peek().kind, TokenKind::Question) {
+            let question = self.bump();
+            ty = TypeRef {
+                span: Span::new(ty.span.start, question.span.end),
+                kind: TypeRefKind::Nullable(Box::new(ty)),
+            };
+        }
+        Ok(ty)
+    }
+
+    fn parse_type_atom(&mut self) -> Result<TypeRef, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
             TokenKind::Ident(text) => {
@@ -277,6 +334,7 @@ impl Parser {
             TokenKind::Val | TokenKind::Var => self.parse_val_decl(),
             TokenKind::If => self.parse_if(),
             TokenKind::While => self.parse_while(),
+            TokenKind::Return => self.parse_return(),
             TokenKind::LBrace => {
                 let block = self.parse_block()?;
                 Ok(Statement {
@@ -286,7 +344,7 @@ impl Parser {
             }
             TokenKind::Ident(text) if text == "for" => Err(Diagnostic::at(
                 self.peek().span,
-                "`for` loops are not supported yet (milestone M2)",
+                "`for` loops are not supported yet (milestone M3)",
             )),
             // `name = ...` (a single `=`, not `==`) assigns to a local `var`.
             TokenKind::Ident(_) if matches!(self.tokens[self.pos + 1].kind, TokenKind::Equal) => {
@@ -381,6 +439,31 @@ impl Parser {
                 else_block,
                 span,
             }),
+        })
+    }
+
+    /// `return <expr>?` — a bare `return` (for `Unit` functions) ends at a
+    /// newline, `;`, `}`, or end of file; anything else is the return value.
+    fn parse_return(&mut self) -> Result<Statement, Diagnostic> {
+        let keyword = self.bump(); // `return`
+        let token = self.peek();
+        let has_value = !token.newline_before
+            && !matches!(
+                token.kind,
+                TokenKind::RBrace | TokenKind::Semicolon | TokenKind::Eof
+            );
+        let value = if has_value {
+            Some(self.parse_expr()?)
+        } else {
+            None
+        };
+        let end = value
+            .as_ref()
+            .map(|expr| expr.span().end)
+            .unwrap_or(keyword.span.end);
+        Ok(Statement {
+            span: Span::new(keyword.span.start, end),
+            kind: StatementKind::Return { value },
         })
     }
 

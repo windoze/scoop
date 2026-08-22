@@ -13,6 +13,19 @@
 //! structs, and the type layouts — including reference-field offsets,
 //! which the M9 GC depends on — are computed into the LIR meta. This
 //! stage never fails: all errors were already reported by hir-lower.
+//!
+//! M3: function signatures and Option. Parameters are SSA values
+//! (`Value::Param`), not stack slots — they are immutable, so no store
+//! ever targets them. `Unit`-returning functions are void at the LLVM
+//! level: their `return` carries no value (Unit values are still
+//! materialized as empty aggregates where produced; they are just
+//! never returned). `Option<T>` gets its spec 7.4 layout: the niche
+//! pointer form when `T` maps to `Ptr` (`None` = null), else the
+//! `{ i1 tag, T payload }` aggregate. The MIR Option nodes map onto
+//! the corresponding LIR instructions, which codegen translates
+//! mechanically per the out temp's type, and `!!` (`Unwrap` with
+//! `trap_on_none`) branches to a per-function shared trap block that
+//! calls `scoop_rt_trap` (noreturn) with a `CString` message global.
 
 use std::collections::HashMap;
 
@@ -33,13 +46,24 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         global_map.insert(id, global);
     }
 
-    // Tuple types encountered while mapping value types, in
+    // Tuple / Option types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
-    let mut tuples = Vec::new();
+    let mut layout_types = Vec::new();
+    // Trap message globals (`scoop.cstr.N`), numbered in creation order.
+    let mut cstr_count = 0usize;
     let functions = module
         .top_level
         .iter()
-        .map(|&id| lower_function(module, &module.functions[id], &global_map, &mut tuples))
+        .map(|&id| {
+            lower_function(
+                module,
+                &module.functions[id],
+                &global_map,
+                &mut globals,
+                &mut cstr_count,
+                &mut layout_types,
+            )
+        })
         .collect();
 
     lir::Module {
@@ -47,25 +71,25 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         functions,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {
-            layouts: layouts(module, &tuples),
+            layouts: layouts(module, &layout_types),
         },
     }
 }
 
 /// The meta layouts (DESIGN 2.4): the runtime `String` object header,
 /// the `Int` / `Boolean` scalars, every struct in declaration order,
-/// and every tuple type that appears in the module.
+/// and every tuple / Option type that appears in the module.
 fn layouts(module: &mir::Module, from_code: &[mir::Type]) -> Vec<lir::Layout> {
-    // Tuple types reachable from struct declarations appear even when
-    // no code value mentions them directly.
-    let mut tuples = Vec::new();
+    // Tuple / Option types reachable from struct declarations appear
+    // even when no code value mentions them directly.
+    let mut types = Vec::new();
     for (_, def) in module.structs.iter() {
         for field in &def.fields {
-            record_tuples(&field.ty, &mut tuples);
+            record_layout_types(&field.ty, &mut types);
         }
     }
     for ty in from_code {
-        record_tuples(ty, &mut tuples);
+        record_layout_types(ty, &mut types);
     }
 
     let mut layouts = vec![
@@ -77,13 +101,20 @@ fn layouts(module: &mir::Module, from_code: &[mir::Type]) -> Vec<lir::Layout> {
         let fields: Vec<mir::Type> = def.fields.iter().map(|field| field.ty.clone()).collect();
         layouts.push(aggregate_layout(module, def.name.clone(), &fields));
     }
-    for tuple in &tuples {
-        if let mir::Type::Tuple(elements) = tuple {
-            layouts.push(aggregate_layout(
-                module,
-                mir::type_name(module, tuple),
-                elements,
-            ));
+    for ty in &types {
+        match ty {
+            mir::Type::Tuple(elements) => {
+                layouts.push(aggregate_layout(
+                    module,
+                    mir::type_name(module, ty),
+                    elements,
+                ));
+            }
+            mir::Type::Option(inner) => {
+                layouts.push(option_layout(module, mir::type_name(module, ty), inner));
+            }
+            // `record_layout_types` only records tuples and Options.
+            _ => unreachable!("only tuple and Option types get layouts"),
         }
     }
     layouts
@@ -147,6 +178,24 @@ fn aggregate_shape(module: &mir::Module, fields: &[mir::Type]) -> (Vec<u64>, u64
     (offsets, size.next_multiple_of(align), align)
 }
 
+/// Layout of an `Option<T>` value (spec 7.4, DESIGN 2.4): when the
+/// payload maps to a pointer (String and future reference types) the
+/// Option is the pointer itself with `None` = null (the niche form —
+/// the value *is* the reference, hence `refs=[0]`); otherwise it is
+/// the `{ i1 tag, T payload }` aggregate at natural alignment.
+fn option_layout(module: &mir::Module, name: String, inner: &mir::Type) -> lir::Layout {
+    if lir_type(module, inner) == lir::LirType::Ptr {
+        lir::Layout {
+            name,
+            size: 8,
+            align: 8,
+            ref_field_offsets: vec![0],
+        }
+    } else {
+        aggregate_layout(module, name, &[mir::Type::Boolean, inner.clone()])
+    }
+}
+
 /// Size and alignment of a value of type `ty`. `String` is a
 /// reference (pointer-sized); aggregates recurse.
 fn size_align(module: &mir::Module, ty: &mir::Type) -> (u64, u64) {
@@ -168,6 +217,15 @@ fn size_align(module: &mir::Module, ty: &mir::Type) -> (u64, u64) {
             let (_, size, align) = aggregate_shape(module, elements);
             (size, align)
         }
+        mir::Type::Option(inner) => {
+            if lir_type(module, inner) == lir::LirType::Ptr {
+                (8, 8) // niche form: a pointer
+            } else {
+                let (_, size, align) =
+                    aggregate_shape(module, &[mir::Type::Boolean, inner.as_ref().clone()]);
+                (size, align)
+            }
+        }
     }
 }
 
@@ -185,6 +243,14 @@ fn collect_ref_offsets(module: &mir::Module, ty: &mir::Type, base: u64, offsets:
             .map(|field| field.ty.clone())
             .collect(),
         mir::Type::Tuple(elements) => elements.clone(),
+        mir::Type::Option(inner) if lir_type(module, inner) == lir::LirType::Ptr => {
+            // Niche form: the value itself is the reference (or null).
+            offsets.push(base);
+            return;
+        }
+        // Tag form: references are the payload's, at the payload's
+        // offset behind the `i1` tag.
+        mir::Type::Option(inner) => vec![mir::Type::Boolean, inner.as_ref().clone()],
         // Scalars contain no references.
         mir::Type::Unit | mir::Type::Int | mir::Type::Boolean => return,
     };
@@ -194,22 +260,27 @@ fn collect_ref_offsets(module: &mir::Module, ty: &mir::Type, base: u64, offsets:
     }
 }
 
-/// Record every tuple type reachable from `ty` (first-appearance
-/// order, duplicates skipped) so each gets a meta layout.
-fn record_tuples(ty: &mir::Type, tuples: &mut Vec<mir::Type>) {
-    if let mir::Type::Tuple(elements) = ty {
-        if !tuples.contains(ty) {
-            tuples.push(ty.clone());
-        }
-        for element in elements {
-            record_tuples(element, tuples);
-        }
+/// Record every tuple / Option type reachable from `ty`
+/// (first-appearance order, duplicates skipped) so each gets a meta
+/// layout.
+fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
+    let elements: &[mir::Type] = match ty {
+        mir::Type::Tuple(elements) => elements,
+        mir::Type::Option(inner) => std::slice::from_ref(inner.as_ref()),
+        _ => return,
+    };
+    if !types.contains(ty) {
+        types.push(ty.clone());
+    }
+    for element in elements {
+        record_layout_types(element, types);
     }
 }
 
 /// Map a MIR type onto its LIR value type (DESIGN 2.4): Unit is the
 /// empty aggregate, String a reference, struct / tuple literal
-/// aggregates of their mapped fields.
+/// aggregates of their mapped fields, and `Option<T>` either the niche
+/// pointer (payload maps to `Ptr`) or the `{ i1, T }` aggregate.
 fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
@@ -226,24 +297,36 @@ fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         mir::Type::Tuple(elements) => {
             lir::LirType::Aggregate(elements.iter().map(|e| lir_type(module, e)).collect())
         }
+        mir::Type::Option(inner) => {
+            let inner = lir_type(module, inner);
+            if inner == lir::LirType::Ptr {
+                inner // niche: `None` is the null pointer
+            } else {
+                lir::LirType::Aggregate(vec![lir::LirType::I1, inner])
+            }
+        }
     }
 }
 
-/// Map a primitive MIR binary operator onto its LIR operator and
-/// result type (aggregate equality has been expanded away in MIR).
-fn binary_op(op: mir::BinOp) -> (lir::BinOp, lir::LirType) {
+/// Map a primitive MIR binary operator onto its LIR operator, result
+/// type, and operand type (aggregate equality has been expanded away
+/// in MIR).
+fn binary_op(op: mir::BinOp) -> (lir::BinOp, lir::LirType, mir::Type) {
     use lir::LirType::*;
+    use mir::Type::*;
     match op {
-        mir::BinOp::IntAdd => (lir::BinOp::Add, I64),
-        mir::BinOp::IntSub => (lir::BinOp::Sub, I64),
-        mir::BinOp::IntMul => (lir::BinOp::Mul, I64),
-        mir::BinOp::IntDiv => (lir::BinOp::SDiv, I64),
-        mir::BinOp::IntLt => (lir::BinOp::Lt, I1),
-        mir::BinOp::IntLe => (lir::BinOp::Le, I1),
-        mir::BinOp::IntGt => (lir::BinOp::Gt, I1),
-        mir::BinOp::IntGe => (lir::BinOp::Ge, I1),
-        mir::BinOp::IntEq | mir::BinOp::BoolEq => (lir::BinOp::Eq, I1),
-        mir::BinOp::IntNe | mir::BinOp::BoolNe => (lir::BinOp::Ne, I1),
+        mir::BinOp::IntAdd => (lir::BinOp::Add, I64, Int),
+        mir::BinOp::IntSub => (lir::BinOp::Sub, I64, Int),
+        mir::BinOp::IntMul => (lir::BinOp::Mul, I64, Int),
+        mir::BinOp::IntDiv => (lir::BinOp::SDiv, I64, Int),
+        mir::BinOp::IntLt => (lir::BinOp::Lt, I1, Int),
+        mir::BinOp::IntLe => (lir::BinOp::Le, I1, Int),
+        mir::BinOp::IntGt => (lir::BinOp::Gt, I1, Int),
+        mir::BinOp::IntGe => (lir::BinOp::Ge, I1, Int),
+        mir::BinOp::IntEq => (lir::BinOp::Eq, I1, Int),
+        mir::BinOp::IntNe => (lir::BinOp::Ne, I1, Int),
+        mir::BinOp::BoolEq => (lir::BinOp::Eq, I1, Boolean),
+        mir::BinOp::BoolNe => (lir::BinOp::Ne, I1, Boolean),
         // Handled by the caller as short-circuit branches.
         mir::BinOp::And | mir::BinOp::Or => {
             unreachable!("`&&` / `||` are lowered by short-circuit expansion")
@@ -255,31 +338,61 @@ fn lower_function(
     module: &mir::Module,
     function: &mir::Function,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
-    tuples: &mut Vec<mir::Type>,
+    globals: &mut Arena<lir::Global>,
+    cstr_count: &mut usize,
+    layout_types: &mut Vec<mir::Type>,
 ) -> lir::Function {
-    // One LIR stack slot per MIR local, in declaration order.
-    let mut locals = Arena::new();
+    // Parameters are SSA values (`Value::Param`), not stack slots;
+    // they are immutable (M3), so no store ever targets them.
     let mut local_map = HashMap::new();
+    let params: Vec<lir::LirType> = function
+        .params
+        .iter()
+        .enumerate()
+        .map(|(index, param)| {
+            record_layout_types(&param.ty, layout_types);
+            local_map.insert(param.local, LocalSlot::Param(index as u32));
+            lir_type(module, &param.ty)
+        })
+        .collect();
+
+    // One LIR stack slot per non-parameter MIR local, in declaration
+    // order.
+    let mut locals = Arena::new();
     for (mir_id, local) in function.body.locals.iter() {
-        record_tuples(&local.ty, tuples);
+        if local_map.contains_key(&mir_id) {
+            continue; // a parameter
+        }
+        record_layout_types(&local.ty, layout_types);
         let lir_id = locals.alloc(lir::Local {
             name: local.name.clone(),
             ty: lir_type(module, &local.ty),
         });
-        local_map.insert(mir_id, lir_id);
+        local_map.insert(mir_id, LocalSlot::Slot(lir_id));
     }
+
+    // Unit-returning functions are void at the LLVM level (DESIGN 2.4).
+    record_layout_types(&function.return_ty, layout_types);
+    let returns_void = function.return_ty == mir::Type::Unit;
+    let return_ty = if returns_void {
+        lir::LirType::Void
+    } else {
+        lir_type(module, &function.return_ty)
+    };
 
     let mut blocks = Arena::new();
     let entry = blocks.alloc(lir::BasicBlock {
         name: "entry".to_string(),
         instructions: Vec::new(),
-        terminator: lir::Terminator::Return,
+        terminator: lir::Terminator::Return { value: None }, // placeholder, see FunctionLowerer
     });
     let mut lowerer = FunctionLowerer {
         module,
         mir_locals: &function.body.locals,
         global_map,
-        tuples,
+        globals,
+        cstr_count,
+        layout_types,
         local_map,
         locals,
         temps: Arena::new(),
@@ -287,12 +400,27 @@ fn lower_function(
         current: entry,
         block_count: 0,
         hidden_count: 0,
+        mir_return_ty: function.return_ty.clone(),
+        returns_void,
+        function_name: &function.name,
+        trap_block: None,
+        current_returns: false,
     };
     lowerer.lower_statements(&function.body.statements);
-    // The last block is still unsealed; the function ends in `return`.
-    lowerer.seal(lir::Terminator::Return);
+    if !lowerer.current_returns {
+        // Unit functions fall off the end with a bare return; non-Unit
+        // functions always end in `return` (hir-lower enforces it,
+        // DESIGN 1).
+        assert!(
+            returns_void,
+            "hir-lower requires non-Unit functions to end with `return`"
+        );
+        lowerer.seal(lir::Terminator::Return { value: None });
+    }
     lir::Function {
         symbol: function.symbol.clone(),
+        params,
+        return_ty,
         locals: lowerer.locals,
         temps: lowerer.temps,
         blocks: lowerer.blocks,
@@ -300,18 +428,32 @@ fn lower_function(
     }
 }
 
+/// Where a MIR local lives in LIR: parameters are SSA values, all
+/// other locals get stack slots.
+#[derive(Clone, Copy)]
+enum LocalSlot {
+    Slot(lir::LocalId),
+    Param(u32),
+}
+
 /// Per-function lowering state: locals, temps, and the basic blocks
 /// built so far. Invariant: the `current` block is always unsealed
 /// (its terminator is a placeholder); a block is sealed exactly when
-/// control flow leaves it.
+/// control flow leaves it. `current_returns` tracks whether the
+/// current block was sealed by a `return`, so structured control flow
+/// does not seal it again with a branch.
 struct FunctionLowerer<'a> {
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for `expr_ty`).
     mir_locals: &'a Arena<mir::Local>,
     global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
-    /// Sink for tuple types encountered in value types (meta layouts).
-    tuples: &'a mut Vec<mir::Type>,
-    local_map: HashMap<mir::LocalId, lir::LocalId>,
+    /// Sink for trap message globals (`scoop.cstr.N`).
+    globals: &'a mut Arena<lir::Global>,
+    cstr_count: &'a mut usize,
+    /// Sink for tuple / Option types encountered in value types (meta
+    /// layouts).
+    layout_types: &'a mut Vec<mir::Type>,
+    local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
     temps: Arena<lir::Temp>,
     blocks: Arena<lir::BasicBlock>,
@@ -319,6 +461,15 @@ struct FunctionLowerer<'a> {
     /// Counters for unique block / hidden-local names.
     block_count: usize,
     hidden_count: usize,
+    /// The function's MIR return type (`Unit` ⇒ void at LLVM level).
+    mir_return_ty: mir::Type,
+    returns_void: bool,
+    /// Source name, for trap messages.
+    function_name: &'a str,
+    /// The shared trap block for `!!` failures, created on first use.
+    trap_block: Option<lir::BlockId>,
+    /// Whether the current block was sealed by a `return` statement.
+    current_returns: bool,
 }
 
 impl FunctionLowerer<'_> {
@@ -327,13 +478,19 @@ impl FunctionLowerer<'_> {
         self.blocks.alloc(lir::BasicBlock {
             name: format!("{base}.{}", self.block_count),
             instructions: Vec::new(),
-            terminator: lir::Terminator::Return, // placeholder, see struct docs
+            terminator: lir::Terminator::Return { value: None }, // placeholder, see struct docs
         })
     }
 
     /// Seal the current block with its terminator.
     fn seal(&mut self, terminator: lir::Terminator) {
         self.blocks[self.current].terminator = terminator;
+    }
+
+    /// Make `block` the current (unsealed) block.
+    fn enter(&mut self, block: lir::BlockId) {
+        self.current = block;
+        self.current_returns = false;
     }
 
     fn push(&mut self, instruction: lir::Instruction) {
@@ -354,15 +511,38 @@ impl FunctionLowerer<'_> {
         })
     }
 
-    /// The LIR value type of a MIR type; tuple types are recorded for
-    /// the meta layouts on the way.
+    /// The value of a MIR local: a stack slot load, or the SSA
+    /// parameter itself.
+    fn local_value(&self, local: mir::LocalId) -> lir::Value {
+        match self.local_map[&local] {
+            LocalSlot::Slot(id) => lir::Value::Local(id),
+            LocalSlot::Param(index) => lir::Value::Param(index),
+        }
+    }
+
+    /// The stack slot of a MIR local that is stored to. Parameters are
+    /// immutable (M3), so stores never target them.
+    fn local_slot(&self, local: mir::LocalId) -> lir::LocalId {
+        match self.local_map[&local] {
+            LocalSlot::Slot(id) => id,
+            LocalSlot::Param(_) => {
+                unreachable!("parameters are immutable; stores never target them")
+            }
+        }
+    }
+
+    /// The LIR value type of a MIR type; tuple / Option types are
+    /// recorded for the meta layouts on the way.
     fn value_type(&mut self, ty: &mir::Type) -> lir::LirType {
-        record_tuples(ty, self.tuples);
+        record_layout_types(ty, self.layout_types);
         lir_type(self.module, ty)
     }
 
     /// The MIR type of an expression (MIR expressions don't carry
     /// types, so they are reconstructed from locals and struct defs).
+    /// `NoneLiteral` has no intrinsic type — it is always lowered with
+    /// its type from context (see `lower_expr`) and never reaches this
+    /// function.
     fn expr_ty(&self, expr: &mir::Expr) -> mir::Type {
         match expr {
             mir::Expr::StringConst(_) => mir::Type::String,
@@ -381,7 +561,7 @@ impl FunctionLowerer<'_> {
                 _ => unreachable!("field access on a non-aggregate"),
             },
             mir::Expr::Call(call) => match call.target.callee {
-                mir::Callee::User(_) => mir::Type::Unit,
+                mir::Callee::User(id) => self.module.functions[id].return_ty.clone(),
                 mir::Callee::Runtime(function) => match function {
                     mir::RuntimeFn::StringConcat => mir::Type::String,
                     mir::RuntimeFn::StringEq => mir::Type::Boolean,
@@ -413,6 +593,14 @@ impl FunctionLowerer<'_> {
                 mir::UnOp::IntNeg => mir::Type::Int,
                 mir::UnOp::BoolNot => mir::Type::Boolean,
             },
+            mir::Expr::SomeWrap(operand) => mir::Type::Option(Box::new(self.expr_ty(operand))),
+            // See the doc comment: typed by context, never reached here.
+            mir::Expr::NoneLiteral => unreachable!("NoneLiteral is typed by context"),
+            mir::Expr::IsSome(_) => mir::Type::Boolean,
+            mir::Expr::Unwrap { operand, .. } => match self.expr_ty(operand) {
+                mir::Type::Option(inner) => *inner,
+                _ => unreachable!("unwrap operand is an Option"),
+            },
         }
     }
 
@@ -425,30 +613,54 @@ impl FunctionLowerer<'_> {
     fn lower_statement(&mut self, statement: &mir::Statement) {
         match &statement.kind {
             mir::StatementKind::Expr(expr) => {
-                self.lower_expr(expr);
+                let ty = self.expr_ty(expr);
+                self.lower_expr(expr, &ty);
             }
             // Initialization and assignment are both stores into the
             // local's stack slot.
             mir::StatementKind::ValDecl { local, init } => {
-                let value = self.lower_expr(init);
+                let ty = self.mir_locals[*local].ty.clone();
+                let value = self.lower_expr(init, &ty);
                 self.push(lir::Instruction::Store {
-                    local: self.local_map[local],
+                    local: self.local_slot(*local),
                     value,
                 });
             }
             mir::StatementKind::Assign { local, value } => {
-                let value = self.lower_expr(value);
+                let ty = self.mir_locals[*local].ty.clone();
+                let value = self.lower_expr(value, &ty);
                 self.push(lir::Instruction::Store {
-                    local: self.local_map[local],
+                    local: self.local_slot(*local),
                     value,
                 });
+            }
+            mir::StatementKind::Return { value } => {
+                let value = match (self.returns_void, value) {
+                    (true, None) => None,
+                    // hir-lower emits bare `return` in Unit functions,
+                    // so this is defensive: evaluate the Unit value for
+                    // its instructions, but the void function does not
+                    // return it.
+                    (true, Some(value)) => {
+                        self.lower_expr(value, &mir::Type::Unit);
+                        None
+                    }
+                    (false, Some(value)) => {
+                        let ty = self.mir_return_ty.clone();
+                        Some(self.lower_expr(value, &ty))
+                    }
+                    // hir-lower: non-Unit functions return a value.
+                    (false, None) => unreachable!("non-Unit `return` without a value"),
+                };
+                self.seal(lir::Terminator::Return { value });
+                self.current_returns = true;
             }
             mir::StatementKind::If {
                 cond,
                 then_body,
                 else_body,
             } => {
-                let cond = self.lower_expr(cond);
+                let cond = self.lower_expr(cond, &mir::Type::Boolean);
                 let then_block = self.new_block("if.then");
                 let else_block = else_body.as_ref().map(|_| self.new_block("if.else"));
                 let merge_block = self.new_block("if.merge");
@@ -457,21 +669,26 @@ impl FunctionLowerer<'_> {
                     then_block,
                     else_block: else_block.unwrap_or(merge_block),
                 });
-                self.current = then_block;
+                self.enter(then_block);
                 self.lower_statements(then_body);
-                self.seal(lir::Terminator::Br(merge_block));
-                if let (Some(else_body), Some(else_block)) = (else_body, else_block) {
-                    self.current = else_block;
-                    self.lower_statements(else_body);
+                // A branch ending in `return` is sealed already.
+                if !self.current_returns {
                     self.seal(lir::Terminator::Br(merge_block));
                 }
-                self.current = merge_block;
+                if let (Some(else_body), Some(else_block)) = (else_body, else_block) {
+                    self.enter(else_block);
+                    self.lower_statements(else_body);
+                    if !self.current_returns {
+                        self.seal(lir::Terminator::Br(merge_block));
+                    }
+                }
+                self.enter(merge_block);
             }
             mir::StatementKind::While { cond, body } => {
                 let cond_block = self.new_block("while.cond");
                 self.seal(lir::Terminator::Br(cond_block));
-                self.current = cond_block;
-                let cond = self.lower_expr(cond);
+                self.enter(cond_block);
+                let cond = self.lower_expr(cond, &mir::Type::Boolean);
                 let body_block = self.new_block("while.body");
                 let exit_block = self.new_block("while.exit");
                 self.seal(lir::Terminator::CondBr {
@@ -479,38 +696,58 @@ impl FunctionLowerer<'_> {
                     then_block: body_block,
                     else_block: exit_block,
                 });
-                self.current = body_block;
+                self.enter(body_block);
                 self.lower_statements(body);
-                self.seal(lir::Terminator::Br(cond_block));
-                self.current = exit_block;
+                if !self.current_returns {
+                    self.seal(lir::Terminator::Br(cond_block));
+                }
+                self.enter(exit_block);
             }
         }
     }
 
-    /// Lower an expression, appending its instructions to the current
-    /// block, and return the value it evaluates to.
-    fn lower_expr(&mut self, expr: &mir::Expr) -> lir::Value {
+    /// Lower an expression of MIR type `ty`, appending its
+    /// instructions to the current block, and return the value it
+    /// evaluates to. The type comes from the context (the local's
+    /// declared type, the callee's parameter type, the enclosing
+    /// aggregate's field type, ...); MIR expressions carry none, and
+    /// `NoneLiteral` is only meaningful with this context type.
+    fn lower_expr(&mut self, expr: &mir::Expr, ty: &mir::Type) -> lir::Value {
         match expr {
             mir::Expr::StringConst(id) => lir::Value::Global(self.global_map[id]),
             mir::Expr::IntLiteral(value) => lir::Value::IntConst(*value),
             mir::Expr::BoolLiteral(value) => lir::Value::BoolConst(*value),
             mir::Expr::UnitLiteral => self.unit_value(),
             mir::Expr::TupleLiteral(elements) => {
-                let ty = self.expr_ty(expr);
-                let elements: Vec<lir::Value> =
-                    elements.iter().map(|e| self.lower_expr(e)).collect();
+                let mir::Type::Tuple(element_types) = ty else {
+                    unreachable!("a tuple literal has a tuple type")
+                };
+                let element_types = element_types.clone();
+                let elements: Vec<lir::Value> = elements
+                    .iter()
+                    .zip(&element_types)
+                    .map(|(element, ty)| self.lower_expr(element, ty))
+                    .collect();
                 self.make_aggregate(ty, elements)
             }
-            mir::Expr::StructInit { args, .. } => {
-                let ty = self.expr_ty(expr);
-                let args: Vec<lir::Value> = args.iter().map(|arg| self.lower_expr(arg)).collect();
+            mir::Expr::StructInit { struct_id, args } => {
+                let field_types: Vec<mir::Type> = self.module.structs[*struct_id]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty.clone())
+                    .collect();
+                let args: Vec<lir::Value> = args
+                    .iter()
+                    .zip(&field_types)
+                    .map(|(arg, ty)| self.lower_expr(arg, ty))
+                    .collect();
                 self.make_aggregate(ty, args)
             }
-            mir::Expr::Local(local) => lir::Value::Local(self.local_map[local]),
+            mir::Expr::Local(local) => self.local_value(*local),
             mir::Expr::FieldAccess { receiver, index } => {
-                let ty = self.expr_ty(expr);
-                let aggregate = self.lower_expr(receiver);
-                let ty = self.value_type(&ty);
+                let receiver_ty = self.expr_ty(receiver);
+                let aggregate = self.lower_expr(receiver, &receiver_ty);
+                let ty = self.value_type(ty);
                 let out = self.new_temp(ty);
                 self.push(lir::Instruction::ExtractValue {
                     out,
@@ -519,14 +756,14 @@ impl FunctionLowerer<'_> {
                 });
                 lir::Value::Temp(out)
             }
-            mir::Expr::Call(call) => self.lower_call(call),
+            mir::Expr::Call(call) => self.lower_call(call, ty),
             mir::Expr::Binary { op, lhs, rhs } => match op {
                 mir::BinOp::And => self.lower_short_circuit(lhs, rhs, true),
                 mir::BinOp::Or => self.lower_short_circuit(lhs, rhs, false),
                 _ => {
-                    let (lir_op, ty) = binary_op(*op);
-                    let lhs = self.lower_expr(lhs);
-                    let rhs = self.lower_expr(rhs);
+                    let (lir_op, ty, operand_ty) = binary_op(*op);
+                    let lhs = self.lower_expr(lhs, &operand_ty);
+                    let rhs = self.lower_expr(rhs, &operand_ty);
                     let out = self.new_temp(ty);
                     self.push(lir::Instruction::BinOp {
                         out,
@@ -538,11 +775,11 @@ impl FunctionLowerer<'_> {
                 }
             },
             mir::Expr::Unary { op, operand } => {
-                let (lir_op, ty) = match op {
-                    mir::UnOp::IntNeg => (lir::UnOp::Neg, lir::LirType::I64),
-                    mir::UnOp::BoolNot => (lir::UnOp::Not, lir::LirType::I1),
+                let (lir_op, ty, operand_ty) = match op {
+                    mir::UnOp::IntNeg => (lir::UnOp::Neg, lir::LirType::I64, mir::Type::Int),
+                    mir::UnOp::BoolNot => (lir::UnOp::Not, lir::LirType::I1, mir::Type::Boolean),
                 };
-                let operand = self.lower_expr(operand);
+                let operand = self.lower_expr(operand, &operand_ty);
                 let out = self.new_temp(ty);
                 self.push(lir::Instruction::UnaryOp {
                     out,
@@ -551,20 +788,129 @@ impl FunctionLowerer<'_> {
                 });
                 lir::Value::Temp(out)
             }
+            // The Option nodes map onto the corresponding LIR
+            // instructions; the concrete representation (niche pointer
+            // or `{ i1, T }` tagged union) was fixed by `lir_type`, so
+            // codegen translates them mechanically per the out temp's
+            // type.
+            mir::Expr::SomeWrap(operand) => {
+                let mir::Type::Option(payload) = ty else {
+                    unreachable!("SomeWrap has an Option type")
+                };
+                let payload = payload.as_ref().clone();
+                let value = self.lower_expr(operand, &payload);
+                let ty = self.value_type(ty);
+                let out = self.new_temp(ty);
+                self.push(lir::Instruction::SomeWrap { out, value });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::NoneLiteral => {
+                let ty = self.value_type(ty);
+                let out = self.new_temp(ty);
+                self.push(lir::Instruction::NoneConst { out });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::IsSome(operand) => {
+                // mir-lower folds `isSome(None)`, so the operand type
+                // is always reconstructable here.
+                let operand_ty = self.expr_ty(operand);
+                record_layout_types(&operand_ty, self.layout_types);
+                let operand = self.lower_expr(operand, &operand_ty);
+                let out = self.new_temp(lir::LirType::I1);
+                self.push(lir::Instruction::IsSome { out, operand });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::Unwrap {
+                operand,
+                trap_on_none,
+            } => self.lower_unwrap(operand, *trap_on_none, ty),
         }
+    }
+
+    /// `unwrap` at payload type `ty`. With `trap_on_none` (`!!`), the
+    /// payload extraction is guarded by an `isSome` branch to the
+    /// function's shared trap block (DESIGN 2.4 / 5.3); without it
+    /// (`?.` / `?:` desugars, or the Option equality expansion), the
+    /// guard already exists in the surrounding control flow and the
+    /// instruction stands alone.
+    fn lower_unwrap(
+        &mut self,
+        operand: &mir::Expr,
+        trap_on_none: bool,
+        ty: &mir::Type,
+    ) -> lir::Value {
+        let option_ty = mir::Type::Option(Box::new(ty.clone()));
+        record_layout_types(&option_ty, self.layout_types);
+        let operand = self.lower_expr(operand, &option_ty);
+        if !trap_on_none {
+            let ty = self.value_type(ty);
+            let out = self.new_temp(ty);
+            self.push(lir::Instruction::Unwrap { out, operand });
+            return lir::Value::Temp(out);
+        }
+        let is_some = self.new_temp(lir::LirType::I1);
+        self.push(lir::Instruction::IsSome {
+            out: is_some,
+            operand,
+        });
+        let ok_block = self.new_block("unwrap.ok");
+        let trap_block = self.trap_block();
+        self.seal(lir::Terminator::CondBr {
+            cond: lir::Value::Temp(is_some),
+            then_block: ok_block,
+            else_block: trap_block,
+        });
+        self.enter(ok_block);
+        let ty = self.value_type(ty);
+        let out = self.new_temp(ty);
+        self.push(lir::Instruction::Unwrap { out, operand });
+        lir::Value::Temp(out)
+    }
+
+    /// The shared trap block for `!!` failures in this function (one
+    /// per function, created on first use): calls the runtime trap —
+    /// `void scoop_rt_trap(ptr)`, noreturn — with the message global
+    /// and ends `unreachable`.
+    fn trap_block(&mut self) -> lir::BlockId {
+        if let Some(block) = self.trap_block {
+            return block;
+        }
+        let message = format!("unwrap on None (function {})", self.function_name);
+        let symbol = format!("scoop.cstr.{}", *self.cstr_count);
+        *self.cstr_count += 1;
+        let global = self.globals.alloc(lir::Global {
+            symbol,
+            init: lir::GlobalInit::CString(message),
+        });
+        let block = self.new_block("unwrap.trap");
+        // Fill the trap block out of line; the caller seals the
+        // suspended current block with the conditional branch.
+        let saved = self.current;
+        let saved_returns = self.current_returns;
+        self.enter(block);
+        self.push(lir::Instruction::Call {
+            out: None,
+            symbol: lir::TRAP_SYMBOL.to_string(),
+            args: vec![lir::Value::Global(global)],
+        });
+        self.seal(lir::Terminator::Unreachable);
+        self.trap_block = Some(block);
+        self.current = saved;
+        self.current_returns = saved_returns;
+        block
     }
 
     /// Struct / tuple construction: an aggregate of the mapped field
     /// values in declaration order.
-    fn make_aggregate(&mut self, ty: mir::Type, elements: Vec<lir::Value>) -> lir::Value {
-        let ty = self.value_type(&ty);
+    fn make_aggregate(&mut self, ty: &mir::Type, elements: Vec<lir::Value>) -> lir::Value {
+        let ty = self.value_type(ty);
         let out = self.new_temp(ty);
         self.push(lir::Instruction::MakeAggregate { out, elements });
         lir::Value::Temp(out)
     }
 
-    /// The Unit value: an empty aggregate (M2 functions all return
-    /// Unit, so this is also the value of a void call).
+    /// The Unit value: an empty aggregate (void calls and Unit
+    /// literals produce it; void functions never return it).
     fn unit_value(&mut self) -> lir::Value {
         let out = self.new_temp(lir::LirType::Aggregate(Vec::new()));
         self.push(lir::Instruction::MakeAggregate {
@@ -586,7 +932,7 @@ impl FunctionLowerer<'_> {
         is_and: bool,
     ) -> lir::Value {
         let result = self.new_hidden_local(lir::LirType::I1);
-        let lhs = self.lower_expr(lhs);
+        let lhs = self.lower_expr(lhs, &mir::Type::Boolean);
         self.push(lir::Instruction::Store {
             local: result,
             value: lhs,
@@ -604,32 +950,72 @@ impl FunctionLowerer<'_> {
             then_block,
             else_block,
         });
-        self.current = rhs_block;
-        let rhs = self.lower_expr(rhs);
+        self.enter(rhs_block);
+        let rhs = self.lower_expr(rhs, &mir::Type::Boolean);
         self.push(lir::Instruction::Store {
             local: result,
             value: rhs,
         });
         self.seal(lir::Terminator::Br(merge_block));
-        self.current = merge_block;
+        self.enter(merge_block);
         lir::Value::Local(result)
     }
 
-    fn lower_call(&mut self, call: &mir::Call) -> lir::Value {
-        // Arguments are evaluated left to right, before the call.
-        let args: Vec<lir::Value> = call.args.iter().map(|arg| self.lower_expr(arg)).collect();
+    fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
         match call.target.callee {
             mir::Callee::User(id) => {
-                // All M2 user functions return Unit, i.e. void.
-                self.push(lir::Instruction::Call {
-                    out: None,
-                    symbol: self.module.functions[id].symbol.clone(),
-                    args,
-                });
-                self.unit_value()
+                let callee = &self.module.functions[id];
+                let param_types: Vec<mir::Type> =
+                    callee.params.iter().map(|param| param.ty.clone()).collect();
+                let returns_unit = callee.return_ty == mir::Type::Unit;
+                let symbol = callee.symbol.clone();
+                // Arguments are evaluated left to right, before the call.
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .zip(&param_types)
+                    .map(|(arg, ty)| self.lower_expr(arg, ty))
+                    .collect();
+                if returns_unit {
+                    // Unit => void at the LLVM level; the Unit value is
+                    // a fresh empty aggregate.
+                    self.push(lir::Instruction::Call {
+                        out: None,
+                        symbol,
+                        args,
+                    });
+                    self.unit_value()
+                } else {
+                    let ty = self.value_type(result_ty);
+                    let out = self.new_temp(ty);
+                    self.push(lir::Instruction::Call {
+                        out: Some(out),
+                        symbol,
+                        args,
+                    });
+                    lir::Value::Temp(out)
+                }
             }
             mir::Callee::Runtime(function) => {
                 let symbol = function.symbol().to_string();
+                let arg_types: Vec<mir::Type> = match function {
+                    mir::RuntimeFn::PrintString | mir::RuntimeFn::PrintlnString => {
+                        vec![mir::Type::String]
+                    }
+                    mir::RuntimeFn::PrintInt | mir::RuntimeFn::PrintlnInt => vec![mir::Type::Int],
+                    mir::RuntimeFn::PrintBoolean | mir::RuntimeFn::PrintlnBoolean => {
+                        vec![mir::Type::Boolean]
+                    }
+                    mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringEq => {
+                        vec![mir::Type::String, mir::Type::String]
+                    }
+                };
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .zip(&arg_types)
+                    .map(|(arg, ty)| self.lower_expr(arg, ty))
+                    .collect();
                 match function {
                     mir::RuntimeFn::StringConcat => {
                         self.call_with_result(symbol, args, lir::LirType::Ptr)
@@ -724,9 +1110,30 @@ mod tests {
             locals: Arena<mir::Local>,
             statements: Vec<mir::Statement>,
         ) -> mir::FunctionId {
+            self.user_fn_full(
+                name,
+                symbol,
+                Vec::new(),
+                mir::Type::Unit,
+                locals,
+                statements,
+            )
+        }
+
+        fn user_fn_full(
+            &mut self,
+            name: &str,
+            symbol: &str,
+            params: Vec<mir::Param>,
+            return_ty: mir::Type,
+            locals: Arena<mir::Local>,
+            statements: Vec<mir::Statement>,
+        ) -> mir::FunctionId {
             let id = self.functions.alloc(mir::Function {
                 name: name.to_string(),
                 symbol: symbol.to_string(),
+                params,
+                return_ty,
                 body: mir::Body { locals, statements },
             });
             self.top_level.push(id);
@@ -851,6 +1258,7 @@ mod tests {
             .iter()
             .map(|(_, g)| match &g.init {
                 lir::GlobalInit::StringConst(value) => (g.symbol.as_str(), value.as_str()),
+                lir::GlobalInit::CString(value) => (g.symbol.as_str(), value.as_str()),
             })
             .collect();
         assert_eq!(
@@ -869,12 +1277,12 @@ mod tests {
 Module
   global @scoop.str.0 = \"hello, world\"
   global @scoop.str.1 = \"!\"
-  fun @scoop.helper
+  fun @scoop.helper() -> void
   block entry
     call @scoop_rt_print(global1)
     t0 = aggregate () : {}
     ret
-  fun @scoop_main
+  fun @scoop_main() -> void
   block entry
     call @scoop_rt_println(global0)
     t0 = aggregate () : {}
@@ -914,7 +1322,7 @@ Module
 Module
   global @scoop.str.0 = \"ok\"
   global @scoop.str.1 = \"ng\"
-  fun @scoop_main
+  fun @scoop_main() -> void
   block entry
     cbr true then @if.then.1 else @if.else.2
   block if.then.1
@@ -966,7 +1374,7 @@ Module
 
         let expected = "\
 Module
-  fun @scoop_main
+  fun @scoop_main() -> void
     local %0 n: i64
   block entry
     store 0 -> local0
@@ -1020,7 +1428,7 @@ Module
   global @scoop.str.1 = \"b\"
   global @scoop.str.2 = \"c\"
   global @scoop.str.3 = \"d\"
-  fun @scoop_main
+  fun @scoop_main() -> void
     local %0 b: i1
     local %1 $sc.1: i1
   block entry
@@ -1065,7 +1473,7 @@ Module
 
         let expected = "\
 Module
-  fun @scoop_main
+  fun @scoop_main() -> void
     local %0 x: i1
     local %1 y: i1
     local %2 b: i1
@@ -1424,5 +1832,278 @@ Module
         let padded = by_name("(Boolean, Int)");
         assert_eq!((padded.size, padded.align), (16, 8));
         assert!(padded.ref_field_offsets.is_empty());
+    }
+
+    fn param(name: &str, ty: mir::Type, local: mir::LocalId) -> mir::Param {
+        mir::Param {
+            name: name.to_string(),
+            ty,
+            local,
+        }
+    }
+
+    fn option(inner: mir::Type) -> mir::Type {
+        mir::Type::Option(Box::new(inner))
+    }
+
+    fn return_stmt(value: mir::Expr) -> mir::Statement {
+        stmt(mir::StatementKind::Return { value: Some(value) })
+    }
+
+    #[test]
+    fn function_signatures_params_and_calls() {
+        let mut b = Builder::new();
+        // fun add(x: Int, y: Int): Int { return x + y }
+        let mut locals = Arena::new();
+        let x = locals.alloc(local("x", mir::Type::Int));
+        let y = locals.alloc(local("y", mir::Type::Int));
+        let add = b.user_fn_full(
+            "add",
+            "scoop.add",
+            vec![param("x", mir::Type::Int, x), param("y", mir::Type::Int, y)],
+            mir::Type::Int,
+            locals,
+            vec![return_stmt(binary(
+                mir::BinOp::IntAdd,
+                mir::Expr::Local(x),
+                mir::Expr::Local(y),
+            ))],
+        );
+        // main: val r = add(40, 2)
+        let mut main_locals = Arena::new();
+        let r = main_locals.alloc(local("r", mir::Type::Int));
+        let main = b.main(
+            main_locals,
+            vec![val_decl(
+                r,
+                mir::Expr::Call(mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(add),
+                    },
+                    args: vec![mir::Expr::IntLiteral(40), mir::Expr::IntLiteral(2)],
+                }),
+            )],
+        );
+        let module = lower(&b.finish(main));
+
+        // Parameters are SSA values (`Value::Param`), not stack slots;
+        // the add body has no locals at all.
+        let add_fn = &module.functions[0];
+        assert_eq!(add_fn.params, [lir::LirType::I64, lir::LirType::I64]);
+        assert_eq!(add_fn.return_ty, lir::LirType::I64);
+        assert_eq!(add_fn.locals.len(), 0);
+
+        let expected = "\
+Module
+  fun @scoop.add(i64, i64) -> i64
+  block entry
+    t0 = Add param0, param1 : i64
+    ret t0
+  fun @scoop_main() -> void
+    local %0 r: i64
+  block entry
+    t0 = call @scoop.add(40, 2) : i64
+    store t0 -> local0
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn return_inside_a_branch_seals_its_block() {
+        // fun f(x: Int): Int { if (true) { return x }; return 0 }
+        let mut b = Builder::new();
+        let mut locals = Arena::new();
+        let x = locals.alloc(local("x", mir::Type::Int));
+        let f = b.user_fn_full(
+            "f",
+            "scoop.f",
+            vec![param("x", mir::Type::Int, x)],
+            mir::Type::Int,
+            locals,
+            vec![
+                stmt(mir::StatementKind::If {
+                    cond: mir::Expr::BoolLiteral(true),
+                    then_body: vec![return_stmt(mir::Expr::Local(x))],
+                    else_body: None,
+                }),
+                return_stmt(mir::Expr::IntLiteral(0)),
+            ],
+        );
+        let _ = f;
+        let main = b.main(Arena::new(), vec![]);
+        let module = lower(&b.finish(main));
+
+        // The `return` seals the then block: no branch to the merge
+        // block follows it.
+        let expected = "\
+Module
+  fun @scoop.f(i64) -> i64
+  block entry
+    cbr true then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret param0
+  block if.merge.2
+    ret 0
+  fun @scoop_main() -> void
+  block entry
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    /// main holding `o: Option<T>` through a None / isSome / unwrap /
+    /// SomeWrap round-trip; shared shell of the two layout tests.
+    fn option_round_trip(option_ty: mir::Type, payload_ty: mir::Type) -> mir::Module {
+        let mut b = Builder::new();
+        let mut locals = Arena::new();
+        let o = locals.alloc(local("o", option_ty.clone()));
+        let flag = locals.alloc(local("b", mir::Type::Boolean));
+        let payload = locals.alloc(local("p", payload_ty));
+        let o2 = locals.alloc(local("o2", option_ty));
+        let main = b.main(
+            locals,
+            vec![
+                val_decl(o, mir::Expr::NoneLiteral),
+                val_decl(flag, mir::Expr::IsSome(Box::new(mir::Expr::Local(o)))),
+                val_decl(
+                    payload,
+                    mir::Expr::Unwrap {
+                        operand: Box::new(mir::Expr::Local(o)),
+                        trap_on_none: false,
+                    },
+                ),
+                val_decl(o2, mir::Expr::SomeWrap(Box::new(mir::Expr::Local(payload)))),
+            ],
+        );
+        b.finish(main)
+    }
+
+    #[test]
+    fn option_of_string_uses_the_niche_layout() {
+        // Option<String>: the payload maps to `Ptr`, so the Option is
+        // the pointer itself with None = null (spec 7.4).
+        let module = option_round_trip(option(mir::Type::String), mir::Type::String);
+        let module = lower(&module);
+
+        let expected = "\
+Module
+  fun @scoop_main() -> void
+    local %0 o: ptr
+    local %1 b: i1
+    local %2 p: ptr
+    local %3 o2: ptr
+  block entry
+    t0 = none : ptr
+    store t0 -> local0
+    t1 = is_some local0 : i1
+    store t1 -> local1
+    t2 = unwrap local0 : ptr
+    store t2 -> local2
+    t3 = some_wrap local2 : ptr
+    store t3 -> local3
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option<String> size=8 align=8 refs=[0]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn option_of_int_uses_the_tag_layout() {
+        // Option<Int>: the `{ i1 tag, Int payload }` aggregate.
+        let module = option_round_trip(option(mir::Type::Int), mir::Type::Int);
+        let module = lower(&module);
+
+        let expected = "\
+Module
+  fun @scoop_main() -> void
+    local %0 o: {i1, i64}
+    local %1 b: i1
+    local %2 p: i64
+    local %3 o2: {i1, i64}
+  block entry
+    t0 = none : {i1, i64}
+    store t0 -> local0
+    t1 = is_some local0 : i1
+    store t1 -> local1
+    t2 = unwrap local0 : i64
+    store t2 -> local2
+    t3 = some_wrap local2 : {i1, i64}
+    store t3 -> local3
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option<Int> size=16 align=8 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn trap_on_none_branches_to_a_shared_trap_block() {
+        // fun f(o: Option<Int>): Int { return o!! + o!! }
+        let mut b = Builder::new();
+        let option_int = option(mir::Type::Int);
+        let mut locals = Arena::new();
+        let o = locals.alloc(local("o", option_int.clone()));
+        let unwrap = || mir::Expr::Unwrap {
+            operand: Box::new(mir::Expr::Local(o)),
+            trap_on_none: true,
+        };
+        let f = b.user_fn_full(
+            "f",
+            "scoop.f",
+            vec![param("o", option_int, o)],
+            mir::Type::Int,
+            locals,
+            vec![return_stmt(binary(mir::BinOp::IntAdd, unwrap(), unwrap()))],
+        );
+        let _ = f;
+        let main = b.main(Arena::new(), vec![]);
+        let module = lower(&b.finish(main));
+
+        // Both `!!` share the one trap block of the function.
+        let expected = "\
+Module
+  global @scoop.cstr.0 = c\"unwrap on None (function f)\"
+  fun @scoop.f({i1, i64}) -> i64
+  block entry
+    t0 = is_some param0 : i1
+    cbr t0 then @unwrap.ok.1 else @unwrap.trap.2
+  block unwrap.ok.1
+    t1 = unwrap param0 : i64
+    t2 = is_some param0 : i1
+    cbr t2 then @unwrap.ok.3 else @unwrap.trap.2
+  block unwrap.trap.2
+    call @scoop_rt_trap(global0)
+    unreachable
+  block unwrap.ok.3
+    t3 = unwrap param0 : i64
+    t4 = Add t1, t3 : i64
+    ret t4
+  fun @scoop_main() -> void
+  block entry
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option<Int> size=16 align=8 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
     }
 }

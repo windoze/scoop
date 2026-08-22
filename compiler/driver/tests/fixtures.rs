@@ -55,29 +55,48 @@ fn fixtures() {
         let out_dir = workspace_root()
             .join("target/fixtures-out")
             .join(name.trim_end_matches(".scoop"));
+        let source = fs::read_to_string(&fixture)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", fixture.display()));
+        // Fixtures whose first line is `// EXPECT-TRAP` must compile and
+        // then abort at runtime (M3: `!!` on `None`); their stderr is
+        // snapshotted instead of stdout.
+        let expect_trap = source
+            .lines()
+            .next()
+            .is_some_and(|line| line.trim() == "// EXPECT-TRAP");
 
         let snapshot = match scoopc::compile_file(&fixture, &out_dir) {
             Ok(success) => {
                 let run = Command::new(&success.binary)
                     .output()
                     .unwrap_or_else(|e| panic!("cannot run {}: {e}", success.binary.display()));
-                assert!(
-                    run.status.success(),
-                    "{relative}: compiled binary exited with {}",
-                    run.status
-                );
+                let (run_section, output) = if expect_trap {
+                    assert!(
+                        !run.status.success(),
+                        "{relative}: expected a trap, but the binary exited with {}",
+                        run.status
+                    );
+                    (
+                        "== trap ==",
+                        String::from_utf8_lossy(&run.stderr).to_string(),
+                    )
+                } else {
+                    assert!(
+                        run.status.success(),
+                        "{relative}: compiled binary exited with {}",
+                        run.status
+                    );
+                    (
+                        "== run ==",
+                        String::from_utf8_lossy(&run.stdout).to_string(),
+                    )
+                };
                 format!(
-                    "== ast ==\n{}\n== hir ==\n{}\n== mir ==\n{}\n== lir ==\n{}\n== run ==\n{}",
-                    success.dumps.ast,
-                    success.dumps.hir,
-                    success.dumps.mir,
-                    success.dumps.lir,
-                    String::from_utf8_lossy(&run.stdout),
+                    "== ast ==\n{}\n== hir ==\n{}\n== mir ==\n{}\n== lir ==\n{}\n{run_section}\n{output}",
+                    success.dumps.ast, success.dumps.hir, success.dumps.mir, success.dumps.lir,
                 )
             }
             Err(diagnostics) => {
-                let source = fs::read_to_string(&fixture)
-                    .unwrap_or_else(|e| panic!("cannot read {}: {e}", fixture.display()));
                 let rendered = diagnostics
                     .iter()
                     .map(|d| d.render(&relative, &source))

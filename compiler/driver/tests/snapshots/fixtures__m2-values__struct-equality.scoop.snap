@@ -10,7 +10,7 @@ SourceFile
   struct Line
     field a: Point
     field b: Point
-  fun main
+  fun main()
     val p1
       Call Point
         IntLiteral 1
@@ -84,9 +84,9 @@ Module
   struct Line
     field a: Point
     field b: Point
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     val p1: Point
       StructInit Point : Point
         IntLiteral 1 : Int
@@ -157,7 +157,7 @@ Module
 Module
   struct Point (x: Int, y: Int)
   struct Line (a: Point, b: Point)
-  fun main @scoop_main
+  fun main @scoop_main() -> Unit
     val p1: Point
       StructInit Point
         IntLiteral 1
@@ -320,7 +320,7 @@ Module
   global @scoop.str.7 = "x"
   global @scoop.str.8 = "y"
   global @scoop.str.9 = "xy"
-  fun @scoop_main
+  fun @scoop_main() -> void
     local %0 p1: {i64, i64}
     local %1 p3: {i64, i64}
     local %2 l1: {{i64, i64}, {i64, i64}}

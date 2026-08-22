@@ -4,7 +4,7 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-  fun main
+  fun main()
     val t
       TupleLiteral
         IntLiteral 1
@@ -30,9 +30,9 @@ SourceFile
 
 == hir ==
 Module
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     val t: (Int, String, Boolean)
       TupleLiteral : (Int, String, Boolean)
         IntLiteral 1 : Int
@@ -59,7 +59,7 @@ Module
 
 == mir ==
 Module
-  fun main @scoop_main
+  fun main @scoop_main() -> Unit
     val t: (Int, String, Boolean)
       TupleLiteral
         IntLiteral 1
@@ -88,7 +88,7 @@ Module
 == lir ==
 Module
   global @scoop.str.0 = "hello"
-  fun @scoop_main
+  fun @scoop_main() -> void
     local %0 t: {i64, ptr, i1}
     local %1 u: {}
     local %2 s: {i64}

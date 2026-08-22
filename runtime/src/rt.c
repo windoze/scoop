@@ -60,6 +60,11 @@ void scoop_rt_println_boolean(bool value) {
     fputc('\n', stdout);
 }
 
+_Noreturn void scoop_rt_trap(const char *message) {
+    fprintf(stderr, "scoop: trap: %s\n", message);
+    abort();
+}
+
 int main(void) {
     scoop_main();
     return 0;

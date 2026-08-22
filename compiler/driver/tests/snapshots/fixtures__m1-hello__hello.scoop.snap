@@ -4,40 +4,40 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-  fun hello
+  fun hello()
     Call print
       StringLiteral "hello"
-  fun world
+  fun world()
     Call println
       StringLiteral ", world"
-  fun main
+  fun main()
     Call hello
     Call world
 
 == hir ==
 Module
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun hello
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun hello(): Unit
     Call print : Unit
       StringLiteral "hello" : String
-  fun world
+  fun world(): Unit
     Call println : Unit
       StringLiteral ", world" : String
-  fun main
+  fun main(): Unit
     Call hello : Unit
     Call world : Unit
   entry main
 
 == mir ==
 Module
-  fun hello @scoop.hello
+  fun hello @scoop.hello() -> Unit
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
-  fun world @scoop.world
+  fun world @scoop.world() -> Unit
     Call @scoop_rt_println direct
       StringConst @scoop.str.1
-  fun main @scoop_main
+  fun main @scoop_main() -> Unit
     Call @scoop.hello direct
     Call @scoop.world direct
   str @scoop.str.0 "hello"
@@ -48,17 +48,17 @@ Module
 Module
   global @scoop.str.0 = "hello"
   global @scoop.str.1 = ", world"
-  fun @scoop.hello
+  fun @scoop.hello() -> void
   block entry
     call @scoop_rt_print(global0)
     t0 = aggregate () : {}
     ret
-  fun @scoop.world
+  fun @scoop.world() -> void
   block entry
     call @scoop_rt_println(global1)
     t0 = aggregate () : {}
     ret
-  fun @scoop_main
+  fun @scoop_main() -> void
   block entry
     call @scoop.hello()
     t0 = aggregate () : {}

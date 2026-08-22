@@ -1,0 +1,5 @@
+fun <T> pick(a: T, b: T): T = a
+
+fun main() {
+    println(pick(1, "s"))
+}

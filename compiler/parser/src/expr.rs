@@ -1,8 +1,9 @@
-//! Expression parsing: precedence climbing over the M2 operator set.
+//! Expression parsing: precedence climbing over the M3 operator set.
 //!
-//! Precedence, low to high: `||` < `&&` < `== !=` < `< <= > >=` < `+ -` <
-//! `* /` < unary `- !` < postfix `.name` / `._n` < atoms. All binary
-//! operators are left-associative.
+//! Precedence, low to high: `?:` (right-associative) < `||` < `&&` <
+//! `== !=` < `< <= > >=` < `+ -` < `* /` < unary `- !` < postfix `.name` /
+//! `._n` / `?.name` / `!!` < atoms. All other binary operators are
+//! left-associative.
 
 use scoop_ast::{BinOp, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector, Ident, Span, UnOp};
 
@@ -42,12 +43,30 @@ fn tuple_index(text: &str) -> Option<u32> {
 
 impl Parser {
     pub(crate) fn parse_expr(&mut self) -> Result<Expr, Diagnostic> {
-        self.parse_binary(1)
+        self.parse_binary(0)
     }
 
     fn parse_binary(&mut self, min_precedence: u8) -> Result<Expr, Diagnostic> {
         let mut lhs = self.parse_unary()?;
-        while let Some((op, precedence)) = binary_op(&self.peek().kind) {
+        loop {
+            // `?:` sits one level below `||` (level 0) and is
+            // right-associative, so it is handled outside `binary_op`.
+            if matches!(self.peek().kind, TokenKind::QuestionColon) {
+                if min_precedence > 0 {
+                    break;
+                }
+                self.bump();
+                let rhs = self.parse_binary(0)?;
+                lhs = Expr::Elvis {
+                    span: Span::new(lhs.span().start, rhs.span().end),
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                };
+                continue;
+            }
+            let Some((op, precedence)) = binary_op(&self.peek().kind) else {
+                break;
+            };
             if precedence < min_precedence {
                 break;
             }
@@ -79,29 +98,69 @@ impl Parser {
         })
     }
 
+    /// Postfix operators share the highest precedence tier and chain left
+    /// to right: `.name` / `._n`, `?.name`, and `!!`.
     fn parse_postfix(&mut self) -> Result<Expr, Diagnostic> {
         let mut receiver = self.parse_atom()?;
-        while matches!(self.peek().kind, TokenKind::Dot) {
-            self.bump();
-            let token = self.peek().clone();
-            let TokenKind::Ident(text) = token.kind else {
-                return self.unexpected("field name or tuple index");
-            };
-            self.pos += 1;
-            let selector = match tuple_index(&text) {
-                Some(index) => FieldSelector::Index(index, token.span),
-                None => FieldSelector::Name(Ident {
-                    text,
-                    span: token.span,
-                }),
-            };
-            receiver = Expr::FieldAccess(FieldAccess {
-                span: Span::new(receiver.span().start, token.span.end),
-                receiver: Box::new(receiver),
-                selector,
-            });
+        loop {
+            match self.peek().kind {
+                TokenKind::Dot => {
+                    self.bump();
+                    receiver = self.parse_field_access(receiver, false)?;
+                }
+                TokenKind::QuestionDot => {
+                    self.bump();
+                    receiver = self.parse_field_access(receiver, true)?;
+                }
+                // `a!!` lexes as two adjacent `Bang` tokens — a single
+                // `!!` token would break the double negation `!!flag`,
+                // which is valid prefix syntax since M1.
+                TokenKind::Bang if self.at_null_assert() => {
+                    self.bump(); // first `!`
+                    let second = self.bump(); // second `!`
+                    receiver = Expr::NullAssert {
+                        span: Span::new(receiver.span().start, second.span.end),
+                        operand: Box::new(receiver),
+                    };
+                }
+                _ => break,
+            }
         }
         Ok(receiver)
+    }
+
+    /// True when the current `!` is immediately followed by another `!`
+    /// with no trivia in between (their spans touch).
+    fn at_null_assert(&self) -> bool {
+        let Some(next) = self.tokens.get(self.pos + 1) else {
+            return false;
+        };
+        matches!(next.kind, TokenKind::Bang) && next.span.start == self.peek().span.end
+    }
+
+    /// `.name` / `._n` (or `?.name` when `safe`). The dot token is already
+    /// consumed. `?.` accepts only named selectors (M3 has no methods, and
+    /// tuple indices stay plain-`.` only).
+    fn parse_field_access(&mut self, receiver: Expr, safe: bool) -> Result<Expr, Diagnostic> {
+        let token = self.peek().clone();
+        let TokenKind::Ident(text) = token.kind else {
+            return self.unexpected("field name or tuple index");
+        };
+        let selector = match tuple_index(&text) {
+            Some(index) if !safe => FieldSelector::Index(index, token.span),
+            Some(_) => return self.unexpected("field name"),
+            None => FieldSelector::Name(Ident {
+                text,
+                span: token.span,
+            }),
+        };
+        self.pos += 1;
+        Ok(Expr::FieldAccess(FieldAccess {
+            span: Span::new(receiver.span().start, token.span.end),
+            receiver: Box::new(receiver),
+            selector,
+            safe,
+        }))
     }
 
     fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
@@ -139,7 +198,7 @@ impl Parser {
                 if text == "when" {
                     return Err(Diagnostic::at(
                         token.span,
-                        "`when` expressions are not supported yet (milestone M2)",
+                        "`when` expressions are not supported yet (milestone M3)",
                     ));
                 }
                 self.pos += 1;

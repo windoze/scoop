@@ -1,0 +1,5 @@
+// EXPECT-TRAP
+fun main() {
+    val x: Int? = None
+    println(x!!)
+}

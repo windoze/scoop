@@ -1,0 +1,18 @@
+fun <T> unwrapOr(o: T?, fallback: T): T {
+    return o ?: fallback
+}
+
+fun <T> isPresent(o: T?): Boolean {
+    if (o == None) {
+        return false
+    }
+    return true
+}
+
+fun main() {
+    println(unwrapOr(Some(7), 0))
+    val e: Int? = None
+    println(unwrapOr(e, 9))
+    println(isPresent(Some("x")))
+    println(isPresent(e))
+}

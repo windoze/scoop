@@ -18,6 +18,9 @@ pub type BlockId = Idx<BasicBlock>;
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
 
+/// Runtime trap (M3: `!!` on `None`; M8: real exceptions).
+pub const TRAP_SYMBOL: &str = "scoop_rt_trap";
+
 /// A type after layout resolution: maps directly onto LLVM types.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LirType {
@@ -78,6 +81,8 @@ pub struct Global {
 pub enum GlobalInit {
     /// A `ScoopString` constant: header points at `STRING_TD_SYMBOL`.
     StringConst(String),
+    /// A NUL-terminated C string (e.g. trap messages).
+    CString(String),
 }
 
 /// A local variable's stack slot.
@@ -96,6 +101,9 @@ pub struct Temp {
 #[derive(Debug)]
 pub struct Function {
     pub symbol: String,
+    /// Parameter types; arguments are SSA values (`Value::Param`).
+    pub params: Vec<LirType>,
+    pub return_ty: LirType,
     pub locals: Arena<Local>,
     pub temps: Arena<Temp>,
     pub blocks: Arena<BasicBlock>,
@@ -109,6 +117,7 @@ impl Function {
         match value {
             Value::Local(id) => self.locals[id].ty.clone(),
             Value::Temp(id) => self.temps[id].ty.clone(),
+            Value::Param(index) => self.params[index as usize].clone(),
             Value::IntConst(_) => LirType::I64,
             Value::BoolConst(_) => LirType::I1,
             Value::Global(id) => {
@@ -131,6 +140,8 @@ pub struct BasicBlock {
 pub enum Value {
     /// Contents of a local's stack slot (loaded implicitly).
     Local(LocalId),
+    /// A function parameter (0-based).
+    Param(u32),
     Temp(TempId),
     IntConst(i64),
     BoolConst(bool),
@@ -165,13 +176,25 @@ pub enum Instruction {
     /// `store value -> local`'s stack slot.
     Store { local: LocalId, value: Value },
     /// Direct call. `out` is `None` exactly when the callee returns
-    /// void (all M2 user functions do); runtime functions with results
-    /// produce a Temp of the result type.
+    /// void; runtime functions with results produce a Temp of the
+    /// result type.
     Call {
         out: Option<TempId>,
         symbol: String,
         args: Vec<Value>,
     },
+    /// Option operations. The concrete representation (niche pointer
+    /// or `{ i1, T }` tagged union) was fixed by lir-lower per the
+    /// operand's type (spec 7.4), so codegen translates these
+    /// mechanically.
+    /// Test whether an `Option` value is `Some` (result `I1`).
+    IsSome { out: TempId, operand: Value },
+    /// Extract the payload (result = the `T` inside `Option<T>`).
+    Unwrap { out: TempId, operand: Value },
+    /// Wrap a payload into `Some(value)`.
+    SomeWrap { out: TempId, value: Value },
+    /// Produce `None` of the `out` temp's `Option<T>` type.
+    NoneConst { out: TempId },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -202,8 +225,12 @@ pub enum Terminator {
         then_block: BlockId,
         else_block: BlockId,
     },
-    /// All M2 functions return void (Unit).
-    Return,
+    /// `value` is absent exactly for void (Unit-returning) functions.
+    Return {
+        value: Option<Value>,
+    },
+    /// After a noreturn call (e.g. the trap function).
+    Unreachable,
 }
 
 /// Indented text dump for golden tests (`scoopc build --emit=lir`).
@@ -214,10 +241,19 @@ pub fn dump(module: &Module) -> String {
             GlobalInit::StringConst(value) => {
                 out.push_str(&format!("  global @{} = {:?}\n", global.symbol, value));
             }
+            GlobalInit::CString(value) => {
+                out.push_str(&format!("  global @{} = c{:?}\n", global.symbol, value));
+            }
         }
     }
     for function in &module.functions {
-        out.push_str(&format!("  fun @{}\n", function.symbol));
+        let params: Vec<String> = function.params.iter().map(LirType::dump).collect();
+        out.push_str(&format!(
+            "  fun @{}({}) -> {}\n",
+            function.symbol,
+            params.join(", "),
+            function.return_ty.dump()
+        ));
         for (id, local) in function.locals.iter() {
             out.push_str(&format!(
                 "    local %{} {}: {}\n",
@@ -246,7 +282,11 @@ pub fn dump(module: &Module) -> String {
                     block_name(function, *then_block),
                     block_name(function, *else_block)
                 )),
-                Terminator::Return => out.push_str("    ret\n"),
+                Terminator::Return { value } => match value {
+                    Some(value) => out.push_str(&format!("    ret {}\n", value_name(*value))),
+                    None => out.push_str("    ret\n"),
+                },
+                Terminator::Unreachable => out.push_str("    unreachable\n"),
             }
         }
     }
@@ -267,6 +307,7 @@ fn block_name(function: &Function, id: BlockId) -> String {
 fn value_name(value: Value) -> String {
     match value {
         Value::Local(id) => format!("local{}", id.into_raw()),
+        Value::Param(index) => format!("param{index}"),
         Value::Temp(id) => format!("t{}", id.into_raw()),
         Value::IntConst(value) => format!("{value}"),
         Value::BoolConst(value) => format!("{value}"),
@@ -329,5 +370,28 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
                 None => buf.push_str(&format!("    call @{}({})\n", symbol, args.join(", "))),
             }
         }
+        Instruction::IsSome { out, operand } => buf.push_str(&format!(
+            "    t{} = is_some {} : {}\n",
+            out.into_raw(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::Unwrap { out, operand } => buf.push_str(&format!(
+            "    t{} = unwrap {} : {}\n",
+            out.into_raw(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::SomeWrap { out, value } => buf.push_str(&format!(
+            "    t{} = some_wrap {} : {}\n",
+            out.into_raw(),
+            value_name(*value),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::NoneConst { out } => buf.push_str(&format!(
+            "    t{} = none : {}\n",
+            out.into_raw(),
+            function.temps[*out].ty.dump()
+        )),
     }
 }

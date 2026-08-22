@@ -4,22 +4,22 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-  fun main
+  fun main()
     Call print
       StringLiteral "hello, world"
 
 == hir ==
 Module
-  fun print <builtin Print>
-  fun println <builtin Println>
-  fun main
+  fun print(): Unit <builtin Print>
+  fun println(): Unit <builtin Println>
+  fun main(): Unit
     Call print : Unit
       StringLiteral "hello, world" : String
   entry main
 
 == mir ==
 Module
-  fun main @scoop_main
+  fun main @scoop_main() -> Unit
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
   str @scoop.str.0 "hello, world"
@@ -28,7 +28,7 @@ Module
 == lir ==
 Module
   global @scoop.str.0 = "hello, world"
-  fun @scoop_main
+  fun @scoop_main() -> void
   block entry
     call @scoop_rt_print(global0)
     t0 = aggregate () : {}
