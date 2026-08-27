@@ -1,0 +1,12 @@
+fun main() {
+    val a = [1, 2, 3]
+    println(a[0] + a.size)
+    val m: MutableArray<Int> = [4, 5]
+    m[0] = 40
+    println(m[0])
+    val b = Array(m)
+    m[0] = 99
+    println(b[0])
+    val e: Array<Int> = []
+    println(e.size)
+}

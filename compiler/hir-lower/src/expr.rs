@@ -33,7 +33,9 @@
 //! from arguments: a unit variant (`None`, `Color.Red` on a generic
 //! enum) takes its type arguments from the hint, and `Some(x)` seeds
 //! its inference from an expected `Option<T>` (this is what types
-//! `Some(None)` under an `Int??` annotation). Every other expression
+//! `Some(None)` under an `Int??` annotation). M5 adds a second
+//! consumer: array literals take their kind (`Array` vs `MutableArray`)
+//! and element type from an expected array type. Every other expression
 //! ignores the hint and mismatches are reported by the context's own
 //! type check.
 
@@ -105,6 +107,14 @@ impl Lowerer {
             ast::Expr::Unary { op, operand, span } => self.lower_unary(*op, operand, *span, sink),
             ast::Expr::NullAssert { operand, span } => self.lower_null_assert(operand, *span, sink),
             ast::Expr::Elvis { lhs, rhs, span } => self.lower_elvis(lhs, rhs, *span, sink),
+            ast::Expr::ArrayLiteral { elements, span } => {
+                self.lower_array_literal(elements, *span, sink, expected)
+            }
+            ast::Expr::Index {
+                receiver,
+                index,
+                span,
+            } => self.lower_index_read(receiver, index, *span, sink),
         }
     }
 
@@ -133,6 +143,116 @@ impl Lowerer {
         Some(hir::Expr {
             kind: ExprKind::TupleLiteral(lowered),
             ty,
+            span,
+        })
+    }
+
+    /// `[e1, ...]` (spec 10.2/10.3, milestone5 DESIGN.md 2.2). With an
+    /// expected `Array<U>` / `MutableArray<U>` the literal takes that
+    /// kind and every element must be exactly `U` (an empty literal is
+    /// only legal in this case); without an array expectation every
+    /// element must have exactly the same type and the result is
+    /// `Array<T>`. (An expected type of any other shape is ignored:
+    /// the context's own check reports the mismatch.)
+    fn lower_array_literal(
+        &mut self,
+        elements: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let expected_array = expected.and_then(|ty| match &self.types[ty] {
+            Type::Array(element) | Type::MutableArray(element) => Some((ty, *element)),
+            _ => None,
+        });
+        if let Some((array_ty, element_ty)) = expected_array {
+            let mut lowered = Vec::with_capacity(elements.len());
+            for element in elements {
+                let element = self.lower_expr(element, sink, Some(element_ty))?;
+                if !self.types_equal(element_ty, element.ty) {
+                    let expected = self.type_name(element_ty);
+                    let found = self.type_name(element.ty);
+                    self.error(
+                        element.span,
+                        format!("array literal element must be of type {expected}, found {found}"),
+                    );
+                    return None;
+                }
+                lowered.push(element);
+            }
+            return Some(hir::Expr {
+                kind: ExprKind::ArrayLiteral(lowered),
+                ty: array_ty,
+                span,
+            });
+        }
+        if elements.is_empty() {
+            self.error(
+                span,
+                "cannot infer the element type of an empty array literal".to_string(),
+            );
+            return None;
+        }
+        let mut lowered = Vec::with_capacity(elements.len());
+        for element in elements {
+            lowered.push(self.lower_expr(element, sink, None)?);
+        }
+        let first_ty = lowered[0].ty;
+        for element in &lowered[1..] {
+            if !self.types_equal(first_ty, element.ty) {
+                let first = self.type_name(first_ty);
+                let found = self.type_name(element.ty);
+                self.error(
+                    element.span,
+                    format!(
+                        "array literal elements must have the same type, found {first} and {found}"
+                    ),
+                );
+                return None;
+            }
+        }
+        let ty = self.intern_type(Type::Array(first_ty));
+        Some(hir::Expr {
+            kind: ExprKind::ArrayLiteral(lowered),
+            ty,
+            span,
+        })
+    }
+
+    /// `receiver[index]` (spec 10.5): the receiver must be an
+    /// `Array<T>` / `MutableArray<T>` and the index an `Int`; the
+    /// result is the element type `T`.
+    fn lower_index_read(
+        &mut self,
+        receiver: &ast::Expr,
+        index: &ast::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let receiver = self.lower_expr(receiver, sink, None)?;
+        let Some(element_ty) = self.array_element_ty(receiver.ty) else {
+            let found = self.type_name(receiver.ty);
+            self.error(
+                receiver.span,
+                format!("subscript is only supported on arrays, found {found}"),
+            );
+            return None;
+        };
+        let index = self.lower_expr(index, sink, Some(self.int))?;
+        if index.ty != self.int {
+            let found = self.type_name(index.ty);
+            self.error(
+                index.span,
+                format!("array index must be Int, found {found}"),
+            );
+            return None;
+        }
+        Some(hir::Expr {
+            kind: ExprKind::Index {
+                receiver: Box::new(receiver),
+                index: Box::new(index),
+            },
+            ty: element_ty,
             span,
         })
     }
@@ -249,6 +369,12 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        // `Array(m)` / `MutableArray(a)`: the conversion constructors
+        // (spec 10.4) resolve before structs, variants and functions
+        // (milestone5 DESIGN.md 2.2).
+        if call.callee.text == "Array" || call.callee.text == "MutableArray" {
+            return self.lower_array_conversion(call, sink);
+        }
         match self.classify_constructor(&call.callee)? {
             Constructor::Variant { enum_id, variant } => self
                 .lower_variant_construct(enum_id, variant, &call.args, call.span, sink, expected),
@@ -257,6 +383,63 @@ impl Lowerer {
             }
             Constructor::Unmatched => self.lower_function_call(call, sink),
         }
+    }
+
+    /// `Array(m)` / `MutableArray(a)`: the conversion between the two
+    /// array kinds (spec 10.4). The argument must be exactly one array
+    /// of the *other* kind with the same element type; the result is a
+    /// memcpy snapshot (`ArrayClone`). A same-kind argument is
+    /// rejected: conversion is never the identity.
+    fn lower_array_conversion(
+        &mut self,
+        call: &ast::CallExpr,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let name = call.callee.text.clone();
+        if call.args.len() != 1 {
+            let supplied = call.args.len();
+            self.error(
+                call.span,
+                format!("`{name}` takes exactly 1 argument, but {supplied} were supplied"),
+            );
+            return None;
+        }
+        let arg = self.lower_expr(&call.args[0], sink, None)?;
+        let to_immutable = name == "Array";
+        let element_ty = match (to_immutable, self.types[arg.ty].clone()) {
+            (true, Type::MutableArray(element)) | (false, Type::Array(element)) => element,
+            (_, Type::Array(_)) | (_, Type::MutableArray(_)) => {
+                self.error(
+                    arg.span,
+                    "use the value directly; conversion is only between Array and MutableArray"
+                        .to_string(),
+                );
+                return None;
+            }
+            _ => {
+                let expected = if to_immutable {
+                    "a MutableArray"
+                } else {
+                    "an Array"
+                };
+                let found = self.type_name(arg.ty);
+                self.error(
+                    arg.span,
+                    format!("argument of `{name}` conversion must be {expected}, found {found}"),
+                );
+                return None;
+            }
+        };
+        let ty = if to_immutable {
+            self.intern_type(Type::Array(element_ty))
+        } else {
+            self.intern_type(Type::MutableArray(element_ty))
+        };
+        Some(hir::Expr {
+            kind: ExprKind::ArrayClone(Box::new(arg)),
+            ty,
+            span: call.span,
+        })
     }
 
     /// Variant construction (`Some(x)`, `Shape.Circle(1)`,
@@ -576,6 +759,10 @@ impl Lowerer {
                 }
                 ok
             }
+            (Type::Array(param_element), Type::Array(arg_element))
+            | (Type::MutableArray(param_element), Type::MutableArray(arg_element)) => {
+                self.bind_type_args(param_element, arg_element, bindings, type_params, span)
+            }
             (Type::Tuple(param_elements), Type::Tuple(arg_elements))
                 if param_elements.len() == arg_elements.len() =>
             {
@@ -663,6 +850,19 @@ impl Lowerer {
             }
         }
         let receiver = self.lower_expr(&access.receiver, sink, None)?;
+        // `array.size` (spec 10.5): the pseudo-property resolves on
+        // both array kinds; any other receiver keeps the ordinary
+        // field rules (so `.size` on a non-array is the usual unknown
+        // field diagnostic).
+        if let ast::FieldSelector::Name(field) = &access.selector {
+            if field.text == "size" && self.array_element_ty(receiver.ty).is_some() {
+                return Some(hir::Expr {
+                    kind: ExprKind::ArrayLen(Box::new(receiver)),
+                    ty: self.int,
+                    span: access.span,
+                });
+            }
+        }
         let (field, ty) = self.resolve_field(receiver.ty, &access.selector)?;
         Some(hir::Expr {
             kind: ExprKind::FieldAccess {

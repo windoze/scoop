@@ -1,11 +1,11 @@
-//! Hand-written lexer for the M4 source subset.
+//! Hand-written lexer for the M5 source subset.
 //!
 //! Produces a flat token vector for the parser. Lexing is fail-fast: the
 //! first un-lexable input yields one diagnostic and no tokens at all.
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M4 subset. Reserved words are dedicated variants;
+/// Token kinds of the M5 subset. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word).
 #[derive(Debug, Clone, PartialEq)]
@@ -29,6 +29,8 @@ pub(crate) enum TokenKind {
     RParen,
     LBrace,
     RBrace,
+    LBracket,
+    RBracket,
     Comma,
     Semicolon,
     Colon,
@@ -90,6 +92,8 @@ impl Token {
             TokenKind::RParen => "`)`".to_string(),
             TokenKind::LBrace => "`{`".to_string(),
             TokenKind::RBrace => "`}`".to_string(),
+            TokenKind::LBracket => "`[`".to_string(),
+            TokenKind::RBracket => "`]`".to_string(),
             TokenKind::Comma => "`,`".to_string(),
             TokenKind::Semicolon => "`;`".to_string(),
             TokenKind::Colon => "`:`".to_string(),
@@ -169,6 +173,14 @@ impl<'a> Lexer<'a> {
                     self.pos += 1;
                     TokenKind::RBrace
                 }
+                '[' => {
+                    self.pos += 1;
+                    TokenKind::LBracket
+                }
+                ']' => {
+                    self.pos += 1;
+                    TokenKind::RBracket
+                }
                 ',' => {
                     self.pos += 1;
                     TokenKind::Comma
@@ -187,7 +199,7 @@ impl<'a> Lexer<'a> {
                 }
                 // `..` is the rest marker in pattern positions (spec 4.6);
                 // the range operator shares the token but only appears in
-                // expression positions (not in the M4 subset).
+                // expression positions (a dedicated diagnostic in M5).
                 '.' => {
                     self.pos += 1;
                     if self.eat('.') {

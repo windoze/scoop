@@ -22,6 +22,9 @@ pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
 /// Runtime trap (M3: `!!` on `None`; M8: real exceptions).
 pub const TRAP_SYMBOL: &str = "scoop_rt_trap";
 
+/// Runtime array clone (spec 10.4 conversions).
+pub const ARRAY_CLONE_SYMBOL: &str = "scoop_rt_array_clone";
+
 /// A type after layout resolution: maps directly onto LLVM types.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LirType {
@@ -31,6 +34,9 @@ pub enum LirType {
     Ptr,
     /// struct / tuple values: an LLVM literal struct.
     Aggregate(Vec<LirType>),
+    /// An array object: pointer to `{ td, i64 size, inline elements }`
+    /// (spec 10.1). The payload is the element layout.
+    Array(Box<LirType>),
     /// An enum value; the representation is fixed by
     /// `EnumDef::repr` (niche pointer or tagged union, spec 7.4).
     Enum(EnumDefId),
@@ -48,6 +54,7 @@ impl LirType {
                 format!("{{{}}}", inner.join(", "))
             }
             LirType::Enum(id) => format!("enum{}", id.into_raw()),
+            LirType::Array(inner) => format!("[{}]", inner.dump()),
         }
     }
 }
@@ -84,6 +91,10 @@ pub enum LayoutKind {
         /// Byte offsets of reference fields (for the GC bitmap, M9).
         ref_field_offsets: Vec<u64>,
     },
+    /// Array layouts: the GC scans `size` elements inline when the
+    /// element type is a reference (elements start after header +
+    /// size, spec 10.1).
+    Array { element_is_ref: bool },
     /// Enum layouts keep per-variant reference offsets: scanning an
     /// enum value depends on its tag (runtime spec 2.2, see
     /// docs/milestone4/DESIGN.md section 7).
@@ -232,6 +243,26 @@ pub enum Instruction {
         symbol: String,
         args: Vec<Value>,
     },
+    /// Array operations. The element layout is the `Array(...)` type
+    /// of the array operand (or of `out` for `ArrayAlloc`).
+    /// Allocate an array object and store the elements in order.
+    ArrayAlloc { out: TempId, elements: Vec<Value> },
+    /// `array.size` (result `I64`).
+    ArrayLen { out: TempId, operand: Value },
+    /// Bounds-checked element read (traps out of range).
+    ArrayGet {
+        out: TempId,
+        array: Value,
+        index: Value,
+    },
+    /// Bounds-checked element write (traps out of range).
+    ArraySet {
+        array: Value,
+        index: Value,
+        value: Value,
+    },
+    /// `Array(m)` / `MutableArray(a)` conversion (memcpy snapshot).
+    ArrayClone { out: TempId, operand: Value },
     /// Enum operations. The representation (niche pointer or tagged
     /// union) is fixed by `EnumDef::repr`, so codegen translates these
     /// mechanically.
@@ -386,6 +417,10 @@ pub fn dump(module: &Module) -> String {
                 "  layout {} size={} align={} refs={:?}\n",
                 layout.name, layout.size, layout.align, ref_field_offsets
             )),
+            LayoutKind::Array { element_is_ref } => out.push_str(&format!(
+                "  layout {} size={} align={} array(element_is_ref={})\n",
+                layout.name, layout.size, layout.align, element_is_ref
+            )),
             LayoutKind::Enum { variants } => out.push_str(&format!(
                 "  layout {} size={} align={} enum-refs={:?}\n",
                 layout.name,
@@ -472,6 +507,44 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
                 None => buf.push_str(&format!("    call @{}({})\n", symbol, args.join(", "))),
             }
         }
+        Instruction::ArrayAlloc { out, elements } => {
+            let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
+            buf.push_str(&format!(
+                "    t{} = array_alloc ({}) : {}\n",
+                out.into_raw(),
+                elements.join(", "),
+                function.temps[*out].ty.dump()
+            ))
+        }
+        Instruction::ArrayLen { out, operand } => buf.push_str(&format!(
+            "    t{} = array_len {} : {}\n",
+            out.into_raw(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::ArrayGet { out, array, index } => buf.push_str(&format!(
+            "    t{} = array_get {} {} : {}\n",
+            out.into_raw(),
+            value_name(*array),
+            value_name(*index),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::ArraySet {
+            array,
+            index,
+            value,
+        } => buf.push_str(&format!(
+            "    array_set {} {} {}\n",
+            value_name(*array),
+            value_name(*index),
+            value_name(*value)
+        )),
+        Instruction::ArrayClone { out, operand } => buf.push_str(&format!(
+            "    t{} = array_clone {} : {}\n",
+            out.into_raw(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
         Instruction::EnumWrap {
             out,
             enum_id,

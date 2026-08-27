@@ -1,0 +1,228 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  fun firstOf<T>(a: Array<T>): T
+    =
+      Index
+        Var a
+        IntLiteral 0
+  fun sum(a: Array<Int>): Int
+    var total
+      IntLiteral 0
+    var i
+      IntLiteral 0
+    while
+      Binary Lt
+        Var i
+        FieldAccess size
+          Var a
+      assign total
+        Binary Add
+          Var total
+          Index
+            Var a
+            Var i
+      assign i
+        Binary Add
+          Var i
+          IntLiteral 1
+    return
+      Var total
+  fun main()
+    Call println
+      Call firstOf
+        ArrayLiteral
+          IntLiteral 10
+          IntLiteral 20
+    Call println
+      Call firstOf
+        ArrayLiteral
+          StringLiteral "a"
+          StringLiteral "b"
+    Call println
+      Call sum
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+          IntLiteral 3
+
+== hir ==
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
+  fun firstOf<T>(a: Array<T0>): T0
+    return
+      Index : T0
+        Local a : Array<T0>
+        IntLiteral 0 : Int
+  fun sum(a: Array<Int>): Int
+    val local1
+      IntLiteral 0 : Int
+    val local2
+      IntLiteral 0 : Int
+    while
+      Binary Lt : Boolean
+        Local i : Int
+        ArrayLen : Int
+          Local a : Array<Int>
+      assign total
+        Binary Add : Int
+          Local total : Int
+          Index : Int
+            Local a : Array<Int>
+            Local i : Int
+      assign i
+        Binary Add : Int
+          Local i : Int
+          IntLiteral 1 : Int
+    return
+      Local total : Int
+  fun main(): Unit
+    Call println : Unit
+      Call firstOf<Int> : Int
+        ArrayLiteral : Array<Int>
+          IntLiteral 10 : Int
+          IntLiteral 20 : Int
+    Call println : Unit
+      Call firstOf<String> : String
+        ArrayLiteral : Array<String>
+          StringLiteral "a" : String
+          StringLiteral "b" : String
+    Call println : Unit
+      Call sum : Int
+        ArrayLiteral : Array<Int>
+          IntLiteral 1 : Int
+          IntLiteral 2 : Int
+          IntLiteral 3 : Int
+  entry main
+  instance firstOf<Int>
+  instance firstOf<String>
+
+== mir ==
+Module
+  fun sum @scoop.sum(a: Array<Int>) -> Int
+    var total: Int
+      IntLiteral 0
+    var i: Int
+      IntLiteral 0
+    while
+      Binary IntLt
+        Local i
+        ArrayLen
+          Local a
+      assign total
+        Binary IntAdd
+          Local total
+          ArrayGet
+            Local a
+            Local i
+      assign i
+        Binary IntAdd
+          Local i
+          IntLiteral 1
+    return
+      Local total
+  fun main @scoop_main() -> Unit
+    Call @scoop_rt_println_int direct
+      Call @scoop.firstOf$I direct
+        ArrayLiteral
+          IntLiteral 10
+          IntLiteral 20
+    Call @scoop_rt_println direct
+      Call @scoop.firstOf$S direct
+        ArrayLiteral
+          StringConst @scoop.str.0
+          StringConst @scoop.str.1
+    Call @scoop_rt_println_int direct
+      Call @scoop.sum direct
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+          IntLiteral 3
+  fun firstOf @scoop.firstOf$I(a: Array<Int>) -> Int
+    return
+      ArrayGet
+        Local a
+        IntLiteral 0
+  fun firstOf @scoop.firstOf$S(a: Array<String>) -> String
+    return
+      ArrayGet
+        Local a
+        IntLiteral 0
+  str @scoop.str.0 "a"
+  str @scoop.str.1 "b"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "a"
+  global @scoop.str.1 = "b"
+  fun @scoop.sum([i64]) -> i64
+    local %0 total: i64
+    local %1 i: i64
+  block entry
+    store 0 -> local0
+    store 0 -> local1
+    br @while.cond.1
+  block while.cond.1
+    t0 = array_len param0 : i64
+    t1 = Lt local1, t0 : i1
+    cbr t1 then @while.body.2 else @while.exit.3
+  block while.body.2
+    t2 = array_get param0 local1 : i64
+    t3 = Add local0, t2 : i64
+    store t3 -> local0
+    t4 = Add local1, 1 : i64
+    store t4 -> local1
+    br @while.cond.1
+  block while.exit.3
+    ret local0
+  fun @scoop_main() -> void
+  block entry
+    t0 = array_alloc (10, 20) : [i64]
+    t1 = call @scoop.firstOf$I(t0) : i64
+    call @scoop_rt_println_int(t1)
+    t2 = aggregate () : {}
+    t3 = array_alloc (global0, global1) : [ptr]
+    t4 = call @scoop.firstOf$S(t3) : ptr
+    call @scoop_rt_println(t4)
+    t5 = aggregate () : {}
+    t6 = array_alloc (1, 2, 3) : [i64]
+    t7 = call @scoop.sum(t6) : i64
+    call @scoop_rt_println_int(t7)
+    t8 = aggregate () : {}
+    ret
+  fun @scoop.firstOf$I([i64]) -> i64
+  block entry
+    t0 = array_get param0 0 : i64
+    ret t0
+  fun @scoop.firstOf$S([ptr]) -> ptr
+  block entry
+    t0 = array_get param0 0 : ptr
+    ret t0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Array<Int> size=8 align=8 array(element_is_ref=false)
+  layout Array<String> size=8 align=8 array(element_is_ref=true)
+  entry @scoop_main
+
+== run ==
+10
+a
+6

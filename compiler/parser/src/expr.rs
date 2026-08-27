@@ -1,9 +1,9 @@
-//! Expression parsing: precedence climbing over the M3 operator set.
+//! Expression parsing: precedence climbing over the M5 operator set.
 //!
 //! Precedence, low to high: `?:` (right-associative) < `||` < `&&` <
 //! `== !=` < `< <= > >=` < `+ -` < `* /` < unary `- !` < postfix `.name` /
-//! `._n` / `?.name` / `!!` < atoms. All other binary operators are
-//! left-associative.
+//! `._n` / `?.name` / `!!` / `[index]` < atoms. All other binary operators
+//! are left-associative.
 
 use scoop_ast::{BinOp, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector, Ident, Span, UnOp};
 
@@ -49,6 +49,15 @@ impl Parser {
     fn parse_binary(&mut self, min_precedence: u8) -> Result<Expr, Diagnostic> {
         let mut lhs = self.parse_unary()?;
         loop {
+            // `..` is the range operator in expression position (the
+            // pattern rest marker never reaches here); out of the M5
+            // subset, with a dedicated diagnostic.
+            if matches!(self.peek().kind, TokenKind::DotDot) {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "ranges are not supported yet (milestone M5)",
+                ));
+            }
             // `?:` sits one level below `||` (level 0) and is
             // right-associative, so it is handled outside `binary_op`.
             if matches!(self.peek().kind, TokenKind::QuestionColon) {
@@ -99,7 +108,7 @@ impl Parser {
     }
 
     /// Postfix operators share the highest precedence tier and chain left
-    /// to right: `.name` / `._n`, `?.name`, and `!!`.
+    /// to right: `.name` / `._n`, `?.name`, `!!`, and `[index]`.
     fn parse_postfix(&mut self) -> Result<Expr, Diagnostic> {
         let mut receiver = self.parse_atom()?;
         loop {
@@ -111,6 +120,13 @@ impl Parser {
                 TokenKind::QuestionDot => {
                     self.bump();
                     receiver = self.parse_field_access(receiver, true)?;
+                }
+                // A `[` immediately after the receiver (their spans touch)
+                // is subscript postfix; otherwise it starts a new array
+                // literal expression — e.g. a `[...]` statement on the
+                // next line (DESIGN.md section 2.1).
+                TokenKind::LBracket if self.peek().span.start == receiver.span().end => {
+                    receiver = self.parse_index(receiver)?;
                 }
                 // `a!!` lexes as two adjacent `Bang` tokens — a single
                 // `!!` token would break the double negation `!!flag`,
@@ -127,6 +143,25 @@ impl Parser {
             }
         }
         Ok(receiver)
+    }
+
+    /// `receiver[index]` — the `[` is the current token. A `:` after the
+    /// index expression is a slice, out of the M5 subset.
+    fn parse_index(&mut self, receiver: Expr) -> Result<Expr, Diagnostic> {
+        self.bump(); // `[`
+        let index = self.parse_expr()?;
+        if matches!(self.peek().kind, TokenKind::Colon) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "array slices are not supported yet (milestone M5)",
+            ));
+        }
+        let close = self.expect("`]`", |k| matches!(k, TokenKind::RBracket))?;
+        Ok(Expr::Index {
+            span: Span::new(receiver.span().start, close.span.end),
+            receiver: Box::new(receiver),
+            index: Box::new(index),
+        })
     }
 
     /// True when the current `!` is immediately followed by another `!`
@@ -229,8 +264,31 @@ impl Parser {
                 Ok(Expr::Var(ident))
             }
             TokenKind::LParen => self.parse_paren_expr(),
+            TokenKind::LBracket => self.parse_array_literal(),
             _ => self.unexpected("expression"),
         }
+    }
+
+    /// `[e1, e2, ...]` — an array literal (spec 10.2). The empty `[]`
+    /// parses too; HIR rejects it when there is no expected type.
+    fn parse_array_literal(&mut self) -> Result<Expr, Diagnostic> {
+        let open = self.bump(); // `[`
+        let mut elements = Vec::new();
+        if !matches!(self.peek().kind, TokenKind::RBracket) {
+            loop {
+                elements.push(self.parse_expr()?);
+                if matches!(self.peek().kind, TokenKind::Comma) {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+        }
+        let close = self.expect("`]`", |k| matches!(k, TokenKind::RBracket))?;
+        Ok(Expr::ArrayLiteral {
+            elements,
+            span: Span::new(open.span.start, close.span.end),
+        })
     }
 
     /// True when the current position starts a dotted path `(.Ident)+`

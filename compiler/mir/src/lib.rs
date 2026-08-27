@@ -43,6 +43,8 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
         Type::Boolean => "B".to_string(),
         Type::String => "S".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Array(inner) => format!("A{}X", encode_type(module, inner)),
+        Type::MutableArray(inner) => format!("M{}X", encode_type(module, inner)),
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| encode_type(module, t)).collect();
             format!("T{}X", inner.join("_"))
@@ -66,6 +68,9 @@ pub enum Type {
     Boolean,
     String,
     Struct(StructId),
+    /// Built-in array types (M5, see hir::Type). Invariant (spec 10.4).
+    Array(Box<Type>),
+    MutableArray(Box<Type>),
     Tuple(Vec<Type>),
     /// An instantiated enum type (including `Option<T>` since M4).
     Enum(EnumId, Vec<Type>),
@@ -184,6 +189,12 @@ pub enum StatementKind {
         local: LocalId,
         value: Expr,
     },
+    /// `array[index] = value` (only `MutableArray`).
+    ArraySet {
+        array: Expr,
+        index: Expr,
+        value: Expr,
+    },
     If {
         cond: Expr,
         then_body: Vec<Statement>,
@@ -215,6 +226,18 @@ pub enum Expr {
         index: u32,
     },
     Call(Call),
+    /// `[e1, ...]` (the kind, Array vs MutableArray, is fixed by the
+    /// producing context — LIR types record it).
+    ArrayLiteral(Vec<Expr>),
+    /// Subscript read; result is the element type.
+    ArrayGet {
+        array: Box<Expr>,
+        index: Box<Expr>,
+    },
+    /// `array.size`; result is `Int`.
+    ArrayLen(Box<Expr>),
+    /// `Array(m)` / `MutableArray(a)` conversion: memcpy snapshot.
+    ArrayClone(Box<Expr>),
     Binary {
         op: BinOp,
         lhs: Box<Expr>,
@@ -387,6 +410,8 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Array(inner) => format!("Array<{}>", type_name(module, inner)),
+        Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, inner)),
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, t)).collect();
             format!("({})", inner.join(", "))
@@ -429,6 +454,16 @@ fn dump_statements(
                     type_name(module, &local.ty)
                 ));
                 dump_expr(module, locals, init, indent + 1, out);
+            }
+            StatementKind::ArraySet {
+                array,
+                index,
+                value,
+            } => {
+                out.push_str(&format!("{pad}array_set\n"));
+                dump_expr(module, locals, array, indent + 1, out);
+                dump_expr(module, locals, index, indent + 1, out);
+                dump_expr(module, locals, value, indent + 1, out);
             }
             StatementKind::Assign { local, value } => {
                 out.push_str(&format!("{pad}assign {}\n", locals[*local].name));
@@ -497,6 +532,25 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             for arg in &call.args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
+        }
+        Expr::ArrayLiteral(elements) => {
+            out.push_str(&format!("{pad}ArrayLiteral\n"));
+            for element in elements {
+                dump_expr(module, locals, element, indent + 1, out);
+            }
+        }
+        Expr::ArrayGet { array, index } => {
+            out.push_str(&format!("{pad}ArrayGet\n"));
+            dump_expr(module, locals, array, indent + 1, out);
+            dump_expr(module, locals, index, indent + 1, out);
+        }
+        Expr::ArrayLen(operand) => {
+            out.push_str(&format!("{pad}ArrayLen\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::ArrayClone(operand) => {
+            out.push_str(&format!("{pad}ArrayClone\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
         }
         Expr::Binary { op, lhs, rhs } => {
             out.push_str(&format!("{pad}Binary {op:?}\n"));

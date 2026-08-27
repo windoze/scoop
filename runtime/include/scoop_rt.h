@@ -32,6 +32,15 @@ typedef struct ScoopString {
     char data[];
 } ScoopString;
 
+/* Runtime spec 2.5 / spec 10.1. Array objects are variable-length:
+ * header + element count + inline elements (stride = element layout
+ * size, known to codegen; elements of value types are unboxed). */
+typedef struct ScoopArray {
+    ScoopObjectHeader header;
+    uint64_t size;
+    char elements[];
+} ScoopArray;
+
 /* malloc + write the object header; never freed (always-leak GC,
  * DESIGN 5.1, replaced by Immix in M9). The signature matches the final
  * form so callers do not change. */
@@ -53,6 +62,13 @@ void scoop_rt_println_boolean(bool value);
  * Writes the message to stderr and aborts; replaced by a real
  * UnwrapException throw in M8. */
 _Noreturn void scoop_rt_trap(const char *message);
+
+/* M5 addition (milestone5 DESIGN section 3.1): `Array(m)` /
+ * `MutableArray(a)` conversion (spec 10.4). Copies the whole object
+ * (header + size + size * elem_size bytes of inline elements) into a
+ * fresh allocation — a shallow snapshot: elements that are references
+ * are copied as pointers, not cloned. Never freed (always-leak). */
+const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size);
 
 /* Entry point provided by the compiled user program (its `fun main`). */
 void scoop_main(void);

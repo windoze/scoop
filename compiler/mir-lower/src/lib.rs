@@ -34,6 +34,14 @@
 //! tag comparison plus a per-variant payload comparison. `print` /
 //! `println` arrive as `@Intrinsic` functions from scoop.core and still
 //! map onto the M2/M3 per-type runtime shims.
+//!
+//! M5: arrays (docs/milestone5/DESIGN.md). `Array<T>` /
+//! `MutableArray<T>` map onto the corresponding MIR types, and the
+//! array nodes translate one-to-one: literals, subscript reads, `size`,
+//! `m[i] = v` (an `ArraySet` statement), and the `Array(m)` /
+//! `MutableArray(a)` conversions (`ArrayClone`). There is no array
+//! equality in M5 (DESIGN 6): hir-lower rejects `==` / `!=` on array
+//! types, so the equality expansion treats them as unreachable.
 
 use std::collections::HashMap;
 
@@ -316,6 +324,9 @@ fn option_variants(module: &hir::Module) -> (u32, u32) {
 fn is_concrete(module: &hir::Module, ty: hir::TypeId) -> bool {
     match &module.types[ty] {
         hir::Type::Param(_) => false,
+        hir::Type::Array(element) | hir::Type::MutableArray(element) => {
+            is_concrete(module, *element)
+        }
         hir::Type::Tuple(elements) => elements.iter().all(|&e| is_concrete(module, e)),
         hir::Type::Enum(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
         _ => true,
@@ -350,6 +361,12 @@ impl Types<'_> {
             hir::Type::Boolean => mir::Type::Boolean,
             hir::Type::String => mir::Type::String,
             hir::Type::Struct(id) => mir::Type::Struct(self.struct_map[id]),
+            hir::Type::Array(element) => {
+                mir::Type::Array(Box::new(self.lower(*element, enums, shell)))
+            }
+            hir::Type::MutableArray(element) => {
+                mir::Type::MutableArray(Box::new(self.lower(*element, enums, shell)))
+            }
             hir::Type::Tuple(elements) => mir::Type::Tuple(
                 elements
                     .iter()
@@ -645,11 +662,27 @@ impl BodyLowerer<'_> {
                 self.lower_val_decl(pattern, init, span, out);
                 return;
             }
-            hir::StatementKind::Assign { local, value } => {
-                let local = self.local_map[local];
-                let value = self.lower_expr(value);
+            hir::StatementKind::Assign { target, value } => {
+                let kind = match target {
+                    hir::AssignTarget::Local(local) => {
+                        let local = self.local_map[local];
+                        let value = self.lower_expr(value);
+                        mir::StatementKind::Assign { local, value }
+                    }
+                    // `m[i] = v` (only `MutableArray`, checked at HIR).
+                    hir::AssignTarget::Index { array, index } => {
+                        let array = self.lower_expr(array);
+                        let index = self.lower_expr(index);
+                        let value = self.lower_expr(value);
+                        mir::StatementKind::ArraySet {
+                            array,
+                            index,
+                            value,
+                        }
+                    }
+                };
                 self.drain_prelude(span, out);
-                mir::StatementKind::Assign { local, value }
+                kind
             }
             hir::StatementKind::If {
                 cond,
@@ -995,6 +1028,22 @@ impl BodyLowerer<'_> {
                 fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
             },
             hir::ExprKind::Local(local) => mir::Expr::Local(self.local_map[local]),
+            // The array nodes translate one-to-one (M5); the literal's
+            // kind (Array vs MutableArray) is fixed by the producing
+            // context — `lower_type(expr.ty)` records it where needed.
+            hir::ExprKind::ArrayLiteral(elements) => {
+                mir::Expr::ArrayLiteral(elements.iter().map(|e| self.lower_expr(e)).collect())
+            }
+            hir::ExprKind::Index { receiver, index } => mir::Expr::ArrayGet {
+                array: Box::new(self.lower_expr(receiver)),
+                index: Box::new(self.lower_expr(index)),
+            },
+            hir::ExprKind::ArrayLen(operand) => {
+                mir::Expr::ArrayLen(Box::new(self.lower_expr(operand)))
+            }
+            hir::ExprKind::ArrayClone(operand) => {
+                mir::Expr::ArrayClone(Box::new(self.lower_expr(operand)))
+            }
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields and tuple elements are both 0-based here.
                 let index = match field {
@@ -1238,7 +1287,11 @@ impl BodyLowerer<'_> {
     ///   dual for `!=`. Unit variants carry no payload, so the tag
     ///   comparison covers them;
     /// - Unit (the empty tuple): a constant — `() == ()` is always
-    ///   `true`, `() != ()` always `false`.
+    ///   `true`, `() != ()` always `false`;
+    /// - arrays: none — M5 has no array equality semantics (DESIGN 6),
+    ///   and hir-lower rejects `==` / `!=` on array types, so arrays
+    ///   never reach this expansion (neither as operands nor nested
+    ///   inside compared aggregates).
     ///
     /// `path` is the chain of field accesses and variant field
     /// extractions from the top-level operands down to the values
@@ -1309,6 +1362,12 @@ impl BodyLowerer<'_> {
             mir::Type::Enum(id, _) => {
                 let id = *id;
                 self.expand_enum_equality(lhs, rhs, id, path, negate)
+            }
+            // M5 defines no array equality semantics (DESIGN 6) and
+            // hir-lower rejects `==` / `!=` on array types, so no array
+            // type can reach the equality expansion.
+            mir::Type::Array(_) | mir::Type::MutableArray(_) => {
+                unreachable!("hir-lower rejects equality on array types")
             }
         }
     }
@@ -1616,6 +1675,14 @@ mod tests {
 
         fn tuple(&mut self, elements: &[hir::TypeId]) -> hir::TypeId {
             self.types.alloc(hir::Type::Tuple(elements.to_vec()))
+        }
+
+        fn array(&mut self, element: hir::TypeId) -> hir::TypeId {
+            self.types.alloc(hir::Type::Array(element))
+        }
+
+        fn mutable_array(&mut self, element: hir::TypeId) -> hir::TypeId {
+            self.types.alloc(hir::Type::MutableArray(element))
         }
 
         fn user_fn(&mut self, name: &str, body: hir::Body) -> hir::FunctionId {
@@ -3424,5 +3491,166 @@ Module
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn array_nodes_translate_one_to_one() {
+        // val a = [1, 2, 3]; val x = a[0]; val n = a.size
+        // val m: MutableArray<Int> = MutableArray(a); m[0] = 40
+        let mut h = Harness::new();
+        let int = h.int;
+        let array_int = h.array(int);
+        let mutable_int = h.mutable_array(int);
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", array_int));
+        let x = locals.alloc(local("x", int));
+        let n = locals.alloc(local("n", int));
+        let m = locals.alloc(local("m", mutable_int));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    val_decl(
+                        a,
+                        expr(
+                            hir::ExprKind::ArrayLiteral(vec![
+                                int_lit(&h, 1),
+                                int_lit(&h, 2),
+                                int_lit(&h, 3),
+                            ]),
+                            array_int,
+                        ),
+                    ),
+                    val_decl(
+                        x,
+                        expr(
+                            hir::ExprKind::Index {
+                                receiver: Box::new(local_ref(a, array_int)),
+                                index: Box::new(int_lit(&h, 0)),
+                            },
+                            int,
+                        ),
+                    ),
+                    val_decl(
+                        n,
+                        expr(
+                            hir::ExprKind::ArrayLen(Box::new(local_ref(a, array_int))),
+                            int,
+                        ),
+                    ),
+                    val_decl(
+                        m,
+                        expr(
+                            hir::ExprKind::ArrayClone(Box::new(local_ref(a, array_int))),
+                            mutable_int,
+                        ),
+                    ),
+                    stmt(hir::StatementKind::Assign {
+                        target: hir::AssignTarget::Index {
+                            array: local_ref(m, mutable_int),
+                            index: int_lit(&h, 0),
+                        },
+                        value: int_lit(&h, 40),
+                    }),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let expected = "\
+Module
+  fun main @scoop_main() -> Unit
+    val a: Array<Int>
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    val x: Int
+      ArrayGet
+        Local a
+        IntLiteral 0
+    val n: Int
+      ArrayLen
+        Local a
+    val m: MutableArray<Int>
+      ArrayClone
+        Local a
+    array_set
+      Local m
+      IntLiteral 0
+      IntLiteral 40
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn instance_symbols_encode_array_arguments() {
+        let mut h = Harness::new();
+        let f = identity_fn(&mut h, "f");
+        let int = h.int;
+        let array_int = h.array(int);
+        let mutable_int = h.mutable_array(int);
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        );
+        h.instantiate(f, vec![array_int]);
+        h.instantiate(f, vec![mutable_int]);
+        let module = lower(&h.finish(main));
+
+        let symbols: Vec<&str> = module.top_level[1..]
+            .iter()
+            .map(|&id| module.functions[id].symbol.as_str())
+            .collect();
+        // `mir::encode_type`: `A<element>X` / `M<element>X`.
+        assert_eq!(symbols, ["scoop.f$AIX", "scoop.f$MIX"]);
+        // Substitution recurses into the array element types.
+        let array_instance = &module.functions[module.top_level[1]];
+        assert_eq!(
+            array_instance.params[0].ty,
+            mir::Type::Array(Box::new(mir::Type::Int))
+        );
+        let mutable_instance = &module.functions[module.top_level[2]];
+        assert_eq!(
+            mutable_instance.return_ty,
+            mir::Type::MutableArray(Box::new(mir::Type::Int))
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "hir-lower rejects equality on array types")]
+    fn array_equality_never_reaches_the_expansion() {
+        // hir-lower rejects `==` / `!=` on arrays (M5 has no array
+        // equality semantics, DESIGN 6); feed one anyway to lock the
+        // expansion's unreachable arm.
+        let mut h = Harness::new();
+        let int = h.int;
+        let boolean = h.boolean;
+        let array_int = h.array(int);
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", array_int));
+        let b = locals.alloc(local("b", array_int));
+        let r = locals.alloc(local("r", boolean));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    r,
+                    binary(
+                        hir::BinOp::Eq,
+                        local_ref(a, array_int),
+                        local_ref(b, array_int),
+                        boolean,
+                    ),
+                )],
+            },
+        );
+        let _ = lower(&h.finish(main));
     }
 }

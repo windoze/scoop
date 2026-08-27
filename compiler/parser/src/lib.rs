@@ -1,7 +1,7 @@
 //! Parser stage: source text -> AST.
 //!
-//! Hand-written lexer + recursive-descent parser for the M4 subset; see
-//! `docs/milestone4/DESIGN.md` section 3.1 and `docs/specs/SCOOP-IMPL-SPEC.md`
+//! Hand-written lexer + recursive-descent parser for the M5 subset; see
+//! `docs/milestone5/DESIGN.md` section 2.1 and `docs/specs/SCOOP-IMPL-SPEC.md`
 //! section 2.1. Depends only on `scoop-ast` (the output data channel).
 
 mod decl;
@@ -17,11 +17,14 @@ mod tests_m2;
 mod tests_m3;
 #[cfg(test)]
 mod tests_m4;
+#[cfg(test)]
+mod tests_m5;
 
 /// Parses a whole source file into an AST.
 ///
-/// M4 is fail-fast: on failure the returned vector holds exactly one
-/// [`scoop_ast::Diagnostic`] whose span points at the offending position.
+/// The parser is fail-fast: on failure the returned vector holds exactly
+/// one [`scoop_ast::Diagnostic`] whose span points at the offending
+/// position.
 ///
 /// ```
 /// let file = scoop_parser::parse("fun main() {\n    println(\"hi\")\n}\n").unwrap();

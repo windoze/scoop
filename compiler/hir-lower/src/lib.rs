@@ -25,6 +25,14 @@
 //! pattern checking and exhaustiveness; destructuring `val` / `var`
 //! declarations; and `@Intrinsic("name")` functions (core only, names
 //! checked against `hir::INTRINSIC_REGISTRY`).
+//!
+//! M5 (milestone5 DESIGN.md 2.2): the compiler-built-in array types
+//! `Array<T>` / `MutableArray<T>` (invariant in `T`), array literals
+//! with context-sensitive inference (the expected type picks the kind;
+//! without one every element must share a type and the result is
+//! `Array<T>`), subscript reads, the `.size` pseudo-property,
+//! subscript writes (`MutableArray` only), and the `Array(m)` /
+//! `MutableArray(a)` conversion constructors.
 
 mod expr;
 mod patterns;
@@ -55,7 +63,7 @@ use scope::Scopes;
 /// without imports. Diagnostics carry the index of the file they
 /// belong to (`Diagnostic::file`).
 ///
-/// All semantic errors of the M4 subset are diagnosed here with spans;
+/// All semantic errors of the M5 subset are diagnosed here with spans;
 /// downstream stages (MIR, LIR) never fail.
 pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> {
     Lowerer::new().run(files)

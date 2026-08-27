@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m5-arrays/errors/index-not-int.scoop:3:15: error: array index must be Int, found String

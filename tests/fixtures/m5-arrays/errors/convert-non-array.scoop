@@ -1,0 +1,4 @@
+fun main() {
+    val a = Array(1)
+    println(a.size)
+}

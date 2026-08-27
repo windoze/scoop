@@ -56,6 +56,24 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     let llvm = context.create_module("scoop");
     let builder = context.create_builder();
 
+    // The target machine is created up front: array TypeDescriptors take
+    // element size/align from the target's data layout (the same layout
+    // GEP uses), keeping alloc size and element stride consistent.
+    let triple = TargetMachine::get_default_triple();
+    let target = Target::from_triple(&triple)
+        .map_err(|e| CodegenError(format!("no target for host triple: {e}")))?;
+    let machine = target
+        .create_target_machine(
+            &triple,
+            "generic",
+            "",
+            OptimizationLevel::None,
+            RelocMode::Default,
+            CodeModel::Default,
+        )
+        .ok_or_else(|| CodegenError("failed to create host target machine".to_string()))?;
+    let target_data = machine.get_target_data();
+
     let ptr_ty = context.ptr_type(AddressSpace::default());
     let i8_ty = context.i8_type();
     let i64_ty = context.i64_type();
@@ -78,6 +96,48 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
         ],
         false,
     ));
+
+    // One array TypeDescriptor per distinct element type (runtime spec
+    // 2.2): same struct as String's TD, size/align of the *element*
+    // layout, type_ids from 100 (1 is String). `size` here is the
+    // element size, which is also what `scoop_rt_array_clone` needs.
+    let array_elements = array_element_types(module);
+    let mut array_tds: Vec<GlobalValue> = Vec::with_capacity(array_elements.len());
+    for (index, element) in array_elements.iter().enumerate() {
+        let element_ty = basic_ty(&context, &module.enums, element)?;
+        let array_td = llvm.add_global(td_ty, None, &format!("scoop_td_array.{index}"));
+        array_td.set_constant(true);
+        array_td.set_initializer(
+            &context.const_struct(
+                &[
+                    i64_ty.const_int(100 + index as u64, false).into(),
+                    i64_ty
+                        .const_int(target_data.get_abi_size(&element_ty), false)
+                        .into(),
+                    i64_ty
+                        .const_int(target_data.get_abi_alignment(&element_ty) as u64, false)
+                        .into(),
+                    ptr_ty.const_null().into(),
+                ],
+                false,
+            ),
+        );
+        array_tds.push(array_td);
+    }
+
+    // Shared "array index out of bounds" message (only when the module
+    // uses arrays at all); the bounds-check trap blocks reference it.
+    let bounds_message = if array_elements.is_empty() {
+        None
+    } else {
+        let bytes = b"array index out of bounds";
+        let ty = i8_ty.array_type(bytes.len() as u32 + 1);
+        let global = llvm.add_global(ty, None, "scoop.trap.bounds");
+        global.set_constant(true);
+        global.set_linkage(inkwell::module::Linkage::Private);
+        global.set_initializer(&context.const_string(bytes, true));
+        Some(global)
+    };
 
     // Globals. Indexed by GlobalId (arena iteration is in index order).
     let mut globals: Vec<GlobalValue> = Vec::with_capacity(module.globals.len());
@@ -124,37 +184,25 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     // create shadow extern declarations (a forward call would
     // otherwise declare the symbol as extern, and the later definition
     // would be renamed with a `.N` suffix by LLVM, breaking the link).
+    let module_ctx = ModuleCtx {
+        enums: &module.enums,
+        globals_arena: &module.globals,
+        globals: &globals,
+        array_elements: &array_elements,
+        array_tds: &array_tds,
+        target_data: &target_data,
+        bounds_message,
+    };
     for function in &module.functions {
         declare_function(&context, &llvm, &module.enums, function)?;
     }
     for function in &module.functions {
-        emit_function(
-            &context,
-            &llvm,
-            &builder,
-            &module.enums,
-            &module.globals,
-            &globals,
-            function,
-        )?;
+        emit_function(&context, &llvm, &builder, &module_ctx, function)?;
     }
 
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
 
-    let triple = TargetMachine::get_default_triple();
-    let target = Target::from_triple(&triple)
-        .map_err(|e| CodegenError(format!("no target for host triple: {e}")))?;
-    let machine = target
-        .create_target_machine(
-            &triple,
-            "generic",
-            "",
-            OptimizationLevel::None,
-            RelocMode::Default,
-            CodeModel::Default,
-        )
-        .ok_or_else(|| CodegenError("failed to create host target machine".to_string()))?;
     machine
         .write_to_file(&llvm, FileType::Object, output)
         .map_err(|e| CodegenError(format!("failed to write {}: {e}", output.display())))?;
@@ -178,6 +226,8 @@ fn basic_ty<'ctx>(
         LirType::I1 => context.bool_type().into(),
         LirType::I64 => context.i64_type().into(),
         LirType::Ptr => context.ptr_type(AddressSpace::default()).into(),
+        // An array value is a pointer to the array object.
+        LirType::Array(_) => context.ptr_type(AddressSpace::default()).into(),
         LirType::Aggregate(elements) => {
             let fields: Vec<BasicTypeEnum> = elements
                 .iter()
@@ -225,6 +275,62 @@ fn arena_index<T>(id: Idx<T>) -> usize {
     id.into_raw().into_u32() as usize
 }
 
+/// The element layout of an array type.
+fn array_element(ty: &LirType) -> Result<&LirType, CodegenError> {
+    match ty {
+        LirType::Array(element) => Ok(element),
+        other => Err(CodegenError(format!(
+            "expected an array type, found {}",
+            other.dump()
+        ))),
+    }
+}
+
+/// Every distinct array element type used in the module, in first-seen
+/// order; each gets its own array TypeDescriptor (`scoop_td_array.<n>`).
+fn array_element_types(module: &Module) -> Vec<LirType> {
+    fn collect(ty: &LirType, out: &mut Vec<LirType>) {
+        match ty {
+            LirType::Array(element) => {
+                if !out.contains(element.as_ref()) {
+                    out.push((**element).clone());
+                }
+                collect(element, out);
+            }
+            LirType::Aggregate(elements) => {
+                for element in elements {
+                    collect(element, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut out = Vec::new();
+    for function in &module.functions {
+        collect(&function.return_ty, &mut out);
+        for ty in &function.params {
+            collect(ty, &mut out);
+        }
+        for (_, local) in function.locals.iter() {
+            collect(&local.ty, &mut out);
+        }
+        for (_, temp) in function.temps.iter() {
+            collect(&temp.ty, &mut out);
+        }
+    }
+    for (_, def) in module.enums.iter() {
+        if let EnumRepr::Tagged { variants, .. } = &def.repr {
+            for fields in variants {
+                for ty in fields {
+                    collect(ty, &mut out);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// The (opaque) pointer type shared by all `LirType::Ptr` values.
 fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
     context.ptr_type(AddressSpace::default())
@@ -244,8 +350,19 @@ struct FnEmitter<'a, 'ctx> {
     enums: &'a Arena<EnumDef>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [GlobalValue<'ctx>],
+    /// Distinct array element types and their TypeDescriptor globals
+    /// (indexed in parallel; see `array_element_types`).
+    array_elements: &'a [LirType],
+    array_tds: &'a [GlobalValue<'ctx>],
+    target_data: &'a inkwell::targets::TargetData,
     allocas: Vec<PointerValue<'ctx>>,
     temps: HashMap<TempId, BasicValueEnum<'ctx>>,
+    /// Lazily-created shared bounds-check trap block of this function
+    /// (one per function, reused by every ArrayGet / ArraySet) and the
+    /// module-level "array index out of bounds" message global it
+    /// references (`Some` whenever the module uses arrays).
+    bounds_trap_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    bounds_message: Option<GlobalValue<'ctx>>,
 }
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
@@ -417,6 +534,157 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         }
                     }
                 }
+            }
+            Instruction::ArrayAlloc { out, elements } => {
+                // `{ ptr td, i64 size, [n x elem] }` (runtime spec 2.5):
+                // allocate 16 + n * stride bytes, store the size, then
+                // store each element in order.
+                let element = array_element(&function.temps[*out].ty)?;
+                let element_ty = basic_ty(context, self.enums, element)?;
+                let stride = self.target_data.get_abi_size(&element_ty);
+                let td = self.array_td(element)?.as_pointer_value();
+                let total = 16 + elements.len() as u64 * stride;
+                let alloc = self.runtime_fn(
+                    "scoop_rt_alloc",
+                    ptr_ty(context)
+                        .fn_type(&[ptr_ty(context).into(), context.i64_type().into()], false),
+                );
+                let array = builder
+                    .build_call(
+                        alloc,
+                        &[td.into(), context.i64_type().const_int(total, false).into()],
+                        "array",
+                    )
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "array_alloc @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or_else(|| CodegenError("scoop_rt_alloc returned void".to_string()))?
+                    .into_pointer_value();
+                let size_ptr = self.byte_gep(array, 8, "size_ptr")?;
+                builder
+                    .build_store(
+                        size_ptr,
+                        context.i64_type().const_int(elements.len() as u64, false),
+                    )
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "array size @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                for (index, element_value) in elements.iter().enumerate() {
+                    let element_ptr = self.element_ptr(
+                        array,
+                        element_ty,
+                        context.i64_type().const_int(index as u64, false),
+                        "element_ptr",
+                    )?;
+                    builder
+                        .build_store(element_ptr, self.value(*element_value)?)
+                        .map_err(|e| {
+                            CodegenError(format!(
+                                "array element @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                }
+                self.temps.insert(*out, array.into());
+            }
+            Instruction::ArrayLen { out, operand } => {
+                let array = self.value(*operand)?.into_pointer_value();
+                let size_ptr = self.byte_gep(array, 8, "size_ptr")?;
+                let name = format!("t{}", out.into_raw().into_u32());
+                let size = builder
+                    .build_load(context.i64_type(), size_ptr, &name)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "array_len @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.temps.insert(*out, size);
+            }
+            Instruction::ArrayGet { out, array, index } => {
+                let array_ty = function.value_ty(self.globals_arena, *array);
+                let element = array_element(&array_ty)?;
+                let element_ty = basic_ty(context, self.enums, element)?;
+                let array = self.value(*array)?.into_pointer_value();
+                let index = self.value(*index)?.into_int_value();
+                self.bounds_check(array, index)?;
+                let element_ptr = self.element_ptr(array, element_ty, index, "element_ptr")?;
+                let name = format!("t{}", out.into_raw().into_u32());
+                let value = builder
+                    .build_load(element_ty, element_ptr, &name)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "array_get @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.temps.insert(*out, value);
+            }
+            Instruction::ArraySet {
+                array,
+                index,
+                value,
+            } => {
+                let array_ty = function.value_ty(self.globals_arena, *array);
+                let element = array_element(&array_ty)?;
+                let element_ty = basic_ty(context, self.enums, element)?;
+                let array = self.value(*array)?.into_pointer_value();
+                let index = self.value(*index)?.into_int_value();
+                self.bounds_check(array, index)?;
+                let element_ptr = self.element_ptr(array, element_ty, index, "element_ptr")?;
+                builder
+                    .build_store(element_ptr, self.value(*value)?)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "array_set @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+            }
+            Instruction::ArrayClone { out, operand } => {
+                // `ptr scoop_rt_array_clone(ptr obj, i64 elem_size)`.
+                let element = array_element(&function.temps[*out].ty)?;
+                let stride = self
+                    .target_data
+                    .get_abi_size(&basic_ty(context, self.enums, element)?);
+                let clone = self.runtime_fn(
+                    scoop_lir::ARRAY_CLONE_SYMBOL,
+                    ptr_ty(context)
+                        .fn_type(&[ptr_ty(context).into(), context.i64_type().into()], false),
+                );
+                let name = format!("t{}", out.into_raw().into_u32());
+                let result = builder
+                    .build_call(
+                        clone,
+                        &[
+                            self.value(*operand)?.into(),
+                            context.i64_type().const_int(stride, false).into(),
+                        ],
+                        &name,
+                    )
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "array_clone @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "call @{} produced no value",
+                            scoop_lir::ARRAY_CLONE_SYMBOL
+                        ))
+                    })?;
+                self.temps.insert(*out, result);
             }
             Instruction::EnumWrap {
                 out,
@@ -619,6 +887,173 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(alloca)
     }
 
+    /// Get or declare a runtime function with the given signature.
+    fn runtime_fn(
+        &self,
+        symbol: &str,
+        ty: inkwell::types::FunctionType<'ctx>,
+    ) -> inkwell::values::FunctionValue<'ctx> {
+        self.llvm
+            .get_function(symbol)
+            .unwrap_or_else(|| self.llvm.add_function(symbol, ty, None))
+    }
+
+    /// The array TypeDescriptor global for an element type (emitted in
+    /// `emit_object`; every array type in the module is collected there).
+    fn array_td(&self, element: &LirType) -> Result<GlobalValue<'ctx>, CodegenError> {
+        self.array_elements
+            .iter()
+            .position(|candidate| candidate == element)
+            .map(|index| self.array_tds[index])
+            .ok_or_else(|| {
+                CodegenError(format!(
+                    "no array TypeDescriptor for element type {}",
+                    element.dump()
+                ))
+            })
+    }
+
+    /// Byte-offset GEP from an opaque pointer (object field access).
+    fn byte_gep(
+        &self,
+        ptr: PointerValue<'ctx>,
+        offset: u64,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        // SAFETY: `ptr` addresses an object at least `offset` bytes
+        // large (callers address fields of the runtime object model).
+        unsafe {
+            self.builder.build_gep(
+                self.context.i8_type(),
+                ptr,
+                &[self.context.i32_type().const_int(offset, false)],
+                name,
+            )
+        }
+        .map_err(|e| {
+            CodegenError(format!(
+                "gep {name} @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        })
+    }
+
+    /// Address of element `index` of an array object: the element area
+    /// starts right after the header + size field (16 bytes).
+    fn element_ptr(
+        &self,
+        array: PointerValue<'ctx>,
+        element_ty: BasicTypeEnum<'ctx>,
+        index: IntValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let base = self.byte_gep(array, 16, "elements")?;
+        // SAFETY: `base` addresses the element area of an array whose
+        // elements have layout `element_ty`; `index` was bounds-checked
+        // against the array size (or is a valid constant index).
+        unsafe { self.builder.build_gep(element_ty, base, &[index], name) }.map_err(|e| {
+            CodegenError(format!(
+                "element gep @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        })
+    }
+
+    /// Emit the array bounds check: trap when `(u64)index >= (u64)size`
+    /// (the unsigned comparison also rejects negative indexes, which
+    /// wrap above every in-range size). On return the builder is
+    /// positioned in the in-bounds continuation block; the rest of the
+    /// current LIR block (including its terminator) is emitted there.
+    fn bounds_check(
+        &mut self,
+        array: PointerValue<'ctx>,
+        index: IntValue<'ctx>,
+    ) -> Result<(), CodegenError> {
+        let builder = self.builder;
+        let size_ptr = self.byte_gep(array, 8, "size_ptr")?;
+        let size = builder
+            .build_load(self.context.i64_type(), size_ptr, "size")
+            .map_err(|e| {
+                CodegenError(format!(
+                    "bounds check @{symbol}: {e}",
+                    symbol = self.function.symbol
+                ))
+            })?
+            .into_int_value();
+        let out_of_bounds = builder
+            .build_int_compare(IntPredicate::UGE, index, size, "out_of_bounds")
+            .map_err(|e| {
+                CodegenError(format!(
+                    "bounds check @{symbol}: {e}",
+                    symbol = self.function.symbol
+                ))
+            })?;
+        let ok_block = self
+            .context
+            .append_basic_block(self.llvm_function, "in_bounds");
+        let trap_block = self.bounds_trap_block()?;
+        builder
+            .build_conditional_branch(out_of_bounds, trap_block, ok_block)
+            .map_err(|e| {
+                CodegenError(format!(
+                    "bounds check @{symbol}: {e}",
+                    symbol = self.function.symbol
+                ))
+            })?;
+        builder.position_at_end(ok_block);
+        Ok(())
+    }
+
+    /// The shared bounds-check trap block of this function, created on
+    /// first use: `scoop_rt_trap("array index out of bounds")` followed
+    /// by `unreachable` (the TRAP_SYMBOL contract: noreturn).
+    fn bounds_trap_block(
+        &mut self,
+    ) -> Result<inkwell::basic_block::BasicBlock<'ctx>, CodegenError> {
+        if let Some(block) = self.bounds_trap_block {
+            return Ok(block);
+        }
+        let builder = self.builder;
+        let current = builder
+            .get_insert_block()
+            .ok_or_else(|| CodegenError("builder has no insertion block".to_string()))?;
+
+        let message = self
+            .bounds_message
+            .ok_or_else(|| {
+                CodegenError("bounds check in a module without array types".to_string())
+            })?
+            .as_pointer_value();
+
+        let trap = self.runtime_fn(
+            scoop_lir::TRAP_SYMBOL,
+            self.context
+                .void_type()
+                .fn_type(&[ptr_ty(self.context).into()], false),
+        );
+        let block = self
+            .context
+            .append_basic_block(self.llvm_function, "bounds_trap");
+        builder.position_at_end(block);
+        builder
+            .build_call(trap, &[message.into()], "trap")
+            .map_err(|e| {
+                CodegenError(format!(
+                    "bounds trap @{symbol}: {e}",
+                    symbol = self.function.symbol
+                ))
+            })?;
+        builder.build_unreachable().map_err(|e| {
+            CodegenError(format!(
+                "bounds trap @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        })?;
+        builder.position_at_end(current);
+        self.bounds_trap_block = Some(block);
+        Ok(block)
+    }
+
     /// Address of the tag field of a tagged enum value in memory.
     fn tag_ptr(
         &self,
@@ -742,13 +1177,23 @@ fn declare_function<'ctx>(
     Ok(())
 }
 
+/// Module-level data function emission needs, bundled to keep
+/// signatures small.
+struct ModuleCtx<'a, 'ctx> {
+    enums: &'a Arena<EnumDef>,
+    globals_arena: &'a Arena<Global>,
+    globals: &'a [GlobalValue<'ctx>],
+    array_elements: &'a [LirType],
+    array_tds: &'a [GlobalValue<'ctx>],
+    target_data: &'a inkwell::targets::TargetData,
+    bounds_message: Option<GlobalValue<'ctx>>,
+}
+
 fn emit_function<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     builder: &inkwell::builder::Builder<'ctx>,
-    enums: &Arena<EnumDef>,
-    globals_arena: &Arena<Global>,
-    globals: &[GlobalValue<'ctx>],
+    module_ctx: &ModuleCtx<'_, 'ctx>,
     function: &Function,
 ) -> Result<(), CodegenError> {
     // Pre-declared in the first pass (see `emit_object`).
@@ -769,11 +1214,16 @@ fn emit_function<'ctx>(
         function,
         llvm_function,
         entry_block: blocks[arena_index(function.entry)],
-        enums,
-        globals_arena,
-        globals,
+        enums: module_ctx.enums,
+        globals_arena: module_ctx.globals_arena,
+        globals: module_ctx.globals,
+        array_elements: module_ctx.array_elements,
+        array_tds: module_ctx.array_tds,
+        target_data: module_ctx.target_data,
         allocas: Vec::with_capacity(function.locals.len()),
         temps: HashMap::new(),
+        bounds_trap_block: None,
+        bounds_message: module_ctx.bounds_message,
     };
 
     // All locals are stack slots allocated at the top of the entry block;
@@ -781,7 +1231,7 @@ fn emit_function<'ctx>(
     // positioning at its end places the allocas before every instruction.
     builder.position_at_end(blocks[arena_index(function.entry)]);
     for (_, local) in function.locals.iter() {
-        let ty = basic_ty(context, enums, &local.ty)?;
+        let ty = basic_ty(context, module_ctx.enums, &local.ty)?;
         emitter.allocas.push(
             builder
                 .build_alloca(ty, &local.name)
@@ -1374,6 +1824,182 @@ mod tests {
         let module = enum_module();
         let output =
             std::env::temp_dir().join(format!("scoop_codegen_m4_test_{}.o", std::process::id()));
+        // `emit_object` verifies the LLVM module before writing, so a
+        // successful return means `module.verify()` passed.
+        emit_object(&module, &output).expect("emit object");
+        let len = std::fs::metadata(&output)
+            .expect("object file exists")
+            .len();
+        assert!(len > 0, "object file is empty");
+        std::fs::remove_file(&output).ok();
+    }
+
+    /// An M5-shaped module: ArrayAlloc with i64 and aggregate (Point)
+    /// elements, ArrayLen, bounds-checked ArrayGet / ArraySet, and
+    /// ArrayClone on both element shapes.
+    fn arrays_module() -> Module {
+        let point = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
+        let int_array = LirType::Array(Box::new(LirType::I64));
+        let point_array = LirType::Array(Box::new(point.clone()));
+
+        let mut locals = Arena::default();
+        let numbers = locals.alloc(Local {
+            name: "numbers".to_string(),
+            ty: int_array.clone(),
+        });
+
+        let mut temps = Arena::default();
+        let t0 = temps.alloc(Temp {
+            ty: int_array.clone(),
+        }); // array_alloc (1, 2, 3)
+        let t1 = temps.alloc(Temp { ty: LirType::I64 }); // array_len t0
+        let t2 = temps.alloc(Temp { ty: LirType::I64 }); // array_get t0[1]
+        let t3 = temps.alloc(Temp {
+            ty: int_array.clone(),
+        }); // array_clone t0
+        let t4 = temps.alloc(Temp { ty: point.clone() }); // aggregate (t2, t1)
+        let t5 = temps.alloc(Temp {
+            ty: point_array.clone(),
+        }); // array_alloc (t4, t4)
+        let t6 = temps.alloc(Temp { ty: point.clone() }); // array_get t5[1]
+        let t7 = temps.alloc(Temp { ty: LirType::I64 }); // extract t6.1
+        let t8 = temps.alloc(Temp {
+            ty: point_array.clone(),
+        }); // array_clone t5
+        let t9 = temps.alloc(Temp { ty: LirType::I64 }); // t1 + t7
+
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::ArrayAlloc {
+                    out: t0,
+                    elements: vec![Value::IntConst(1), Value::IntConst(2), Value::IntConst(3)],
+                },
+                Instruction::Store {
+                    local: numbers,
+                    value: Value::Temp(t0),
+                },
+                Instruction::ArrayLen {
+                    out: t1,
+                    operand: Value::Local(numbers),
+                },
+                Instruction::ArrayGet {
+                    out: t2,
+                    array: Value::Local(numbers),
+                    index: Value::IntConst(1),
+                },
+                Instruction::ArraySet {
+                    array: Value::Local(numbers),
+                    index: Value::IntConst(0),
+                    value: Value::Temp(t2),
+                },
+                Instruction::ArrayClone {
+                    out: t3,
+                    operand: Value::Local(numbers),
+                },
+                Instruction::MakeAggregate {
+                    out: t4,
+                    elements: vec![Value::Temp(t2), Value::Temp(t1)],
+                },
+                Instruction::ArrayAlloc {
+                    out: t5,
+                    elements: vec![Value::Temp(t4), Value::Temp(t4)],
+                },
+                Instruction::ArrayGet {
+                    out: t6,
+                    array: Value::Temp(t5),
+                    index: Value::IntConst(0),
+                },
+                Instruction::ExtractValue {
+                    out: t7,
+                    aggregate: Value::Temp(t6),
+                    index: 1,
+                },
+                Instruction::ArraySet {
+                    array: Value::Temp(t5),
+                    index: Value::Temp(t1),
+                    value: Value::Temp(t6),
+                },
+                Instruction::ArrayClone {
+                    out: t8,
+                    operand: Value::Temp(t5),
+                },
+                Instruction::BinOp {
+                    out: t9,
+                    op: BinOp::Add,
+                    lhs: Value::Temp(t1),
+                    rhs: Value::Temp(t7),
+                },
+                // Use the clones and the sum so nothing is dead.
+                Instruction::Call {
+                    out: None,
+                    symbol: "scoop_rt_println_int".to_string(),
+                    args: vec![Value::Temp(t9)],
+                },
+                Instruction::ArraySet {
+                    array: Value::Temp(t3),
+                    index: Value::IntConst(0),
+                    value: Value::IntConst(0),
+                },
+                Instruction::ArraySet {
+                    array: Value::Temp(t8),
+                    index: Value::IntConst(0),
+                    value: Value::Temp(t6),
+                },
+            ],
+            terminator: Terminator::Return { value: None },
+        });
+
+        Module {
+            globals: Arena::default(),
+            enums: Arena::default(),
+            functions: vec![Function {
+                symbol: "scoop_main".to_string(),
+                params: vec![],
+                return_ty: LirType::Void,
+                locals,
+                temps,
+                blocks,
+                entry,
+            }],
+            entry_symbol: "scoop_main".to_string(),
+            meta: LirMeta {
+                layouts: vec![
+                    Layout {
+                        name: "String".to_string(),
+                        size: 16,
+                        align: 8,
+                        kind: LayoutKind::Plain {
+                            ref_field_offsets: vec![],
+                        },
+                    },
+                    Layout {
+                        name: "[i64]".to_string(),
+                        size: 8,
+                        align: 8,
+                        kind: LayoutKind::Array {
+                            element_is_ref: false,
+                        },
+                    },
+                    Layout {
+                        name: "[{i64, i64}]".to_string(),
+                        size: 16,
+                        align: 8,
+                        kind: LayoutKind::Array {
+                            element_is_ref: false,
+                        },
+                    },
+                ],
+            },
+        }
+    }
+
+    #[test]
+    fn emits_m5_arrays() {
+        let module = arrays_module();
+        let output =
+            std::env::temp_dir().join(format!("scoop_codegen_m5_test_{}.o", std::process::id()));
         // `emit_object` verifies the LLVM module before writing, so a
         // successful return means `module.verify()` passed.
         emit_object(&module, &output).expect("emit object");

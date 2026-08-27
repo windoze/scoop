@@ -4,7 +4,7 @@
 //! disambiguation), and every M2 "not supported" diagnostic.
 
 use scoop_ast::{
-    BinOp, Decl, Expr, FieldSelector, Pattern, Span, StatementKind, TypeRefKind, UnOp,
+    AssignTarget, BinOp, Decl, Expr, FieldSelector, Pattern, Span, StatementKind, TypeRefKind, UnOp,
 };
 
 use crate::tests::{block_body, err, ok, only_function};
@@ -141,8 +141,11 @@ fn assign_statement() {
     let StatementKind::Assign(assign) = &stmt.kind else {
         panic!("expected an assignment");
     };
-    assert_eq!(assign.target.text, "n");
-    assert_eq!(assign.target.span, Span::new(17, 18));
+    let AssignTarget::Local(target) = &assign.target else {
+        panic!("expected a local assignment target");
+    };
+    assert_eq!(target.text, "n");
+    assert_eq!(target.span, Span::new(17, 18));
     assert_eq!(assign.span, Span::new(17, 26));
     assert_eq!(
         stmt_dump("n = n + 1"),
@@ -422,7 +425,7 @@ fn when_expression_not_supported() {
 fn for_loop_not_supported() {
     let (span, message) = err("fun main() { for (i in xs) {} }");
     assert_eq!(span, Span::new(13, 16));
-    assert_eq!(message, "`for` loops are not supported yet (milestone M3)");
+    assert_eq!(message, "`for` loops are not supported yet (milestone M5)");
 }
 
 #[test]

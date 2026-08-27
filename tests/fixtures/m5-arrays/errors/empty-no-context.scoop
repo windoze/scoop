@@ -1,0 +1,4 @@
+fun main() {
+    val e = []
+    println(e.size)
+}
