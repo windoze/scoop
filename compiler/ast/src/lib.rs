@@ -294,12 +294,24 @@ pub struct ValDecl {
     pub span: Span,
 }
 
-/// Assignment to a local `var` (M2: plain identifier targets only).
+/// Assignment. `Local` targets a `var`; `Index` targets a
+/// `MutableArray` element (spec 10.5).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assign {
-    pub target: Ident,
+    pub target: AssignTarget,
     pub value: Expr,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AssignTarget {
+    Local(Ident),
+    /// `receiver[index] = value`
+    Index {
+        receiver: Box<Expr>,
+        index: Box<Expr>,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -372,6 +384,17 @@ pub enum Expr {
         rhs: Box<Expr>,
         span: Span,
     },
+    /// `[e1, e2, ...]` — array literal (spec 10.2).
+    ArrayLiteral {
+        elements: Vec<Expr>,
+        span: Span,
+    },
+    /// `receiver[index]` — subscript read (spec 10.5).
+    Index {
+        receiver: Box<Expr>,
+        index: Box<Expr>,
+        span: Span,
+    },
 }
 
 impl Expr {
@@ -386,7 +409,9 @@ impl Expr {
             | Expr::Binary { span, .. }
             | Expr::Unary { span, .. }
             | Expr::NullAssert { span, .. }
-            | Expr::Elvis { span, .. } => *span,
+            | Expr::Elvis { span, .. }
+            | Expr::ArrayLiteral { span, .. }
+            | Expr::Index { span, .. } => *span,
             Expr::Var(ident) => ident.span,
             Expr::FieldAccess(access) => access.span,
             Expr::Call(call) => call.span,
@@ -613,7 +638,17 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             }
         }
         StatementKind::Assign(assign) => {
-            out.push_str(&format!("{pad}assign {}\n", assign.target.text));
+            match &assign.target {
+                AssignTarget::Local(name) => out.push_str(&format!("{pad}assign {}\n", name.text)),
+                AssignTarget::Index { .. } => out.push_str(&format!("{pad}assign []\n")),
+            }
+            if let AssignTarget::Index {
+                receiver, index, ..
+            } = &assign.target
+            {
+                dump_expr(receiver, indent + 1, out);
+                dump_expr(index, indent + 1, out);
+            }
             dump_expr(&assign.value, indent + 1, out);
         }
         StatementKind::If(if_) => {
@@ -744,6 +779,19 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}Elvis\n"));
             dump_expr(lhs, indent + 1, out);
             dump_expr(rhs, indent + 1, out);
+        }
+        Expr::ArrayLiteral { elements, .. } => {
+            out.push_str(&format!("{pad}ArrayLiteral\n"));
+            for element in elements {
+                dump_expr(element, indent + 1, out);
+            }
+        }
+        Expr::Index {
+            receiver, index, ..
+        } => {
+            out.push_str(&format!("{pad}Index\n"));
+            dump_expr(receiver, indent + 1, out);
+            dump_expr(index, indent + 1, out);
         }
     }
 }

@@ -33,6 +33,17 @@
 //! (noreturn) with a `CString` message global. Enum layouts in the
 //! meta keep per-variant reference offsets — scanning an enum value
 //! depends on its tag (runtime spec 2.2).
+//!
+//! M5: arrays (docs/milestone5/DESIGN.md 2.4). Both array kinds map
+//! onto `LirType::Array` — a pointer to `{ td, i64 size, inline
+//! elements }`; mutability is compile-time only. The MIR array nodes
+//! become the `ArrayAlloc` / `ArrayGet` / `ArrayLen` / `ArraySet` /
+//! `ArrayClone` instructions (bounds checks and the clone's runtime
+//! call are codegen's job). Every array type appearing in the module
+//! gets a meta layout (after the tuple layouts) whose size / align are
+//! element-level — the element stride and alignment of the region
+//! after header + size — plus `element_is_ref`, which tells the M9 GC
+//! whether to scan the whole element region as references.
 
 use std::collections::HashMap;
 
@@ -123,6 +134,9 @@ fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>
             for field in &module.structs[*id].fields {
                 nested_enums(module, &field.ty, out);
             }
+        }
+        mir::Type::Array(element) | mir::Type::MutableArray(element) => {
+            nested_enums(module, element, out);
         }
         mir::Type::Unit | mir::Type::Int | mir::Type::Boolean | mir::Type::String => {}
     }
@@ -228,7 +242,8 @@ fn repr_shape(repr: &lir::EnumRepr) -> (u64, u64) {
 /// The meta layouts (DESIGN 2.4 / 3.4): the runtime `String` object
 /// header, the `Int` / `Boolean` scalars, every struct in declaration
 /// order, every enum in declaration order (with per-variant reference
-/// offsets), and every tuple type that appears in the module.
+/// offsets), every tuple type that appears in the module, and every
+/// array type that appears in the module (M5).
 fn layouts(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
@@ -265,18 +280,25 @@ fn layouts(
     for (id, def) in module.enums.iter() {
         layouts.push(enum_layout(module, enums, id, def));
     }
+    // Tuples first, then arrays (M5): the M4 layout order is kept.
+    for ty in &types {
+        if let mir::Type::Tuple(elements) = ty {
+            layouts.push(aggregate_layout(
+                module,
+                enums,
+                mir::type_name(module, ty),
+                elements,
+            ));
+        }
+    }
     for ty in &types {
         match ty {
-            mir::Type::Tuple(elements) => {
-                layouts.push(aggregate_layout(
-                    module,
-                    enums,
-                    mir::type_name(module, ty),
-                    elements,
-                ));
+            mir::Type::Tuple(_) => {}
+            mir::Type::Array(element) | mir::Type::MutableArray(element) => {
+                layouts.push(array_layout(module, enums, ty, element));
             }
-            // `record_layout_types` only records tuples.
-            _ => unreachable!("only tuple types get layouts"),
+            // `record_layout_types` only records tuples and arrays.
+            _ => unreachable!("only tuple and array types get layouts"),
         }
     }
     layouts
@@ -397,6 +419,51 @@ fn enum_layout(
     }
 }
 
+/// Layout of an array object (M5, DESIGN 2.4): `{ td, i64 size,
+/// inline elements }`. The object is variable-length, so `size` /
+/// `align` here are element-level information: the element stride
+/// (element size rounded up to its alignment) and alignment of the
+/// element region that follows the 8-byte header + 8-byte size field.
+/// `element_is_ref` tells the M9 GC whether the whole element region
+/// is scanned as references.
+fn array_layout(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    ty: &mir::Type,
+    element: &mir::Type,
+) -> lir::Layout {
+    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let (size, align) = size_align(module, &enum_shape, element);
+    lir::Layout {
+        name: mir::type_name(module, ty),
+        size: size.next_multiple_of(align),
+        align,
+        kind: lir::LayoutKind::Array {
+            element_is_ref: element_is_ref(enums, element),
+        },
+    }
+}
+
+/// Whether an array element is a reference: elements mapping to `Ptr`
+/// (String, and arrays themselves) and niche-form enums (a bare
+/// pointer) are; scalars and inline aggregates are not. Tagged enum
+/// elements keep their references per variant — the flat flag cannot
+/// express them, so they count as non-reference here (the boundary
+/// recorded in M4, DESIGN 6).
+fn element_is_ref(enums: &Arena<lir::EnumDef>, element: &mir::Type) -> bool {
+    match element {
+        mir::Type::String | mir::Type::Array(_) | mir::Type::MutableArray(_) => true,
+        mir::Type::Enum(id, _) => {
+            matches!(enums[enum_def_id(*id)].repr, lir::EnumRepr::Niche { .. })
+        }
+        mir::Type::Unit
+        | mir::Type::Int
+        | mir::Type::Boolean
+        | mir::Type::Struct(_)
+        | mir::Type::Tuple(_) => false,
+    }
+}
+
 /// Field offsets plus total size and alignment of an aggregate with
 /// the given field types: each field sits at the next offset aligned
 /// to its own alignment, and the size is rounded up to the aggregate
@@ -447,6 +514,8 @@ fn size_align(
             let (_, size, align) = aggregate_shape(module, enum_shape, elements);
             (size, align)
         }
+        // An array value is a pointer to the array object.
+        mir::Type::Array(_) | mir::Type::MutableArray(_) => (8, 8),
         mir::Type::Enum(id, _) => enum_shape(*id),
     }
 }
@@ -462,6 +531,12 @@ fn collect_ref_offsets(
 ) {
     let fields: Vec<mir::Type> = match ty {
         mir::Type::String => {
+            offsets.push(base);
+            return;
+        }
+        // An array value is itself a reference to the array object
+        // (the elements' references are the array layout's business).
+        mir::Type::Array(_) | mir::Type::MutableArray(_) => {
             offsets.push(base);
             return;
         }
@@ -493,18 +568,27 @@ fn collect_ref_offsets(
     }
 }
 
-/// Record every tuple type reachable from `ty` (first-appearance
-/// order, duplicates skipped) so each gets a meta layout. Structs and
-/// enums are covered by their own declaration-driven layout sections.
+/// Record every tuple and array type reachable from `ty`
+/// (first-appearance order, duplicates skipped) so each gets a meta
+/// layout. Structs and enums are covered by their own
+/// declaration-driven layout sections.
 fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
-    let mir::Type::Tuple(elements) = ty else {
-        return;
-    };
-    if !types.contains(ty) {
-        types.push(ty.clone());
-    }
-    for element in elements {
-        record_layout_types(element, types);
+    match ty {
+        mir::Type::Tuple(elements) => {
+            if !types.contains(ty) {
+                types.push(ty.clone());
+            }
+            for element in elements {
+                record_layout_types(element, types);
+            }
+        }
+        mir::Type::Array(element) | mir::Type::MutableArray(element) => {
+            if !types.contains(ty) {
+                types.push(ty.clone());
+            }
+            record_layout_types(element, types);
+        }
+        _ => {}
     }
 }
 
@@ -512,13 +596,17 @@ fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
 /// the empty aggregate, String a reference, struct / tuple literal
 /// aggregates of their mapped fields, and enums `LirType::Enum` —
 /// their representation lives in the `EnumDef`, so the mapping is the
-/// identity on enum ids.
+/// identity on enum ids. Both array kinds map onto `LirType::Array`
+/// (a pointer to the array object; the payload is the element layout).
 fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
         mir::Type::Int => lir::LirType::I64,
         mir::Type::Boolean => lir::LirType::I1,
         mir::Type::String => lir::LirType::Ptr,
+        mir::Type::Array(element) | mir::Type::MutableArray(element) => {
+            lir::LirType::Array(Box::new(lir_type(module, element)))
+        }
         mir::Type::Struct(id) => lir::LirType::Aggregate(
             module.structs[*id]
                 .fields
@@ -660,6 +748,15 @@ enum LocalSlot {
     Param(u32),
 }
 
+/// The element type of an array type. `Array` and `MutableArray`
+/// share the object layout; mutability is compile-time only.
+fn array_element(ty: &mir::Type) -> &mir::Type {
+    match ty {
+        mir::Type::Array(element) | mir::Type::MutableArray(element) => element,
+        _ => unreachable!("expected an array type"),
+    }
+}
+
 /// Per-function lowering state: locals, temps, and the basic blocks
 /// built so far. Invariant: the `current` block is always unsealed
 /// (its terminator is a placeholder); a block is sealed exactly when
@@ -773,6 +870,27 @@ impl FunctionLowerer<'_> {
                 mir::Type::Tuple(elements.iter().map(|e| self.expr_ty(e)).collect())
             }
             mir::Expr::StructInit { struct_id, .. } => mir::Type::Struct(*struct_id),
+            mir::Expr::ArrayLiteral(elements) => {
+                // The literal's kind (Array vs MutableArray) is not
+                // recorded on the node and does not matter here: both
+                // map onto the same LIR type. Empty literals only
+                // appear where the context supplies the type
+                // (hir-lower rejects `[]` without one), and `expr_ty`
+                // is never queried on those paths.
+                let element = elements
+                    .first()
+                    .expect("empty array literals only appear with an expected type");
+                mir::Type::Array(Box::new(self.expr_ty(element)))
+            }
+            mir::Expr::ArrayGet { array, .. } => array_element(&self.expr_ty(array)).clone(),
+            mir::Expr::ArrayLen(_) => mir::Type::Int,
+            mir::Expr::ArrayClone(operand) => match self.expr_ty(operand) {
+                // The conversion produces the other array kind with the
+                // same element type (spec 10.4).
+                mir::Type::Array(element) => mir::Type::MutableArray(element),
+                mir::Type::MutableArray(element) => mir::Type::Array(element),
+                _ => unreachable!("an array conversion's operand is an array"),
+            },
             mir::Expr::Local(local) => self.mir_locals[*local].ty.clone(),
             mir::Expr::FieldAccess { receiver, index } => match self.expr_ty(receiver) {
                 mir::Type::Struct(id) => self.module.structs[id].fields[*index as usize].ty.clone(),
@@ -858,6 +976,26 @@ impl FunctionLowerer<'_> {
                 let value = self.lower_expr(value, &ty);
                 self.push(lir::Instruction::Store {
                     local: self.local_slot(*local),
+                    value,
+                });
+            }
+            // `m[i] = v`: bounds check and the element store are
+            // codegen's job; the element layout comes from the array
+            // operand's type.
+            mir::StatementKind::ArraySet {
+                array,
+                index,
+                value,
+            } => {
+                let array_ty = self.expr_ty(array);
+                record_layout_types(&array_ty, self.layout_types);
+                let element_ty = array_element(&array_ty).clone();
+                let array = self.lower_expr(array, &array_ty);
+                let index = self.lower_expr(index, &mir::Type::Int);
+                let value = self.lower_expr(value, &element_ty);
+                self.push(lir::Instruction::ArraySet {
+                    array,
+                    index,
                     value,
                 });
             }
@@ -970,6 +1108,49 @@ impl FunctionLowerer<'_> {
                     .map(|(arg, ty)| self.lower_expr(arg, ty))
                     .collect();
                 self.make_aggregate(ty, args)
+            }
+            // The array operations map onto the corresponding LIR
+            // instructions (DESIGN 2.4); the element layout is the
+            // `Array(...)` type of the array operand (or of `out` for
+            // the alloc), and bounds checks plus the clone's runtime
+            // call are codegen's job.
+            mir::Expr::ArrayLiteral(elements) => {
+                let element_ty = array_element(ty).clone();
+                let elements: Vec<lir::Value> = elements
+                    .iter()
+                    .map(|element| self.lower_expr(element, &element_ty))
+                    .collect();
+                let out_ty = self.value_type(ty);
+                let out = self.new_temp(out_ty);
+                self.push(lir::Instruction::ArrayAlloc { out, elements });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::ArrayGet { array, index } => {
+                let array_ty = self.expr_ty(array);
+                record_layout_types(&array_ty, self.layout_types);
+                let array = self.lower_expr(array, &array_ty);
+                let index = self.lower_expr(index, &mir::Type::Int);
+                let out_ty = self.value_type(ty);
+                let out = self.new_temp(out_ty);
+                self.push(lir::Instruction::ArrayGet { out, array, index });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::ArrayLen(operand) => {
+                let operand_ty = self.expr_ty(operand);
+                record_layout_types(&operand_ty, self.layout_types);
+                let operand = self.lower_expr(operand, &operand_ty);
+                let out = self.new_temp(lir::LirType::I64);
+                self.push(lir::Instruction::ArrayLen { out, operand });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::ArrayClone(operand) => {
+                let operand_ty = self.expr_ty(operand);
+                record_layout_types(&operand_ty, self.layout_types);
+                let operand = self.lower_expr(operand, &operand_ty);
+                let out_ty = self.value_type(ty);
+                let out = self.new_temp(out_ty);
+                self.push(lir::Instruction::ArrayClone { out, operand });
+                lir::Value::Temp(out)
             }
             mir::Expr::Local(local) => self.local_value(*local),
             mir::Expr::FieldAccess { receiver, index } => {
@@ -2599,5 +2780,153 @@ Module
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn array_nodes_become_array_instructions() {
+        // val a = [1, 2]; val x = a[0]; val n = a.size
+        // val m = MutableArray(a); m[0] = 40
+        let mut b = Builder::new();
+        let array_int = mir::Type::Array(Box::new(mir::Type::Int));
+        let mutable_int = mir::Type::MutableArray(Box::new(mir::Type::Int));
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", array_int));
+        let x = locals.alloc(local("x", mir::Type::Int));
+        let n = locals.alloc(local("n", mir::Type::Int));
+        let m = locals.alloc(local("m", mutable_int));
+        let main = b.main(
+            locals,
+            vec![
+                val_decl(
+                    a,
+                    mir::Expr::ArrayLiteral(vec![
+                        mir::Expr::IntLiteral(1),
+                        mir::Expr::IntLiteral(2),
+                    ]),
+                ),
+                val_decl(
+                    x,
+                    mir::Expr::ArrayGet {
+                        array: Box::new(mir::Expr::Local(a)),
+                        index: Box::new(mir::Expr::IntLiteral(0)),
+                    },
+                ),
+                val_decl(n, mir::Expr::ArrayLen(Box::new(mir::Expr::Local(a)))),
+                val_decl(m, mir::Expr::ArrayClone(Box::new(mir::Expr::Local(a)))),
+                stmt(mir::StatementKind::ArraySet {
+                    array: mir::Expr::Local(m),
+                    index: mir::Expr::IntLiteral(0),
+                    value: mir::Expr::IntLiteral(40),
+                }),
+            ],
+        );
+        let module = lower(&b.finish(main));
+
+        // Both array kinds map onto the same `LirType::Array` value
+        // type; the layouts come after the M4 sections (builtins,
+        // structs, enums, tuples).
+        let expected = "\
+Module
+  fun @scoop_main() -> void
+    local %0 a: [i64]
+    local %1 x: i64
+    local %2 n: i64
+    local %3 m: [i64]
+  block entry
+    t0 = array_alloc (1, 2) : [i64]
+    store t0 -> local0
+    t1 = array_get local0 0 : i64
+    store t1 -> local1
+    t2 = array_len local0 : i64
+    store t2 -> local2
+    t3 = array_clone local0 : [i64]
+    store t3 -> local3
+    array_set local3 0 40
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Array<Int> size=8 align=8 array(element_is_ref=false)
+  layout MutableArray<Int> size=8 align=8 array(element_is_ref=false)
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn array_layouts_mark_reference_elements() {
+        let mut b = Builder::new();
+        let option_s = b.option_enum("Option$S", mir::Type::String);
+        let point = b.strukt("Point", &[("x", mir::Type::Int), ("y", mir::Type::Int)]);
+        let option_string = mir::Type::Enum(option_s, vec![mir::Type::String]);
+        let array_int = mir::Type::Array(Box::new(mir::Type::Int));
+        let mut locals = Arena::new();
+        let _ints = locals.alloc(local("ints", array_int.clone()));
+        let _strings = locals.alloc(local(
+            "strings",
+            mir::Type::Array(Box::new(mir::Type::String)),
+        ));
+        let _options = locals.alloc(local("options", mir::Type::Array(Box::new(option_string))));
+        let _points = locals.alloc(local(
+            "points",
+            mir::Type::Array(Box::new(mir::Type::Struct(point))),
+        ));
+        let _nested = locals.alloc(local("nested", mir::Type::Array(Box::new(array_int))));
+        let main = b.main(locals, vec![]);
+        let module = lower(&b.finish(main));
+
+        let array_layout = |name: &str| {
+            let layout = module
+                .meta
+                .layouts
+                .iter()
+                .find(|l| l.name == name)
+                .unwrap_or_else(|| panic!("missing layout for {name}"));
+            let lir::LayoutKind::Array { element_is_ref } = layout.kind else {
+                panic!("expected an array layout for {name}")
+            };
+            (layout.size, layout.align, element_is_ref)
+        };
+        // size / align are element-level: the element stride and
+        // alignment of the region after header + size.
+        assert_eq!(array_layout("Array<Int>"), (8, 8, false));
+        // String elements are references.
+        assert_eq!(array_layout("Array<String>"), (8, 8, true));
+        // Option<String> uses the niche representation — a bare
+        // pointer, hence a reference element.
+        assert_eq!(array_layout("Array<Option$S<String>>"), (8, 8, true));
+        // A value-type element is inline: the Point stride.
+        assert_eq!(array_layout("Array<Point>"), (16, 8, false));
+        // An array element is itself a reference; the nested element
+        // type gets its own layout too.
+        assert_eq!(array_layout("Array<Array<Int>>"), (8, 8, true));
+    }
+
+    #[test]
+    fn array_fields_are_reference_fields() {
+        let mut b = Builder::new();
+        let _holder = b.strukt(
+            "Holder",
+            &[
+                ("flag", mir::Type::Boolean),
+                ("xs", mir::Type::Array(Box::new(mir::Type::Int))),
+            ],
+        );
+        let main = b.main(Arena::new(), vec![]);
+        let module = lower(&b.finish(main));
+
+        // flag @0 (1 byte), xs @8: an array value is a pointer-sized
+        // reference.
+        let holder = module
+            .meta
+            .layouts
+            .iter()
+            .find(|l| l.name == "Holder")
+            .expect("a layout per struct");
+        assert_eq!((holder.size, holder.align), (16, 8));
+        assert_eq!(plain_refs(holder), [8]);
+        // The array type reachable from the struct field gets a layout
+        // too, even though no code value mentions it.
+        assert!(module.meta.layouts.iter().any(|l| l.name == "Array<Int>"));
     }
 }

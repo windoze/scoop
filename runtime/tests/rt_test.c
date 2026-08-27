@@ -10,6 +10,8 @@
  *   false
  *   42-7
  *   truefalse
+ *   true
+ *   true
  *
  * Build & run:
  *   cc -std=c11 -Wall -Wextra -I runtime/include runtime/src/rt.c runtime/tests/rt_test.c -o /tmp/scoop_rt_test
@@ -52,6 +54,21 @@ void scoop_main(void) {
     scoop_rt_println_int(-7);
     scoop_rt_print_boolean(true);
     scoop_rt_println_boolean(false);
+
+    /* scoop_rt_array_clone (M5): independent snapshot — mutating the
+     * original after the clone must not affect the copy, and the copy
+     * keeps the header (td) and size. */
+    const ScoopTypeDescriptor array_td = {100, 8, 8, NULL};
+    struct {
+        const ScoopTypeDescriptor *td;
+        uint64_t size;
+        int64_t data[3];
+    } original = {&array_td, 3, {10, 20, 30}};
+    const ScoopArray *clone = scoop_rt_array_clone(&original, sizeof(int64_t));
+    original.data[0] = 99;
+    const int64_t *snapshot = (const int64_t *)clone->elements;
+    scoop_rt_println_boolean(snapshot[0] == 10 && snapshot[1] == 20 && snapshot[2] == 30);
+    scoop_rt_println_boolean(clone->size == 3 && clone->header.td == &array_td);
 
     /* scoop_rt_trap (M3) aborts the process, so it is not exercised
      * here; its trap path is covered end-to-end by EXPECT-TRAP compiler

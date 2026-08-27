@@ -15,6 +15,11 @@
 //! on demand), and enum variant field types resolve in the enum's own
 //! type-parameter scope (a generic enum's fields mention
 //! `Type::Param(index)` into `EnumDecl::type_params`).
+//!
+//! M5 (milestone5 DESIGN.md 2.2): `Array<T>` / `MutableArray<T>`
+//! annotations resolve to the compiler-built-in array types (spec 10.1;
+//! class declarations arrive with M7, DESIGN.md 5.1), interned like
+//! every other type.
 
 use la_arena::Arena;
 use scoop_ast as ast;
@@ -33,7 +38,8 @@ impl Lowerer {
             ast::TypeRefKind::Unit => Some(self.unit),
             ast::TypeRefKind::Generic(name, args) => {
                 // `Name<T1, ...>`: generic type application. M4: only
-                // generic enums (structs are not generic yet).
+                // generic enums (structs are not generic yet). M5: the
+                // built-in `Array<T>` / `MutableArray<T>`.
                 if let Some(index) = self
                     .type_params_in_scope
                     .iter()
@@ -47,6 +53,28 @@ impl Lowerer {
                         ),
                     );
                     return None;
+                }
+                // The array built-ins resolve before user-declared
+                // types (milestone5 DESIGN.md 2.2).
+                if name.text == "Array" || name.text == "MutableArray" {
+                    if args.len() != 1 {
+                        self.error(
+                            name.span,
+                            format!(
+                                "`{}` takes exactly 1 type argument, but {} were supplied",
+                                name.text,
+                                args.len()
+                            ),
+                        );
+                        return None;
+                    }
+                    let element = self.resolve_type_ref(&args[0])?;
+                    let ty = if name.text == "Array" {
+                        Type::Array(element)
+                    } else {
+                        Type::MutableArray(element)
+                    };
+                    return Some(self.intern_type(ty));
                 }
                 let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
                     let what = if self.structs_by_name.contains_key(&name.text) {
@@ -89,6 +117,16 @@ impl Lowerer {
                     "Boolean" => Some(self.boolean),
                     "String" => Some(self.string),
                     _ => {
+                        // The array built-ins require their type
+                        // argument (`Array<T>` goes through
+                        // TypeRefKind::Generic).
+                        if name.text == "Array" || name.text == "MutableArray" {
+                            self.error(
+                                name.span,
+                                format!("`{}` requires exactly 1 type argument", name.text),
+                            );
+                            return None;
+                        }
                         if let Some(&(_, ty)) = self.structs_by_name.get(&name.text) {
                             return Some(ty);
                         }
@@ -167,6 +205,14 @@ impl Lowerer {
     pub(crate) fn instantiate_ty(&mut self, ty: TypeId, type_args: &[TypeId]) -> TypeId {
         match self.types[ty].clone() {
             Type::Param(index) => type_args[index as usize],
+            Type::Array(element) => {
+                let element = self.instantiate_ty(element, type_args);
+                self.intern_type(Type::Array(element))
+            }
+            Type::MutableArray(element) => {
+                let element = self.instantiate_ty(element, type_args);
+                self.intern_type(Type::MutableArray(element))
+            }
             Type::Enum(id, args) => {
                 let mut substituted = Vec::with_capacity(args.len());
                 for arg in args {
@@ -194,6 +240,14 @@ impl Lowerer {
     ) -> Option<TypeId> {
         match self.types[ty].clone() {
             Type::Param(index) => bindings.get(index as usize).copied().flatten(),
+            Type::Array(element) => {
+                let element = self.try_substitute(element, bindings)?;
+                Some(self.intern_type(Type::Array(element)))
+            }
+            Type::MutableArray(element) => {
+                let element = self.try_substitute(element, bindings)?;
+                Some(self.intern_type(Type::MutableArray(element)))
+            }
             Type::Enum(id, args) => {
                 let mut substituted = Vec::with_capacity(args.len());
                 for arg in args {
@@ -209,6 +263,14 @@ impl Lowerer {
                 Some(self.intern_type(Type::Tuple(substituted)))
             }
             _ => Some(ty),
+        }
+    }
+
+    /// Whether `ty` is `Array<T>` or `MutableArray<T>`; returns `T`.
+    pub(crate) fn array_element_ty(&self, ty: TypeId) -> Option<TypeId> {
+        match &self.types[ty] {
+            Type::Array(element) | Type::MutableArray(element) => Some(*element),
+            _ => None,
         }
     }
 
@@ -239,6 +301,9 @@ fn type_value_equal(types: &Arena<Type>, a: &Type, b: &Type) -> bool {
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
         (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
+            type_value_equal(types, &types[*x], &types[*y])
+        }
         (Type::Param(x), Type::Param(y)) => x == y,
         (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
             x == y
@@ -272,6 +337,14 @@ fn type_name(
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => structs[*id].name.clone(),
+        Type::Array(element) => {
+            let inner = type_name(types, structs, enums, type_params, *element);
+            format!("Array<{inner}>")
+        }
+        Type::MutableArray(element) => {
+            let inner = type_name(types, structs, enums, type_params, *element);
+            format!("MutableArray<{inner}>")
+        }
         Type::Enum(id, args) => {
             let name = &enums[*id].name;
             if args.is_empty() {

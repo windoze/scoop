@@ -1,0 +1,82 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  fun main()
+    val a
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    Call println
+      Index
+        Var a
+        Unary Neg
+          IntLiteral 1
+
+== hir ==
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
+  fun main(): Unit
+    val local0
+      ArrayLiteral : Array<Int>
+        IntLiteral 1 : Int
+        IntLiteral 2 : Int
+        IntLiteral 3 : Int
+    Call println : Unit
+      Index : Int
+        Local a : Array<Int>
+        Unary Neg : Int
+          IntLiteral 1 : Int
+  entry main
+
+== mir ==
+Module
+  fun main @scoop_main() -> Unit
+    val a: Array<Int>
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    Call @scoop_rt_println_int direct
+      ArrayGet
+        Local a
+        Unary IntNeg
+          IntLiteral 1
+  entry @scoop_main
+
+== lir ==
+Module
+  fun @scoop_main() -> void
+    local %0 a: [i64]
+  block entry
+    t0 = array_alloc (1, 2, 3) : [i64]
+    store t0 -> local0
+    t1 = Neg 1 : i64
+    t2 = array_get local0 t1 : i64
+    call @scoop_rt_println_int(t2)
+    t3 = aggregate () : {}
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Array<Int> size=8 align=8 array(element_is_ref=false)
+  entry @scoop_main
+
+== trap ==
+scoop: trap: array index out of bounds

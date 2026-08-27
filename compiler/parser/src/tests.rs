@@ -14,7 +14,7 @@ pub(crate) fn ok(source: &str) -> scoop_ast::SourceFile {
 /// Asserts fail-fast (exactly one diagnostic) and returns its span + message.
 pub(crate) fn err(source: &str) -> (Span, String) {
     let diagnostics = parse(source).expect_err("should fail");
-    assert_eq!(diagnostics.len(), 1, "M3 is fail-fast");
+    assert_eq!(diagnostics.len(), 1, "the parser is fail-fast");
     let diagnostic = diagnostics.into_iter().next().unwrap();
     (
         diagnostic.span.expect("parser diagnostics carry a span"),

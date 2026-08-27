@@ -65,6 +65,18 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
+const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size) {
+    const ScoopArray *src = obj;
+    size_t bytes = sizeof(void *) + sizeof(uint64_t) + (size_t)(src->size * elem_size);
+    void *copy = malloc(bytes);
+    if (copy == NULL) {
+        fprintf(stderr, "scoop_rt_array_clone: out of memory\n");
+        abort();
+    }
+    memcpy(copy, obj, bytes);
+    return copy;
+}
+
 int main(void) {
     scoop_main();
     return 0;

@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m5-arrays/errors/invariance.scoop:3:25: error: initializer of `a` must be of type Array<Int>, found MutableArray<Int>
+m5-arrays/errors/invariance.scoop:4:13: error: unknown variable `a`

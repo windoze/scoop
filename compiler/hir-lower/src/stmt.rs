@@ -6,6 +6,9 @@
 //! arms, guards and exhaustiveness checking, and destructuring
 //! `val` / `var` declarations (the binding target is a pattern, not
 //! just an identifier).
+//!
+//! M5 (milestone5 DESIGN.md 2.2): subscript assignment
+//! (`array[index] = value`) alongside local assignment.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -443,28 +446,40 @@ impl Lowerer {
         })
     }
 
-    /// Assignment targets a declared, mutable local; the value type
-    /// must match the local's type (which is also the value's
-    /// expected-type hint).
+    /// Assignment. A `Local` target names a declared, mutable local; an
+    /// `Index` target (`array[index] = value`, spec 10.5) requires a
+    /// `MutableArray<T>` receiver, an `Int` index and a value of
+    /// exactly the element type `T`. In both cases the target type is
+    /// the value's expected-type hint.
     fn lower_assign(
         &mut self,
         assign: &ast::Assign,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
-        let Some(local) = self.scopes.lookup(&assign.target.text) else {
-            self.error(
-                assign.target.span,
-                format!("unknown variable `{}`", assign.target.text),
-            );
+        match &assign.target {
+            ast::AssignTarget::Local(name) => self.lower_local_assign(assign, name, out),
+            ast::AssignTarget::Index {
+                receiver, index, ..
+            } => self.lower_index_assign(assign, receiver, index, out),
+        }
+    }
+
+    /// `name = value`: the target must be a declared, mutable local and
+    /// the value type must match the local's type.
+    fn lower_local_assign(
+        &mut self,
+        assign: &ast::Assign,
+        name: &ast::Ident,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        let Some(local) = self.scopes.lookup(&name.text) else {
+            self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
         if !self.locals[local].mutable {
             self.error(
-                assign.target.span,
-                format!(
-                    "cannot assign to immutable variable `{}`",
-                    assign.target.text
-                ),
+                name.span,
+                format!("cannot assign to immutable variable `{}`", name.text),
             );
             return None;
         }
@@ -478,13 +493,76 @@ impl Lowerer {
                 assign.value.span(),
                 format!(
                     "cannot assign value of type {found} to `{}` of type {expected_name}",
-                    assign.target.text
+                    name.text
                 ),
             );
             return None;
         }
         out.extend(sink);
-        Some(hir::StatementKind::Assign { local, value })
+        Some(hir::StatementKind::Assign {
+            target: hir::AssignTarget::Local(local),
+            value,
+        })
+    }
+
+    /// `array[index] = value` (spec 10.5, milestone5 DESIGN.md 2.2):
+    /// only `MutableArray<T>` is assignable (an `Array<T>` receiver
+    /// gets its own diagnostic), the index must be `Int` and the value
+    /// exactly `T`.
+    fn lower_index_assign(
+        &mut self,
+        assign: &ast::Assign,
+        receiver: &ast::Expr,
+        index: &ast::Expr,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        let mut sink = Vec::new();
+        let array = self.lower_expr(receiver, &mut sink, None)?;
+        let element_ty = match self.types[array.ty].clone() {
+            Type::MutableArray(element) => element,
+            Type::Array(_) => {
+                let found = self.type_name(array.ty);
+                self.error(
+                    receiver.span(),
+                    format!("cannot assign to an element of immutable {found}"),
+                );
+                return None;
+            }
+            _ => {
+                let found = self.type_name(array.ty);
+                self.error(
+                    receiver.span(),
+                    format!("subscript is only supported on arrays, found {found}"),
+                );
+                return None;
+            }
+        };
+        let index = self.lower_expr(index, &mut sink, Some(self.int))?;
+        if index.ty != self.int {
+            let found = self.type_name(index.ty);
+            self.error(
+                index.span,
+                format!("array index must be Int, found {found}"),
+            );
+            return None;
+        }
+        let value = self.lower_expr(&assign.value, &mut sink, Some(element_ty))?;
+        if !self.types_equal(element_ty, value.ty) {
+            let expected = self.type_name(element_ty);
+            let found = self.type_name(value.ty);
+            self.error(
+                assign.value.span(),
+                format!(
+                    "cannot assign value of type {found} to an array element of type {expected}"
+                ),
+            );
+            return None;
+        }
+        out.extend(sink);
+        Some(hir::StatementKind::Assign {
+            target: hir::AssignTarget::Index { array, index },
+            value,
+        })
     }
 
     /// `if` / `while` conditions must be `Boolean`.

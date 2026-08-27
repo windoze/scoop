@@ -39,9 +39,9 @@ struct / tuple、字段访问、`val` / `var`、if / while、结构相等。
 
 enum 变体、when 扩展模式、守卫、穷尽性、解构声明与 `..`（spec 第 4、5 章）。同时建立了 sysroot 框架（`sysroot/lib/scoop.core`），`Option` 与 `print`/`println` 的硬编码定义正式迁移入 core 库。
 
-### M5 数组
+### M5 数组 ✅（2026-08-27 完成，设计见 `docs/milestone5/DESIGN.md`）
 
-`Array` / `MutableArray`、字面量与推导规则（spec 第 10 章）。
+`Array<T>` / `MutableArray<T>`（暂为编译器内建）、字面量与推导规则、下标读写、`size`、构造函数形式互转（memcpy 快照）；越界 trap（M8 改异常）。
 
 ### M6 字符串插值
 

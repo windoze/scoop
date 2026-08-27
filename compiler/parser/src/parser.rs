@@ -1,16 +1,16 @@
-//! Recursive-descent parser for the M4 subset: token vector -> AST.
+//! Recursive-descent parser for the M5 subset: token vector -> AST.
 //!
-//! M4 is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the first
-//! error aborts parsing with a single spanned diagnostic. Constructs that
-//! are lexically recognizable but outside the subset (`for`, `when`
-//! expressions, string interpolation, field assignment) get dedicated
-//! "not supported" diagnostics rather than generic syntax errors.
-//! Declaration parsing lives in `decl.rs`, expression parsing in
+//! Parsing is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the
+//! first error aborts parsing with a single spanned diagnostic. Constructs
+//! that are lexically recognizable but outside the subset (`for`, `when`
+//! expressions, string interpolation, field assignment, ranges, slices)
+//! get dedicated "not supported" diagnostics rather than generic syntax
+//! errors. Declaration parsing lives in `decl.rs`, expression parsing in
 //! `expr.rs`, and pattern parsing in `pattern.rs`.
 
 use scoop_ast::{
-    Assign, Block, Diagnostic, Expr, Ident, If, SourceFile, Span, Statement, StatementKind,
-    TypeRef, TypeRefKind, ValDecl, When, WhenArm, While,
+    Assign, AssignTarget, Block, Diagnostic, Expr, Ident, If, SourceFile, Span, Statement,
+    StatementKind, TypeRef, TypeRefKind, ValDecl, When, WhenArm, While,
 };
 
 use crate::lexer::{Token, TokenKind, lex};
@@ -237,7 +237,7 @@ impl Parser {
             )),
             TokenKind::Ident(text) if text == "for" => Err(Diagnostic::at(
                 self.peek().span,
-                "`for` loops are not supported yet (milestone M3)",
+                "`for` loops are not supported yet (milestone M5)",
             )),
             // `name = ...` (a single `=`, not `==`) assigns to a local `var`.
             TokenKind::Ident(_) if matches!(self.tokens[self.pos + 1].kind, TokenKind::Equal) => {
@@ -246,13 +246,37 @@ impl Parser {
             _ => {
                 let expr = self.parse_expr()?;
                 if matches!(self.peek().kind, TokenKind::Equal) {
-                    if matches!(expr, Expr::FieldAccess(_)) {
-                        return Err(Diagnostic::at(
-                            self.peek().span,
-                            "field assignment is not supported (value types are immutable)",
-                        ));
+                    match expr {
+                        // `m[i] = v` — subscript assignment (M5).
+                        Expr::Index {
+                            receiver,
+                            index,
+                            span,
+                        } => {
+                            self.bump(); // `=`
+                            let value = self.parse_expr()?;
+                            let assign_span = Span::new(span.start, value.span().end);
+                            return Ok(Statement {
+                                span: assign_span,
+                                kind: StatementKind::Assign(Assign {
+                                    target: AssignTarget::Index {
+                                        receiver,
+                                        index,
+                                        span,
+                                    },
+                                    value,
+                                    span: assign_span,
+                                }),
+                            });
+                        }
+                        Expr::FieldAccess(_) => {
+                            return Err(Diagnostic::at(
+                                self.peek().span,
+                                "field assignment is not supported (value types are immutable)",
+                            ));
+                        }
+                        _ => return self.unexpected("`;` or newline after statement"),
                     }
-                    return self.unexpected("`;` or newline after statement");
                 }
                 Ok(Statement {
                     span: expr.span(),
@@ -291,7 +315,9 @@ impl Parser {
         })
     }
 
-    /// `<name> = <expr>` — M2 assigns to plain local variables only.
+    /// `<name> = <expr>` — assigns to a plain local `var`. Subscript
+    /// assignment (`m[i] = v`) is handled in `parse_statement`, where the
+    /// target is a full expression.
     fn parse_assign(&mut self) -> Result<Statement, Diagnostic> {
         let target = self.expect_ident("assignment target")?;
         self.bump(); // `=`
@@ -300,7 +326,7 @@ impl Parser {
         Ok(Statement {
             span,
             kind: StatementKind::Assign(Assign {
-                target,
+                target: AssignTarget::Local(target),
                 value,
                 span,
             }),

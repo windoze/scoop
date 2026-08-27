@@ -9,6 +9,7 @@
 mod m2;
 mod m3;
 mod m4;
+mod m5;
 
 use super::*;
 use ast::{
@@ -61,6 +62,14 @@ pub(crate) fn ty_tuple(elements: Vec<TypeRef>) -> TypeRef {
 pub(crate) fn ty_nullable(inner: TypeRef) -> TypeRef {
     TypeRef {
         kind: TypeRefKind::Nullable(Box::new(inner)),
+        span: sp(),
+    }
+}
+
+/// `Name<T1, ...>` (M5: `Array<Int>` / `MutableArray<Int>`).
+pub(crate) fn ty_generic(name: &str, args: Vec<TypeRef>) -> TypeRef {
+    TypeRef {
+        kind: TypeRefKind::Generic(ident(name), args),
         span: sp(),
     }
 }
@@ -193,6 +202,23 @@ pub(crate) fn elvis(lhs: Expr, rhs: Expr) -> Expr {
 pub(crate) fn null_assert(operand: Expr) -> Expr {
     Expr::NullAssert {
         operand: Box::new(operand),
+        span: sp(),
+    }
+}
+
+/// `[e1, e2, ...]` (M5).
+pub(crate) fn array_lit(elements: Vec<Expr>) -> Expr {
+    Expr::ArrayLiteral {
+        elements,
+        span: sp(),
+    }
+}
+
+/// `receiver[index]` (M5).
+pub(crate) fn subscript(receiver: Expr, index: Expr) -> Expr {
+    Expr::Index {
+        receiver: Box::new(receiver),
+        index: Box::new(index),
         span: sp(),
     }
 }
@@ -359,7 +385,23 @@ pub(crate) fn arm(
 pub(crate) fn assign(target: &str, value: Expr) -> Statement {
     Statement {
         kind: StatementKind::Assign(ast::Assign {
-            target: ident(target),
+            target: ast::AssignTarget::Local(ident(target)),
+            value,
+            span: sp(),
+        }),
+        span: sp(),
+    }
+}
+
+/// `receiver[index] = value` (M5).
+pub(crate) fn assign_index(receiver: Expr, index: Expr, value: Expr) -> Statement {
+    Statement {
+        kind: StatementKind::Assign(ast::Assign {
+            target: ast::AssignTarget::Index {
+                receiver: Box::new(receiver),
+                index: Box::new(index),
+                span: sp(),
+            },
             value,
             span: sp(),
         }),

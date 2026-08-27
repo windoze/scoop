@@ -25,6 +25,11 @@ pub enum Type {
     Boolean,
     String,
     Struct(StructId),
+    /// Compiler-built-in array types (M5; class declarations arrive
+    /// with M7, see docs/milestone5/DESIGN.md 5.1). Invariant in the
+    /// element type (spec 10.4).
+    Array(TypeId),
+    MutableArray(TypeId),
     Tuple(Vec<TypeId>),
     /// An enum type with resolved type arguments (empty for
     /// non-generic enums). `Option<T>` is one of these since M4
@@ -45,6 +50,9 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
         (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
+            types_equal(module, *x, *y)
+        }
         (Type::Tuple(xs), Type::Tuple(ys)) => {
             xs.len() == ys.len()
                 && xs
@@ -73,6 +81,8 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Array(inner) => format!("Array<{}>", type_name(module, *inner)),
+        Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, *inner)),
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
@@ -213,7 +223,7 @@ pub enum StatementKind {
         init: Expr,
     },
     Assign {
-        local: LocalId,
+        target: AssignTarget,
         value: Expr,
     },
     If {
@@ -228,6 +238,16 @@ pub enum StatementKind {
     },
     /// Pattern `when` (spec 5); checked for exhaustiveness at HIR.
     When(When),
+}
+
+#[derive(Debug)]
+pub enum AssignTarget {
+    Local(LocalId),
+    /// `array[index] = value` (only `MutableArray`, checked at HIR).
+    Index {
+        array: Expr,
+        index: Expr,
+    },
 }
 
 #[derive(Debug)]
@@ -303,6 +323,19 @@ pub enum ExprKind {
         receiver: Box<Expr>,
         field: FieldRef,
     },
+    /// `[e1, ...]`; the kind (Array vs MutableArray) is in `Expr::ty`.
+    ArrayLiteral(Vec<Expr>),
+    /// Subscript read `receiver[index]`; result is the element type.
+    Index {
+        receiver: Box<Expr>,
+        index: Box<Expr>,
+    },
+    /// `array.size` (spec 10.5); result is `Int`.
+    ArrayLen(Box<Expr>),
+    /// `Array(m)` / `MutableArray(a)` conversion (spec 10.4): a
+    /// memcpy snapshot of the other array kind with the same element
+    /// type. The target kind is in `Expr::ty`.
+    ArrayClone(Box<Expr>),
     Call {
         function: FunctionId,
         /// Resolved type arguments; empty for non-generic callees.
@@ -469,8 +502,17 @@ fn dump_statements(
                 out.push_str(&format!("{pad}val {}\n", dump_pattern(pattern)));
                 dump_expr(module, locals, init, indent + 1, out);
             }
-            StatementKind::Assign { local, value } => {
-                out.push_str(&format!("{pad}assign {}\n", locals[*local].name));
+            StatementKind::Assign { target, value } => {
+                match target {
+                    AssignTarget::Local(local) => {
+                        out.push_str(&format!("{pad}assign {}\n", locals[*local].name))
+                    }
+                    AssignTarget::Index { array, index } => {
+                        out.push_str(&format!("{pad}assign []\n"));
+                        dump_expr(module, locals, array, indent + 1, out);
+                        dump_expr(module, locals, index, indent + 1, out);
+                    }
+                }
                 dump_expr(module, locals, value, indent + 1, out);
             }
             StatementKind::If {
@@ -626,6 +668,25 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         ExprKind::Unary { op, operand } => {
             out.push_str(&format!("{pad}Unary {op:?} : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::ArrayLiteral(elements) => {
+            out.push_str(&format!("{pad}ArrayLiteral : {ty}\n"));
+            for element in elements {
+                dump_expr(module, locals, element, indent + 1, out);
+            }
+        }
+        ExprKind::Index { receiver, index } => {
+            out.push_str(&format!("{pad}Index : {ty}\n"));
+            dump_expr(module, locals, receiver, indent + 1, out);
+            dump_expr(module, locals, index, indent + 1, out);
+        }
+        ExprKind::ArrayLen(operand) => {
+            out.push_str(&format!("{pad}ArrayLen : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::ArrayClone(operand) => {
+            out.push_str(&format!("{pad}ArrayClone : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::SomeWrap(operand) => {

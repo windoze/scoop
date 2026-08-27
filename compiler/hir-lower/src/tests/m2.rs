@@ -490,7 +490,10 @@ fn assign_to_immutable_variable_is_an_error_with_target_span() {
     let target_span = Span::new(20, 21);
     let mut assignment = assign("x", int_lit(2));
     if let StatementKind::Assign(a) = &mut assignment.kind {
-        a.target.span = target_span;
+        let ast::AssignTarget::Local(name) = &mut a.target else {
+            panic!("the assign builder produces a local target");
+        };
+        name.span = target_span;
     }
     let file = file(vec![fun("main", vec![val("x", int_lit(1)), assignment])]);
     let errors = lower_user(file).expect_err("assigning to a val must fail");
