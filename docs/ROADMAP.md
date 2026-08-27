@@ -80,3 +80,68 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
 - 里程碑顺序可按实现中发现的依赖调整，但 M0 不推迟、M3 不晚于任何依赖 `Option` 的特性。
 - 2026-08-28 顺序调整：字符串插值由 M6 后移至 M12（低优先级语法糖）；引用类型层级提前为 M6，新增 M7 函数重载；原 M8–M12 顺延为 M8–M13。
+
+## 4. 待补齐清单（backlog）
+
+各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
+
+### 来自 M1
+
+- always-leak GC → M9 替换（runtime spec 第 3 章已定契约）；
+- parser 错误恢复（当前 fail-fast 于第一个错误）；
+- 单文件单 Cone 编译 → M13。
+
+### 来自 M2
+
+- struct 字段默认值、命名参数调用、次构造函数（spec 4.1）；
+- 副本更新表达式 `s.{ f: v }`（spec 4.5）；
+- `break` / `continue` / `for` 循环（`for` 与区间见 M5 行）；
+- 定宽整数族 `Int8/16/32/64`、`UInt*`（spec 11.2；`Int` 已固定 i64）；
+- 整数溢出语义（spec 未定，需先回 spec 补充）；
+- 内建 print 重载 → M7 转为 core 普通重载（设计已含）。
+
+### 来自 M3
+
+- `!!` 失败 trap → `UnwrapException`（→ M8）；
+- `while` 条件中禁用 `?.`/`?:`（诊断拒绝；待 `break` 或循环重组方案，需先回 spec 讨论）；
+- `f(None, 1)` 式"先 None 后绑定"的推断（M3 的实参顺序限制）；
+- 显式类型实参 `f<Int>(x)`（`<` 消歧方案待定）；
+- `value` / `ref` 类型约束（spec 13.9）；
+- 非 Unit 函数返回的分支穷尽分析（当前要求函数体以 `return` 结尾）；
+- `if` 作为表达式；
+- 泛型 **struct** 声明（泛型 enum 已在 M4 完成）。
+
+### 来自 M4
+
+- core 与用户代码同单元编译 → M13 的 `.slib` 与 Cone 隔离；
+- 注解仅 `@Intrinsic` 且仅 sysroot → M11 扩展为完整 FFI 注解族；
+- 构造函数式变体的默认值只支持常量表达式（完整 spec 8.5"定义处解析、调用处求值"随函数默认参数一起做）；
+- `when` 的表达式形态（产生值）；
+- 命名字段模式的子模式（`S { f1: 0, .. }` 字面量匹配——ast::FieldPattern 需扩展）；
+- 表达式位的裸变体名解析推广到所有 enum（当前仅 `Option` 的 `Some`/`None`；spec 4.2/5.1 的"上下文可确定类型时可省略前缀"在表达式位只对 Option 生效）；
+- tuple/struct 的穷尽性按"穷尽模式组合"判定（当前要求 catch-all 或 `else`；spec 5.2/5.3 的组合判定是保守简化）；
+- **tagged enum 嵌入 struct/tuple/class 字段时引用偏移不压平**（LIR Plain 布局不记录嵌套 enum 的引用——M9 GC 前必须解决，runtime spec 2.2 已补按 tag 扫描契约）；
+- `for` 循环变量与 lambda 参数的解构（随 `for`/lambda）。
+
+### 来自 M5
+
+- `toArray` / `toMutableArray` 方法形式（spec 10.4；方法体系已在 M6 就位）；
+- `for` 循环与区间 `IntRange` 等（spec 11.8；含 `..` 区间运算符与 rest 的共存验证）；
+- `String` 下标/切片；
+- 数组 `==` 语义（spec 缺口，需先回 spec 第 10 章补充）；
+- 数组字面量混合引用类型的 LOB 推导（spec 10.3 完整规则）；
+- 数组越界 trap → 异常（→ M8）。
+
+### 来自 M6
+
+- 次构造函数、`init` 块、body 属性（非构造函数属性）、`super` 调用；
+- interface 的属性与默认实现；
+- `equals` / `hashCode` / `toString` 的用户覆写（vtable 前三槽当前固定默认实现）；
+- companion object、`object` 声明、`sealed`、委托（`by`）；
+- 可见性修饰符（`internal` 语义 → M13 前）；
+- `?.` 后随方法调用（`a?.foo()`）；
+- smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
+- 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）；
+- class 字段按 8 字节槽索引的约定与连续 sub-8 字段（如两个相邻 `Boolean`）的布局协调（lir-lower/codegen 约定需要随布局一般化复审）；
+- 泛型成员函数（静态调用；spec 3.2 虚分派排除规则已生效）；
+- `Any` 的 core 库形态（spec 11.1；当前编译器内建）。
