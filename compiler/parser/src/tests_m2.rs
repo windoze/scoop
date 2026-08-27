@@ -439,9 +439,11 @@ fn string_interpolation_not_supported() {
 }
 
 #[test]
-fn field_assignment_not_supported() {
-    let (span, message) = err("fun main() {\n    a.b = 1\n}\n");
-    assert_eq!(span, Span::new(21, 22));
+fn tuple_element_assignment_not_supported() {
+    // Tuple elements are value-type fields; named field assignment
+    // (`a.b = 1`) parses since M6 (HIR rejects value-type receivers).
+    let (span, message) = err("fun main() {\n    a._1 = 1\n}\n");
+    assert_eq!(span, Span::new(22, 23));
     assert_eq!(
         message,
         "field assignment is not supported (value types are immutable)"
@@ -469,13 +471,15 @@ fn field_default_value_not_supported() {
 }
 
 #[test]
-fn struct_member_body_not_supported() {
-    let (span, message) = err("struct S(val x: Int) {}");
-    assert_eq!(span, Span::new(21, 22));
-    assert_eq!(
-        message,
-        "struct member declarations are not supported yet (milestone M3)"
-    );
+fn struct_empty_member_body() {
+    // M2–M5 rejected a body after the constructor; M6 adds member
+    // functions, so an empty body parses.
+    let file = ok("struct S(val x: Int) {}");
+    let Decl::Struct(decl) = &file.declarations[0] else {
+        panic!("expected a struct declaration");
+    };
+    assert!(decl.methods.is_empty());
+    assert_eq!(decl.span, Span::new(0, 23));
 }
 
 #[test]

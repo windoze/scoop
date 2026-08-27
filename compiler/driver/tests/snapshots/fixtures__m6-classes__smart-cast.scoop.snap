@@ -1,0 +1,336 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_print")
+  fun print(message: String)
+    @Intrinsic("rt_println")
+  fun println(message: String)
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  struct S
+    field v: Int
+  fun main()
+    val a: Any
+      Call S
+        IntLiteral 9
+    if
+      Is S false
+        Var a
+      Call println
+        FieldAccess v
+          Var a
+    if
+      Is Int false
+        Var a
+      Call println
+        StringLiteral "int"
+    else
+      Call println
+        StringLiteral "not int"
+    Call println
+      Binary Ne
+        Cast S optional=true
+          Var a
+        Var None
+
+== hir ==
+Module
+  struct S
+    field v: Int
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun print(): Unit <intrinsic rt_print>
+  fun println(): Unit <intrinsic rt_println>
+  fun main(): Unit
+    val local0
+      Box : Any
+        StructInit S : S
+          IntLiteral 9 : Int
+    if
+      IsInstance S : Boolean
+        Local a : Any
+      Call println : Unit
+        FieldAccess field 0 : Int
+          Unbox : S
+            Local a : Any
+    if
+      IsInstance Int : Boolean
+        Local a : Any
+      Call println : Unit
+        StringLiteral "int" : String
+    else
+      Call println : Unit
+        StringLiteral "not int" : String
+    Call println : Unit
+      Binary Ne : Boolean
+        Cast optional=true : Option<S>
+          Local a : Any
+        VariantConstruct Option.None<S> : Option<S>
+  entry main
+
+== mir ==
+Module
+  struct S (v: Int)
+  enum Option$S
+    Some(_1: S)
+    None()
+  class box$S vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  fun main @scoop_main() -> Unit
+    val a: Any
+      Box
+        StructInit S
+          IntLiteral 9
+    if
+      IsInstance S
+        Local a
+      val $ub.1: S
+        Unbox
+          Local a
+      Call @scoop_rt_println_int direct
+        FieldAccess 0
+          Local $ub.1
+    if
+      IsInstance Int
+        Local a
+      Call @scoop_rt_println direct
+        StringConst @scoop.str.0
+    else
+      Call @scoop_rt_println direct
+        StringConst @scoop.str.1
+    val $cast.2: Any
+      Local a
+    if
+      IsInstance S
+        Local $cast.2
+      assign $cast.3
+        VariantConstruct Option$S<S> v0
+          Unbox
+            Local $cast.2
+    else
+      assign $cast.3
+        VariantConstruct Option$S<S> v1
+    val $cast.4: Any
+      Local a
+    if
+      IsInstance S
+        Local $cast.4
+      assign $cast.5
+        VariantConstruct Option$S<S> v0
+          Unbox
+            Local $cast.4
+    else
+      assign $cast.5
+        VariantConstruct Option$S<S> v1
+    val $cast.6: Any
+      Local a
+    if
+      IsInstance S
+        Local $cast.6
+      assign $cast.7
+        VariantConstruct Option$S<S> v0
+          Unbox
+            Local $cast.6
+    else
+      assign $cast.7
+        VariantConstruct Option$S<S> v1
+    Call @scoop_rt_println_boolean direct
+      Binary Or
+        Binary IntNe
+          EnumTag
+            Local $cast.3
+          EnumTag
+            VariantConstruct Option$S<S> v1
+        Binary And
+          Binary IntEq
+            EnumTag
+              Local $cast.5
+            IntLiteral 0
+          Binary IntNe
+            FieldAccess 0
+              EnumField v0 f0
+                Local $cast.7
+            FieldAccess 0
+              EnumField v0 f0
+                VariantConstruct Option$S<S> v1
+  fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
+    val $a: S
+      Unbox
+        Local this
+    val $b: S
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        FieldAccess 0
+          Local $a
+        FieldAccess 0
+          Local $b
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    val $a: Int
+      Unbox
+        Local this
+    val $b: Int
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        Local $a
+        Local $b
+  str @scoop.str.0 "int"
+  str @scoop.str.1 "not int"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "int"
+  global @scoop.str.1 = "not int"
+  global @scoop_td_box$S = c""
+  global @scoop_td_box$I = c""
+  enum Option$S tagged size=8 align=8 variants=({i64}) ()
+  fun @scoop_main() -> void
+    local %0 a: ptr
+    local %1 $ub.1: {i64}
+    local %2 $cast.2: ptr
+    local %3 $cast.3: enum0
+    local %4 $cast.4: ptr
+    local %5 $cast.5: enum0
+    local %6 $cast.6: ptr
+    local %7 $cast.7: enum0
+    local %8 $sc.1: i1
+    local %9 $sc.2: i1
+  block entry
+    t0 = aggregate (9) : {i64}
+    t1 = call @scoop_rt_box(global2, t0, 8) : ptr
+    store t1 -> local0
+    t2 = call @scoop_rt_is_instance(local0, global2) : i1
+    cbr t2 then @if.then.1 else @if.merge.2
+  block if.then.1
+    t3 = extract local0, 1 : {i64}
+    store t3 -> local1
+    t4 = extract local1, 0 : i64
+    call @scoop_rt_println_int(t4)
+    t5 = aggregate () : {}
+    br @if.merge.2
+  block if.merge.2
+    t6 = call @scoop_rt_is_instance(local0, global3) : i1
+    cbr t6 then @if.then.3 else @if.else.4
+  block if.then.3
+    call @scoop_rt_println(global0)
+    t7 = aggregate () : {}
+    br @if.merge.5
+  block if.else.4
+    call @scoop_rt_println(global1)
+    t8 = aggregate () : {}
+    br @if.merge.5
+  block if.merge.5
+    store local0 -> local2
+    t9 = call @scoop_rt_is_instance(local2, global2) : i1
+    cbr t9 then @if.then.6 else @if.else.7
+  block if.then.6
+    t10 = extract local2, 1 : {i64}
+    t11 = enum_wrap e0 v0 (t10) : enum0
+    store t11 -> local3
+    br @if.merge.8
+  block if.else.7
+    t12 = enum_wrap e0 v1 () : enum0
+    store t12 -> local3
+    br @if.merge.8
+  block if.merge.8
+    store local0 -> local4
+    t13 = call @scoop_rt_is_instance(local4, global2) : i1
+    cbr t13 then @if.then.9 else @if.else.10
+  block if.then.9
+    t14 = extract local4, 1 : {i64}
+    t15 = enum_wrap e0 v0 (t14) : enum0
+    store t15 -> local5
+    br @if.merge.11
+  block if.else.10
+    t16 = enum_wrap e0 v1 () : enum0
+    store t16 -> local5
+    br @if.merge.11
+  block if.merge.11
+    store local0 -> local6
+    t17 = call @scoop_rt_is_instance(local6, global2) : i1
+    cbr t17 then @if.then.12 else @if.else.13
+  block if.then.12
+    t18 = extract local6, 1 : {i64}
+    t19 = enum_wrap e0 v0 (t18) : enum0
+    store t19 -> local7
+    br @if.merge.14
+  block if.else.13
+    t20 = enum_wrap e0 v1 () : enum0
+    store t20 -> local7
+    br @if.merge.14
+  block if.merge.14
+    t21 = enum_tag e0 local3 : i64
+    t22 = enum_wrap e0 v1 () : enum0
+    t23 = enum_tag e0 t22 : i64
+    t24 = Ne t21, t23 : i1
+    store t24 -> local8
+    cbr t24 then @sc.merge.16 else @sc.rhs.15
+  block sc.rhs.15
+    t25 = enum_tag e0 local5 : i64
+    t26 = Eq t25, 0 : i1
+    store t26 -> local9
+    cbr t26 then @sc.rhs.17 else @sc.merge.18
+  block sc.merge.16
+    call @scoop_rt_println_boolean(local8)
+    t33 = aggregate () : {}
+    ret
+  block sc.rhs.17
+    t27 = enum_field e0 v0 f0 local7 : {i64}
+    t28 = extract t27, 0 : i64
+    t29 = enum_wrap e0 v1 () : enum0
+    t30 = enum_field e0 v0 f0 t29 : {i64}
+    t31 = extract t30, 0 : i64
+    t32 = Ne t28, t31 : i1
+    store t32 -> local9
+    br @sc.merge.18
+  block sc.merge.18
+    store local9 -> local8
+    br @sc.merge.16
+  fun @scoop.eq.S(ptr, ptr) -> i1
+    local %0 $a: {i64}
+    local %1 $b: {i64}
+  block entry
+    t0 = extract param0, 1 : {i64}
+    store t0 -> local0
+    t1 = extract param1, 1 : {i64}
+    store t1 -> local1
+    t2 = extract local0, 0 : i64
+    t3 = extract local1, 0 : i64
+    t4 = Eq t2, t3 : i1
+    ret t4
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = extract param0, 1 : i64
+    store t0 -> local0
+    t1 = extract param1, 1 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  td box$S @scoop_td_box$S size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=16 vtable=3 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout S size=8 align=8 refs=[]
+  layout Option$S size=16 align=8 enum-refs=[[], []]
+  layout box$S size=16 align=8 refs=[]
+  layout box$I size=16 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+9
+not int
+true

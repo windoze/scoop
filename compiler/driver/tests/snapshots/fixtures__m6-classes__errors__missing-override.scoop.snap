@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/missing-override.scoop:6:9: error: `f` overrides `A.f` and must be marked `override`

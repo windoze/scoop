@@ -1,16 +1,18 @@
-//! Recursive-descent parser for the M5 subset: token vector -> AST.
+//! Recursive-descent parser for the M6 subset: token vector -> AST.
 //!
 //! Parsing is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the
 //! first error aborts parsing with a single spanned diagnostic. Constructs
 //! that are lexically recognizable but outside the subset (`for`, `when`
-//! expressions, string interpolation, field assignment, ranges, slices)
-//! get dedicated "not supported" diagnostics rather than generic syntax
-//! errors. Declaration parsing lives in `decl.rs`, expression parsing in
+//! expressions, string interpolation, field assignment, ranges, slices,
+//! `super`, secondary constructors, `init` blocks, member properties,
+//! companion/`object` declarations, `sealed` classes) get dedicated
+//! "not supported" diagnostics rather than generic syntax errors.
+//! Declaration parsing lives in `decl.rs`, expression parsing in
 //! `expr.rs`, and pattern parsing in `pattern.rs`.
 
 use scoop_ast::{
-    Assign, AssignTarget, Block, Diagnostic, Expr, Ident, If, SourceFile, Span, Statement,
-    StatementKind, TypeRef, TypeRefKind, ValDecl, When, WhenArm, While,
+    Assign, AssignTarget, Block, Diagnostic, Expr, FieldSelector, Ident, If, SourceFile, Span,
+    Statement, StatementKind, TypeRef, TypeRefKind, ValDecl, When, WhenArm, While,
 };
 
 use crate::lexer::{Token, TokenKind, lex};
@@ -202,7 +204,7 @@ impl Parser {
     }
 
     /// A statement ends at a newline, at `}`, or at an explicit `;`.
-    fn expect_statement_end(&mut self) -> Result<(), Diagnostic> {
+    pub(crate) fn expect_statement_end(&mut self) -> Result<(), Diagnostic> {
         if matches!(self.peek().kind, TokenKind::Semicolon) {
             while matches!(self.peek().kind, TokenKind::Semicolon) {
                 self.bump();
@@ -269,11 +271,38 @@ impl Parser {
                                 }),
                             });
                         }
-                        Expr::FieldAccess(_) => {
-                            return Err(Diagnostic::at(
-                                self.peek().span,
-                                "field assignment is not supported (value types are immutable)",
-                            ));
+                        // `obj.field = v` — a field assignment (M6). The
+                        // parser cannot tell class `var` properties from
+                        // value-type fields; HIR rejects the latter.
+                        Expr::FieldAccess(access) => {
+                            if access.safe {
+                                return Err(Diagnostic::at(
+                                    access.span,
+                                    "assignments through `?.` are not allowed",
+                                ));
+                            }
+                            let FieldSelector::Name(name) = access.selector else {
+                                // Tuple elements are value-type fields.
+                                return Err(Diagnostic::at(
+                                    self.peek().span,
+                                    "field assignment is not supported (value types are immutable)",
+                                ));
+                            };
+                            self.bump(); // `=`
+                            let value = self.parse_expr()?;
+                            let assign_span = Span::new(access.span.start, value.span().end);
+                            return Ok(Statement {
+                                span: assign_span,
+                                kind: StatementKind::Assign(Assign {
+                                    target: AssignTarget::Field {
+                                        receiver: access.receiver,
+                                        name,
+                                        span: access.span,
+                                    },
+                                    value,
+                                    span: assign_span,
+                                }),
+                            });
                         }
                         _ => return self.unexpected("`;` or newline after statement"),
                     }

@@ -19,7 +19,8 @@ SourceFile
     Empty
   fun main()
     val v
-      Call E.Num
+      MethodCall Num
+        Var E
         IntLiteral 42
     when
       Var v
@@ -38,7 +39,8 @@ SourceFile
         Call println
           StringLiteral "empty"
     val w
-      Call E.Pair
+      MethodCall Pair
+        Var E
         IntLiteral 3
         IntLiteral 4
     when

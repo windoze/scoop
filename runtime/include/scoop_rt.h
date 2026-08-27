@@ -10,14 +10,28 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Runtime spec 2.2. Field set will grow with the GC (parent types,
- * vtable/itable); the M1 prefix matches the final layout. */
-typedef struct ScoopTypeDescriptor {
+/* Runtime spec 2.2 (full M6 form). Field order is the ABI contract with
+ * codegen: it emits one global per LIR meta TypeDescriptor in exactly
+ * this layout. */
+typedef struct ScoopTypeDescriptor ScoopTypeDescriptor;
+
+/* itable entry: keyed by the interface's TypeDescriptor pointer
+ * (runtime spec 2.2, impl spec 2.9). */
+typedef struct ScoopItableEntry {
+    const ScoopTypeDescriptor *interface;
+    const void *const *slots; /* function pointer array */
+} ScoopItableEntry;
+
+struct ScoopTypeDescriptor {
     uint64_t type_id;
     uint64_t size;
     uint64_t align;
-    const uint64_t *ref_offsets; /* M1: null */
-} ScoopTypeDescriptor;
+    const uint64_t *ref_offsets; /* global array or null */
+    const ScoopTypeDescriptor *parent;
+    const void *const *vtable; /* function pointer array or null */
+    const ScoopItableEntry *itables; /* entry array or null */
+    uint64_t itable_count;
+};
 
 /* Runtime spec 2.1. */
 typedef struct ScoopObjectHeader {
@@ -69,6 +83,28 @@ _Noreturn void scoop_rt_trap(const char *message);
  * fresh allocation — a shallow snapshot: elements that are references
  * are copied as pointers, not cloned. Never freed (always-leak). */
 const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size);
+
+/* M6 additions (milestone6 DESIGN section 3): dispatch support. */
+
+/* Box a value type: allocate header + payload and copy the payload
+ * (runtime spec 2.3). Never freed (always-leak). */
+void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload, uint64_t payload_size);
+
+/* `is` check: walk the object's parent chain, then scan its itable
+ * keys (runtime spec 2.2). */
+bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td);
+
+/* Linear scan of `obj_td`'s itable keys; returns the slots array.
+ * Aborts when missing (the compiler guarantees the entry exists —
+ * defensive). */
+const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
+                                          const ScoopTypeDescriptor *iface_td);
+
+/* Any default methods (vtable slots 0-2 on every class, milestone6
+ * DESIGN 5.1). */
+bool scoop_rt_any_equals(const void *a, const void *b);
+uint64_t scoop_rt_any_hashcode(const void *a);
+const ScoopString *scoop_rt_any_tostring(const void *a);
 
 /* Entry point provided by the compiled user program (its `fun main`). */
 void scoop_main(void);

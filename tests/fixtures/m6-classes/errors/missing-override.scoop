@@ -1,0 +1,12 @@
+open class A(val x: Int) {
+    fun f(): Int = 1
+}
+
+class B(val y: Int) : A(1) {
+    fun f(): Int = 2
+}
+
+fun main() {
+    val b = B(1)
+    println(b.f())
+}

@@ -10,6 +10,7 @@ mod m2;
 mod m3;
 mod m4;
 mod m5;
+mod m6;
 
 use super::*;
 use ast::{
@@ -393,6 +394,22 @@ pub(crate) fn assign(target: &str, value: Expr) -> Statement {
     }
 }
 
+/// `receiver.field = value` (M6).
+pub(crate) fn assign_field(receiver: Expr, name: &str, value: Expr) -> Statement {
+    Statement {
+        kind: StatementKind::Assign(ast::Assign {
+            target: ast::AssignTarget::Field {
+                receiver: Box::new(receiver),
+                name: ident(name),
+                span: sp(),
+            },
+            value,
+            span: sp(),
+        }),
+        span: sp(),
+    }
+}
+
 /// `receiver[index] = value` (M5).
 pub(crate) fn assign_index(receiver: Expr, index: Expr, value: Expr) -> Statement {
     Statement {
@@ -468,6 +485,8 @@ pub(crate) fn fun_sig(
 ) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
+        is_override: false,
+        is_abstract: false,
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -494,6 +513,8 @@ pub(crate) fn fun_expr(
 ) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
+        is_override: false,
+        is_abstract: false,
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -518,6 +539,8 @@ pub(crate) fn intrinsic_fun(name: &str, intrinsic: &str, params: Vec<(&str, Type
             value: Some(intrinsic.to_string()),
             span: sp(),
         }],
+        is_override: false,
+        is_abstract: false,
         name: ident(name),
         type_params: Vec::new(),
         params: params
@@ -537,6 +560,8 @@ pub(crate) fn intrinsic_fun(name: &str, intrinsic: &str, params: Vec<(&str, Type
 pub(crate) fn struct_decl(name: &str, fields: Vec<(&str, TypeRef)>) -> Decl {
     Decl::Struct(AstStructDecl {
         name: ident(name),
+        interfaces: Vec::new(),
+        methods: Vec::new(),
         fields: fields
             .into_iter()
             .map(|(name, ty)| FieldDecl {
@@ -549,11 +574,244 @@ pub(crate) fn struct_decl(name: &str, fields: Vec<(&str, TypeRef)>) -> Decl {
     })
 }
 
+// --- M6: classes, interfaces, member functions ---
+
+/// `class Name(props) : Base(args), I1, I2 { methods }`.
+pub(crate) fn class_decl(
+    modifier: ast::ClassModifier,
+    name: &str,
+    ctor: Vec<(bool, &str, TypeRef)>,
+    base: Option<(&str, Vec<Expr>)>,
+    interfaces: Vec<&str>,
+    methods: Vec<FunctionDecl>,
+) -> Decl {
+    Decl::Class(ast::ClassDecl {
+        modifier,
+        name: ident(name),
+        constructor: ctor
+            .into_iter()
+            .map(|(mutable, name, ty)| ast::ConstructorProp {
+                mutable,
+                name: ident(name),
+                ty,
+                span: sp(),
+            })
+            .collect(),
+        base_class: base.map(|(name, args)| (ident(name), args)),
+        interfaces: interfaces.into_iter().map(ident).collect(),
+        methods,
+        span: sp(),
+    })
+}
+
+/// `interface I { fun m(...): T ... }`.
+pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
+    Decl::Interface(ast::InterfaceDecl {
+        name: ident(name),
+        methods,
+        span: sp(),
+    })
+}
+
+/// A member function with full control over flags and body shape.
+pub(crate) fn method_full(
+    is_override: bool,
+    is_abstract: bool,
+    name: &str,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    body: FunctionBody,
+) -> FunctionDecl {
+    FunctionDecl {
+        annotations: Vec::new(),
+        is_override,
+        is_abstract,
+        name: ident(name),
+        type_params: Vec::new(),
+        params: params
+            .into_iter()
+            .map(|(name, ty)| Param {
+                name: ident(name),
+                ty,
+                span: sp(),
+            })
+            .collect(),
+        return_ty,
+        body,
+        span: sp(),
+    }
+}
+
+/// A plain block-bodied member function (no flags).
+pub(crate) fn method(
+    name: &str,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    statements: Vec<Statement>,
+) -> FunctionDecl {
+    method_full(
+        false,
+        false,
+        name,
+        params,
+        return_ty,
+        FunctionBody::Block(block(statements)),
+    )
+}
+
+/// A plain expression-bodied member function (no flags).
+pub(crate) fn method_expr(
+    name: &str,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    expr: Expr,
+) -> FunctionDecl {
+    method_full(
+        false,
+        false,
+        name,
+        params,
+        return_ty,
+        FunctionBody::Expr(Box::new(expr)),
+    )
+}
+
+/// An `override` expression-bodied member function.
+pub(crate) fn override_method_expr(
+    name: &str,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    expr: Expr,
+) -> FunctionDecl {
+    method_full(
+        true,
+        false,
+        name,
+        params,
+        return_ty,
+        FunctionBody::Expr(Box::new(expr)),
+    )
+}
+
+/// A bodyless member declaration (interface signatures, `abstract`).
+pub(crate) fn bodyless_method(
+    is_abstract: bool,
+    name: &str,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+) -> FunctionDecl {
+    method_full(
+        false,
+        is_abstract,
+        name,
+        params,
+        return_ty,
+        FunctionBody::None,
+    )
+}
+
+/// A struct with member functions.
+pub(crate) fn struct_decl_methods(
+    name: &str,
+    fields: Vec<(&str, TypeRef)>,
+    methods: Vec<FunctionDecl>,
+) -> Decl {
+    struct_decl_full(name, fields, vec![], methods)
+}
+
+/// A struct with an interface list and member functions (spec 4.4.3).
+pub(crate) fn struct_decl_full(
+    name: &str,
+    fields: Vec<(&str, TypeRef)>,
+    interfaces: Vec<&str>,
+    methods: Vec<FunctionDecl>,
+) -> Decl {
+    Decl::Struct(AstStructDecl {
+        name: ident(name),
+        fields: fields
+            .into_iter()
+            .map(|(name, ty)| FieldDecl {
+                name: ident(name),
+                ty,
+                span: sp(),
+            })
+            .collect(),
+        interfaces: interfaces.into_iter().map(ident).collect(),
+        methods,
+        span: sp(),
+    })
+}
+
+/// An enum with member functions.
+pub(crate) fn enum_decl_methods(
+    name: &str,
+    type_params: Vec<&str>,
+    variants: Vec<VariantDecl>,
+    methods: Vec<FunctionDecl>,
+) -> Decl {
+    enum_decl_full(name, type_params, variants, vec![], methods)
+}
+
+/// An enum with an interface list and member functions (spec 4.4.3).
+pub(crate) fn enum_decl_full(
+    name: &str,
+    type_params: Vec<&str>,
+    variants: Vec<VariantDecl>,
+    interfaces: Vec<&str>,
+    methods: Vec<FunctionDecl>,
+) -> Decl {
+    Decl::Enum(ast::EnumDecl {
+        name: ident(name),
+        type_params: type_params.into_iter().map(ident).collect(),
+        variants,
+        interfaces: interfaces.into_iter().map(ident).collect(),
+        methods,
+        span: sp(),
+    })
+}
+
+/// `this`.
+pub(crate) fn this_expr() -> Expr {
+    Expr::This { span: sp() }
+}
+
+/// `receiver.name(args)`.
+pub(crate) fn method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
+    Expr::MethodCall {
+        receiver: Box::new(receiver),
+        name: ident(name),
+        args,
+        span: sp(),
+    }
+}
+
+/// `operand is T` / `operand !is T`.
+pub(crate) fn is_ty(operand: Expr, ty: TypeRef, negated: bool) -> Expr {
+    Expr::Is {
+        operand: Box::new(operand),
+        ty,
+        negated,
+        span: sp(),
+    }
+}
+
+/// `operand as T` / `operand as? T`.
+pub(crate) fn cast_ty(operand: Expr, ty: TypeRef, optional: bool) -> Expr {
+    Expr::Cast {
+        operand: Box::new(operand),
+        ty,
+        optional,
+        span: sp(),
+    }
+}
+
 pub(crate) fn enum_decl(name: &str, type_params: Vec<&str>, variants: Vec<VariantDecl>) -> Decl {
     Decl::Enum(ast::EnumDecl {
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         variants,
+        interfaces: Vec::new(),
+        methods: Vec::new(),
         span: sp(),
     })
 }

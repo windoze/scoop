@@ -43,17 +43,17 @@ enum 变体、when 扩展模式、守卫、穷尽性、解构声明与 `..`（sp
 
 `Array<T>` / `MutableArray<T>`（暂为编译器内建）、字面量与推导规则、下标读写、`size`、构造函数形式互转（memcpy 快照）；越界 trap（M8 改异常）。
 
-### M6 字符串插值
+### M6 引用类型层级 ✅（2026-08-28 完成，设计见 `docs/milestone6/DESIGN.md`）
 
-f-string 与 `StringBuilder` 脱糖（spec 第 6 章）。
+class / 继承 / interface / 方法、vtable / itable 分派、装箱（spec 3、4.4、9.1；impl spec 2.9）。落地后顺带解锁：数组的 `toArray` / `toMutableArray` 方法形式、core 的 `class StringBuilder` 声明、`add<T>` 依赖的 `toString` 分发基础。
 
-### M7 引用类型层级
+### M7 函数重载
 
-class / 继承 / interface、vtable / itable 分派、装箱（spec 3、4.4、9.1；impl spec 2.9）。
+顶层函数与方法的 overload resolution（按参数个数与类型分派）；`print` / `println` 的 `@Intrinsic` 重载届时转为 core 库的普通重载定义。
 
 ### M8 异常
 
-try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。
+try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。`!!` 与数组越界的 trap 改接 `UnwrapException` 等真实异常。
 
 ### M9 真 GC
 
@@ -67,7 +67,11 @@ suspend 状态机变换、Continuation（spec 8.2；impl spec 2.3）。
 
 `@Extern` / `@NoGC` / `@Unsafe` / `@Safe` / `@CLayout` / `@CallingConvention` / `@Global` / `@ThreadLocal` / `@InteriorMutable`、`Ptr` / `FunPtr`（spec 第 13、14 章）。
 
-### M12 多 Cone 与 `.slib`
+### M12 字符串插值
+
+f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone12/DESIGN.md`）。低优先级语法糖；`add<T>` 依赖 M6 的 `toString` 分发。
+
+### M13 多 Cone 与 `.slib`
 
 `Cone.toml`、依赖图、`.slib` 打包与 reader、三层 meta（impl spec 2.6）、re-export（`public import`）。
 
@@ -75,3 +79,4 @@ suspend 状态机变换、Continuation（spec 8.2；impl spec 2.3）。
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
 - 里程碑顺序可按实现中发现的依赖调整，但 M0 不推迟、M3 不晚于任何依赖 `Option` 的特性。
+- 2026-08-28 顺序调整：字符串插值由 M6 后移至 M12（低优先级语法糖）；引用类型层级提前为 M6，新增 M7 函数重载；原 M8–M12 顺延为 M8–M13。

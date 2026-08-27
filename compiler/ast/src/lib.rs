@@ -101,6 +101,47 @@ pub enum Decl {
     Function(FunctionDecl),
     Struct(StructDecl),
     Enum(EnumDecl),
+    Class(ClassDecl),
+    Interface(InterfaceDecl),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassModifier {
+    /// Default: cannot be inherited.
+    Final,
+    Open,
+    Abstract,
+}
+
+/// `class Name(props) : Base(args), I1, I2 { members }` (spec 9.1).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassDecl {
+    pub modifier: ClassModifier,
+    pub name: Ident,
+    /// Primary-constructor properties (`val` / `var`).
+    pub constructor: Vec<ConstructorProp>,
+    /// Base class and its constructor arguments (`: Base(args)`).
+    pub base_class: Option<(Ident, Vec<Expr>)>,
+    pub interfaces: Vec<Ident>,
+    pub methods: Vec<FunctionDecl>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConstructorProp {
+    pub mutable: bool,
+    pub name: Ident,
+    pub ty: TypeRef,
+    pub span: Span,
+}
+
+/// `interface I { fun m(x: Int): String ... }` — method signatures
+/// only in M6 (no properties, no default implementations).
+#[derive(Debug, Clone, PartialEq)]
+pub struct InterfaceDecl {
+    pub name: Ident,
+    pub methods: Vec<FunctionDecl>,
+    pub span: Span,
 }
 
 /// `enum E<T> { ... }` (spec 4.2).
@@ -109,6 +150,10 @@ pub struct EnumDecl {
     pub name: Ident,
     pub type_params: Vec<Ident>,
     pub variants: Vec<VariantDecl>,
+    /// Implemented interfaces (spec 4.4.3).
+    pub interfaces: Vec<Ident>,
+    /// Member functions (spec 4.2).
+    pub methods: Vec<FunctionDecl>,
     pub span: Span,
 }
 
@@ -146,6 +191,10 @@ pub struct VariantFieldDecl {
 pub struct StructDecl {
     pub name: Ident,
     pub fields: Vec<FieldDecl>,
+    /// Implemented interfaces (`struct S(...) : I1, I2`, spec 4.4.3).
+    pub interfaces: Vec<Ident>,
+    /// Member functions (value receiver, spec 4.1/4.4.3).
+    pub methods: Vec<FunctionDecl>,
     pub span: Span,
 }
 
@@ -160,6 +209,10 @@ pub struct FieldDecl {
 pub struct FunctionDecl {
     /// M4: at most `@Intrinsic("name")`, sysroot only (DESIGN.md 1.3).
     pub annotations: Vec<Annotation>,
+    /// `override` (required when overriding, forbidden otherwise).
+    pub is_override: bool,
+    /// `abstract` (bodyless; only in abstract classes / interfaces).
+    pub is_abstract: bool,
     pub name: Ident,
     /// Generic type parameters (`fun <T> f(...)`); empty for
     /// non-generic functions.
@@ -191,6 +244,9 @@ pub enum FunctionBody {
     Block(Block),
     /// `fun f(...) [: T] = expr`
     Expr(Box<Expr>),
+    /// Bodyless: `abstract fun`, interface method signatures, and
+    /// `@Intrinsic` functions (spec 13.1).
+    None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -312,6 +368,12 @@ pub enum AssignTarget {
         index: Box<Expr>,
         span: Span,
     },
+    /// `receiver.field = value` (only `var` properties of classes).
+    Field {
+        receiver: Box<Expr>,
+        name: Ident,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -384,6 +446,31 @@ pub enum Expr {
         rhs: Box<Expr>,
         span: Span,
     },
+    /// `this` (inside member functions).
+    This {
+        span: Span,
+    },
+    /// `receiver.name(args)` — method call (M6).
+    MethodCall {
+        receiver: Box<Expr>,
+        name: Ident,
+        args: Vec<Expr>,
+        span: Span,
+    },
+    /// `expr is T` / `expr !is T`.
+    Is {
+        operand: Box<Expr>,
+        ty: TypeRef,
+        negated: bool,
+        span: Span,
+    },
+    /// `expr as T` / `expr as? T` (`optional` = `as?`, spec 4.4.4).
+    Cast {
+        operand: Box<Expr>,
+        ty: TypeRef,
+        optional: bool,
+        span: Span,
+    },
     /// `[e1, e2, ...]` — array literal (spec 10.2).
     ArrayLiteral {
         elements: Vec<Expr>,
@@ -410,6 +497,10 @@ impl Expr {
             | Expr::Unary { span, .. }
             | Expr::NullAssert { span, .. }
             | Expr::Elvis { span, .. }
+            | Expr::This { span }
+            | Expr::MethodCall { span, .. }
+            | Expr::Is { span, .. }
+            | Expr::Cast { span, .. }
             | Expr::ArrayLiteral { span, .. }
             | Expr::Index { span, .. } => *span,
             Expr::Var(ident) => ident.span,
@@ -456,6 +547,10 @@ pub enum BinOp {
     Ge,
     Eq,
     Ne,
+    /// `===` / `!==` — reference identity (spec 4.4.2; value types
+    /// are a compile error).
+    RefEq,
+    RefNe,
     And,
     Or,
 }
@@ -516,6 +611,52 @@ pub fn dump(file: &SourceFile) -> String {
                     }
                 }
             }
+            Decl::Class(c) => {
+                let modifier = match c.modifier {
+                    ClassModifier::Final => "",
+                    ClassModifier::Open => "open ",
+                    ClassModifier::Abstract => "abstract ",
+                };
+                let ctor: Vec<String> = c
+                    .constructor
+                    .iter()
+                    .map(|p| {
+                        format!(
+                            "{}{}: {}",
+                            if p.mutable { "var " } else { "val " },
+                            p.name.text,
+                            dump_type_ref(&p.ty)
+                        )
+                    })
+                    .collect();
+                let base = c
+                    .base_class
+                    .as_ref()
+                    .map(|(name, args)| format!(" : {}(<{} args>)", name.text, args.len()))
+                    .unwrap_or_default();
+                let ifaces = if c.interfaces.is_empty() {
+                    String::new()
+                } else {
+                    let names: Vec<&str> = c.interfaces.iter().map(|i| i.text.as_str()).collect();
+                    format!(", {}", names.join(", "))
+                };
+                out.push_str(&format!(
+                    "  {modifier}class {}({}){}{}\n",
+                    c.name.text,
+                    ctor.join(", "),
+                    base,
+                    ifaces
+                ));
+                for method in &c.methods {
+                    out.push_str(&format!("    fun {}\n", method.name.text));
+                }
+            }
+            Decl::Interface(i) => {
+                out.push_str(&format!("  interface {}\n", i.name.text));
+                for method in &i.methods {
+                    out.push_str(&format!("    fun {}\n", method.name.text));
+                }
+            }
             Decl::Struct(s) => {
                 out.push_str(&format!("  struct {}\n", s.name.text));
                 for field in &s.fields {
@@ -524,6 +665,9 @@ pub fn dump(file: &SourceFile) -> String {
                         field.name.text,
                         dump_type_ref(&field.ty)
                     ));
+                }
+                for method in &s.methods {
+                    out.push_str(&format!("    fun {}\n", method.name.text));
                 }
             }
             Decl::Function(f) => {
@@ -551,8 +695,13 @@ pub fn dump(file: &SourceFile) -> String {
                     .as_ref()
                     .map(|t| format!(": {}", dump_type_ref(t)))
                     .unwrap_or_default();
+                let flags = format!(
+                    "{}{}",
+                    if f.is_abstract { "abstract " } else { "" },
+                    if f.is_override { "override " } else { "" }
+                );
                 out.push_str(&format!(
-                    "  fun {}{}({}){}\n",
+                    "  {flags}fun {}{}({}){}\n",
                     f.name.text,
                     type_params,
                     params.join(", "),
@@ -567,6 +716,7 @@ pub fn dump(file: &SourceFile) -> String {
                         );
                         dump_expr(expr, 3, &mut out);
                     }
+                    FunctionBody::None => {}
                 }
             }
         }
@@ -641,13 +791,21 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             match &assign.target {
                 AssignTarget::Local(name) => out.push_str(&format!("{pad}assign {}\n", name.text)),
                 AssignTarget::Index { .. } => out.push_str(&format!("{pad}assign []\n")),
+                AssignTarget::Field { name, .. } => {
+                    out.push_str(&format!("{pad}assign .{}\n", name.text))
+                }
             }
-            if let AssignTarget::Index {
-                receiver, index, ..
-            } = &assign.target
-            {
-                dump_expr(receiver, indent + 1, out);
-                dump_expr(index, indent + 1, out);
+            match &assign.target {
+                AssignTarget::Index {
+                    receiver, index, ..
+                } => {
+                    dump_expr(receiver, indent + 1, out);
+                    dump_expr(index, indent + 1, out);
+                }
+                AssignTarget::Field { receiver, .. } => {
+                    dump_expr(receiver, indent + 1, out);
+                }
+                AssignTarget::Local(_) => {}
             }
             dump_expr(&assign.value, indent + 1, out);
         }
@@ -779,6 +937,40 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}Elvis\n"));
             dump_expr(lhs, indent + 1, out);
             dump_expr(rhs, indent + 1, out);
+        }
+        Expr::This { .. } => out.push_str(&format!("{pad}This\n")),
+        Expr::MethodCall {
+            receiver,
+            name,
+            args,
+            ..
+        } => {
+            out.push_str(&format!("{pad}MethodCall {}\n", name.text));
+            dump_expr(receiver, indent + 1, out);
+            for arg in args {
+                dump_expr(arg, indent + 1, out);
+            }
+        }
+        Expr::Is {
+            operand,
+            ty,
+            negated,
+            ..
+        } => {
+            out.push_str(&format!("{pad}Is {} {negated}\n", dump_type_ref(ty)));
+            dump_expr(operand, indent + 1, out);
+        }
+        Expr::Cast {
+            operand,
+            ty,
+            optional,
+            ..
+        } => {
+            out.push_str(&format!(
+                "{pad}Cast {} optional={optional}\n",
+                dump_type_ref(ty)
+            ));
+            dump_expr(operand, indent + 1, out);
         }
         Expr::ArrayLiteral { elements, .. } => {
             out.push_str(&format!("{pad}ArrayLiteral\n"));

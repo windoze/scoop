@@ -45,7 +45,7 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{ExprKind, Type, TypeId};
 
-use crate::Lowerer;
+use crate::{Lowerer, Owner};
 
 impl Lowerer {
     /// Lower an expression, recording a diagnostic and returning `None`
@@ -90,6 +90,9 @@ impl Lowerer {
                 Constructor::Variant { enum_id, variant } => {
                     self.lower_variant_construct(enum_id, variant, args, *span, sink, expected)
                 }
+                Constructor::Class { class_id } => {
+                    self.lower_class_construct(class_id, args, *span, sink)
+                }
                 Constructor::Unmatched => {
                     self.error(name.span, format!("unknown struct `{}`", name.text));
                     None
@@ -107,6 +110,25 @@ impl Lowerer {
             ast::Expr::Unary { op, operand, span } => self.lower_unary(*op, operand, *span, sink),
             ast::Expr::NullAssert { operand, span } => self.lower_null_assert(operand, *span, sink),
             ast::Expr::Elvis { lhs, rhs, span } => self.lower_elvis(lhs, rhs, *span, sink),
+            ast::Expr::This { span } => self.lower_this(*span),
+            ast::Expr::MethodCall {
+                receiver,
+                name,
+                args,
+                span,
+            } => self.lower_method_call(receiver, name, args, *span, sink, expected),
+            ast::Expr::Is {
+                operand,
+                ty,
+                negated,
+                span,
+            } => self.lower_is(operand, ty, *negated, *span, sink),
+            ast::Expr::Cast {
+                operand,
+                ty,
+                optional,
+                span,
+            } => self.lower_cast(operand, ty, *optional, *span, sink),
             ast::Expr::ArrayLiteral { elements, span } => {
                 self.lower_array_literal(elements, *span, sink, expected)
             }
@@ -115,6 +137,277 @@ impl Lowerer {
                 index,
                 span,
             } => self.lower_index_read(receiver, index, *span, sink),
+        }
+    }
+
+    /// `this` (M6): only inside member functions, where it is
+    /// parameter 0 (`lower_body` registers it as a local).
+    fn lower_this(&mut self, span: Span) -> Option<hir::Expr> {
+        let Some((local, ty)) = self.current_this else {
+            self.error(
+                span,
+                "`this` is only allowed inside member functions".to_string(),
+            );
+            return None;
+        };
+        Some(hir::Expr {
+            kind: ExprKind::Local(local),
+            ty,
+            span,
+        })
+    }
+
+    /// `receiver.name(args)` (M6): the method is resolved against the
+    /// receiver's static type — class members (base chain included),
+    /// interface methods, or struct / enum methods. Argument checking
+    /// mirrors function calls; the dispatch kind (direct / virtual /
+    /// interface) is decided at MIR from the receiver's static type
+    /// (hir docs).
+    ///
+    /// One receiver shape is not a method call: the M6 parser folds a
+    /// qualified enum variant construction `E.V(args)` into this
+    /// syntax (`MethodCall { receiver: Var("E"), ... }`). When the
+    /// receiver is a bare name that is no in-scope variable and no
+    /// property of the current host — but names an enum — it is a
+    /// variant path and goes through variant construction (M4 rules:
+    /// variant existence, per-field argument checks, type-argument
+    /// inference, constructor-style defaults). Variables and host
+    /// properties shadow enum names.
+    fn lower_method_call(
+        &mut self,
+        receiver: &ast::Expr,
+        name: &ast::Ident,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        if let ast::Expr::Var(enum_name) = receiver {
+            if self.scopes.lookup(&enum_name.text).is_none()
+                && !self.host_has_property(&enum_name.text)
+                && self.enums_by_name.contains_key(&enum_name.text)
+            {
+                let enum_id = self.enums_by_name[&enum_name.text];
+                let Some(variant) = self.find_variant(enum_id, &name.text) else {
+                    self.error(
+                        name.span,
+                        format!("enum `{}` has no variant `{}`", enum_name.text, name.text),
+                    );
+                    return None;
+                };
+                return self.lower_variant_construct(enum_id, variant, args, span, sink, expected);
+            }
+        }
+        let receiver = self.lower_expr(receiver, sink, None)?;
+        let Some(function) = self.resolve_method_by_ty(receiver.ty, &name.text) else {
+            let found = self.type_name(receiver.ty);
+            self.error(
+                name.span,
+                format!("type `{found}` has no method `{}`", name.text),
+            );
+            return None;
+        };
+        self.finish_method_call(function, receiver, args, span, sink)
+    }
+
+    /// Whether the current host type has a property named `name`
+    /// (the quiet probe behind the enum-path fallback in
+    /// `lower_method_call`: a bare receiver name that would resolve
+    /// to `this.name` is a property access, not an enum path).
+    fn host_has_property(&self, name: &str) -> bool {
+        match self.current_owner {
+            Some(Owner::Class(class_id)) => self.find_class_field(class_id, name).is_some(),
+            Some(Owner::Struct(struct_id)) => self.structs[struct_id]
+                .fields
+                .iter()
+                .any(|field| field.name == name),
+            _ => false,
+        }
+    }
+
+    /// Check and build a resolved method call: arity and argument
+    /// types against the method's declared parameters (instantiated
+    /// with the receiver's type arguments for enum methods), with
+    /// subtype adaptation (boxing) at argument positions.
+    fn finish_method_call(
+        &mut self,
+        function: hir::FunctionId,
+        receiver: hir::Expr,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let name = self.functions[function].name.clone();
+        // Enum methods mention the enum's type parameters; instantiate
+        // them with the receiver's type arguments.
+        let type_args: Vec<TypeId> = match self.types[receiver.ty] {
+            Type::Enum(_, ref args) => args.clone(),
+            _ => Vec::new(),
+        };
+        let sig = self.signatures[&function].clone();
+        if sig.params.len() != args.len() {
+            let expected = sig.params.len();
+            let supplied = args.len();
+            let noun = if expected == 1 {
+                "argument"
+            } else {
+                "arguments"
+            };
+            self.error(
+                span,
+                format!(
+                    "method `{name}` takes exactly {expected} {noun}, but {supplied} were supplied"
+                ),
+            );
+            return None;
+        }
+        let mut lowered = Vec::with_capacity(args.len());
+        for (param, arg_expr) in sig.params.iter().zip(args) {
+            let param_ty = self.instantiate_ty(param.ty, &type_args);
+            let arg = self.lower_expr(arg_expr, sink, Some(param_ty))?;
+            if !self.is_subtype(arg.ty, param_ty) {
+                let param_name = param.name.text.clone();
+                let expected = self.type_name(param_ty);
+                let found = self.type_name(arg.ty);
+                self.error(
+                    arg.span,
+                    format!(
+                        "argument for parameter `{param_name}` of `{name}` must be of type {expected}, found {found}"
+                    ),
+                );
+                return None;
+            }
+            lowered.push(self.adapt_to(arg, param_ty));
+        }
+        if !type_args.is_empty() {
+            self.record_instantiation(function, type_args.clone());
+        }
+        let ty = self.instantiate_ty(sig.return_ty, &type_args);
+        Some(hir::Expr {
+            kind: ExprKind::MethodCall {
+                receiver: Box::new(receiver),
+                function,
+                args: lowered,
+            },
+            ty,
+            span,
+        })
+    }
+
+    /// `expr is T` / `expr !is T` (M6): the static premise is that the
+    /// operand could ever hold a `T` (`could_hold`); a check between
+    /// unrelated types is useless and diagnosed.
+    fn lower_is(
+        &mut self,
+        operand: &ast::Expr,
+        ty_ref: &ast::TypeRef,
+        negated: bool,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let operand = self.lower_expr(operand, sink, None)?;
+        let check_ty = self.resolve_type_ref(ty_ref)?;
+        if !self.could_hold(operand.ty, check_ty) {
+            let found = self.type_name(operand.ty);
+            let check = self.type_name(check_ty);
+            self.error(
+                span,
+                format!("useless type check: `{found}` can never be `{check}`"),
+            );
+            return None;
+        }
+        let is_expr = hir::Expr {
+            kind: ExprKind::IsInstance {
+                operand: Box::new(operand),
+                check_ty,
+            },
+            ty: self.boolean,
+            span,
+        };
+        if negated {
+            Some(hir::Expr {
+                kind: ExprKind::Unary {
+                    op: hir::UnOp::Not,
+                    operand: Box::new(is_expr),
+                },
+                ty: self.boolean,
+                span,
+            })
+        } else {
+            Some(is_expr)
+        }
+    }
+
+    /// `expr as T` / `expr as? T` (M6). An upcast is free (`adapt_to`:
+    /// boxing for value types, a retype for references — `as?` wraps
+    /// the result in `Some`). A downcast lowers to `ExprKind::Cast`;
+    /// for a value-type target the non-optional form is followed by
+    /// `Unbox` (the check keeps the reference, the unbox extracts the
+    /// payload), while `as?` yields `Option<T>` directly (the payload
+    /// unboxing is part of the optional-cast semantics — `Cast::ty`
+    /// is `Option<T>`, so no separate `Unbox` node can be attached).
+    fn lower_cast(
+        &mut self,
+        operand: &ast::Expr,
+        ty_ref: &ast::TypeRef,
+        optional: bool,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let operand = self.lower_expr(operand, sink, None)?;
+        let target = self.resolve_type_ref(ty_ref)?;
+        if !self.could_hold(operand.ty, target) {
+            let found = self.type_name(operand.ty);
+            let check = self.type_name(target);
+            self.error(
+                span,
+                format!("cast from `{found}` to `{check}` can never succeed"),
+            );
+            return None;
+        }
+        if optional && self.option_enum.is_none() {
+            // The missing core `Option` was already diagnosed.
+            return None;
+        }
+        if self.is_subtype(operand.ty, target) {
+            let adapted = self.adapt_to(operand, target);
+            if optional {
+                let ty = self.option_type(target);
+                return Some(hir::Expr {
+                    kind: ExprKind::SomeWrap(Box::new(adapted)),
+                    ty,
+                    span,
+                });
+            }
+            return Some(adapted);
+        }
+        if optional {
+            let ty = self.option_type(target);
+            return Some(hir::Expr {
+                kind: ExprKind::Cast {
+                    operand: Box::new(operand),
+                    optional: true,
+                },
+                ty,
+                span,
+            });
+        }
+        let cast = hir::Expr {
+            kind: ExprKind::Cast {
+                operand: Box::new(operand),
+                optional: false,
+            },
+            ty: target,
+            span,
+        };
+        if self.is_value_ty(target) {
+            Some(hir::Expr {
+                kind: ExprKind::Unbox(Box::new(cast)),
+                ty: target,
+                span,
+            })
+        } else {
+            Some(cast)
         }
     }
 
@@ -169,7 +462,7 @@ impl Lowerer {
             let mut lowered = Vec::with_capacity(elements.len());
             for element in elements {
                 let element = self.lower_expr(element, sink, Some(element_ty))?;
-                if !self.types_equal(element_ty, element.ty) {
+                if !self.is_subtype(element.ty, element_ty) {
                     let expected = self.type_name(element_ty);
                     let found = self.type_name(element.ty);
                     self.error(
@@ -178,7 +471,7 @@ impl Lowerer {
                     );
                     return None;
                 }
-                lowered.push(element);
+                lowered.push(self.adapt_to(element, element_ty));
             }
             return Some(hir::Expr {
                 kind: ExprKind::ArrayLiteral(lowered),
@@ -262,6 +555,12 @@ impl Lowerer {
     /// import) and take precedence over locals (M3 behavior); every
     /// other enum's variants need the `E.V` prefix (M4 simplification,
     /// milestone4 DESIGN.md 3.2).
+    ///
+    /// M6: an active smart-cast narrowing retypes the reference (an
+    /// immutable local narrowed by an enclosing `if (x is T)`); a
+    /// narrowed value type unboxes on access. Inside a member function
+    /// a name that is no local falls back to a property of the host
+    /// (`x` meaning `this.x`, milestone6 DESIGN.md 1).
     fn lower_var(&mut self, name: &ast::Ident, expected: Option<TypeId>) -> Option<hir::Expr> {
         if let Some((enum_id, variant)) = self.option_variant(&name.text) {
             if self.enums[enum_id].variants[variant as usize]
@@ -278,15 +577,147 @@ impl Lowerer {
             return None;
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
+            if let Some(expr) = self.bare_member_fallback(name) {
+                return Some(expr);
+            }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
-        let ty = self.locals[local].ty;
+        let declared = self.locals[local].ty;
+        if let Some(&narrowed) = self.smart_casts.get(&local) {
+            if !self.types_equal(narrowed, declared) {
+                let local_expr = hir::Expr {
+                    kind: ExprKind::Local(local),
+                    ty: declared,
+                    span: name.span,
+                };
+                if self.is_value_ty(narrowed) {
+                    // A boxed value narrowed to its value type unboxes.
+                    return Some(hir::Expr {
+                        kind: ExprKind::Unbox(Box::new(local_expr)),
+                        ty: narrowed,
+                        span: name.span,
+                    });
+                }
+                // A reference narrowed to a subtype: zero-cost retype.
+                return Some(hir::Expr {
+                    kind: ExprKind::Local(local),
+                    ty: narrowed,
+                    span: name.span,
+                });
+            }
+        }
         Some(hir::Expr {
             kind: ExprKind::Local(local),
+            ty: declared,
+            span: name.span,
+        })
+    }
+
+    /// `x` inside a member function when `x` is no local: a property
+    /// of the host type (`this.x`; class properties include the base
+    /// chain). Methods are not values in M6, so only fields resolve.
+    fn bare_member_fallback(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
+        let owner = self.current_owner?;
+        let (this_local, host_ty) = self.current_this?;
+        let (field, ty) = match owner {
+            Owner::Class(class_id) => {
+                let (declaring, index, ty, _) = self.find_class_field(class_id, &name.text)?;
+                (
+                    hir::FieldRef::ClassField {
+                        class_id: declaring,
+                        index,
+                    },
+                    ty,
+                )
+            }
+            Owner::Struct(struct_id) => {
+                let index = self.structs[struct_id]
+                    .fields
+                    .iter()
+                    .position(|field| field.name == name.text)?;
+                (
+                    hir::FieldRef::StructField {
+                        struct_id,
+                        index: index as u32,
+                    },
+                    self.structs[struct_id].fields[index].ty,
+                )
+            }
+            // Interfaces have no properties; enum payloads are only
+            // reachable through patterns.
+            Owner::Interface(_) | Owner::Enum(_) => return None,
+        };
+        Some(hir::Expr {
+            kind: ExprKind::FieldAccess {
+                receiver: Box::new(hir::Expr {
+                    kind: ExprKind::Local(this_local),
+                    ty: host_ty,
+                    span: name.span,
+                }),
+                field,
+            },
             ty,
             span: name.span,
         })
+    }
+
+    /// Smart-cast candidates established by `cond` evaluating to
+    /// `outcome` (milestone6 DESIGN.md 5.4): `x is T` in the true
+    /// branch, `x !is T` / `!(x is T)` in the false branch, and the
+    /// conjuncts of `&&` in the true branch. Anything else (including
+    /// `||`) establishes nothing in M6.
+    pub(crate) fn resolve_smart_casts(
+        &mut self,
+        cond: &ast::Expr,
+        outcome: bool,
+    ) -> Vec<(hir::LocalId, TypeId)> {
+        let mut candidates = Vec::new();
+        collect_smart_cast_candidates(cond, outcome, &mut candidates);
+        let mut result: Vec<(hir::LocalId, TypeId)> = Vec::new();
+        for (name, ty_ref) in candidates {
+            let Some(local) = self.scopes.lookup(&name.text) else {
+                continue;
+            };
+            // Only immutable locals can be narrowed (the condition is
+            // pure and the variable cannot change below it).
+            if self.locals[local].mutable {
+                continue;
+            }
+            let Some(narrowed) = self.resolve_type_ref(ty_ref) else {
+                continue; // the condition's own lowering diagnoses this
+            };
+            let declared = self.locals[local].ty;
+            // Narrowing must go strictly downward.
+            if self.types_equal(narrowed, declared) || !self.is_subtype(narrowed, declared) {
+                continue;
+            }
+            if result.iter().any(|&(l, _)| l == local) {
+                continue; // first conjunct wins
+            }
+            result.push((local, narrowed));
+        }
+        result
+    }
+
+    /// Run `f` with additional smart-cast narrowings active, restoring
+    /// the previous set afterwards (narrowings never escape their
+    /// branch).
+    pub(crate) fn with_smart_casts<T>(
+        &mut self,
+        narrowings: Vec<(hir::LocalId, TypeId)>,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        if narrowings.is_empty() {
+            return f(self);
+        }
+        let saved = self.smart_casts.clone();
+        for (local, ty) in narrowings {
+            self.smart_casts.insert(local, ty);
+        }
+        let result = f(self);
+        self.smart_casts = saved;
+        result
     }
 
     /// A unit variant construction (`None`, `Color.Red`): the variant
@@ -335,7 +766,8 @@ impl Lowerer {
     /// What a `Name` / `Name(...)` construction site resolves to. A
     /// dotted path `E.V` is always an enum variant; a bare name is a
     /// globally visible `Option` variant (`Some` / `None`), then a
-    /// struct, then — for `Call` nodes only — a function.
+    /// struct, then a class, then — for `Call` nodes only — a
+    /// function.
     fn classify_constructor(&mut self, name: &ast::Ident) -> Option<Constructor> {
         if let Some((enum_name, variant_name)) = name.text.split_once('.') {
             let Some(&enum_id) = self.enums_by_name.get(enum_name) else {
@@ -357,7 +789,80 @@ impl Lowerer {
         if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
             return Some(Constructor::Struct { struct_id, ty });
         }
+        if let Some(&(class_id, _)) = self.classes_by_name.get(&name.text) {
+            return Some(Constructor::Class { class_id });
+        }
         Some(Constructor::Unmatched)
+    }
+
+    /// `Name(args...)` where `Name` is a class (M6): object
+    /// construction with the class's own constructor properties
+    /// (`hir::ExprKind::ClassInit`; base-class delegation is part of
+    /// the generated constructor, mir-lower's job). Abstract classes
+    /// cannot be instantiated. Argument count and types are checked
+    /// against the constructor properties one by one (subtype
+    /// adaptation included, mirroring struct construction).
+    fn lower_class_construct(
+        &mut self,
+        class_id: hir::ClassId,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let name = self.classes[class_id].name.clone();
+        if self.classes[class_id].modifier == hir::ClassModifier::Abstract {
+            self.error(
+                span,
+                format!("abstract class `{name}` cannot be instantiated"),
+            );
+            return None;
+        }
+        let props: Vec<(String, TypeId)> = self.classes[class_id]
+            .constructor
+            .iter()
+            .map(|field| (field.name.clone(), field.ty))
+            .collect();
+        if args.len() != props.len() {
+            let expected = props.len();
+            let supplied = args.len();
+            let noun = if expected == 1 {
+                "argument"
+            } else {
+                "arguments"
+            };
+            self.error(
+                span,
+                format!(
+                    "class `{name}` takes exactly {expected} {noun}, but {supplied} were supplied"
+                ),
+            );
+            return None;
+        }
+        let mut lowered = Vec::with_capacity(args.len());
+        for (arg, (prop_name, prop_ty)) in args.iter().zip(props) {
+            let arg = self.lower_expr(arg, sink, Some(prop_ty))?;
+            if !self.is_subtype(arg.ty, prop_ty) {
+                let expected = self.type_name(prop_ty);
+                let found = self.type_name(arg.ty);
+                self.error(
+                    arg.span,
+                    format!(
+                        "argument for field `{prop_name}` of `{name}` must be of type {expected}, found {found}"
+                    ),
+                );
+                return None;
+            }
+            lowered.push(self.adapt_to(arg, prop_ty));
+        }
+        let ty = self.classes_by_name[&name].1;
+        Some(hir::Expr {
+            kind: ExprKind::ClassInit {
+                class_id,
+                args: lowered,
+            },
+            ty,
+            span,
+        })
     }
 
     /// `Name(args...)` in call position: a variant or struct
@@ -380,6 +885,9 @@ impl Lowerer {
                 .lower_variant_construct(enum_id, variant, &call.args, call.span, sink, expected),
             Constructor::Struct { struct_id, ty } => {
                 self.lower_struct_init(struct_id, ty, &call.args, call.span, sink)
+            }
+            Constructor::Class { class_id } => {
+                self.lower_class_construct(class_id, &call.args, call.span, sink)
             }
             Constructor::Unmatched => self.lower_function_call(call, sink),
         }
@@ -577,6 +1085,22 @@ impl Lowerer {
         let function = match self.functions_by_name.get(&call.callee.text) {
             Some(&id) => id,
             None => {
+                // Inside a member function a bare call falls back to a
+                // method of the host (`m(...)` meaning `this.m(...)`).
+                if let Some(owner) = self.current_owner {
+                    let host_ty = self.owner_ty(owner);
+                    if let Some(method) = self.resolve_method_by_ty(host_ty, &call.callee.text) {
+                        let (this_local, this_ty) =
+                            self.current_this.expect("a method body always has `this`");
+                        let receiver = hir::Expr {
+                            kind: ExprKind::Local(this_local),
+                            ty: this_ty,
+                            span: call.callee.span,
+                        };
+                        return self
+                            .finish_method_call(method, receiver, &call.args, call.span, sink);
+                    }
+                }
                 self.error(
                     call.callee.span,
                     format!("unknown function `{}`", call.callee.text),
@@ -673,10 +1197,13 @@ impl Lowerer {
             }
         }
 
-        // Argument types must match the (instantiated) parameter types.
-        for (param, arg) in sig.params.iter().zip(&args) {
+        // Argument types must be subtypes of the (instantiated)
+        // parameter types; the adaptation boxes value types crossing
+        // into `Any` / an interface (M6).
+        let mut adapted_args = Vec::with_capacity(args.len());
+        for (param, arg) in sig.params.iter().zip(args) {
             let expected = self.instantiate_ty(param.ty, &type_args);
-            if !self.types_equal(expected, arg.ty) {
+            if !self.is_subtype(arg.ty, expected) {
                 let param_name = param.name.text.clone();
                 let expected_name = self.type_name(expected);
                 let found = self.type_name(arg.ty);
@@ -688,6 +1215,7 @@ impl Lowerer {
                 );
                 return None;
             }
+            adapted_args.push(self.adapt_to(arg, expected));
         }
         let ty = self.instantiate_ty(sig.return_ty, &type_args);
 
@@ -703,7 +1231,7 @@ impl Lowerer {
             kind: ExprKind::Call {
                 function,
                 type_args,
-                args,
+                args: adapted_args,
             },
             ty,
             span: call.span,
@@ -812,7 +1340,7 @@ impl Lowerer {
         let mut lowered = Vec::with_capacity(args.len());
         for (arg, (field_name, field_ty)) in args.iter().zip(fields) {
             let arg = self.lower_expr(arg, sink, Some(field_ty))?;
-            if !self.types_equal(field_ty, arg.ty) {
+            if !self.is_subtype(arg.ty, field_ty) {
                 let expected = self.type_name(field_ty);
                 let found = self.type_name(arg.ty);
                 self.error(
@@ -823,7 +1351,7 @@ impl Lowerer {
                 );
                 return None;
             }
-            lowered.push(arg);
+            lowered.push(self.adapt_to(arg, field_ty));
         }
         Some(hir::Expr {
             kind: ExprKind::StructInit {
@@ -1122,13 +1650,46 @@ impl Lowerer {
     }
 
     /// Resolve a field selector against a receiver type: a struct field
-    /// by name or a tuple element by (1-based) index.
+    /// by name, a class constructor property by name (base chain
+    /// included; the index is the absolute layout index — base fields
+    /// prefix, own fields consecutive), or a tuple element by (1-based)
+    /// index.
     fn resolve_field(
         &mut self,
         receiver_ty: TypeId,
         selector: &ast::FieldSelector,
     ) -> Option<(hir::FieldRef, TypeId)> {
         match self.types[receiver_ty].clone() {
+            Type::Class(class_id) => {
+                let class_name = self.classes[class_id].name.clone();
+                match selector {
+                    ast::FieldSelector::Name(field) => {
+                        let Some((declaring, index, ty, _)) =
+                            self.find_class_field(class_id, &field.text)
+                        else {
+                            self.error(
+                                field.span,
+                                format!("class `{class_name}` has no field `{}`", field.text),
+                            );
+                            return None;
+                        };
+                        Some((
+                            hir::FieldRef::ClassField {
+                                class_id: declaring,
+                                index,
+                            },
+                            ty,
+                        ))
+                    }
+                    ast::FieldSelector::Index(index, span) => {
+                        self.error(
+                            *span,
+                            format!("class `{class_name}` has no field `_{index}`"),
+                        );
+                        None
+                    }
+                }
+            }
             Type::Struct(struct_id) => {
                 let struct_name = self.structs[struct_id].name.clone();
                 match selector {
@@ -1207,6 +1768,11 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        // `===` / `!==` (spec 4.4.2): reference identity, only on
+        // reference types; on value types it is a compile error.
+        if matches!(op, ast::BinOp::RefEq | ast::BinOp::RefNe) {
+            return self.lower_ref_eq(op, lhs, rhs, span, sink);
+        }
         let (op, symbol) = convert_bin_op(op);
         // `x == None` / `None == x`: the `None` construction takes its
         // type from the other operand (expected-type hint), so the
@@ -1218,6 +1784,20 @@ impl Lowerer {
         {
             let rhs = self.lower_expr(rhs, sink, None)?;
             let lhs = self.lower_expr(lhs, sink, Some(rhs.ty))?;
+            (lhs, rhs)
+        } else if op == hir::BinOp::And {
+            // `x is T && ...`: the right side is only evaluated when
+            // the left holds, so its smart-cast narrowings apply there
+            // (milestone6 DESIGN.md 5.4).
+            let lhs_ast = lhs;
+            let before = self.diagnostics.len();
+            let lhs = self.lower_expr(lhs_ast, sink, None)?;
+            let narrowings = if self.diagnostics.len() == before {
+                self.resolve_smart_casts(lhs_ast, true)
+            } else {
+                Vec::new()
+            };
+            let rhs = self.with_smart_casts(narrowings, |this| this.lower_expr(rhs, sink, None))?;
             (lhs, rhs)
         } else {
             let lhs = self.lower_expr(lhs, sink, None)?;
@@ -1249,12 +1829,15 @@ impl Lowerer {
                 self.expect_int_operands(symbol, &lhs, &rhs, span)?;
                 self.boolean
             }
-            hir::BinOp::Eq | hir::BinOp::Ne => {
+            hir::BinOp::Eq | hir::BinOp::Ne | hir::BinOp::RefEq | hir::BinOp::RefNe => {
                 // Every type supports structural equality (including
                 // type parameters and enums — `== None` relies on
                 // this); the two sides just have to agree. The
                 // expansion over enum payloads happens in MIR
-                // (milestone4 DESIGN.md 3.3).
+                // (milestone4 DESIGN.md 3.3). (`RefEq` / `RefNe` never
+                // reach here — `lower_ref_eq` intercepts them and
+                // builds the `Binary` node directly — but the
+                // same-type check would be correct for them too.)
                 if !self.types_equal(lhs.ty, rhs.ty) {
                     let lhs_ty = self.type_name(lhs.ty);
                     let rhs_ty = self.type_name(rhs.ty);
@@ -1290,6 +1873,49 @@ impl Lowerer {
                 rhs: Box::new(rhs),
             },
             ty,
+            span,
+        })
+    }
+
+    /// `===` / `!==` (spec 4.4.2): both operands must be reference
+    /// types (class / interface / `Any` / `String` / arrays); on value
+    /// types it is a compile error. Identity vs structural equality is
+    /// decided at MIR from the operand types — reference operands
+    /// compare by pointer.
+    fn lower_ref_eq(
+        &mut self,
+        op: ast::BinOp,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let symbol = if op == ast::BinOp::RefEq {
+            "==="
+        } else {
+            "!=="
+        };
+        let lhs = self.lower_expr(lhs, sink, None)?;
+        let rhs = self.lower_expr(rhs, sink, None)?;
+        if !self.is_ref_ty(lhs.ty) || !self.is_ref_ty(rhs.ty) {
+            self.error(
+                span,
+                format!("reference equality `{symbol}` is not supported on value types"),
+            );
+            return None;
+        }
+        let op = if op == ast::BinOp::RefEq {
+            hir::BinOp::RefEq
+        } else {
+            hir::BinOp::RefNe
+        };
+        Some(hir::Expr {
+            kind: ExprKind::Binary {
+                op,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: self.boolean,
             span,
         })
     }
@@ -1363,7 +1989,53 @@ enum Constructor {
         struct_id: hir::StructId,
         ty: TypeId,
     },
+    Class {
+        class_id: hir::ClassId,
+    },
     Unmatched,
+}
+
+/// Collect the `x is T` facts established by `cond` evaluating to
+/// `outcome` (see `resolve_smart_casts`).
+fn collect_smart_cast_candidates<'a>(
+    cond: &'a ast::Expr,
+    outcome: bool,
+    out: &mut Vec<(&'a ast::Ident, &'a ast::TypeRef)>,
+) {
+    match cond {
+        // `x is T` holds exactly when the check is not negated and the
+        // condition is true (or it is negated and the condition is
+        // false).
+        ast::Expr::Is {
+            operand,
+            ty,
+            negated,
+            ..
+        } => {
+            if outcome == !negated {
+                if let ast::Expr::Var(name) = &**operand {
+                    out.push((name, ty));
+                }
+            }
+        }
+        ast::Expr::Unary {
+            op: ast::UnOp::Not,
+            operand,
+            ..
+        } => collect_smart_cast_candidates(operand, !outcome, out),
+        // `a && b` is true only when both hold; a false conjunction
+        // establishes nothing (M6: no `||` support).
+        ast::Expr::Binary {
+            op: ast::BinOp::And,
+            lhs,
+            rhs,
+            ..
+        } if outcome => {
+            collect_smart_cast_candidates(lhs, true, out);
+            collect_smart_cast_candidates(rhs, true, out);
+        }
+        _ => {}
+    }
 }
 
 /// The else half of a `?.` / `?:` desugaring: the statements evaluating
@@ -1411,6 +2083,10 @@ fn convert_bin_op(op: ast::BinOp) -> (hir::BinOp, &'static str) {
         ast::BinOp::Ge => (hir::BinOp::Ge, ">="),
         ast::BinOp::Eq => (hir::BinOp::Eq, "=="),
         ast::BinOp::Ne => (hir::BinOp::Ne, "!="),
+        // Intercepted by `lower_ref_eq` before `convert_bin_op` is
+        // reached; mapped here for completeness.
+        ast::BinOp::RefEq => (hir::BinOp::RefEq, "==="),
+        ast::BinOp::RefNe => (hir::BinOp::RefNe, "!=="),
         ast::BinOp::And => (hir::BinOp::And, "&&"),
         ast::BinOp::Or => (hir::BinOp::Or, "||"),
     }

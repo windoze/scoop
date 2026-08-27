@@ -10,7 +10,7 @@
 //! runtime functions are declared at their call sites with the signature
 //! implied by the operands.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use inkwell::context::Context;
@@ -18,7 +18,7 @@ use inkwell::module::Module as LlvmModule;
 use inkwell::targets::{
     CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine,
 };
-use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum};
+use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, StructType};
 use inkwell::values::{BasicValueEnum, GlobalValue, IntValue, PointerValue, ValueKind};
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
@@ -78,13 +78,24 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     let i8_ty = context.i8_type();
     let i64_ty = context.i64_type();
 
-    // @scoop_td_String: { i64 type_id, i64 size, i64 align, ptr ref_offsets }
-    // (runtime spec 2.2; type_id 1 is the M1-only type, ref_offsets is null
-    // until the GC lands).
+    // ScoopTypeDescriptor (runtime spec 2.2, full M6 form):
+    // { i64 type_id, i64 size, i64 align, ptr ref_offsets, ptr parent,
+    //   ptr vtable, ptr itables, i64 itable_count }.
     let td_ty = context.struct_type(
-        &[i64_ty.into(), i64_ty.into(), i64_ty.into(), ptr_ty.into()],
+        &[
+            i64_ty.into(),
+            i64_ty.into(),
+            i64_ty.into(),
+            ptr_ty.into(),
+            ptr_ty.into(),
+            ptr_ty.into(),
+            ptr_ty.into(),
+            i64_ty.into(),
+        ],
         false,
     );
+    // @scoop_td_String: type_id 1, no parent / tables (M6: the Any
+    // default methods only land on class vtables).
     let string_td = llvm.add_global(td_ty, None, scoop_lir::STRING_TD_SYMBOL);
     string_td.set_constant(true);
     string_td.set_initializer(&context.const_struct(
@@ -93,6 +104,10 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
             i64_ty.const_int(string_layout.size, false).into(),
             i64_ty.const_int(string_layout.align, false).into(),
             ptr_ty.const_null().into(),
+            ptr_ty.const_null().into(),
+            ptr_ty.const_null().into(),
+            ptr_ty.const_null().into(),
+            i64_ty.const_zero().into(),
         ],
         false,
     ));
@@ -118,6 +133,10 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
                         .const_int(target_data.get_abi_alignment(&element_ty) as u64, false)
                         .into(),
                     ptr_ty.const_null().into(),
+                    ptr_ty.const_null().into(),
+                    ptr_ty.const_null().into(),
+                    ptr_ty.const_null().into(),
+                    i64_ty.const_zero().into(),
                 ],
                 false,
             ),
@@ -140,8 +159,25 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     };
 
     // Globals. Indexed by GlobalId (arena iteration is in index order).
-    let mut globals: Vec<GlobalValue> = Vec::with_capacity(module.globals.len());
+    // TypeDescriptor reference stubs (`scoop_td_*`, see the lir-lower
+    // module docs) emit no data: the real TD comes from
+    // `LirMeta::type_descriptors` (or the built-in String TD above) and
+    // `Value::Global` resolves them by symbol at use time. A stub is
+    // recognized by its symbol naming one of those TDs, never by its
+    // init shape.
+    let td_symbols: HashSet<&str> = module
+        .meta
+        .type_descriptors
+        .iter()
+        .map(|td| td.symbol.as_str())
+        .chain([scoop_lir::STRING_TD_SYMBOL])
+        .collect();
+    let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
     for (_, global) in module.globals.iter() {
+        if td_symbols.contains(global.symbol.as_str()) {
+            globals.push(None);
+            continue;
+        }
         match &global.init {
             GlobalInit::StringConst(value) => {
                 // { ptr td, i64 len, [N x i8] data } (runtime spec 2.4).
@@ -164,7 +200,7 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
                     ],
                     false,
                 ));
-                globals.push(llvm_global);
+                globals.push(Some(llvm_global));
             }
             GlobalInit::CString(value) => {
                 // [N+1 x i8] c"...\00" (e.g. trap messages); private,
@@ -175,7 +211,7 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
                 llvm_global.set_constant(true);
                 llvm_global.set_linkage(inkwell::module::Linkage::Private);
                 llvm_global.set_initializer(&context.const_string(bytes, true));
-                globals.push(llvm_global);
+                globals.push(Some(llvm_global));
             }
         }
     }
@@ -196,6 +232,9 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     for function in &module.functions {
         declare_function(&context, &llvm, &module.enums, function)?;
     }
+    // Meta TypeDescriptors reference module functions (vtable / itable
+    // slots), so they are emitted after the declare pass.
+    emit_type_descriptors(&context, &llvm, td_ty, module)?;
     for function in &module.functions {
         emit_function(&context, &llvm, &builder, &module_ctx, function)?;
     }
@@ -336,6 +375,165 @@ fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
     context.ptr_type(AddressSpace::default())
 }
 
+/// First `type_id` assigned to `LirMeta::type_descriptors` entries
+/// (runtime spec 2.2): 1 is String, 100+ are the array TDs.
+const FIRST_TD_TYPE_ID: u64 = 1000;
+
+/// Emit one `ScoopTypeDescriptor` global per `LirMeta::type_descriptors`
+/// entry (runtime spec 2.2; milestone6 DESIGN 2.5). Emission order
+/// follows the list: `parent` / interface symbols must name globals
+/// emitted earlier (or `STRING_TD_SYMBOL`). Runs after the function
+/// declare pass so vtable / itable slots resolve to real functions.
+fn emit_type_descriptors<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    td_ty: StructType<'ctx>,
+    module: &Module,
+) -> Result<(), CodegenError> {
+    let i64_ty = context.i64_type();
+    let ptr = ptr_ty(context);
+    // ScoopItableEntry: { ptr interface, ptr slots }.
+    let entry_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
+    for (index, td) in module.meta.type_descriptors.iter().enumerate() {
+        let ref_offsets: BasicValueEnum = if td.ref_offsets.is_empty() {
+            ptr.const_null().into()
+        } else {
+            let offsets: Vec<IntValue> = td
+                .ref_offsets
+                .iter()
+                .map(|offset| i64_ty.const_int(*offset, false))
+                .collect();
+            let array = i64_ty.const_array(&offsets);
+            private_const_global(llvm, &format!("{}.refs", td.symbol), array.into()).into()
+        };
+        let parent: BasicValueEnum = match &td.parent {
+            Some(symbol) => llvm
+                .get_global(symbol)
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "TypeDescriptor `{}`: parent `@{}` not emitted yet",
+                        td.symbol, symbol
+                    ))
+                })?
+                .as_pointer_value()
+                .into(),
+            None => ptr.const_null().into(),
+        };
+        let vtable = emit_fn_table(context, llvm, &format!("{}.vtable", td.symbol), &td.vtable)?;
+        let (itables, itable_count): (BasicValueEnum, u64) = if td.itables.is_empty() {
+            (ptr.const_null().into(), 0)
+        } else {
+            let mut entries = Vec::with_capacity(td.itables.len());
+            for (record_index, record) in td.itables.iter().enumerate() {
+                let interface = llvm
+                    .get_global(&record.interface_symbol)
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "TypeDescriptor `{}`: interface `@{}` not emitted yet",
+                            td.symbol, record.interface_symbol
+                        ))
+                    })?
+                    .as_pointer_value();
+                let slots = emit_fn_table(
+                    context,
+                    llvm,
+                    &format!("{}.itables.{record_index}", td.symbol),
+                    &record.slots,
+                )?;
+                entries.push(context.const_struct(&[interface.into(), slots], false));
+            }
+            let array = entry_ty.const_array(&entries);
+            let global =
+                private_const_global(llvm, &format!("{}.itables", td.symbol), array.into());
+            (global.into(), td.itables.len() as u64)
+        };
+        let global = llvm.add_global(td_ty, None, &td.symbol);
+        global.set_constant(true);
+        global.set_initializer(
+            &context.const_struct(
+                &[
+                    i64_ty
+                        .const_int(FIRST_TD_TYPE_ID + index as u64, false)
+                        .into(),
+                    i64_ty.const_int(td.size, false).into(),
+                    i64_ty.const_int(td.align, false).into(),
+                    ref_offsets,
+                    parent,
+                    vtable,
+                    itables,
+                    i64_ty.const_int(itable_count, false).into(),
+                ],
+                false,
+            ),
+        );
+    }
+    Ok(())
+}
+
+/// A private constant global holding `value`; returns its address.
+fn private_const_global<'ctx>(
+    llvm: &LlvmModule<'ctx>,
+    name: &str,
+    value: BasicValueEnum<'ctx>,
+) -> PointerValue<'ctx> {
+    let global = llvm.add_global(value.get_type(), None, name);
+    global.set_constant(true);
+    global.set_linkage(inkwell::module::Linkage::Private);
+    global.set_initializer(&value);
+    global.as_pointer_value()
+}
+
+/// A global `[N x ptr]` of function addresses (a vtable or one itable's
+/// slots), or null when the table is empty.
+fn emit_fn_table<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    name: &str,
+    slots: &[String],
+) -> Result<BasicValueEnum<'ctx>, CodegenError> {
+    let ptr = ptr_ty(context);
+    if slots.is_empty() {
+        return Ok(ptr.const_null().into());
+    }
+    let mut values = Vec::with_capacity(slots.len());
+    for symbol in slots {
+        values.push(slot_fn_ptr(context, llvm, symbol)?);
+    }
+    let array = ptr.const_array(&values);
+    Ok(private_const_global(llvm, name, array.into()).into())
+}
+
+/// Address of the function a vtable / itable slot points at: a module
+/// function (declared in the first pass — user methods and adjust
+/// thunks) or one of the Any default methods, declared extern here with
+/// its runtime signature (runtime/include/scoop_rt.h).
+fn slot_fn_ptr<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    symbol: &str,
+) -> Result<PointerValue<'ctx>, CodegenError> {
+    if let Some(function) = llvm.get_function(symbol) {
+        return Ok(function.as_global_value().as_pointer_value());
+    }
+    let ptr = ptr_ty(context);
+    let fn_ty = match symbol {
+        "scoop_rt_any_equals" => context
+            .bool_type()
+            .fn_type(&[ptr.into(), ptr.into()], false),
+        "scoop_rt_any_hashcode" => context.i64_type().fn_type(&[ptr.into()], false),
+        "scoop_rt_any_tostring" => ptr.fn_type(&[ptr.into()], false),
+        _ => {
+            return Err(CodegenError(format!(
+                "vtable/itable slot `@{symbol}` is not a function in the module"
+            )));
+        }
+    };
+    Ok(llvm
+        .add_function(symbol, fn_ty, None)
+        .as_global_value()
+        .as_pointer_value())
+}
+
 /// Per-function emission state: everything instruction translation
 /// needs, bundled to keep signatures small.
 struct FnEmitter<'a, 'ctx> {
@@ -349,7 +547,7 @@ struct FnEmitter<'a, 'ctx> {
     entry_block: inkwell::basic_block::BasicBlock<'ctx>,
     enums: &'a Arena<EnumDef>,
     globals_arena: &'a Arena<Global>,
-    globals: &'a [GlobalValue<'ctx>],
+    globals: &'a [Option<GlobalValue<'ctx>>],
     /// Distinct array element types and their TypeDescriptor globals
     /// (indexed in parallel; see `array_element_types`).
     array_elements: &'a [LirType],
@@ -391,7 +589,22 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             })?,
             Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
             Value::BoolConst(value) => context.bool_type().const_int(value as u64, false).into(),
-            Value::Global(id) => self.globals[arena_index(id)].as_pointer_value().into(),
+            Value::Global(id) => match &self.globals[arena_index(id)] {
+                Some(global) => global.as_pointer_value().into(),
+                // A TypeDescriptor stub: the TD global (emitted from the
+                // meta, or the built-in String TD) is resolved by symbol.
+                None => self
+                    .llvm
+                    .get_global(&self.globals_arena[id].symbol)
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "TypeDescriptor global `@{}` was not emitted",
+                            self.globals_arena[id].symbol
+                        ))
+                    })?
+                    .as_pointer_value()
+                    .into(),
+            },
         })
     }
 
@@ -401,8 +614,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let function = self.function;
         match instruction {
             Instruction::BinOp { out, op, lhs, rhs } => {
-                let lhs = self.value(*lhs)?.into_int_value();
-                let rhs = self.value(*rhs)?.into_int_value();
+                let lhs = self.value(*lhs)?;
+                let rhs = self.value(*rhs)?;
+                // Reference equality (`===` / `!==` and `==` on
+                // reference types) compares pointers: normalize both
+                // sides to i64 before the integer compare.
+                let lhs = match lhs {
+                    BasicValueEnum::PointerValue(ptr) => builder
+                        .build_ptr_to_int(ptr, context.i64_type(), "ptr_as_i64")
+                        .map_err(|e| CodegenError(e.to_string()))?,
+                    other => other.into_int_value(),
+                };
+                let rhs = match rhs {
+                    BasicValueEnum::PointerValue(ptr) => builder
+                        .build_ptr_to_int(ptr, context.i64_type(), "ptr_as_i64")
+                        .map_err(|e| CodegenError(e.to_string()))?,
+                    other => other.into_int_value(),
+                };
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: IntValue = match op {
                     BinOp::Add => builder.build_int_add(lhs, rhs, &name),
@@ -463,17 +691,67 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 aggregate,
                 index,
             } => {
-                let aggregate = self.value(*aggregate)?.into_struct_value();
                 let name = format!("t{}", out.into_raw().into_u32());
-                let element = builder
-                    .build_extract_value(aggregate, *index, &name)
+                if matches!(
+                    function.value_ty(self.globals_arena, *aggregate),
+                    LirType::Ptr
+                ) {
+                    // Heap object field load (lir-lower module docs):
+                    // the operand points at the raw object struct
+                    // `{ ptr header, fields... }`; 0 reads the header
+                    // (the TypeDescriptor pointer), 1..=n the fields,
+                    // and for a TypeDescriptor pointer the indices
+                    // follow the `ScoopTypeDescriptor` field order
+                    // (vtable = 5). Every slot is 8 bytes, so the byte
+                    // offset is `index * 8`.
+                    let object = self.value(*aggregate)?.into_pointer_value();
+                    let field_ptr = self.byte_gep(object, u64::from(*index) * 8, "field_ptr")?;
+                    let field_ty = basic_ty(context, self.enums, &function.temps[*out].ty)?;
+                    let element = builder
+                        .build_load(field_ty, field_ptr, &name)
+                        .map_err(|e| {
+                            CodegenError(format!(
+                                "heap load @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                    self.temps.insert(*out, element);
+                } else {
+                    let aggregate = self.value(*aggregate)?.into_struct_value();
+                    let element = builder
+                        .build_extract_value(aggregate, *index, &name)
+                        .map_err(|e| {
+                            CodegenError(format!(
+                                "extractvalue @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                    self.temps.insert(*out, element);
+                }
+            }
+            Instruction::HeapStore {
+                object,
+                index,
+                value,
+            } => {
+                // Same slot indexing as the heap load above; the LIR
+                // contract requires `index` >= 1 (0 is the header).
+                if *index == 0 {
+                    return Err(CodegenError(format!(
+                        "heap_store @{symbol}: index 0 is the object header",
+                        symbol = function.symbol
+                    )));
+                }
+                let object = self.value(*object)?.into_pointer_value();
+                let field_ptr = self.byte_gep(object, u64::from(*index) * 8, "field_ptr")?;
+                builder
+                    .build_store(field_ptr, self.value(*value)?)
                     .map_err(|e| {
                         CodegenError(format!(
-                            "extractvalue @{symbol}: {e}",
+                            "heap_store @{symbol}: {e}",
                             symbol = function.symbol
                         ))
                     })?;
-                self.temps.insert(*out, element);
             }
             Instruction::Store { local, value: v } => {
                 let operand = self.value(*v)?;
@@ -484,6 +762,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
             }
             Instruction::Call { out, symbol, args } => {
+                // `scoop_rt_box` has a fixed runtime contract and a
+                // by-value aggregate payload argument (see `box_call`).
+                if symbol == "scoop_rt_box" {
+                    self.box_call(out, args)?;
+                    return Ok(());
+                }
                 // Signature from the call site: parameter types from the
                 // operands, return type from the result temp (void when
                 // there is none). Undefined callees are declared extern.
@@ -529,6 +813,82 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         ValueKind::Instruction(_) => {
                             return Err(CodegenError(format!(
                                 "call @{symbol} produced no value for t{}",
+                                temp.into_raw().into_u32()
+                            )));
+                        }
+                    }
+                }
+            }
+            Instruction::CallIndirect {
+                out,
+                table,
+                slot,
+                args,
+            } => {
+                // `table[slot]` (ptr GEP + load), called with the
+                // signature implied by the call site (impl spec 2.9).
+                let table = self.value(*table)?.into_pointer_value();
+                // SAFETY: `table` addresses a function table with at
+                // least `slot + 1` slots (LIR contract of CallIndirect).
+                let slot_ptr = unsafe {
+                    builder.build_gep(
+                        ptr_ty(context),
+                        table,
+                        &[context.i32_type().const_int((*slot).into(), false)],
+                        "slot_ptr",
+                    )
+                }
+                .map_err(|e| {
+                    CodegenError(format!(
+                        "call_indirect @{symbol}: {e}",
+                        symbol = function.symbol
+                    ))
+                })?;
+                let fn_ptr = builder
+                    .build_load(ptr_ty(context), slot_ptr, "fn_ptr")
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "call_indirect @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?
+                    .into_pointer_value();
+                let param_tys: Vec<BasicMetadataTypeEnum> = args
+                    .iter()
+                    .map(|arg| {
+                        basic_ty(
+                            context,
+                            self.enums,
+                            &function.value_ty(self.globals_arena, *arg),
+                        )
+                        .map(Into::into)
+                    })
+                    .collect::<Result<_, _>>()?;
+                let fn_ty = match out {
+                    Some(temp) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
+                        .fn_type(&param_tys, false),
+                    None => context.void_type().fn_type(&param_tys, false),
+                };
+                let call_args: Vec<inkwell::values::BasicMetadataValueEnum> = args
+                    .iter()
+                    .map(|arg| self.value(*arg).map(Into::into))
+                    .collect::<Result<_, _>>()?;
+                let call = builder
+                    .build_indirect_call(fn_ty, fn_ptr, &call_args, "call_indirect")
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "call_indirect @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                if let Some(temp) = out {
+                    match call.try_as_basic_value() {
+                        ValueKind::Basic(result) => {
+                            self.temps.insert(*temp, result);
+                        }
+                        ValueKind::Instruction(_) => {
+                            return Err(CodegenError(format!(
+                                "call_indirect produced no value for t{}",
                                 temp.into_raw().into_u32()
                             )));
                         }
@@ -898,6 +1258,73 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .unwrap_or_else(|| self.llvm.add_function(symbol, ty, None))
     }
 
+    /// `ptr scoop_rt_box(ptr td, ptr payload, i64 size)` (runtime spec
+    /// 2.3). lir-lower passes the payload by value (an aggregate for a
+    /// value type); it is materialized behind a stack pointer here
+    /// (lir-lower module docs, the "临时 alloca 取地址" contract).
+    fn box_call(&mut self, out: &Option<TempId>, args: &[Value]) -> Result<(), CodegenError> {
+        let context = self.context;
+        let builder = self.builder;
+        let function = self.function;
+        let [td, payload, size] = args else {
+            return Err(CodegenError(format!(
+                "scoop_rt_box @{symbol}: expected 3 arguments, got {count}",
+                symbol = function.symbol,
+                count = args.len()
+            )));
+        };
+        let payload_ty = basic_ty(
+            context,
+            self.enums,
+            &function.value_ty(self.globals_arena, *payload),
+        )?;
+        let slot = self.entry_alloca(payload_ty, "box_payload")?;
+        builder
+            .build_store(slot, self.value(*payload)?)
+            .map_err(|e| {
+                CodegenError(format!(
+                    "box payload @{symbol}: {e}",
+                    symbol = function.symbol
+                ))
+            })?;
+        let box_fn = self.runtime_fn(
+            "scoop_rt_box",
+            ptr_ty(context).fn_type(
+                &[
+                    ptr_ty(context).into(),
+                    ptr_ty(context).into(),
+                    context.i64_type().into(),
+                ],
+                false,
+            ),
+        );
+        let call = builder
+            .build_call(
+                box_fn,
+                &[
+                    self.value(*td)?.into(),
+                    slot.into(),
+                    self.value(*size)?.into(),
+                ],
+                "box",
+            )
+            .map_err(|e| CodegenError(format!("box @{symbol}: {e}", symbol = function.symbol)))?;
+        if let Some(temp) = out {
+            match call.try_as_basic_value() {
+                ValueKind::Basic(result) => {
+                    self.temps.insert(*temp, result);
+                }
+                ValueKind::Instruction(_) => {
+                    return Err(CodegenError(format!(
+                        "scoop_rt_box produced no value for t{}",
+                        temp.into_raw().into_u32()
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// The array TypeDescriptor global for an element type (emitted in
     /// `emit_object`; every array type in the module is collected there).
     fn array_td(&self, element: &LirType) -> Result<GlobalValue<'ctx>, CodegenError> {
@@ -1182,7 +1609,7 @@ fn declare_function<'ctx>(
 struct ModuleCtx<'a, 'ctx> {
     enums: &'a Arena<EnumDef>,
     globals_arena: &'a Arena<Global>,
-    globals: &'a [GlobalValue<'ctx>],
+    globals: &'a [Option<GlobalValue<'ctx>>],
     array_elements: &'a [LirType],
     array_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
@@ -1293,8 +1720,8 @@ fn emit_function<'ctx>(
 mod tests {
     use la_arena::Arena;
     use scoop_lir::{
-        BasicBlock, EnumDef, EnumRepr, Global, GlobalInit, Layout, LayoutKind, LirMeta, Local,
-        Temp, VariantLayout,
+        BasicBlock, EnumDef, EnumRepr, Global, GlobalInit, ItableRecord, Layout, LayoutKind,
+        LirMeta, Local, Temp, TypeDescriptor, VariantLayout,
     };
 
     use super::*;
@@ -1487,6 +1914,7 @@ mod tests {
                         ref_field_offsets: vec![],
                     },
                 }],
+                type_descriptors: vec![],
             },
         }
     }
@@ -1815,6 +2243,7 @@ mod tests {
                         },
                     },
                 ],
+                type_descriptors: vec![],
             },
         }
     }
@@ -1991,6 +2420,7 @@ mod tests {
                         },
                     },
                 ],
+                type_descriptors: vec![],
             },
         }
     }
@@ -2000,6 +2430,346 @@ mod tests {
         let module = arrays_module();
         let output =
             std::env::temp_dir().join(format!("scoop_codegen_m5_test_{}.o", std::process::id()));
+        // `emit_object` verifies the LLVM module before writing, so a
+        // successful return means `module.verify()` passed.
+        emit_object(&module, &output).expect("emit object");
+        let len = std::fs::metadata(&output)
+            .expect("object file exists")
+            .len();
+        assert!(len > 0, "object file is empty");
+        std::fs::remove_file(&output).ok();
+    }
+
+    /// An M6-shaped module: class TypeDescriptors (parent chain, vtable
+    /// with the three Any default slots plus a user method, one itable)
+    /// and indirect calls through a table pointer (vtable / itable
+    /// dispatch shape, impl spec 2.9).
+    fn classes_module() -> Module {
+        // `fn describe(this: ptr) -> ptr` shared shape: returns `this`.
+        let describe = |symbol: &str| {
+            let mut blocks = Arena::default();
+            let entry = blocks.alloc(BasicBlock {
+                name: "entry".to_string(),
+                instructions: vec![],
+                terminator: Terminator::Return {
+                    value: Some(Value::Param(0)),
+                },
+            });
+            Function {
+                symbol: symbol.to_string(),
+                params: vec![LirType::Ptr],
+                return_ty: LirType::Ptr,
+                locals: Arena::default(),
+                temps: Arena::default(),
+                blocks,
+                entry,
+            }
+        };
+
+        // fun @scoop_main(table: ptr, obj: ptr) -> ptr:
+        //   t0 = call_indirect table[0](obj) : ptr   (result)
+        //   call_indirect table[1](obj)              (void)
+        //   ret t0
+        let mut temps = Arena::default();
+        let t0 = temps.alloc(Temp { ty: LirType::Ptr });
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::CallIndirect {
+                    out: Some(t0),
+                    table: Value::Param(0),
+                    slot: 0,
+                    args: vec![Value::Param(1)],
+                },
+                Instruction::CallIndirect {
+                    out: None,
+                    table: Value::Param(0),
+                    slot: 1,
+                    args: vec![Value::Param(1)],
+                },
+            ],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(t0)),
+            },
+        });
+        let main = Function {
+            symbol: "scoop_main".to_string(),
+            params: vec![LirType::Ptr, LirType::Ptr],
+            return_ty: LirType::Ptr,
+            locals: Arena::default(),
+            temps,
+            blocks,
+            entry,
+        };
+
+        let any_slots = || {
+            vec![
+                "scoop_rt_any_equals".to_string(),
+                "scoop_rt_any_hashcode".to_string(),
+                "scoop_rt_any_tostring".to_string(),
+            ]
+        };
+        Module {
+            globals: Arena::default(),
+            enums: Arena::default(),
+            functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
+            entry_symbol: "scoop_main".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 16,
+                    align: 8,
+                    kind: LayoutKind::Plain {
+                        ref_field_offsets: vec![],
+                    },
+                }],
+                type_descriptors: vec![
+                    // interface Describable: itable key only.
+                    TypeDescriptor {
+                        name: "Describable".to_string(),
+                        symbol: "scoop_td_Describable".to_string(),
+                        size: 0,
+                        align: 8,
+                        ref_offsets: vec![],
+                        parent: None,
+                        vtable: vec![],
+                        itables: vec![],
+                    },
+                    // open class Shape: vtable = Any slots + describe.
+                    TypeDescriptor {
+                        name: "Shape".to_string(),
+                        symbol: "scoop_td_Shape".to_string(),
+                        size: 16,
+                        align: 8,
+                        ref_offsets: vec![8],
+                        parent: None,
+                        vtable: any_slots()
+                            .into_iter()
+                            .chain(["Shape.describe".to_string()])
+                            .collect(),
+                        itables: vec![],
+                    },
+                    // class Point : Shape, Describable.
+                    TypeDescriptor {
+                        name: "Point".to_string(),
+                        symbol: "scoop_td_Point".to_string(),
+                        size: 24,
+                        align: 8,
+                        ref_offsets: vec![8],
+                        parent: Some("scoop_td_Shape".to_string()),
+                        vtable: any_slots()
+                            .into_iter()
+                            .chain(["Point.describe".to_string()])
+                            .collect(),
+                        itables: vec![ItableRecord {
+                            interface_symbol: "scoop_td_Describable".to_string(),
+                            slots: vec!["Point.describe".to_string()],
+                        }],
+                    },
+                ],
+            },
+        }
+    }
+
+    #[test]
+    fn emits_m6_type_descriptors_and_call_indirect() {
+        let module = classes_module();
+        let output =
+            std::env::temp_dir().join(format!("scoop_codegen_m6_test_{}.o", std::process::id()));
+        // `emit_object` verifies the LLVM module before writing, so a
+        // successful return means `module.verify()` passed.
+        emit_object(&module, &output).expect("emit object");
+        let len = std::fs::metadata(&output)
+            .expect("object file exists")
+            .len();
+        assert!(len > 0, "object file is empty");
+        std::fs::remove_file(&output).ok();
+    }
+
+    /// An M6 heap-access module: a TypeDescriptor reference stub in the
+    /// globals arena (skipped at data emission, resolved by symbol),
+    /// HeapStore field writes, ExtractValue-on-Ptr loads (header, i64
+    /// field, ptr field, TD vtable pointer), and a `scoop_rt_box` call
+    /// with a by-value aggregate payload.
+    fn heap_module() -> Module {
+        let mut globals = Arena::default();
+        // The TD stub lir-lower appends (CString("") placeholder init);
+        // the real TD comes from the meta below.
+        let point_td_stub = globals.alloc(Global {
+            symbol: "scoop_td_Point".to_string(),
+            init: GlobalInit::CString(String::new()),
+        });
+
+        // fun @Point.describe(this: ptr) -> ptr: returns `this` (vtable
+        // slot material).
+        let mut describe_blocks = Arena::default();
+        let describe_entry = describe_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![],
+            terminator: Terminator::Return {
+                value: Some(Value::Param(0)),
+            },
+        });
+        let describe = Function {
+            symbol: "Point.describe".to_string(),
+            params: vec![LirType::Ptr],
+            return_ty: LirType::Ptr,
+            locals: Arena::default(),
+            temps: Arena::default(),
+            blocks: describe_blocks,
+            entry: describe_entry,
+        };
+
+        // fun @scoop_main() -> void:
+        //   t0 = scoop_rt_alloc(@scoop_td_Point, 24)  (stub operand)
+        //   heap_store t0, 1, 42      (i64 field)
+        //   heap_store t0, 2, t0      (ptr field)
+        //   t1 = extract t0, 0 : ptr  (object header: the TD)
+        //   t2 = extract t0, 1 : i64  (field 1)
+        //   t3 = extract t0, 2 : ptr  (field 2)
+        //   t4 = extract t1, 5 : ptr  (TD field 5: the vtable pointer)
+        //   t5 = aggregate (t2) : {i64}
+        //   t6 = scoop_rt_box(@scoop_td_Point, t5, 8)  (by-value payload)
+        //   t7 = scoop_rt_is_instance(t6, @scoop_td_Point) : i1
+        //   call_indirect t4[3](t3); println_int t2; println_boolean t7
+        let mut temps = Arena::default();
+        let t0 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t1 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t2 = temps.alloc(Temp { ty: LirType::I64 });
+        let t3 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t4 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t5 = temps.alloc(Temp {
+            ty: LirType::Aggregate(vec![LirType::I64]),
+        });
+        let t6 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t7 = temps.alloc(Temp { ty: LirType::I1 });
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::Call {
+                    out: Some(t0),
+                    symbol: "scoop_rt_alloc".to_string(),
+                    args: vec![Value::Global(point_td_stub), Value::IntConst(24)],
+                },
+                Instruction::HeapStore {
+                    object: Value::Temp(t0),
+                    index: 1,
+                    value: Value::IntConst(42),
+                },
+                Instruction::HeapStore {
+                    object: Value::Temp(t0),
+                    index: 2,
+                    value: Value::Temp(t0),
+                },
+                Instruction::ExtractValue {
+                    out: t1,
+                    aggregate: Value::Temp(t0),
+                    index: 0,
+                },
+                Instruction::ExtractValue {
+                    out: t2,
+                    aggregate: Value::Temp(t0),
+                    index: 1,
+                },
+                Instruction::ExtractValue {
+                    out: t3,
+                    aggregate: Value::Temp(t0),
+                    index: 2,
+                },
+                Instruction::ExtractValue {
+                    out: t4,
+                    aggregate: Value::Temp(t1),
+                    index: 5,
+                },
+                Instruction::MakeAggregate {
+                    out: t5,
+                    elements: vec![Value::Temp(t2)],
+                },
+                Instruction::Call {
+                    out: Some(t6),
+                    symbol: "scoop_rt_box".to_string(),
+                    args: vec![
+                        Value::Global(point_td_stub),
+                        Value::Temp(t5),
+                        Value::IntConst(8),
+                    ],
+                },
+                Instruction::Call {
+                    out: Some(t7),
+                    symbol: "scoop_rt_is_instance".to_string(),
+                    args: vec![Value::Temp(t6), Value::Global(point_td_stub)],
+                },
+                Instruction::CallIndirect {
+                    out: None,
+                    table: Value::Temp(t4),
+                    slot: 3,
+                    args: vec![Value::Temp(t3)],
+                },
+                Instruction::Call {
+                    out: None,
+                    symbol: "scoop_rt_println_int".to_string(),
+                    args: vec![Value::Temp(t2)],
+                },
+                Instruction::Call {
+                    out: None,
+                    symbol: "scoop_rt_println_boolean".to_string(),
+                    args: vec![Value::Temp(t7)],
+                },
+            ],
+            terminator: Terminator::Return { value: None },
+        });
+        let main = Function {
+            symbol: "scoop_main".to_string(),
+            params: vec![],
+            return_ty: LirType::Void,
+            locals: Arena::default(),
+            temps,
+            blocks,
+            entry,
+        };
+
+        Module {
+            globals,
+            enums: Arena::default(),
+            functions: vec![describe, main],
+            entry_symbol: "scoop_main".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 16,
+                    align: 8,
+                    kind: LayoutKind::Plain {
+                        ref_field_offsets: vec![],
+                    },
+                }],
+                type_descriptors: vec![TypeDescriptor {
+                    name: "Point".to_string(),
+                    symbol: "scoop_td_Point".to_string(),
+                    size: 24,
+                    align: 8,
+                    ref_offsets: vec![16],
+                    parent: None,
+                    vtable: vec![
+                        "scoop_rt_any_equals".to_string(),
+                        "scoop_rt_any_hashcode".to_string(),
+                        "scoop_rt_any_tostring".to_string(),
+                        "Point.describe".to_string(),
+                    ],
+                    itables: vec![],
+                }],
+            },
+        }
+    }
+
+    #[test]
+    fn emits_m6_heap_access_and_td_stubs() {
+        let module = heap_module();
+        let output = std::env::temp_dir().join(format!(
+            "scoop_codegen_m6_heap_test_{}.o",
+            std::process::id()
+        ));
         // `emit_object` verifies the LLVM module before writing, so a
         // successful return means `module.verify()` passed.
         emit_object(&module, &output).expect("emit object");

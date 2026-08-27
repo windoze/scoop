@@ -1,14 +1,20 @@
-//! Expression parsing: precedence climbing over the M5 operator set.
+//! Expression parsing: precedence climbing over the M6 operator set.
 //!
 //! Precedence, low to high: `?:` (right-associative) < `||` < `&&` <
-//! `== !=` < `< <= > >=` < `+ -` < `* /` < unary `- !` < postfix `.name` /
-//! `._n` / `?.name` / `!!` / `[index]` < atoms. All other binary operators
-//! are left-associative.
+//! `== != === !==` < `< <= > >= is !is as as?` < `+ -` < `* /` < unary
+//! `- !` < postfix `.name` / `.name(args)` / `._n` / `?.name` / `!!` /
+//! `[index]` < atoms. All other binary operators are left-associative.
 
 use scoop_ast::{BinOp, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector, Ident, Span, UnOp};
 
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
+
+/// Precedence tier of the comparison operators — shared by the type
+/// operators `is` / `!is` / `as` / `as?` (M6), which are handled outside
+/// `binary_op` because their right-hand side is a type, not an
+/// expression.
+const COMPARISON_PRECEDENCE: u8 = 4;
 
 /// Maps an infix operator token to its AST operator and precedence level
 /// (higher binds tighter); `None` for non-operator tokens.
@@ -18,10 +24,12 @@ fn binary_op(kind: &TokenKind) -> Option<(BinOp, u8)> {
         TokenKind::AmpAmp => (BinOp::And, 2),
         TokenKind::EqualEqual => (BinOp::Eq, 3),
         TokenKind::BangEqual => (BinOp::Ne, 3),
-        TokenKind::Less => (BinOp::Lt, 4),
-        TokenKind::LessEqual => (BinOp::Le, 4),
-        TokenKind::Greater => (BinOp::Gt, 4),
-        TokenKind::GreaterEqual => (BinOp::Ge, 4),
+        TokenKind::EqualEqualEqual => (BinOp::RefEq, 3),
+        TokenKind::BangEqualEqual => (BinOp::RefNe, 3),
+        TokenKind::Less => (BinOp::Lt, COMPARISON_PRECEDENCE),
+        TokenKind::LessEqual => (BinOp::Le, COMPARISON_PRECEDENCE),
+        TokenKind::Greater => (BinOp::Gt, COMPARISON_PRECEDENCE),
+        TokenKind::GreaterEqual => (BinOp::Ge, COMPARISON_PRECEDENCE),
         TokenKind::Plus => (BinOp::Add, 5),
         TokenKind::Minus => (BinOp::Sub, 5),
         TokenKind::Star => (BinOp::Mul, 6),
@@ -74,6 +82,44 @@ impl Parser {
                 continue;
             }
             let Some((op, precedence)) = binary_op(&self.peek().kind) else {
+                // `is` / `!is` / `as` / `as?` take a type on the right, so
+                // they live outside `binary_op` (same tier, left
+                // associative).
+                if COMPARISON_PRECEDENCE < min_precedence {
+                    break;
+                }
+                if matches!(self.peek().kind, TokenKind::Is) || self.at_bang_is() {
+                    let negated = self.at_bang_is();
+                    self.bump(); // `is` or `!`
+                    if negated {
+                        self.bump(); // `is`
+                    }
+                    let ty = self.parse_type_ref()?;
+                    lhs = Expr::Is {
+                        span: Span::new(lhs.span().start, ty.span.end),
+                        operand: Box::new(lhs),
+                        ty,
+                        negated,
+                    };
+                    continue;
+                }
+                if matches!(self.peek().kind, TokenKind::As) {
+                    let as_token = self.bump();
+                    // `as?` (safe cast) is `as` directly followed by `?`.
+                    let optional = matches!(self.peek().kind, TokenKind::Question)
+                        && self.peek().span.start == as_token.span.end;
+                    if optional {
+                        self.bump(); // `?`
+                    }
+                    let ty = self.parse_type_ref()?;
+                    lhs = Expr::Cast {
+                        span: Span::new(lhs.span().start, ty.span.end),
+                        operand: Box::new(lhs),
+                        ty,
+                        optional,
+                    };
+                    continue;
+                }
                 break;
             };
             if precedence < min_precedence {
@@ -173,27 +219,62 @@ impl Parser {
         matches!(next.kind, TokenKind::Bang) && next.span.start == self.peek().span.end
     }
 
-    /// `.name` / `._n` (or `?.name` when `safe`). The dot token is already
-    /// consumed. `?.` accepts only named selectors (M3 has no methods, and
-    /// tuple indices stay plain-`.` only).
+    /// True when the current `!` is immediately followed by `is` with no
+    /// trivia in between — the `!is` operator (two tokens, like `!!`).
+    fn at_bang_is(&self) -> bool {
+        let Some(next) = self.tokens.get(self.pos + 1) else {
+            return false;
+        };
+        matches!(self.peek().kind, TokenKind::Bang)
+            && matches!(next.kind, TokenKind::Is)
+            && next.span.start == self.peek().span.end
+    }
+
+    /// `.name` / `.name(args)` / `._n` (or `?.name` when `safe`). The dot
+    /// token is already consumed. A name directly followed by `(` is a
+    /// method call; otherwise the selector is a field. `?.` accepts only
+    /// named selectors and, in M6, no method calls (DESIGN.md section 6).
     fn parse_field_access(&mut self, receiver: Expr, safe: bool) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
         let TokenKind::Ident(text) = token.kind else {
             return self.unexpected("field name or tuple index");
         };
-        let selector = match tuple_index(&text) {
-            Some(index) if !safe => FieldSelector::Index(index, token.span),
-            Some(_) => return self.unexpected("field name"),
-            None => FieldSelector::Name(Ident {
-                text,
-                span: token.span,
-            }),
-        };
+        if let Some(index) = tuple_index(&text) {
+            if safe {
+                return self.unexpected("field name");
+            }
+            self.pos += 1;
+            return Ok(Expr::FieldAccess(FieldAccess {
+                span: Span::new(receiver.span().start, token.span.end),
+                receiver: Box::new(receiver),
+                selector: FieldSelector::Index(index, token.span),
+                safe,
+            }));
+        }
         self.pos += 1;
+        let name = Ident {
+            text,
+            span: token.span,
+        };
+        if matches!(self.peek().kind, TokenKind::LParen) {
+            if safe {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "method calls with `?.` are not supported yet (milestone M6)",
+                ));
+            }
+            let (args, end) = self.parse_args()?;
+            return Ok(Expr::MethodCall {
+                span: Span::new(receiver.span().start, end),
+                receiver: Box::new(receiver),
+                name,
+                args,
+            });
+        }
         Ok(Expr::FieldAccess(FieldAccess {
             span: Span::new(receiver.span().start, token.span.end),
             receiver: Box::new(receiver),
-            selector,
+            selector: FieldSelector::Name(name),
             safe,
         }))
     }
@@ -233,6 +314,10 @@ impl Parser {
                 token.span,
                 "`when` expressions are not supported yet (milestone M4)",
             )),
+            TokenKind::This => {
+                self.pos += 1;
+                Ok(Expr::This { span: token.span })
+            }
             TokenKind::Ident(text) => {
                 self.pos += 1;
                 // `Unit` is an ordinary identifier; in expression position
@@ -240,24 +325,21 @@ impl Parser {
                 if text == "Unit" {
                     return Ok(Expr::UnitLiteral { span: token.span });
                 }
-                let mut ident = Ident {
+                if text == "super" {
+                    return Err(Diagnostic::at(
+                        token.span,
+                        "`super` calls are not supported yet (milestone M6)",
+                    ));
+                }
+                let ident = Ident {
                     text,
                     span: token.span,
                 };
-                // `E.V(args)` — a qualified variant construction
-                // (`Shape.Circle(5)`): collapse the dotted path into the
-                // callee name and let HIR resolve it. Without a call the
-                // dot stays ordinary field access (`Color.Red`, `p.x`).
-                if self.at_dotted_path_call() {
-                    while matches!(self.peek().kind, TokenKind::Dot) {
-                        self.bump(); // `.`
-                        let segment = self.expect_ident("variant name")?;
-                        ident.text.push('.');
-                        ident.text.push_str(&segment.text);
-                        ident.span = Span::new(ident.span.start, segment.span.end);
-                    }
-                    return self.parse_call(ident);
-                }
+                // `Name(args)` — a call; struct/enum construction shares
+                // this syntax, hir-lower tells them apart. A dotted path
+                // (`E.V(args)`, `p.m(args)`) is NOT collapsed here: the
+                // postfix loop turns it into a method call, and hir-lower
+                // resolves enum variant construction from that shape.
                 if matches!(self.peek().kind, TokenKind::LParen) {
                     return self.parse_call(ident);
                 }
@@ -291,30 +373,19 @@ impl Parser {
         })
     }
 
-    /// True when the current position starts a dotted path `(.Ident)+`
-    /// that ends at `(` — a qualified constructor call `E.V(args)`.
-    fn at_dotted_path_call(&self) -> bool {
-        let mut index = self.pos;
-        while matches!(
-            self.tokens.get(index).map(|token| &token.kind),
-            Some(TokenKind::Dot)
-        ) && matches!(
-            self.tokens.get(index + 1).map(|token| &token.kind),
-            Some(TokenKind::Ident(_))
-        ) {
-            index += 2;
-        }
-        index > self.pos
-            && matches!(
-                self.tokens.get(index).map(|token| &token.kind),
-                Some(TokenKind::LParen)
-            )
-    }
-
     /// `callee(args...)` — `callee` is already consumed. Struct
     /// construction shares this syntax in M2 (`Point(1, 2)`); hir-lower
     /// tells function calls and struct constructions apart.
     fn parse_call(&mut self, callee: Ident) -> Result<Expr, Diagnostic> {
+        let (args, end) = self.parse_args()?;
+        let span = Span::new(callee.span.start, end);
+        Ok(Expr::Call(CallExpr { callee, args, span }))
+    }
+
+    /// `(arg, ...)` — the `(` is the current token. Shared by calls,
+    /// method calls, and base-class constructor delegation. Returns the
+    /// arguments and the closing paren's end offset.
+    pub(crate) fn parse_args(&mut self) -> Result<(Vec<Expr>, u32), Diagnostic> {
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut args = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RParen) {
@@ -328,8 +399,7 @@ impl Parser {
             }
         }
         let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        let span = Span::new(callee.span.start, close.span.end);
-        Ok(Expr::Call(CallExpr { callee, args, span }))
+        Ok((args, close.span.end))
     }
 
     /// `( ... )` disambiguation (spec section 4.3): `()` is the unit

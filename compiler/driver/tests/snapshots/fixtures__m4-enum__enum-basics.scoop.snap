@@ -41,7 +41,8 @@ SourceFile
         Call println
           StringLiteral "blue"
     val s
-      Call Shape.Circle
+      MethodCall Circle
+        Var Shape
         IntLiteral 5
     when
       Var s
@@ -60,7 +61,8 @@ SourceFile
         Call println
           Var d
     val r
-      Call Shape.Rect
+      MethodCall Rect
+        Var Shape
         IntLiteral 3
         IntLiteral 4
     when
@@ -80,7 +82,8 @@ SourceFile
         Call println
           Var d
     val d
-      Call Shape.WithDefault
+      MethodCall WithDefault
+        Var Shape
     when
       Var d
       arm WithDefault(x)
@@ -90,7 +93,8 @@ SourceFile
         Call println
           StringLiteral "other"
     val d2
-      Call Shape.WithDefault
+      MethodCall WithDefault
+        Var Shape
         IntLiteral 3
     when
       Var d2

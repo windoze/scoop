@@ -18,10 +18,12 @@ SourceFile
     Empty
   fun main()
     val a
-      Call Box.Full
+      MethodCall Full
+        Var Box
         IntLiteral 1
     val b
-      Call Box.Full
+      MethodCall Full
+        Var Box
         StringLiteral "s"
     when
       Var a

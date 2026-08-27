@@ -15,6 +15,8 @@ pub type FunctionId = Idx<Function>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;
 pub type EnumId = Idx<EnumDef>;
+pub type ClassId = Idx<ClassDef>;
+pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
 
 /// Mangled symbol of the program entry point (called by the C runtime).
@@ -43,6 +45,9 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
         Type::Boolean => "B".to_string(),
         Type::String => "S".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Class(id) => module.classes[*id].name.clone(),
+        Type::Interface(id) => module.interfaces[*id].name.clone(),
+        Type::Any => "Any".to_string(),
         Type::Array(inner) => format!("A{}X", encode_type(module, inner)),
         Type::MutableArray(inner) => format!("M{}X", encode_type(module, inner)),
         Type::Tuple(elements) => {
@@ -68,6 +73,12 @@ pub enum Type {
     Boolean,
     String,
     Struct(StructId),
+    /// A reference type declared with `class`.
+    Class(ClassId),
+    /// An interface type (dispatch through itables, impl spec 2.9).
+    Interface(InterfaceId),
+    /// The root of all types; boxed value types live behind it.
+    Any,
     /// Built-in array types (M5, see hir::Type). Invariant (spec 10.4).
     Array(Box<Type>),
     MutableArray(Box<Type>),
@@ -104,6 +115,51 @@ pub struct VariantDef {
     pub fields: Vec<Field>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassModifier {
+    Final,
+    Open,
+    Abstract,
+}
+
+/// A class definition with its dispatch layout fixed by mir-lower
+/// (impl spec 2.9).
+#[derive(Debug)]
+pub struct ClassDef {
+    pub modifier: ClassModifier,
+    pub name: String,
+    /// Constructor properties in declaration order.
+    pub fields: Vec<Field>,
+    pub base_class: Option<ClassId>,
+    pub interfaces: Vec<InterfaceId>,
+    /// vtable slots: 0..2 are the `Any` defaults
+    /// (`RuntimeFn::AnyEquals/AnyHashCode/AnyToString`), then user
+    /// methods in vtable order (overrides share the base slot).
+    pub vtable: Vec<TableSlot>,
+    /// itable entries, one per implemented interface (pointer-keyed
+    /// lookup at runtime).
+    pub itables: Vec<ItableRecord>,
+}
+
+#[derive(Debug)]
+pub enum TableSlot {
+    Function(FunctionId),
+    Runtime(RuntimeFn),
+}
+
+#[derive(Debug)]
+pub struct ItableRecord {
+    pub interface: InterfaceId,
+    pub slots: Vec<TableSlot>,
+}
+
+#[derive(Debug)]
+pub struct InterfaceDef {
+    pub name: String,
+    /// Method names in declaration order (itable slot indices).
+    pub methods: Vec<String>,
+}
+
 #[derive(Debug)]
 pub struct Local {
     pub name: String,
@@ -119,6 +175,8 @@ pub struct Module {
     pub strings: Arena<StringConst>,
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
+    pub classes: Arena<ClassDef>,
+    pub interfaces: Arena<InterfaceDef>,
     pub entry: FunctionId,
     pub meta: MirMeta,
 }
@@ -195,6 +253,13 @@ pub enum StatementKind {
         index: Expr,
         value: Expr,
     },
+    /// `obj.field = value`: heap field store (class `var` property;
+    /// `index` is the flattened field index — base fields first).
+    FieldSet {
+        object: Expr,
+        index: u32,
+        value: Expr,
+    },
     If {
         cond: Expr,
         then_body: Vec<Statement>,
@@ -218,6 +283,12 @@ pub enum Expr {
         struct_id: StructId,
         args: Vec<Expr>,
     },
+    /// Class instantiation; mir-lower generates a constructor
+    /// function per class and this becomes a plain call to it.
+    ClassInit {
+        class_id: ClassId,
+        args: Vec<Expr>,
+    },
     Local(LocalId),
     /// Field or element access; `index` is 0-based for both structs
     /// and tuples.
@@ -226,6 +297,22 @@ pub enum Expr {
         index: u32,
     },
     Call(Call),
+    /// Box a value type into `Any` / an interface (spec 4.4.4).
+    Box(Box<Expr>),
+    /// Unbox a reference back to a value type.
+    Unbox(Box<Expr>),
+    /// `expr is T` (result `Int`-as-bool). The checked type is in
+    /// `check_ty`.
+    IsInstance {
+        operand: Box<Expr>,
+        check_ty: Box<Type>,
+    },
+    /// `as` (traps on failure) or `as?` (`optional`, result
+    /// `Option<T>`); the target type comes from context.
+    Cast {
+        operand: Box<Expr>,
+        optional: bool,
+    },
     /// `[e1, ...]` (the kind, Array vs MutableArray, is fixed by the
     /// producing context — LIR types record it).
     ArrayLiteral(Vec<Expr>),
@@ -281,6 +368,16 @@ pub struct CallTarget {
 #[derive(Debug)]
 pub enum CallKind {
     Direct,
+    /// vtable slot (load `td` from the receiver, load `vtable[slot]`).
+    Virtual {
+        slot: u32,
+    },
+    /// itable lookup (`scoop_rt_itable_lookup(td, iface_td)`), then
+    /// `slot` within the returned table.
+    Interface {
+        interface: InterfaceId,
+        slot: u32,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -295,6 +392,16 @@ pub enum Callee {
 /// are temporary until M11 (docs/milestone1/DESIGN.md 5.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeFn {
+    /// `scoop_rt_box(td, payload, size)`
+    Box,
+    /// `scoop_rt_is_instance(obj, td)`
+    IsInstance,
+    /// `scoop_rt_itable_lookup(td, iface_td)`
+    ITableLookup,
+    /// The `Any` vtable defaults (slots 0..2).
+    AnyEquals,
+    AnyHashCode,
+    AnyToString,
     PrintString,
     PrintlnString,
     PrintInt,
@@ -311,6 +418,12 @@ pub enum RuntimeFn {
 impl RuntimeFn {
     pub fn symbol(self) -> &'static str {
         match self {
+            RuntimeFn::Box => "scoop_rt_box",
+            RuntimeFn::IsInstance => "scoop_rt_is_instance",
+            RuntimeFn::ITableLookup => "scoop_rt_itable_lookup",
+            RuntimeFn::AnyEquals => "scoop_rt_any_equals",
+            RuntimeFn::AnyHashCode => "scoop_rt_any_hashcode",
+            RuntimeFn::AnyToString => "scoop_rt_any_tostring",
             RuntimeFn::PrintString => "scoop_rt_print",
             RuntimeFn::PrintlnString => "scoop_rt_println",
             RuntimeFn::PrintInt => "scoop_rt_print_int",
@@ -373,6 +486,17 @@ pub fn dump(module: &Module) -> String {
             out.push_str(&format!("    {}({})\n", variant.name, fields.join(", ")));
         }
     }
+    for (_, def) in module.classes.iter() {
+        out.push_str(&format!(
+            "  class {} vtable={} itables={}\n",
+            def.name,
+            def.vtable.len(),
+            def.itables.len()
+        ));
+    }
+    for (_, def) in module.interfaces.iter() {
+        out.push_str(&format!("  interface {}\n", def.name));
+    }
     for &id in &module.top_level {
         let function = &module.functions[id];
         let params: Vec<String> = function
@@ -410,6 +534,9 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Class(id) => module.classes[*id].name.clone(),
+        Type::Interface(id) => module.interfaces[*id].name.clone(),
+        Type::Any => "Any".to_string(),
         Type::Array(inner) => format!("Array<{}>", type_name(module, inner)),
         Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, inner)),
         Type::Tuple(elements) => {
@@ -454,6 +581,15 @@ fn dump_statements(
                     type_name(module, &local.ty)
                 ));
                 dump_expr(module, locals, init, indent + 1, out);
+            }
+            StatementKind::FieldSet {
+                object,
+                index,
+                value,
+            } => {
+                out.push_str(&format!("{pad}field_set {index}\n"));
+                dump_expr(module, locals, object, indent + 1, out);
+                dump_expr(module, locals, value, indent + 1, out);
             }
             StatementKind::ArraySet {
                 array,
@@ -509,6 +645,15 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
+        Expr::ClassInit { class_id, args } => {
+            out.push_str(&format!(
+                "{pad}ClassInit {}\n",
+                module.classes[*class_id].name
+            ));
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
         Expr::StructInit { struct_id, args } => {
             out.push_str(&format!(
                 "{pad}StructInit {}\n",
@@ -532,6 +677,25 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             for arg in &call.args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
+        }
+        Expr::Box(operand) => {
+            out.push_str(&format!("{pad}Box\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::Unbox(operand) => {
+            out.push_str(&format!("{pad}Unbox\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::IsInstance { operand, check_ty } => {
+            out.push_str(&format!(
+                "{pad}IsInstance {}\n",
+                type_name(module, check_ty)
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::Cast { operand, optional } => {
+            out.push_str(&format!("{pad}Cast optional={optional}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
         }
         Expr::ArrayLiteral(elements) => {
             out.push_str(&format!("{pad}ArrayLiteral\n"));

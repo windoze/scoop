@@ -1,18 +1,23 @@
-//! Hand-written lexer for the M5 source subset.
+//! Hand-written lexer for the M6 source subset.
 //!
 //! Produces a flat token vector for the parser. Lexing is fail-fast: the
 //! first un-lexable input yields one diagnostic and no tokens at all.
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M5 subset. Reserved words are dedicated variants;
+/// Token kinds of the M6 subset. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
-/// it is not a reserved word).
+/// it is not a reserved word). Words that only matter in specific
+/// positions (`open`, `abstract`, `override`, `super`, `object`,
+/// `sealed`, `companion`, `init`, `constructor`) stay identifiers too —
+/// the parser matches them by text where they are meaningful.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
     Fun,
     Struct,
     Enum,
+    Class,
+    Interface,
     Val,
     Var,
     If,
@@ -22,6 +27,9 @@ pub(crate) enum TokenKind {
     Return,
     True,
     False,
+    This,
+    Is,
+    As,
     Ident(String),
     Str(String),
     Int(i64),
@@ -47,8 +55,10 @@ pub(crate) enum TokenKind {
     Slash,
     Bang,
     BangEqual,
+    BangEqualEqual,
     Equal,
     EqualEqual,
+    EqualEqualEqual,
     Less,
     LessEqual,
     Greater,
@@ -76,6 +86,8 @@ impl Token {
             TokenKind::Fun => "`fun`".to_string(),
             TokenKind::Struct => "`struct`".to_string(),
             TokenKind::Enum => "`enum`".to_string(),
+            TokenKind::Class => "`class`".to_string(),
+            TokenKind::Interface => "`interface`".to_string(),
             TokenKind::Val => "`val`".to_string(),
             TokenKind::Var => "`var`".to_string(),
             TokenKind::If => "`if`".to_string(),
@@ -85,6 +97,9 @@ impl Token {
             TokenKind::Return => "`return`".to_string(),
             TokenKind::True => "`true`".to_string(),
             TokenKind::False => "`false`".to_string(),
+            TokenKind::This => "`this`".to_string(),
+            TokenKind::Is => "`is`".to_string(),
+            TokenKind::As => "`as`".to_string(),
             TokenKind::Ident(name) => format!("`{name}`"),
             TokenKind::Str(_) => "string literal".to_string(),
             TokenKind::Int(_) => "integer literal".to_string(),
@@ -110,8 +125,10 @@ impl Token {
             TokenKind::Slash => "`/`".to_string(),
             TokenKind::Bang => "`!`".to_string(),
             TokenKind::BangEqual => "`!=`".to_string(),
+            TokenKind::BangEqualEqual => "`!==`".to_string(),
             TokenKind::Equal => "`=`".to_string(),
             TokenKind::EqualEqual => "`==`".to_string(),
+            TokenKind::EqualEqualEqual => "`===`".to_string(),
             TokenKind::Less => "`<`".to_string(),
             TokenKind::LessEqual => "`<=`".to_string(),
             TokenKind::Greater => "`>`".to_string(),
@@ -245,7 +262,11 @@ impl<'a> Lexer<'a> {
                 '!' => {
                     self.pos += 1;
                     if self.eat('=') {
-                        TokenKind::BangEqual
+                        if self.eat('=') {
+                            TokenKind::BangEqualEqual
+                        } else {
+                            TokenKind::BangEqual
+                        }
                     } else {
                         TokenKind::Bang
                     }
@@ -253,7 +274,11 @@ impl<'a> Lexer<'a> {
                 '=' => {
                     self.pos += 1;
                     if self.eat('=') {
-                        TokenKind::EqualEqual
+                        if self.eat('=') {
+                            TokenKind::EqualEqualEqual
+                        } else {
+                            TokenKind::EqualEqual
+                        }
                     } else {
                         TokenKind::Equal
                     }
@@ -410,6 +435,8 @@ impl<'a> Lexer<'a> {
             "fun" => TokenKind::Fun,
             "struct" => TokenKind::Struct,
             "enum" => TokenKind::Enum,
+            "class" => TokenKind::Class,
+            "interface" => TokenKind::Interface,
             "val" => TokenKind::Val,
             "var" => TokenKind::Var,
             "if" => TokenKind::If,
@@ -419,6 +446,9 @@ impl<'a> Lexer<'a> {
             "return" => TokenKind::Return,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
+            "this" => TokenKind::This,
+            "is" => TokenKind::Is,
+            "as" => TokenKind::As,
             _ => TokenKind::Ident(text.to_string()),
         };
         Ok(kind)

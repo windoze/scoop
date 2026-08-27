@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/refeq-on-value.scoop:6:13: error: reference equality `===` is not supported on value types

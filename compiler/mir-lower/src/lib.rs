@@ -42,6 +42,41 @@
 //! `MutableArray(a)` conversions (`ArrayClone`). There is no array
 //! equality in M5 (DESIGN 6): hir-lower rejects `==` / `!=` on array
 //! types, so the equality expansion treats them as unreachable.
+//!
+//! M6: reference types (docs/milestone6/DESIGN.md). Classes land as
+//! `mir::ClassDef` with the object layout flattened (base-class
+//! fields first, then the constructor properties — the same indexing
+//! HIR's `ClassField` uses) and the dispatch layout fixed (impl spec
+//! 2.9): vtable slots 0..2 are the `Any` defaults, a derived vtable
+//! starts from the base's (overrides replace the base slot in place,
+//! new methods append in declaration order), and every implemented
+//! interface gets an itable record whose slots follow the interface's
+//! method declaration order. Method calls are annotated by the
+//! receiver's static type: class receiver → `Virtual`, interface
+//! receiver → `Interface`, value type → `Direct`; member functions
+//! are mangled qualified (`scoop.Point.describe`) so same-named
+//! methods never collide. Every value type that reaches `Any` / an
+//! interface (`Box`, `is`, `as`) gets a boxed `ClassDef` (`box$<ty>`):
+//! vtable slot 0 is the compiler-generated structural equals
+//! (`scoop.eq.<ty>`, built with the M2 equality expansion over the
+//! unboxed payloads), slots 1/2 stay the `Any` defaults, and its
+//! itable slots point at adjust thunks that unbox `this` and
+//! tail-call the real value method. The boxed itables cover the value
+//! type's *declared* interfaces (spec 4.4.3) no matter what it was
+//! boxed to. `as` traps on failure (M8: `ClassCastException`); `as?`
+//! wraps in `Option` like `!!` does. Equality on references is
+//! identity (the M6 `Any` default, milestone6 DESIGN 5.1) — a pointer
+//! comparison; `===` / `!==` (`RefEq` / `RefNe`) map onto the same
+//! primitive comparison. Class construction is function-ized: every
+//! non-abstract class gets a `scoop.ctor.<Class>` function whose
+//! parameters are the constructor properties and whose body returns a
+//! raw `mir::Expr::ClassInit` over the flattened field values (the
+//! base delegation arguments are evaluated in the ctor context —
+//! hir-lower M6 lowers them in an empty scope — and expanded
+//! recursively down the base chain; base ctors are never called, so
+//! the object identity is a single allocation). A
+//! `hir::ExprKind::ClassInit` at a use site becomes a plain `Direct`
+//! call to that function.
 
 use std::collections::HashMap;
 
@@ -58,10 +93,17 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         strings: Arena::new(),
         structs: Arena::new(),
         struct_map: HashMap::new(),
+        classes: Arena::new(),
+        class_map: HashMap::new(),
+        interfaces: Arena::new(),
+        interface_map: HashMap::new(),
+        method_slots: HashMap::new(),
         function_map: HashMap::new(),
         instances: InstanceRegistry::default(),
         enums: EnumRegistry::default(),
-        shell: mangling_shell(&Arena::new()),
+        boxed: BoxedRegistry::default(),
+        ctors: HashMap::new(),
+        shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new()),
         option_variants: (0, 0),
     }
     .run(module)
@@ -75,13 +117,30 @@ struct Lowerer {
     structs: Arena<mir::StructDef>,
     /// HIR struct -> MIR struct (arena transposed in declaration order).
     struct_map: HashMap<hir::StructId, mir::StructId>,
+    classes: Arena<mir::ClassDef>,
+    /// HIR class -> MIR class (arena transposed in declaration order).
+    class_map: HashMap<hir::ClassId, mir::ClassId>,
+    interfaces: Arena<mir::InterfaceDef>,
+    /// HIR interface -> MIR interface (arena transposed in declaration
+    /// order).
+    interface_map: HashMap<hir::InterfaceId, mir::InterfaceId>,
+    /// Method short name (`Owner.method` without the qualifier) ->
+    /// vtable slot, per class (computed by `compute_dispatch`;
+    /// `BodyLowerer` reads it for call-kind annotation).
+    method_slots: HashMap<mir::ClassId, HashMap<String, u32>>,
     /// HIR user function -> MIR function (non-generic functions only;
     /// generic functions resolve through `instances`).
     function_map: HashMap<hir::FunctionId, mir::FunctionId>,
     instances: InstanceRegistry,
     enums: EnumRegistry,
-    /// Mangling shell: the struct / enum names `mir::encode_type`
-    /// reads, kept in sync with the real arenas (same ids).
+    /// Boxed value types discovered while lowering bodies.
+    boxed: BoxedRegistry,
+    /// HIR class -> its generated constructor function (every
+    /// non-abstract class; see `declare_ctors`).
+    ctors: HashMap<hir::ClassId, mir::FunctionId>,
+    /// Mangling shell: the struct / enum / class / interface names
+    /// `mir::encode_type` reads, kept in sync with the real arenas
+    /// (same ids).
     shell: mir::Module,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     option_variants: (u32, u32),
@@ -89,20 +148,29 @@ struct Lowerer {
 
 impl Lowerer {
     fn run(mut self, module: &hir::Module) -> mir::Module {
-        // Struct ids first (field types can reference any struct
-        // regardless of declaration order), then the mangling shell
-        // (struct names for `encode_type`), then the field types
-        // themselves — which can instantiate enums.
+        // Struct / interface / class ids first (types can reference
+        // any of them regardless of declaration order), then the
+        // mangling shell (their names for `encode_type`), then the
+        // field types themselves — which can instantiate enums.
         self.lower_structs(module);
-        self.shell = mangling_shell(&self.structs);
+        self.lower_interfaces(module);
+        self.declare_classes(module);
+        self.shell = mangling_shell(&self.structs, &self.classes, &self.interfaces);
         self.fill_struct_fields(module);
         self.option_variants = option_variants(module);
+        // Classes are processed base-before-derived: the object layout
+        // and the vtable both keep the base's as a prefix.
+        let class_order = topo_class_order(module);
+        self.fill_class_fields(module, &class_order);
 
         // Declare non-generic user functions first, so calls resolve
         // regardless of declaration order. Intrinsics have no body;
         // their callsites map to `Callee::Runtime` shims (see
         // `BodyLowerer::lower_call`). Generic functions have no MIR
         // body of their own — only their monomorphized instances do.
+        // Member functions are declared too (hir-lower keeps them out
+        // of `top_level`); interface methods become signature-only
+        // shells (M6 interfaces have no default implementations).
         let mut user_functions = Vec::new();
         for &hir_id in &module.top_level {
             let function = &module.functions[hir_id];
@@ -112,27 +180,60 @@ impl Lowerer {
             if !function.type_params.is_empty() {
                 continue;
             }
-            let id = self.functions.alloc(mir::Function {
-                name: function.name.clone(),
-                // Non-generic mangling: `scoop.<name>`, or the fixed
-                // entry symbol `scoop_main` that the C runtime calls
-                // (`main` is never generic, hir-lower guarantees it).
-                symbol: mir::mangle_function(&function.name, hir_id == module.entry),
-                // Filled in when the body is lowered below.
-                params: Vec::new(),
-                return_ty: mir::Type::Unit,
-                body: mir::Body {
-                    locals: Arena::new(),
-                    statements: Vec::new(),
-                },
-            });
-            self.top_level.push(id);
-            self.function_map.insert(hir_id, id);
+            let id = self.declare_function(module, hir_id);
             user_functions.push((hir_id, id));
         }
+        for (hir_id, function) in module.functions.iter() {
+            if self.function_map.contains_key(&hir_id)
+                || !matches!(function.kind, hir::FunctionKind::User(_))
+                || !function.type_params.is_empty()
+            {
+                continue;
+            }
+            match function.method_of {
+                Some(ty) if matches!(module.types[ty], hir::Type::Interface(_)) => {}
+                Some(_) => {
+                    let id = self.declare_function(module, hir_id);
+                    user_functions.push((hir_id, id));
+                }
+                // A free function outside `top_level` cannot happen
+                // (hir-lower lists them all).
+                None => {}
+            }
+        }
+        for (hir_id, function) in module.functions.iter() {
+            let Some(ty) = function.method_of else {
+                continue;
+            };
+            if matches!(module.types[ty], hir::Type::Interface(_)) {
+                self.declare_interface_method(module, hir_id);
+            }
+        }
+        // Constructor functions: one per non-abstract class, declared
+        // like ordinary functions so `ClassInit` call sites resolve.
+        let mut ctor_functions = Vec::new();
+        for (hir_id, decl) in module.classes.iter() {
+            if decl.modifier == hir::ClassModifier::Abstract {
+                continue;
+            }
+            let id = self.declare_ctor(module, hir_id);
+            ctor_functions.push((hir_id, id));
+        }
+
+        // The dispatch layout (vtable / itable slots) needs every
+        // method declared; the bodies need it for call-kind
+        // annotation.
+        self.compute_dispatch(module, &class_order);
 
         for (hir_id, mir_id) in user_functions {
             let (params, return_ty, body) = self.lower_user_function(module, hir_id, None);
+            let function = &mut self.functions[mir_id];
+            function.params = params;
+            function.return_ty = return_ty;
+            function.body = body;
+        }
+        for (hir_id, mir_id) in ctor_functions {
+            let (params, return_ty, body) = self.lower_ctor(module, hir_id);
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -155,6 +256,8 @@ impl Lowerer {
             let types = Types {
                 module,
                 struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                interface_map: &self.interface_map,
                 subst: None,
             };
             let type_args: Vec<mir::Type> = instantiation
@@ -187,6 +290,11 @@ impl Lowerer {
             function.body = body;
         }
 
+        // Boxed value types are discovered while lowering bodies
+        // (`Box` / `is` / `as`); their generated members (the
+        // structural equals and the adjust thunks) come last.
+        self.finalize_boxed(module);
+
         // The entry point is a non-generic user function, hence always
         // in the map.
         let entry = self.function_map[&module.entry];
@@ -196,6 +304,8 @@ impl Lowerer {
             strings: self.strings,
             structs: self.structs,
             enums: self.enums.defs,
+            classes: self.classes,
+            interfaces: self.interfaces,
             entry,
             meta: mir::MirMeta::default(),
         }
@@ -217,13 +327,20 @@ impl Lowerer {
         BodyLowerer {
             module,
             struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            interface_map: &self.interface_map,
             structs: &self.structs,
+            interfaces: &self.interfaces,
+            method_slots: &self.method_slots,
             function_map: &self.function_map,
+            ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
             top_level: &mut self.top_level,
             instances: &mut self.instances,
             enums: &mut self.enums,
+            boxed: &mut self.boxed,
+            classes: &mut self.classes,
             shell: &mut self.shell,
             subst,
             local_map: HashMap::new(),
@@ -255,6 +372,8 @@ impl Lowerer {
             let types = Types {
                 module,
                 struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                interface_map: &self.interface_map,
                 subst: None,
             };
             let fields = decl
@@ -270,18 +389,780 @@ impl Lowerer {
             self.structs[self.struct_map[&hir_id]].fields = fields;
         }
     }
+
+    /// Transpose the HIR interface arena into MIR in declaration
+    /// order: the method names in declaration order are the itable
+    /// slot indices.
+    fn lower_interfaces(&mut self, module: &hir::Module) {
+        for (hir_id, decl) in module.interfaces.iter() {
+            let mir_id = self.interfaces.alloc(mir::InterfaceDef {
+                name: decl.name.clone(),
+                methods: decl
+                    .methods
+                    .iter()
+                    .map(|method| method.name.clone())
+                    .collect(),
+            });
+            self.interface_map.insert(hir_id, mir_id);
+        }
+    }
+
+    /// Transpose the HIR class arena into MIR in declaration order.
+    /// Fields / vtable / itables are filled later (they need the base
+    /// class and the method list, respectively).
+    fn declare_classes(&mut self, module: &hir::Module) {
+        for (hir_id, decl) in module.classes.iter() {
+            let modifier = match decl.modifier {
+                hir::ClassModifier::Final => mir::ClassModifier::Final,
+                hir::ClassModifier::Open => mir::ClassModifier::Open,
+                hir::ClassModifier::Abstract => mir::ClassModifier::Abstract,
+            };
+            let mir_id = self.classes.alloc(mir::ClassDef {
+                modifier,
+                name: decl.name.clone(),
+                fields: Vec::new(),
+                base_class: None,
+                interfaces: Vec::new(),
+                vtable: Vec::new(),
+                itables: Vec::new(),
+            });
+            self.class_map.insert(hir_id, mir_id);
+        }
+        for (hir_id, decl) in module.classes.iter() {
+            let mir_id = self.class_map[&hir_id];
+            let base_class = decl
+                .base_class
+                .as_ref()
+                .map(|(base, _)| self.class_map[base]);
+            let interfaces = decl
+                .interfaces
+                .iter()
+                .map(|iface| self.interface_map[iface])
+                .collect();
+            let class = &mut self.classes[mir_id];
+            class.base_class = base_class;
+            class.interfaces = interfaces;
+        }
+    }
+
+    /// Declare one non-generic user function (body filled later):
+    /// `scoop.<name>`, `scoop.<Type>.<name>` for members, or the fixed
+    /// entry symbol `scoop_main` that the C runtime calls (`main` is
+    /// never generic, hir-lower guarantees it).
+    fn declare_function(
+        &mut self,
+        module: &hir::Module,
+        hir_id: hir::FunctionId,
+    ) -> mir::FunctionId {
+        let function = &module.functions[hir_id];
+        let name = fn_name(function);
+        let symbol = mir::mangle_function(&name, hir_id == module.entry);
+        let id = self.functions.alloc(mir::Function {
+            name,
+            symbol,
+            // Filled in when the body is lowered below.
+            params: Vec::new(),
+            return_ty: mir::Type::Unit,
+            body: mir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        });
+        self.top_level.push(id);
+        self.function_map.insert(hir_id, id);
+        id
+    }
+
+    /// Declare an interface method: a signature-only shell that is
+    /// never emitted (not in `top_level`). It exists so interface
+    /// calls can name a callee whose parameter / return types LIR
+    /// reads for the indirect call.
+    fn declare_interface_method(&mut self, module: &hir::Module, hir_id: hir::FunctionId) {
+        let function = &module.functions[hir_id];
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            interface_map: &self.interface_map,
+            subst: None,
+        };
+        let mut locals = Arena::new();
+        let params = function
+            .params
+            .iter()
+            .map(|param| {
+                let ty = types.lower(param.ty, &mut self.enums, &mut self.shell);
+                let local = locals.alloc(mir::Local {
+                    name: param.name.clone(),
+                    ty: ty.clone(),
+                    mutable: false,
+                });
+                mir::Param {
+                    name: param.name.clone(),
+                    ty,
+                    local,
+                }
+            })
+            .collect();
+        let return_ty = types.lower(function.return_ty, &mut self.enums, &mut self.shell);
+        let name = fn_name(function);
+        let id = self.functions.alloc(mir::Function {
+            symbol: mir::mangle_function(&name, false),
+            name,
+            params,
+            return_ty,
+            body: mir::Body {
+                locals,
+                statements: Vec::new(),
+            },
+        });
+        self.function_map.insert(hir_id, id);
+    }
+
+    /// Fill the MIR class fields: the base class's (already
+    /// flattened) fields come first — the object layout and HIR's
+    /// `ClassField` indices follow the same order — then the
+    /// constructor properties in declaration order.
+    fn fill_class_fields(&mut self, module: &hir::Module, order: &[hir::ClassId]) {
+        for &hir_id in order {
+            let decl = &module.classes[hir_id];
+            let mir_id = self.class_map[&hir_id];
+            let mut fields = match decl.base_class {
+                Some((base, _)) => clone_fields(&self.classes[self.class_map[&base]].fields),
+                None => Vec::new(),
+            };
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                interface_map: &self.interface_map,
+                subst: None,
+            };
+            for field in &decl.constructor {
+                fields.push(mir::Field {
+                    name: field.name.clone(),
+                    ty: types.lower(field.ty, &mut self.enums, &mut self.shell),
+                });
+            }
+            self.classes[mir_id].fields = fields;
+        }
+    }
+
+    /// Fix every class's vtable and itables (impl spec 2.9): vtable
+    /// slots 0..2 are the `Any` defaults; a derived vtable starts
+    /// from the base's (prefix preserved), an override replaces the
+    /// base slot in place, new methods append in declaration order
+    /// (generic methods never enter the vtable — impl spec 2.9).
+    /// itables cover the interfaces the base class covered (records
+    /// first, in the base's order) plus the ones the class declares,
+    /// each slot resolved to the implementation visible from the
+    /// class (its own override first, then up the base chain).
+    fn compute_dispatch(&mut self, module: &hir::Module, order: &[hir::ClassId]) {
+        for &hir_id in order {
+            let mir_id = self.class_map[&hir_id];
+            let decl = &module.classes[hir_id];
+            let (mut vtable, mut slots) = match decl.base_class {
+                Some((base, _)) => {
+                    let base = self.class_map[&base];
+                    (
+                        clone_slots(&self.classes[base].vtable),
+                        self.method_slots[&base].clone(),
+                    )
+                }
+                None => (
+                    vec![
+                        mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
+                        mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
+                        mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
+                    ],
+                    HashMap::new(),
+                ),
+            };
+            for (fn_id, function) in module.functions.iter() {
+                if method_class(module, function) != Some(hir_id)
+                    || !function.type_params.is_empty()
+                {
+                    continue;
+                }
+                let mir_fn = self.function_map[&fn_id];
+                match slots.get(short_name(&function.name)) {
+                    Some(&slot) => vtable[slot as usize] = mir::TableSlot::Function(mir_fn),
+                    None => {
+                        slots.insert(short_name(&function.name).to_string(), vtable.len() as u32);
+                        vtable.push(mir::TableSlot::Function(mir_fn));
+                    }
+                }
+            }
+            let mut covered: Vec<mir::InterfaceId> = match decl.base_class {
+                Some((base, _)) => self.classes[self.class_map[&base]]
+                    .itables
+                    .iter()
+                    .map(|record| record.interface)
+                    .collect(),
+                None => Vec::new(),
+            };
+            for &iface in &decl.interfaces {
+                let mir_iface = self.interface_map[&iface];
+                if !covered.contains(&mir_iface) {
+                    covered.push(mir_iface);
+                }
+            }
+            let mut itables = Vec::new();
+            for mir_iface in covered {
+                let hir_iface = self.hir_interface(mir_iface);
+                let slots_for = module.interfaces[hir_iface]
+                    .methods
+                    .iter()
+                    .map(|method| {
+                        mir::TableSlot::Function(self.find_impl(module, hir_id, &method.name))
+                    })
+                    .collect();
+                itables.push(mir::ItableRecord {
+                    interface: mir_iface,
+                    slots: slots_for,
+                });
+            }
+            let class = &mut self.classes[mir_id];
+            class.vtable = vtable;
+            class.itables = itables;
+            self.method_slots.insert(mir_id, slots);
+        }
+    }
+
+    /// Declare the constructor function of one class (`scoop.ctor.
+    /// <Class>`): parameters are the constructor properties in
+    /// declaration order; the body is filled by `lower_ctor`.
+    fn declare_ctor(&mut self, module: &hir::Module, hir_id: hir::ClassId) -> mir::FunctionId {
+        let decl = &module.classes[hir_id];
+        let name = format!("ctor.{}", decl.name);
+        let id = self.functions.alloc(mir::Function {
+            symbol: format!("scoop.{name}"),
+            name,
+            params: Vec::new(),
+            return_ty: mir::Type::Unit,
+            body: mir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        });
+        self.top_level.push(id);
+        self.ctors.insert(hir_id, id);
+        id
+    }
+
+    /// Lower the constructor function's body: a single raw
+    /// `mir::Expr::ClassInit` over the flattened field values — the
+    /// base delegation arguments (evaluated here in the ctor context;
+    /// hir-lower M6 lowers them in an empty scope, so they are closed
+    /// expressions) expanded recursively down the base chain, then
+    /// the class's own constructor properties. Base ctors are never
+    /// called: the flattened fields are written in one shot, so the
+    /// object identity is a single allocation.
+    fn lower_ctor(
+        &mut self,
+        module: &hir::Module,
+        hir_id: hir::ClassId,
+    ) -> (Vec<mir::Param>, mir::Type, mir::Body) {
+        let decl = &module.classes[hir_id];
+        let mir_id = self.class_map[&hir_id];
+        let field_count = self.classes[mir_id].fields.len();
+        let function_name = format!("ctor.{}", decl.name);
+        let mut lowerer = BodyLowerer {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            interface_map: &self.interface_map,
+            structs: &self.structs,
+            interfaces: &self.interfaces,
+            method_slots: &self.method_slots,
+            function_map: &self.function_map,
+            ctors: &self.ctors,
+            strings: &mut self.strings,
+            functions: &mut self.functions,
+            top_level: &mut self.top_level,
+            instances: &mut self.instances,
+            enums: &mut self.enums,
+            boxed: &mut self.boxed,
+            classes: &mut self.classes,
+            shell: &mut self.shell,
+            subst: None,
+            // Delegation arguments are closed (hir-lower M6 lowers
+            // them in an empty scope), so no locals are visible.
+            local_map: HashMap::new(),
+            locals: Arena::new(),
+            hidden_count: 0,
+            prelude: Vec::new(),
+            option_variants: self.option_variants,
+            function_name: &function_name,
+        };
+        let mut params = Vec::new();
+        let mut own = Vec::new();
+        for field in &decl.constructor {
+            let ty = lowerer.lower_type(field.ty);
+            let local = lowerer.locals.alloc(mir::Local {
+                name: field.name.clone(),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: field.name.clone(),
+                ty,
+                local,
+            });
+            own.push(mir::Expr::Local(local));
+        }
+        let args = flattened_ctor_args(&mut lowerer, module, hir_id, own);
+        assert_eq!(
+            args.len(),
+            field_count,
+            "the flattened initializer covers every field"
+        );
+        let body = mir::Body {
+            locals: lowerer.locals,
+            statements: vec![mir::Statement {
+                kind: mir::StatementKind::Return {
+                    value: Some(mir::Expr::ClassInit {
+                        class_id: mir_id,
+                        args,
+                    }),
+                },
+                span: decl.span,
+            }],
+        };
+        (params, mir::Type::Class(mir_id), body)
+    }
+
+    /// The HIR id behind a MIR interface (the arenas are transposed
+    /// 1:1).
+    fn hir_interface(&self, mir_id: mir::InterfaceId) -> hir::InterfaceId {
+        self.interface_map
+            .iter()
+            .find(|(_, mir)| **mir == mir_id)
+            .map(|(&hir, _)| hir)
+            .expect("every MIR interface comes from a HIR interface")
+    }
+
+    /// The function implementing the method `name` for class
+    /// `hir_id`: the class's own method first, then up the base
+    /// chain (M6 has no overloading, so the name identifies the
+    /// method).
+    fn find_impl(&self, module: &hir::Module, hir_id: hir::ClassId, name: &str) -> mir::FunctionId {
+        let mut current = Some(hir_id);
+        while let Some(class) = current {
+            for (fn_id, function) in module.functions.iter() {
+                if method_class(module, function) == Some(class)
+                    && short_name(&function.name) == name
+                {
+                    return *self.function_map.get(&fn_id).unwrap_or_else(|| {
+                        panic!("generic methods cannot implement interface method `{name}`")
+                    });
+                }
+            }
+            current = module.classes[class]
+                .base_class
+                .as_ref()
+                .map(|(base, _)| *base);
+        }
+        unreachable!("hir-lower guarantees `{name}` is implemented")
+    }
+
+    /// Generate the boxed value types' dispatch members (DESIGN 2.3):
+    /// slot 0 of a boxed vtable is the compiler-generated structural
+    /// equals (`scoop.eq.<ty>`; `hashCode` / `toString` stay the
+    /// `Any` defaults, milestone6 DESIGN 5.1), and every interface
+    /// the value type was boxed to gets an itable whose slots point
+    /// at adjust thunks — the thunk's `this` is the boxed object; it
+    /// unboxes and tail-calls the real value method.
+    fn finalize_boxed(&mut self, module: &hir::Module) {
+        for index in 0..self.boxed.order.len() {
+            let class_id = self.boxed.order[index];
+            let payload = self.classes[class_id].fields[0].ty.clone();
+            let encoded = mir::encode_type(&self.shell, &payload);
+            let equals = self.build_boxed_equals(module, &payload, &encoded);
+            self.classes[class_id].vtable = vec![
+                mir::TableSlot::Function(equals),
+                mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
+                mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
+            ];
+            let interfaces = self.classes[class_id].interfaces.clone();
+            for iface in interfaces {
+                let methods = self.interfaces[iface].methods.clone();
+                let mut slots = Vec::new();
+                for method in &methods {
+                    let thunk = self.build_thunk(module, &payload, &encoded, iface, method);
+                    slots.push(mir::TableSlot::Function(thunk));
+                }
+                self.classes[class_id].itables.push(mir::ItableRecord {
+                    interface: iface,
+                    slots,
+                });
+            }
+        }
+    }
+
+    /// `scoop.eq.<ty>`: the structural `equals` of a boxed value
+    /// type — unbox both payloads and compare with the M2/M4
+    /// equality expansion. The signature matches the `Any` vtable
+    /// slot (`(this: Any, other: Any) -> Boolean`) so call sites
+    /// dispatch uniformly.
+    fn build_boxed_equals(
+        &mut self,
+        module: &hir::Module,
+        payload: &mir::Type,
+        encoded: &str,
+    ) -> mir::FunctionId {
+        let mut locals = Arena::new();
+        let this = locals.alloc(mir::Local {
+            name: "this".to_string(),
+            ty: mir::Type::Any,
+            mutable: false,
+        });
+        let other = locals.alloc(mir::Local {
+            name: "other".to_string(),
+            ty: mir::Type::Any,
+            mutable: false,
+        });
+        let a = locals.alloc(mir::Local {
+            name: "$a".to_string(),
+            ty: payload.clone(),
+            mutable: false,
+        });
+        let b = locals.alloc(mir::Local {
+            name: "$b".to_string(),
+            ty: payload.clone(),
+            mutable: false,
+        });
+        let mut lowerer = BodyLowerer {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            interface_map: &self.interface_map,
+            structs: &self.structs,
+            interfaces: &self.interfaces,
+            method_slots: &self.method_slots,
+            function_map: &self.function_map,
+            ctors: &self.ctors,
+            strings: &mut self.strings,
+            functions: &mut self.functions,
+            top_level: &mut self.top_level,
+            instances: &mut self.instances,
+            enums: &mut self.enums,
+            boxed: &mut self.boxed,
+            classes: &mut self.classes,
+            shell: &mut self.shell,
+            subst: None,
+            local_map: HashMap::new(),
+            locals,
+            hidden_count: 0,
+            prelude: Vec::new(),
+            option_variants: self.option_variants,
+            function_name: "equals",
+        };
+        let equality = lowerer.expand_equality(&Opd::Local(a), &Opd::Local(b), payload, &[], false);
+        let body = mir::Body {
+            locals: lowerer.locals,
+            statements: vec![
+                mir::Statement {
+                    kind: mir::StatementKind::ValDecl {
+                        local: a,
+                        init: mir::Expr::Unbox(Box::new(mir::Expr::Local(this))),
+                    },
+                    span: Span { start: 0, end: 0 },
+                },
+                mir::Statement {
+                    kind: mir::StatementKind::ValDecl {
+                        local: b,
+                        init: mir::Expr::Unbox(Box::new(mir::Expr::Local(other))),
+                    },
+                    span: Span { start: 0, end: 0 },
+                },
+                mir::Statement {
+                    kind: mir::StatementKind::Return {
+                        value: Some(equality),
+                    },
+                    span: Span { start: 0, end: 0 },
+                },
+            ],
+        };
+        let name = format!("eq.{encoded}");
+        let id = self.functions.alloc(mir::Function {
+            symbol: format!("scoop.{name}"),
+            name,
+            params: vec![
+                mir::Param {
+                    name: "this".to_string(),
+                    ty: mir::Type::Any,
+                    local: this,
+                },
+                mir::Param {
+                    name: "other".to_string(),
+                    ty: mir::Type::Any,
+                    local: other,
+                },
+            ],
+            return_ty: mir::Type::Boolean,
+            body,
+        });
+        self.top_level.push(id);
+        id
+    }
+
+    /// The adjust thunk for one (boxed value type, interface method)
+    /// pair (impl spec 2.9): `this` is the boxed object; the thunk
+    /// unboxes it and tail-calls the real value method (value-type
+    /// methods take `this` by value at MIR; the pointer convention
+    /// of the receiver is a codegen ABI matter).
+    fn build_thunk(
+        &mut self,
+        module: &hir::Module,
+        payload: &mir::Type,
+        encoded: &str,
+        iface: mir::InterfaceId,
+        method: &str,
+    ) -> mir::FunctionId {
+        let impl_fn = self.value_method(module, payload, method);
+        let hir_iface = self.hir_interface(iface);
+        let signature = module.interfaces[hir_iface]
+            .methods
+            .iter()
+            .find(|sig| sig.name == method)
+            .expect("itable methods come from the interface declaration");
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            interface_map: &self.interface_map,
+            subst: None,
+        };
+        let mut locals = Arena::new();
+        let this = locals.alloc(mir::Local {
+            name: "this".to_string(),
+            ty: mir::Type::Any,
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "this".to_string(),
+            ty: mir::Type::Any,
+            local: this,
+        }];
+        let mut args = vec![mir::Expr::Unbox(Box::new(mir::Expr::Local(this)))];
+        for param in &signature.params {
+            let ty = types.lower(param.ty, &mut self.enums, &mut self.shell);
+            let local = locals.alloc(mir::Local {
+                name: param.name.clone(),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: param.name.clone(),
+                ty,
+                local,
+            });
+            args.push(mir::Expr::Local(local));
+        }
+        let return_ty = types.lower(signature.return_ty, &mut self.enums, &mut self.shell);
+        let call = mir::Expr::Call(mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Direct,
+                callee: mir::Callee::User(impl_fn),
+            },
+            args,
+        });
+        let kind = if return_ty == mir::Type::Unit {
+            mir::StatementKind::Expr(call)
+        } else {
+            mir::StatementKind::Return { value: Some(call) }
+        };
+        let name = format!("thunk.{encoded}.{}.{}", self.interfaces[iface].name, method);
+        let id = self.functions.alloc(mir::Function {
+            symbol: format!("scoop.{name}"),
+            name,
+            params,
+            return_ty,
+            body: mir::Body {
+                locals,
+                statements: vec![mir::Statement {
+                    kind,
+                    span: signature.span,
+                }],
+            },
+        });
+        self.top_level.push(id);
+        id
+    }
+
+    /// The value type's own method `name` (the implementation a boxed
+    /// thunk tail-calls). HIR guarantees it exists: the value type
+    /// was boxed to an interface that declares the method.
+    fn value_method(
+        &self,
+        module: &hir::Module,
+        payload: &mir::Type,
+        name: &str,
+    ) -> mir::FunctionId {
+        for (fn_id, function) in module.functions.iter() {
+            if short_name(&function.name) != name {
+                continue;
+            }
+            let Some(ty) = function.method_of else {
+                continue;
+            };
+            let matches = match (&module.types[ty], payload) {
+                (hir::Type::Struct(hir_id), mir::Type::Struct(mir_id)) => {
+                    self.struct_map[hir_id] == *mir_id
+                }
+                (hir::Type::Enum(hir_id, _), mir::Type::Enum(mir_id, _)) => {
+                    // Enum instances are named `<name>` or
+                    // `<name>$<encoded args>` (see `EnumRegistry`).
+                    let hir_name = &module.enums[*hir_id].name;
+                    let mir_name = &self.enums.defs[*mir_id].name;
+                    mir_name == hir_name || mir_name.starts_with(&format!("{hir_name}$"))
+                }
+                _ => false,
+            };
+            if matches {
+                return *self.function_map.get(&fn_id).unwrap_or_else(|| {
+                    panic!("methods of generic value types cannot be boxed to an interface yet")
+                });
+            }
+        }
+        unreachable!("hir-lower guarantees `{name}` is implemented by the boxed value type")
+    }
 }
 
-/// `mir::mangle_instance` / `mir::encode_type` take `&mir::Module` but
-/// only ever read struct and enum names; this shell provides exactly
-/// those. Its arenas share the real arenas' allocation order, so ids
-/// align.
-fn mangling_shell(structs: &Arena<mir::StructDef>) -> mir::Module {
+/// A function's MIR name: hir-lower already qualifies member
+/// functions (`Owner.method`), so the name is used as-is and
+/// same-named methods of different types never share a mangled
+/// symbol.
+fn fn_name(function: &hir::Function) -> String {
+    function.name.clone()
+}
+
+/// A method's short name: hir-lower qualifies member functions as
+/// `Owner.method`; slot lookup, override matching and implementation
+/// resolution all use the short name (M6 has no overloading).
+fn short_name(name: &str) -> &str {
+    name.rsplit('.').next().unwrap_or(name)
+}
+
+/// Whether a function is an abstract class method as hir-lower
+/// materializes it: a bodiless `User` function (parameters only, no
+/// statements) with a non-`Unit` return type in a class. A concrete
+/// non-`Unit` function without statements is a HIR error, so this
+/// shape can only be an abstract method. (`Unit`-returning abstract
+/// methods lower as ordinary empty functions: they are unreachable in
+/// valid programs and behaviorally identical to an empty body.)
+fn is_abstract_bodiless(module: &hir::Module, function: &hir::Function, body: &hir::Body) -> bool {
+    body.statements.is_empty()
+        && !matches!(module.types[function.return_ty], hir::Type::Unit)
+        && matches!(function.method_of, Some(ty) if matches!(module.types[ty], hir::Type::Class(_)))
+}
+
+/// The class a function is a method of, if any.
+fn method_class(module: &hir::Module, function: &hir::Function) -> Option<hir::ClassId> {
+    match function.method_of {
+        Some(ty) => match module.types[ty] {
+            hir::Type::Class(id) => Some(id),
+            _ => None,
+        },
+        None => None,
+    }
+}
+
+/// Class ids (HIR) ordered base-before-derived (single inheritance:
+/// depth in the base chain; ties keep declaration order).
+fn topo_class_order(module: &hir::Module) -> Vec<hir::ClassId> {
+    fn depth(module: &hir::Module, id: hir::ClassId) -> usize {
+        match module.classes[id].base_class {
+            Some((base, _)) => depth(module, base) + 1,
+            None => 0,
+        }
+    }
+    let mut order: Vec<hir::ClassId> = module.classes.iter().map(|(id, _)| id).collect();
+    order.sort_by_key(|&id| depth(module, id));
+    order
+}
+
+/// The values initializing `hir_id`'s flattened fields (base prefix
+/// first), given `own` — the values for the class's own constructor
+/// properties. The base delegation arguments are lowered in the
+/// current (`lowerer`) context and the expansion recurses down the
+/// base chain (see `Lowerer::lower_ctor`).
+fn flattened_ctor_args(
+    lowerer: &mut BodyLowerer,
+    module: &hir::Module,
+    hir_id: hir::ClassId,
+    own: Vec<mir::Expr>,
+) -> Vec<mir::Expr> {
+    let mut out = match &module.classes[hir_id].base_class {
+        Some((base, delegation)) => {
+            let base_own: Vec<mir::Expr> = delegation
+                .iter()
+                .map(|expr| lowerer.lower_expr(expr))
+                .collect();
+            flattened_ctor_args(lowerer, module, *base, base_own)
+        }
+        None => Vec::new(),
+    };
+    out.extend(own);
+    out
+}
+
+/// `mir::TableSlot` is not `Clone`; both payloads are `Copy`.
+fn clone_slots(slots: &[mir::TableSlot]) -> Vec<mir::TableSlot> {
+    slots
+        .iter()
+        .map(|slot| match slot {
+            mir::TableSlot::Function(id) => mir::TableSlot::Function(*id),
+            mir::TableSlot::Runtime(function) => mir::TableSlot::Runtime(*function),
+        })
+        .collect()
+}
+
+/// `mir::Field` is not `Clone`.
+fn clone_fields(fields: &[mir::Field]) -> Vec<mir::Field> {
+    fields
+        .iter()
+        .map(|field| mir::Field {
+            name: field.name.clone(),
+            ty: field.ty.clone(),
+        })
+        .collect()
+}
+
+/// `mir::mangle_instance` / `mir::encode_type` take `&mir::Module`
+/// but only ever read struct / enum / class / interface names; this
+/// shell provides exactly those. Its arenas share the real arenas'
+/// allocation order, so ids align.
+fn mangling_shell(
+    structs: &Arena<mir::StructDef>,
+    classes: &Arena<mir::ClassDef>,
+    interfaces: &Arena<mir::InterfaceDef>,
+) -> mir::Module {
     let mut shell_structs = Arena::new();
     for (_, def) in structs.iter() {
         shell_structs.alloc(mir::StructDef {
             name: def.name.clone(),
             fields: Vec::new(),
+        });
+    }
+    let mut shell_classes = Arena::new();
+    for (_, def) in classes.iter() {
+        shell_classes.alloc(mir::ClassDef {
+            modifier: mir::ClassModifier::Final,
+            name: def.name.clone(),
+            fields: Vec::new(),
+            base_class: None,
+            interfaces: Vec::new(),
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+    }
+    let mut shell_interfaces = Arena::new();
+    for (_, def) in interfaces.iter() {
+        shell_interfaces.alloc(mir::InterfaceDef {
+            name: def.name.clone(),
+            methods: Vec::new(),
         });
     }
     let mut functions = Arena::new();
@@ -301,6 +1182,8 @@ fn mangling_shell(structs: &Arena<mir::StructDef>) -> mir::Module {
         strings: Arena::new(),
         structs: shell_structs,
         enums: Arena::new(),
+        classes: shell_classes,
+        interfaces: shell_interfaces,
         entry,
         meta: mir::MirMeta::default(),
     }
@@ -333,14 +1216,17 @@ fn is_concrete(module: &hir::Module, ty: hir::TypeId) -> bool {
     }
 }
 
-/// Shared type-lowering context: the HIR type arena, the struct map,
-/// and the active substitution (`Param(i)` resolves through `subst`,
-/// the concrete type arguments of the instance / enum being lowered;
-/// non-generic bodies never contain it).
+/// Shared type-lowering context: the HIR type arena, the struct /
+/// class / interface maps, and the active substitution (`Param(i)`
+/// resolves through `subst`, the concrete type arguments of the
+/// instance / enum being lowered; non-generic bodies never contain
+/// it).
 #[derive(Clone, Copy)]
 struct Types<'a> {
     module: &'a hir::Module,
     struct_map: &'a HashMap<hir::StructId, mir::StructId>,
+    class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
+    interface_map: &'a HashMap<hir::InterfaceId, mir::InterfaceId>,
     subst: Option<&'a [mir::Type]>,
 }
 
@@ -348,7 +1234,7 @@ impl Types<'_> {
     /// Map a HIR type onto its MIR type. Aggregate shapes are
     /// preserved: structs keep their (remapped) id, tuples their mapped
     /// element types; enum types instantiate their definition on
-    /// demand.
+    /// demand. Reference types map onto their (remapped) ids.
     fn lower(
         &self,
         ty: hir::TypeId,
@@ -361,6 +1247,9 @@ impl Types<'_> {
             hir::Type::Boolean => mir::Type::Boolean,
             hir::Type::String => mir::Type::String,
             hir::Type::Struct(id) => mir::Type::Struct(self.struct_map[id]),
+            hir::Type::Class(id) => mir::Type::Class(self.class_map[id]),
+            hir::Type::Interface(id) => mir::Type::Interface(self.interface_map[id]),
+            hir::Type::Any => mir::Type::Any,
             hir::Type::Array(element) => {
                 mir::Type::Array(Box::new(self.lower(*element, enums, shell)))
             }
@@ -398,6 +1287,9 @@ struct EnumRegistry {
     /// Mangled instance name -> enum. The name encodes the enum and
     /// its type arguments, so it is the deduplication key.
     by_name: HashMap<String, mir::EnumId>,
+    /// MIR enum -> the HIR enum it instantiates (boxed value types
+    /// read the declared interfaces from the declaration).
+    hir_ids: HashMap<mir::EnumId, hir::EnumId>,
 }
 
 impl EnumRegistry {
@@ -431,6 +1323,7 @@ impl EnumRegistry {
             variants: Vec::new(),
         });
         self.by_name.insert(name, id);
+        self.hir_ids.insert(id, hir_id);
         // Fill the definition eagerly: the id is already registered, so
         // variant fields mentioning this same enum terminate. Variant
         // field types mention the enum's own type parameters, which the
@@ -459,6 +1352,73 @@ impl EnumRegistry {
     }
 }
 
+/// Boxed value types (DESIGN 2.3): one `mir::ClassDef` per boxed
+/// value type (`box$<encoded>`), deduplicated by the encoded payload
+/// name. The vtable / itables are filled by `finalize_boxed` once
+/// every body has been lowered (all `Box` / `is` / `as` sites seen).
+#[derive(Default)]
+struct BoxedRegistry {
+    /// `box$<encoded payload>` -> boxed class.
+    by_name: HashMap<String, mir::ClassId>,
+    /// Boxed classes in creation order.
+    order: Vec<mir::ClassId>,
+}
+
+impl BoxedRegistry {
+    fn get_or_create(
+        &mut self,
+        classes: &mut Arena<mir::ClassDef>,
+        shell: &mut mir::Module,
+        payload: &mir::Type,
+    ) -> mir::ClassId {
+        let name = format!("box${}", mir::encode_type(shell, payload));
+        if let Some(&id) = self.by_name.get(&name) {
+            return id;
+        }
+        let id = classes.alloc(mir::ClassDef {
+            modifier: mir::ClassModifier::Final,
+            name: name.clone(),
+            // The object layout is the header plus the inline payload.
+            fields: vec![mir::Field {
+                name: "value".to_string(),
+                ty: payload.clone(),
+            }],
+            base_class: None,
+            interfaces: Vec::new(),
+            // Filled by `finalize_boxed`.
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+        // Keep the mangling shell's class arena in sync (same ids).
+        shell.classes.alloc(mir::ClassDef {
+            modifier: mir::ClassModifier::Final,
+            name: name.clone(),
+            fields: Vec::new(),
+            base_class: None,
+            interfaces: Vec::new(),
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+        self.by_name.insert(name, id);
+        self.order.push(id);
+        id
+    }
+}
+
+/// Whether values of the type are boxed when they reach `Any` / an
+/// interface (reference types — String, arrays — are not).
+fn is_boxable(ty: &mir::Type) -> bool {
+    matches!(
+        ty,
+        mir::Type::Struct(_)
+            | mir::Type::Enum(..)
+            | mir::Type::Tuple(_)
+            | mir::Type::Int
+            | mir::Type::Boolean
+            | mir::Type::Unit
+    )
+}
+
 /// Monomorphized instances: creation, deduplication, and the body
 /// worklist (DESIGN 2.3).
 #[derive(Default)]
@@ -483,12 +1443,13 @@ impl InstanceRegistry {
         type_args: Vec<mir::Type>,
     ) -> mir::FunctionId {
         let function = &module.functions[hir_id];
-        let symbol = mir::mangle_instance(shell, &function.name, &type_args);
+        let name = fn_name(function);
+        let symbol = mir::mangle_instance(shell, &name, &type_args);
         if let Some(&id) = self.by_symbol.get(&symbol) {
             return id;
         }
         let id = functions.alloc(mir::Function {
-            name: function.name.clone(),
+            name,
             symbol: symbol.clone(),
             // Filled in when the instance body is lowered.
             params: Vec::new(),
@@ -525,9 +1486,18 @@ fn print_fn(module: &hir::Module, ty: hir::TypeId, newline: bool) -> mir::Runtim
 struct BodyLowerer<'a> {
     module: &'a hir::Module,
     struct_map: &'a HashMap<hir::StructId, mir::StructId>,
+    class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
+    interface_map: &'a HashMap<hir::InterfaceId, mir::InterfaceId>,
     /// MIR struct arena (field types for the equality expansion).
     structs: &'a Arena<mir::StructDef>,
+    /// MIR interface arena (method names for interface call slots).
+    interfaces: &'a Arena<mir::InterfaceDef>,
+    /// Method short name -> vtable slot per class
+    /// (`compute_dispatch`).
+    method_slots: &'a HashMap<mir::ClassId, HashMap<String, u32>>,
     function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
+    /// HIR class -> its constructor function (`ClassInit` calls).
+    ctors: &'a HashMap<hir::ClassId, mir::FunctionId>,
     strings: &'a mut Arena<mir::StringConst>,
     functions: &'a mut Arena<mir::Function>,
     top_level: &'a mut Vec<mir::FunctionId>,
@@ -535,6 +1505,10 @@ struct BodyLowerer<'a> {
     /// Instantiated enum definitions, filled on creation (variant
     /// field types feed pattern lowering and the equality expansion).
     enums: &'a mut EnumRegistry,
+    /// Boxed value types discovered in this body (`Box` / `is` / `as`).
+    boxed: &'a mut BoxedRegistry,
+    /// MIR class arena (boxed value types are appended here).
+    classes: &'a mut Arena<mir::ClassDef>,
     /// Mangling shell (enum / struct names for `encode_type`).
     shell: &'a mut mir::Module,
     /// Concrete type arguments of the instance being lowered; `None`
@@ -597,7 +1571,26 @@ impl BodyLowerer<'_> {
             })
             .collect();
         let return_ty = self.lower_type(function.return_ty);
-        let statements = self.lower_statements(&body.statements);
+        let statements = if is_abstract_bodiless(self.module, function, body) {
+            // An abstract method (hir-lower materializes it bodiless):
+            // every override replaces its vtable slot and the class
+            // cannot be instantiated, so the slot is never reached;
+            // the emitted function traps like a pure-virtual stub.
+            let message =
+                self.trap_message(format!("call to abstract method `{}`", fn_name(function)));
+            vec![mir::Statement {
+                kind: mir::StatementKind::Expr(mir::Expr::Call(mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
+                    },
+                    args: vec![mir::Expr::StringConst(message)],
+                })),
+                span: function.span,
+            }]
+        } else {
+            self.lower_statements(&body.statements)
+        };
         (
             params,
             return_ty,
@@ -612,6 +1605,8 @@ impl BodyLowerer<'_> {
         Types {
             module: self.module,
             struct_map: self.struct_map,
+            class_map: self.class_map,
+            interface_map: self.interface_map,
             subst: self.subst,
         }
         .lower(ty, self.enums, self.shell)
@@ -677,6 +1672,21 @@ impl BodyLowerer<'_> {
                         mir::StatementKind::ArraySet {
                             array,
                             index,
+                            value,
+                        }
+                    }
+                    // `obj.field = v` (only `var` properties of
+                    // classes, checked at HIR); the index is the
+                    // flattened field index.
+                    hir::AssignTarget::Field { receiver, field } => {
+                        let hir::FieldRef::ClassField { index, .. } = field else {
+                            unreachable!("hir-lower only allows assignment to class properties")
+                        };
+                        let object = self.lower_expr(receiver);
+                        let value = self.lower_expr(value);
+                        mir::StatementKind::FieldSet {
+                            object,
+                            index: *index,
                             value,
                         }
                     }
@@ -1022,6 +2032,19 @@ impl BodyLowerer<'_> {
                 struct_id: self.struct_map[struct_id],
                 args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
             },
+            // Class construction calls the class's constructor
+            // function (`scoop.ctor.<Class>`); the raw allocation and
+            // field initialization live inside it (see `lower_ctor`).
+            hir::ExprKind::ClassInit { class_id, args } => {
+                let ctor = self.ctors[class_id];
+                mir::Expr::Call(mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(ctor),
+                    },
+                    args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+                })
+            }
             hir::ExprKind::VariantConstruct { variant, args, .. } => mir::Expr::VariantConstruct {
                 ty: self.lower_type(expr.ty),
                 variant: *variant,
@@ -1045,16 +2068,60 @@ impl BodyLowerer<'_> {
                 mir::Expr::ArrayClone(Box::new(self.lower_expr(operand)))
             }
             hir::ExprKind::FieldAccess { receiver, field } => {
-                // Struct fields and tuple elements are both 0-based here.
+                // Struct fields, tuple elements and class constructor
+                // properties are all 0-based here (the class index
+                // follows the flattened base-prefix layout; LIR turns
+                // it into a heap object load).
                 let index = match field {
-                    hir::FieldRef::StructField { index, .. } | hir::FieldRef::TupleIndex(index) => {
-                        *index
-                    }
+                    hir::FieldRef::StructField { index, .. }
+                    | hir::FieldRef::ClassField { index, .. }
+                    | hir::FieldRef::TupleIndex(index) => *index,
                 };
                 mir::Expr::FieldAccess {
                     receiver: Box::new(self.lower_expr(receiver)),
                     index,
                 }
+            }
+            hir::ExprKind::MethodCall {
+                receiver,
+                function,
+                args,
+            } => self.lower_method_call(receiver, *function, args),
+            // `Box` / `Unbox` / `is` stay dedicated MIR nodes; LIR
+            // lowers them (the runtime box call, the payload load,
+            // the `scoop_rt_is_instance` call). Boxing registers the
+            // boxed value type (and the target interface) on the way.
+            hir::ExprKind::Box(operand) => {
+                let payload = self.lower_type(operand.ty);
+                self.register_boxed(&payload, Some(expr.ty));
+                mir::Expr::Box(Box::new(self.lower_expr(operand)))
+            }
+            // Smart casts unbox inline wherever the narrowed local is
+            // read (e.g. as a field-access receiver). LIR reconstructs
+            // expression types structurally, and an `Any` operand does
+            // not determine the payload type, so every unbox is bound
+            // to a typed hidden local (the same prelude mechanism `!!`
+            // uses).
+            hir::ExprKind::Unbox(operand) => {
+                let ty = self.lower_type(expr.ty);
+                let operand = self.lower_expr(operand);
+                let slot = self.new_hidden("ub", ty, false);
+                self.prelude.push(mir::StatementKind::ValDecl {
+                    local: slot,
+                    init: mir::Expr::Unbox(Box::new(operand)),
+                });
+                mir::Expr::Local(slot)
+            }
+            hir::ExprKind::IsInstance { operand, check_ty } => {
+                let check_ty = self.lower_type(*check_ty);
+                self.register_check(&check_ty);
+                mir::Expr::IsInstance {
+                    operand: Box::new(self.lower_expr(operand)),
+                    check_ty: Box::new(check_ty),
+                }
+            }
+            hir::ExprKind::Cast { operand, optional } => {
+                self.lower_cast(operand, *optional, expr.ty, expr.span)
             }
             hir::ExprKind::Call {
                 function,
@@ -1138,12 +2205,8 @@ impl BodyLowerer<'_> {
         let value = self.lower_expr(operand);
         let slot = self.new_hidden("opt", option_ty, false);
         let result = self.new_hidden("uw", payload_ty, false);
-        let message = format!("unwrap on None (function {})", self.function_name);
-        let symbol = format!("scoop.str.{}", self.strings.len());
-        let message = self.strings.alloc(mir::StringConst {
-            value: message,
-            symbol,
-        });
+        let message =
+            self.trap_message(format!("unwrap on None (function {})", self.function_name));
         self.prelude.push(mir::StatementKind::ValDecl {
             local: slot,
             init: value,
@@ -1233,6 +2296,249 @@ impl BodyLowerer<'_> {
         })
     }
 
+    /// A resolved method call (impl spec 2.9): the receiver becomes
+    /// argument 0 (`this`), and the call kind is annotated from the
+    /// receiver's static type — class receiver → `Virtual` (the M6
+    /// simplification: class methods always dispatch through the
+    /// vtable), interface receiver → `Interface` (the slot is the
+    /// method's index in the interface declaration), value type →
+    /// `Direct`. A method without a vtable slot (generic methods
+    /// never enter the vtable) stays `Direct`.
+    fn lower_method_call(
+        &mut self,
+        receiver: &hir::Expr,
+        function: hir::FunctionId,
+        args: &[hir::Expr],
+    ) -> mir::Expr {
+        let f = &self.module.functions[function];
+        assert!(
+            f.type_params.is_empty(),
+            "HIR method calls carry no type arguments; hir-lower M6 rejects generic method calls"
+        );
+        let callee = mir::Callee::User(self.function_map[&function]);
+        let kind = match &self.module.types[receiver.ty] {
+            hir::Type::Class(class) => {
+                match self.method_slots[&self.class_map[class]].get(short_name(&f.name)) {
+                    Some(&slot) => mir::CallKind::Virtual { slot },
+                    None => mir::CallKind::Direct,
+                }
+            }
+            hir::Type::Interface(iface) => {
+                let interface = self.interface_map[iface];
+                let slot = self.interfaces[interface]
+                    .methods
+                    .iter()
+                    .position(|method| method == short_name(&f.name))
+                    .expect("hir-lower resolves interface calls to interface methods")
+                    as u32;
+                mir::CallKind::Interface { interface, slot }
+            }
+            // The `Any` defaults dispatch through the fixed vtable
+            // prefix; anything else hir-lower resolves on `Any` is a
+            // plain direct call.
+            hir::Type::Any => match short_name(&f.name) {
+                "equals" => mir::CallKind::Virtual { slot: 0 },
+                "hashCode" => mir::CallKind::Virtual { slot: 1 },
+                "toString" => mir::CallKind::Virtual { slot: 2 },
+                _ => mir::CallKind::Direct,
+            },
+            _ => mir::CallKind::Direct,
+        };
+        let mut call_args = Vec::with_capacity(args.len() + 1);
+        call_args.push(self.lower_expr(receiver));
+        call_args.extend(args.iter().map(|arg| self.lower_expr(arg)));
+        mir::Expr::Call(mir::Call {
+            target: mir::CallTarget { kind, callee },
+            args: call_args,
+        })
+    }
+
+    /// Register the boxed value type a `Box` produces. The boxed
+    /// itables cover the value type's *declared* interfaces (spec
+    /// 4.4.3) no matter what the value is boxed to; the box target,
+    /// when an interface, is covered too (hir-lower guarantees the
+    /// value type implements it, so it is normally already in the
+    /// declared set). The itable slots — the adjust thunks — are
+    /// generated by `finalize_boxed`.
+    fn register_boxed(&mut self, payload: &mir::Type, target: Option<hir::TypeId>) {
+        if !is_boxable(payload) {
+            return;
+        }
+        let class_id = self.boxed.get_or_create(self.classes, self.shell, payload);
+        let mut covered: Vec<mir::InterfaceId> = match payload {
+            mir::Type::Struct(mir_id) => {
+                let hir_id = self.hir_struct(*mir_id);
+                self.module.structs[hir_id]
+                    .interfaces
+                    .iter()
+                    .map(|iface| self.interface_map[iface])
+                    .collect()
+            }
+            mir::Type::Enum(mir_id, _) => {
+                let hir_id = self.enums.hir_ids[mir_id];
+                self.module.enums[hir_id]
+                    .interfaces
+                    .iter()
+                    .map(|iface| self.interface_map[iface])
+                    .collect()
+            }
+            // Tuples and primitives implement no interfaces.
+            _ => Vec::new(),
+        };
+        if let Some(target) = target {
+            if let hir::Type::Interface(iface) = self.module.types[target] {
+                covered.push(self.interface_map[&iface]);
+            }
+        }
+        for iface in covered {
+            let interfaces = &mut self.classes[class_id].interfaces;
+            if !interfaces.contains(&iface) {
+                interfaces.push(iface);
+            }
+        }
+    }
+
+    /// The HIR id behind a MIR struct (the arenas are transposed 1:1).
+    fn hir_struct(&self, mir_id: mir::StructId) -> hir::StructId {
+        self.struct_map
+            .iter()
+            .find(|(_, mir)| **mir == mir_id)
+            .map(|(&hir, _)| hir)
+            .expect("every MIR struct comes from a HIR struct")
+    }
+
+    /// Register the boxed value type an `is` / `as` check needs (the
+    /// runtime compares against the boxed type's TypeDescriptor).
+    fn register_check(&mut self, check_ty: &mir::Type) {
+        if is_boxable(check_ty) {
+            let check_ty = check_ty.clone();
+            self.register_boxed(&check_ty, None);
+        }
+    }
+
+    /// `as` / `as?` (DESIGN 2.3): the operand is evaluated once into
+    /// a hidden local. `as` traps when the runtime check fails (M8
+    /// turns this into `ClassCastException`); `as?` wraps the result
+    /// in `Some` / `None` through core's `Option` — the same prelude
+    /// mechanism `!!` uses. A target of `Any` is statically true and
+    /// needs no check. Class / interface targets stay the same
+    /// reference; value targets come out of the box (`Unbox`).
+    fn lower_cast(
+        &mut self,
+        operand: &hir::Expr,
+        optional: bool,
+        expr_ty: hir::TypeId,
+        span: Span,
+    ) -> mir::Expr {
+        let target_hir = if optional {
+            let hir::Type::Enum(option, args) = &self.module.types[expr_ty] else {
+                unreachable!("an `as?` result is an Option<T>")
+            };
+            assert_eq!(
+                *option, self.module.option_enum,
+                "an `as?` result is core's Option<T>"
+            );
+            args[0]
+        } else {
+            expr_ty
+        };
+        let target = self.lower_type(target_hir);
+        self.register_check(&target);
+        let operand_ty = self.lower_type(operand.ty);
+        let value = self.lower_expr(operand);
+        let slot = self.new_hidden("cast", operand_ty, false);
+        self.prelude.push(mir::StatementKind::ValDecl {
+            local: slot,
+            init: value,
+        });
+        let cond = match &target {
+            mir::Type::Any => mir::Expr::BoolLiteral(true),
+            _ => mir::Expr::IsInstance {
+                operand: Box::new(mir::Expr::Local(slot)),
+                check_ty: Box::new(target.clone()),
+            },
+        };
+        let unboxed = match &target {
+            mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
+                mir::Expr::Local(slot)
+            }
+            // Only `as?` unwraps here: hir-lower wraps a value-typed
+            // `as` in a hir-level `Unbox(Cast)` node, so the payload
+            // extraction for `as` happens when that outer `Unbox` is
+            // lowered — adding another one here would double-unwrap.
+            _ => mir::Expr::Unbox(Box::new(mir::Expr::Local(slot))),
+        };
+        if !optional {
+            let message = self.trap_message(format!(
+                "invalid cast to {} (function {})",
+                mir::type_name(self.shell, &target),
+                self.function_name
+            ));
+            self.prelude.push(mir::StatementKind::If {
+                cond: mir::Expr::Unary {
+                    op: mir::UnOp::BoolNot,
+                    operand: Box::new(cond),
+                },
+                then_body: vec![mir::Statement {
+                    kind: mir::StatementKind::Expr(mir::Expr::Call(mir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
+                        },
+                        args: vec![mir::Expr::StringConst(message)],
+                    })),
+                    span,
+                }],
+                else_body: None,
+            });
+            // The hir-level `Unbox` around this `Cast` (value targets
+            // only) performs the payload extraction; class / interface
+            // targets just use the reference.
+            return mir::Expr::Local(slot);
+        }
+        let option_ty = self.lower_type(expr_ty);
+        let (some, none) = self.option_variants;
+        let result = self.new_hidden("cast", option_ty.clone(), true);
+        let some_value = mir::Expr::VariantConstruct {
+            ty: option_ty.clone(),
+            variant: some,
+            fields: vec![unboxed],
+        };
+        let none_value = mir::Expr::VariantConstruct {
+            ty: option_ty,
+            variant: none,
+            fields: Vec::new(),
+        };
+        self.prelude.push(mir::StatementKind::If {
+            cond,
+            then_body: vec![mir::Statement {
+                kind: mir::StatementKind::Assign {
+                    local: result,
+                    value: some_value,
+                },
+                span,
+            }],
+            else_body: Some(vec![mir::Statement {
+                kind: mir::StatementKind::Assign {
+                    local: result,
+                    value: none_value,
+                },
+                span,
+            }]),
+        });
+        mir::Expr::Local(result)
+    }
+
+    /// A trap message string constant (`scoop.str.N`, numbered in
+    /// order of appearance like the literal constants).
+    fn trap_message(&mut self, message: String) -> mir::StringConstId {
+        let symbol = format!("scoop.str.{}", self.strings.len());
+        self.strings.alloc(mir::StringConst {
+            value: message,
+            symbol,
+        })
+    }
+
     fn lower_binary(&mut self, op: hir::BinOp, lhs: &hir::Expr, rhs: &hir::Expr) -> mir::Expr {
         use mir::BinOp::*;
         match op {
@@ -1260,6 +2566,10 @@ impl BodyLowerer<'_> {
                 let ty = self.lower_type(lhs.ty);
                 self.expand_equality(&Opd::Hir(lhs), &Opd::Hir(rhs), &ty, &[], true)
             }
+            // `===` / `!==`: reference identity — the primitive
+            // comparison on the two pointers.
+            hir::BinOp::RefEq => self.primitive(IntEq, lhs, rhs),
+            hir::BinOp::RefNe => self.primitive(IntNe, lhs, rhs),
             // `&&` / `||` stay single operators; LIR expands the
             // short-circuit into basic blocks (DESIGN 2.4).
             hir::BinOp::And => self.primitive(And, lhs, rhs),
@@ -1362,6 +2672,19 @@ impl BodyLowerer<'_> {
             mir::Type::Enum(id, _) => {
                 let id = *id;
                 self.expand_enum_equality(lhs, rhs, id, path, negate)
+            }
+            // References compare by identity: the `Any` default
+            // `equals` is reference equality and M6 has no
+            // user-defined `equals` (milestone6 DESIGN 5.1). The
+            // operands are pointers, so the primitive integer
+            // comparison is a pointer comparison here.
+            mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
+                let op = if negate {
+                    mir::BinOp::IntNe
+                } else {
+                    mir::BinOp::IntEq
+                };
+                self.comparison(op, lhs, rhs, path)
             }
             // M5 defines no array equality semantics (DESIGN 6) and
             // hir-lower rejects `==` / `!=` on array types, so no array
@@ -1578,6 +2901,8 @@ mod tests {
         functions: Arena<hir::Function>,
         structs: Arena<hir::StructDecl>,
         enums: Arena<hir::EnumDecl>,
+        classes: Arena<hir::ClassDecl>,
+        interfaces: Arena<hir::InterfaceDecl>,
         top_level: Vec<hir::FunctionId>,
         unit: hir::TypeId,
         int: hir::TypeId,
@@ -1603,6 +2928,7 @@ mod tests {
                 params: Vec::new(),
                 return_ty: unit,
                 kind: hir::FunctionKind::Intrinsic("rt_print".to_string()),
+                method_of: None,
                 span: SPAN,
             });
             let println = functions.alloc(hir::Function {
@@ -1611,6 +2937,7 @@ mod tests {
                 params: Vec::new(),
                 return_ty: unit,
                 kind: hir::FunctionKind::Intrinsic("rt_println".to_string()),
+                method_of: None,
                 span: SPAN,
             });
             // scoop.core's `enum Option<T> { Some(T), None }`.
@@ -1634,6 +2961,7 @@ mod tests {
                         defaults: Vec::new(),
                     },
                 ],
+                interfaces: Vec::new(),
                 span: SPAN,
             });
             Harness {
@@ -1641,6 +2969,8 @@ mod tests {
                 functions,
                 structs: Arena::new(),
                 enums,
+                classes: Arena::new(),
+                interfaces: Arena::new(),
                 top_level: vec![print, println],
                 unit,
                 int,
@@ -1659,7 +2989,94 @@ mod tests {
                 .alloc(hir::Type::Enum(self.option_enum, vec![inner]))
         }
 
+        fn any(&mut self) -> hir::TypeId {
+            self.types.alloc(hir::Type::Any)
+        }
+
+        fn class_ty(&mut self, id: hir::ClassId) -> hir::TypeId {
+            self.types.alloc(hir::Type::Class(id))
+        }
+
+        fn interface_ty(&mut self, id: hir::InterfaceId) -> hir::TypeId {
+            self.types.alloc(hir::Type::Interface(id))
+        }
+
+        fn interface(&mut self, name: &str, methods: &[&str]) -> hir::InterfaceId {
+            let unit = self.unit;
+            self.interfaces.alloc(hir::InterfaceDecl {
+                name: name.to_string(),
+                methods: methods
+                    .iter()
+                    .map(|name| hir::MethodSig {
+                        name: name.to_string(),
+                        params: Vec::new(),
+                        return_ty: unit,
+                        span: SPAN,
+                    })
+                    .collect(),
+                span: SPAN,
+            })
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn class(
+            &mut self,
+            name: &str,
+            modifier: hir::ClassModifier,
+            constructor: &[(&str, hir::TypeId)],
+            base: Option<(hir::ClassId, Vec<hir::Expr>)>,
+            interfaces: &[hir::InterfaceId],
+        ) -> hir::ClassId {
+            self.classes.alloc(hir::ClassDecl {
+                modifier,
+                name: name.to_string(),
+                constructor: constructor
+                    .iter()
+                    .map(|(name, ty)| hir::Field {
+                        name: name.to_string(),
+                        ty: *ty,
+                    })
+                    .collect(),
+                base_class: base,
+                interfaces: interfaces.to_vec(),
+                span: SPAN,
+            })
+        }
+
+        /// A member function (kept out of `top_level`, as hir-lower
+        /// does); `method_of` is the receiver type.
+        /// A member function (kept out of `top_level`, as hir-lower
+        /// does); `method_of` is the receiver type. The name is
+        /// qualified `Owner.method`, as hir-lower names members.
+        fn method_fn(
+            &mut self,
+            name: &str,
+            method_of: hir::TypeId,
+            params: Vec<hir::Param>,
+            return_ty: hir::TypeId,
+            body: hir::Body,
+        ) -> hir::FunctionId {
+            self.functions.alloc(hir::Function {
+                name: name.to_string(),
+                type_params: Vec::new(),
+                params,
+                return_ty,
+                kind: hir::FunctionKind::User(body),
+                method_of: Some(method_of),
+                span: SPAN,
+            })
+        }
+
         fn strukt(&mut self, name: &str, fields: &[(&str, hir::TypeId)]) -> hir::StructId {
+            self.strukt_with(name, fields, &[])
+        }
+
+        fn strukt_with(
+            &mut self,
+            name: &str,
+            fields: &[(&str, hir::TypeId)],
+            interfaces: &[hir::InterfaceId],
+        ) -> hir::StructId {
             self.structs.alloc(hir::StructDecl {
                 name: name.to_string(),
                 fields: fields
@@ -1669,6 +3086,7 @@ mod tests {
                         ty: *ty,
                     })
                     .collect(),
+                interfaces: interfaces.to_vec(),
                 span: SPAN,
             })
         }
@@ -1704,6 +3122,7 @@ mod tests {
                 params,
                 return_ty,
                 kind: hir::FunctionKind::User(body),
+                method_of: None,
                 span: SPAN,
             });
             self.top_level.push(id);
@@ -1723,6 +3142,8 @@ mod tests {
                 functions: self.functions,
                 structs: self.structs,
                 enums: self.enums,
+                classes: self.classes,
+                interfaces: self.interfaces,
                 top_level: self.top_level,
                 unit: self.unit,
                 int: self.int,
@@ -2867,6 +4288,7 @@ Module
                     defaults: Vec::new(),
                 })
                 .collect(),
+            interfaces: Vec::new(),
             span: SPAN,
         });
         let color_ty = h.types.alloc(hir::Type::Enum(color, Vec::new()));
@@ -3652,5 +5074,995 @@ Module
             },
         );
         let _ = lower(&h.finish(main));
+    }
+
+    // ---- M6: reference types ----
+
+    /// The symbol a vtable / itable slot points at.
+    fn slot_fn<'a>(module: &'a mir::Module, slot: &mir::TableSlot) -> &'a str {
+        match slot {
+            mir::TableSlot::Function(id) => &module.functions[*id].symbol,
+            mir::TableSlot::Runtime(function) => function.symbol(),
+        }
+    }
+
+    /// A `this`-taking method with an empty body, as hir-lower
+    /// produces it for `fun m() {}`-style declarations; the name is
+    /// qualified `Owner.method` like hir-lower qualifies members.
+    fn empty_method(
+        h: &mut Harness,
+        owner: &str,
+        name: &str,
+        receiver: hir::TypeId,
+    ) -> hir::FunctionId {
+        let mut locals = Arena::new();
+        let this = locals.alloc(local("this", receiver));
+        let unit = h.unit;
+        h.method_fn(
+            &format!("{owner}.{name}"),
+            receiver,
+            vec![param("this", receiver, this)],
+            unit,
+            hir::Body {
+                locals,
+                statements: Vec::new(),
+            },
+        )
+    }
+
+    fn empty_main(h: &mut Harness) -> hir::FunctionId {
+        h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        )
+    }
+
+    fn class_index(raw: u32) -> mir::ClassId {
+        la_arena::Idx::from_raw(raw.into())
+    }
+
+    #[test]
+    fn class_fields_are_base_prefix_then_own() {
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        let base = h.class("Base", hir::ClassModifier::Open, &[("a", int)], None, &[]);
+        let derived = h.class(
+            "Derived",
+            hir::ClassModifier::Final,
+            &[("b", string)],
+            Some((base, vec![int_lit(&h, 0)])),
+            &[],
+        );
+        let derived_ty = h.class_ty(derived);
+        let mut locals = Arena::new();
+        let d = locals.alloc(local("d", derived_ty));
+        let b = locals.alloc(local("b", string));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    b,
+                    expr(
+                        hir::ExprKind::FieldAccess {
+                            receiver: Box::new(local_ref(d, derived_ty)),
+                            field: hir::FieldRef::ClassField {
+                                class_id: derived,
+                                index: 1,
+                            },
+                        },
+                        string,
+                    ),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        assert_eq!(module.classes.len(), 2);
+        let base_def = &module.classes[class_index(0)];
+        let derived_def = &module.classes[class_index(1)];
+        let field_names = |def: &mir::ClassDef| {
+            def.fields
+                .iter()
+                .map(|field| field.name.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(field_names(base_def), ["a"]);
+        // The base prefix comes first; HIR's `ClassField` indices
+        // follow the same flattened order.
+        assert_eq!(field_names(derived_def), ["a", "b"]);
+        assert_eq!(derived_def.fields[1].ty, mir::Type::String);
+        assert_eq!(derived_def.base_class, Some(class_index(0)));
+        assert_eq!(derived_def.modifier, mir::ClassModifier::Final);
+        assert_eq!(base_def.modifier, mir::ClassModifier::Open);
+
+        // The field access keeps its 0-based index into the flattened
+        // layout.
+        let body = &module.functions[module.entry].body;
+        let mir::StatementKind::ValDecl { init, .. } = &body.statements[0].kind else {
+            panic!("expected a val declaration")
+        };
+        assert!(matches!(init, mir::Expr::FieldAccess { index: 1, .. }));
+    }
+
+    #[test]
+    fn vtable_layout_copies_the_base_prefix_and_replaces_overrides() {
+        let mut h = Harness::new();
+        let base = h.class("Base", hir::ClassModifier::Open, &[], None, &[]);
+        let base_ty = h.class_ty(base);
+        let _m1 = empty_method(&mut h, "Base", "m1", base_ty);
+        let _m2 = empty_method(&mut h, "Base", "m2", base_ty);
+        let derived = h.class(
+            "Derived",
+            hir::ClassModifier::Open,
+            &[],
+            Some((base, vec![])),
+            &[],
+        );
+        let derived_ty = h.class_ty(derived);
+        // `m2` overrides the base method (same slot), `m3` is new
+        // (appended after the base's slots).
+        let _m2_derived = empty_method(&mut h, "Derived", "m2", derived_ty);
+        let _m3 = empty_method(&mut h, "Derived", "m3", derived_ty);
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        let vtable_symbols = |def: &mir::ClassDef| {
+            def.vtable
+                .iter()
+                .map(|slot| slot_fn(&module, slot))
+                .collect::<Vec<_>>()
+        };
+        // Slots 0..2 are the Any defaults; member functions are
+        // mangled qualified with their class.
+        assert_eq!(
+            vtable_symbols(&module.classes[class_index(0)]),
+            [
+                "scoop_rt_any_equals",
+                "scoop_rt_any_hashcode",
+                "scoop_rt_any_tostring",
+                "scoop.Base.m1",
+                "scoop.Base.m2",
+            ]
+        );
+        // The base prefix is preserved; the override replaces slot 4
+        // in place; the new method appends at slot 5.
+        assert_eq!(
+            vtable_symbols(&module.classes[class_index(1)]),
+            [
+                "scoop_rt_any_equals",
+                "scoop_rt_any_hashcode",
+                "scoop_rt_any_tostring",
+                "scoop.Base.m1",
+                "scoop.Derived.m2",
+                "scoop.Derived.m3",
+            ]
+        );
+    }
+
+    #[test]
+    fn itables_follow_the_interface_method_order() {
+        let mut h = Harness::new();
+        let iface = h.interface("Describable", &["a", "b"]);
+        let class = h.class("C", hir::ClassModifier::Final, &[], None, &[iface]);
+        let class_ty = h.class_ty(class);
+        // The implementations are declared in reverse order: the
+        // itable slots follow the interface's declaration order.
+        let _impl_b = empty_method(&mut h, "C", "b", class_ty);
+        let _impl_a = empty_method(&mut h, "C", "a", class_ty);
+        // The derived class inherits `a` and overrides `b`; the
+        // interface is covered without being redeclared.
+        let derived = h.class(
+            "D",
+            hir::ClassModifier::Final,
+            &[],
+            Some((class, vec![])),
+            &[],
+        );
+        let derived_ty = h.class_ty(derived);
+        let _impl_b_d = empty_method(&mut h, "D", "b", derived_ty);
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        let class_def = &module.classes[class_index(0)];
+        assert_eq!(class_def.itables.len(), 1);
+        let record = &class_def.itables[0];
+        assert_eq!(record.interface, la_arena::Idx::from_raw(0.into()));
+        let slots: Vec<&str> = record
+            .slots
+            .iter()
+            .map(|slot| slot_fn(&module, slot))
+            .collect();
+        assert_eq!(slots, ["scoop.C.a", "scoop.C.b"]);
+
+        let derived_def = &module.classes[class_index(1)];
+        assert_eq!(derived_def.itables.len(), 1);
+        let record = &derived_def.itables[0];
+        let slots: Vec<&str> = record
+            .slots
+            .iter()
+            .map(|slot| slot_fn(&module, slot))
+            .collect();
+        // The override dispatches to the derived implementation; the
+        // inherited method keeps the base's.
+        assert_eq!(slots, ["scoop.C.a", "scoop.D.b"]);
+    }
+
+    #[test]
+    fn method_calls_are_annotated_by_the_receiver_static_type() {
+        let mut h = Harness::new();
+        let iface = h.interface("Describable", &["describe", "label"]);
+        let iface_ty = h.interface_ty(iface);
+        let class = h.class("C", hir::ClassModifier::Open, &[], None, &[iface]);
+        let class_ty = h.class_ty(class);
+        let class_describe = empty_method(&mut h, "C", "describe", class_ty);
+        let _class_label = empty_method(&mut h, "C", "label", class_ty);
+        // Interface method shells, as hir-lower materializes them.
+        let _iface_describe = empty_method(&mut h, "Describable", "describe", iface_ty);
+        let iface_label = empty_method(&mut h, "Describable", "label", iface_ty);
+        // A value type method.
+        let int = h.int;
+        let s = h.strukt("S", &[("x", int)]);
+        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let s_describe = empty_method(&mut h, "S", "describe", s_ty);
+
+        let unit = h.unit;
+        let mut locals = Arena::new();
+        let c = locals.alloc(local("c", class_ty));
+        let i = locals.alloc(local("i", iface_ty));
+        let sv = locals.alloc(local("sv", s_ty));
+        let method_call = |receiver: hir::Expr, function: hir::FunctionId| {
+            expr(
+                hir::ExprKind::MethodCall {
+                    receiver: Box::new(receiver),
+                    function,
+                    args: Vec::new(),
+                },
+                unit,
+            )
+        };
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    expr_stmt(method_call(local_ref(c, class_ty), class_describe)),
+                    expr_stmt(method_call(local_ref(i, iface_ty), iface_label)),
+                    expr_stmt(method_call(local_ref(sv, s_ty), s_describe)),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let body = &module.functions[module.entry].body;
+        let call_kind = |index: usize| {
+            let mir::StatementKind::Expr(mir::Expr::Call(call)) = &body.statements[index].kind
+            else {
+                panic!("expected a call statement")
+            };
+            // The receiver becomes argument 0 (`this`).
+            assert!(!call.args.is_empty());
+            &call.target.kind
+        };
+        // Class receiver: virtual through the vtable (slot 3 = the
+        // first slot after the Any defaults).
+        assert!(matches!(call_kind(0), mir::CallKind::Virtual { slot: 3 }));
+        // Interface receiver: the method's declaration index is the
+        // itable slot.
+        assert!(matches!(
+            call_kind(1),
+            mir::CallKind::Interface { interface, slot: 1 } if *interface == la_arena::Idx::from_raw(0.into())
+        ));
+        // Value type receiver: direct.
+        assert!(matches!(call_kind(2), mir::CallKind::Direct));
+    }
+
+    #[test]
+    fn boxing_a_value_type_creates_a_boxed_class_with_structural_equals() {
+        let mut h = Harness::new();
+        let int = h.int;
+        let s = h.strukt("S", &[("x", int)]);
+        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let any = h.any();
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", any));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    a,
+                    expr(
+                        hir::ExprKind::Box(Box::new(struct_init(s, s_ty, vec![int_lit(&h, 1)]))),
+                        any,
+                    ),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        // The boxed class: one field (the payload), the generated
+        // structural equals in vtable slot 0, the Any defaults in
+        // slots 1/2.
+        assert_eq!(module.classes.len(), 1);
+        let boxed = &module.classes[class_index(0)];
+        assert_eq!(boxed.name, "box$S");
+        assert_eq!(boxed.fields.len(), 1);
+        assert_eq!(boxed.fields[0].name, "value");
+        assert_eq!(
+            boxed.fields[0].ty,
+            mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
+        );
+        let vtable: Vec<&str> = boxed
+            .vtable
+            .iter()
+            .map(|slot| slot_fn(&module, slot))
+            .collect();
+        assert_eq!(
+            vtable,
+            [
+                "scoop.eq.S",
+                "scoop_rt_any_hashcode",
+                "scoop_rt_any_tostring"
+            ]
+        );
+        assert!(boxed.itables.is_empty());
+
+        // The generated equals unboxes both payloads and compares
+        // field by field (the M2 expansion).
+        let expected = "\
+Module
+  struct S (x: Int)
+  class box$S vtable=3 itables=0
+  fun main @scoop_main() -> Unit
+    val a: Any
+      Box
+        StructInit S
+          IntLiteral 1
+  fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
+    val $a: S
+      Unbox
+        Local this
+    val $b: S
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        FieldAccess 0
+          Local $a
+        FieldAccess 0
+          Local $b
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
+        let mut h = Harness::new();
+        let int = h.int;
+        let iface = h.interface("Describable", &["describe"]);
+        let iface_ty = h.interface_ty(iface);
+        let s = h.strukt("S", &[("x", int)]);
+        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let _describe = empty_method(&mut h, "S", "describe", s_ty);
+        // `val d: Describable = S(1)` — a Box whose target is the
+        // interface.
+        let mut locals = Arena::new();
+        let d = locals.alloc(local("d", iface_ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    d,
+                    expr(
+                        hir::ExprKind::Box(Box::new(struct_init(s, s_ty, vec![int_lit(&h, 1)]))),
+                        iface_ty,
+                    ),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let boxed = &module.classes[class_index(0)];
+        assert_eq!(boxed.interfaces.len(), 1);
+        assert_eq!(boxed.itables.len(), 1);
+        let record = &boxed.itables[0];
+        assert_eq!(record.interface, boxed.interfaces[0]);
+        assert_eq!(record.slots.len(), 1);
+        let thunk_symbol = slot_fn(&module, &record.slots[0]);
+        assert_eq!(thunk_symbol, "scoop.thunk.S.Describable.describe");
+
+        // The thunk takes the boxed object as `this`, unboxes it and
+        // tail-calls the value method.
+        let thunk = module
+            .functions
+            .iter()
+            .map(|(_, f)| f)
+            .find(|f| f.symbol == thunk_symbol)
+            .expect("the thunk is a MIR function");
+        assert_eq!(thunk.params.len(), 1);
+        assert_eq!(thunk.params[0].ty, mir::Type::Any);
+        assert_eq!(thunk.params[0].name, "this");
+        let mir::StatementKind::Expr(mir::Expr::Call(call)) = &thunk.body.statements[0].kind else {
+            panic!("the thunk tail-calls the value method")
+        };
+        assert!(matches!(call.target.kind, mir::CallKind::Direct));
+        let mir::Callee::User(impl_id) = call.target.callee else {
+            panic!("the thunk calls a user function")
+        };
+        assert_eq!(module.functions[impl_id].symbol, "scoop.S.describe");
+        assert_eq!(call.args.len(), 1);
+        assert!(
+            matches!(&call.args[0], mir::Expr::Unbox(operand) if matches!(operand.as_ref(), mir::Expr::Local(local) if *local == thunk.params[0].local))
+        );
+    }
+
+    #[test]
+    fn is_instance_and_casts_lower_to_runtime_checks() {
+        let mut h = Harness::new();
+        let (int, boolean) = (h.int, h.boolean);
+        let s = h.strukt("S", &[("x", int)]);
+        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let any = h.any();
+        let option_s = h.option(s_ty);
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", any));
+        let is_s = locals.alloc(local("is_s", boolean));
+        let s2 = locals.alloc(local("s2", s_ty));
+        let maybe = locals.alloc(local("maybe", option_s));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    val_decl(
+                        is_s,
+                        expr(
+                            hir::ExprKind::IsInstance {
+                                operand: Box::new(local_ref(a, any)),
+                                check_ty: s_ty,
+                            },
+                            boolean,
+                        ),
+                    ),
+                    val_decl(
+                        s2,
+                        // Mirror hir-lower's real shape: a value-typed
+                        // `as` arrives as `Unbox(Cast)`; mir-lower's
+                        // cast expansion only performs the check.
+                        expr(
+                            hir::ExprKind::Unbox(Box::new(expr(
+                                hir::ExprKind::Cast {
+                                    operand: Box::new(local_ref(a, any)),
+                                    optional: false,
+                                },
+                                s_ty,
+                            ))),
+                            s_ty,
+                        ),
+                    ),
+                    val_decl(
+                        maybe,
+                        expr(
+                            hir::ExprKind::Cast {
+                                operand: Box::new(local_ref(a, any)),
+                                optional: true,
+                            },
+                            option_s,
+                        ),
+                    ),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        // `is` stays a dedicated node; `as` traps on failure; `as?`
+        // wraps in Some / None. The value-type checks registered the
+        // boxed class (and its equals function).
+        let expected = "\
+Module
+  struct S (x: Int)
+  enum Option$S
+    Some(_1: S)
+    None()
+  class box$S vtable=3 itables=0
+  fun main @scoop_main() -> Unit
+    val is_s: Boolean
+      IsInstance S
+        Local a
+    val $cast.1: Any
+      Local a
+    if
+      Unary BoolNot
+        IsInstance S
+          Local $cast.1
+      Call @scoop_rt_trap direct
+        StringConst @scoop.str.0
+    val $ub.2: S
+      Unbox
+        Local $cast.1
+    val s2: S
+      Local $ub.2
+    val $cast.3: Any
+      Local a
+    if
+      IsInstance S
+        Local $cast.3
+      assign $cast.4
+        VariantConstruct Option$S<S> v0
+          Unbox
+            Local $cast.3
+    else
+      assign $cast.4
+        VariantConstruct Option$S<S> v1
+    val maybe: Option$S<S>
+      Local $cast.4
+  fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
+    val $a: S
+      Unbox
+        Local this
+    val $b: S
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        FieldAccess 0
+          Local $a
+        FieldAccess 0
+          Local $b
+  str @scoop.str.0 \"invalid cast to S (function main)\"
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn reference_equality_is_a_pointer_comparison() {
+        let mut h = Harness::new();
+        let boolean = h.boolean;
+        let c = h.class("C", hir::ClassModifier::Final, &[], None, &[]);
+        let c_ty = h.class_ty(c);
+        let mut locals = Arena::new();
+        let x = locals.alloc(local("x", c_ty));
+        let y = locals.alloc(local("y", c_ty));
+        let eq = locals.alloc(local("eq", boolean));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    eq,
+                    binary(
+                        hir::BinOp::Eq,
+                        local_ref(x, c_ty),
+                        local_ref(y, c_ty),
+                        boolean,
+                    ),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        // `==` on references is identity (the M6 Any default): the
+        // primitive comparison on the two pointers — no runtime call,
+        // no vtable dispatch.
+        let body = &module.functions[module.entry].body;
+        let mir::StatementKind::ValDecl {
+            init:
+                mir::Expr::Binary {
+                    op: mir::BinOp::IntEq,
+                    lhs,
+                    rhs,
+                },
+            ..
+        } = &body.statements[0].kind
+        else {
+            panic!("reference equality must be a primitive comparison")
+        };
+        assert!(matches!(lhs.as_ref(), mir::Expr::Local(_)));
+        assert!(matches!(rhs.as_ref(), mir::Expr::Local(_)));
+    }
+
+    #[test]
+    fn constructor_functions_initialize_the_flattened_fields() {
+        // open class Root(val label: String)
+        // open class Base(val name: String) : Root("root")
+        // class Point(val x: Int) : Base("point")
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        let root = h.class(
+            "Root",
+            hir::ClassModifier::Open,
+            &[("label", string)],
+            None,
+            &[],
+        );
+        let base = h.class(
+            "Base",
+            hir::ClassModifier::Open,
+            &[("name", string)],
+            Some((root, vec![str_lit(&h, "root")])),
+            &[],
+        );
+        let point = h.class(
+            "Point",
+            hir::ClassModifier::Final,
+            &[("x", int)],
+            Some((base, vec![str_lit(&h, "point")])),
+            &[],
+        );
+        let point_ty = h.class_ty(point);
+        let mut locals = Arena::new();
+        let p = locals.alloc(local("p", point_ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    p,
+                    expr(
+                        hir::ExprKind::ClassInit {
+                            class_id: point,
+                            args: vec![int_lit(&h, 1)],
+                        },
+                        point_ty,
+                    ),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        // One ctor per class; the use site is a plain direct call.
+        // Each ctor returns a raw ClassInit over the flattened field
+        // values: the base delegation arguments (re-evaluated in each
+        // derived ctor — hence the repeated "root" constant), then the
+        // own properties. No base ctor is called.
+        let expected = "\
+Module
+  class Root vtable=3 itables=0
+  class Base vtable=3 itables=0
+  class Point vtable=3 itables=0
+  fun main @scoop_main() -> Unit
+    val p: Point
+      Call @scoop.ctor.Point direct
+        IntLiteral 1
+  fun ctor.Root @scoop.ctor.Root(label: String) -> Root
+    return
+      ClassInit Root
+        Local label
+  fun ctor.Base @scoop.ctor.Base(name: String) -> Base
+    return
+      ClassInit Base
+        StringConst @scoop.str.0
+        Local name
+  fun ctor.Point @scoop.ctor.Point(x: Int) -> Point
+    return
+      ClassInit Point
+        StringConst @scoop.str.2
+        StringConst @scoop.str.1
+        Local x
+  str @scoop.str.0 \"root\"
+  str @scoop.str.1 \"point\"
+  str @scoop.str.2 \"root\"
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn abstract_classes_get_no_constructor() {
+        let mut h = Harness::new();
+        let _base = h.class("Base", hir::ClassModifier::Abstract, &[], None, &[]);
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        assert!(
+            !module
+                .functions
+                .iter()
+                .any(|(_, f)| f.symbol.starts_with("scoop.ctor."))
+        );
+    }
+
+    #[test]
+    fn field_assignment_lowers_to_field_set() {
+        // `p.y = 3` on a class with two properties (index 1 in the
+        // flattened layout).
+        let mut h = Harness::new();
+        let int = h.int;
+        let c = h.class(
+            "C",
+            hir::ClassModifier::Final,
+            &[("x", int), ("y", int)],
+            None,
+            &[],
+        );
+        let c_ty = h.class_ty(c);
+        let mut locals = Arena::new();
+        let p = locals.alloc(local("p", c_ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![stmt(hir::StatementKind::Assign {
+                    target: hir::AssignTarget::Field {
+                        receiver: Box::new(local_ref(p, c_ty)),
+                        field: hir::FieldRef::ClassField {
+                            class_id: c,
+                            index: 1,
+                        },
+                    },
+                    value: int_lit(&h, 3),
+                })],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let body = &module.functions[module.entry].body;
+        let mir::StatementKind::FieldSet {
+            object,
+            index: 1,
+            value,
+        } = &body.statements[0].kind
+        else {
+            panic!("a class property assignment must lower to FieldSet")
+        };
+        assert!(matches!(object, mir::Expr::Local(_)));
+        assert!(matches!(value, mir::Expr::IntLiteral(3)));
+    }
+
+    #[test]
+    fn boxed_interfaces_come_from_the_declaration() {
+        // `struct S(val x: Int) : Describable` boxed to `Any` — the
+        // boxed itable covers the declared interface even though the
+        // box target is not the interface.
+        let mut h = Harness::new();
+        let int = h.int;
+        let iface = h.interface("Describable", &["describe"]);
+        let s = h.strukt_with("S", &[("x", int)], &[iface]);
+        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let _describe = empty_method(&mut h, "S", "describe", s_ty);
+        let any = h.any();
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", any));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    a,
+                    expr(
+                        hir::ExprKind::Box(Box::new(struct_init(s, s_ty, vec![int_lit(&h, 1)]))),
+                        any,
+                    ),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let boxed = &module.classes[class_index(0)];
+        assert_eq!(boxed.interfaces.len(), 1);
+        assert_eq!(boxed.itables.len(), 1);
+        let record = &boxed.itables[0];
+        assert_eq!(record.interface, boxed.interfaces[0]);
+        assert_eq!(
+            slot_fn(&module, &record.slots[0]),
+            "scoop.thunk.S.Describable.describe"
+        );
+    }
+
+    #[test]
+    fn ref_equality_maps_to_a_primitive_pointer_comparison() {
+        // `===` / `!==` are reference identity: the primitive
+        // comparison on the two pointers.
+        let mut h = Harness::new();
+        let boolean = h.boolean;
+        let c = h.class("C", hir::ClassModifier::Final, &[], None, &[]);
+        let c_ty = h.class_ty(c);
+        let mut locals = Arena::new();
+        let x = locals.alloc(local("x", c_ty));
+        let y = locals.alloc(local("y", c_ty));
+        let same = locals.alloc(local("same", boolean));
+        let other = locals.alloc(local("other", boolean));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    val_decl(
+                        same,
+                        binary(
+                            hir::BinOp::RefEq,
+                            local_ref(x, c_ty),
+                            local_ref(y, c_ty),
+                            boolean,
+                        ),
+                    ),
+                    val_decl(
+                        other,
+                        binary(
+                            hir::BinOp::RefNe,
+                            local_ref(x, c_ty),
+                            local_ref(y, c_ty),
+                            boolean,
+                        ),
+                    ),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let body = &module.functions[module.entry].body;
+        let op_of = |index: usize| {
+            let mir::StatementKind::ValDecl {
+                init: mir::Expr::Binary { op, .. },
+                ..
+            } = &body.statements[index].kind
+            else {
+                panic!("expected a binary expression")
+            };
+            *op
+        };
+        assert_eq!(op_of(0), mir::BinOp::IntEq);
+        assert_eq!(op_of(1), mir::BinOp::IntNe);
+    }
+
+    #[test]
+    fn abstract_methods_lower_to_trap_stubs() {
+        // `abstract class Base { abstract fun id(): Int }` — hir-lower
+        // materializes the abstract method as a params-only bodiless
+        // function (`Base.id`, no statements).
+        let mut h = Harness::new();
+        let int = h.int;
+        let base = h.class("Base", hir::ClassModifier::Abstract, &[], None, &[]);
+        let base_ty = h.class_ty(base);
+        let mut locals = Arena::new();
+        let this = locals.alloc(local("this", base_ty));
+        let _id = h.method_fn(
+            "Base.id",
+            base_ty,
+            vec![param("this", base_ty, this)],
+            int,
+            hir::Body {
+                locals,
+                statements: Vec::new(),
+            },
+        );
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        // The abstract method is emitted (the abstract class's vtable
+        // slot references it) and traps like a pure-virtual stub.
+        let base_def = &module.classes[class_index(0)];
+        assert_eq!(slot_fn(&module, &base_def.vtable[3]), "scoop.Base.id");
+        let stub = module
+            .functions
+            .iter()
+            .map(|(_, f)| f)
+            .find(|f| f.symbol == "scoop.Base.id")
+            .expect("the abstract method is emitted");
+        assert!(
+            module
+                .top_level
+                .iter()
+                .any(|&id| module.functions[id].symbol == "scoop.Base.id")
+        );
+        let mir::StatementKind::Expr(mir::Expr::Call(call)) = &stub.body.statements[0].kind else {
+            panic!("the abstract stub is a single trap call")
+        };
+        assert_eq!(
+            call.target.callee,
+            mir::Callee::Runtime(mir::RuntimeFn::Trap)
+        );
+    }
+
+    #[test]
+    fn interface_implementations_resolve_qualified_method_names() {
+        // `class Doc(val title: String) : Describable { override fun
+        // describe() }` — hir-lower names the member `Doc.describe`;
+        // the itable / vtable resolve it by its short name.
+        let mut h = Harness::new();
+        let string = h.string;
+        let iface = h.interface("Describable", &["describe"]);
+        let doc = h.class(
+            "Doc",
+            hir::ClassModifier::Final,
+            &[("title", string)],
+            None,
+            &[iface],
+        );
+        let doc_ty = h.class_ty(doc);
+        let _describe = empty_method(&mut h, "Doc", "describe", doc_ty);
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        let doc_def = &module.classes[class_index(0)];
+        assert_eq!(doc_def.itables.len(), 1);
+        assert_eq!(
+            slot_fn(&module, &doc_def.itables[0].slots[0]),
+            "scoop.Doc.describe"
+        );
+        // The implementing method is a vtable method too.
+        assert_eq!(slot_fn(&module, &doc_def.vtable[3]), "scoop.Doc.describe");
+    }
+
+    #[test]
+    fn smart_cast_unboxes_bind_typed_hidden_locals() {
+        // `if (a is S) { println(a.v) }` — the narrowed read arrives as
+        // `FieldAccess { receiver: Unbox(Local a) }` (hir-lower's smart
+        // cast). The unbox must be bound to a typed hidden local so LIR
+        // never has to reconstruct its type from the `Any` operand.
+        let mut h = Harness::new();
+        let (int, boolean) = (h.int, h.boolean);
+        let s = h.strukt("S", &[("v", int)]);
+        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let any = h.any();
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", any));
+        let print_call = expr(
+            hir::ExprKind::Call {
+                function: h.println,
+                type_args: Vec::new(),
+                args: vec![expr(
+                    hir::ExprKind::FieldAccess {
+                        receiver: Box::new(expr(
+                            hir::ExprKind::Unbox(Box::new(local_ref(a, any))),
+                            s_ty,
+                        )),
+                        field: hir::FieldRef::StructField {
+                            struct_id: s,
+                            index: 0,
+                        },
+                    },
+                    int,
+                )],
+            },
+            h.unit,
+        );
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![stmt(hir::StatementKind::If {
+                    cond: expr(
+                        hir::ExprKind::IsInstance {
+                            operand: Box::new(local_ref(a, any)),
+                            check_ty: s_ty,
+                        },
+                        boolean,
+                    ),
+                    then_body: vec![expr_stmt(print_call)],
+                    else_body: None,
+                })],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let body = &module.functions[module.entry].body;
+        let mir::StatementKind::If { then_body, .. } = &body.statements[0].kind else {
+            panic!("expected an if statement")
+        };
+        let mir::StatementKind::ValDecl {
+            local: ub,
+            init: mir::Expr::Unbox(_),
+        } = &then_body[0].kind
+        else {
+            panic!("the unbox must be bound to a typed hidden local")
+        };
+        assert_eq!(
+            body.locals[*ub].ty,
+            mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
+        );
+        let mir::StatementKind::Expr(mir::Expr::Call(call)) = &then_body[1].kind else {
+            panic!("expected the println call")
+        };
+        assert!(
+            matches!(&call.args[0], mir::Expr::FieldAccess { receiver, .. } if matches!(receiver.as_ref(), mir::Expr::Local(local) if local == ub))
+        );
     }
 }

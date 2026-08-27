@@ -48,7 +48,8 @@ SourceFile
         IntLiteral 1
     val es
       ArrayLiteral
-        Call E.One
+        MethodCall One
+          Var E
           IntLiteral 1
         FieldAccess Empty
           Var E

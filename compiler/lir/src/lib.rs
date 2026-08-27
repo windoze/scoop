@@ -75,6 +75,39 @@ pub struct Module {
 #[derive(Debug)]
 pub struct LirMeta {
     pub layouts: Vec<Layout>,
+    /// TypeDescriptors to emit (runtime spec 2.2): classes, boxed
+    /// value types, and interfaces (symbols serve as itable keys).
+    /// Emission order is significant: `parent` / interface symbols
+    /// must refer to entries in this list (or to
+    /// `STRING_TD_SYMBOL`).
+    pub type_descriptors: Vec<TypeDescriptor>,
+}
+
+/// Everything codegen needs to emit one `ScoopTypeDescriptor`
+/// global (see runtime/include/scoop_rt.h for the field order).
+#[derive(Debug)]
+pub struct TypeDescriptor {
+    /// Name for dumps and the default `toString`.
+    pub name: String,
+    /// Global symbol, e.g. `scoop_td_Point`.
+    pub symbol: String,
+    /// `type_id` (codegen assigns small integers, starting after the
+    /// built-ins).
+    pub size: u64,
+    pub align: u64,
+    pub ref_offsets: Vec<u64>,
+    /// Symbol of the parent TypeDescriptor (classes: base class;
+    /// boxed value types / interfaces: none).
+    pub parent: Option<String>,
+    /// vtable slot symbols (functions or `scoop_rt_any_*`).
+    pub vtable: Vec<String>,
+    pub itables: Vec<ItableRecord>,
+}
+
+#[derive(Debug)]
+pub struct ItableRecord {
+    pub interface_symbol: String,
+    pub slots: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -235,12 +268,31 @@ pub enum Instruction {
     },
     /// `store value -> local`'s stack slot.
     Store { local: LocalId, value: Value },
+    /// Heap field store: `object` is a `ptr` to a heap object laid
+    /// out as `{ ptr header, fields... }` (the same indexing as
+    /// `ExtractValue` on a `ptr` aggregate: 0 = header, 1..=n =
+    /// flattened fields, base-class fields first). `index` must be
+    /// >= 1.
+    HeapStore {
+        object: Value,
+        index: u32,
+        value: Value,
+    },
     /// Direct call. `out` is `None` exactly when the callee returns
     /// void; runtime functions with results produce a Temp of the
     /// result type.
     Call {
         out: Option<TempId>,
         symbol: String,
+        args: Vec<Value>,
+    },
+    /// Indirect call through a function table (vtable / itable
+    /// dispatch, impl spec 2.9): `table` is a `ptr` to the first slot,
+    /// the callee is `table[slot]`. Arguments include the receiver.
+    CallIndirect {
+        out: Option<TempId>,
+        table: Value,
+        slot: u32,
         args: Vec<Value>,
     },
     /// Array operations. The element layout is the `Array(...)` type
@@ -411,6 +463,16 @@ pub fn dump(module: &Module) -> String {
             }
         }
     }
+    for td in &module.meta.type_descriptors {
+        out.push_str(&format!(
+            "  td {} @{} size={} vtable={} itables={}\n",
+            td.name,
+            td.symbol,
+            td.size,
+            td.vtable.len(),
+            td.itables.len()
+        ));
+    }
     for layout in &module.meta.layouts {
         match &layout.kind {
             LayoutKind::Plain { ref_field_offsets } => out.push_str(&format!(
@@ -489,6 +551,16 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             index,
             function.temps[*out].ty.dump()
         )),
+        Instruction::HeapStore {
+            object,
+            index,
+            value,
+        } => buf.push_str(&format!(
+            "    heap_store {} {} {}\n",
+            value_name(*object),
+            index,
+            value_name(*value)
+        )),
         Instruction::Store { local, value } => buf.push_str(&format!(
             "    store {} -> local{}\n",
             value_name(*value),
@@ -505,6 +577,30 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
                     function.temps[*temp].ty.dump()
                 )),
                 None => buf.push_str(&format!("    call @{}({})\n", symbol, args.join(", "))),
+            }
+        }
+        Instruction::CallIndirect {
+            out,
+            table,
+            slot,
+            args,
+        } => {
+            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
+            match out {
+                Some(temp) => buf.push_str(&format!(
+                    "    t{} = call_indirect {}[{}]({}) : {}\n",
+                    temp.into_raw(),
+                    value_name(*table),
+                    slot,
+                    args.join(", "),
+                    function.temps[*temp].ty.dump()
+                )),
+                None => buf.push_str(&format!(
+                    "    call_indirect {}[{}]({})\n",
+                    value_name(*table),
+                    slot,
+                    args.join(", ")
+                )),
             }
         }
         Instruction::ArrayAlloc { out, elements } => {

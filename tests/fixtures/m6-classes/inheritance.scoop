@@ -1,0 +1,27 @@
+open class Shape(val name: String) {
+    fun kind(): Int = 0
+    fun label(): String = name
+}
+
+class Circle(val r: Int) : Shape("circle") {
+    override fun kind(): Int = 1
+}
+
+abstract class Base {
+    abstract fun id(): Int
+}
+
+class Impl(val v: Int) : Base() {
+    override fun id(): Int = v
+}
+
+fun main() {
+    val c = Circle(5)
+    println(c.kind())
+    println(c.label())
+    println(c.r)
+    val s: Shape = c
+    println(s.kind())
+    val i = Impl(7)
+    println(i.id())
+}
