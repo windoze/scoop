@@ -733,6 +733,8 @@ fn named_variant_default_is_an_error() {
         Decl::Enum(ast::EnumDecl {
             name: ident("Shape"),
             type_params: vec![],
+            methods: vec![],
+            interfaces: vec![],
             variants: vec![VariantDecl {
                 name: ident("Named"),
                 kind: VariantDeclKind::Named(vec![VariantFieldDecl {
@@ -853,6 +855,8 @@ fn unsupported_annotation_is_an_error() {
             value: None,
             span: sp(),
         }],
+        is_override: false,
+        is_abstract: false,
         name: ident("pure_fn"),
         type_params: vec![],
         params: vec![],

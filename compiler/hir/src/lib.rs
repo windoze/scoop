@@ -16,6 +16,8 @@ pub type TypeId = Idx<Type>;
 pub type FunctionId = Idx<Function>;
 pub type StructId = Idx<StructDecl>;
 pub type EnumId = Idx<EnumDecl>;
+pub type ClassId = Idx<ClassDecl>;
+pub type InterfaceId = Idx<InterfaceDecl>;
 pub type LocalId = Idx<Local>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,6 +27,13 @@ pub enum Type {
     Boolean,
     String,
     Struct(StructId),
+    /// A reference type declared with `class` (spec 9.1).
+    Class(ClassId),
+    /// An interface type (spec 9.1); values behind it are references.
+    Interface(InterfaceId),
+    /// The root of all types (spec 3.1). Value types reaching it are
+    /// boxed (spec 4.4.4).
+    Any,
     /// Compiler-built-in array types (M5; class declarations arrive
     /// with M7, see docs/milestone5/DESIGN.md 5.1). Invariant in the
     /// element type (spec 10.4).
@@ -50,6 +59,9 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
         (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Class(x), Type::Class(y)) => *x == *y,
+        (Type::Interface(x), Type::Interface(y)) => *x == *y,
+        (Type::Any, Type::Any) => true,
         (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
             types_equal(module, *x, *y)
         }
@@ -81,6 +93,9 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Class(id) => module.classes[*id].name.clone(),
+        Type::Interface(id) => module.interfaces[*id].name.clone(),
+        Type::Any => "Any".to_string(),
         Type::Array(inner) => format!("Array<{}>", type_name(module, *inner)),
         Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, *inner)),
         Type::Enum(id, args) => {
@@ -106,6 +121,8 @@ pub struct Module {
     pub functions: Arena<Function>,
     pub structs: Arena<StructDecl>,
     pub enums: Arena<EnumDecl>,
+    pub classes: Arena<ClassDecl>,
+    pub interfaces: Arena<InterfaceDecl>,
     /// Top-level functions in declaration order (core library first,
     /// then user code).
     pub top_level: Vec<FunctionId>,
@@ -137,6 +154,7 @@ pub struct Instantiation {
 pub struct StructDecl {
     pub name: String,
     pub fields: Vec<Field>,
+    pub interfaces: Vec<InterfaceId>,
     pub span: Span,
 }
 
@@ -145,6 +163,42 @@ pub struct EnumDecl {
     pub name: String,
     pub type_params: Vec<String>,
     pub variants: Vec<Variant>,
+    pub interfaces: Vec<InterfaceId>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassModifier {
+    Final,
+    Open,
+    Abstract,
+}
+
+#[derive(Debug)]
+pub struct ClassDecl {
+    pub modifier: ClassModifier,
+    pub name: String,
+    /// Primary-constructor properties in declaration order.
+    pub constructor: Vec<Field>,
+    /// Base class and the resolved constructor argument expressions.
+    pub base_class: Option<(ClassId, Vec<Expr>)>,
+    pub interfaces: Vec<InterfaceId>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct InterfaceDecl {
+    pub name: String,
+    pub methods: Vec<MethodSig>,
+    pub span: Span,
+}
+
+/// An interface method signature (M6: no body, no properties).
+#[derive(Debug)]
+pub struct MethodSig {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_ty: TypeId,
     pub span: Span,
 }
 
@@ -173,6 +227,10 @@ pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub kind: FunctionKind,
+    /// `Some(ty)` when this function is a member of the class /
+    /// interface / struct / enum type `ty`; the receiver is the first
+    /// entry of `params` (named `this`).
+    pub method_of: Option<TypeId>,
     pub span: Span,
 }
 
@@ -248,6 +306,11 @@ pub enum AssignTarget {
         array: Expr,
         index: Expr,
     },
+    /// `obj.field = value` (only `var` properties of classes).
+    Field {
+        receiver: Box<Expr>,
+        field: FieldRef,
+    },
 }
 
 #[derive(Debug)]
@@ -309,6 +372,13 @@ pub enum ExprKind {
         struct_id: StructId,
         args: Vec<Expr>,
     },
+    /// Class instantiation `Point(1, 2)`: constructor properties in
+    /// declaration order. Base-class delegation is part of the
+    /// generated constructor (see mir-lower).
+    ClassInit {
+        class_id: ClassId,
+        args: Vec<Expr>,
+    },
     /// Variant construction (`Some(x)`, `Color.Red`, `E.Named(f = 1)`);
     /// `args` are the variant's fields in declaration order, with
     /// constructor-style defaults already filled in.
@@ -322,6 +392,32 @@ pub enum ExprKind {
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
+    },
+    /// A resolved method call; the dispatch kind (direct / virtual /
+    /// interface) is decided at MIR from the receiver's static type.
+    MethodCall {
+        receiver: Box<Expr>,
+        function: FunctionId,
+        args: Vec<Expr>,
+    },
+    /// Box a value type into `Any` / an interface (spec 4.4.4). The
+    /// target type is `Expr::ty`.
+    Box(Box<Expr>),
+    /// Unbox a reference back to a value type (from `as` / `as?` /
+    /// smart cast). The result type is `Expr::ty`.
+    Unbox(Box<Expr>),
+    /// `expr is T`; result is `Boolean`. The checked type is in
+    /// `check_ty`.
+    IsInstance {
+        operand: Box<Expr>,
+        check_ty: TypeId,
+    },
+    /// `as` (trap on failure; M8: `ClassCastException`) or `as?`
+    /// (`optional` — result `Option<T>`). The target type is
+    /// `Expr::ty` (or its payload for `as?`).
+    Cast {
+        operand: Box<Expr>,
+        optional: bool,
     },
     /// `[e1, ...]`; the kind (Array vs MutableArray) is in `Expr::ty`.
     ArrayLiteral(Vec<Expr>),
@@ -375,6 +471,9 @@ pub enum FieldRef {
     StructField { struct_id: StructId, index: u32 },
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
+    /// Constructor property `index` of the class `class_id` (a heap
+    /// object load).
+    ClassField { class_id: ClassId, index: u32 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -389,6 +488,9 @@ pub enum BinOp {
     Ge,
     Eq,
     Ne,
+    /// `===` / `!==` — reference identity (spec 4.4.2).
+    RefEq,
+    RefNe,
     And,
     Or,
 }
@@ -431,6 +533,33 @@ pub fn dump(module: &Module) -> String {
                 .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
                 .collect();
             out.push_str(&format!("    {}({})\n", variant.name, fields.join(", ")));
+        }
+    }
+    for (_, decl) in module.classes.iter() {
+        let modifier = match decl.modifier {
+            ClassModifier::Final => "",
+            ClassModifier::Open => "open ",
+            ClassModifier::Abstract => "abstract ",
+        };
+        let ctor: Vec<String> = decl
+            .constructor
+            .iter()
+            .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
+            .collect();
+        out.push_str(&format!(
+            "  {modifier}class {}({})\n",
+            decl.name,
+            ctor.join(", ")
+        ));
+    }
+    for (_, decl) in module.interfaces.iter() {
+        out.push_str(&format!("  interface {}\n", decl.name));
+        for method in &decl.methods {
+            out.push_str(&format!(
+                "    fun {}(..): {}\n",
+                method.name,
+                type_name(module, method.return_ty)
+            ));
         }
     }
     for &id in &module.top_level {
@@ -506,6 +635,10 @@ fn dump_statements(
                 match target {
                     AssignTarget::Local(local) => {
                         out.push_str(&format!("{pad}assign {}\n", locals[*local].name))
+                    }
+                    AssignTarget::Field { receiver, .. } => {
+                        out.push_str(&format!("{pad}assign .field\n"));
+                        dump_expr(module, locals, receiver, indent + 1, out);
                     }
                     AssignTarget::Index { array, index } => {
                         out.push_str(&format!("{pad}assign []\n"));
@@ -603,6 +736,15 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
+        ExprKind::ClassInit { class_id, args } => {
+            out.push_str(&format!(
+                "{pad}ClassInit {} : {ty}\n",
+                module.classes[*class_id].name
+            ));
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
         ExprKind::StructInit { struct_id, args } => {
             out.push_str(&format!(
                 "{pad}StructInit {} : {ty}\n",
@@ -640,6 +782,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             let field = match field {
                 FieldRef::StructField { index, .. } => format!("field {index}"),
                 FieldRef::TupleIndex(index) => format!("_{}", index + 1),
+                FieldRef::ClassField { index, .. } => format!("class field {index}"),
             };
             out.push_str(&format!("{pad}FieldAccess {field} : {ty}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
@@ -668,6 +811,39 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         ExprKind::Unary { op, operand } => {
             out.push_str(&format!("{pad}Unary {op:?} : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::MethodCall {
+            receiver,
+            function,
+            args,
+        } => {
+            out.push_str(&format!(
+                "{pad}MethodCall {} : {ty}\n",
+                module.functions[*function].name
+            ));
+            dump_expr(module, locals, receiver, indent + 1, out);
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
+        ExprKind::Box(operand) => {
+            out.push_str(&format!("{pad}Box : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::Unbox(operand) => {
+            out.push_str(&format!("{pad}Unbox : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::IsInstance { operand, check_ty } => {
+            out.push_str(&format!(
+                "{pad}IsInstance {} : {ty}\n",
+                type_name(module, *check_ty)
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::Cast { operand, optional } => {
+            out.push_str(&format!("{pad}Cast optional={optional} : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::ArrayLiteral(elements) => {

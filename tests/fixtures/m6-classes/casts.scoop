@@ -1,0 +1,17 @@
+struct S(val v: Int)
+
+open class A(val n: Int)
+class B(val m: Int) : A(1)
+
+fun main() {
+    val a: Any = S(1)
+    println(a is S)
+    println(a is Int)
+    val s = a as S
+    println(s.v)
+    val i = a as? Int
+    println(i == None)
+    val b: A = B(2)
+    println(b is B)
+    println(b === b)
+}

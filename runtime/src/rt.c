@@ -77,6 +77,56 @@ const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size) {
     return copy;
 }
 
+void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload, uint64_t payload_size) {
+    void *obj = scoop_rt_alloc(td, sizeof(ScoopObjectHeader) + (size_t)payload_size);
+    memcpy((char *)obj + sizeof(ScoopObjectHeader), payload, (size_t)payload_size);
+    return obj;
+}
+
+bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td) {
+    const ScoopTypeDescriptor *obj_td = ((const ScoopObjectHeader *)obj)->td;
+    for (const ScoopTypeDescriptor *cur = obj_td; cur != NULL; cur = cur->parent) {
+        if (cur == td) {
+            return true;
+        }
+    }
+    for (uint64_t i = 0; i < obj_td->itable_count; i++) {
+        if (obj_td->itables[i].interface == td) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
+                                          const ScoopTypeDescriptor *iface_td) {
+    for (uint64_t i = 0; i < obj_td->itable_count; i++) {
+        if (obj_td->itables[i].interface == iface_td) {
+            return obj_td->itables[i].slots;
+        }
+    }
+    fprintf(stderr, "scoop_rt_itable_lookup: no itable entry for the interface\n");
+    abort();
+}
+
+bool scoop_rt_any_equals(const void *a, const void *b) {
+    return a == b;
+}
+
+uint64_t scoop_rt_any_hashcode(const void *a) {
+    return (uint64_t)(uintptr_t)a;
+}
+
+const ScoopString *scoop_rt_any_tostring(const void *a) {
+    /* "Object@<hex>" minimal form (milestone6 DESIGN section 3). */
+    char buf[32];
+    int len = snprintf(buf, sizeof buf, "Object@%llx", (unsigned long long)(uintptr_t)a);
+    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
+    result->len = (uint64_t)len;
+    memcpy(result->data, buf, (size_t)len);
+    return result;
+}
+
 int main(void) {
     scoop_main();
     return 0;

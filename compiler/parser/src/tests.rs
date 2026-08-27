@@ -33,7 +33,7 @@ pub(crate) fn only_function(file: &scoop_ast::SourceFile) -> &scoop_ast::Functio
 pub(crate) fn block_body(function: &FunctionDecl) -> &scoop_ast::Block {
     match &function.body {
         FunctionBody::Block(block) => block,
-        FunctionBody::Expr(_) => panic!("expected a block body"),
+        FunctionBody::Expr(_) | FunctionBody::None => panic!("expected a block body"),
     }
 }
 
@@ -240,7 +240,10 @@ fn val_without_initializer() {
 fn top_level_must_be_a_declaration() {
     let (span, message) = err("main() {}");
     assert_eq!(span, Span::new(0, 4));
-    assert_eq!(message, "expected `fun`, `struct` or `enum`, found `main`");
+    assert_eq!(
+        message,
+        "expected `fun`, `struct`, `enum`, `class` or `interface`, found `main`"
+    );
 }
 
 #[test]

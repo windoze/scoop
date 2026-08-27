@@ -184,13 +184,15 @@ fn enum_all_four_variant_forms_dump() {
 // --- enum diagnostics ---------------------------------------------------------
 
 #[test]
-fn enum_member_function_not_supported() {
-    let (span, message) = err("enum E {\n    fun f() {}\n}\n");
-    assert_eq!(span, Span::new(13, 16));
-    assert_eq!(
-        message,
-        "enum member functions are not supported yet (milestone M4)"
-    );
+fn enum_member_function() {
+    // M4 rejected member functions; M6 adds them (after the variants).
+    let file = ok("enum E {\n    A,\n    fun f() {}\n}\n");
+    let Decl::Enum(decl) = &file.declarations[0] else {
+        panic!("expected an enum declaration");
+    };
+    assert_eq!(decl.variants.len(), 1);
+    assert_eq!(decl.methods.len(), 1);
+    assert_eq!(decl.methods[0].name.text, "f");
 }
 
 #[test]
@@ -199,7 +201,7 @@ fn enum_init_block_not_supported() {
     assert_eq!(span, Span::new(13, 17));
     assert_eq!(
         message,
-        "enum `init` blocks are not supported yet (milestone M4)"
+        "`init` blocks are not supported yet (milestone M6)"
     );
 }
 
@@ -280,13 +282,9 @@ fn intrinsic_annotation_on_bodiless_function() {
     assert_eq!(annotation.span, Span::new(0, 22));
     assert_eq!(function.name.text, "print");
     assert_eq!(function.span, Span::new(0, 49));
-    // A bodiless `@Intrinsic` function: the AST has no missing-body
-    // variant, so the body is an empty block; `annotations` carries the
-    // real information.
-    let FunctionBody::Block(body) = &function.body else {
-        panic!("expected the placeholder block body");
-    };
-    assert!(body.statements.is_empty());
+    // A bodiless `@Intrinsic` function (spec 13.1): `FunctionBody::None`
+    // since M6; `annotations` is what HIR keys on.
+    assert!(matches!(function.body, FunctionBody::None));
     assert_eq!(
         scoop_ast::dump(&file),
         "SourceFile\n    @Intrinsic(\"rt_print\")\n  fun print(message: String)\n"
@@ -900,23 +898,40 @@ fn when_arm_body_is_not_a_declaration() {
 // --- qualified variant construction `E.V(args)` ------------------------------
 
 #[test]
-fn qualified_variant_construction_is_a_dotted_call() {
-    let Expr::Call(call) = crate::tests_m2::init_expr("Shape.Circle(5)") else {
-        panic!("expected a call");
+fn qualified_variant_construction_is_a_method_call() {
+    // M4 collapsed `Shape.Circle(5)` into a dotted `Call`; since M6 the
+    // same syntax parses as a method call (`expr.name(args)`), and
+    // hir-lower resolves enum variant construction from that shape.
+    let Expr::MethodCall {
+        receiver,
+        name,
+        args,
+        span,
+    } = crate::tests_m2::init_expr("Shape.Circle(5)")
+    else {
+        panic!("expected a method call");
     };
-    assert_eq!(call.callee.text, "Shape.Circle");
-    assert_eq!(call.callee.span, Span::new(25, 37));
-    assert_eq!(call.args.len(), 1);
-    assert_eq!(call.span, Span::new(25, 40));
+    assert!(matches!(&*receiver, Expr::Var(head) if head.text == "Shape"));
+    assert_eq!(name.text, "Circle");
+    assert_eq!(name.span, Span::new(31, 37));
+    assert_eq!(args.len(), 1);
+    assert_eq!(span, Span::new(25, 40));
 }
 
 #[test]
 fn qualified_variant_construction_without_arguments() {
-    let Expr::Call(call) = crate::tests_m2::init_expr("Shape.WithDefault()") else {
-        panic!("expected a call");
+    let Expr::MethodCall {
+        receiver,
+        name,
+        args,
+        ..
+    } = crate::tests_m2::init_expr("Shape.WithDefault()")
+    else {
+        panic!("expected a method call");
     };
-    assert_eq!(call.callee.text, "Shape.WithDefault");
-    assert!(call.args.is_empty());
+    assert!(matches!(&*receiver, Expr::Var(head) if head.text == "Shape"));
+    assert_eq!(name.text, "WithDefault");
+    assert!(args.is_empty());
 }
 
 #[test]

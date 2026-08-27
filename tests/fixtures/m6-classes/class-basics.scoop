@@ -1,0 +1,18 @@
+class Point(val x: Int, var y: Int) {
+    fun sum(): Int = x + y
+    fun moveTo(ny: Int) {
+        y = ny
+    }
+}
+
+fun main() {
+    val p = Point(1, 2)
+    println(p.sum())
+    println(p.y)
+    p.moveTo(10)
+    println(p.y)
+    p.y = 20
+    println(p.y)
+    val q = p
+    println(p === q)
+}

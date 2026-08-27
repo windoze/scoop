@@ -44,11 +44,56 @@
 //! element-level — the element stride and alignment of the region
 //! after header + size — plus `element_is_ref`, which tells the M9 GC
 //! whether to scan the whole element region as references.
+//!
+//! M6: reference types and dispatch (docs/milestone6/DESIGN.md 2.4).
+//! `Class` / `Interface` / `Any` map onto `Ptr`. A `Virtual` call
+//! loads the TypeDescriptor from the receiver's object header and the
+//! vtable pointer from the TD, then `CallIndirect`s through it; an
+//! `Interface` call gets its table from `scoop_rt_itable_lookup(td,
+//! iface_td)` first. Class layouts (header + fields, reference
+//! offsets relative to the object start) and the meta TypeDescriptors
+//! (interfaces first — their symbols are itable keys — then classes
+//! base-before-derived, so `parent` / interface references always
+//! name already-emitted entries and codegen needs no forward
+//! declarations) fill the LIR meta.
+//!
+//! Two instruction-level conventions make the M6 lowerings fit the
+//! existing instruction set (DESIGN 2.4's "复用 GEP 类指令，实现时统一"):
+//!
+//! - `ExtractValue` with a `Ptr` aggregate operand is a heap object
+//!   field load over the raw object struct `{ ptr header, fields...
+//!   }`: index 0 reads the object header (the TypeDescriptor
+//!   pointer), indices 1..=n read the fields. For TypeDescriptor
+//!   pointers the indices follow the codegen-emitted
+//!   `ScoopTypeDescriptor` struct (field 5 is the vtable pointer).
+//!   This plays the role of DESIGN 2.4's `LoadField`. `HeapStore`
+//!   (mir-lower's `FieldSet`, and the field initialization inside a
+//!   `ClassInit` lowering) is the matching store with the same
+//!   indexing.
+//! - A TypeDescriptor operand is passed as `Value::Global` naming a
+//!   global whose symbol is the TD's (`scoop_td_<name>`); lir-lower
+//!   appends one such stub per referenced TD to the globals arena
+//!   (its `CString("")` init is a placeholder). Codegen must skip the
+//!   stubs when emitting data — the TD itself comes from
+//!   `LirMeta::type_descriptors` — and resolve the operand by symbol.
+//!   For `scoop_rt_box` codegen materializes the by-value aggregate
+//!   payload behind a stack pointer (the "临时 alloca 取地址" of the
+//!   lowering contract).
+//!
+//! A `mir::Expr::ClassInit` (only ever produced inside mir-lower's
+//! generated ctor functions) is the raw construction primitive:
+//! `scoop_rt_alloc(td, size)` plus one `HeapStore` per flattened
+//! field. Use-site construction already became a plain ctor call in
+//! MIR.
 
 use std::collections::HashMap;
 
 use la_arena::Arena;
 use scoop_lir as lir;
+
+/// Runtime object allocation: `ptr scoop_rt_alloc(ptr td, i64 size)`
+/// (runtime spec 2.1). `ClassInit` lowerings call it.
+const ALLOC_SYMBOL: &str = "scoop_rt_alloc";
 use scoop_mir as mir;
 
 /// Lower MIR to LIR.
@@ -73,6 +118,9 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let mut layout_types = Vec::new();
     // Trap message globals (`scoop.cstr.N`), numbered in creation order.
     let mut cstr_count = 0usize;
+    // TypeDescriptor reference stubs (`scoop_td_*`), deduplicated by
+    // symbol (see the module docs for the TD-reference convention).
+    let mut td_map = HashMap::new();
     let functions = module
         .top_level
         .iter()
@@ -84,17 +132,23 @@ pub fn lower(module: &mir::Module) -> lir::Module {
                 &mut globals,
                 &mut cstr_count,
                 &mut layout_types,
+                &enums,
+                &mut td_map,
             )
         })
         .collect();
 
     let layouts = layouts(module, &enums, &layout_types);
+    let type_descriptors = type_descriptors(module, &enums);
     lir::Module {
         globals,
         enums,
         functions,
         entry_symbol: module.functions[module.entry].symbol.clone(),
-        meta: lir::LirMeta { layouts },
+        meta: lir::LirMeta {
+            layouts,
+            type_descriptors,
+        },
     }
 }
 
@@ -138,7 +192,14 @@ fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
             nested_enums(module, element, out);
         }
-        mir::Type::Unit | mir::Type::Int | mir::Type::Boolean | mir::Type::String => {}
+        // References hide whatever they point at behind a pointer.
+        mir::Type::Unit
+        | mir::Type::Int
+        | mir::Type::Boolean
+        | mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Any => {}
     }
 }
 
@@ -242,15 +303,16 @@ fn repr_shape(repr: &lir::EnumRepr) -> (u64, u64) {
 /// The meta layouts (DESIGN 2.4 / 3.4): the runtime `String` object
 /// header, the `Int` / `Boolean` scalars, every struct in declaration
 /// order, every enum in declaration order (with per-variant reference
-/// offsets), every tuple type that appears in the module, and every
-/// array type that appears in the module (M5).
+/// offsets), every class in declaration order (M6: header + fields),
+/// every tuple type that appears in the module, and every array type
+/// that appears in the module (M5).
 fn layouts(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
     from_code: &[mir::Type],
 ) -> Vec<lir::Layout> {
-    // Tuple types reachable from struct / enum declarations appear
-    // even when no code value mentions them directly.
+    // Tuple types reachable from struct / enum / class declarations
+    // appear even when no code value mentions them directly.
     let mut types = Vec::new();
     for (_, def) in module.structs.iter() {
         for field in &def.fields {
@@ -262,6 +324,11 @@ fn layouts(
             for field in &variant.fields {
                 record_layout_types(&field.ty, &mut types);
             }
+        }
+    }
+    for (_, def) in module.classes.iter() {
+        for field in &def.fields {
+            record_layout_types(&field.ty, &mut types);
         }
     }
     for ty in from_code {
@@ -279,6 +346,17 @@ fn layouts(
     }
     for (id, def) in module.enums.iter() {
         layouts.push(enum_layout(module, enums, id, def));
+    }
+    for (_, def) in module.classes.iter() {
+        let (size, align, refs) = class_layout(module, enums, def);
+        layouts.push(lir::Layout {
+            name: def.name.clone(),
+            size,
+            align,
+            kind: lir::LayoutKind::Plain {
+                ref_field_offsets: refs,
+            },
+        });
     }
     // Tuples first, then arrays (M5): the M4 layout order is kept.
     for ty in &types {
@@ -444,15 +522,134 @@ fn array_layout(
     }
 }
 
+/// Layout of a class object (M6, runtime spec 2.1/2.2): the 8-byte
+/// object header (the TypeDescriptor pointer) followed by the fields
+/// — mir-lower already flattened the base-class prefix into
+/// `ClassDef::fields`. Returns size, align, and the reference offsets
+/// relative to the object start (the header itself is not a scanned
+/// reference). Boxed value types use the same shape: header + the
+/// inline payload field.
+fn class_layout(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    def: &mir::ClassDef,
+) -> (u64, u64, Vec<u64>) {
+    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let mut offsets = Vec::with_capacity(def.fields.len());
+    let mut size = 8u64;
+    let mut align = 8u64;
+    for field in &def.fields {
+        let (field_size, field_align) = size_align(module, &enum_shape, &field.ty);
+        let offset = size.next_multiple_of(field_align);
+        offsets.push(offset);
+        size = offset + field_size;
+        align = align.max(field_align);
+    }
+    let size = size.next_multiple_of(align);
+    let mut refs = Vec::new();
+    for (field, offset) in def.fields.iter().zip(offsets) {
+        collect_ref_offsets(module, enums, &field.ty, offset, &mut refs);
+    }
+    (size, align, refs)
+}
+
+/// Class ids ordered base-before-derived (single inheritance: depth
+/// in the base chain; ties keep declaration order).
+fn class_order(module: &mir::Module) -> Vec<mir::ClassId> {
+    fn depth(module: &mir::Module, id: mir::ClassId) -> usize {
+        match module.classes[id].base_class {
+            Some(base) => depth(module, base) + 1,
+            None => 0,
+        }
+    }
+    let mut order: Vec<mir::ClassId> = module.classes.iter().map(|(id, _)| id).collect();
+    order.sort_by_key(|&id| depth(module, id));
+    order
+}
+
+/// The global symbol of a type's TypeDescriptor (`scoop_td_<name>`,
+/// runtime spec 2.2).
+fn td_symbol(name: &str) -> String {
+    format!("scoop_td_{name}")
+}
+
+/// The symbol a vtable / itable slot points at: a module function
+/// (user methods, generated equals / thunks) or a runtime function
+/// (the `Any` defaults).
+fn slot_symbol(module: &mir::Module, slot: &mir::TableSlot) -> String {
+    match slot {
+        mir::TableSlot::Function(id) => module.functions[*id].symbol.clone(),
+        mir::TableSlot::Runtime(function) => function.symbol().to_string(),
+    }
+}
+
+/// The meta TypeDescriptors (runtime spec 2.2, milestone6 DESIGN
+/// 2.4): interfaces first — their symbols are the itable keys — then
+/// classes (including the boxed value types) base-before-derived, so
+/// `parent` / interface references always name already-emitted
+/// entries and codegen needs no forward declarations.
+fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<lir::TypeDescriptor> {
+    let mut tds = Vec::new();
+    for (_, def) in module.interfaces.iter() {
+        tds.push(lir::TypeDescriptor {
+            name: def.name.clone(),
+            symbol: td_symbol(&def.name),
+            size: 0,
+            align: 0,
+            ref_offsets: Vec::new(),
+            parent: None,
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+    }
+    for id in class_order(module) {
+        let def = &module.classes[id];
+        let (size, align, refs) = class_layout(module, enums, def);
+        tds.push(lir::TypeDescriptor {
+            name: def.name.clone(),
+            symbol: td_symbol(&def.name),
+            size,
+            align,
+            ref_offsets: refs,
+            parent: def
+                .base_class
+                .map(|base| td_symbol(&module.classes[base].name)),
+            vtable: def
+                .vtable
+                .iter()
+                .map(|slot| slot_symbol(module, slot))
+                .collect(),
+            itables: def
+                .itables
+                .iter()
+                .map(|record| lir::ItableRecord {
+                    interface_symbol: td_symbol(&module.interfaces[record.interface].name),
+                    slots: record
+                        .slots
+                        .iter()
+                        .map(|slot| slot_symbol(module, slot))
+                        .collect(),
+                })
+                .collect(),
+        });
+    }
+    tds
+}
+
 /// Whether an array element is a reference: elements mapping to `Ptr`
-/// (String, and arrays themselves) and niche-form enums (a bare
-/// pointer) are; scalars and inline aggregates are not. Tagged enum
-/// elements keep their references per variant — the flat flag cannot
-/// express them, so they count as non-reference here (the boundary
-/// recorded in M4, DESIGN 6).
+/// (String, classes, interfaces, `Any`, and arrays themselves) and
+/// niche-form enums (a bare pointer) are; scalars and inline
+/// aggregates are not. Tagged enum elements keep their references per
+/// variant — the flat flag cannot express them, so they count as
+/// non-reference here (the boundary recorded in M4, DESIGN 6).
 fn element_is_ref(enums: &Arena<lir::EnumDef>, element: &mir::Type) -> bool {
     match element {
-        mir::Type::String | mir::Type::Array(_) | mir::Type::MutableArray(_) => true,
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Any
+        | mir::Type::Array(_)
+        | mir::Type::MutableArray(_) => true,
         mir::Type::Enum(id, _) => {
             matches!(enums[enum_def_id(*id)].repr, lir::EnumRepr::Niche { .. })
         }
@@ -488,9 +685,9 @@ fn aggregate_shape(
     (offsets, size.next_multiple_of(align), align)
 }
 
-/// Size and alignment of a value of type `ty`. `String` is a
-/// reference (pointer-sized); aggregates recurse; enums take their
-/// representation's shape.
+/// Size and alignment of a value of type `ty`. `String` and the M6
+/// reference types are pointers (pointer-sized); aggregates recurse;
+/// enums take their representation's shape.
 fn size_align(
     module: &mir::Module,
     enum_shape: &dyn Fn(mir::EnumId) -> (u64, u64),
@@ -500,7 +697,9 @@ fn size_align(
         mir::Type::Unit => (0, 1),
         mir::Type::Int => (8, 8),
         mir::Type::Boolean => (1, 1),
-        mir::Type::String => (8, 8),
+        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
+            (8, 8)
+        }
         mir::Type::Struct(id) => {
             let fields: Vec<mir::Type> = module.structs[*id]
                 .fields
@@ -530,7 +729,10 @@ fn collect_ref_offsets(
     offsets: &mut Vec<u64>,
 ) {
     let fields: Vec<mir::Type> = match ty {
-        mir::Type::String => {
+        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
+            // A reference: the value itself is the pointer (for
+            // classes / interfaces / Any the pointee's references are
+            // the class layout's business).
             offsets.push(base);
             return;
         }
@@ -593,17 +795,20 @@ fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
 }
 
 /// Map a MIR type onto its LIR value type (DESIGN 2.4 / 3.4): Unit is
-/// the empty aggregate, String a reference, struct / tuple literal
-/// aggregates of their mapped fields, and enums `LirType::Enum` —
-/// their representation lives in the `EnumDef`, so the mapping is the
-/// identity on enum ids. Both array kinds map onto `LirType::Array`
-/// (a pointer to the array object; the payload is the element layout).
+/// the empty aggregate, String and the M6 reference types pointers,
+/// struct / tuple literal aggregates of their mapped fields, and
+/// enums `LirType::Enum` — their representation lives in the
+/// `EnumDef`, so the mapping is the identity on enum ids. Both array
+/// kinds map onto `LirType::Array` (a pointer to the array object;
+/// the payload is the element layout).
 fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
         mir::Type::Int => lir::LirType::I64,
         mir::Type::Boolean => lir::LirType::I1,
-        mir::Type::String => lir::LirType::Ptr,
+        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
+            lir::LirType::Ptr
+        }
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
             lir::LirType::Array(Box::new(lir_type(module, element)))
         }
@@ -647,6 +852,7 @@ fn binary_op(op: mir::BinOp) -> (lir::BinOp, lir::LirType, mir::Type) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn lower_function(
     module: &mir::Module,
     function: &mir::Function,
@@ -654,6 +860,8 @@ fn lower_function(
     globals: &mut Arena<lir::Global>,
     cstr_count: &mut usize,
     layout_types: &mut Vec<mir::Type>,
+    enums: &Arena<lir::EnumDef>,
+    td_map: &mut HashMap<String, lir::GlobalId>,
 ) -> lir::Function {
     // Parameters are SSA values (`Value::Param`), not stack slots;
     // they are immutable (M3), so no store ever targets them.
@@ -706,6 +914,8 @@ fn lower_function(
         globals,
         cstr_count,
         layout_types,
+        enums,
+        td_map,
         local_map,
         locals,
         temps: Arena::new(),
@@ -715,7 +925,7 @@ fn lower_function(
         hidden_count: 0,
         mir_return_ty: function.return_ty.clone(),
         returns_void,
-        trap_block: None,
+        trap_blocks: HashMap::new(),
         current_sealed: false,
     };
     lowerer.lower_statements(&function.body.statements);
@@ -757,6 +967,29 @@ fn array_element(ty: &mir::Type) -> &mir::Type {
     }
 }
 
+/// The global symbol of the TypeDescriptor a runtime check / box
+/// refers to: classes and interfaces have their own; value types are
+/// compared / boxed through their boxed class's (`box$<encoded>`, as
+/// mir-lower names it); String keeps its built-in TD. `Any` has no TD
+/// (mir-lower folds those checks), and array TDs are assigned by
+/// codegen (`scoop_td_array.N`), so neither is referenceable here.
+fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
+    match ty {
+        mir::Type::Class(id) => td_symbol(&module.classes[*id].name),
+        mir::Type::Interface(id) => td_symbol(&module.interfaces[*id].name),
+        mir::Type::String => lir::STRING_TD_SYMBOL.to_string(),
+        mir::Type::Struct(_)
+        | mir::Type::Enum(..)
+        | mir::Type::Tuple(_)
+        | mir::Type::Int
+        | mir::Type::Boolean
+        | mir::Type::Unit => td_symbol(&format!("box${}", mir::encode_type(module, ty))),
+        mir::Type::Any | mir::Type::Array(_) | mir::Type::MutableArray(_) => {
+            unreachable!("no referenceable TypeDescriptor for {ty:?}")
+        }
+    }
+}
+
 /// Per-function lowering state: locals, temps, and the basic blocks
 /// built so far. Invariant: the `current` block is always unsealed
 /// (its terminator is a placeholder); a block is sealed exactly when
@@ -768,11 +1001,17 @@ struct FunctionLowerer<'a> {
     /// Locals of the MIR function being lowered (for `expr_ty`).
     mir_locals: &'a Arena<mir::Local>,
     global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
-    /// Sink for trap message globals (`scoop.cstr.N`).
+    /// Sink for trap message globals (`scoop.cstr.N`) and
+    /// TypeDescriptor reference stubs (`scoop_td_*`).
     globals: &'a mut Arena<lir::Global>,
     cstr_count: &'a mut usize,
     /// Sink for tuple types encountered in value types (meta layouts).
     layout_types: &'a mut Vec<mir::Type>,
+    /// Enum definitions with fixed representations (enum value
+    /// sizing, e.g. for `scoop_rt_box` payload sizes).
+    enums: &'a Arena<lir::EnumDef>,
+    /// TypeDescriptor reference stubs, deduplicated by symbol.
+    td_map: &'a mut HashMap<String, lir::GlobalId>,
     local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
     temps: Arena<lir::Temp>,
@@ -784,8 +1023,9 @@ struct FunctionLowerer<'a> {
     /// The function's MIR return type (`Unit` ⇒ void at LLVM level).
     mir_return_ty: mir::Type,
     returns_void: bool,
-    /// The shared trap block for `!!` failures, created on first use.
-    trap_block: Option<lir::BlockId>,
+    /// The shared trap blocks of this function, one per message,
+    /// created on first use.
+    trap_blocks: HashMap<String, lir::BlockId>,
     /// Whether the current block was already sealed.
     current_sealed: bool,
 }
@@ -895,10 +1135,13 @@ impl FunctionLowerer<'_> {
             mir::Expr::FieldAccess { receiver, index } => match self.expr_ty(receiver) {
                 mir::Type::Struct(id) => self.module.structs[id].fields[*index as usize].ty.clone(),
                 mir::Type::Tuple(elements) => elements[*index as usize].clone(),
-                // mir-lower only emits field accesses on aggregates.
+                mir::Type::Class(id) => self.module.classes[id].fields[*index as usize].ty.clone(),
+                // mir-lower only emits field accesses on aggregates
+                // and class objects.
                 _ => unreachable!("field access on a non-aggregate"),
             },
             mir::Expr::VariantConstruct { ty, .. } => ty.clone(),
+            mir::Expr::ClassInit { class_id, .. } => mir::Type::Class(*class_id),
             mir::Expr::EnumTag(_) => mir::Type::Int,
             mir::Expr::EnumField {
                 operand,
@@ -916,6 +1159,10 @@ impl FunctionLowerer<'_> {
                 mir::Callee::Runtime(function) => match function {
                     mir::RuntimeFn::StringConcat => mir::Type::String,
                     mir::RuntimeFn::StringEq => mir::Type::Boolean,
+                    mir::RuntimeFn::Box | mir::RuntimeFn::ITableLookup => mir::Type::Any,
+                    mir::RuntimeFn::IsInstance | mir::RuntimeFn::AnyEquals => mir::Type::Boolean,
+                    mir::RuntimeFn::AnyHashCode => mir::Type::Int,
+                    mir::RuntimeFn::AnyToString => mir::Type::String,
                     mir::RuntimeFn::PrintString
                     | mir::RuntimeFn::PrintlnString
                     | mir::RuntimeFn::PrintInt
@@ -926,6 +1173,21 @@ impl FunctionLowerer<'_> {
                     | mir::RuntimeFn::Trap => mir::Type::Unit,
                 },
             },
+            // A `Box` result is a reference (`Any` or an interface;
+            // both are `Ptr` at this level).
+            mir::Expr::Box(_) => mir::Type::Any,
+            // mir-lower routes `Unbox` results through typed locals /
+            // returns / call arguments, so the type always comes from
+            // the context; it is never reconstructed here.
+            mir::Expr::Unbox(_) => {
+                unreachable!("an Unbox result's type comes from the enclosing context")
+            }
+            mir::Expr::IsInstance { .. } => mir::Type::Boolean,
+            // mir-lower expands `as` / `as?` into runtime checks plus
+            // Option wrapping; the node never reaches LIR.
+            mir::Expr::Cast { .. } => {
+                unreachable!("mir-lower expands casts before LIR")
+            }
             mir::Expr::Binary { op, .. } => match op {
                 mir::BinOp::IntAdd
                 | mir::BinOp::IntSub
@@ -996,6 +1258,30 @@ impl FunctionLowerer<'_> {
                 self.push(lir::Instruction::ArraySet {
                     array,
                     index,
+                    value,
+                });
+            }
+            // `obj.field = value`: a heap field store. The MIR index
+            // is the flattened field index; the raw object struct has
+            // the header at index 0, so the field sits at index + 1
+            // (the same indexing as `ExtractValue` on a pointer).
+            mir::StatementKind::FieldSet {
+                object,
+                index,
+                value,
+            } => {
+                let object_ty = self.expr_ty(object);
+                let mir::Type::Class(class_id) = &object_ty else {
+                    unreachable!("a field store targets a class object")
+                };
+                let field_ty = self.module.classes[*class_id].fields[*index as usize]
+                    .ty
+                    .clone();
+                let object = self.lower_expr(object, &object_ty);
+                let value = self.lower_expr(value, &field_ty);
+                self.push(lir::Instruction::HeapStore {
+                    object,
+                    index: index + 1,
                     value,
                 });
             }
@@ -1109,6 +1395,36 @@ impl FunctionLowerer<'_> {
                     .collect();
                 self.make_aggregate(ty, args)
             }
+            // Raw class construction (only ever inside mir-lower's
+            // generated ctor functions): `scoop_rt_alloc(td, size)`,
+            // then one heap store per flattened field.
+            mir::Expr::ClassInit { class_id, args } => {
+                let def = &self.module.classes[*class_id];
+                let (size, _, _) = class_layout(self.module, self.enums, def);
+                let field_types: Vec<mir::Type> =
+                    def.fields.iter().map(|field| field.ty.clone()).collect();
+                assert_eq!(
+                    args.len(),
+                    field_types.len(),
+                    "a ClassInit initializes every flattened field"
+                );
+                let td = self.td_ref(&mir::Type::Class(*class_id));
+                let out = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::Call {
+                    out: Some(out),
+                    symbol: ALLOC_SYMBOL.to_string(),
+                    args: vec![td, lir::Value::IntConst(size as i64)],
+                });
+                for (index, (arg, field_ty)) in args.iter().zip(&field_types).enumerate() {
+                    let value = self.lower_expr(arg, field_ty);
+                    self.push(lir::Instruction::HeapStore {
+                        object: lir::Value::Temp(out),
+                        index: index as u32 + 1,
+                        value,
+                    });
+                }
+                lir::Value::Temp(out)
+            }
             // The array operations map onto the corresponding LIR
             // instructions (DESIGN 2.4); the element layout is the
             // `Array(...)` type of the array operand (or of `out` for
@@ -1158,13 +1474,71 @@ impl FunctionLowerer<'_> {
                 let aggregate = self.lower_expr(receiver, &receiver_ty);
                 let ty = self.value_type(ty);
                 let out = self.new_temp(ty);
+                // A class field is a heap object load: index into the
+                // raw object struct `{ ptr header, fields... }` (see
+                // the module docs), so the field sits at index + 1.
+                // Aggregate receivers extract from the SSA value.
+                let index = if matches!(receiver_ty, mir::Type::Class(_)) {
+                    index + 1
+                } else {
+                    *index
+                };
                 self.push(lir::Instruction::ExtractValue {
                     out,
                     aggregate,
-                    index: *index,
+                    index,
                 });
                 lir::Value::Temp(out)
             }
+            // `scoop_rt_box(td, payload, size)` (runtime spec 2.3):
+            // the td and the size come from the payload's static
+            // type; codegen materializes the by-value aggregate
+            // payload behind a stack pointer (module docs).
+            mir::Expr::Box(operand) => {
+                let payload_ty = self.expr_ty(operand);
+                record_layout_types(&payload_ty, self.layout_types);
+                let payload = self.lower_expr(operand, &payload_ty);
+                let td = self.td_ref(&payload_ty);
+                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
+                let (size, _) = size_align(self.module, &enum_shape, &payload_ty);
+                let out = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::Call {
+                    out: Some(out),
+                    symbol: mir::RuntimeFn::Box.symbol().to_string(),
+                    args: vec![td, payload, lir::Value::IntConst(size as i64)],
+                });
+                lir::Value::Temp(out)
+            }
+            // The payload sits right behind the object header: field
+            // 1 of the boxed object's `{ ptr header, payload }` (see
+            // the module docs).
+            mir::Expr::Unbox(operand) => {
+                let object = self.lower_expr(operand, &mir::Type::Any);
+                let ty = self.value_type(ty);
+                let out = self.new_temp(ty);
+                self.push(lir::Instruction::ExtractValue {
+                    out,
+                    aggregate: object,
+                    index: 1,
+                });
+                lir::Value::Temp(out)
+            }
+            // `scoop_rt_is_instance(obj, td)` (runtime spec 2.3).
+            mir::Expr::IsInstance { operand, check_ty } => {
+                let operand_ty = self.expr_ty(operand);
+                let object = self.lower_expr(operand, &operand_ty);
+                let td = self.td_ref(check_ty);
+                let out = self.new_temp(lir::LirType::I1);
+                self.push(lir::Instruction::Call {
+                    out: Some(out),
+                    symbol: mir::RuntimeFn::IsInstance.symbol().to_string(),
+                    args: vec![object, td],
+                });
+                lir::Value::Temp(out)
+            }
+            // mir-lower expands `as` / `as?` into runtime checks plus
+            // Option wrapping; the node never reaches LIR.
+            mir::Expr::Cast { .. } => unreachable!("mir-lower expands casts before LIR"),
             // The enum operations map onto the corresponding LIR
             // instructions; the concrete representation (niche pointer
             // or tagged union) is fixed by the `EnumDef`, so codegen
@@ -1269,12 +1643,12 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    /// The shared trap block for `!!` failures in this function (one
-    /// per function, created on first use): calls the runtime trap —
+    /// The shared trap block for `message` in this function (one per
+    /// message, created on first use): calls the runtime trap —
     /// `void scoop_rt_trap(ptr)`, noreturn — with the message global
     /// and ends `unreachable`.
     fn trap_block(&mut self, message: &str) -> lir::BlockId {
-        if let Some(block) = self.trap_block {
+        if let Some(&block) = self.trap_blocks.get(message) {
             return block;
         }
         let symbol = format!("scoop.cstr.{}", *self.cstr_count);
@@ -1295,10 +1669,30 @@ impl FunctionLowerer<'_> {
             args: vec![lir::Value::Global(global)],
         });
         self.seal(lir::Terminator::Unreachable);
-        self.trap_block = Some(block);
+        self.trap_blocks.insert(message.to_string(), block);
         self.current = saved;
         self.current_sealed = saved_sealed;
         block
+    }
+
+    /// A `Value` naming the TypeDescriptor of `ty` (see the module
+    /// docs for the TD-reference convention).
+    fn td_ref(&mut self, ty: &mir::Type) -> lir::Value {
+        lir::Value::Global(self.td_global(td_symbol_for(self.module, ty)))
+    }
+
+    /// The globals-arena stub for one referenced TypeDescriptor,
+    /// deduplicated by symbol.
+    fn td_global(&mut self, symbol: String) -> lir::GlobalId {
+        if let Some(&id) = self.td_map.get(&symbol) {
+            return id;
+        }
+        let id = self.globals.alloc(lir::Global {
+            symbol: symbol.clone(),
+            init: lir::GlobalInit::CString(String::new()),
+        });
+        self.td_map.insert(symbol, id);
+        id
     }
 
     /// Struct / tuple construction: an aggregate of the mapped field
@@ -1377,24 +1771,32 @@ impl FunctionLowerer<'_> {
                     .zip(&param_types)
                     .map(|(arg, ty)| self.lower_expr(arg, ty))
                     .collect();
-                if returns_unit {
-                    // Unit => void at the LLVM level; the Unit value is
-                    // a fresh empty aggregate.
-                    self.push(lir::Instruction::Call {
-                        out: None,
-                        symbol,
-                        args,
-                    });
-                    self.unit_value()
-                } else {
-                    let ty = self.value_type(result_ty);
-                    let out = self.new_temp(ty);
-                    self.push(lir::Instruction::Call {
-                        out: Some(out),
-                        symbol,
-                        args,
-                    });
-                    lir::Value::Temp(out)
+                match call.target.kind {
+                    mir::CallKind::Direct => {
+                        self.finish_call(symbol, args, returns_unit, result_ty)
+                    }
+                    // vtable dispatch (impl spec 2.9): the receiver's
+                    // object header holds the TypeDescriptor, whose
+                    // vtable pointer is `ScoopTypeDescriptor` field 5.
+                    mir::CallKind::Virtual { slot } => {
+                        let td = self.heap_load(args[0], 0);
+                        let vtable = self.heap_load(lir::Value::Temp(td), 5);
+                        self.finish_indirect(vtable, slot, args, returns_unit, result_ty)
+                    }
+                    // itable dispatch: `scoop_rt_itable_lookup(td,
+                    // iface_td)` finds the interface's table by its
+                    // TypeDescriptor key.
+                    mir::CallKind::Interface { interface, slot } => {
+                        let td = self.heap_load(args[0], 0);
+                        let iface_td = self.td_ref(&mir::Type::Interface(interface));
+                        let table = self.new_temp(lir::LirType::Ptr);
+                        self.push(lir::Instruction::Call {
+                            out: Some(table),
+                            symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
+                            args: vec![lir::Value::Temp(td), iface_td],
+                        });
+                        self.finish_indirect(table, slot, args, returns_unit, result_ty)
+                    }
                 }
             }
             mir::Callee::Runtime(mir::RuntimeFn::Trap) => {
@@ -1426,6 +1828,18 @@ impl FunctionLowerer<'_> {
                     mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringEq => {
                         vec![mir::Type::String, mir::Type::String]
                     }
+                    // The M6 runtime functions are emitted by the
+                    // dedicated lowerings (Box / IsInstance / dispatch)
+                    // or appear only as vtable slot symbols — never as
+                    // plain MIR calls.
+                    mir::RuntimeFn::Box
+                    | mir::RuntimeFn::IsInstance
+                    | mir::RuntimeFn::ITableLookup
+                    | mir::RuntimeFn::AnyEquals
+                    | mir::RuntimeFn::AnyHashCode
+                    | mir::RuntimeFn::AnyToString => {
+                        unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
+                    }
                     // Handled by the arm above.
                     mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
                 };
@@ -1455,9 +1869,88 @@ impl FunctionLowerer<'_> {
                         });
                         self.unit_value()
                     }
+                    mir::RuntimeFn::Box
+                    | mir::RuntimeFn::IsInstance
+                    | mir::RuntimeFn::ITableLookup
+                    | mir::RuntimeFn::AnyEquals
+                    | mir::RuntimeFn::AnyHashCode
+                    | mir::RuntimeFn::AnyToString => {
+                        unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
+                    }
                     mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
                 }
             }
+        }
+    }
+
+    /// A heap object field load: field `index` of the raw object
+    /// struct the `Ptr` operand points at (see the module docs).
+    fn heap_load(&mut self, object: lir::Value, index: u32) -> lir::TempId {
+        let out = self.new_temp(lir::LirType::Ptr);
+        self.push(lir::Instruction::ExtractValue {
+            out,
+            aggregate: object,
+            index,
+        });
+        out
+    }
+
+    /// A direct call: Unit-returning callees are void at the LLVM
+    /// level; their Unit value is a fresh empty aggregate.
+    fn finish_call(
+        &mut self,
+        symbol: String,
+        args: Vec<lir::Value>,
+        returns_unit: bool,
+        result_ty: &mir::Type,
+    ) -> lir::Value {
+        if returns_unit {
+            self.push(lir::Instruction::Call {
+                out: None,
+                symbol,
+                args,
+            });
+            self.unit_value()
+        } else {
+            let ty = self.value_type(result_ty);
+            let out = self.new_temp(ty);
+            self.push(lir::Instruction::Call {
+                out: Some(out),
+                symbol,
+                args,
+            });
+            lir::Value::Temp(out)
+        }
+    }
+
+    /// An indirect call through a function table (vtable / itable
+    /// dispatch, impl spec 2.9).
+    fn finish_indirect(
+        &mut self,
+        table: lir::TempId,
+        slot: u32,
+        args: Vec<lir::Value>,
+        returns_unit: bool,
+        result_ty: &mir::Type,
+    ) -> lir::Value {
+        if returns_unit {
+            self.push(lir::Instruction::CallIndirect {
+                out: None,
+                table: lir::Value::Temp(table),
+                slot,
+                args,
+            });
+            self.unit_value()
+        } else {
+            let ty = self.value_type(result_ty);
+            let out = self.new_temp(ty);
+            self.push(lir::Instruction::CallIndirect {
+                out: Some(out),
+                table: lir::Value::Temp(table),
+                slot,
+                args,
+            });
+            lir::Value::Temp(out)
         }
     }
 
@@ -1489,6 +1982,8 @@ mod tests {
         strings: Arena<mir::StringConst>,
         structs: Arena<mir::StructDef>,
         enums: Arena<mir::EnumDef>,
+        classes: Arena<mir::ClassDef>,
+        interfaces: Arena<mir::InterfaceDef>,
         top_level: Vec<mir::FunctionId>,
     }
 
@@ -1499,6 +1994,8 @@ mod tests {
                 strings: Arena::new(),
                 structs: Arena::new(),
                 enums: Arena::new(),
+                classes: Arena::new(),
+                interfaces: Arena::new(),
                 top_level: Vec::new(),
             }
         }
@@ -1542,6 +2039,60 @@ mod tests {
                         ty: ty.clone(),
                     })
                     .collect(),
+            })
+        }
+
+        fn interface(&mut self, name: &str, methods: &[&str]) -> mir::InterfaceId {
+            self.interfaces.alloc(mir::InterfaceDef {
+                name: name.to_string(),
+                methods: methods.iter().map(|m| m.to_string()).collect(),
+            })
+        }
+
+        fn class(
+            &mut self,
+            name: &str,
+            base: Option<mir::ClassId>,
+            fields: &[(&str, mir::Type)],
+            vtable: Vec<mir::TableSlot>,
+            itables: Vec<mir::ItableRecord>,
+        ) -> mir::ClassId {
+            self.classes.alloc(mir::ClassDef {
+                modifier: mir::ClassModifier::Final,
+                name: name.to_string(),
+                fields: fields
+                    .iter()
+                    .map(|(name, ty)| mir::Field {
+                        name: name.to_string(),
+                        ty: ty.clone(),
+                    })
+                    .collect(),
+                base_class: base,
+                interfaces: Vec::new(),
+                vtable,
+                itables,
+            })
+        }
+
+        /// A function that exists only as a signature (e.g. an
+        /// interface method shell): not pushed to `top_level`, so it
+        /// is never emitted.
+        fn decl_fn(
+            &mut self,
+            name: &str,
+            symbol: &str,
+            params: Vec<mir::Param>,
+            return_ty: mir::Type,
+        ) -> mir::FunctionId {
+            self.functions.alloc(mir::Function {
+                name: name.to_string(),
+                symbol: symbol.to_string(),
+                params,
+                return_ty,
+                body: mir::Body {
+                    locals: Arena::new(),
+                    statements: Vec::new(),
+                },
             })
         }
 
@@ -1597,6 +2148,8 @@ mod tests {
                 strings: self.strings,
                 structs: self.structs,
                 enums: self.enums,
+                classes: self.classes,
+                interfaces: self.interfaces,
                 entry,
                 meta: mir::MirMeta::default(),
             }
@@ -2928,5 +3481,564 @@ Module
         // The array type reachable from the struct field gets a layout
         // too, even though no code value mentions it.
         assert!(module.meta.layouts.iter().any(|l| l.name == "Array<Int>"));
+    }
+
+    // ---- M6: reference types ----
+
+    /// The fixed `Any` vtable prefix, as mir-lower emits it.
+    fn any_slots() -> Vec<mir::TableSlot> {
+        vec![
+            mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
+            mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
+            mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
+        ]
+    }
+
+    #[test]
+    fn virtual_calls_load_the_vtable_and_call_indirect() {
+        let mut b = Builder::new();
+        let c = b.class("C", None, &[], any_slots(), vec![]);
+        // `C.m(this: C): Int { return 1 }`.
+        let mut method_locals = Arena::new();
+        let this = method_locals.alloc(local("this", mir::Type::Class(c)));
+        let m = b.user_fn_full(
+            "C.m",
+            "scoop.C.m",
+            vec![param("this", mir::Type::Class(c), this)],
+            mir::Type::Int,
+            method_locals,
+            vec![return_stmt(mir::Expr::IntLiteral(1))],
+        );
+        // main: `val p: C; val r = p.m()` (a virtual call at slot 3).
+        let mut locals = Arena::new();
+        let p = locals.alloc(local("p", mir::Type::Class(c)));
+        let r = locals.alloc(local("r", mir::Type::Int));
+        let main = b.main(
+            locals,
+            vec![val_decl(
+                r,
+                mir::Expr::Call(mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Virtual { slot: 3 },
+                        callee: mir::Callee::User(m),
+                    },
+                    args: vec![mir::Expr::Local(p)],
+                }),
+            )],
+        );
+        let module = lower(&b.finish(main));
+
+        // The receiver's object header (index 0) holds the TD; its
+        // vtable pointer is ScoopTypeDescriptor field 5; the callee is
+        // vtable[3].
+        let expected = "\
+Module
+  fun @scoop.C.m(ptr) -> i64
+  block entry
+    ret 1
+  fun @scoop_main() -> void
+    local %0 p: ptr
+    local %1 r: i64
+  block entry
+    t0 = extract local0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[3](local0) : i64
+    store t2 -> local1
+    ret
+  td C @scoop_td_C size=8 vtable=3 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout C size=8 align=8 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn interface_calls_look_up_the_itable() {
+        let mut b = Builder::new();
+        let iface = b.interface("Describable", &["describe", "label"]);
+        // The interface method shell (signature only, never emitted).
+        let mut shell_locals = Arena::new();
+        let this = shell_locals.alloc(local("this", mir::Type::Interface(iface)));
+        let label = b.decl_fn(
+            "Describable.label",
+            "scoop.Describable.label",
+            vec![param("this", mir::Type::Interface(iface), this)],
+            mir::Type::Int,
+        );
+        // main: `val i: Describable; val r = i.label()` (itable slot 1).
+        let mut locals = Arena::new();
+        let i = locals.alloc(local("i", mir::Type::Interface(iface)));
+        let r = locals.alloc(local("r", mir::Type::Int));
+        let main = b.main(
+            locals,
+            vec![val_decl(
+                r,
+                mir::Expr::Call(mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Interface {
+                            interface: iface,
+                            slot: 1,
+                        },
+                        callee: mir::Callee::User(label),
+                    },
+                    args: vec![mir::Expr::Local(i)],
+                }),
+            )],
+        );
+        let module = lower(&b.finish(main));
+
+        // `scoop_rt_itable_lookup(td, iface_td)` finds the table; the
+        // interface TD is referenced through a globals-arena stub (the
+        // TD itself comes from the meta — see the module docs).
+        let expected = "\
+Module
+  global @scoop_td_Describable = c\"\"
+  fun @scoop_main() -> void
+    local %0 i: ptr
+    local %1 r: i64
+  block entry
+    t0 = extract local0, 0 : ptr
+    t1 = call @scoop_rt_itable_lookup(t0, global0) : ptr
+    t2 = call_indirect t1[1](local0) : i64
+    store t2 -> local1
+    ret
+  td Describable @scoop_td_Describable size=0 vtable=0 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn type_descriptors_carry_tables_parents_and_itables() {
+        let mut b = Builder::new();
+        let iface = b.interface("I", &["m"]);
+        // Methods (bodies don't matter for the meta).
+        let mut m_locals = Arena::new();
+        let base_m_this = m_locals.alloc(local("this", mir::Type::Int));
+        let base_m = b.user_fn_full(
+            "Base.m",
+            "scoop.Base.m",
+            vec![param("this", mir::Type::Int, base_m_this)],
+            mir::Type::Unit,
+            m_locals,
+            vec![],
+        );
+        let mut dm_locals = Arena::new();
+        let derived_m_this = dm_locals.alloc(local("this", mir::Type::Int));
+        let derived_m = b.user_fn_full(
+            "Derived.m",
+            "scoop.Derived.m",
+            vec![param("this", mir::Type::Int, derived_m_this)],
+            mir::Type::Unit,
+            dm_locals,
+            vec![],
+        );
+        let mut dm2_locals = Arena::new();
+        let derived_m2_this = dm2_locals.alloc(local("this", mir::Type::Int));
+        let derived_m2 = b.user_fn_full(
+            "Derived.m2",
+            "scoop.Derived.m2",
+            vec![param("this", mir::Type::Int, derived_m2_this)],
+            mir::Type::Unit,
+            dm2_locals,
+            vec![],
+        );
+        // Base implements I; Derived overrides `m` and adds `m2`.
+        let mut base_vtable = any_slots();
+        base_vtable.push(mir::TableSlot::Function(base_m));
+        let base = b.class(
+            "Base",
+            None,
+            &[("a", mir::Type::Int)],
+            base_vtable,
+            vec![mir::ItableRecord {
+                interface: iface,
+                slots: vec![mir::TableSlot::Function(base_m)],
+            }],
+        );
+        let mut derived_vtable = any_slots();
+        derived_vtable.push(mir::TableSlot::Function(derived_m));
+        derived_vtable.push(mir::TableSlot::Function(derived_m2));
+        let _derived = b.class(
+            "Derived",
+            Some(base),
+            // mir-lower flattens the base prefix into the field list.
+            &[("a", mir::Type::Int), ("b", mir::Type::String)],
+            derived_vtable,
+            vec![mir::ItableRecord {
+                interface: iface,
+                slots: vec![mir::TableSlot::Function(derived_m)],
+            }],
+        );
+        let main = b.main(Arena::new(), vec![]);
+        let module = lower(&b.finish(main));
+
+        // Interfaces first (itable keys), then classes
+        // base-before-derived — references always name
+        // already-emitted entries.
+        let tds = &module.meta.type_descriptors;
+        assert_eq!(tds.len(), 3);
+        let [i_td, base_td, derived_td] = &tds[..] else {
+            panic!("expected three TypeDescriptors")
+        };
+        assert_eq!(i_td.symbol, "scoop_td_I");
+        assert_eq!((i_td.size, i_td.align), (0, 0));
+        assert!(i_td.parent.is_none());
+
+        assert_eq!(base_td.name, "Base");
+        assert_eq!(base_td.symbol, "scoop_td_Base");
+        assert_eq!((base_td.size, base_td.align), (16, 8));
+        assert!(base_td.ref_offsets.is_empty());
+        assert!(base_td.parent.is_none());
+        assert_eq!(
+            base_td.vtable,
+            [
+                "scoop_rt_any_equals",
+                "scoop_rt_any_hashcode",
+                "scoop_rt_any_tostring",
+                "scoop.Base.m",
+            ]
+        );
+        assert_eq!(base_td.itables.len(), 1);
+        assert_eq!(base_td.itables[0].interface_symbol, "scoop_td_I");
+        assert_eq!(base_td.itables[0].slots, ["scoop.Base.m"]);
+
+        assert_eq!(derived_td.symbol, "scoop_td_Derived");
+        assert_eq!(derived_td.parent.as_deref(), Some("scoop_td_Base"));
+        // header 8 + Int @8 + String @16 → size 24; the String is the
+        // one reference.
+        assert_eq!((derived_td.size, derived_td.align), (24, 8));
+        assert_eq!(derived_td.ref_offsets, [16]);
+        assert_eq!(
+            derived_td.vtable,
+            [
+                "scoop_rt_any_equals",
+                "scoop_rt_any_hashcode",
+                "scoop_rt_any_tostring",
+                "scoop.Derived.m",
+                "scoop.Derived.m2",
+            ]
+        );
+        assert_eq!(derived_td.itables[0].slots, ["scoop.Derived.m"]);
+    }
+
+    #[test]
+    fn class_layouts_shift_ref_offsets_by_the_header() {
+        let mut b = Builder::new();
+        let c = b.class(
+            "C",
+            None,
+            &[
+                ("a", mir::Type::Int),
+                ("s", mir::Type::String),
+                ("flag", mir::Type::Boolean),
+                ("r", mir::Type::Any),
+            ],
+            any_slots(),
+            vec![],
+        );
+        let _ = c;
+        // A boxed value type: header + the inline payload; references
+        // inside the payload shift by the header too.
+        let s = b.strukt("S", &[("x", mir::Type::Int), ("s", mir::Type::String)]);
+        let _boxed = b.class(
+            "box$S",
+            None,
+            &[("value", mir::Type::Struct(s))],
+            any_slots(),
+            vec![],
+        );
+        let main = b.main(Arena::new(), vec![]);
+        let module = lower(&b.finish(main));
+
+        let by_name = |name: &str| {
+            module
+                .meta
+                .layouts
+                .iter()
+                .find(|l| l.name == name)
+                .unwrap_or_else(|| panic!("missing layout for {name}"))
+        };
+        // C: header 8; a @8, s @16, flag @24, r @32 → size 40.
+        let c_layout = by_name("C");
+        assert_eq!((c_layout.size, c_layout.align), (40, 8));
+        assert_eq!(plain_refs(c_layout), [16, 32]);
+        // box$S: header 8 + payload { Int @0, String @8 } @8 → the
+        // String lands at 16.
+        let boxed_layout = by_name("box$S");
+        assert_eq!((boxed_layout.size, boxed_layout.align), (24, 8));
+        assert_eq!(plain_refs(boxed_layout), [16]);
+        // The TypeDescriptors carry the same reference offsets.
+        let td = |name: &str| {
+            module
+                .meta
+                .type_descriptors
+                .iter()
+                .find(|td| td.name == name)
+                .unwrap_or_else(|| panic!("missing TypeDescriptor for {name}"))
+        };
+        assert_eq!(td("C").ref_offsets, [16, 32]);
+        assert_eq!(td("box$S").ref_offsets, [16]);
+        assert!(td("C").parent.is_none());
+        assert!(td("box$S").parent.is_none());
+    }
+
+    #[test]
+    fn box_unbox_and_is_instance_lower_to_runtime_calls() {
+        let mut b = Builder::new();
+        let s = b.strukt("S", &[("x", mir::Type::Int)]);
+        // mir-lower registers the boxed class of every checked / boxed
+        // value type.
+        let _boxed = b.class(
+            "box$S",
+            None,
+            &[("value", mir::Type::Struct(s))],
+            any_slots(),
+            vec![],
+        );
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", mir::Type::Any));
+        let v = locals.alloc(local("v", mir::Type::Struct(s)));
+        let chk = locals.alloc(local("chk", mir::Type::Boolean));
+        let main = b.main(
+            locals,
+            vec![
+                val_decl(
+                    a,
+                    mir::Expr::Box(Box::new(mir::Expr::StructInit {
+                        struct_id: s,
+                        args: vec![mir::Expr::IntLiteral(1)],
+                    })),
+                ),
+                val_decl(v, mir::Expr::Unbox(Box::new(mir::Expr::Local(a)))),
+                val_decl(
+                    chk,
+                    mir::Expr::IsInstance {
+                        operand: Box::new(mir::Expr::Local(a)),
+                        check_ty: Box::new(mir::Type::Struct(s)),
+                    },
+                ),
+            ],
+        );
+        let module = lower(&b.finish(main));
+
+        // Box → `scoop_rt_box(td, payload, size)`; Unbox → the payload
+        // field behind the header; `is` → `scoop_rt_is_instance(obj,
+        // td)`. Both checks share the one TD stub global.
+        let expected = "\
+Module
+  global @scoop_td_box$S = c\"\"
+  fun @scoop_main() -> void
+    local %0 a: ptr
+    local %1 v: {i64}
+    local %2 chk: i1
+  block entry
+    t0 = aggregate (1) : {i64}
+    t1 = call @scoop_rt_box(global0, t0, 8) : ptr
+    store t1 -> local0
+    t2 = extract local0, 1 : {i64}
+    store t2 -> local1
+    t3 = call @scoop_rt_is_instance(local0, global0) : i1
+    store t3 -> local2
+    ret
+  td box$S @scoop_td_box$S size=16 vtable=3 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout S size=8 align=8 refs=[]
+  layout box$S size=16 align=8 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn class_field_reads_are_heap_loads() {
+        let mut b = Builder::new();
+        let c = b.class(
+            "C",
+            None,
+            &[("a", mir::Type::Int), ("s", mir::Type::String)],
+            any_slots(),
+            vec![],
+        );
+        let mut locals = Arena::new();
+        let p = locals.alloc(local("p", mir::Type::Class(c)));
+        let s = locals.alloc(local("s", mir::Type::String));
+        let main = b.main(
+            locals,
+            vec![val_decl(
+                s,
+                mir::Expr::FieldAccess {
+                    receiver: Box::new(mir::Expr::Local(p)),
+                    index: 1,
+                },
+            )],
+        );
+        let module = lower(&b.finish(main));
+
+        // Field 1 of the raw `{ ptr header, a, s }` object struct is
+        // at index 2 (the header is index 0).
+        let function = &module.functions[0];
+        let instructions = &function.blocks[function.entry].instructions;
+        let lir::Instruction::ExtractValue { out, index, .. } = &instructions[0] else {
+            panic!("a class field read must be a heap object load")
+        };
+        assert_eq!(*index, 2);
+        assert_eq!(function.temps[*out].ty, lir::LirType::Ptr);
+    }
+
+    #[test]
+    fn class_init_allocates_and_stores_fields() {
+        // The ctor body mir-lower generates for
+        // `class Point(val x: Int, val s: String)`:
+        // `return ClassInit Point [x, s]` — allocation plus one heap
+        // store per flattened field.
+        let mut b = Builder::new();
+        let str_x = b.string("x");
+        let point = b.class(
+            "Point",
+            None,
+            &[("x", mir::Type::Int), ("s", mir::Type::String)],
+            any_slots(),
+            vec![],
+        );
+        let mut ctor_locals = Arena::new();
+        let x = ctor_locals.alloc(local("x", mir::Type::Int));
+        let s = ctor_locals.alloc(local("s", mir::Type::String));
+        let ctor = b.user_fn_full(
+            "ctor.Point",
+            "scoop.ctor.Point",
+            vec![
+                param("x", mir::Type::Int, x),
+                param("s", mir::Type::String, s),
+            ],
+            mir::Type::Class(point),
+            ctor_locals,
+            vec![return_stmt(mir::Expr::ClassInit {
+                class_id: point,
+                args: vec![mir::Expr::Local(x), mir::Expr::Local(s)],
+            })],
+        );
+        let mut locals = Arena::new();
+        let p = locals.alloc(local("p", mir::Type::Class(point)));
+        let main = b.main(
+            locals,
+            vec![val_decl(
+                p,
+                mir::Expr::Call(mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(ctor),
+                    },
+                    args: vec![mir::Expr::IntLiteral(1), mir::Expr::StringConst(str_x)],
+                }),
+            )],
+        );
+        let module = lower(&b.finish(main));
+
+        // `scoop_rt_alloc(td, size)` with the class layout size (8
+        // header + Int @8 + String @16 = 24), then the fields at the
+        // raw object indices 1 and 2.
+        let expected = "\
+Module
+  global @scoop.str.0 = \"x\"
+  global @scoop_td_Point = c\"\"
+  fun @scoop.ctor.Point(i64, ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global1, 24) : ptr
+    heap_store t0 1 param0
+    heap_store t0 2 param1
+    ret t0
+  fun @scoop_main() -> void
+    local %0 p: ptr
+  block entry
+    t0 = call @scoop.ctor.Point(1, global0) : ptr
+    store t0 -> local0
+    ret
+  td Point @scoop_td_Point size=24 vtable=3 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Point size=24 align=8 refs=[16]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn field_set_lowers_to_a_heap_store() {
+        // `p.y = 3`: MIR FieldSet index 1 → heap store at the raw
+        // object index 2 (the header is index 0).
+        let mut b = Builder::new();
+        let c = b.class(
+            "C",
+            None,
+            &[("x", mir::Type::Int), ("y", mir::Type::Int)],
+            any_slots(),
+            vec![],
+        );
+        let mut locals = Arena::new();
+        let p = locals.alloc(local("p", mir::Type::Class(c)));
+        let main = b.main(
+            locals,
+            vec![stmt(mir::StatementKind::FieldSet {
+                object: mir::Expr::Local(p),
+                index: 1,
+                value: mir::Expr::IntLiteral(3),
+            })],
+        );
+        let module = lower(&b.finish(main));
+
+        let function = &module.functions[0];
+        let instructions = &function.blocks[function.entry].instructions;
+        let lir::Instruction::HeapStore {
+            object,
+            index: 2,
+            value,
+        } = &instructions[0]
+        else {
+            panic!("a FieldSet must lower to a HeapStore")
+        };
+        assert!(matches!(object, lir::Value::Local(_)));
+        assert!(matches!(value, lir::Value::IntConst(3)));
+    }
+
+    #[test]
+    fn a_trap_only_body_seals_the_function() {
+        // mir-lower's abstract-method stub is a single trap call: the
+        // block is sealed by the trap branch, so the "non-Unit
+        // functions must end with `return`" check must not fire (it
+        // applies to hir-lower-produced bodies that fall off the end,
+        // not to noreturn bodies like this one).
+        let mut b = Builder::new();
+        let message = b.string("call to abstract method `Base.id`");
+        let mut locals = Arena::new();
+        let this = locals.alloc(local("this", mir::Type::Any));
+        let _stub = b.user_fn_full(
+            "Base.id",
+            "scoop.Base.id",
+            vec![param("this", mir::Type::Any, this)],
+            mir::Type::Int,
+            locals,
+            vec![expr_stmt(runtime_call(
+                mir::RuntimeFn::Trap,
+                vec![mir::Expr::StringConst(message)],
+            ))],
+        );
+        let main = b.main(Arena::new(), vec![]);
+        let module = lower(&b.finish(main));
+
+        let function = &module.functions[0];
+        assert!(matches!(
+            function.blocks[function.entry].terminator,
+            lir::Terminator::Br(_)
+        ));
     }
 }

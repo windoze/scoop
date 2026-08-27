@@ -1,0 +1,24 @@
+interface Describable {
+    fun describe(): String
+}
+
+class Doc(val title: String) : Describable {
+    override fun describe(): String = title
+}
+
+struct Tag(val v: Int) : Describable {
+    override fun describe(): String = "tag"
+}
+
+fun main() {
+    val d = Doc("report")
+    println(d.describe())
+    val i: Describable = d
+    println(i.describe())
+    val t = Tag(1)
+    val ti: Describable = t
+    println(ti.describe())
+    val a: Any = t
+    println(a is Tag)
+    println(a as? Describable != None)
+}

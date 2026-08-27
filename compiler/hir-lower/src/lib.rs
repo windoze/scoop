@@ -33,7 +33,31 @@
 //! `Array<T>`), subscript reads, the `.size` pseudo-property,
 //! subscript writes (`MutableArray` only), and the `Array(m)` /
 //! `MutableArray(a)` conversion constructors.
+//!
+//! M6 (milestone6 DESIGN.md 2.2): the reference-type hierarchy — class
+//! declarations (modifiers, primary-constructor properties, single
+//! inheritance with base-constructor delegation, interface lists),
+//! interface declarations (method signatures only), member functions
+//! on classes / interfaces / structs / enums (`this` is parameter 0,
+//! `Function::method_of` records the host type), override and
+//! implementation checks (value types implement interfaces too, spec
+//! 4.4.3), method calls resolved against the receiver's static type,
+//! class construction (`ExprKind::ClassInit`), class field reads and
+//! `var` property stores (`FieldRef::ClassField`; object layout = base
+//! fields prefix + own fields, indices consecutive), the `Any` type
+//! with boxing at subtype crossings (`is_subtype` replaces equality
+//! checks at assignment / argument / return / annotation /
+//! array-element positions), `is` / `as` / `as?` / `===` (the latter
+//! lowered to `BinOp::RefEq` / `RefNe`), and smart casts
+//! (`if (x is T)` narrows an immutable local within the branch).
+//!
+//! Remaining M6 simplifications: base-constructor delegation arguments
+//! are lowered in an empty scope (constructor properties are not in
+//! scope there — HIR has no body to host their locals), and generic
+//! member functions are diagnosed (they cannot participate in virtual
+//! dispatch, spec 3.2; overloading arrives with M7).
 
+mod class;
 mod expr;
 mod patterns;
 mod scope;
@@ -50,7 +74,8 @@ use scoop_hir as hir;
 
 use ast::{Diagnostic, Span};
 use hir::{
-    EnumDecl, EnumId, Function, FunctionId, FunctionKind, StructDecl, StructId, Type, TypeId,
+    ClassDecl, ClassId, EnumDecl, EnumId, Function, FunctionId, FunctionKind, InterfaceDecl,
+    InterfaceId, StructDecl, StructId, Type, TypeId,
 };
 use scope::Scopes;
 
@@ -99,16 +124,55 @@ pub(crate) enum VariantStyle {
     Constructor,
 }
 
+/// The type a member function belongs to (M6). Method `Function`s are
+/// registered per owner (`class_methods` and friends) and carry the
+/// owner's type in `Function::method_of`; the receiver is `params[0]`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Owner {
+    Class(ClassId),
+    Interface(InterfaceId),
+    Struct(StructId),
+    Enum(EnumId),
+}
+
+impl Owner {
+    /// A human-readable host description for diagnostics
+    /// ("class `C`", "struct `S`", ...).
+    pub(crate) fn describe(&self, lowerer: &Lowerer) -> String {
+        match *self {
+            Owner::Class(id) => format!("class `{}`", lowerer.classes[id].name),
+            Owner::Interface(id) => format!("interface `{}`", lowerer.interfaces[id].name),
+            Owner::Struct(id) => format!("struct `{}`", lowerer.structs[id].name),
+            Owner::Enum(id) => format!("enum `{}`", lowerer.enums[id].name),
+        }
+    }
+
+    /// The bare host name, used to qualify method symbols
+    /// (`Owner.method`).
+    pub(crate) fn describe_name(&self, lowerer: &Lowerer) -> String {
+        match *self {
+            Owner::Class(id) => lowerer.classes[id].name.clone(),
+            Owner::Interface(id) => lowerer.interfaces[id].name.clone(),
+            Owner::Struct(id) => lowerer.structs[id].name.clone(),
+            Owner::Enum(id) => lowerer.enums[id].name.clone(),
+        }
+    }
+}
+
 pub(crate) struct Lowerer {
     pub(crate) types: Arena<Type>,
     pub(crate) structs: Arena<StructDecl>,
     pub(crate) enums: Arena<EnumDecl>,
+    pub(crate) classes: Arena<ClassDecl>,
+    pub(crate) interfaces: Arena<InterfaceDecl>,
     pub(crate) functions: Arena<Function>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     pub(crate) int: TypeId,
     pub(crate) boolean: TypeId,
     pub(crate) string: TypeId,
+    /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
+    pub(crate) any: TypeId,
     /// Function namespace. Struct and enum names live in separate
     /// namespaces: a struct and a function may share a name.
     pub(crate) functions_by_name: HashMap<String, FunctionId>,
@@ -116,6 +180,25 @@ pub(crate) struct Lowerer {
     pub(crate) structs_by_name: HashMap<String, (StructId, TypeId)>,
     /// Enum namespace.
     pub(crate) enums_by_name: HashMap<String, EnumId>,
+    /// Class namespace: name → (declaration, reference type of the class).
+    pub(crate) classes_by_name: HashMap<String, (ClassId, TypeId)>,
+    /// Interface namespace: name → (declaration, interface type).
+    pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
+    /// Member functions per owner, in declaration order (this is also
+    /// the vtable layout order mir-lower relies on: methods of one
+    /// class are allocated contiguously).
+    pub(crate) class_methods: HashMap<ClassId, Vec<FunctionId>>,
+    pub(crate) interface_methods: HashMap<InterfaceId, Vec<FunctionId>>,
+    pub(crate) struct_methods: HashMap<StructId, Vec<FunctionId>>,
+    pub(crate) enum_methods: HashMap<EnumId, Vec<FunctionId>>,
+    /// The owner of every member function.
+    pub(crate) function_owner: HashMap<FunctionId, Owner>,
+    /// `abstract` class methods (bodyless; consulted by the interface
+    /// implementation check).
+    pub(crate) abstract_methods: HashSet<FunctionId>,
+    /// Mutability of each class's own constructor properties
+    /// (declaration order); `hir::Field` has no mutability slot.
+    pub(crate) class_prop_mutability: HashMap<ClassId, Vec<bool>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).
@@ -127,7 +210,8 @@ pub(crate) struct Lowerer {
     /// Surface form of every variant, for pattern shape checks.
     pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
     /// Resolved signatures of all functions (pass 2.5), consulted by
-    /// call lowering and body lowering.
+    /// call lowering and body lowering. Method signatures exclude the
+    /// implicit `this` parameter.
     pub(crate) signatures: HashMap<FunctionId, FnSig>,
     /// Type parameter names of the function or enum whose signature,
     /// variants or body is currently being lowered; empty elsewhere.
@@ -136,6 +220,17 @@ pub(crate) struct Lowerer {
     pub(crate) current_return_ty: TypeId,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
+    /// `this` of the member function whose body is being lowered:
+    /// its local and the host type. `None` in top-level functions.
+    pub(crate) current_this: Option<(hir::LocalId, TypeId)>,
+    /// Owner of the member function whose body is being lowered, for
+    /// bare property / method resolution (`x` meaning `this.x`).
+    pub(crate) current_owner: Option<Owner>,
+    /// Active smart-cast narrowings (milestone6 DESIGN.md 5.4):
+    /// immutable local → narrowed type, valid within the branch that
+    /// established them. Saved and restored around branch lowering;
+    /// the declared type of a local never changes.
+    pub(crate) smart_casts: HashMap<hir::LocalId, TypeId>,
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     /// Locals of the body currently being lowered (taken into the
@@ -152,26 +247,41 @@ pub(crate) struct Lowerer {
 impl Lowerer {
     fn new() -> Self {
         // Well-known types are allocated first, in a fixed order
-        // (impl spec 2.2): Unit, Int, Boolean, String.
+        // (impl spec 2.2): Unit, Int, Boolean, String. `Any` (M6)
+        // follows them; it is not part of the `hir::Module` well-known
+        // list, so hir-lower interns it once here.
         let mut types = Arena::new();
         let unit = types.alloc(Type::Unit);
         let int = types.alloc(Type::Int);
         let boolean = types.alloc(Type::Boolean);
         let string = types.alloc(Type::String);
+        let any = types.alloc(Type::Any);
 
         Lowerer {
             types,
             structs: Arena::new(),
             enums: Arena::new(),
+            classes: Arena::new(),
+            interfaces: Arena::new(),
             functions: Arena::new(),
             top_level: Vec::new(),
             unit,
             int,
             boolean,
             string,
+            any,
             functions_by_name: HashMap::new(),
             structs_by_name: HashMap::new(),
             enums_by_name: HashMap::new(),
+            classes_by_name: HashMap::new(),
+            interfaces_by_name: HashMap::new(),
+            class_methods: HashMap::new(),
+            interface_methods: HashMap::new(),
+            struct_methods: HashMap::new(),
+            enum_methods: HashMap::new(),
+            function_owner: HashMap::new(),
+            abstract_methods: HashSet::new(),
+            class_prop_mutability: HashMap::new(),
             option_candidates: Vec::new(),
             option_enum: None,
             variant_styles: HashMap::new(),
@@ -179,6 +289,9 @@ impl Lowerer {
             type_params_in_scope: Vec::new(),
             current_return_ty: unit,
             current_fn_name: String::new(),
+            current_this: None,
+            current_owner: None,
+            smart_casts: HashMap::new(),
             current_file: 0,
             locals: Arena::new(),
             scopes: Scopes::new(),
@@ -198,24 +311,43 @@ impl Lowerer {
         }
         let user_file_index = files.len() - 1;
 
-        // Pass 1: declare structs, enums and functions across all
-        // files (core first), so bodies and field types resolve
-        // regardless of declaration order. Structs, enums and
-        // functions occupy separate namespaces; struct and enum names
-        // share the *type* namespace and must not collide.
+        // Pass 1: declare structs, enums, classes, interfaces and
+        // functions across all files (core first), so bodies and field
+        // types resolve regardless of declaration order. Structs,
+        // enums, classes and interfaces share the *type* namespace and
+        // must not collide; functions occupy a separate namespace, and
+        // member functions live in per-owner namespaces.
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
+        let mut pending_classes = Vec::new();
         let mut pending_functions = Vec::new();
+        let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
         for (file_index, file) in files.iter().enumerate() {
             self.current_file = file_index;
             let is_core = file_index < user_file_index;
             for decl in &file.declarations {
                 match decl {
-                    ast::Decl::Struct(decl) => {
-                        self.declare_struct(decl, &mut pending_structs, file_index)
-                    }
-                    ast::Decl::Enum(decl) => {
-                        self.declare_enum(decl, is_core, &mut pending_enums, file_index)
+                    ast::Decl::Struct(decl) => self.declare_struct(
+                        decl,
+                        &mut pending_structs,
+                        &mut pending_methods,
+                        file_index,
+                    ),
+                    ast::Decl::Enum(decl) => self.declare_enum(
+                        decl,
+                        is_core,
+                        &mut pending_enums,
+                        &mut pending_methods,
+                        file_index,
+                    ),
+                    ast::Decl::Class(decl) => self.declare_class(
+                        decl,
+                        &mut pending_classes,
+                        &mut pending_methods,
+                        file_index,
+                    ),
+                    ast::Decl::Interface(decl) => {
+                        self.declare_interface(decl, &mut pending_methods, file_index)
                     }
                     ast::Decl::Function(decl) => {
                         self.declare_function(decl, is_core, &mut pending_functions, file_index)
@@ -228,31 +360,74 @@ impl Lowerer {
         // type annotation is resolved: `T?` desugars to it (spec 7.1).
         self.validate_option_enum(files);
 
-        // Pass 2: resolve struct fields and enum variants (all type
+        // Pass 2: resolve struct fields, enum variants, class
+        // constructor properties and inheritance clauses (all type
         // names are known now, so fields may reference later-declared
         // types).
-        for (id, decl, file_index) in pending_structs {
+        for &(id, decl, file_index) in &pending_structs {
             self.current_file = file_index;
             self.resolve_fields(id, decl);
+            let interfaces = self.resolve_interface_list(&decl.interfaces);
+            self.structs[id].interfaces = interfaces;
         }
-        for (id, decl, file_index) in pending_enums {
+        for &(id, decl, file_index) in &pending_enums {
             self.current_file = file_index;
             self.resolve_variants(id, decl);
+            let interfaces = self.resolve_interface_list(&decl.interfaces);
+            self.enums[id].interfaces = interfaces;
+        }
+        for (id, decl, file_index) in &pending_classes {
+            self.current_file = *file_index;
+            self.resolve_class(*id, decl);
         }
 
-        // Pass 2.5: resolve function signatures, so calls in any body
-        // see parameter and return types regardless of declaration
-        // order.
+        // Pass 2.5: resolve function and method signatures, so calls
+        // in any body see parameter and return types regardless of
+        // declaration order. Interface method signatures become
+        // `hir::MethodSig`s; bodyless declarations (interface and
+        // abstract methods) get their parameter-only body here.
         for &(id, decl, file_index) in &pending_functions {
             self.current_file = file_index;
             self.resolve_signature(id, decl);
         }
+        for &(id, decl, file_index, owner) in &pending_methods {
+            self.current_file = file_index;
+            self.resolve_method_signature(id, decl, owner);
+        }
+
+        // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
+        // cycles, property shadowing, override rules and interface
+        // implementation (classes and value types alike). Needs every
+        // signature and inheritance clause.
+        self.check_inheritance(
+            &pending_classes,
+            &pending_structs,
+            &pending_enums,
+            &pending_methods,
+        );
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
         // parser guarantees it is omitted); their `kind` was set at
-        // declaration time.
+        // declaration time. Base-constructor delegation arguments are
+        // lowered in an empty scope (constructor properties are not in
+        // scope there, an M6 simplification: HIR has no body to host
+        // their locals).
+        for &(id, decl, file_index) in &pending_classes {
+            self.current_file = file_index;
+            self.lower_base_args(id, decl);
+        }
         for (id, decl, file_index) in pending_functions {
             if matches!(self.functions[id].kind, FunctionKind::Intrinsic(_)) {
+                continue;
+            }
+            self.current_file = file_index;
+            let body = self.lower_body(id, decl);
+            self.functions[id].kind = FunctionKind::User(body);
+        }
+        for (id, decl, file_index, owner) in pending_methods {
+            // Interface and abstract methods are bodyless; their
+            // parameter-only body was built in pass 2.5.
+            if decl.is_abstract || matches!(owner, Owner::Interface(_)) {
                 continue;
             }
             self.current_file = file_index;
@@ -298,6 +473,8 @@ impl Lowerer {
             functions: self.functions,
             structs: self.structs,
             enums: self.enums,
+            classes: self.classes,
+            interfaces: self.interfaces,
             top_level: self.top_level,
             unit: self.unit,
             int: self.int,
@@ -309,37 +486,56 @@ impl Lowerer {
         })
     }
 
+    /// Whether a type name is already taken in the shared type
+    /// namespace (structs, enums, classes, interfaces). Returns the
+    /// kind of the existing declaration for diagnostics.
+    fn type_namespace_conflict(&self, name: &str) -> Option<&'static str> {
+        if self.structs_by_name.contains_key(name) {
+            Some("a struct")
+        } else if self.enums_by_name.contains_key(name) {
+            Some("an enum")
+        } else if self.classes_by_name.contains_key(name) {
+            Some("a class")
+        } else if self.interfaces_by_name.contains_key(name) {
+            Some("an interface")
+        } else {
+            None
+        }
+    }
+
     fn declare_struct<'a>(
         &mut self,
         decl: &'a ast::StructDecl,
         pending: &mut Vec<(StructId, &'a ast::StructDecl, usize)>,
+        pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        if self.structs_by_name.contains_key(&decl.name.text) {
-            self.error(
-                decl.name.span,
-                format!("duplicate struct `{}`", decl.name.text),
-            );
-            return;
-        }
-        if self.enums_by_name.contains_key(&decl.name.text) {
-            self.error(
-                decl.name.span,
+        if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
+            let what = if kind == "a struct" {
+                format!("duplicate struct `{}`", decl.name.text)
+            } else {
                 format!(
-                    "duplicate type `{}` (already declared as an enum)",
+                    "duplicate type `{}` (already declared as {kind})",
                     decl.name.text
-                ),
-            );
+                )
+            };
+            self.error(decl.name.span, what);
             return;
         }
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
             fields: Vec::new(),
+            // Filled in pass 2 together with the fields.
+            interfaces: Vec::new(),
             span: decl.span,
         });
         let ty = self.types.alloc(Type::Struct(id));
         self.structs_by_name
             .insert(decl.name.text.clone(), (id, ty));
+        self.struct_methods.insert(id, Vec::new());
+        for method in &decl.methods {
+            self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
+        }
         pending.push((id, decl, file_index));
     }
 
@@ -348,23 +544,19 @@ impl Lowerer {
         decl: &'a ast::EnumDecl,
         is_core: bool,
         pending: &mut Vec<(EnumId, &'a ast::EnumDecl, usize)>,
+        pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        if self.enums_by_name.contains_key(&decl.name.text) {
-            self.error(
-                decl.name.span,
-                format!("duplicate enum `{}`", decl.name.text),
-            );
-            return;
-        }
-        if self.structs_by_name.contains_key(&decl.name.text) {
-            self.error(
-                decl.name.span,
+        if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
+            let what = if kind == "an enum" {
+                format!("duplicate enum `{}`", decl.name.text)
+            } else {
                 format!(
-                    "duplicate type `{}` (already declared as a struct)",
+                    "duplicate type `{}` (already declared as {kind})",
                     decl.name.text
-                ),
-            );
+                )
+            };
+            self.error(decl.name.span, what);
             return;
         }
         let mut type_params = Vec::new();
@@ -384,14 +576,161 @@ impl Lowerer {
             // Filled in pass 2; a resolution failure is diagnosed, so
             // empty variants never reach the output.
             variants: Vec::new(),
+            interfaces: Vec::new(),
             span: decl.span,
         });
         self.enums_by_name.insert(decl.name.text.clone(), id);
+        self.enum_methods.insert(id, Vec::new());
         if is_core && decl.name.text == "Option" {
             self.option_candidates
                 .push((id, file_index, decl.span, decl.type_params.len()));
         }
+        for method in &decl.methods {
+            self.declare_method(method, Owner::Enum(id), pending_methods, file_index);
+        }
         pending.push((id, decl, file_index));
+    }
+
+    fn declare_class<'a>(
+        &mut self,
+        decl: &'a ast::ClassDecl,
+        pending: &mut Vec<(ClassId, &'a ast::ClassDecl, usize)>,
+        pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
+        file_index: usize,
+    ) {
+        if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
+            let what = if kind == "a class" {
+                format!("duplicate class `{}`", decl.name.text)
+            } else {
+                format!(
+                    "duplicate type `{}` (already declared as {kind})",
+                    decl.name.text
+                )
+            };
+            self.error(decl.name.span, what);
+            return;
+        }
+        let modifier = match decl.modifier {
+            ast::ClassModifier::Final => hir::ClassModifier::Final,
+            ast::ClassModifier::Open => hir::ClassModifier::Open,
+            ast::ClassModifier::Abstract => hir::ClassModifier::Abstract,
+        };
+        let id = self.classes.alloc(ClassDecl {
+            modifier,
+            name: decl.name.text.clone(),
+            // Filled in pass 2; resolution failures are diagnosed, so
+            // these never reach the output unfinished.
+            constructor: Vec::new(),
+            base_class: None,
+            interfaces: Vec::new(),
+            span: decl.span,
+        });
+        let ty = self.types.alloc(Type::Class(id));
+        self.classes_by_name
+            .insert(decl.name.text.clone(), (id, ty));
+        self.class_methods.insert(id, Vec::new());
+        for method in &decl.methods {
+            self.declare_method(method, Owner::Class(id), pending_methods, file_index);
+        }
+        pending.push((id, decl, file_index));
+    }
+
+    fn declare_interface<'a>(
+        &mut self,
+        decl: &'a ast::InterfaceDecl,
+        pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
+        file_index: usize,
+    ) {
+        if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
+            let what = if kind == "an interface" {
+                format!("duplicate interface `{}`", decl.name.text)
+            } else {
+                format!(
+                    "duplicate type `{}` (already declared as {kind})",
+                    decl.name.text
+                )
+            };
+            self.error(decl.name.span, what);
+            return;
+        }
+        let id = self.interfaces.alloc(InterfaceDecl {
+            name: decl.name.text.clone(),
+            // Filled in pass 2.5 together with the method signatures.
+            methods: Vec::new(),
+            span: decl.span,
+        });
+        let ty = self.types.alloc(Type::Interface(id));
+        self.interfaces_by_name
+            .insert(decl.name.text.clone(), (id, ty));
+        self.interface_methods.insert(id, Vec::new());
+        for method in &decl.methods {
+            self.declare_method(method, Owner::Interface(id), pending_methods, file_index);
+        }
+    }
+
+    /// Declare a member function (pass 1): methods live in per-owner
+    /// namespaces (M6 has no overloading — same name twice in one
+    /// owner is a diagnostic) and are named `Owner.method` for
+    /// unambiguous symbols downstream; `Function::method_of` records
+    /// the host type. Signatures and bodies are filled in passes
+    /// 2.5 / 3.
+    fn declare_method<'a>(
+        &mut self,
+        decl: &'a ast::FunctionDecl,
+        owner: Owner,
+        pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
+        file_index: usize,
+    ) {
+        let methods = match owner {
+            Owner::Class(id) => self.class_methods.entry(id).or_default(),
+            Owner::Interface(id) => self.interface_methods.entry(id).or_default(),
+            Owner::Struct(id) => self.struct_methods.entry(id).or_default(),
+            Owner::Enum(id) => self.enum_methods.entry(id).or_default(),
+        };
+        if methods
+            .iter()
+            .any(|&m| self.functions[m].name.rsplit('.').next() == Some(decl.name.text.as_str()))
+        {
+            self.error(
+                decl.name.span,
+                format!(
+                    "duplicate function `{}` in {}",
+                    decl.name.text,
+                    owner.describe(self)
+                ),
+            );
+            return;
+        }
+        if self.check_annotations(decl, false).is_some() {
+            // The diagnostic was already recorded (`@Intrinsic` is
+            // core-library top-level only); drop the method.
+            return;
+        }
+        let host_ty = self.owner_ty(owner);
+        let id = self.functions.alloc(Function {
+            name: format!("{}.{}", owner.describe_name(self), decl.name.text),
+            // Filled in pass 2.5 (signature) and pass 3 (body and
+            // parameter locals).
+            type_params: Vec::new(),
+            params: Vec::new(),
+            return_ty: self.unit,
+            kind: FunctionKind::User(hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            }),
+            method_of: Some(host_ty),
+            span: decl.span,
+        });
+        self.function_owner.insert(id, owner);
+        match owner {
+            Owner::Class(id) => self.class_methods.get_mut(&id),
+            Owner::Interface(id) => self.interface_methods.get_mut(&id),
+            Owner::Struct(id) => self.struct_methods.get_mut(&id),
+            Owner::Enum(id) => self.enum_methods.get_mut(&id),
+        }
+        .expect("the owner map was initialized above")
+        .push(id);
+        pending.push((id, decl, file_index, owner));
     }
 
     fn declare_function<'a>(
@@ -424,6 +763,7 @@ impl Lowerer {
             params: Vec::new(),
             return_ty: self.unit,
             kind,
+            method_of: None,
             span: decl.span,
         });
         self.top_level.push(id);
@@ -708,6 +1048,33 @@ impl Lowerer {
     /// `params` list; their calls are checked against the intrinsic
     /// registry's signature rules instead.
     fn resolve_signature(&mut self, id: FunctionId, decl: &ast::FunctionDecl) {
+        // Member-only flags on a top-level function (M6).
+        if decl.is_abstract {
+            self.error(
+                decl.name.span,
+                format!(
+                    "abstract function `{}` is only allowed in abstract classes",
+                    decl.name.text
+                ),
+            );
+        }
+        if decl.is_override {
+            self.error(
+                decl.name.span,
+                format!(
+                    "`{}` is marked `override` but does not override any method",
+                    decl.name.text
+                ),
+            );
+        }
+        if matches!(decl.body, ast::FunctionBody::None)
+            && !matches!(self.functions[id].kind, FunctionKind::Intrinsic(_))
+        {
+            self.error(
+                decl.name.span,
+                format!("function `{}` must have a body", decl.name.text),
+            );
+        }
         let mut type_params = Vec::new();
         for param in &decl.type_params {
             if type_params.contains(&param.text) {
@@ -762,6 +1129,23 @@ impl Lowerer {
         };
         if !self.instantiations.contains(&request) {
             self.instantiations.push(request);
+        }
+    }
+
+    /// The host type of a member-function owner: the class / interface
+    /// / struct type, or the enum applied to its own type parameters
+    /// (the form `this` has inside the enum's methods).
+    pub(crate) fn owner_ty(&mut self, owner: Owner) -> TypeId {
+        match owner {
+            Owner::Class(id) => self.classes_by_name[&self.classes[id].name].1,
+            Owner::Interface(id) => self.interfaces_by_name[&self.interfaces[id].name].1,
+            Owner::Struct(id) => self.structs_by_name[&self.structs[id].name].1,
+            Owner::Enum(id) => {
+                let params = (0..self.enums[id].type_params.len() as u32)
+                    .map(|index| self.intern_type(Type::Param(index)))
+                    .collect();
+                self.intern_type(Type::Enum(id, params))
+            }
         }
     }
 

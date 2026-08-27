@@ -1,0 +1,8 @@
+class A(val x: Int) {
+    override fun f(): Int = 1
+}
+
+fun main() {
+    val a = A(1)
+    println(a.x)
+}

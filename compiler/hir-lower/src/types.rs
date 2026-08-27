@@ -20,10 +20,21 @@
 //! annotations resolve to the compiler-built-in array types (spec 10.1;
 //! class declarations arrive with M7, DESIGN.md 5.1), interned like
 //! every other type.
+//!
+//! M6 (milestone6 DESIGN.md 2.2): `Any` (a compiler built-in, DESIGN.md
+//! 5.5), class and interface type names, and the subtyping relation
+//! (`is_subtype`) that replaces plain equality checks at assignment,
+//! argument, return, annotation and array-element positions: equal
+//! types, a class and its base classes, a class and the interfaces it
+//! implements, and everything below `Any`. `adapt_to` performs the
+//! accompanying conversion: a value type crossing into `Any` / an
+//! interface is boxed (`ExprKind::Box`, spec 4.4.4); a class reference
+//! crossing to a base class / interface / `Any` is a zero-cost retype.
 
 use la_arena::Arena;
 use scoop_ast as ast;
-use scoop_hir::{EnumDecl, StructDecl, Type, TypeId};
+use scoop_hir as hir;
+use scoop_hir::{ClassDecl, EnumDecl, InterfaceDecl, StructDecl, Type, TypeId};
 
 use crate::Lowerer;
 
@@ -79,6 +90,12 @@ impl Lowerer {
                 let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
                     let what = if self.structs_by_name.contains_key(&name.text) {
                         format!("struct `{}` is not generic", name.text)
+                    } else if self.classes_by_name.contains_key(&name.text) {
+                        format!("class `{}` is not generic", name.text)
+                    } else if self.interfaces_by_name.contains_key(&name.text) {
+                        format!("interface `{}` is not generic", name.text)
+                    } else if name.text == "Any" {
+                        "type `Any` takes no type arguments".to_string()
                     } else {
                         format!("unknown type `{}`", name.text)
                     };
@@ -116,6 +133,9 @@ impl Lowerer {
                     "Int" => Some(self.int),
                     "Boolean" => Some(self.boolean),
                     "String" => Some(self.string),
+                    // `Any` is a compiler built-in (milestone6 DESIGN.md
+                    // 5.5); the core library shape arrives with M7/core.
+                    "Any" => Some(self.any),
                     _ => {
                         // The array built-ins require their type
                         // argument (`Array<T>` goes through
@@ -128,6 +148,12 @@ impl Lowerer {
                             return None;
                         }
                         if let Some(&(_, ty)) = self.structs_by_name.get(&name.text) {
+                            return Some(ty);
+                        }
+                        if let Some(&(_, ty)) = self.classes_by_name.get(&name.text) {
+                            return Some(ty);
+                        }
+                        if let Some(&(_, ty)) = self.interfaces_by_name.get(&name.text) {
                             return Some(ty);
                         }
                         match self.enums_by_name.get(&name.text) {
@@ -288,9 +314,100 @@ impl Lowerer {
             &self.types,
             &self.structs,
             &self.enums,
+            &self.classes,
+            &self.interfaces,
             &self.type_params_in_scope,
             ty,
         )
+    }
+
+    /// The subtyping relation (milestone6 DESIGN.md 2.2): equal types,
+    /// a class below its base classes, a class below the interfaces it
+    /// (or a base class) implements, a value type below the interfaces
+    /// it implements (spec 4.4.3), and everything below `Any`. Value
+    /// types count as subtypes of `Any` (they cross via boxing, spec
+    /// 4.4.4); arrays are invariant in the element type (spec 10.4), so
+    /// no array is a subtype of another array.
+    pub(crate) fn is_subtype(&self, a: TypeId, b: TypeId) -> bool {
+        if self.types_equal(a, b) {
+            return true;
+        }
+        match (&self.types[a], &self.types[b]) {
+            (_, Type::Any) => true,
+            (&Type::Class(a), &Type::Class(b)) => self.class_inherits(a, b),
+            (&Type::Class(a), &Type::Interface(i)) => self.class_implements(a, i),
+            (&Type::Struct(s), &Type::Interface(i)) => self.structs[s].interfaces.contains(&i),
+            (&Type::Enum(e, _), &Type::Interface(i)) => self.enums[e].interfaces.contains(&i),
+            _ => false,
+        }
+    }
+
+    /// Whether a value of static type `a` could ever hold a `b` at run
+    /// time — the static premise of `is` / `as` / `as?` (a check
+    /// between unrelated types is diagnosed as useless). Beyond the
+    /// subtyping relation in either direction, `Any` and interfaces
+    /// can hold anything below them, and an open/abstract class may
+    /// gain an interface implementation in a subclass.
+    pub(crate) fn could_hold(&self, a: TypeId, b: TypeId) -> bool {
+        if self.is_subtype(a, b) || self.is_subtype(b, a) {
+            return true;
+        }
+        match &self.types[a] {
+            Type::Any | Type::Interface(_) => true,
+            &Type::Class(id) => {
+                self.classes[id].modifier != hir::ClassModifier::Final
+                    && matches!(self.types[b], Type::Interface(_))
+            }
+            _ => false,
+        }
+    }
+
+    /// Value types (spec 3): everything that is not a reference. They
+    /// cross into reference types (`Any` / interfaces) only by boxing
+    /// (spec 4.4.4).
+    pub(crate) fn is_value_ty(&self, ty: TypeId) -> bool {
+        matches!(
+            self.types[ty],
+            Type::Unit
+                | Type::Int
+                | Type::Boolean
+                | Type::Struct(_)
+                | Type::Enum(..)
+                | Type::Tuple(_)
+                | Type::Param(_)
+        )
+    }
+
+    /// Reference types (spec 3): classes, interfaces, `Any`, strings
+    /// and the built-in array types. `===` / `!==` only apply to these
+    /// (spec 4.4.2).
+    pub(crate) fn is_ref_ty(&self, ty: TypeId) -> bool {
+        !self.is_value_ty(ty)
+    }
+
+    /// Adapt an expression to a target type it is a subtype of (callers
+    /// check `is_subtype` first and diagnose otherwise): a value type
+    /// crossing into a reference target is boxed (`ExprKind::Box`,
+    /// target in `Expr::ty`); a reference crossing to a supertype is a
+    /// zero-cost retype. Equal types pass through unchanged.
+    pub(crate) fn adapt_to(&mut self, expr: hir::Expr, target: TypeId) -> hir::Expr {
+        if self.types_equal(expr.ty, target) {
+            return expr;
+        }
+        let span = expr.span;
+        if self.is_value_ty(expr.ty) {
+            hir::Expr {
+                kind: hir::ExprKind::Box(Box::new(expr)),
+                ty: target,
+                span,
+            }
+        } else {
+            hir::Expr {
+                kind: expr.kind,
+                ty: target,
+                span,
+            }
+        }
     }
 }
 
@@ -299,8 +416,11 @@ fn type_value_equal(types: &Arena<Type>, a: &Type, b: &Type) -> bool {
         (Type::Unit, Type::Unit)
         | (Type::Int, Type::Int)
         | (Type::Boolean, Type::Boolean)
-        | (Type::String, Type::String) => true,
+        | (Type::String, Type::String)
+        | (Type::Any, Type::Any) => true,
         (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Class(x), Type::Class(y)) => x == y,
+        (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
             type_value_equal(types, &types[*x], &types[*y])
         }
@@ -328,6 +448,8 @@ fn type_name(
     types: &Arena<Type>,
     structs: &Arena<StructDecl>,
     enums: &Arena<EnumDecl>,
+    classes: &Arena<ClassDecl>,
+    interfaces: &Arena<InterfaceDecl>,
     type_params: &[String],
     ty: TypeId,
 ) -> String {
@@ -337,12 +459,31 @@ fn type_name(
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => structs[*id].name.clone(),
+        Type::Class(id) => classes[*id].name.clone(),
+        Type::Interface(id) => interfaces[*id].name.clone(),
+        Type::Any => "Any".to_string(),
         Type::Array(element) => {
-            let inner = type_name(types, structs, enums, type_params, *element);
+            let inner = type_name(
+                types,
+                structs,
+                enums,
+                classes,
+                interfaces,
+                type_params,
+                *element,
+            );
             format!("Array<{inner}>")
         }
         Type::MutableArray(element) => {
-            let inner = type_name(types, structs, enums, type_params, *element);
+            let inner = type_name(
+                types,
+                structs,
+                enums,
+                classes,
+                interfaces,
+                type_params,
+                *element,
+            );
             format!("MutableArray<{inner}>")
         }
         Type::Enum(id, args) => {
@@ -352,7 +493,7 @@ fn type_name(
             } else {
                 let inner: Vec<String> = args
                     .iter()
-                    .map(|t| type_name(types, structs, enums, type_params, *t))
+                    .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
                     .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
@@ -360,7 +501,7 @@ fn type_name(
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements
                 .iter()
-                .map(|t| type_name(types, structs, enums, type_params, *t))
+                .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
                 .collect();
             format!("({})", inner.join(", "))
         }

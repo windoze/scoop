@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/assign-struct-field.scoop:5:7: error: field assignment is not supported (value types are immutable)

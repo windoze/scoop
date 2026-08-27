@@ -1,0 +1,8 @@
+abstract class Base {
+    abstract fun id(): Int
+}
+
+fun main() {
+    val b = Base()
+    println(1)
+}
