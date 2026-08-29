@@ -90,6 +90,13 @@ void scoop_main(void) {
     scoop_rt_print_boolean(true);
     scoop_rt_println_boolean(false);
 
+    /* M7 primitive conversions backing core's intToString /
+     * boolToString */
+    scoop_rt_println(scoop_rt_int_to_string(42));
+    scoop_rt_println(scoop_rt_int_to_string(-7));
+    scoop_rt_println(scoop_rt_bool_to_string(true));
+    scoop_rt_println(scoop_rt_bool_to_string(false));
+
     /* scoop_rt_array_clone (M5): independent snapshot — mutating the
      * original after the clone must not affect the copy, and the copy
      * keeps the header (td) and size. */

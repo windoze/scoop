@@ -1163,12 +1163,10 @@ impl FunctionLowerer<'_> {
                     mir::RuntimeFn::IsInstance | mir::RuntimeFn::AnyEquals => mir::Type::Boolean,
                     mir::RuntimeFn::AnyHashCode => mir::Type::Int,
                     mir::RuntimeFn::AnyToString => mir::Type::String,
-                    mir::RuntimeFn::PrintString
-                    | mir::RuntimeFn::PrintlnString
-                    | mir::RuntimeFn::PrintInt
-                    | mir::RuntimeFn::PrintlnInt
-                    | mir::RuntimeFn::PrintBoolean
-                    | mir::RuntimeFn::PrintlnBoolean
+                    mir::RuntimeFn::IntToString | mir::RuntimeFn::BoolToString => {
+                        mir::Type::String
+                    }
+                    mir::RuntimeFn::Write
                     // The trap is noreturn; its statement is typed Unit.
                     | mir::RuntimeFn::Trap => mir::Type::Unit,
                 },
@@ -1818,13 +1816,9 @@ impl FunctionLowerer<'_> {
             mir::Callee::Runtime(function) => {
                 let symbol = function.symbol().to_string();
                 let arg_types: Vec<mir::Type> = match function {
-                    mir::RuntimeFn::PrintString | mir::RuntimeFn::PrintlnString => {
-                        vec![mir::Type::String]
-                    }
-                    mir::RuntimeFn::PrintInt | mir::RuntimeFn::PrintlnInt => vec![mir::Type::Int],
-                    mir::RuntimeFn::PrintBoolean | mir::RuntimeFn::PrintlnBoolean => {
-                        vec![mir::Type::Boolean]
-                    }
+                    mir::RuntimeFn::Write => vec![mir::Type::String],
+                    mir::RuntimeFn::IntToString => vec![mir::Type::Int],
+                    mir::RuntimeFn::BoolToString => vec![mir::Type::Boolean],
                     mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringEq => {
                         vec![mir::Type::String, mir::Type::String]
                     }
@@ -1850,18 +1844,15 @@ impl FunctionLowerer<'_> {
                     .map(|(arg, ty)| self.lower_expr(arg, ty))
                     .collect();
                 match function {
-                    mir::RuntimeFn::StringConcat => {
+                    mir::RuntimeFn::StringConcat
+                    | mir::RuntimeFn::IntToString
+                    | mir::RuntimeFn::BoolToString => {
                         self.call_with_result(symbol, args, lir::LirType::Ptr)
                     }
                     mir::RuntimeFn::StringEq => {
                         self.call_with_result(symbol, args, lir::LirType::I1)
                     }
-                    mir::RuntimeFn::PrintString
-                    | mir::RuntimeFn::PrintlnString
-                    | mir::RuntimeFn::PrintInt
-                    | mir::RuntimeFn::PrintlnInt
-                    | mir::RuntimeFn::PrintBoolean
-                    | mir::RuntimeFn::PrintlnBoolean => {
+                    mir::RuntimeFn::Write => {
                         self.push(lir::Instruction::Call {
                             out: None,
                             symbol,
@@ -2224,8 +2215,8 @@ mod tests {
         })
     }
 
-    /// `main` calls `println("hello, world")` then `helper()`, which
-    /// calls `print("!")`.
+    /// `main` writes `"hello, world"` (core's `write` primitive, M7)
+    /// then calls `helper()`, which writes `"!"`.
     fn hello_world() -> mir::Module {
         let mut b = Builder::new();
         let hello = b.string("hello, world");
@@ -2235,7 +2226,7 @@ mod tests {
             "scoop.helper",
             Arena::new(),
             vec![expr_stmt(runtime_call(
-                mir::RuntimeFn::PrintString,
+                mir::RuntimeFn::Write,
                 vec![mir::Expr::StringConst(bang)],
             ))],
         );
@@ -2243,7 +2234,7 @@ mod tests {
             Arena::new(),
             vec![
                 expr_stmt(runtime_call(
-                    mir::RuntimeFn::PrintlnString,
+                    mir::RuntimeFn::Write,
                     vec![mir::Expr::StringConst(hello)],
                 )),
                 expr_stmt(user_call(helper)),
@@ -2288,7 +2279,7 @@ Module
     ret
   fun @scoop_main() -> void
   block entry
-    call @scoop_rt_println(global0)
+    call @scoop_rt_print(global0)
     t0 = aggregate () : {}
     call @scoop.helper()
     t1 = aggregate () : {}
@@ -2311,11 +2302,11 @@ Module
             vec![stmt(mir::StatementKind::If {
                 cond: mir::Expr::BoolLiteral(true),
                 then_body: vec![expr_stmt(runtime_call(
-                    mir::RuntimeFn::PrintlnString,
+                    mir::RuntimeFn::Write,
                     vec![mir::Expr::StringConst(ok)],
                 ))],
                 else_body: Some(vec![expr_stmt(runtime_call(
-                    mir::RuntimeFn::PrintlnString,
+                    mir::RuntimeFn::Write,
                     vec![mir::Expr::StringConst(ng)],
                 ))]),
             })],
@@ -2330,11 +2321,11 @@ Module
   block entry
     cbr true then @if.then.1 else @if.else.2
   block if.then.1
-    call @scoop_rt_println(global0)
+    call @scoop_rt_print(global0)
     t0 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    call @scoop_rt_println(global1)
+    call @scoop_rt_print(global1)
     t1 = aggregate () : {}
     br @if.merge.3
   block if.merge.3
@@ -2510,6 +2501,8 @@ Module
         let mut locals = Arena::new();
         let s = locals.alloc(local("s", mir::Type::String));
         let e = locals.alloc(local("e", mir::Type::Boolean));
+        let i = locals.alloc(local("i", mir::Type::String));
+        let o = locals.alloc(local("o", mir::Type::String));
         let main = b.main(
             locals,
             vec![
@@ -2525,6 +2518,17 @@ Module
                     runtime_call(
                         mir::RuntimeFn::StringEq,
                         vec![mir::Expr::StringConst(s0), mir::Expr::StringConst(s1)],
+                    ),
+                ),
+                val_decl(
+                    i,
+                    runtime_call(mir::RuntimeFn::IntToString, vec![mir::Expr::IntLiteral(42)]),
+                ),
+                val_decl(
+                    o,
+                    runtime_call(
+                        mir::RuntimeFn::BoolToString,
+                        vec![mir::Expr::BoolLiteral(true)],
                     ),
                 ),
                 expr_stmt(user_call(helper)),
@@ -2560,16 +2564,41 @@ Module
         assert_eq!(function.temps[*eq_out].ty, lir::LirType::I1);
         assert!(matches!(instructions[3], lir::Instruction::Store { .. }));
 
+        // The M7 conversion intrinsics (`ptr(i64)` / `ptr(i1)`).
+        let lir::Instruction::Call {
+            out: Some(its_out),
+            symbol,
+            ..
+        } = &instructions[4]
+        else {
+            panic!("intToString must produce a value")
+        };
+        assert_eq!(symbol, "scoop_rt_int_to_string");
+        assert_eq!(function.temps[*its_out].ty, lir::LirType::Ptr);
+        assert!(matches!(instructions[5], lir::Instruction::Store { .. }));
+
+        let lir::Instruction::Call {
+            out: Some(bts_out),
+            symbol,
+            ..
+        } = &instructions[6]
+        else {
+            panic!("boolToString must produce a value")
+        };
+        assert_eq!(symbol, "scoop_rt_bool_to_string");
+        assert_eq!(function.temps[*bts_out].ty, lir::LirType::Ptr);
+        assert!(matches!(instructions[7], lir::Instruction::Store { .. }));
+
         // User calls return void; the Unit value is a fresh empty
         // aggregate.
         let lir::Instruction::Call {
             out: None, symbol, ..
-        } = &instructions[4]
+        } = &instructions[8]
         else {
             panic!("user calls must return void")
         };
         assert_eq!(symbol, "scoop.helper");
-        let lir::Instruction::MakeAggregate { out, elements } = &instructions[5] else {
+        let lir::Instruction::MakeAggregate { out, elements } = &instructions[9] else {
             panic!("a void call's Unit value must be an empty aggregate")
         };
         assert!(elements.is_empty());
@@ -2905,6 +2934,46 @@ Module
   block entry
     t0 = call @scoop.add(40, 2) : i64
     store t0 -> local0
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn boxed_primitive_tostring_unboxes_and_converts() {
+        // mir-lower's generated `scoop.tostring.I` (M7, the boxed
+        // Int's vtable slot 2): unbox the payload and convert it
+        // through the runtime.
+        let mut b = Builder::new();
+        let mut locals = Arena::new();
+        let this = locals.alloc(local("this", mir::Type::Any));
+        b.user_fn_full(
+            "tostring.I",
+            "scoop.tostring.I",
+            vec![param("this", mir::Type::Any, this)],
+            mir::Type::String,
+            locals,
+            vec![return_stmt(runtime_call(
+                mir::RuntimeFn::IntToString,
+                vec![mir::Expr::Unbox(Box::new(mir::Expr::Local(this)))],
+            ))],
+        );
+        let main = b.main(Arena::new(), vec![]);
+        let module = lower(&b.finish(main));
+
+        let expected = "\
+Module
+  fun @scoop.tostring.I(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    ret t1
+  fun @scoop_main() -> void
+  block entry
     ret
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]

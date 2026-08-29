@@ -56,8 +56,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       ArrayLiteral : Array<Int>
@@ -128,8 +138,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun first<T>(a: Array<T0>): T0
     return
       Index : T0

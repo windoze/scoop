@@ -37,6 +37,25 @@ pub fn mangle_instance(module: &Module, name: &str, type_args: &[Type]) -> Strin
     format!("scoop.{name}${}", args.join("_"))
 }
 
+/// Mangle one overload of a name shared by several functions (M7):
+/// `scoop.<name>.<encoded params>` — `scoop.show.I`,
+/// `scoop.println.S`; a zero-parameter overload gets an empty encoding
+/// (`scoop.f.`). `.` introduces the overload encoding while `$` stays
+/// reserved for monomorphized instances, so the two never collide.
+pub fn mangle_overload(module: &Module, name: &str, params: &[Type]) -> String {
+    format!("scoop.{name}.{}", encode_params(module, params))
+}
+
+/// The `_`-joined parameter encoding shared by overload mangling and
+/// dispatch signature keys.
+pub fn encode_params(module: &Module, params: &[Type]) -> String {
+    params
+        .iter()
+        .map(|t| encode_type(module, t))
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
 /// Compact type encoding for mangling (e.g. `scoop.identity$I`).
 pub fn encode_type(module: &Module, ty: &Type) -> String {
     match ty {
@@ -402,12 +421,11 @@ pub enum RuntimeFn {
     AnyEquals,
     AnyHashCode,
     AnyToString,
-    PrintString,
-    PrintlnString,
-    PrintInt,
-    PrintlnInt,
-    PrintBoolean,
-    PrintlnBoolean,
+    /// Primitive output intrinsics backing core's `print`/`println`
+    /// overloads (M7, docs/milestone7/DESIGN.md section 2).
+    Write,
+    IntToString,
+    BoolToString,
     StringConcat,
     StringEq,
     /// Noreturn runtime trap, called with a message string constant
@@ -424,12 +442,9 @@ impl RuntimeFn {
             RuntimeFn::AnyEquals => "scoop_rt_any_equals",
             RuntimeFn::AnyHashCode => "scoop_rt_any_hashcode",
             RuntimeFn::AnyToString => "scoop_rt_any_tostring",
-            RuntimeFn::PrintString => "scoop_rt_print",
-            RuntimeFn::PrintlnString => "scoop_rt_println",
-            RuntimeFn::PrintInt => "scoop_rt_print_int",
-            RuntimeFn::PrintlnInt => "scoop_rt_println_int",
-            RuntimeFn::PrintBoolean => "scoop_rt_print_boolean",
-            RuntimeFn::PrintlnBoolean => "scoop_rt_println_boolean",
+            RuntimeFn::Write => "scoop_rt_print",
+            RuntimeFn::IntToString => "scoop_rt_int_to_string",
+            RuntimeFn::BoolToString => "scoop_rt_bool_to_string",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",
             RuntimeFn::StringEq => "scoop_rt_string_eq",
             RuntimeFn::Trap => "scoop_rt_trap",

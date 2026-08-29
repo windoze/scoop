@@ -1,8 +1,8 @@
-# M12 设计：字符串插值
+# M13 设计：字符串插值
 
 版本：0.1（草案）
 
-对应 `docs/ROADMAP.md` 的 M12。目标：f-string 插值（`f"..."` 单行与 `f"""..."""` 多行）与到 `StringBuilder` 链式调用的脱糖（spec 第 6 章）。
+对应 `docs/ROADMAP.md` 的 M13。目标：f-string 插值（`f"..."` 单行与 `f"""..."""` 多行）与到 `StringBuilder` 链式调用的脱糖（spec 第 6 章）。
 
 ## 0. 范围说明
 
@@ -31,7 +31,7 @@ line two and n is ${n}"""
 - **`$` 规则**（spec 6.1）：`${` 开启插值孔；未跟 `{` 的 `$` 是诊断（"use `${...}` for interpolation"）；字面 `$` 用转义 `\$`（单行）——多行 raw 模式下 `$` 后只要不是 `{` 就是诊断，想要字面 `$` 写 `\${`? 不行（raw 无转义）——**多行模式下 `$` 后非 `{` 一律诊断**的决定记录在 5.3（spec 未覆盖，待 spec 补充）。
 - 插值孔内允许 `{`/`}` 嵌套（括号匹配，见 2.1）。
 
-子集外诊断：`${expr}` 类型不是 String/Int/Boolean → "interpolation of type X is not supported yet (milestone M12)"；未终结的 f-string → 诊断。
+子集外诊断：`${expr}` 类型不是 String/Int/Boolean → "interpolation of type X is not supported yet (milestone M13)"；未终结的 f-string → 诊断。
 
 ## 2. 各 stage 设计
 

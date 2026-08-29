@@ -121,8 +121,18 @@ Module
   class Point(x: Int, y: Int)
   interface Describable
     fun describe(..): String
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
   entry main
 ";
@@ -873,7 +883,10 @@ fn duplicate_method_is_an_error() {
     ]);
     let errors = lower_user(file).expect_err("duplicate methods must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "duplicate function `m` in class `C`");
+    assert_eq!(
+        errors[0].message,
+        "function `m` in class `C` is already declared with the same signature"
+    );
 }
 
 #[test]

@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m7-overload/errors/ambiguous.scoop:5:13: error: call to `m` is ambiguous

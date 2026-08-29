@@ -74,7 +74,7 @@ Scoop 的类型分为两大类：
 
 ### 3.1 顶层与底层类型
 
-- `Any`：所有类型（引用类型与值类型）的根类型。值类型向上转型为引用类型时发生**装箱**（见 4.4.4）。
+- `Any`：所有类型（引用类型与值类型）的根类型。值类型向上转型为引用类型时发生**装箱**（见 4.4.4）。`Any` **没有任何成员方法**：值相等走 `==` 的运算符决议（见 11.11），字符串化与哈希是独立的接口（`ToString` / `Hash`，见 11.11）——不把 `equals` / `hashCode` / `toString` 挂在类型根上（那是 Java 的遗迹）。
 - `Nothing`：所有类型的子类型，无实例。值类型可以向下转型到 `Nothing`（实际上不可达，仅类型系统规则）。
 
 ### 3.2 泛型
@@ -122,8 +122,8 @@ val s2 = S(f1 = 10, f2 = "x")  // 命名参数
 
 struct 自动获得：
 
-- 结构相等：`==` 按字段逐一比较；
-- `hashCode()` 与 `toString()`：按字段生成；
+- 结构相等：`==` 按字段逐一比较（**条件派生**——仅当全部字段可比较时可用，见 11.11）；
+- `toString()`：按字段生成（编译器派生的 `ToString` 实现，见 11.11）；**不**自动获得哈希——`Hash` 是 opt-in 接口（见 11.11）；
 - 解构（见 4.6）：可按字段顺序或按字段名解构；
 - 副本更新表达式（见 4.5）。
 
@@ -158,7 +158,7 @@ enum E {
 - **变体不是类型**：不能用作 `is` 的检查目标、变量类型或参数类型；判断与提取负载通过 `when` 模式（第 5 章）完成。
 - 与 Kotlin enum class 的 entries 类似，变体名可以通过 `import some.package.E.*` 引入后不写前缀直接使用；`scoop.core.Option.*` 由核心库默认引入（见第 7 章），因此在上下文能确定类型时可以直接写 `Some(...)` 和 `None`。
 - 在 `when` 匹配处，变体名可以省略 `E.` 前缀（见第 5 章）。
-- 与 struct 一样：immutable、无 identity、可自动派生结构相等与 `toString()`。
+- 与 struct 一样：immutable、无 identity、可自动派生结构相等（条件派生，见 11.11）与 `toString()`（`ToString` 派生实现）。
 - 命名字段变体的字段构造后只读。
 - enum 可以实现 interface（见 4.4.3）。
 - 泛型 enum 允许，例如核心库的 `enum Option<T>`（见 7.2）。
@@ -422,7 +422,7 @@ this is the second line and the number is """).add(n + 1).build()
 规则：
 
 - 脱糖在编译早期完成；`${...}` 中的表达式按普通代码类型检查。
-- `add` 对任意 `T` 可用（见 11.6），即任何类型都可被插值，插入其 `toString()` 结果。
+- `add` 对实现 `ToString` 的类型可用（见 11.6 与 11.11），插入其 `toString()` 结果。
 
 ---
 
@@ -614,7 +614,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 ### 11.1 类型层级根
 
-- `Any`：所有类型的根。成员：`equals(other: Any?): Boolean`、`hashCode(): Int`、`toString(): String`。
+- `Any`：所有类型的根。**没有任何成员方法**（见 3.1 与 11.11）。
 - `Nothing`：所有类型的子类型，无实例。
 
 ### 11.2 基本类型
@@ -637,7 +637,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 - 引用类型，immutable，UTF-8 语义（编码细节由实现定义）。
 - 支持 `+` 拼接、索引/切片、`length`（或 `size`）、比较等核心操作。
-- `toString()` 返回自身。
+- `toString()` 返回自身（`ToString` 的恒等实现）。
 
 ### 11.5 `Option<T>`
 
@@ -657,7 +657,7 @@ enum Option<T> {
 ```
 class StringBuilder {
     fun add(part: String): StringBuilder
-    fun <T> add(part: T): StringBuilder   // 插入 part.toString()
+    fun <T : ToString> add(part: T): StringBuilder   // 插入 part.toString()
     fun build(): String
 }
 ```
@@ -719,10 +719,16 @@ while (true) {
 
 `Array<T>` 与 `MutableArray<T>`，见第 10 章。
 
-### 11.11 相等与哈希约定
+### 11.11 相等、字符串化与哈希约定
 
-- 所有类型继承 `Any` 的 `equals` / `hashCode` / `toString`；
-- 值类型默认结构相等；引用类型默认引用相等，可重写 `equals`。
+- **`===` / `!==`（引用相等）**：identity 比较，仅适用于引用类型，不可重载（见 4.4.2）。
+- **`==` / `!=`（值相等）** 的决议规则：
+  - **值类型：条件派生的结构相等**——当且仅当类型的所有字段（元素）**可比较**时，编译器派生逐字段比较。字段可比较指：值类型字段递归可比较、`String`（库提供的比较）、或其类型具有可用的 equals 运算符（如 class 按本条下款定义了 `==`）。任一字段不可比较时，对该类型使用 `==` 是编译错误（诊断指出不可比较的字段）。
+  - **其他类型（class、interface、`Any` 等引用类型）：解析为该类型的 `equals` 运算符方法**（`operator fun`，见 9.3 的运算符约定）；不存在时是编译错误——**没有缺省实现**（与 `+` 等其他运算符一致：漏定义/漏引入在编译期暴露，而不是被缺省语义静默掩盖）。
+  - equals 的决议**只考虑成员函数**（含编译器派生）；扩展函数不得参与 `==`——任何类型在任何 context 下 `==` 的语义唯一，不存在"换个 import 就换语义"或"缺省实现抢先于更合适的实现"。
+  - 类型作者显式定义 equals 运算符时优先于编译器派生。
+- **`ToString`（字符串化）**：接口 `interface ToString { fun toString(): String }`。值类型由编译器按字段派生实现（struct 见 4.1.2）；其他类型 opt-in 实现。`print` / `println` 的目标形态是 `fun <T : ToString> print(v: T)`（单态化静态分发；泛型上界见 2.1/3.2，落地排期见 ROADMAP）。
+- **`Hash`（哈希）**：接口 `interface Hash { fun hash(): Int }`。**没有任何缺省实现**（缺省哈希大概率语义错误）；基本类型与 `String` 由核心库提供实现，其他类型 opt-in 实现。struct 不再自动获得哈希（4.1.2 的历史承诺已废止）。
 
 ### 11.12 `SourceLocation` 与位置 intrinsic
 

@@ -4,10 +4,19 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-    @Intrinsic("rt_print")
-  fun print(message: String)
-    @Intrinsic("rt_println")
-  fun println(message: String)
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
 SourceFile
   enum Option<T>
     Some(T)
@@ -28,14 +37,24 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
   fun hello(): Unit
     Call print : Unit
-      StringLiteral "hello" : String
+      StringLiteral "hello" : Any
   fun world(): Unit
     Call println : Unit
-      StringLiteral ", world" : String
+      StringLiteral ", world" : Any
   fun main(): Unit
     Call hello : Unit
     Call world : Unit
@@ -43,31 +62,62 @@ Module
 
 == mir ==
 Module
-  fun hello @scoop.hello() -> Unit
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
-  fun world @scoop.world() -> Unit
-    Call @scoop_rt_println direct
+  fun hello @scoop.hello() -> Unit
+    Call @scoop.print direct
       StringConst @scoop.str.1
+  fun world @scoop.world() -> Unit
+    Call @scoop.println direct
+      StringConst @scoop.str.2
   fun main @scoop_main() -> Unit
     Call @scoop.hello direct
     Call @scoop.world direct
-  str @scoop.str.0 "hello"
-  str @scoop.str.1 ", world"
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "hello"
+  str @scoop.str.2 ", world"
   entry @scoop_main
 
 == lir ==
 Module
-  global @scoop.str.0 = "hello"
-  global @scoop.str.1 = ", world"
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "hello"
+  global @scoop.str.2 = ", world"
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
   fun @scoop.hello() -> void
   block entry
-    call @scoop_rt_print(global0)
+    call @scoop.print(global1)
     t0 = aggregate () : {}
     ret
   fun @scoop.world() -> void
   block entry
-    call @scoop_rt_println(global1)
+    call @scoop.println(global2)
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void

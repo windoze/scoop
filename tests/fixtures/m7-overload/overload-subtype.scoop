@@ -1,0 +1,14 @@
+open class Shape(val name: String)
+class Circle(val r: Int) : Shape("c")
+
+fun tag(s: Shape): String = "shape"
+fun tag(i: Int): String = "int"
+
+fun pick(v: Int): String = "int"
+fun pick(v: Any): String = "any"
+
+fun main() {
+    println(tag(Circle(1)))
+    println(tag(7))
+    println(pick(5))
+}

@@ -1,0 +1,284 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  fun show(v: Int): String
+    =
+      StringLiteral "int"
+  fun show(v: String): String
+    =
+      StringLiteral "string"
+  fun show(v: Int, n: Int): String
+    =
+      StringLiteral "two"
+  fun main()
+    Call println
+      Call show
+        IntLiteral 1
+    Call println
+      Call show
+        StringLiteral "a"
+    Call println
+      Call show
+        IntLiteral 1
+        IntLiteral 2
+    Call println
+      IntLiteral 42
+    Call println
+      StringLiteral "x"
+    Call println
+      BoolLiteral true
+
+== hir ==
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun show(v: Int): String
+    return
+      StringLiteral "int" : String
+  fun show(v: String): String
+    return
+      StringLiteral "string" : String
+  fun show(v: Int, n: Int): String
+    return
+      StringLiteral "two" : String
+  fun main(): Unit
+    Call println : Unit
+      Call show : Any
+        IntLiteral 1 : Int
+    Call println : Unit
+      Call show : Any
+        StringLiteral "a" : String
+    Call println : Unit
+      Call show : Any
+        IntLiteral 1 : Int
+        IntLiteral 2 : Int
+    Call println : Unit
+      Box : Any
+        IntLiteral 42 : Int
+    Call println : Unit
+      StringLiteral "x" : Any
+    Call println : Unit
+      Box : Any
+        BoolLiteral true : Boolean
+  entry main
+
+== mir ==
+Module
+  class box$I vtable=3 itables=0
+  class box$B vtable=3 itables=0
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
+  fun show @scoop.show.I(v: Int) -> String
+    return
+      StringConst @scoop.str.1
+  fun show @scoop.show.S(v: String) -> String
+    return
+      StringConst @scoop.str.2
+  fun show @scoop.show.I_I(v: Int, n: Int) -> String
+    return
+      StringConst @scoop.str.3
+  fun main @scoop_main() -> Unit
+    Call @scoop.println direct
+      Call @scoop.show.I direct
+        IntLiteral 1
+    Call @scoop.println direct
+      Call @scoop.show.S direct
+        StringConst @scoop.str.4
+    Call @scoop.println direct
+      Call @scoop.show.I_I direct
+        IntLiteral 1
+        IntLiteral 2
+    Call @scoop.println direct
+      Box
+        IntLiteral 42
+    Call @scoop.println direct
+      StringConst @scoop.str.5
+    Call @scoop.println direct
+      Box
+        BoolLiteral true
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    val $a: Int
+      Unbox
+        Local this
+    val $b: Int
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        Local $a
+        Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    return
+      Call @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+  fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
+    val $a: Boolean
+      Unbox
+        Local this
+    val $b: Boolean
+      Unbox
+        Local other
+    return
+      Binary BoolEq
+        Local $a
+        Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    return
+      Call @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "int"
+  str @scoop.str.2 "string"
+  str @scoop.str.3 "two"
+  str @scoop.str.4 "a"
+  str @scoop.str.5 "x"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "int"
+  global @scoop.str.2 = "string"
+  global @scoop.str.3 = "two"
+  global @scoop.str.4 = "a"
+  global @scoop.str.5 = "x"
+  global @scoop_td_box$I = c""
+  global @scoop_td_box$B = c""
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.show.I(i64) -> ptr
+  block entry
+    ret global1
+  fun @scoop.show.S(ptr) -> ptr
+  block entry
+    ret global2
+  fun @scoop.show.I_I(i64, i64) -> ptr
+  block entry
+    ret global3
+  fun @scoop_main() -> void
+  block entry
+    t0 = call @scoop.show.I(1) : ptr
+    call @scoop.println(t0)
+    t1 = aggregate () : {}
+    t2 = call @scoop.show.S(global4) : ptr
+    call @scoop.println(t2)
+    t3 = aggregate () : {}
+    t4 = call @scoop.show.I_I(1, 2) : ptr
+    call @scoop.println(t4)
+    t5 = aggregate () : {}
+    t6 = call @scoop_rt_box(global6, 42, 8) : ptr
+    call @scoop.println(t6)
+    t7 = aggregate () : {}
+    call @scoop.println(global5)
+    t8 = aggregate () : {}
+    t9 = call @scoop_rt_box(global7, true, 1) : ptr
+    call @scoop.println(t9)
+    t10 = aggregate () : {}
+    ret
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = extract param0, 1 : i64
+    store t0 -> local0
+    t1 = extract param1, 1 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    ret t1
+  fun @scoop.eq.B(ptr, ptr) -> i1
+    local %0 $a: i1
+    local %1 $b: i1
+  block entry
+    t0 = extract param0, 1 : i1
+    store t0 -> local0
+    t1 = extract param1, 1 : i1
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.B(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i1
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    ret t1
+  td box$I @scoop_td_box$I size=16 vtable=3 itables=0
+  td box$B @scoop_td_box$B size=16 vtable=3 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout box$I size=16 align=8 refs=[]
+  layout box$B size=16 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+int
+string
+two
+42
+x
+true

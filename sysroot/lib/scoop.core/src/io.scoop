@@ -1,10 +1,13 @@
-// Output functions (temporary intrinsics until M11; see
-// docs/milestone1/DESIGN.md 5.2 and docs/milestone4/DESIGN.md 1.3).
-// The declared parameter type is documentary: the intrinsic registry
-// accepts one String, Int or Boolean argument.
+// Output functions (docs/milestone7/DESIGN.md section 2).
+// `write` is the only output intrinsic; print/println go through
+// `Any.toString()` dispatch (vtable slot 2).
 
-@Intrinsic("rt_print")
-fun print(message: String)
+@Intrinsic("rt_write")
+fun write(message: String)
 
-@Intrinsic("rt_println")
-fun println(message: String)
+fun print(message: Any) = write(message.toString())
+
+fun println(message: Any) {
+    write(message.toString())
+    write("\n")
+}

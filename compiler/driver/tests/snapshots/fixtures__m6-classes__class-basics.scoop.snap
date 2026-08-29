@@ -4,10 +4,19 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-    @Intrinsic("rt_print")
-  fun print(message: String)
-    @Intrinsic("rt_println")
-  fun println(message: String)
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
 SourceFile
   enum Option<T>
     Some(T)
@@ -52,71 +61,104 @@ Module
     Some(_1: T0)
     None()
   class Point(x: Int, y: Int)
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
   fun main(): Unit
     val local0
       ClassInit Point : Point
         IntLiteral 1 : Int
         IntLiteral 2 : Int
     Call println : Unit
-      MethodCall Point.sum : Int
-        Local p : Point
+      Box : Any
+        MethodCall Point.sum : Int
+          Local p : Point
     Call println : Unit
-      FieldAccess class field 1 : Int
-        Local p : Point
+      Box : Any
+        FieldAccess class field 1 : Int
+          Local p : Point
     MethodCall Point.moveTo : Unit
       Local p : Point
       IntLiteral 10 : Int
     Call println : Unit
-      FieldAccess class field 1 : Int
-        Local p : Point
+      Box : Any
+        FieldAccess class field 1 : Int
+          Local p : Point
     assign .field
       Local p : Point
       IntLiteral 20 : Int
     Call println : Unit
-      FieldAccess class field 1 : Int
-        Local p : Point
+      Box : Any
+        FieldAccess class field 1 : Int
+          Local p : Point
     val local1
       Local p : Point
     Call println : Unit
-      Binary RefEq : Boolean
-        Local p : Point
-        Local q : Point
+      Box : Any
+        Binary RefEq : Boolean
+          Local p : Point
+          Local q : Point
   entry main
 
 == mir ==
 Module
   class Point vtable=5 itables=0
+  class box$I vtable=3 itables=0
+  class box$B vtable=3 itables=0
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
   fun main @scoop_main() -> Unit
     val p: Point
       Call @scoop.ctor.Point direct
         IntLiteral 1
         IntLiteral 2
-    Call @scoop_rt_println_int direct
-      Call @scoop.Point.sum direct
-        Local p
-    Call @scoop_rt_println_int direct
-      FieldAccess 1
-        Local p
+    Call @scoop.println direct
+      Box
+        Call @scoop.Point.sum direct
+          Local p
+    Call @scoop.println direct
+      Box
+        FieldAccess 1
+          Local p
     Call @scoop.Point.moveTo direct
       Local p
       IntLiteral 10
-    Call @scoop_rt_println_int direct
-      FieldAccess 1
-        Local p
+    Call @scoop.println direct
+      Box
+        FieldAccess 1
+          Local p
     field_set 1
       Local p
       IntLiteral 20
-    Call @scoop_rt_println_int direct
-      FieldAccess 1
-        Local p
+    Call @scoop.println direct
+      Box
+        FieldAccess 1
+          Local p
     val q: Point
       Local p
-    Call @scoop_rt_println_boolean direct
-      Binary IntEq
-        Local p
-        Local q
+    Call @scoop.println direct
+      Box
+        Binary IntEq
+          Local p
+          Local q
   fun Point.sum @scoop.Point.sum(this: Point) -> Int
     return
       Binary IntAdd
@@ -133,11 +175,65 @@ Module
       ClassInit Point
         Local x
         Local y
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    val $a: Int
+      Unbox
+        Local this
+    val $b: Int
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        Local $a
+        Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    return
+      Call @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+  fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
+    val $a: Boolean
+      Unbox
+        Local this
+    val $b: Boolean
+      Unbox
+        Local other
+    return
+      Binary BoolEq
+        Local $a
+        Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    return
+      Call @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
+  str @scoop.str.0 "\n"
   entry @scoop_main
 
 == lir ==
 Module
+  global @scoop.str.0 = "\n"
+  global @scoop_td_box$I = c""
+  global @scoop_td_box$B = c""
   global @scoop_td_Point = c""
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
   fun @scoop_main() -> void
     local %0 p: ptr
     local %1 q: ptr
@@ -147,26 +243,31 @@ Module
     t1 = extract local0, 0 : ptr
     t2 = extract t1, 5 : ptr
     t3 = call_indirect t2[3](local0) : i64
-    call @scoop_rt_println_int(t3)
-    t4 = aggregate () : {}
-    t5 = extract local0, 2 : i64
-    call @scoop_rt_println_int(t5)
-    t6 = aggregate () : {}
-    t7 = extract local0, 0 : ptr
-    t8 = extract t7, 5 : ptr
-    call_indirect t8[4](local0, 10)
-    t9 = aggregate () : {}
-    t10 = extract local0, 2 : i64
-    call @scoop_rt_println_int(t10)
+    t4 = call @scoop_rt_box(global1, t3, 8) : ptr
+    call @scoop.println(t4)
+    t5 = aggregate () : {}
+    t6 = extract local0, 2 : i64
+    t7 = call @scoop_rt_box(global1, t6, 8) : ptr
+    call @scoop.println(t7)
+    t8 = aggregate () : {}
+    t9 = extract local0, 0 : ptr
+    t10 = extract t9, 5 : ptr
+    call_indirect t10[4](local0, 10)
     t11 = aggregate () : {}
-    heap_store local0 2 20
     t12 = extract local0, 2 : i64
-    call @scoop_rt_println_int(t12)
-    t13 = aggregate () : {}
+    t13 = call @scoop_rt_box(global1, t12, 8) : ptr
+    call @scoop.println(t13)
+    t14 = aggregate () : {}
+    heap_store local0 2 20
+    t15 = extract local0, 2 : i64
+    t16 = call @scoop_rt_box(global1, t15, 8) : ptr
+    call @scoop.println(t16)
+    t17 = aggregate () : {}
     store local0 -> local1
-    t14 = Eq local0, local1 : i1
-    call @scoop_rt_println_boolean(t14)
-    t15 = aggregate () : {}
+    t18 = Eq local0, local1 : i1
+    t19 = call @scoop_rt_box(global2, t18, 1) : ptr
+    call @scoop.println(t19)
+    t20 = aggregate () : {}
     ret
   fun @scoop.Point.sum(ptr) -> i64
   block entry
@@ -180,15 +281,49 @@ Module
     ret
   fun @scoop.ctor.Point(i64, i64) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global0, 24) : ptr
+    t0 = call @scoop_rt_alloc(global3, 24) : ptr
     heap_store t0 1 param0
     heap_store t0 2 param1
     ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = extract param0, 1 : i64
+    store t0 -> local0
+    t1 = extract param1, 1 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    ret t1
+  fun @scoop.eq.B(ptr, ptr) -> i1
+    local %0 $a: i1
+    local %1 $b: i1
+  block entry
+    t0 = extract param0, 1 : i1
+    store t0 -> local0
+    t1 = extract param1, 1 : i1
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.B(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i1
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    ret t1
   td Point @scoop_td_Point size=24 vtable=5 itables=0
+  td box$I @scoop_td_box$I size=16 vtable=3 itables=0
+  td box$B @scoop_td_box$B size=16 vtable=3 itables=0
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Point size=24 align=8 refs=[]
+  layout box$I size=16 align=8 refs=[]
+  layout box$B size=16 align=8 refs=[]
   entry @scoop_main
 
 == run ==

@@ -94,8 +94,21 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
         ],
         false,
     );
-    // @scoop_td_String: type_id 1, no parent / tables (M6: the Any
-    // default methods only land on class vtables).
+    // @scoop_td_String: type_id 1, no parent. Its vtable carries the
+    // Any default slots with `toString` (slot 2) bound to the runtime
+    // String identity (M7): String is a reference type and is never
+    // boxed, so `Any.toString()` on a String dispatches through this
+    // table — core's `print` / `println` rely on it.
+    let string_vtable = emit_fn_table(
+        &context,
+        &llvm,
+        "scoop_td_String.vtable",
+        &[
+            "scoop_rt_any_equals".to_string(),
+            "scoop_rt_any_hashcode".to_string(),
+            "scoop_rt_string_identity".to_string(),
+        ],
+    )?;
     let string_td = llvm.add_global(td_ty, None, scoop_lir::STRING_TD_SYMBOL);
     string_td.set_constant(true);
     string_td.set_initializer(&context.const_struct(
@@ -105,7 +118,7 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
             i64_ty.const_int(string_layout.align, false).into(),
             ptr_ty.const_null().into(),
             ptr_ty.const_null().into(),
-            ptr_ty.const_null().into(),
+            string_vtable,
             ptr_ty.const_null().into(),
             i64_ty.const_zero().into(),
         ],
@@ -505,8 +518,9 @@ fn emit_fn_table<'ctx>(
 
 /// Address of the function a vtable / itable slot points at: a module
 /// function (declared in the first pass — user methods and adjust
-/// thunks) or one of the Any default methods, declared extern here with
-/// its runtime signature (runtime/include/scoop_rt.h).
+/// thunks) or one of the Any default methods / the String identity,
+/// declared extern here with its runtime signature
+/// (runtime/include/scoop_rt.h).
 fn slot_fn_ptr<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -521,7 +535,7 @@ fn slot_fn_ptr<'ctx>(
             .bool_type()
             .fn_type(&[ptr.into(), ptr.into()], false),
         "scoop_rt_any_hashcode" => context.i64_type().fn_type(&[ptr.into()], false),
-        "scoop_rt_any_tostring" => ptr.fn_type(&[ptr.into()], false),
+        "scoop_rt_any_tostring" | "scoop_rt_string_identity" => ptr.fn_type(&[ptr.into()], false),
         _ => {
             return Err(CodegenError(format!(
                 "vtable/itable slot `@{symbol}` is not a function in the module"

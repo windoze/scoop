@@ -30,6 +30,35 @@ void scoop_rt_println(const ScoopString *s) {
     fputc('\n', stdout);
 }
 
+// Identity for String's own `toString` vtable slot (M7).
+const ScoopString *scoop_rt_string_identity(const ScoopString *s) {
+    return s;
+}
+
+// Format an i64 into a fresh ScoopString (always-leak), backing
+// core's `intToString` (M7).
+const ScoopString *scoop_rt_int_to_string(int64_t v) {
+    char buf[24]; // -2^63 needs 20 chars + NUL
+    int len = snprintf(buf, sizeof(buf), "%lld", (long long)v);
+    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
+    result->len = (uint64_t)len;
+    memcpy(result->data, buf, (size_t)len);
+    return result;
+}
+
+// "true" / "false" as a fresh ScoopString, backing core's
+// `boolToString` (M7).
+const ScoopString *scoop_rt_bool_to_string(bool v) {
+    static const char TRUE_STR[] = "true";
+    static const char FALSE_STR[] = "false";
+    const char *text = v ? TRUE_STR : FALSE_STR;
+    size_t len = v ? sizeof(TRUE_STR) - 1 : sizeof(FALSE_STR) - 1;
+    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + len);
+    result->len = (uint64_t)len;
+    memcpy(result->data, text, len);
+    return result;
+}
+
 const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b) {
     ScoopString *result =
         scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + a->len + b->len);

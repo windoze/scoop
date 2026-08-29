@@ -7,8 +7,8 @@
 //! M2: value types. HIR types are mapped onto MIR types (the struct
 //! arena is transposed in declaration order, field types recursively);
 //! structural equality on aggregates is expanded into primitive
-//! comparisons and runtime calls; `print` / `println` map onto the
-//! per-type runtime shims; String `+` becomes `scoop_rt_string_concat`.
+//! comparisons and runtime calls; String `+` becomes
+//! `scoop_rt_string_concat`.
 //! Control flow stays structured (`If` / `While`) and `&&` / `||` stay
 //! single MIR operators — basic blocks and short-circuit expansion are
 //! LIR's job. This stage never fails: all errors were already reported
@@ -31,9 +31,30 @@
 //! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) become generic
 //! enum operations; a trapping `Unwrap` (`!!`) becomes an if/else whose
 //! else branch calls the runtime trap. Equality on enums expands into a
-//! tag comparison plus a per-variant payload comparison. `print` /
-//! `println` arrive as `@Intrinsic` functions from scoop.core and still
-//! map onto the M2/M3 per-type runtime shims.
+//! tag comparison plus a per-variant payload comparison.
+//!
+//! M7: print/println are ordinary core functions
+//! (docs/milestone7/DESIGN.md section 2) — their calls go through the
+//! normal function path. `@Intrinsic` calls map by intrinsic name onto
+//! the runtime functions: `rt_write` → `Write` (`scoop_rt_print`),
+//! `rt_int_to_string` → `IntToString`, `rt_bool_to_string` →
+//! `BoolToString` (the latter two back the generated `toString`
+//! bodies below). Mangling is overload-aware: a name shared by
+//! several plainly-mangled functions gets the parameter encoding
+//! appended (`scoop.show.I`, `scoop.println.S`; the receiver is not
+//! part of a method's overload signature), while unique names keep the
+//! plain `scoop.<name>` form and instances keep `$` (`scoop.show$I`),
+//! so overload and instance symbols never collide. Dispatch is keyed
+//! by signature the same way: vtable / itable slots and call-kind
+//! annotation use `name(<param encoding>)`, so each overload gets its
+//! own slot and an override replaces the base slot with the matching
+//! signature in place. core's output goes through `Any.toString()`:
+//! the synthesized `Any` members are signature-only shells (like
+//! interface methods, never emitted), and a boxed primitive's vtable
+//! slot 2 is a generated per-type `toString` (`scoop.tostring.I` /
+//! `scoop.tostring.B`, converting through the runtime); String's
+//! TypeDescriptor vtable is emitted by codegen with slot 2 bound to
+//! the runtime String identity.
 //!
 //! M5: arrays (docs/milestone5/DESIGN.md). `Array<T>` /
 //! `MutableArray<T>` map onto the corresponding MIR types, and the
@@ -78,7 +99,7 @@
 //! `hir::ExprKind::ClassInit` at a use site becomes a plain `Direct`
 //! call to that function.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
 use scoop_ast::Span;
@@ -104,6 +125,7 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         boxed: BoxedRegistry::default(),
         ctors: HashMap::new(),
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new()),
+        overloaded: overloaded_names(module),
         option_variants: (0, 0),
     }
     .run(module)
@@ -124,9 +146,9 @@ struct Lowerer {
     /// HIR interface -> MIR interface (arena transposed in declaration
     /// order).
     interface_map: HashMap<hir::InterfaceId, mir::InterfaceId>,
-    /// Method short name (`Owner.method` without the qualifier) ->
-    /// vtable slot, per class (computed by `compute_dispatch`;
-    /// `BodyLowerer` reads it for call-kind annotation).
+    /// Method signature key (`fn_signature_key`) -> vtable slot, per
+    /// class (computed by `compute_dispatch`; `BodyLowerer` reads it
+    /// for call-kind annotation).
     method_slots: HashMap<mir::ClassId, HashMap<String, u32>>,
     /// HIR user function -> MIR function (non-generic functions only;
     /// generic functions resolve through `instances`).
@@ -142,6 +164,10 @@ struct Lowerer {
     /// `mir::encode_type` reads, kept in sync with the real arenas
     /// (same ids).
     shell: mir::Module,
+    /// Names shared by more than one plainly-mangled function (M7
+    /// overloads): each of them gets the parameter encoding appended
+    /// to its symbol (see `declare_symbol`).
+    overloaded: HashSet<String>,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     option_variants: (u32, u32),
 }
@@ -191,7 +217,8 @@ impl Lowerer {
                 continue;
             }
             match function.method_of {
-                Some(ty) if matches!(module.types[ty], hir::Type::Interface(_)) => {}
+                Some(ty)
+                    if matches!(module.types[ty], hir::Type::Interface(_) | hir::Type::Any) => {}
                 Some(_) => {
                     let id = self.declare_function(module, hir_id);
                     user_functions.push((hir_id, id));
@@ -205,7 +232,13 @@ impl Lowerer {
             let Some(ty) = function.method_of else {
                 continue;
             };
-            if matches!(module.types[ty], hir::Type::Interface(_)) {
+            // Interface methods and the synthesized `Any` members
+            // (`equals` / `hashCode` / `toString`) are signature-only
+            // shells: dispatch goes through the vtable prefix / itable,
+            // so the functions themselves are never emitted — their
+            // declarations only give LIR the parameter / return types
+            // for the indirect call.
+            if matches!(module.types[ty], hir::Type::Interface(_) | hir::Type::Any) {
                 self.declare_interface_method(module, hir_id);
             }
         }
@@ -330,7 +363,6 @@ impl Lowerer {
             class_map: &self.class_map,
             interface_map: &self.interface_map,
             structs: &self.structs,
-            interfaces: &self.interfaces,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             ctors: &self.ctors,
@@ -445,10 +477,73 @@ impl Lowerer {
         }
     }
 
+    /// A declared function's symbol: `scoop.<name>` (the fixed
+    /// `scoop_main` for the entry point). When the name is shared by
+    /// overloads (M7), the parameter encoding is appended so each
+    /// overload gets a distinct LLVM symbol: `scoop.show.I`,
+    /// `scoop.println.S`, `scoop.Doc.describe.I` for methods (see
+    /// `mir::mangle_overload`). vtable / itable slots and thunk calls
+    /// reference functions by id, so they pick the final symbol up
+    /// from the arena automatically.
+    fn declare_symbol(&mut self, module: &hir::Module, hir_id: hir::FunctionId) -> String {
+        let function = &module.functions[hir_id];
+        let name = fn_name(function);
+        if hir_id == module.entry || !self.overloaded.contains(&name) {
+            return mir::mangle_function(&name, hir_id == module.entry);
+        }
+        // A method's receiver (parameter 0, hir-lower's contract) is
+        // not part of the overload signature: `Doc.describe(Int)`
+        // encodes as `scoop.Doc.describe.I`.
+        let skip = usize::from(function.method_of.is_some());
+        let params = self.lower_params(module, &function.params[skip..]);
+        mir::mangle_overload(&self.shell, &name, &params)
+    }
+
+    /// Lower a parameter list to MIR types (enum instantiations
+    /// register on demand).
+    fn lower_params(&mut self, module: &hir::Module, params: &[hir::Param]) -> Vec<mir::Type> {
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            interface_map: &self.interface_map,
+            subst: None,
+        };
+        params
+            .iter()
+            .map(|param| types.lower(param.ty, &mut self.enums, &mut self.shell))
+            .collect()
+    }
+
+    /// The `_`-joined `mir::encode_type` encoding of a parameter list.
+    fn param_encoding(&mut self, module: &hir::Module, params: &[hir::Param]) -> String {
+        let params = self.lower_params(module, params);
+        mir::encode_params(&self.shell, &params)
+    }
+
+    /// A method's dispatch signature key: `name(<param encoding>)`
+    /// over the declared parameters (the receiver is not part of it)
+    /// — `describe(I)`, `m(I_S)`, `f()`. An override shares the base
+    /// method's key (hir-lower enforces exact-signature overriding),
+    /// so keying vtable slots by it replaces the base slot in place,
+    /// while overloads get distinct keys and thus distinct slots.
+    fn fn_signature_key(&mut self, module: &hir::Module, function: &hir::Function) -> String {
+        let skip = usize::from(function.method_of.is_some());
+        let encoding = self.param_encoding(module, &function.params[skip..]);
+        format!("{}({encoding})", short_name(&function.name))
+    }
+
+    /// The dispatch signature key of an interface method signature.
+    fn sig_signature_key(&mut self, module: &hir::Module, sig: &hir::MethodSig) -> String {
+        let encoding = self.param_encoding(module, &sig.params);
+        format!("{}({encoding})", sig.name)
+    }
+
     /// Declare one non-generic user function (body filled later):
     /// `scoop.<name>`, `scoop.<Type>.<name>` for members, or the fixed
     /// entry symbol `scoop_main` that the C runtime calls (`main` is
-    /// never generic, hir-lower guarantees it).
+    /// never generic, hir-lower guarantees it); overloads get the
+    /// parameter encoding appended (`declare_symbol`).
     fn declare_function(
         &mut self,
         module: &hir::Module,
@@ -456,7 +551,7 @@ impl Lowerer {
     ) -> mir::FunctionId {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
-        let symbol = mir::mangle_function(&name, hir_id == module.entry);
+        let symbol = self.declare_symbol(module, hir_id);
         let id = self.functions.alloc(mir::Function {
             name,
             symbol,
@@ -473,10 +568,11 @@ impl Lowerer {
         id
     }
 
-    /// Declare an interface method: a signature-only shell that is
-    /// never emitted (not in `top_level`). It exists so interface
-    /// calls can name a callee whose parameter / return types LIR
-    /// reads for the indirect call.
+    /// Declare an interface method or a synthesized `Any` member: a
+    /// signature-only shell that is never emitted (not in
+    /// `top_level`). It exists so virtual / interface calls can name a
+    /// callee whose parameter / return types LIR reads for the
+    /// indirect call.
     fn declare_interface_method(&mut self, module: &hir::Module, hir_id: hir::FunctionId) {
         let function = &module.functions[hir_id];
         let types = Types {
@@ -506,8 +602,9 @@ impl Lowerer {
             .collect();
         let return_ty = types.lower(function.return_ty, &mut self.enums, &mut self.shell);
         let name = fn_name(function);
+        let symbol = self.declare_symbol(module, hir_id);
         let id = self.functions.alloc(mir::Function {
-            symbol: mir::mangle_function(&name, false),
+            symbol,
             name,
             params,
             return_ty,
@@ -553,10 +650,15 @@ impl Lowerer {
     /// from the base's (prefix preserved), an override replaces the
     /// base slot in place, new methods append in declaration order
     /// (generic methods never enter the vtable — impl spec 2.9).
-    /// itables cover the interfaces the base class covered (records
-    /// first, in the base's order) plus the ones the class declares,
-    /// each slot resolved to the implementation visible from the
-    /// class (its own override first, then up the base chain).
+    /// Slots are keyed by the method's signature (`fn_signature_key`):
+    /// an override shares the base method's key and replaces its slot,
+    /// while same-named overloads have distinct keys and get distinct
+    /// slots (M7). itables cover the interfaces the base class covered
+    /// (records first, in the base's order) plus the ones the class
+    /// declares, each slot resolved to the implementation visible from
+    /// the class (its own override first, then up the base chain) —
+    /// again matched by signature, so an overloaded interface gets one
+    /// slot per method signature.
     fn compute_dispatch(&mut self, module: &hir::Module, order: &[hir::ClassId]) {
         for &hir_id in order {
             let mir_id = self.class_map[&hir_id];
@@ -585,10 +687,11 @@ impl Lowerer {
                     continue;
                 }
                 let mir_fn = self.function_map[&fn_id];
-                match slots.get(short_name(&function.name)) {
+                let key = self.fn_signature_key(module, function);
+                match slots.get(&key) {
                     Some(&slot) => vtable[slot as usize] = mir::TableSlot::Function(mir_fn),
                     None => {
-                        slots.insert(short_name(&function.name).to_string(), vtable.len() as u32);
+                        slots.insert(key, vtable.len() as u32);
                         vtable.push(mir::TableSlot::Function(mir_fn));
                     }
                 }
@@ -610,13 +713,13 @@ impl Lowerer {
             let mut itables = Vec::new();
             for mir_iface in covered {
                 let hir_iface = self.hir_interface(mir_iface);
-                let slots_for = module.interfaces[hir_iface]
-                    .methods
-                    .iter()
-                    .map(|method| {
-                        mir::TableSlot::Function(self.find_impl(module, hir_id, &method.name))
-                    })
-                    .collect();
+                let mut slots_for = Vec::new();
+                for method in &module.interfaces[hir_iface].methods {
+                    let key = self.sig_signature_key(module, method);
+                    slots_for.push(mir::TableSlot::Function(
+                        self.find_impl(module, hir_id, &key),
+                    ));
+                }
                 itables.push(mir::ItableRecord {
                     interface: mir_iface,
                     slots: slots_for,
@@ -673,7 +776,6 @@ impl Lowerer {
             class_map: &self.class_map,
             interface_map: &self.interface_map,
             structs: &self.structs,
-            interfaces: &self.interfaces,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             ctors: &self.ctors,
@@ -742,20 +844,25 @@ impl Lowerer {
             .expect("every MIR interface comes from a HIR interface")
     }
 
-    /// The function implementing the method `name` for class
-    /// `hir_id`: the class's own method first, then up the base
-    /// chain (M6 has no overloading, so the name identifies the
-    /// method).
-    fn find_impl(&self, module: &hir::Module, hir_id: hir::ClassId, name: &str) -> mir::FunctionId {
+    /// The function implementing the signature `key` for class
+    /// `hir_id`: the class's own method first, then up the base chain
+    /// (matched by signature — `fn_signature_key` — so overloads
+    /// resolve to their own implementation).
+    fn find_impl(
+        &mut self,
+        module: &hir::Module,
+        hir_id: hir::ClassId,
+        key: &str,
+    ) -> mir::FunctionId {
         let mut current = Some(hir_id);
         while let Some(class) = current {
             for (fn_id, function) in module.functions.iter() {
-                if method_class(module, function) == Some(class)
-                    && short_name(&function.name) == name
+                if method_class(module, function) != Some(class) || !function.type_params.is_empty()
                 {
-                    return *self.function_map.get(&fn_id).unwrap_or_else(|| {
-                        panic!("generic methods cannot implement interface method `{name}`")
-                    });
+                    continue;
+                }
+                if self.fn_signature_key(module, function) == key {
+                    return self.function_map[&fn_id];
                 }
             }
             current = module.classes[class]
@@ -763,33 +870,50 @@ impl Lowerer {
                 .as_ref()
                 .map(|(base, _)| *base);
         }
-        unreachable!("hir-lower guarantees `{name}` is implemented")
+        unreachable!("hir-lower guarantees `{key}` is implemented")
     }
 
     /// Generate the boxed value types' dispatch members (DESIGN 2.3):
     /// slot 0 of a boxed vtable is the compiler-generated structural
-    /// equals (`scoop.eq.<ty>`; `hashCode` / `toString` stay the
-    /// `Any` defaults, milestone6 DESIGN 5.1), and every interface
-    /// the value type was boxed to gets an itable whose slots point
-    /// at adjust thunks — the thunk's `this` is the boxed object; it
-    /// unboxes and tail-calls the real value method.
+    /// equals (`scoop.eq.<ty>`; `hashCode` stays the `Any` default),
+    /// slot 2 is a per-type `toString` for the primitives with a
+    /// runtime conversion (`scoop.tostring.<ty>`, M7 — `Int` /
+    /// `Boolean`; aggregate value types keep the `Any` default
+    /// `scoop_rt_any_tostring` until a spec'd structured format
+    /// lands), and every interface the value type was boxed to gets
+    /// an itable whose slots point at adjust thunks — the thunk's
+    /// `this` is the boxed object; it unboxes and tail-calls the real
+    /// value method.
     fn finalize_boxed(&mut self, module: &hir::Module) {
         for index in 0..self.boxed.order.len() {
             let class_id = self.boxed.order[index];
             let payload = self.classes[class_id].fields[0].ty.clone();
             let encoded = mir::encode_type(&self.shell, &payload);
             let equals = self.build_boxed_equals(module, &payload, &encoded);
+            let tostring = match payload {
+                mir::Type::Int => {
+                    let f = self.build_boxed_tostring(&encoded, mir::RuntimeFn::IntToString);
+                    mir::TableSlot::Function(f)
+                }
+                mir::Type::Boolean => {
+                    let f = self.build_boxed_tostring(&encoded, mir::RuntimeFn::BoolToString);
+                    mir::TableSlot::Function(f)
+                }
+                _ => mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
+            };
             self.classes[class_id].vtable = vec![
                 mir::TableSlot::Function(equals),
                 mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-                mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
+                tostring,
             ];
             let interfaces = self.classes[class_id].interfaces.clone();
             for iface in interfaces {
-                let methods = self.interfaces[iface].methods.clone();
+                let hir_iface = self.hir_interface(iface);
+                let method_count = module.interfaces[hir_iface].methods.len();
                 let mut slots = Vec::new();
-                for method in &methods {
-                    let thunk = self.build_thunk(module, &payload, &encoded, iface, method);
+                for index in 0..method_count {
+                    let thunk =
+                        self.build_thunk(module, &payload, &encoded, iface, hir_iface, index);
                     slots.push(mir::TableSlot::Function(thunk));
                 }
                 self.classes[class_id].itables.push(mir::ItableRecord {
@@ -838,7 +962,6 @@ impl Lowerer {
             class_map: &self.class_map,
             interface_map: &self.interface_map,
             structs: &self.structs,
-            interfaces: &self.interfaces,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             ctors: &self.ctors,
@@ -907,26 +1030,70 @@ impl Lowerer {
         id
     }
 
+    /// `scoop.tostring.<ty>`: the `toString` implementation of a boxed
+    /// primitive (`Int` / `Boolean`, M7) — unbox the payload and
+    /// convert it through the runtime (`scoop_rt_int_to_string` /
+    /// `scoop_rt_bool_to_string`). The signature matches the `Any`
+    /// vtable slot (`(this: Any) -> String`) so `Any.toString()`
+    /// dispatches uniformly; core's `print` / `println` rely on it.
+    fn build_boxed_tostring(&mut self, encoded: &str, convert: mir::RuntimeFn) -> mir::FunctionId {
+        let mut locals = Arena::new();
+        let this = locals.alloc(mir::Local {
+            name: "this".to_string(),
+            ty: mir::Type::Any,
+            mutable: false,
+        });
+        let name = format!("tostring.{encoded}");
+        let id = self.functions.alloc(mir::Function {
+            symbol: format!("scoop.{name}"),
+            name,
+            params: vec![mir::Param {
+                name: "this".to_string(),
+                ty: mir::Type::Any,
+                local: this,
+            }],
+            return_ty: mir::Type::String,
+            body: mir::Body {
+                locals,
+                statements: vec![mir::Statement {
+                    kind: mir::StatementKind::Return {
+                        value: Some(mir::Expr::Call(mir::Call {
+                            target: mir::CallTarget {
+                                kind: mir::CallKind::Direct,
+                                callee: mir::Callee::Runtime(convert),
+                            },
+                            args: vec![mir::Expr::Unbox(Box::new(mir::Expr::Local(this)))],
+                        })),
+                    },
+                    span: Span { start: 0, end: 0 },
+                }],
+            },
+        });
+        self.top_level.push(id);
+        id
+    }
+
     /// The adjust thunk for one (boxed value type, interface method)
     /// pair (impl spec 2.9): `this` is the boxed object; the thunk
     /// unboxes it and tail-calls the real value method (value-type
     /// methods take `this` by value at MIR; the pointer convention
-    /// of the receiver is a codegen ABI matter).
+    /// of the receiver is a codegen ABI matter). The implementation
+    /// is matched by signature, so overloaded interface methods get
+    /// one thunk each; the thunk symbol carries the parameter
+    /// encoding when the interface overloads the name.
     fn build_thunk(
         &mut self,
         module: &hir::Module,
         payload: &mir::Type,
         encoded: &str,
         iface: mir::InterfaceId,
-        method: &str,
+        hir_iface: hir::InterfaceId,
+        method_index: usize,
     ) -> mir::FunctionId {
-        let impl_fn = self.value_method(module, payload, method);
-        let hir_iface = self.hir_interface(iface);
-        let signature = module.interfaces[hir_iface]
-            .methods
-            .iter()
-            .find(|sig| sig.name == method)
-            .expect("itable methods come from the interface declaration");
+        let signature = &module.interfaces[hir_iface].methods[method_index];
+        let encoding = self.param_encoding(module, &signature.params);
+        let key = format!("{}({encoding})", signature.name);
+        let impl_fn = self.value_method(module, payload, &key);
         let types = Types {
             module,
             struct_map: &self.struct_map,
@@ -973,7 +1140,20 @@ impl Lowerer {
         } else {
             mir::StatementKind::Return { value: Some(call) }
         };
-        let name = format!("thunk.{encoded}.{}.{}", self.interfaces[iface].name, method);
+        let iface_name = self.interfaces[iface].name.clone();
+        // An interface overloading the method name needs the parameter
+        // encoding to keep the thunk symbols distinct.
+        let overloaded = module.interfaces[hir_iface]
+            .methods
+            .iter()
+            .filter(|sig| sig.name == signature.name)
+            .count()
+            > 1;
+        let name = if overloaded {
+            format!("thunk.{encoded}.{iface_name}.{}.{encoding}", signature.name)
+        } else {
+            format!("thunk.{encoded}.{iface_name}.{}", signature.name)
+        };
         let id = self.functions.alloc(mir::Function {
             symbol: format!("scoop.{name}"),
             name,
@@ -991,19 +1171,17 @@ impl Lowerer {
         id
     }
 
-    /// The value type's own method `name` (the implementation a boxed
-    /// thunk tail-calls). HIR guarantees it exists: the value type
-    /// was boxed to an interface that declares the method.
+    /// The value type's own method with the signature `key` (the
+    /// implementation a boxed thunk tail-calls). HIR guarantees it
+    /// exists: the value type was boxed to an interface that declares
+    /// the method.
     fn value_method(
-        &self,
+        &mut self,
         module: &hir::Module,
         payload: &mir::Type,
-        name: &str,
+        key: &str,
     ) -> mir::FunctionId {
         for (fn_id, function) in module.functions.iter() {
-            if short_name(&function.name) != name {
-                continue;
-            }
             let Some(ty) = function.method_of else {
                 continue;
             };
@@ -1020,22 +1198,47 @@ impl Lowerer {
                 }
                 _ => false,
             };
-            if matches {
-                return *self.function_map.get(&fn_id).unwrap_or_else(|| {
-                    panic!("methods of generic value types cannot be boxed to an interface yet")
-                });
+            if matches
+                && function.type_params.is_empty()
+                && self.fn_signature_key(module, function) == key
+            {
+                return self.function_map[&fn_id];
             }
         }
-        unreachable!("hir-lower guarantees `{name}` is implemented by the boxed value type")
+        unreachable!("hir-lower guarantees `{key}` is implemented by the boxed value type")
     }
 }
 
 /// A function's MIR name: hir-lower already qualifies member
 /// functions (`Owner.method`), so the name is used as-is and
 /// same-named methods of different types never share a mangled
-/// symbol.
+/// symbol. Same-named *overloads* share this name; their symbols are
+/// distinguished by the parameter encoding (`Lowerer::declare_symbol`).
 fn fn_name(function: &hir::Function) -> String {
     function.name.clone()
+}
+
+/// The names shared by more than one plainly-mangled function (M7
+/// overloads), over the whole module including scoop.core. Only
+/// functions that get a plain `scoop.<name>` symbol count: non-generic
+/// `User` functions (free functions, class members, interface method
+/// shells). Intrinsics have no MIR symbol; generic functions only
+/// exist as `$`-mangled instances, which cannot collide with the
+/// overload encoding (`.`).
+fn overloaded_names(module: &hir::Module) -> HashSet<String> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for (_, function) in module.functions.iter() {
+        if !matches!(function.kind, hir::FunctionKind::User(_)) || !function.type_params.is_empty()
+        {
+            continue;
+        }
+        *counts.entry(fn_name(function)).or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(name, _)| name)
+        .collect()
 }
 
 /// A method's short name: hir-lower qualifies member functions as
@@ -1466,22 +1669,6 @@ impl InstanceRegistry {
     }
 }
 
-/// Map a `print` / `println` intrinsic call onto the per-type runtime
-/// shim (DESIGN 1.3). hir-lower rejects arguments of any other type,
-/// so only String / Int / Boolean can reach this stage.
-fn print_fn(module: &hir::Module, ty: hir::TypeId, newline: bool) -> mir::RuntimeFn {
-    use mir::RuntimeFn::*;
-    match (&module.types[ty], newline) {
-        (hir::Type::String, false) => PrintString,
-        (hir::Type::String, true) => PrintlnString,
-        (hir::Type::Int, false) => PrintInt,
-        (hir::Type::Int, true) => PrintlnInt,
-        (hir::Type::Boolean, false) => PrintBoolean,
-        (hir::Type::Boolean, true) => PrintlnBoolean,
-        _ => unreachable!("hir-lower rejects print arguments that are not String/Int/Boolean"),
-    }
-}
-
 /// Per-function-body lowering state.
 struct BodyLowerer<'a> {
     module: &'a hir::Module,
@@ -1490,9 +1677,7 @@ struct BodyLowerer<'a> {
     interface_map: &'a HashMap<hir::InterfaceId, mir::InterfaceId>,
     /// MIR struct arena (field types for the equality expansion).
     structs: &'a Arena<mir::StructDef>,
-    /// MIR interface arena (method names for interface call slots).
-    interfaces: &'a Arena<mir::InterfaceDef>,
-    /// Method short name -> vtable slot per class
+    /// Method signature key -> vtable slot per class
     /// (`compute_dispatch`).
     method_slots: &'a HashMap<mir::ClassId, HashMap<String, u32>>,
     function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
@@ -2249,17 +2434,19 @@ impl BodyLowerer<'_> {
         args: &[hir::Expr],
     ) -> mir::Expr {
         let callee = match &self.module.functions[function].kind {
-            // `@Intrinsic` functions (scoop.core, DESIGN 1.3): the
-            // registry holds only the output intrinsics, whose calls
-            // map onto the per-type runtime shims. hir-lower enforces
-            // exactly one String / Int / Boolean argument.
+            // `@Intrinsic` primitive functions (scoop.core, M7 DESIGN
+            // section 2): the intrinsic name maps directly onto the
+            // runtime function — `print` / `println` themselves are
+            // ordinary overloaded core functions and take the `User`
+            // path below. hir-lower rejects unknown intrinsic names.
             hir::FunctionKind::Intrinsic(name) => {
-                let newline = match name.as_str() {
-                    "rt_print" => false,
-                    "rt_println" => true,
+                let function = match name.as_str() {
+                    "rt_write" => mir::RuntimeFn::Write,
+                    "rt_int_to_string" => mir::RuntimeFn::IntToString,
+                    "rt_bool_to_string" => mir::RuntimeFn::BoolToString,
                     _ => unreachable!("hir-lower rejects unknown intrinsics"),
                 };
-                mir::Callee::Runtime(print_fn(self.module, args[0].ty, newline))
+                mir::Callee::Runtime(function)
             }
             hir::FunctionKind::User(_)
                 if self.module.functions[function].type_params.is_empty() =>
@@ -2301,48 +2488,68 @@ impl BodyLowerer<'_> {
     /// receiver's static type — class receiver → `Virtual` (the M6
     /// simplification: class methods always dispatch through the
     /// vtable), interface receiver → `Interface` (the slot is the
-    /// method's index in the interface declaration), value type →
-    /// `Direct`. A method without a vtable slot (generic methods
-    /// never enter the vtable) stays `Direct`.
+    /// method signature's index in the interface declaration), value
+    /// type → `Direct`. A method without a vtable slot (generic
+    /// methods never enter the vtable) stays `Direct`. The slot is
+    /// located by the callee's signature (`signature_key`), so
+    /// overloads dispatch to their own slot and overrides hit the
+    /// replaced base slot.
     fn lower_method_call(
         &mut self,
         receiver: &hir::Expr,
         function: hir::FunctionId,
         args: &[hir::Expr],
     ) -> mir::Expr {
-        let f = &self.module.functions[function];
+        let module = self.module;
+        let f = &module.functions[function];
         assert!(
             f.type_params.is_empty(),
             "HIR method calls carry no type arguments; hir-lower M6 rejects generic method calls"
         );
         let callee = mir::Callee::User(self.function_map[&function]);
-        let kind = match &self.module.types[receiver.ty] {
-            hir::Type::Class(class) => {
-                match self.method_slots[&self.class_map[class]].get(short_name(&f.name)) {
-                    Some(&slot) => mir::CallKind::Virtual { slot },
-                    None => mir::CallKind::Direct,
+        // The receiver's static type decides the dispatch kind.
+        enum Receiver {
+            Class(hir::ClassId),
+            Interface(hir::InterfaceId),
+            Any,
+            Value,
+        }
+        let receiver_kind = match &module.types[receiver.ty] {
+            hir::Type::Class(class) => Receiver::Class(*class),
+            hir::Type::Interface(iface) => Receiver::Interface(*iface),
+            hir::Type::Any => Receiver::Any,
+            _ => Receiver::Value,
+        };
+        let key = self.signature_key(f);
+        let kind = match receiver_kind {
+            Receiver::Class(class) => match self.method_slots[&self.class_map[&class]].get(&key) {
+                Some(&slot) => mir::CallKind::Virtual { slot },
+                None => mir::CallKind::Direct,
+            },
+            Receiver::Interface(iface) => {
+                let interface = self.interface_map[&iface];
+                let mut slot = None;
+                for (index, sig) in module.interfaces[iface].methods.iter().enumerate() {
+                    if self.sig_key(sig) == key {
+                        slot = Some(index as u32);
+                        break;
+                    }
                 }
-            }
-            hir::Type::Interface(iface) => {
-                let interface = self.interface_map[iface];
-                let slot = self.interfaces[interface]
-                    .methods
-                    .iter()
-                    .position(|method| method == short_name(&f.name))
-                    .expect("hir-lower resolves interface calls to interface methods")
-                    as u32;
-                mir::CallKind::Interface { interface, slot }
+                mir::CallKind::Interface {
+                    interface,
+                    slot: slot.expect("hir-lower resolves interface calls to interface methods"),
+                }
             }
             // The `Any` defaults dispatch through the fixed vtable
             // prefix; anything else hir-lower resolves on `Any` is a
             // plain direct call.
-            hir::Type::Any => match short_name(&f.name) {
+            Receiver::Any => match short_name(&f.name) {
                 "equals" => mir::CallKind::Virtual { slot: 0 },
                 "hashCode" => mir::CallKind::Virtual { slot: 1 },
                 "toString" => mir::CallKind::Virtual { slot: 2 },
                 _ => mir::CallKind::Direct,
             },
-            _ => mir::CallKind::Direct,
+            Receiver::Value => mir::CallKind::Direct,
         };
         let mut call_args = Vec::with_capacity(args.len() + 1);
         call_args.push(self.lower_expr(receiver));
@@ -2351,6 +2558,27 @@ impl BodyLowerer<'_> {
             target: mir::CallTarget { kind, callee },
             args: call_args,
         })
+    }
+
+    /// The callee's dispatch signature key (`name(<param encoding>)`,
+    /// receiver excluded) — must agree with
+    /// `Lowerer::fn_signature_key`, which keys the vtable slots.
+    fn signature_key(&mut self, function: &hir::Function) -> String {
+        let skip = usize::from(function.method_of.is_some());
+        self.key_parts(short_name(&function.name), &function.params[skip..])
+    }
+
+    /// The signature key of an interface method signature.
+    fn sig_key(&mut self, sig: &hir::MethodSig) -> String {
+        self.key_parts(&sig.name, &sig.params)
+    }
+
+    fn key_parts(&mut self, name: &str, params: &[hir::Param]) -> String {
+        let params: Vec<mir::Type> = params
+            .iter()
+            .map(|param| self.lower_type(param.ty))
+            .collect();
+        format!("{name}({})", mir::encode_params(self.shell, &params))
     }
 
     /// Register the boxed value type a `Box` produces. The boxed
@@ -2894,7 +3122,8 @@ mod tests {
     const SPAN: Span = Span { start: 0, end: 0 };
 
     /// HIR module shell as hir-lower produces it: well-known types,
-    /// the intrinsic output functions and core's `Option` enum
+    /// core's three intrinsic output primitives and the ordinary
+    /// `print` / `println` overloads (M7), plus core's `Option` enum
     /// allocated first.
     struct Harness {
         types: Arena<hir::Type>,
@@ -2909,8 +3138,17 @@ mod tests {
         boolean: hir::TypeId,
         string: hir::TypeId,
         option_enum: hir::EnumId,
-        print: hir::FunctionId,
-        println: hir::FunctionId,
+        write: hir::FunctionId,
+        int_to_string: hir::FunctionId,
+        bool_to_string: hir::FunctionId,
+        /// core's `print` / `println` overloads (ordinary functions,
+        /// M7), created on first use.
+        print_string: Option<hir::FunctionId>,
+        print_int: Option<hir::FunctionId>,
+        print_boolean: Option<hir::FunctionId>,
+        println_string: Option<hir::FunctionId>,
+        println_int: Option<hir::FunctionId>,
+        println_boolean: Option<hir::FunctionId>,
         instantiations: Vec<hir::Instantiation>,
     }
 
@@ -2922,21 +3160,34 @@ mod tests {
             let boolean = types.alloc(hir::Type::Boolean);
             let string = types.alloc(hir::Type::String);
             let mut functions = Arena::new();
-            let print = functions.alloc(hir::Function {
-                name: "print".to_string(),
+            // scoop.core's intrinsic output primitives (M7 DESIGN
+            // section 2): `@Intrinsic("rt_write") fun write(...)`,
+            // `@Intrinsic("rt_int_to_string") fun intToString(...)`,
+            // `@Intrinsic("rt_bool_to_string") fun boolToString(...)`.
+            let write = functions.alloc(hir::Function {
+                name: "write".to_string(),
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: unit,
-                kind: hir::FunctionKind::Intrinsic("rt_print".to_string()),
+                kind: hir::FunctionKind::Intrinsic("rt_write".to_string()),
                 method_of: None,
                 span: SPAN,
             });
-            let println = functions.alloc(hir::Function {
-                name: "println".to_string(),
+            let int_to_string = functions.alloc(hir::Function {
+                name: "intToString".to_string(),
                 type_params: Vec::new(),
                 params: Vec::new(),
-                return_ty: unit,
-                kind: hir::FunctionKind::Intrinsic("rt_println".to_string()),
+                return_ty: string,
+                kind: hir::FunctionKind::Intrinsic("rt_int_to_string".to_string()),
+                method_of: None,
+                span: SPAN,
+            });
+            let bool_to_string = functions.alloc(hir::Function {
+                name: "boolToString".to_string(),
+                type_params: Vec::new(),
+                params: Vec::new(),
+                return_ty: string,
+                kind: hir::FunctionKind::Intrinsic("rt_bool_to_string".to_string()),
                 method_of: None,
                 span: SPAN,
             });
@@ -2971,16 +3222,208 @@ mod tests {
                 enums,
                 classes: Arena::new(),
                 interfaces: Arena::new(),
-                top_level: vec![print, println],
+                top_level: vec![write, int_to_string, bool_to_string],
                 unit,
                 int,
                 boolean,
                 string,
                 option_enum,
-                print,
-                println,
+                write,
+                int_to_string,
+                bool_to_string,
+                print_string: None,
+                print_int: None,
+                print_boolean: None,
+                println_string: None,
+                println_int: None,
+                println_boolean: None,
                 instantiations: Vec::new(),
             }
+        }
+
+        /// core's `fun print(message: String) = write(message)`,
+        /// created on first use (tests that never print keep core's
+        /// overloads out of their MIR dumps).
+        fn print_string(&mut self) -> hir::FunctionId {
+            if let Some(id) = self.print_string {
+                return id;
+            }
+            let (unit, string) = (self.unit, self.string);
+            let write = self.write;
+            let mut locals = Arena::new();
+            let message = locals.alloc(local("message", string));
+            let id = self.user_fn_full(
+                "print",
+                Vec::new(),
+                vec![param("message", string, message)],
+                unit,
+                hir::Body {
+                    locals,
+                    statements: vec![expr_stmt(call_typed(
+                        write,
+                        vec![local_ref(message, string)],
+                        unit,
+                    ))],
+                },
+            );
+            self.print_string = Some(id);
+            id
+        }
+
+        /// core's `fun print(message: Int) = write(intToString(message))`.
+        fn print_int(&mut self) -> hir::FunctionId {
+            if let Some(id) = self.print_int {
+                return id;
+            }
+            let (unit, int, string) = (self.unit, self.int, self.string);
+            let (write, int_to_string) = (self.write, self.int_to_string);
+            let mut locals = Arena::new();
+            let message = locals.alloc(local("message", int));
+            let id = self.user_fn_full(
+                "print",
+                Vec::new(),
+                vec![param("message", int, message)],
+                unit,
+                hir::Body {
+                    locals,
+                    statements: vec![expr_stmt(call_typed(
+                        write,
+                        vec![call_typed(
+                            int_to_string,
+                            vec![local_ref(message, int)],
+                            string,
+                        )],
+                        unit,
+                    ))],
+                },
+            );
+            self.print_int = Some(id);
+            id
+        }
+
+        /// core's `fun print(message: Boolean) = write(boolToString(message))`.
+        fn print_boolean(&mut self) -> hir::FunctionId {
+            if let Some(id) = self.print_boolean {
+                return id;
+            }
+            let (unit, boolean, string) = (self.unit, self.boolean, self.string);
+            let (write, bool_to_string) = (self.write, self.bool_to_string);
+            let mut locals = Arena::new();
+            let message = locals.alloc(local("message", boolean));
+            let id = self.user_fn_full(
+                "print",
+                Vec::new(),
+                vec![param("message", boolean, message)],
+                unit,
+                hir::Body {
+                    locals,
+                    statements: vec![expr_stmt(call_typed(
+                        write,
+                        vec![call_typed(
+                            bool_to_string,
+                            vec![local_ref(message, boolean)],
+                            string,
+                        )],
+                        unit,
+                    ))],
+                },
+            );
+            self.print_boolean = Some(id);
+            id
+        }
+
+        /// core's `fun println(message: String) { write(message); write("\n") }`.
+        fn println_string(&mut self) -> hir::FunctionId {
+            if let Some(id) = self.println_string {
+                return id;
+            }
+            let (unit, string) = (self.unit, self.string);
+            let write = self.write;
+            let mut locals = Arena::new();
+            let message = locals.alloc(local("message", string));
+            let id = self.user_fn_full(
+                "println",
+                Vec::new(),
+                vec![param("message", string, message)],
+                unit,
+                hir::Body {
+                    locals,
+                    statements: vec![
+                        expr_stmt(call_typed(write, vec![local_ref(message, string)], unit)),
+                        expr_stmt(call_typed(
+                            write,
+                            vec![expr(hir::ExprKind::StringLiteral("\n".to_string()), string)],
+                            unit,
+                        )),
+                    ],
+                },
+            );
+            self.println_string = Some(id);
+            id
+        }
+
+        /// core's `fun println(message: Int) = println(intToString(message))`.
+        fn println_int(&mut self) -> hir::FunctionId {
+            if let Some(id) = self.println_int {
+                return id;
+            }
+            let println_string = self.println_string();
+            let (unit, int, string) = (self.unit, self.int, self.string);
+            let int_to_string = self.int_to_string;
+            let mut locals = Arena::new();
+            let message = locals.alloc(local("message", int));
+            let id = self.user_fn_full(
+                "println",
+                Vec::new(),
+                vec![param("message", int, message)],
+                unit,
+                hir::Body {
+                    locals,
+                    statements: vec![expr_stmt(call_typed(
+                        println_string,
+                        vec![call_typed(
+                            int_to_string,
+                            vec![local_ref(message, int)],
+                            string,
+                        )],
+                        unit,
+                    ))],
+                },
+            );
+            self.println_int = Some(id);
+            id
+        }
+
+        /// core's `fun println(message: Boolean) = println(boolToString(message))`.
+        fn println_boolean(&mut self) -> hir::FunctionId {
+            if let Some(id) = self.println_boolean {
+                return id;
+            }
+            let println_string = self.println_string();
+            let (unit, boolean, string) = (self.unit, self.boolean, self.string);
+            let bool_to_string = self.bool_to_string;
+            let mut locals = Arena::new();
+            let message = locals.alloc(local("message", boolean));
+            let id = self.user_fn_full(
+                "println",
+                Vec::new(),
+                vec![param("message", boolean, message)],
+                unit,
+                hir::Body {
+                    locals,
+                    statements: vec![expr_stmt(call_typed(
+                        println_string,
+                        vec![call_typed(
+                            bool_to_string,
+                            vec![local_ref(message, boolean)],
+                            string,
+                        )],
+                        unit,
+                    ))],
+                },
+            );
+            self.println_boolean = Some(id);
+            id
         }
 
         /// `Option<inner>` (core's enum applied to one argument).
@@ -3225,6 +3668,20 @@ mod tests {
         )
     }
 
+    /// A call expression with an explicit result type (hir-lower
+    /// annotates every expression; core's overloads call the
+    /// String-returning conversion intrinsics).
+    fn call_typed(function: hir::FunctionId, args: Vec<hir::Expr>, ty: hir::TypeId) -> hir::Expr {
+        expr(
+            hir::ExprKind::Call {
+                function,
+                type_args: Vec::new(),
+                args,
+            },
+            ty,
+        )
+    }
+
     fn struct_init(struct_id: hir::StructId, ty: hir::TypeId, args: Vec<hir::Expr>) -> hir::Expr {
         expr(hir::ExprKind::StructInit { struct_id, args }, ty)
     }
@@ -3233,11 +3690,13 @@ mod tests {
     /// calls `print("!")`.
     fn hello_world() -> hir::Module {
         let mut h = Harness::new();
+        let print = h.print_string();
+        let println = h.println_string();
         let helper = h.user_fn(
             "helper",
             hir::Body {
                 locals: Arena::new(),
-                statements: vec![expr_stmt(call(&h, h.print, vec![str_lit(&h, "!")]))],
+                statements: vec![expr_stmt(call(&h, print, vec![str_lit(&h, "!")]))],
             },
         );
         let main = h.user_fn(
@@ -3245,7 +3704,7 @@ mod tests {
             hir::Body {
                 locals: Arena::new(),
                 statements: vec![
-                    expr_stmt(call(&h, h.println, vec![str_lit(&h, "hello, world")])),
+                    expr_stmt(call(&h, println, vec![str_lit(&h, "hello, world")])),
                     expr_stmt(call(&h, helper, vec![])),
                 ],
             },
@@ -3257,20 +3716,23 @@ mod tests {
     fn lowers_hello_world() {
         let module = lower(&hello_world());
 
-        // Builtins are excluded from `top_level`; declaration order kept.
-        assert_eq!(module.top_level.len(), 2);
-        let helper = &module.functions[module.top_level[0]];
-        let main = &module.functions[module.top_level[1]];
+        // Intrinsics are excluded from `top_level`; declaration order
+        // kept: the two core overloads the test uses, then the user
+        // functions.
+        assert_eq!(module.top_level.len(), 4);
+        let helper = &module.functions[module.top_level[2]];
+        let main = &module.functions[module.top_level[3]];
         assert_eq!(helper.name, "helper");
         assert_eq!(main.name, "main");
 
         // Mangling: entry is the fixed `scoop_main`, others `scoop.<name>`.
         assert_eq!(main.symbol, mir::ENTRY_SYMBOL);
         assert_eq!(helper.symbol, "scoop.helper");
-        assert_eq!(module.entry, module.top_level[1]);
+        assert_eq!(module.entry, module.top_level[3]);
 
         // String literals became numbered global constants (in lowering
-        // order: function bodies are lowered in declaration order).
+        // order: function bodies are lowered in declaration order, so
+        // core's `println(String)` contributes its `"\n"` first).
         let strings: Vec<(&str, &str)> = module
             .strings
             .iter()
@@ -3278,7 +3740,11 @@ mod tests {
             .collect();
         assert_eq!(
             strings,
-            [("!", "scoop.str.0"), ("hello, world", "scoop.str.1")]
+            [
+                ("\n", "scoop.str.0"),
+                ("!", "scoop.str.1"),
+                ("hello, world", "scoop.str.2")
+            ]
         );
 
         // M2 meta exists but is empty.
@@ -3287,15 +3753,24 @@ mod tests {
         // Golden dump locks the output structure.
         let expected = "\
 Module
-  fun helper @scoop.helper() -> Unit
+  fun print @scoop.print(message: String) -> Unit
+    Call @scoop_rt_print direct
+      Local message
+  fun println @scoop.println(message: String) -> Unit
+    Call @scoop_rt_print direct
+      Local message
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
-  fun main @scoop_main() -> Unit
-    Call @scoop_rt_println direct
+  fun helper @scoop.helper() -> Unit
+    Call @scoop.print direct
       StringConst @scoop.str.1
+  fun main @scoop_main() -> Unit
+    Call @scoop.println direct
+      StringConst @scoop.str.2
     Call @scoop.helper direct
-  str @scoop.str.0 \"!\"
-  str @scoop.str.1 \"hello, world\"
+  str @scoop.str.0 \"\\n\"
+  str @scoop.str.1 \"!\"
+  str @scoop.str.2 \"hello, world\"
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);
@@ -3304,8 +3779,9 @@ Module
     #[test]
     fn repeated_literals_get_separate_constants_deterministically() {
         let mut hir_module = hello_world();
-        // Add another `println("hello, world")` to `main`. `println`
-        // is the second intrinsic function in `top_level`.
+        // Add another `println("hello, world")` to `main`. The
+        // `println(String)` overload is the second function in
+        // `top_level` (after `print(String)`).
         let println = hir_module.top_level[1];
         let string = hir_module.string;
         let unit = hir_module.unit;
@@ -3336,23 +3812,31 @@ Module
             .iter()
             .map(|(_, s)| s.symbol.as_str())
             .collect();
-        assert_eq!(symbols, ["scoop.str.0", "scoop.str.1", "scoop.str.2"]);
+        assert_eq!(
+            symbols,
+            ["scoop.str.0", "scoop.str.1", "scoop.str.2", "scoop.str.3"]
+        );
     }
 
     #[test]
-    fn print_and_println_map_to_per_type_runtime_shims() {
+    fn intrinsic_names_map_to_runtime_functions() {
+        // core's `print` / `println` overloads are ordinary user
+        // functions (their forwarding is locked by the golden dumps);
+        // only the three intrinsic primitives map onto runtime
+        // functions, by intrinsic name.
         let mut h = Harness::new();
         let main = h.user_fn(
             "main",
             hir::Body {
                 locals: Arena::new(),
                 statements: vec![
-                    expr_stmt(call(&h, h.print, vec![str_lit(&h, "s")])),
-                    expr_stmt(call(&h, h.print, vec![int_lit(&h, 1)])),
-                    expr_stmt(call(&h, h.print, vec![bool_lit(&h, true)])),
-                    expr_stmt(call(&h, h.println, vec![str_lit(&h, "t")])),
-                    expr_stmt(call(&h, h.println, vec![int_lit(&h, 2)])),
-                    expr_stmt(call(&h, h.println, vec![bool_lit(&h, false)])),
+                    expr_stmt(call(&h, h.write, vec![str_lit(&h, "s")])),
+                    expr_stmt(call_typed(h.int_to_string, vec![int_lit(&h, 1)], h.string)),
+                    expr_stmt(call_typed(
+                        h.bool_to_string,
+                        vec![bool_lit(&h, true)],
+                        h.string,
+                    )),
                 ],
             },
         );
@@ -3375,14 +3859,521 @@ Module
         assert_eq!(
             shims,
             [
-                mir::RuntimeFn::PrintString,
-                mir::RuntimeFn::PrintInt,
-                mir::RuntimeFn::PrintBoolean,
-                mir::RuntimeFn::PrintlnString,
-                mir::RuntimeFn::PrintlnInt,
-                mir::RuntimeFn::PrintlnBoolean,
+                mir::RuntimeFn::Write,
+                mir::RuntimeFn::IntToString,
+                mir::RuntimeFn::BoolToString,
             ]
         );
+    }
+
+    #[test]
+    fn print_overloads_are_ordinary_calls() {
+        // M7: calls to core's `print` / `println` overloads resolve to
+        // the overload's own MIR function (`Callee::User`); only the
+        // intrinsic primitives inside their bodies are runtime calls.
+        let mut h = Harness::new();
+        let print_string = h.print_string();
+        let print_int = h.print_int();
+        let print_boolean = h.print_boolean();
+        let println_string = h.println_string();
+        let println_int = h.println_int();
+        let println_boolean = h.println_boolean();
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: vec![
+                    expr_stmt(call(&h, print_string, vec![str_lit(&h, "s")])),
+                    expr_stmt(call(&h, print_int, vec![int_lit(&h, 1)])),
+                    expr_stmt(call(&h, print_boolean, vec![bool_lit(&h, true)])),
+                    expr_stmt(call(&h, println_string, vec![str_lit(&h, "t")])),
+                    expr_stmt(call(&h, println_int, vec![int_lit(&h, 2)])),
+                    expr_stmt(call(&h, println_boolean, vec![bool_lit(&h, false)])),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let body = &module.functions[module.entry].body;
+        let callees: Vec<mir::FunctionId> = body
+            .statements
+            .iter()
+            .map(|statement| {
+                let mir::StatementKind::Expr(mir::Expr::Call(call)) = &statement.kind else {
+                    panic!("expected a call statement")
+                };
+                let mir::Callee::User(id) = call.target.callee else {
+                    panic!("print/println calls must be ordinary user calls")
+                };
+                id
+            })
+            .collect();
+        // The overloads are the first six MIR functions (declaration
+        // order: the three `print`s, then the three `println`s), and
+        // each overload's symbol carries the parameter encoding.
+        assert_eq!(callees, module.top_level[..6]);
+        let symbols: Vec<&str> = callees
+            .iter()
+            .map(|&id| module.functions[id].symbol.as_str())
+            .collect();
+        assert_eq!(
+            symbols,
+            [
+                "scoop.print.S",
+                "scoop.print.I",
+                "scoop.print.B",
+                "scoop.println.S",
+                "scoop.println.I",
+                "scoop.println.B",
+            ]
+        );
+    }
+
+    /// `fun <name>(<params>): String = <text>` — one overload each.
+    fn string_fn(
+        h: &mut Harness,
+        name: &str,
+        params: &[(&str, hir::TypeId)],
+        text: &str,
+    ) -> hir::FunctionId {
+        let string = h.string;
+        let mut locals = Arena::new();
+        let params: Vec<hir::Param> = params
+            .iter()
+            .map(|(name, ty)| {
+                let local_id = locals.alloc(local(name, *ty));
+                param(name, *ty, local_id)
+            })
+            .collect();
+        let init = str_lit(h, text);
+        h.user_fn_full(
+            name,
+            Vec::new(),
+            params,
+            string,
+            hir::Body {
+                locals,
+                statements: vec![stmt(hir::StatementKind::Return { value: Some(init) })],
+            },
+        )
+    }
+
+    fn top_level_symbols(module: &mir::Module) -> Vec<&str> {
+        module
+            .top_level
+            .iter()
+            .map(|&id| module.functions[id].symbol.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn overloads_mangle_with_param_encoding() {
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        string_fn(&mut h, "show", &[("v", int)], "int");
+        string_fn(&mut h, "show", &[("v", string)], "string");
+        string_fn(&mut h, "show", &[("v", int), ("extra", int)], "two");
+        // A unique name keeps the plain `scoop.<name>` symbol.
+        string_fn(&mut h, "helper", &[], "h");
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        assert_eq!(
+            top_level_symbols(&module),
+            [
+                "scoop.show.I",
+                "scoop.show.S",
+                "scoop.show.I_I",
+                "scoop.helper",
+                "scoop_main"
+            ]
+        );
+    }
+
+    #[test]
+    fn zero_parameter_overload_mangles_with_an_empty_encoding() {
+        let mut h = Harness::new();
+        let int = h.int;
+        string_fn(&mut h, "f", &[], "none");
+        string_fn(&mut h, "f", &[("v", int)], "one");
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        assert_eq!(
+            top_level_symbols(&module),
+            ["scoop.f.", "scoop.f.I", "scoop_main"]
+        );
+    }
+
+    #[test]
+    fn overload_symbols_do_not_collide_with_instance_symbols() {
+        // `show(Int)` / `show(String)` overloads plus a generic
+        // `show<T>` instantiated with `Int`: `.` vs `$` keep the
+        // symbols distinct.
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        string_fn(&mut h, "show", &[("v", int)], "int");
+        string_fn(&mut h, "show", &[("v", string)], "string");
+        let generic = identity_fn(&mut h, "show");
+        h.instantiate(generic, vec![int]);
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: vec![expr_stmt(generic_call(
+                    generic,
+                    vec![int],
+                    vec![int_lit(&h, 1)],
+                    int,
+                ))],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let symbols = top_level_symbols(&module);
+        for expected in ["scoop.show.I", "scoop.show.S", "scoop.show$I"] {
+            assert!(
+                symbols.contains(&expected),
+                "missing {expected} in {symbols:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn method_overloads_mangle_with_param_encoding() {
+        // `class Doc { fun describe(v: Int); fun describe(v: String) }`:
+        // the receiver is not part of the overload encoding.
+        let mut h = Harness::new();
+        let (int, string, unit) = (h.int, h.string, h.unit);
+        let doc = h.class("Doc", hir::ClassModifier::Final, &[], None, &[]);
+        let doc_ty = h.class_ty(doc);
+        for ty in [int, string] {
+            let mut locals = Arena::new();
+            let this = locals.alloc(local("this", doc_ty));
+            let v = locals.alloc(local("v", ty));
+            h.method_fn(
+                "Doc.describe",
+                doc_ty,
+                vec![param("this", doc_ty, this), param("v", ty, v)],
+                unit,
+                hir::Body {
+                    locals,
+                    statements: Vec::new(),
+                },
+            );
+        }
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        let symbols: std::collections::HashSet<&str> = module
+            .functions
+            .iter()
+            .map(|(_, f)| f.symbol.as_str())
+            .collect();
+        assert!(symbols.contains("scoop.Doc.describe.I"));
+        assert!(symbols.contains("scoop.Doc.describe.S"));
+        // Each overload gets its own vtable slot (keyed by signature),
+        // referencing the final (overload-encoded) symbol by id.
+        let doc_def = &module.classes[class_index(0)];
+        assert_eq!(doc_def.vtable.len(), 5);
+        assert_eq!(slot_fn(&module, &doc_def.vtable[3]), "scoop.Doc.describe.I");
+        assert_eq!(slot_fn(&module, &doc_def.vtable[4]), "scoop.Doc.describe.S");
+    }
+
+    /// A class method returning an Int constant:
+    /// `fun <owner>.<name>(v: <param_ty>): Int = <value>` (param
+    /// optional). Returns the HIR function id.
+    fn int_method(
+        h: &mut Harness,
+        qualified: &str,
+        receiver: hir::TypeId,
+        param_ty: Option<hir::TypeId>,
+        value: i64,
+    ) -> hir::FunctionId {
+        let int = h.int;
+        let mut locals = Arena::new();
+        let this = locals.alloc(local("this", receiver));
+        let mut params = vec![param("this", receiver, this)];
+        if let Some(ty) = param_ty {
+            let v = locals.alloc(local("v", ty));
+            params.push(param("v", ty, v));
+        }
+        h.method_fn(
+            qualified,
+            receiver,
+            params,
+            int,
+            hir::Body {
+                locals,
+                statements: vec![stmt(hir::StatementKind::Return {
+                    value: Some(int_lit(h, value)),
+                })],
+            },
+        )
+    }
+
+    #[test]
+    fn overridden_overload_replaces_the_base_slot_in_place() {
+        // open class A { fun s(v: Int): Int = 1; fun s(v: String): Int = 2 }
+        // class B : A() { override fun s(v: Int): Int = 3 }
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        let a = h.class("A", hir::ClassModifier::Open, &[], None, &[]);
+        let a_ty = h.class_ty(a);
+        int_method(&mut h, "A.s", a_ty, Some(int), 1);
+        int_method(&mut h, "A.s", a_ty, Some(string), 2);
+        let b = h.class(
+            "B",
+            hir::ClassModifier::Final,
+            &[],
+            Some((a, Vec::new())),
+            &[],
+        );
+        let b_ty = h.class_ty(b);
+        int_method(&mut h, "B.s", b_ty, Some(int), 3);
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        // A: two overload slots after the Any defaults.
+        let a_def = &module.classes[class_index(0)];
+        assert_eq!(a_def.vtable.len(), 5);
+        assert_eq!(slot_fn(&module, &a_def.vtable[3]), "scoop.A.s.I");
+        assert_eq!(slot_fn(&module, &a_def.vtable[4]), "scoop.A.s.S");
+        // B: the `s(Int)` override replaces slot 3 in place; the
+        // inherited `s(String)` keeps slot 4. (`B.s` is a unique name
+        // in the module, so it keeps the plain symbol.)
+        let b_def = &module.classes[class_index(1)];
+        assert_eq!(b_def.vtable.len(), 5);
+        assert_eq!(slot_fn(&module, &b_def.vtable[3]), "scoop.B.s");
+        assert_eq!(slot_fn(&module, &b_def.vtable[4]), "scoop.A.s.S");
+    }
+
+    #[test]
+    fn virtual_calls_annotate_the_overloads_own_slot() {
+        // `val a: A = ...; a.s(1); a.s("x")` — the callee is the
+        // signature resolved on the static type; each call annotates
+        // its own overload's slot.
+        let mut h = Harness::new();
+        let (int, string, unit) = (h.int, h.string, h.unit);
+        let a = h.class("A", hir::ClassModifier::Open, &[], None, &[]);
+        let a_ty = h.class_ty(a);
+        let s_int = int_method(&mut h, "A.s", a_ty, Some(int), 1);
+        let s_string = int_method(&mut h, "A.s", a_ty, Some(string), 2);
+        let method_call = |receiver: hir::Expr, function: hir::FunctionId, arg: hir::Expr| {
+            expr(
+                hir::ExprKind::MethodCall {
+                    receiver: Box::new(receiver),
+                    function,
+                    args: vec![arg],
+                },
+                unit,
+            )
+        };
+        let mut locals = Arena::new();
+        let av = locals.alloc(local("a", a_ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    expr_stmt(method_call(local_ref(av, a_ty), s_int, int_lit(&h, 1))),
+                    expr_stmt(method_call(local_ref(av, a_ty), s_string, str_lit(&h, "x"))),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let body = &module.functions[module.entry].body;
+        let call_kind = |index: usize| {
+            let mir::StatementKind::Expr(mir::Expr::Call(call)) = &body.statements[index].kind
+            else {
+                panic!("expected a call statement")
+            };
+            &call.target.kind
+        };
+        assert!(matches!(call_kind(0), mir::CallKind::Virtual { slot: 3 }));
+        assert!(matches!(call_kind(1), mir::CallKind::Virtual { slot: 4 }));
+    }
+
+    /// `interface <name> { fun m(v: T)... }` — one `MethodSig` per
+    /// `(name, param type)` entry, as hir-lower materializes them
+    /// (interface methods carry no `this` in the signature).
+    fn overloaded_interface(
+        h: &mut Harness,
+        name: &str,
+        methods: &[(&str, hir::TypeId)],
+    ) -> hir::InterfaceId {
+        let unit = h.unit;
+        let mut locals = Arena::new();
+        h.interfaces.alloc(hir::InterfaceDecl {
+            name: name.to_string(),
+            methods: methods
+                .iter()
+                .map(|(name, ty)| {
+                    let v = locals.alloc(local("v", *ty));
+                    hir::MethodSig {
+                        name: name.to_string(),
+                        params: vec![param("v", *ty, v)],
+                        return_ty: unit,
+                        span: SPAN,
+                    }
+                })
+                .collect(),
+            span: SPAN,
+        })
+    }
+
+    #[test]
+    fn overloaded_interface_methods_get_one_itable_slot_each() {
+        // interface Multi { fun m(v: Int); fun m(v: String) }
+        // class C : Multi implements both overloads.
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        let multi = overloaded_interface(&mut h, "Multi", &[("m", int), ("m", string)]);
+        let c = h.class("C", hir::ClassModifier::Final, &[], None, &[multi]);
+        let c_ty = h.class_ty(c);
+        int_method(&mut h, "C.m", c_ty, Some(int), 1);
+        int_method(&mut h, "C.m", c_ty, Some(string), 2);
+        let main = empty_main(&mut h);
+        let module = lower(&h.finish(main));
+
+        let c_def = &module.classes[class_index(0)];
+        assert_eq!(c_def.itables.len(), 1);
+        let record = &c_def.itables[0];
+        assert_eq!(record.slots.len(), 2);
+        assert_eq!(slot_fn(&module, &record.slots[0]), "scoop.C.m.I");
+        assert_eq!(slot_fn(&module, &record.slots[1]), "scoop.C.m.S");
+    }
+
+    #[test]
+    fn interface_calls_annotate_the_overloads_own_slot() {
+        // `val i: Multi = ...; i.m(1); i.m("x")` — interface dispatch
+        // locates the slot by the callee's signature.
+        let mut h = Harness::new();
+        let (int, string, unit) = (h.int, h.string, h.unit);
+        let multi = overloaded_interface(&mut h, "Multi", &[("m", int), ("m", string)]);
+        let multi_ty = h.interface_ty(multi);
+        // Interface method shells, as hir-lower materializes them
+        // (params include `this`).
+        let shell = |h: &mut Harness, ty: hir::TypeId| {
+            let mut locals = Arena::new();
+            let this = locals.alloc(local("this", multi_ty));
+            let v = locals.alloc(local("v", ty));
+            h.method_fn(
+                "Multi.m",
+                multi_ty,
+                vec![param("this", multi_ty, this), param("v", ty, v)],
+                unit,
+                hir::Body {
+                    locals,
+                    statements: Vec::new(),
+                },
+            )
+        };
+        let m_int = shell(&mut h, int);
+        let m_string = shell(&mut h, string);
+        let method_call = |receiver: hir::Expr, function: hir::FunctionId, arg: hir::Expr| {
+            expr(
+                hir::ExprKind::MethodCall {
+                    receiver: Box::new(receiver),
+                    function,
+                    args: vec![arg],
+                },
+                unit,
+            )
+        };
+        let mut locals = Arena::new();
+        let i = locals.alloc(local("i", multi_ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    expr_stmt(method_call(local_ref(i, multi_ty), m_int, int_lit(&h, 1))),
+                    expr_stmt(method_call(
+                        local_ref(i, multi_ty),
+                        m_string,
+                        str_lit(&h, "x"),
+                    )),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let body = &module.functions[module.entry].body;
+        let call_kind = |index: usize| {
+            let mir::StatementKind::Expr(mir::Expr::Call(call)) = &body.statements[index].kind
+            else {
+                panic!("expected a call statement")
+            };
+            &call.target.kind
+        };
+        let is_iface_slot = |kind: &mir::CallKind, slot: u32| matches!(kind, mir::CallKind::Interface { slot: s, .. } if *s == slot);
+        assert!(is_iface_slot(call_kind(0), 0));
+        assert!(is_iface_slot(call_kind(1), 1));
+    }
+
+    #[test]
+    fn boxed_thunks_of_overloaded_interface_methods_are_disambiguated() {
+        // struct S : Multi implements both `m` overloads; boxing to
+        // `Multi` generates one thunk per signature.
+        let mut h = Harness::new();
+        let (int, string) = (h.int, h.string);
+        let multi = overloaded_interface(&mut h, "Multi", &[("m", int), ("m", string)]);
+        let multi_ty = h.interface_ty(multi);
+        let s = h.strukt_with("S", &[("x", int)], &[multi]);
+        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        int_method(&mut h, "S.m", s_ty, Some(int), 1);
+        int_method(&mut h, "S.m", s_ty, Some(string), 2);
+        let mut locals = Arena::new();
+        let d = locals.alloc(local("d", multi_ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    d,
+                    expr(
+                        hir::ExprKind::Box(Box::new(struct_init(s, s_ty, vec![int_lit(&h, 1)]))),
+                        multi_ty,
+                    ),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let boxed = &module.classes[class_index(0)];
+        assert_eq!(boxed.itables.len(), 1);
+        let record = &boxed.itables[0];
+        assert_eq!(record.slots.len(), 2);
+        assert_eq!(
+            slot_fn(&module, &record.slots[0]),
+            "scoop.thunk.S.Multi.m.I"
+        );
+        assert_eq!(
+            slot_fn(&module, &record.slots[1]),
+            "scoop.thunk.S.Multi.m.S"
+        );
+        // Each thunk tail-calls its own overload.
+        let thunk_target = |slot: &mir::TableSlot| {
+            let symbol = slot_fn(&module, slot);
+            let thunk = module
+                .functions
+                .iter()
+                .map(|(_, f)| f)
+                .find(|f| f.symbol == symbol)
+                .expect("the thunk is a MIR function");
+            let mir::StatementKind::Expr(mir::Expr::Call(call)) = &thunk.body.statements[0].kind
+            else {
+                panic!("the thunk tail-calls the value method")
+            };
+            let mir::Callee::User(target) = call.target.callee else {
+                panic!("the thunk calls a user function")
+            };
+            module.functions[target].symbol.clone()
+        };
+        assert_eq!(thunk_target(&record.slots[0]), "scoop.S.m.I");
+        assert_eq!(thunk_target(&record.slots[1]), "scoop.S.m.S");
     }
 
     #[test]
@@ -3934,6 +4925,7 @@ Module
     #[test]
     fn control_flow_stays_structured() {
         let mut h = Harness::new();
+        let println = h.println_string();
         let main = h.user_fn(
             "main",
             hir::Body {
@@ -3941,12 +4933,8 @@ Module
                 statements: vec![
                     stmt(hir::StatementKind::If {
                         cond: bool_lit(&h, true),
-                        then_body: vec![expr_stmt(call(&h, h.println, vec![str_lit(&h, "a")]))],
-                        else_body: Some(vec![expr_stmt(call(
-                            &h,
-                            h.println,
-                            vec![str_lit(&h, "b")],
-                        ))]),
+                        then_body: vec![expr_stmt(call(&h, println, vec![str_lit(&h, "a")]))],
+                        else_body: Some(vec![expr_stmt(call(&h, println, vec![str_lit(&h, "b")]))]),
                     }),
                     stmt(hir::StatementKind::While {
                         cond: bool_lit(&h, false),
@@ -4630,6 +5618,8 @@ Module
     fn when_lowers_to_a_decision_sequence() {
         // val o = Some(1); when (o) { Some(x) -> print(x); None -> println("none") }
         let mut h = Harness::new();
+        let print_int = h.print_int();
+        let println_string = h.println_string();
         let int = h.int;
         let option_enum = h.option_enum;
         let option_int = h.option(int);
@@ -4658,7 +5648,7 @@ Module
                                     fields: vec![(0, hir::Pattern::Binding { local: x })],
                                 },
                                 None,
-                                vec![expr_stmt(call(&h, h.print, vec![local_ref(x, int)]))],
+                                vec![expr_stmt(call(&h, print_int, vec![local_ref(x, int)]))],
                             ),
                             arm(
                                 hir::Pattern::Variant {
@@ -4667,7 +5657,11 @@ Module
                                     fields: Vec::new(),
                                 },
                                 None,
-                                vec![expr_stmt(call(&h, h.println, vec![str_lit(&h, "none")]))],
+                                vec![expr_stmt(call(
+                                    &h,
+                                    println_string,
+                                    vec![str_lit(&h, "none")],
+                                ))],
                             ),
                         ],
                         None,
@@ -4679,12 +5673,23 @@ Module
 
         // The subject is evaluated once into `$when.1`; each arm is a
         // tag comparison, then the field bindings, then the body; a
-        // failed tag test falls through to the next arm.
+        // failed tag test falls through to the next arm. (`print` /
+        // `println` are ordinary core functions — M7 — so the arms
+        // call the overloads, not runtime shims.)
         let expected = "\
 Module
   enum Option$I
     Some(_1: Int)
     None()
+  fun print @scoop.print(message: Int) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop_rt_int_to_string direct
+        Local message
+  fun println @scoop.println(message: String) -> Unit
+    Call @scoop_rt_print direct
+      Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
   fun main @scoop_main() -> Unit
     val o: Option$I<Int>
       VariantConstruct Option$I<Int> v0
@@ -4699,7 +5704,7 @@ Module
       val x: Int
         EnumField v0 f0
           Local $when.1
-      Call @scoop_rt_print_int direct
+      Call @scoop.print direct
         Local x
     else
       if
@@ -4707,9 +5712,10 @@ Module
           EnumTag
             Local $when.1
           IntLiteral 1
-        Call @scoop_rt_println direct
-          StringConst @scoop.str.0
-  str @scoop.str.0 \"none\"
+        Call @scoop.println direct
+          StringConst @scoop.str.1
+  str @scoop.str.0 \"\\n\"
+  str @scoop.str.1 \"none\"
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);
@@ -4719,13 +5725,21 @@ Module
     fn a_failed_guard_falls_through_to_the_next_arm() {
         // when (o) { Some(x) if (x > 0) -> print(x); else -> println("neg") }
         let mut h = Harness::new();
+        let print_int = h.print_int();
+        let println_string = h.println_string();
         let int = h.int;
         let option_enum = h.option_enum;
         let option_int = h.option(int);
         let mut locals = Arena::new();
         let o = locals.alloc(local("o", option_int));
         let x = locals.alloc(local("x", int));
-        let else_body = || vec![expr_stmt(call(&h, h.println, vec![str_lit(&h, "neg")]))];
+        let else_body = || {
+            vec![expr_stmt(call(
+                &h,
+                println_string,
+                vec![str_lit(&h, "neg")],
+            ))]
+        };
         let main = h.user_fn(
             "main",
             hir::Body {
@@ -4744,7 +5758,7 @@ Module
                             int_lit(&h, 0),
                             h.boolean,
                         )),
-                        vec![expr_stmt(call(&h, h.print, vec![local_ref(x, int)]))],
+                        vec![expr_stmt(call(&h, print_int, vec![local_ref(x, int)]))],
                     )],
                     Some(else_body()),
                 )],
@@ -4760,6 +5774,15 @@ Module
   enum Option$I
     Some(_1: Int)
     None()
+  fun print @scoop.print(message: Int) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop_rt_int_to_string direct
+        Local message
+  fun println @scoop.println(message: String) -> Unit
+    Call @scoop_rt_print direct
+      Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
   fun main @scoop_main() -> Unit
     val $when.1: Option$I<Int>
       Local o
@@ -4775,16 +5798,17 @@ Module
         Binary IntGt
           Local x
           IntLiteral 0
-        Call @scoop_rt_print_int direct
+        Call @scoop.print direct
           Local x
       else
-        Call @scoop_rt_println direct
-          StringConst @scoop.str.0
+        Call @scoop.println direct
+          StringConst @scoop.str.1
     else
-      Call @scoop_rt_println direct
-        StringConst @scoop.str.1
-  str @scoop.str.0 \"neg\"
+      Call @scoop.println direct
+        StringConst @scoop.str.2
+  str @scoop.str.0 \"\\n\"
   str @scoop.str.1 \"neg\"
+  str @scoop.str.2 \"neg\"
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);
@@ -4794,6 +5818,7 @@ Module
     fn literal_patterns_match_by_equality() {
         // when (n) { 1 -> println("one"); else -> println("other") }
         let mut h = Harness::new();
+        let println = h.println_string();
         let int = h.int;
         let mut locals = Arena::new();
         let n = locals.alloc(local("n", int));
@@ -4806,11 +5831,11 @@ Module
                     vec![arm(
                         hir::Pattern::Literal(int_lit(&h, 1)),
                         None,
-                        vec![expr_stmt(call(&h, h.println, vec![str_lit(&h, "one")]))],
+                        vec![expr_stmt(call(&h, println, vec![str_lit(&h, "one")]))],
                     )],
                     Some(vec![expr_stmt(call(
                         &h,
-                        h.println,
+                        println,
                         vec![str_lit(&h, "other")],
                     ))]),
                 )],
@@ -5386,7 +6411,8 @@ Module
 
         // The boxed class: one field (the payload), the generated
         // structural equals in vtable slot 0, the Any defaults in
-        // slots 1/2.
+        // slots 1/2 (aggregate value types keep the Any `toString`
+        // default until a spec'd structured format lands).
         assert_eq!(module.classes.len(), 1);
         let boxed = &module.classes[class_index(0)];
         assert_eq!(boxed.name, "box$S");
@@ -5438,6 +6464,88 @@ Module
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn boxed_primitives_get_a_real_tostring_slot() {
+        // `val a: Any = 42; val b: Any = true` — M7: the boxed
+        // primitives' vtable slot 2 is a generated per-type `toString`
+        // converting through the runtime, so `Any.toString()`
+        // (core's `print` / `println`) produces the value's text.
+        let mut h = Harness::new();
+        let any = h.any();
+        let mut locals = Arena::new();
+        let a = locals.alloc(local("a", any));
+        let b = locals.alloc(local("b", any));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    val_decl(a, expr(hir::ExprKind::Box(Box::new(int_lit(&h, 42))), any)),
+                    val_decl(
+                        b,
+                        expr(hir::ExprKind::Box(Box::new(bool_lit(&h, true))), any),
+                    ),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let boxed_int = &module.classes[class_index(0)];
+        assert_eq!(boxed_int.name, "box$I");
+        let vtable: Vec<&str> = boxed_int
+            .vtable
+            .iter()
+            .map(|slot| slot_fn(&module, slot))
+            .collect();
+        assert_eq!(
+            vtable,
+            ["scoop.eq.I", "scoop_rt_any_hashcode", "scoop.tostring.I"]
+        );
+        let boxed_bool = &module.classes[class_index(1)];
+        assert_eq!(boxed_bool.name, "box$B");
+        assert_eq!(slot_fn(&module, &boxed_bool.vtable[2]), "scoop.tostring.B");
+
+        // The generated toString: `return call scoop_rt_int_to_string(Unbox(this))`.
+        let tostring = module
+            .functions
+            .iter()
+            .map(|(_, f)| f)
+            .find(|f| f.symbol == "scoop.tostring.I")
+            .expect("the generated toString is a MIR function");
+        assert_eq!(tostring.return_ty, mir::Type::String);
+        assert_eq!(tostring.params.len(), 1);
+        assert_eq!(tostring.params[0].ty, mir::Type::Any);
+        let mir::StatementKind::Return {
+            value: Some(mir::Expr::Call(call)),
+        } = &tostring.body.statements[0].kind
+        else {
+            panic!("the toString body is a single return-call")
+        };
+        assert_eq!(
+            call.target.callee,
+            mir::Callee::Runtime(mir::RuntimeFn::IntToString)
+        );
+        assert!(
+            matches!(&call.args[0], mir::Expr::Unbox(operand) if matches!(operand.as_ref(), mir::Expr::Local(local) if *local == tostring.params[0].local))
+        );
+        let tostring_b = module
+            .functions
+            .iter()
+            .map(|(_, f)| f)
+            .find(|f| f.symbol == "scoop.tostring.B")
+            .expect("the generated toString is a MIR function");
+        let mir::StatementKind::Return {
+            value: Some(mir::Expr::Call(call_b)),
+        } = &tostring_b.body.statements[0].kind
+        else {
+            panic!("the toString body is a single return-call")
+        };
+        assert_eq!(
+            call_b.target.callee,
+            mir::Callee::Runtime(mir::RuntimeFn::BoolToString)
+        );
     }
 
     #[test]
@@ -5998,6 +7106,7 @@ Module
         // cast). The unbox must be bound to a typed hidden local so LIR
         // never has to reconstruct its type from the `Any` operand.
         let mut h = Harness::new();
+        let println_int = h.println_int();
         let (int, boolean) = (h.int, h.boolean);
         let s = h.strukt("S", &[("v", int)]);
         let s_ty = h.types.alloc(hir::Type::Struct(s));
@@ -6006,7 +7115,7 @@ Module
         let a = locals.alloc(local("a", any));
         let print_call = expr(
             hir::ExprKind::Call {
-                function: h.println,
+                function: println_int,
                 type_args: Vec::new(),
                 args: vec![expr(
                     hir::ExprKind::FieldAccess {

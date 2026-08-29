@@ -2,15 +2,17 @@
 //! AST/HIR contracts and the multi-file `lower` entry point.
 //!
 //! Every test compiles the user file together with a minimal
-//! `scoop.core` (`core_file()`: the `Option<T>` enum plus the
-//! `rt_print` / `rt_println` intrinsics), mirroring the driver's
-//! sysroot convention — core files first, the user file last.
+//! `scoop.core` (`core_file()`: the `Option<T>` enum plus the M7
+//! `io.scoop` overloads and their three backing intrinsics), mirroring
+//! the driver's sysroot convention — core files first, the user file
+//! last.
 
 mod m2;
 mod m3;
 mod m4;
 mod m5;
 mod m6;
+mod m7;
 
 use super::*;
 use ast::{
@@ -531,8 +533,13 @@ pub(crate) fn fun_expr(
     })
 }
 
-/// `@Intrinsic("...") fun name(params)` (core library only).
-pub(crate) fn intrinsic_fun(name: &str, intrinsic: &str, params: Vec<(&str, TypeRef)>) -> Decl {
+/// `@Intrinsic("...") fun name(params) [: T]` (core library only).
+pub(crate) fn intrinsic_fun(
+    name: &str,
+    intrinsic: &str,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: vec![ast::Annotation {
             name: ident("Intrinsic"),
@@ -551,7 +558,7 @@ pub(crate) fn intrinsic_fun(name: &str, intrinsic: &str, params: Vec<(&str, Type
                 span: sp(),
             })
             .collect(),
-        return_ty: None,
+        return_ty,
         body: FunctionBody::Block(block(vec![])),
         span: sp(),
     })
@@ -879,8 +886,9 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
 }
 
 /// The minimal `scoop.core` (sysroot): the `Option<T>` enum (spec 7.2)
-/// and the `rt_print` / `rt_println` intrinsics (milestone4 DESIGN.md
-/// 1.3).
+/// plus the M7 `io.scoop` final shape (docs/milestone7/DESIGN.md
+/// section 2) — the single `rt_write` intrinsic and `print` / `println`
+/// as ordinary `Any`-parameter functions dispatching `toString()`.
 pub(crate) fn core_file() -> SourceFile {
     file(vec![
         enum_decl(
@@ -891,11 +899,34 @@ pub(crate) fn core_file() -> SourceFile {
                 variant_unit("None"),
             ],
         ),
-        intrinsic_fun("print", "rt_print", vec![("message", ty_named("String"))]),
         intrinsic_fun(
-            "println",
-            "rt_println",
+            "write",
+            "rt_write",
             vec![("message", ty_named("String"))],
+            None,
+        ),
+        fun_expr(
+            "print",
+            vec![],
+            vec![("message", ty_named("Any"))],
+            None,
+            call(
+                "write",
+                vec![method_call(var("message"), "toString", vec![])],
+            ),
+        ),
+        fun_sig(
+            "println",
+            vec![],
+            vec![("message", ty_named("Any"))],
+            None,
+            vec![
+                stmt(call(
+                    "write",
+                    vec![method_call(var("message"), "toString", vec![])],
+                )),
+                stmt(call("write", vec![str_lit("\n")])),
+            ],
         ),
     ])
 }
@@ -943,15 +974,25 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     Call println : Unit
-      StringLiteral \"hello, world\" : String
+      StringLiteral \"hello, world\" : Any
     Call helper : Unit
   fun helper(): Unit
     Call print : Unit
-      StringLiteral \"!\" : String
+      StringLiteral \"!\" : Any
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -962,17 +1003,37 @@ fn duplicate_function_is_an_error() {
     let file = file(vec![fun("main", vec![]), fun("main", vec![])]);
     let errors = lower_user(file).expect_err("duplicate `main` must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "duplicate function `main`");
+    assert_eq!(
+        errors[0].message,
+        "function `main` is already declared with the same signature"
+    );
     // The duplicate is in the user file (index 1; core is index 0).
     assert_eq!(errors[0].file, 1);
 }
 
 #[test]
 fn redeclaring_a_core_function_is_an_error() {
-    let file = file(vec![fun("main", vec![]), fun("print", vec![])]);
+    // The user file's `print(Any)` duplicates the core declaration
+    // exactly (overloads with different signatures would be legal).
+    let file = file(vec![
+        fun("main", vec![]),
+        fun_expr(
+            "print",
+            vec![],
+            vec![("message", ty_named("Any"))],
+            None,
+            call(
+                "write",
+                vec![method_call(var("message"), "toString", vec![])],
+            ),
+        ),
+    ]);
     let errors = lower_user(file).expect_err("redeclaring `print` must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "duplicate function `print`");
+    assert_eq!(
+        errors[0].message,
+        "function `print` is already declared with the same signature"
+    );
 }
 
 #[test]
@@ -997,27 +1058,9 @@ fn print_requires_exactly_one_argument() {
         assert_eq!(errors.len(), 1);
         assert_eq!(
             errors[0].message,
-            format!("`print` takes exactly 1 argument, but {supplied} were supplied")
+            format!("function `print` takes exactly 1 argument, but {supplied} were supplied")
         );
     }
-}
-
-#[test]
-fn print_argument_must_be_printable() {
-    // `helper()` has type `Unit`, which is not printable.
-    let file = file(vec![
-        fun(
-            "main",
-            vec![stmt(call("println", vec![call("helper", vec![])]))],
-        ),
-        fun("helper", vec![]),
-    ]);
-    let errors = lower_user(file).expect_err("non-printable argument must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "argument of `println` must be String, Int or Boolean, found Unit"
-    );
 }
 
 #[test]

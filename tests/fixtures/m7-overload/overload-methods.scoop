@@ -1,0 +1,14 @@
+open class A {
+    fun s(v: Int): Int = 1
+    fun s(v: String): Int = 2
+}
+
+class B : A() {
+    override fun s(v: Int): Int = 3
+}
+
+fun main() {
+    val a: A = B()
+    println(a.s(1))
+    println(a.s("x"))
+}

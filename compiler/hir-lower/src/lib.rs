@@ -55,10 +55,26 @@
 //! are lowered in an empty scope (constructor properties are not in
 //! scope there — HIR has no body to host their locals), and generic
 //! member functions are diagnosed (they cannot participate in virtual
-//! dispatch, spec 3.2; overloading arrives with M7).
+//! dispatch, spec 3.2).
+//!
+//! M7 (milestone7 DESIGN.md): function overloading. Top-level functions
+//! and members of one host may share a name as long as their signatures
+//! are distinguishable (parameter count or at least one parameter type
+//! differs); calls resolve by the Kotlin-aligned two-step algorithm —
+//! scope layering (host members → the call site's own side of the
+//! core/user boundary → the other, implicitly imported side; the first
+//! layer containing any candidate wins whole) and then the
+//! most-specific candidate inside the layer (exact arity,
+//! per-argument subtyping, pairwise dominance, non-generic candidates
+//! preferred on ties). `print` / `println` are ordinary core-library
+//! functions taking `Any` and dispatching `message.toString()` through
+//! the synthesized `Any` members (vtable slots 0..2); the `@Intrinsic`
+//! registry only backs the single `rt_write` primitive and no
+//! call-site special rules remain.
 
 mod class;
 mod expr;
+mod overload;
 mod patterns;
 mod scope;
 mod stmt;
@@ -173,9 +189,21 @@ pub(crate) struct Lowerer {
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
     pub(crate) any: TypeId,
-    /// Function namespace. Struct and enum names live in separate
-    /// namespaces: a struct and a function may share a name.
-    pub(crate) functions_by_name: HashMap<String, FunctionId>,
+    /// The synthesized `Any` members `equals` / `hashCode` /
+    /// `toString`, in vtable-slot order (0..2, mir-lower's fixed
+    /// prefix). Calls on an `Any` receiver resolve to these.
+    pub(crate) any_methods: [FunctionId; 3],
+    /// Function namespace: name → overload candidates in declaration
+    /// order (M7). Struct and enum names live in separate namespaces:
+    /// a struct and a function may share a name.
+    pub(crate) functions_by_name: HashMap<String, Vec<FunctionId>>,
+    /// The file each top-level function was declared in, for the
+    /// layering of overload resolution (user file → core implicit
+    /// imports, milestone7 DESIGN.md 1.2).
+    pub(crate) function_files: HashMap<FunctionId, usize>,
+    /// Index of the user compilation unit (`files.len() - 1`); every
+    /// earlier file is implicitly imported `scoop.core`.
+    pub(crate) user_file_index: usize,
     /// Struct namespace: name → (declaration, value type of the struct).
     pub(crate) structs_by_name: HashMap<String, (StructId, TypeId)>,
     /// Enum namespace.
@@ -257,7 +285,7 @@ impl Lowerer {
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
 
-        Lowerer {
+        let mut lowerer = Lowerer {
             types,
             structs: Arena::new(),
             enums: Arena::new(),
@@ -270,7 +298,11 @@ impl Lowerer {
             boolean,
             string,
             any,
+            // Filled by `synthesize_any_members` below.
+            any_methods: [hir::FunctionId::from_raw(0.into()); 3],
             functions_by_name: HashMap::new(),
+            function_files: HashMap::new(),
+            user_file_index: 0,
             structs_by_name: HashMap::new(),
             enums_by_name: HashMap::new(),
             classes_by_name: HashMap::new(),
@@ -298,7 +330,81 @@ impl Lowerer {
             instantiations: Vec::new(),
             hidden_count: 0,
             diagnostics: Vec::new(),
+        };
+        lowerer.synthesize_any_members();
+        lowerer
+    }
+
+    /// The three `Any` members — `equals(other: Any): Boolean`,
+    /// `hashCode(): Int`, `toString(): String` — synthesized as
+    /// bodyless members (parameter-only bodies, like interface
+    /// methods): mir-lower dispatches calls on an `Any` receiver
+    /// virtually through the fixed vtable prefix (slots 0..2, in this
+    /// order), so their bodies never execute. They are not in
+    /// `top_level` (they are members, not user declarations) and
+    /// therefore never appear in HIR dumps.
+    fn synthesize_any_members(&mut self) {
+        let span = Span::new(0, 0);
+        let mut methods = Vec::with_capacity(3);
+        for (short, params, return_ty) in [
+            ("equals", vec![("other", self.any)], self.boolean),
+            ("hashCode", Vec::new(), self.int),
+            ("toString", Vec::new(), self.string),
+        ] {
+            let mut locals = Arena::new();
+            let this = locals.alloc(hir::Local {
+                name: "this".to_string(),
+                ty: self.any,
+                mutable: false,
+            });
+            let mut fn_params = vec![hir::Param {
+                name: "this".to_string(),
+                ty: self.any,
+                local: this,
+            }];
+            let mut sig_params = Vec::new();
+            for (param_name, param_ty) in params {
+                let local = locals.alloc(hir::Local {
+                    name: param_name.to_string(),
+                    ty: param_ty,
+                    mutable: false,
+                });
+                fn_params.push(hir::Param {
+                    name: param_name.to_string(),
+                    ty: param_ty,
+                    local,
+                });
+                sig_params.push(FnParam {
+                    name: ast::Ident {
+                        text: param_name.to_string(),
+                        span,
+                    },
+                    ty: param_ty,
+                });
+            }
+            let id = self.functions.alloc(Function {
+                name: format!("Any.{short}"),
+                type_params: Vec::new(),
+                params: fn_params,
+                return_ty,
+                kind: FunctionKind::User(hir::Body {
+                    locals,
+                    statements: Vec::new(),
+                }),
+                method_of: Some(self.any),
+                span,
+            });
+            self.signatures.insert(
+                id,
+                FnSig {
+                    type_params: Vec::new(),
+                    params: sig_params,
+                    return_ty,
+                },
+            );
+            methods.push(id);
         }
+        self.any_methods = [methods[0], methods[1], methods[2]];
     }
 
     fn run(mut self, files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> {
@@ -310,13 +416,15 @@ impl Lowerer {
             }]);
         }
         let user_file_index = files.len() - 1;
+        self.user_file_index = user_file_index;
 
         // Pass 1: declare structs, enums, classes, interfaces and
         // functions across all files (core first), so bodies and field
         // types resolve regardless of declaration order. Structs,
         // enums, classes and interfaces share the *type* namespace and
-        // must not collide; functions occupy a separate namespace, and
-        // member functions live in per-owner namespaces.
+        // must not collide; functions occupy a separate namespace where
+        // one name may collect several overloads (M7), and member
+        // functions live in per-owner namespaces.
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
@@ -395,6 +503,11 @@ impl Lowerer {
             self.resolve_method_signature(id, decl, owner);
         }
 
+        // Pass 2.6: overload declarations must be distinguishable —
+        // within one name (top-level) or one host (members) no two
+        // functions may share a signature (milestone7 DESIGN.md 1.1).
+        self.check_duplicate_signatures(&pending_functions, &pending_methods);
+
         // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
         // cycles, property shadowing, override rules and interface
         // implementation (classes and value types alike). Needs every
@@ -436,10 +549,19 @@ impl Lowerer {
         }
 
         // A module without `main` never reaches HIR (hir docs); it is a
-        // diagnostic here, attributed to the user file.
+        // diagnostic here, attributed to the user file. With overloads
+        // (M7) several functions may be named `main`; the entry point
+        // is the zero-parameter one.
         self.current_file = user_file_index;
-        let entry = match self.functions_by_name.get("main") {
-            Some(&id) => {
+        let zero_param_main = self.functions_by_name.get("main").and_then(|ids| {
+            ids.iter().copied().find(|&id| {
+                self.signatures
+                    .get(&id)
+                    .is_some_and(|sig| sig.params.is_empty())
+            })
+        });
+        let entry = match zero_param_main {
+            Some(id) => {
                 // The entry point is monomorphic: there is no caller to
                 // infer type arguments from.
                 if !self.functions[id].type_params.is_empty() {
@@ -669,8 +791,9 @@ impl Lowerer {
     }
 
     /// Declare a member function (pass 1): methods live in per-owner
-    /// namespaces (M6 has no overloading — same name twice in one
-    /// owner is a diagnostic) and are named `Owner.method` for
+    /// namespaces where one name may collect several overloads (M7;
+    /// same-signature duplicates are diagnosed in pass 2.6, once
+    /// parameter types are known) and are named `Owner.method` for
     /// unambiguous symbols downstream; `Function::method_of` records
     /// the host type. Signatures and bodies are filled in passes
     /// 2.5 / 3.
@@ -681,26 +804,6 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        let methods = match owner {
-            Owner::Class(id) => self.class_methods.entry(id).or_default(),
-            Owner::Interface(id) => self.interface_methods.entry(id).or_default(),
-            Owner::Struct(id) => self.struct_methods.entry(id).or_default(),
-            Owner::Enum(id) => self.enum_methods.entry(id).or_default(),
-        };
-        if methods
-            .iter()
-            .any(|&m| self.functions[m].name.rsplit('.').next() == Some(decl.name.text.as_str()))
-        {
-            self.error(
-                decl.name.span,
-                format!(
-                    "duplicate function `{}` in {}",
-                    decl.name.text,
-                    owner.describe(self)
-                ),
-            );
-            return;
-        }
         if self.check_annotations(decl, false).is_some() {
             // The diagnostic was already recorded (`@Intrinsic` is
             // core-library top-level only); drop the method.
@@ -733,6 +836,9 @@ impl Lowerer {
         pending.push((id, decl, file_index, owner));
     }
 
+    /// Declare a top-level function (pass 1). One name may collect
+    /// several overloads (M7); same-signature duplicates are diagnosed
+    /// in pass 2.6, once parameter types are known.
     fn declare_function<'a>(
         &mut self,
         decl: &'a ast::FunctionDecl,
@@ -740,13 +846,6 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
         file_index: usize,
     ) {
-        if self.functions_by_name.contains_key(&decl.name.text) {
-            self.error(
-                decl.name.span,
-                format!("duplicate function `{}`", decl.name.text),
-            );
-            return;
-        }
         let kind = match self.check_annotations(decl, is_core) {
             Some(intrinsic) => FunctionKind::Intrinsic(intrinsic),
             None => FunctionKind::User(hir::Body {
@@ -767,7 +866,11 @@ impl Lowerer {
             span: decl.span,
         });
         self.top_level.push(id);
-        self.functions_by_name.insert(decl.name.text.clone(), id);
+        self.functions_by_name
+            .entry(decl.name.text.clone())
+            .or_default()
+            .push(id);
+        self.function_files.insert(id, file_index);
         pending.push((id, decl, file_index));
     }
 
@@ -792,7 +895,7 @@ impl Lowerer {
                 );
                 continue;
             };
-            if !hir::INTRINSIC_REGISTRY.contains(&name.as_str()) {
+            if !hir::INTRINSIC_REGISTRY.iter().any(|spec| spec.name == name) {
                 self.error(annotation.span, format!("unknown intrinsic `{name}`"));
                 continue;
             }
@@ -834,6 +937,72 @@ impl Lowerer {
             return;
         }
         self.option_enum = Some(id);
+    }
+
+    /// Overload declaration check (pass 2.6, milestone7 DESIGN.md 1.1):
+    /// within one name (top-level) or one host (members) two functions
+    /// may share a name only when their signatures are distinguishable
+    /// — a different parameter count or at least one different
+    /// parameter type. Differing only in the return type is a
+    /// duplicate. Override / interface-implementation matching is
+    /// unaffected (it compares full signatures, pass 2.75). Iterates
+    /// in declaration order so diagnostics are deterministic.
+    fn check_duplicate_signatures(
+        &mut self,
+        pending_functions: &[(FunctionId, &ast::FunctionDecl, usize)],
+        pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
+    ) {
+        for (index, &(id, decl, file_index)) in pending_functions.iter().enumerate() {
+            let duplicate = pending_functions[..index].iter().any(|&(other, _, _)| {
+                self.functions[other].name == decl.name.text
+                    && self.same_parameter_signature(id, other)
+            });
+            if duplicate {
+                self.current_file = file_index;
+                self.error(
+                    decl.name.span,
+                    format!(
+                        "function `{}` is already declared with the same signature",
+                        decl.name.text
+                    ),
+                );
+            }
+        }
+        for (index, &(id, decl, file_index, owner)) in pending_methods.iter().enumerate() {
+            let duplicate = pending_methods[..index]
+                .iter()
+                .any(|&(other, _, _, other_owner)| {
+                    other_owner == owner
+                        && self.functions[other].name == self.functions[id].name
+                        && self.same_parameter_signature(id, other)
+                });
+            if duplicate {
+                let host = owner.describe(self);
+                self.current_file = file_index;
+                self.error(
+                    decl.name.span,
+                    format!(
+                        "function `{}` in {host} is already declared with the same signature",
+                        decl.name.text
+                    ),
+                );
+            }
+        }
+    }
+
+    /// Whether two functions have indistinguishable parameter
+    /// signatures: same parameter count and pairwise-equal parameter
+    /// types (the return type is not part of it).
+    fn same_parameter_signature(&self, a: FunctionId, b: FunctionId) -> bool {
+        let (Some(a_sig), Some(b_sig)) = (self.signatures.get(&a), self.signatures.get(&b)) else {
+            return false;
+        };
+        a_sig.params.len() == b_sig.params.len()
+            && a_sig
+                .params
+                .iter()
+                .zip(&b_sig.params)
+                .all(|(x, y)| self.types_equal(x.ty, y.ty))
     }
 
     /// Resolve the field types of a struct declaration. Fields with
@@ -1045,8 +1214,8 @@ impl Lowerer {
     /// types and the return type (absent means `Unit`). Parameter
     /// locals are only allocated when the body is lowered (pass 3), so
     /// intrinsic functions — which have no body — keep an empty
-    /// `params` list; their calls are checked against the intrinsic
-    /// registry's signature rules instead.
+    /// `params` list on the `hir::Function`; calls check against this
+    /// resolved signature like any other function's (M7).
     fn resolve_signature(&mut self, id: FunctionId, decl: &ast::FunctionDecl) {
         // Member-only flags on a top-level function (M6).
         if decl.is_abstract {

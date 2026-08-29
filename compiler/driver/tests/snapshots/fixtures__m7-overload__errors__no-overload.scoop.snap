@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m7-overload/errors/no-overload.scoop:4:15: error: argument for parameter `v` of `f` must be of type String, found Int
