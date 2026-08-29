@@ -670,8 +670,10 @@ class StringBuilder {
   - `Exception(message: String?)`：通用异常基类；
   - `UnwrapException`：`!!` 失败时抛出（见 7.3）；
   - `ClassCastException`：`as` 失败时抛出；
-  - `ArithmeticException`：除零等算术错误。
-- `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。
+  - `ArithmeticException`：整数除零等算术错误；
+  - `IndexOutOfBoundsException`：数组下标越界（见 10.5）。
+- `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。多个 `catch` 按声明顺序匹配；前一个 `catch` 的类型是后一个的父类型（含相等）时，后者不可达，是编译错误。
+- `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止（默认行为：打印异常类型名后 abort）。
 
 ### 11.8 迭代与区间
 

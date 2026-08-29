@@ -296,6 +296,25 @@ pub enum StatementKind {
     },
     /// Pattern `when` (spec 5); checked for exhaustiveness at HIR.
     When(When),
+    /// `try { } catch ... finally { }`; catches are ordered.
+    Try(Try),
+    /// `throw expr`; the operand's type is a subtype of `Throwable`.
+    Throw(Expr),
+}
+
+#[derive(Debug)]
+pub struct Try {
+    pub body: Vec<Statement>,
+    pub catches: Vec<CatchClause>,
+    pub finally_body: Option<Vec<Statement>>,
+}
+
+#[derive(Debug)]
+pub struct CatchClause {
+    pub local: LocalId,
+    pub ty: TypeId,
+    pub body: Vec<Statement>,
+    pub span: Span,
 }
 
 #[derive(Debug)]
@@ -674,6 +693,26 @@ fn dump_statements(
                 out.push_str(&format!("{pad}while\n"));
                 dump_expr(module, locals, cond, indent + 1, out);
                 dump_statements(module, locals, body, indent + 1, out);
+            }
+            StatementKind::Try(try_) => {
+                out.push_str(&format!("{pad}try\n"));
+                dump_statements(module, locals, &try_.body, indent + 1, out);
+                for catch in &try_.catches {
+                    out.push_str(&format!(
+                        "{pad}catch {}: {}\n",
+                        locals[catch.local].name,
+                        type_name(module, catch.ty)
+                    ));
+                    dump_statements(module, locals, &catch.body, indent + 1, out);
+                }
+                if let Some(finally_body) = &try_.finally_body {
+                    out.push_str(&format!("{pad}finally\n"));
+                    dump_statements(module, locals, finally_body, indent + 1, out);
+                }
+            }
+            StatementKind::Throw(expr) => {
+                out.push_str(&format!("{pad}throw\n"));
+                dump_expr(module, locals, expr, indent + 1, out);
             }
             StatementKind::When(when) => {
                 out.push_str(&format!("{pad}when\n"));

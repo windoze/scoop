@@ -331,6 +331,13 @@ impl Parser {
                         "`super` calls are not supported yet (milestone M6)",
                     ));
                 }
+                if text == "try" {
+                    // M8 has only the statement form (spec 11.7).
+                    return Err(Diagnostic::at(
+                        token.span,
+                        "try expressions are not supported yet (milestone M8)",
+                    ));
+                }
                 let ident = Ident {
                     text,
                     span: token.span,

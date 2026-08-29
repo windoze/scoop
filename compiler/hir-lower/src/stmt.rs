@@ -9,6 +9,9 @@
 //!
 //! M5 (milestone5 DESIGN.md 2.2): subscript assignment
 //! (`array[index] = value`) alongside local assignment.
+//!
+//! M8 (milestone8 DESIGN.md 3.2): `throw` and
+//! `try { } catch (e: T) { } finally { }`.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -87,17 +90,19 @@ impl Lowerer {
                 let diagnostics_before = self.diagnostics.len();
                 let statements = self.lower_block(block);
                 // M3 simplified return rule (DESIGN.md 5.4): a non-Unit
-                // block body must end with a `return` statement; branch
-                // exhaustiveness is not analyzed. Skipped when the body
-                // already produced diagnostics (the module is rejected
-                // anyway, and a missing trailing statement is usually
-                // just fallout of the earlier error).
+                // block body must not fall through; branch
+                // exhaustiveness is not analyzed. Since M8 a trailing
+                // `throw` also qualifies (it diverges), and a trailing
+                // `try` qualifies when its try body and every catch
+                // body qualify (`ends_without_fallthrough`). A `throw`
+                // anywhere earlier does not — reachability is not
+                // analyzed in M8. Skipped when the body already
+                // produced diagnostics (the module is rejected anyway,
+                // and a missing trailing statement is usually just
+                // fallout of the earlier error).
                 if !returns_unit
                     && self.diagnostics.len() == diagnostics_before
-                    && !matches!(
-                        statements.last().map(|s| &s.kind),
-                        Some(hir::StatementKind::Return { .. })
-                    )
+                    && !ends_without_fallthrough(&statements)
                 {
                     self.error(
                         block.span,
@@ -278,6 +283,13 @@ impl Lowerer {
                 };
                 kind
             }
+            ast::StatementKind::Throw(expr) => {
+                let Some(kind) = self.lower_throw(expr, out) else {
+                    return;
+                };
+                kind
+            }
+            ast::StatementKind::Try(try_) => self.lower_try(try_),
             ast::StatementKind::Assign(assign) => {
                 let Some(kind) = self.lower_assign(assign, out) else {
                     return;
@@ -504,6 +516,98 @@ impl Lowerer {
             guard,
             body,
             span: arm.span,
+        })
+    }
+
+    /// `throw expr` (spec 11.7, milestone8 DESIGN.md 3.2): the operand
+    /// must be a subtype of the core `Throwable` class. `throw`
+    /// produces no value — M8 has no `Nothing` type, so it lowers to
+    /// the dedicated `Throw` statement, which downstream stages treat
+    /// as control flow that never falls through.
+    fn lower_throw(
+        &mut self,
+        expr: &ast::Expr,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        let mut sink = Vec::new();
+        let value = self.lower_expr(expr, &mut sink, None)?;
+        if let Some(throwable) = self.throwable_ty() {
+            if !self.is_subtype(value.ty, throwable) {
+                let found = self.type_name(value.ty);
+                self.error(
+                    expr.span(),
+                    format!("cannot throw value of type {found}: not a subtype of Throwable"),
+                );
+                return None;
+            }
+        }
+        // The operand is evaluated right before the `throw`, so
+        // desugaring statements belong before it.
+        out.extend(sink);
+        Some(hir::StatementKind::Throw(value))
+    }
+
+    /// `try { } catch (e: T) { } finally { }` (spec 11.7, milestone8
+    /// DESIGN.md 3.2). Every catch parameter type must be a subtype of
+    /// `Throwable`; catches are checked in declaration order and a
+    /// catch whose type is a subtype of (or equal to) an earlier
+    /// catch's type is unreachable — an error in M8 (DESIGN.md 5.1).
+    /// The catch local is immutable and scopes over its clause body
+    /// only. The parser guarantees at least one `catch` or a `finally`
+    /// and a type annotation on every catch parameter.
+    fn lower_try(&mut self, try_: &ast::Try) -> hir::StatementKind {
+        let body = self.lower_block(&try_.body);
+        let mut catches = Vec::with_capacity(try_.catches.len());
+        for catch in &try_.catches {
+            let Some(ty) = self.resolve_type_ref(&catch.ty) else {
+                continue; // diagnostic already recorded
+            };
+            if let Some(throwable) = self.throwable_ty() {
+                if !self.is_subtype(ty, throwable) {
+                    let found = self.type_name(ty);
+                    self.error(
+                        catch.ty.span,
+                        format!("catch parameter type {found} is not a subtype of Throwable"),
+                    );
+                    continue;
+                }
+            }
+            // Shadowing: an earlier catch whose type covers this one
+            // (supertype or equal) makes it unreachable.
+            if catches
+                .iter()
+                .any(|earlier: &hir::CatchClause| self.is_subtype(ty, earlier.ty))
+            {
+                let found = self.type_name(ty);
+                self.error(
+                    catch.span,
+                    format!(
+                        "unreachable catch block: {found} is already covered by an earlier catch"
+                    ),
+                );
+                continue;
+            }
+            self.scopes.push();
+            let local = self.locals.alloc(hir::Local {
+                name: catch.name.text.clone(),
+                ty,
+                mutable: false,
+            });
+            self.scopes.declare(catch.name.text.clone(), local);
+            let body = self.lower_block(&catch.body);
+            self.scopes.pop();
+            catches.push(hir::CatchClause {
+                local,
+                ty,
+                body,
+                span: catch.span,
+            });
+        }
+        let finally_body = try_.finally_body.as_ref().map(|b| self.lower_block(b));
+        hir::StatementKind::Try(hir::Try {
+            body,
+            catches,
+            finally_body,
         })
     }
 
@@ -769,5 +873,26 @@ impl Lowerer {
             return None;
         }
         Some(cond)
+    }
+}
+
+/// The M3 return rule (milestone8 relaxation): a statement list does
+/// not fall through when it ends with `return`, with `throw` (it
+/// diverges), or with a `try` whose try body and every catch body do
+/// not fall through — a `finally` runs on every path and then control
+/// continues along that path, so it neither saves nor breaks the
+/// rule. Only the trailing statement is considered; reachability in
+/// general is not analyzed in M8.
+fn ends_without_fallthrough(statements: &[hir::Statement]) -> bool {
+    match statements.last().map(|s| &s.kind) {
+        Some(hir::StatementKind::Return { .. } | hir::StatementKind::Throw(_)) => true,
+        Some(hir::StatementKind::Try(try_)) => {
+            ends_without_fallthrough(&try_.body)
+                && try_
+                    .catches
+                    .iter()
+                    .all(|catch| ends_without_fallthrough(&catch.body))
+        }
+        _ => false,
     }
 }

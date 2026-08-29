@@ -71,6 +71,7 @@ Module
     Circle(_1: Int)
     Named(w: Int, h: Int)
     WithDefault(d: Int)
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -183,6 +184,7 @@ Module
     Red()
     Green()
     Blue()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -253,6 +255,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -350,6 +353,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -525,6 +529,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -636,9 +641,13 @@ fn core_file_diagnostic_carries_file_index() {
     ]);
     let errors = lower(&[bad_core, file(vec![fun("main", vec![])])])
         .expect_err("duplicate struct in core must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "duplicate struct `Point`");
-    assert_eq!(errors[0].file, 0);
+    // The same run also reports the missing core `Throwable` (M8);
+    // this test is about the core file index of the duplicate.
+    let duplicate = errors
+        .iter()
+        .find(|e| e.message == "duplicate struct `Point`")
+        .expect("the duplicate struct must be diagnosed");
+    assert_eq!(duplicate.file, 0);
 }
 
 // --- negative: enum declarations ---
@@ -816,12 +825,13 @@ fn missing_core_option_is_an_error() {
     // A user file alone (no core) has no `Option<T>`.
     let errors =
         lower(&[file(vec![fun("main", vec![])])]).expect_err("missing core Option must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "scoop.core must define an enum `Option<T>`"
+    // The same run also reports the missing core `Throwable` (M8).
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message == "scoop.core must define an enum `Option<T>`" && e.file == 0),
+        "{errors:?}"
     );
-    assert_eq!(errors[0].file, 0);
 }
 
 #[test]
@@ -863,10 +873,14 @@ fn duplicate_option_in_core_is_an_error() {
         file(vec![fun("main", vec![])]),
     ])
     .expect_err("a second core Option must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "duplicate enum `Option`");
+    // The same run also reports the missing core `Throwable` (M8);
+    // this test is about the duplicate's file index.
+    let duplicate = errors
+        .iter()
+        .find(|e| e.message == "duplicate enum `Option`")
+        .expect("the second core Option must be diagnosed");
     // The second core file is the error's file.
-    assert_eq!(errors[0].file, 1);
+    assert_eq!(duplicate.file, 1);
 }
 
 // --- negative: intrinsics ---

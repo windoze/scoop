@@ -1,0 +1,17 @@
+fun boom(): Int {
+    val x: Int? = None
+    return x!!
+}
+
+fun main() {
+    try {
+        boom()
+        println("unreachable")
+    } catch (e: UnwrapException) {
+        println("caught unwrap")
+    } catch (e: Exception) {
+        println("caught other")
+    } finally {
+        println("finally")
+    }
+}

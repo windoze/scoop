@@ -51,10 +51,18 @@ fn fixtures() {
             .expect("fixture under root")
             .to_string_lossy()
             .replace('\\', "/");
-        let name = relative.replace('/', "__");
+        // Snapshots live next to their fixture
+        // (`tests/fixtures/<group>/<name>.scoop.snap`), not in a
+        // separate directory tree.
+        let name = fixture
+            .file_name()
+            .expect("fixture file name")
+            .to_string_lossy()
+            .to_string();
+        let snapshot_dir = fixture.parent().expect("fixture dir").to_path_buf();
         let out_dir = workspace_root()
             .join("target/fixtures-out")
-            .join(name.trim_end_matches(".scoop"));
+            .join(relative.trim_end_matches(".scoop").replace('/', "__"));
         let source = fs::read_to_string(&fixture)
             .unwrap_or_else(|e| panic!("cannot read {}: {e}", fixture.display()));
         // Fixtures whose first line is `// EXPECT-TRAP` must compile and
@@ -110,6 +118,11 @@ fn fixtures() {
                 format!("== diagnostics ==\n{rendered}\n")
             }
         };
-        insta::assert_snapshot!(name, snapshot);
+        insta::with_settings!({
+            snapshot_path => &snapshot_dir,
+            prepend_module_to_snapshot => false,
+        }, {
+            insta::assert_snapshot!(name, snapshot);
+        });
     }
 }

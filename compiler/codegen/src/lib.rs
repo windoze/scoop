@@ -13,6 +13,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
+use inkwell::attributes::{Attribute, AttributeLoc};
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
 use inkwell::targets::{
@@ -559,6 +560,9 @@ struct FnEmitter<'a, 'ctx> {
     /// Entry block; enum temporaries are alloca'd here (see
     /// `entry_alloca`).
     entry_block: inkwell::basic_block::BasicBlock<'ctx>,
+    /// Every LLVM basic block of the function, indexed by `BlockId`
+    /// (invoke targets).
+    llvm_blocks: &'a [inkwell::basic_block::BasicBlock<'ctx>],
     enums: &'a Arena<EnumDef>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
@@ -908,6 +912,226 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         }
                     }
                 }
+            }
+            Instruction::Invoke {
+                out,
+                symbol,
+                args,
+                normal,
+                unwind,
+            } => {
+                // LLVM `invoke` (M8, runtime spec 5): the call may throw;
+                // control continues in `normal` or unwinds into the
+                // `unwind` landing pad. Signature from the call site, as
+                // for Call; undefined callees are declared extern.
+                let param_tys: Vec<BasicMetadataTypeEnum> = args
+                    .iter()
+                    .map(|arg| {
+                        basic_ty(
+                            context,
+                            self.enums,
+                            &function.value_ty(self.globals_arena, *arg),
+                        )
+                        .map(Into::into)
+                    })
+                    .collect::<Result<_, _>>()?;
+                let fn_ty = match out {
+                    Some(temp) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
+                        .fn_type(&param_tys, false),
+                    None => context.void_type().fn_type(&param_tys, false),
+                };
+                let callee = self
+                    .llvm
+                    .get_function(symbol)
+                    .unwrap_or_else(|| self.llvm.add_function(symbol, fn_ty, None));
+                let call_args: Vec<BasicValueEnum> = args
+                    .iter()
+                    .map(|arg| self.value(*arg))
+                    .collect::<Result<_, _>>()?;
+                let invoke = builder
+                    .build_invoke(
+                        callee,
+                        &call_args,
+                        self.llvm_blocks[arena_index(*normal)],
+                        self.llvm_blocks[arena_index(*unwind)],
+                        "invoke",
+                    )
+                    .map_err(|e| CodegenError(format!("invoke @{symbol}: {e}")))?;
+                // The result is defined on the normal edge; it enters the
+                // temp map like a call result.
+                if let Some(temp) = out {
+                    match invoke.try_as_basic_value() {
+                        ValueKind::Basic(result) => {
+                            self.temps.insert(*temp, result);
+                        }
+                        ValueKind::Instruction(_) => {
+                            return Err(CodegenError(format!(
+                                "invoke @{symbol} produced no value for t{}",
+                                temp.into_raw().into_u32()
+                            )));
+                        }
+                    }
+                }
+            }
+            Instruction::InvokeIndirect {
+                out,
+                table,
+                slot,
+                args,
+                normal,
+                unwind,
+            } => {
+                // Indirect variant: `table[slot]` loaded like
+                // CallIndirect, invoked with the call-site signature.
+                let table = self.value(*table)?.into_pointer_value();
+                // SAFETY: `table` addresses a function table with at
+                // least `slot + 1` slots (LIR contract of InvokeIndirect).
+                let slot_ptr = unsafe {
+                    builder.build_gep(
+                        ptr_ty(context),
+                        table,
+                        &[context.i32_type().const_int((*slot).into(), false)],
+                        "slot_ptr",
+                    )
+                }
+                .map_err(|e| {
+                    CodegenError(format!(
+                        "invoke_indirect @{symbol}: {e}",
+                        symbol = function.symbol
+                    ))
+                })?;
+                let fn_ptr = builder
+                    .build_load(ptr_ty(context), slot_ptr, "fn_ptr")
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "invoke_indirect @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?
+                    .into_pointer_value();
+                let param_tys: Vec<BasicMetadataTypeEnum> = args
+                    .iter()
+                    .map(|arg| {
+                        basic_ty(
+                            context,
+                            self.enums,
+                            &function.value_ty(self.globals_arena, *arg),
+                        )
+                        .map(Into::into)
+                    })
+                    .collect::<Result<_, _>>()?;
+                let fn_ty = match out {
+                    Some(temp) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
+                        .fn_type(&param_tys, false),
+                    None => context.void_type().fn_type(&param_tys, false),
+                };
+                let call_args: Vec<BasicValueEnum> = args
+                    .iter()
+                    .map(|arg| self.value(*arg))
+                    .collect::<Result<_, _>>()?;
+                let invoke = builder
+                    .build_indirect_invoke(
+                        fn_ty,
+                        fn_ptr,
+                        &call_args,
+                        self.llvm_blocks[arena_index(*normal)],
+                        self.llvm_blocks[arena_index(*unwind)],
+                        "invoke_indirect",
+                    )
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "invoke_indirect @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                if let Some(temp) = out {
+                    match invoke.try_as_basic_value() {
+                        ValueKind::Basic(result) => {
+                            self.temps.insert(*temp, result);
+                        }
+                        ValueKind::Instruction(_) => {
+                            return Err(CodegenError(format!(
+                                "invoke_indirect produced no value for t{}",
+                                temp.into_raw().into_u32()
+                            )));
+                        }
+                    }
+                }
+            }
+            Instruction::LandingPad { out } => {
+                // Catch-all landing pad (M8, runtime spec 5): the
+                // `{ ptr, i32 }` exception struct with a single null
+                // catch clause matches every exception; the exception
+                // pointer (field 0) goes through `__cxa_begin_catch`,
+                // which returns the thrown object pointer. Catch type
+                // filtering is done by ordinary instructions afterwards
+                // (lir-lower emits the `__cxa_end_catch` call where the
+                // catch handling ends).
+                let personality =
+                    self.llvm_function
+                        .get_personality_function()
+                        .ok_or_else(|| {
+                            CodegenError(format!(
+                                "landingpad @{symbol}: function has no personality function",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                let exception_ty = context
+                    .struct_type(&[ptr_ty(context).into(), context.i32_type().into()], false);
+                let catch_all: BasicValueEnum = ptr_ty(context).const_null().into();
+                let name = format!("t{}", out.into_raw().into_u32());
+                let landing_pad = builder
+                    .build_landing_pad(exception_ty, personality, &[catch_all], false, "lp")
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "landingpad @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                let exception_ptr = builder
+                    .build_extract_value(landing_pad.into_struct_value(), 0, "exception_ptr")
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "landingpad @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                let begin_catch = self.runtime_fn(
+                    "__cxa_begin_catch",
+                    ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
+                );
+                let object = builder
+                    .build_call(begin_catch, &[exception_ptr.into()], &name)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "begin_catch @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or_else(|| CodegenError("__cxa_begin_catch returned void".to_string()))?;
+                self.temps.insert(*out, object);
+            }
+            Instruction::Throw { exception } => {
+                // `void scoop_rt_throw(ptr)` (noreturn; runtime spec 5).
+                // The block's Unreachable terminator emits the LLVM
+                // `unreachable` after the call, like the trap path.
+                let throw = self.runtime_fn(
+                    "scoop_rt_throw",
+                    context
+                        .void_type()
+                        .fn_type(&[ptr_ty(context).into()], false),
+                );
+                throw.add_attribute(
+                    AttributeLoc::Function,
+                    context.create_enum_attribute(Attribute::get_named_enum_kind_id("noreturn"), 0),
+                );
+                builder
+                    .build_call(throw, &[self.value(*exception)?.into()], "")
+                    .map_err(|e| {
+                        CodegenError(format!("throw @{symbol}: {e}", symbol = function.symbol))
+                    })?;
             }
             Instruction::ArrayAlloc { out, elements } => {
                 // `{ ptr td, i64 size, [n x elem] }` (runtime spec 2.5):
@@ -1642,6 +1866,29 @@ fn emit_function<'ctx>(
         .get_function(&function.symbol)
         .expect("function declared in the first pass");
 
+    // A function containing a landing pad needs a personality function
+    // (M8, runtime spec 5): `scoop_eh_personality`, declared with the
+    // same variadic prototype LLVM uses for `__gxx_personality_v0`.
+    // Setting it also makes LLVM emit the unwind table entry.
+    let has_landing_pad = function.blocks.iter().any(|(_, block)| {
+        block
+            .instructions
+            .iter()
+            .any(|instruction| matches!(instruction, Instruction::LandingPad { .. }))
+    });
+    if has_landing_pad {
+        let personality = llvm
+            .get_function("scoop_eh_personality")
+            .unwrap_or_else(|| {
+                llvm.add_function(
+                    "scoop_eh_personality",
+                    context.i32_type().fn_type(&[], true),
+                    None,
+                )
+            });
+        llvm_function.set_personality_function(personality);
+    }
+
     // All blocks up front so terminators can reference them in any order.
     let mut blocks = Vec::with_capacity(function.blocks.len());
     for (_, block) in function.blocks.iter() {
@@ -1655,6 +1902,7 @@ fn emit_function<'ctx>(
         function,
         llvm_function,
         entry_block: blocks[arena_index(function.entry)],
+        llvm_blocks: &blocks,
         enums: module_ctx.enums,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,
@@ -1682,8 +1930,50 @@ fn emit_function<'ctx>(
 
     for (block_id, block) in function.blocks.iter() {
         builder.position_at_end(blocks[arena_index(block_id)]);
-        for instruction in &block.instructions {
+        // Invoke / InvokeIndirect are LLVM terminators even though they
+        // are LIR instructions: one must be the last instruction of its
+        // block, and the block's LIR terminator must be the redundant
+        // `Br` to the invoke's normal target (kept so dumps stay
+        // readable); it is not emitted. A LandingPad instruction must be
+        // the first of its block (LLVM requires the landingpad first).
+        let mut invoke_terminated = false;
+        for (index, instruction) in block.instructions.iter().enumerate() {
+            let is_invoke = matches!(
+                instruction,
+                Instruction::Invoke { .. } | Instruction::InvokeIndirect { .. }
+            );
+            if is_invoke && index + 1 != block.instructions.len() {
+                return Err(CodegenError(format!(
+                    "invoke @{}: must be the last instruction of block {}",
+                    function.symbol, block.name
+                )));
+            }
+            if matches!(instruction, Instruction::LandingPad { .. }) && index != 0 {
+                return Err(CodegenError(format!(
+                    "landingpad @{}: must be the first instruction of block {}",
+                    function.symbol, block.name
+                )));
+            }
             emitter.instruction(instruction)?;
+            invoke_terminated = is_invoke;
+        }
+        if invoke_terminated {
+            let normal = match block.instructions.last() {
+                Some(
+                    Instruction::Invoke { normal, .. } | Instruction::InvokeIndirect { normal, .. },
+                ) => *normal,
+                _ => continue,
+            };
+            match &block.terminator {
+                Terminator::Br(target) if *target == normal => {}
+                _ => {
+                    return Err(CodegenError(format!(
+                        "invoke block @{}:{}: terminator must be `br` to the invoke's normal target",
+                        function.symbol, block.name
+                    )));
+                }
+            }
+            continue;
         }
         match &block.terminator {
             Terminator::Br(target) => {
@@ -2791,6 +3081,152 @@ mod tests {
             .expect("object file exists")
             .len();
         assert!(len > 0, "object file is empty");
+        std::fs::remove_file(&output).ok();
+    }
+
+    /// An M8-shaped module (runtime spec 5): Invoke / InvokeIndirect
+    /// sharing one catch-all landing pad (LandingPad + the lir-lower
+    /// emitted `__cxa_end_catch` call) and a Throw function.
+    fn exceptions_module() -> Module {
+        // fun @scoop.thrower(e: ptr) -> void: the rethrow shape — Throw
+        // as the last instruction; the Unreachable terminator emits the
+        // LLVM `unreachable` after the noreturn runtime call.
+        let mut thrower_blocks = Arena::default();
+        let thrower_entry = thrower_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![Instruction::Throw {
+                exception: Value::Param(0),
+            }],
+            terminator: Terminator::Unreachable,
+        });
+        let thrower = Function {
+            symbol: "scoop.thrower".to_string(),
+            params: vec![LirType::Ptr],
+            return_ty: LirType::Void,
+            locals: Arena::default(),
+            temps: Arena::default(),
+            blocks: thrower_blocks,
+            entry: thrower_entry,
+        };
+
+        // fun @scoop.eh_test(table: ptr) -> i64:
+        //   entry:  t0 = invoke_indirect table[0]() normal @normal unwind @lpad
+        //   normal: t1 = invoke @scoop.may_throw() normal @done unwind @lpad
+        //   done:   t2 = t0 + t1; ret t2
+        //   lpad:   t3 = landingpad : ptr
+        //           call @__cxa_end_catch(t3)   (emitted by lir-lower)
+        //           ret 0
+        let mut temps = Arena::default();
+        let t0 = temps.alloc(Temp { ty: LirType::I64 });
+        let t1 = temps.alloc(Temp { ty: LirType::I64 });
+        let t2 = temps.alloc(Temp { ty: LirType::I64 });
+        let t3 = temps.alloc(Temp { ty: LirType::Ptr });
+        let mut blocks = Arena::default();
+        let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
+            blocks.alloc(BasicBlock {
+                name: name.to_string(),
+                instructions: vec![],
+                terminator: Terminator::Unreachable,
+            })
+        };
+        let entry = placeholder(&mut blocks, "entry");
+        let normal = placeholder(&mut blocks, "normal");
+        let done = placeholder(&mut blocks, "done");
+        let lpad = placeholder(&mut blocks, "lpad");
+        blocks[entry] = BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![Instruction::InvokeIndirect {
+                out: Some(t0),
+                table: Value::Param(0),
+                slot: 0,
+                args: vec![],
+                normal,
+                unwind: lpad,
+            }],
+            terminator: Terminator::Br(normal),
+        };
+        blocks[normal] = BasicBlock {
+            name: "normal".to_string(),
+            instructions: vec![Instruction::Invoke {
+                out: Some(t1),
+                symbol: "scoop.may_throw".to_string(),
+                args: vec![],
+                normal: done,
+                unwind: lpad,
+            }],
+            terminator: Terminator::Br(done),
+        };
+        blocks[done] = BasicBlock {
+            name: "done".to_string(),
+            instructions: vec![Instruction::BinOp {
+                out: t2,
+                op: BinOp::Add,
+                lhs: Value::Temp(t0),
+                rhs: Value::Temp(t1),
+            }],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(t2)),
+            },
+        };
+        blocks[lpad] = BasicBlock {
+            name: "lpad".to_string(),
+            instructions: vec![
+                Instruction::LandingPad { out: t3 },
+                Instruction::Call {
+                    out: None,
+                    symbol: "__cxa_end_catch".to_string(),
+                    args: vec![Value::Temp(t3)],
+                },
+            ],
+            terminator: Terminator::Return {
+                value: Some(Value::IntConst(0)),
+            },
+        };
+        let eh_test = Function {
+            symbol: "scoop.eh_test".to_string(),
+            params: vec![LirType::Ptr],
+            return_ty: LirType::I64,
+            locals: Arena::default(),
+            temps,
+            blocks,
+            entry,
+        };
+
+        Module {
+            globals: Arena::default(),
+            enums: Arena::default(),
+            functions: vec![thrower, eh_test],
+            entry_symbol: "scoop.eh_test".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 16,
+                    align: 8,
+                    kind: LayoutKind::Plain {
+                        ref_field_offsets: vec![],
+                    },
+                }],
+                type_descriptors: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn emits_m8_exceptions() {
+        let module = exceptions_module();
+        let output =
+            std::env::temp_dir().join(format!("scoop_codegen_m8_test_{}.o", std::process::id()));
+        // `emit_object` verifies the LLVM module before writing, so a
+        // successful return means `module.verify()` passed.
+        emit_object(&module, &output).expect("emit object");
+        let bytes = std::fs::read(&output).expect("read object");
+        assert!(!bytes.is_empty(), "object file is empty");
+        // The landing pad function must carry an exception table.
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(
+            text.contains("gcc_except_tab"),
+            "object file lacks exception tables"
+        );
         std::fs::remove_file(&output).ok();
     }
 }

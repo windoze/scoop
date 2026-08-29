@@ -1,0 +1,20 @@
+fun inner() {
+    throw UnwrapException()
+}
+
+fun outer(): Int {
+    try {
+        inner()
+        return 0
+    } finally {
+        println("outer-finally")
+    }
+}
+
+fun main() {
+    try {
+        outer()
+    } catch (e: UnwrapException) {
+        println("caught in main")
+    }
+}

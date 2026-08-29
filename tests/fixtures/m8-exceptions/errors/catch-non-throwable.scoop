@@ -1,0 +1,7 @@
+fun main() {
+    try {
+        println(1)
+    } catch (e: Int) {
+        println("x")
+    }
+}

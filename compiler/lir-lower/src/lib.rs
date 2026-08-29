@@ -28,9 +28,7 @@
 //! tagged form with N and alignment taken from the largest variant.
 //! The MIR enum operations map onto `EnumWrap` / `EnumTag` /
 //! `EnumField`, which codegen translates mechanically per the
-//! representation. A trap call (`!!` on `None`) branches to a
-//! per-function shared trap block that calls `scoop_rt_trap`
-//! (noreturn) with a `CString` message global. Enum layouts in the
+//! representation. Enum layouts in the
 //! meta keep per-variant reference offsets — scanning an enum value
 //! depends on its tag (runtime spec 2.2).
 //!
@@ -85,6 +83,37 @@
 //! `scoop_rt_alloc(td, size)` plus one `HeapStore` per flattened
 //! field. Use-site construction already became a plain ctor call in
 //! MIR.
+//!
+//! M8: exceptions (docs/milestone8/DESIGN.md section 3.4). A
+//! structured `mir::StatementKind::Try` becomes basic blocks: inside
+//! the body every user call / dispatch that may throw is emitted as
+//! `Invoke` / `InvokeIndirect` to the innermost try's unwind block
+//! (a per-function stack tracks the pads, so nested trys unwind to
+//! their own pad and catch / finally code unwinds to the enclosing
+//! one). The unwind block starts with `LandingPad` (the exception
+//! object, `Ptr`); catch matching is the `scoop_rt_is_instance`
+//! decision chain, and an exception no catch matches goes to
+//! `scoop_rt_rethrow` + `unreachable`. `finally` is inlined on every
+//! path — normal completion, after each catch body, before the
+//! rethrow, and before a `return` out of the body or a catch (the
+//! copies are duplicated per exit site: a shared block cannot carry
+//! the per-site return value without a phi). A `throw` outside any
+//! try is the `Throw` instruction; inside a try it is invoked to the
+//! current pad (a plain call would unwind straight past the
+//! function's own landing pad).
+//!
+//! Block-terminator convention: `Invoke` / `InvokeIndirect` must be
+//! the last instruction of its block; the block's own `terminator`
+//! is the redundant `Br(normal)` — it only restates the invoke's
+//! normal successor for dump readability, and codegen uses the
+//! instruction as the LLVM terminator without emitting the branch.
+//! `Throw` is noreturn: its block ends `Unreachable` (the same shape
+//! as the M3 trap path). Personality is a
+//! function-level implicit marker (the personality convention with
+//! codegen): every function containing a `LandingPad` instruction
+//! gets `scoop_eh_personality` — codegen derives the flag from the
+//! instruction, so no separate field exists. Functions without a try
+//! are unaffected: their calls stay plain `Call`s.
 
 use std::collections::HashMap;
 
@@ -94,6 +123,16 @@ use scoop_lir as lir;
 /// Runtime object allocation: `ptr scoop_rt_alloc(ptr td, i64 size)`
 /// (runtime spec 2.1). `ClassInit` lowerings call it.
 const ALLOC_SYMBOL: &str = "scoop_rt_alloc";
+/// Runtime throw entry: `void scoop_rt_throw(ptr)` (runtime spec 5).
+/// A `throw` inside a `try` is invoked to the current landing pad
+/// through this symbol; outside a `try` the `Throw` instruction is
+/// used instead (both lower to `__cxa_throw` in codegen / the C
+/// runtime). Noreturn.
+const THROW_SYMBOL: &str = "scoop_rt_throw";
+/// Runtime rethrow entry: `void scoop_rt_rethrow(void)` — resumes
+/// unwinding of the active exception (`__cxa_rethrow`) when no catch
+/// of the current try matches. Noreturn.
+const RETHROW_SYMBOL: &str = "scoop_rt_rethrow";
 use scoop_mir as mir;
 
 /// Lower MIR to LIR.
@@ -853,9 +892,9 @@ fn binary_op(op: mir::BinOp) -> (lir::BinOp, lir::LirType, mir::Type) {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn lower_function(
-    module: &mir::Module,
-    function: &mir::Function,
+fn lower_function<'a>(
+    module: &'a mir::Module,
+    function: &'a mir::Function,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
     globals: &mut Arena<lir::Global>,
     cstr_count: &mut usize,
@@ -927,6 +966,8 @@ fn lower_function(
         returns_void,
         trap_blocks: HashMap::new(),
         current_sealed: false,
+        try_stack: Vec::new(),
+        return_finally: Vec::new(),
     };
     lowerer.lower_statements(&function.body.statements);
     if !lowerer.current_sealed {
@@ -1028,9 +1069,20 @@ struct FunctionLowerer<'a> {
     trap_blocks: HashMap<String, lir::BlockId>,
     /// Whether the current block was already sealed.
     current_sealed: bool,
+    /// The unwind blocks of the enclosing trys, innermost last (M8):
+    /// a call that may throw inside a try body is invoked to the
+    /// innermost landing pad. Empty outside try bodies — calls stay
+    /// plain there.
+    try_stack: Vec<lir::BlockId>,
+    /// The `finally` bodies of the enclosing trys, innermost last
+    /// (M8): a `return` runs a copy of each before returning (see
+    /// `emit_finally_copies`). The unwind block of the owning try is
+    /// kept alongside so the copy unwinds to the try *enclosing* its
+    /// owner, never to the owner's own pad.
+    return_finally: Vec<(lir::BlockId, &'a [mir::Statement])>,
 }
 
-impl FunctionLowerer<'_> {
+impl<'a> FunctionLowerer<'a> {
     fn new_block(&mut self, base: &str) -> lir::BlockId {
         self.block_count += 1;
         self.blocks.alloc(lir::BasicBlock {
@@ -1209,13 +1261,13 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    fn lower_statements(&mut self, statements: &[mir::Statement]) {
+    fn lower_statements(&mut self, statements: &'a [mir::Statement]) {
         for statement in statements {
             self.lower_statement(statement);
         }
     }
 
-    fn lower_statement(&mut self, statement: &mir::Statement) {
+    fn lower_statement(&mut self, statement: &'a mir::Statement) {
         match &statement.kind {
             mir::StatementKind::Expr(expr) => {
                 let ty = self.expr_ty(expr);
@@ -1284,7 +1336,7 @@ impl FunctionLowerer<'_> {
                 });
             }
             mir::StatementKind::Return { value } => {
-                let value = match (self.returns_void, value) {
+                let mut value = match (self.returns_void, value) {
                     (true, None) => None,
                     // hir-lower emits bare `return` in Unit functions,
                     // so this is defensive: evaluate the Unit value for
@@ -1301,6 +1353,31 @@ impl FunctionLowerer<'_> {
                     // hir-lower: non-Unit functions return a value.
                     (false, None) => unreachable!("non-Unit `return` without a value"),
                 };
+                if !self.return_finally.is_empty() {
+                    // `return` inside a try with `finally` (M8, DESIGN
+                    // 3.4): the value is already evaluated above; now
+                    // every enclosing finally runs (innermost first)
+                    // before the function returns. A `Local` value is
+                    // stashed first — a finally may assign to that
+                    // local, but the returned value must be the one
+                    // evaluated here.
+                    if let Some(lir::Value::Local(_)) = value {
+                        let return_ty = self.mir_return_ty.clone();
+                        let ty = self.value_type(&return_ty);
+                        let stash = self.new_hidden_local(ty);
+                        self.push(lir::Instruction::Store {
+                            local: stash,
+                            value: value.expect("a value is being stashed"),
+                        });
+                        value = Some(lir::Value::Local(stash));
+                    }
+                    self.emit_finally_copies();
+                    // A `return` inside a finally copy wins: the block
+                    // is sealed and this return is dropped.
+                    if self.current_sealed {
+                        return;
+                    }
+                }
                 self.seal(lir::Terminator::Return { value });
                 self.current_sealed = true;
             }
@@ -1353,7 +1430,185 @@ impl FunctionLowerer<'_> {
                 }
                 self.enter(exit_block);
             }
+            mir::StatementKind::Try(try_) => self.lower_try(try_),
+            // `throw` (M8, DESIGN 3.4): outside a try this is the
+            // `Throw` instruction — codegen calls the runtime throw
+            // entry and the block ends `unreachable`. Inside a try the
+            // throw must reach this function's own landing pad (a
+            // plain call would unwind straight past it), so it is
+            // invoked to the innermost pad; the runtime entry never
+            // returns, so the normal successor is unreachable.
+            mir::StatementKind::Throw(expr) => {
+                let ty = self.expr_ty(expr);
+                let value = self.lower_expr(expr, &ty);
+                match self.try_stack.last() {
+                    Some(&unwind) => {
+                        let normal = self.new_block("throw.normal");
+                        self.push(lir::Instruction::Invoke {
+                            out: None,
+                            symbol: THROW_SYMBOL.to_string(),
+                            args: vec![value],
+                            normal,
+                            unwind,
+                        });
+                        self.seal(lir::Terminator::Br(normal));
+                        self.enter(normal);
+                        // The runtime throw entry never returns, so the
+                        // normal successor is dead.
+                        self.seal(lir::Terminator::Unreachable);
+                        self.current_sealed = true;
+                    }
+                    None => {
+                        self.push(lir::Instruction::Throw { exception: value });
+                        self.seal(lir::Terminator::Unreachable);
+                        self.current_sealed = true;
+                    }
+                }
+            }
         }
+    }
+
+    /// `try` / `catch` / `finally` (M8, DESIGN 3.4). While the body is
+    /// lowered its unwind block tops `try_stack`, so every potentially
+    /// throwing operation in the body becomes an `Invoke` /
+    /// `InvokeIndirect` to it (see `finish_call`); nested trys push
+    /// their own pad. The pad extracts the exception object
+    /// (`LandingPad`), the catches match in declaration order with the
+    /// `scoop_rt_is_instance` chain (the same decision-sequence shape
+    /// as `when`), and an exception no catch matches is rethrown.
+    ///
+    /// `finally` runs on every path, inlined per exit site: once
+    /// after normal completion of the body, once after each catch
+    /// body, and once before the rethrow; a `return` out of the body
+    /// or a catch is covered by the `Return` arm through
+    /// `return_finally`. Catch bodies, finally copies, and the
+    /// rethrow unwind to the *enclosing* try (this pad is popped
+    /// first) — an exception thrown from them is not caught by this
+    /// try's own catches.
+    fn lower_try(&mut self, try_: &'a mir::Try) {
+        let unwind = self.new_block("try.unwind");
+        let end = self.new_block("try.end");
+
+        self.try_stack.push(unwind);
+        if let Some(finally) = &try_.finally_body {
+            self.return_finally.push((unwind, finally));
+        }
+        self.lower_statements(&try_.body);
+        self.try_stack.pop();
+        let finally = try_.finally_body.as_deref();
+        if finally.is_some() {
+            self.return_finally.pop();
+        }
+
+        let mut end_reachable = false;
+        // Normal path: inline finally once, then continue after the
+        // try.
+        if !self.current_sealed {
+            if let Some(finally) = finally {
+                self.lower_statements(finally);
+            }
+            if !self.current_sealed {
+                self.seal(lir::Terminator::Br(end));
+                end_reachable = true;
+            }
+        }
+
+        // Exception path: the landing pad yields the exception object.
+        self.enter(unwind);
+        let exception = self.new_temp(lir::LirType::Ptr);
+        self.push(lir::Instruction::LandingPad { out: exception });
+        let exception = lir::Value::Temp(exception);
+        for catch in &try_.catches {
+            let catch_block = self.new_block("try.catch");
+            let next = self.new_block("try.next");
+            let cond = self.new_temp(lir::LirType::I1);
+            let catch_td = self.td_ref(&catch.ty);
+            self.push(lir::Instruction::Call {
+                out: Some(cond),
+                symbol: mir::RuntimeFn::IsInstance.symbol().to_string(),
+                args: vec![exception, catch_td],
+            });
+            self.seal(lir::Terminator::CondBr {
+                cond: lir::Value::Temp(cond),
+                then_block: catch_block,
+                else_block: next,
+            });
+            self.enter(catch_block);
+            self.push(lir::Instruction::Store {
+                local: self.local_slot(catch.local),
+                value: exception,
+            });
+            // A `return` inside a catch runs the finally too.
+            if let Some(finally) = finally {
+                self.return_finally.push((unwind, finally));
+            }
+            self.lower_statements(&catch.body);
+            if finally.is_some() {
+                self.return_finally.pop();
+            }
+            if !self.current_sealed {
+                if let Some(finally) = finally {
+                    self.lower_statements(finally);
+                }
+                if !self.current_sealed {
+                    self.seal(lir::Terminator::Br(end));
+                    end_reachable = true;
+                }
+            }
+            self.enter(next);
+        }
+        // No catch matched: finally, then rethrow the active
+        // exception (noreturn).
+        if let Some(finally) = finally {
+            self.lower_statements(finally);
+        }
+        if !self.current_sealed {
+            self.push(lir::Instruction::Call {
+                out: None,
+                symbol: RETHROW_SYMBOL.to_string(),
+                args: Vec::new(),
+            });
+            self.seal(lir::Terminator::Unreachable);
+        }
+
+        self.enter(end);
+        if !end_reachable {
+            // Every path through the try leaves the function (all
+            // branches return or throw), so the merge block is dead.
+            // Seal it: without this the function-end fallback would
+            // append a bare `return` on a path that must not exist.
+            self.seal(lir::Terminator::Unreachable);
+            self.current_sealed = true;
+        }
+    }
+
+    /// Inline a copy of every pending `finally` body into the current
+    /// block, innermost first (the `return` path; the copies are
+    /// duplicated per exit site because a shared block cannot carry
+    /// the per-site return value without a phi). While a copy is
+    /// lowered the stack holds only the *enclosing* bodies, so a
+    /// `return` inside a copy re-runs exactly those — which also
+    /// keeps lowering itself from recursing. The copy unwinds to the
+    /// try enclosing its owner (an exception thrown from a finally is
+    /// not caught by the owner's own catches), so the owner's pad —
+    /// and everything above it — is dropped from `try_stack` while
+    /// the copy is lowered.
+    fn emit_finally_copies(&mut self) {
+        let all = std::mem::take(&mut self.return_finally);
+        let saved_try_stack = self.try_stack.clone();
+        let mut remaining = all.clone();
+        while let Some((pad, body)) = remaining.pop() {
+            if self.current_sealed {
+                break;
+            }
+            self.return_finally = remaining.clone();
+            if let Some(pos) = self.try_stack.iter().rposition(|p| *p == pad) {
+                self.try_stack.truncate(pos);
+            }
+            self.lower_statements(body);
+        }
+        self.return_finally = all;
+        self.try_stack = saved_try_stack;
     }
 
     /// Lower an expression of MIR type `ty`, appending its
@@ -1887,7 +2142,11 @@ impl FunctionLowerer<'_> {
     }
 
     /// A direct call: Unit-returning callees are void at the LLVM
-    /// level; their Unit value is a fresh empty aggregate.
+    /// level; their Unit value is a fresh empty aggregate. Inside a
+    /// try body the call may throw, so it is invoked to the innermost
+    /// landing pad (M8): the `Invoke` ends the block (the terminator
+    /// convention in the module docs) and the result is available in
+    /// the normal successor.
     fn finish_call(
         &mut self,
         symbol: String,
@@ -1895,6 +2154,28 @@ impl FunctionLowerer<'_> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
+        if let Some(&unwind) = self.try_stack.last() {
+            let normal = self.new_block("invoke.normal");
+            let out = if returns_unit {
+                None
+            } else {
+                let ty = self.value_type(result_ty);
+                Some(self.new_temp(ty))
+            };
+            self.push(lir::Instruction::Invoke {
+                out,
+                symbol,
+                args,
+                normal,
+                unwind,
+            });
+            self.seal(lir::Terminator::Br(normal));
+            self.enter(normal);
+            return match out {
+                Some(temp) => lir::Value::Temp(temp),
+                None => self.unit_value(),
+            };
+        }
         if returns_unit {
             self.push(lir::Instruction::Call {
                 out: None,
@@ -1915,7 +2196,8 @@ impl FunctionLowerer<'_> {
     }
 
     /// An indirect call through a function table (vtable / itable
-    /// dispatch, impl spec 2.9).
+    /// dispatch, impl spec 2.9). Inside a try body it is invoked to
+    /// the innermost landing pad, like `finish_call`.
     fn finish_indirect(
         &mut self,
         table: lir::TempId,
@@ -1924,6 +2206,29 @@ impl FunctionLowerer<'_> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
+        if let Some(&unwind) = self.try_stack.last() {
+            let normal = self.new_block("invoke.normal");
+            let out = if returns_unit {
+                None
+            } else {
+                let ty = self.value_type(result_ty);
+                Some(self.new_temp(ty))
+            };
+            self.push(lir::Instruction::InvokeIndirect {
+                out,
+                table: lir::Value::Temp(table),
+                slot,
+                args,
+                normal,
+                unwind,
+            });
+            self.seal(lir::Terminator::Br(normal));
+            self.enter(normal);
+            return match out {
+                Some(temp) => lir::Value::Temp(temp),
+                None => self.unit_value(),
+            };
+        }
         if returns_unit {
             self.push(lir::Instruction::CallIndirect {
                 out: None,
@@ -4109,5 +4414,377 @@ Module
             function.blocks[function.entry].terminator,
             lir::Terminator::Br(_)
         ));
+    }
+
+    /// `try { throw e } catch (e: MyError) { handled() }` minus the
+    /// throw — the shared shell of the M8 tests: `helper()` in the
+    /// body, `handled()` in the catch, `cleanup()` in the finally.
+    fn try_shell(finally: bool) -> (Builder, mir::FunctionId, mir::FunctionId, mir::FunctionId) {
+        let mut b = Builder::new();
+        let helper = b.user_fn("helper", "scoop.helper", Arena::new(), vec![]);
+        let handled = b.user_fn("handled", "scoop.handled", Arena::new(), vec![]);
+        let cleanup = if finally {
+            b.user_fn("cleanup", "scoop.cleanup", Arena::new(), vec![])
+        } else {
+            helper
+        };
+        (b, helper, handled, cleanup)
+    }
+
+    fn my_error(b: &mut Builder) -> mir::ClassId {
+        b.class("MyError", None, &[], vec![], vec![])
+    }
+
+    #[test]
+    fn try_catch_lowers_to_invoke_landingpad_and_rethrow() {
+        let (mut b, helper, handled, _) = try_shell(false);
+        let my_error = my_error(&mut b);
+        let mut locals = Arena::new();
+        let e = locals.alloc(local("e", mir::Type::Class(my_error)));
+        let main = b.main(
+            locals,
+            vec![stmt(mir::StatementKind::Try(mir::Try {
+                body: vec![expr_stmt(user_call(helper))],
+                catches: vec![mir::CatchClause {
+                    local: e,
+                    ty: Box::new(mir::Type::Class(my_error)),
+                    body: vec![expr_stmt(user_call(handled))],
+                    span: SPAN,
+                }],
+                finally_body: None,
+            }))],
+        );
+        let module = lower(&b.finish(main));
+
+        let expected = "\
+Module
+  global @scoop_td_MyError = c\"\"
+  fun @scoop.helper() -> void
+  block entry
+    ret
+  fun @scoop.handled() -> void
+  block entry
+    ret
+  fun @scoop_main() -> void
+    local %0 e: ptr
+  block entry
+    invoke @scoop.helper() normal @invoke.normal.3 unwind @try.unwind.1
+    br @invoke.normal.3
+  block try.unwind.1
+    t1 = landingpad : ptr
+    t2 = call @scoop_rt_is_instance(t1, global0) : i1
+    cbr t2 then @try.catch.4 else @try.next.5
+  block try.end.2
+    ret
+  block invoke.normal.3
+    t0 = aggregate () : {}
+    br @try.end.2
+  block try.catch.4
+    store t1 -> local0
+    call @scoop.handled()
+    t3 = aggregate () : {}
+    br @try.end.2
+  block try.next.5
+    call @scoop_rt_rethrow()
+    unreachable
+  td MyError @scoop_td_MyError size=8 vtable=0 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout MyError size=8 align=8 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn finally_runs_on_the_normal_catch_and_rethrow_paths() {
+        let (mut b, helper, handled, cleanup) = try_shell(true);
+        let my_error = my_error(&mut b);
+        let mut locals = Arena::new();
+        let e = locals.alloc(local("e", mir::Type::Class(my_error)));
+        let main = b.main(
+            locals,
+            vec![stmt(mir::StatementKind::Try(mir::Try {
+                body: vec![expr_stmt(user_call(helper))],
+                catches: vec![mir::CatchClause {
+                    local: e,
+                    ty: Box::new(mir::Type::Class(my_error)),
+                    body: vec![expr_stmt(user_call(handled))],
+                    span: SPAN,
+                }],
+                finally_body: Some(vec![expr_stmt(user_call(cleanup))]),
+            }))],
+        );
+        let module = lower(&b.finish(main));
+        let dump = lir::dump(&module);
+
+        // The finally body is inlined on all three paths: normal
+        // completion, after the catch body, and before the rethrow.
+        assert_eq!(dump.matches("call @scoop.cleanup()").count(), 3);
+        // The third copy is on the rethrow path, before the rethrow.
+        let rethrow = dump
+            .find("call @scoop_rt_rethrow()")
+            .expect("a rethrow path");
+        let last_cleanup = dump
+            .rfind("call @scoop.cleanup()")
+            .expect("the rethrow path runs the finally");
+        assert!(last_cleanup < rethrow);
+        assert!(dump.contains("landingpad"));
+    }
+
+    #[test]
+    fn return_inside_try_runs_finally_before_returning() {
+        // fun f(): Int { try { return 1 } finally { cleanup() } }
+        let (mut b, _, _, cleanup) = try_shell(true);
+        let f = b.user_fn_full(
+            "f",
+            "scoop.f",
+            Vec::new(),
+            mir::Type::Int,
+            Arena::new(),
+            vec![stmt(mir::StatementKind::Try(mir::Try {
+                body: vec![return_stmt(mir::Expr::IntLiteral(1))],
+                catches: Vec::new(),
+                finally_body: Some(vec![expr_stmt(user_call(cleanup))]),
+            }))],
+        );
+        let _ = f;
+        let main = b.main(Arena::new(), vec![]);
+        let module = lower(&b.finish(main));
+
+        // The finally copy runs before the return on the `return`
+        // path and before the rethrow on the unwind path; the merge
+        // block is dead (both paths leave the function).
+        let expected = "\
+Module
+  fun @scoop.helper() -> void
+  block entry
+    ret
+  fun @scoop.handled() -> void
+  block entry
+    ret
+  fun @scoop.cleanup() -> void
+  block entry
+    ret
+  fun @scoop.f() -> i64
+  block entry
+    call @scoop.cleanup()
+    t0 = aggregate () : {}
+    ret 1
+  block try.unwind.1
+    t1 = landingpad : ptr
+    call @scoop.cleanup()
+    t2 = aggregate () : {}
+    call @scoop_rt_rethrow()
+    unreachable
+  block try.end.2
+    unreachable
+  fun @scoop_main() -> void
+  block entry
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn throw_outside_try_is_a_throw_instruction() {
+        // fun fail(): Unit { throw makeError() } — no try, so the
+        // `Throw` instruction ends the block.
+        let mut b = Builder::new();
+        let my_error = my_error(&mut b);
+        let mut ctor_locals = Arena::new();
+        let make = b.user_fn_full(
+            "makeError",
+            "scoop.makeError",
+            Vec::new(),
+            mir::Type::Class(my_error),
+            std::mem::take(&mut ctor_locals),
+            vec![return_stmt(mir::Expr::ClassInit {
+                class_id: my_error,
+                args: Vec::new(),
+            })],
+        );
+        let main = b.main(
+            Arena::new(),
+            vec![stmt(mir::StatementKind::Throw(mir::Expr::Call(
+                mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(make),
+                    },
+                    args: Vec::new(),
+                },
+            )))],
+        );
+        let module = lower(&b.finish(main));
+
+        // Outside a try the throw is the `Throw` instruction ending
+        // the block; the callee stays a plain call.
+        let expected = "\
+Module
+  global @scoop_td_MyError = c\"\"
+  fun @scoop.makeError() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global0, 8) : ptr
+    ret t0
+  fun @scoop_main() -> void
+  block entry
+    t0 = call @scoop.makeError() : ptr
+    throw t0
+    unreachable
+  td MyError @scoop_td_MyError size=8 vtable=0 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout MyError size=8 align=8 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn throw_inside_try_invokes_to_the_own_landingpad() {
+        // try { throw e } catch (e: MyError) {} — the throw must
+        // reach this function's own pad, so it is an invoke of the
+        // runtime throw entry, not a plain `Throw`.
+        let mut b = Builder::new();
+        let my_error = my_error(&mut b);
+        let mut locals = Arena::new();
+        let e = locals.alloc(local("e", mir::Type::Class(my_error)));
+        let main = b.main(
+            locals,
+            vec![stmt(mir::StatementKind::Try(mir::Try {
+                body: vec![stmt(mir::StatementKind::Throw(mir::Expr::Local(e)))],
+                catches: vec![mir::CatchClause {
+                    local: e,
+                    ty: Box::new(mir::Type::Class(my_error)),
+                    body: Vec::new(),
+                    span: SPAN,
+                }],
+                finally_body: None,
+            }))],
+        );
+        let module = lower(&b.finish(main));
+
+        let function = module
+            .functions
+            .iter()
+            .find(|f| f.symbol == mir::ENTRY_SYMBOL)
+            .expect("the entry function");
+        // The entry block ends with the invoke; its unwind target is
+        // the block that starts with the landingpad.
+        let entry = &function.blocks[function.entry];
+        let lir::Instruction::Invoke {
+            symbol,
+            normal,
+            unwind,
+            ..
+        } = entry.instructions.last().expect("the throw invoke")
+        else {
+            panic!("a throw inside a try must be invoked")
+        };
+        assert_eq!(symbol, "scoop_rt_throw");
+        assert!(matches!(
+            function.blocks[*unwind].instructions.first(),
+            Some(lir::Instruction::LandingPad { .. })
+        ));
+        assert!(matches!(
+            function.blocks[*normal].terminator,
+            lir::Terminator::Unreachable
+        ));
+        // The invoke block's terminator is the redundant `Br` to the
+        // normal target (the codegen convention).
+        assert!(matches!(
+            entry.terminator,
+            lir::Terminator::Br(target) if target == *normal
+        ));
+    }
+
+    #[test]
+    fn nested_trys_unwind_to_their_own_pads() {
+        // try { try { a() } catch (e1: E1) { b() } } catch (e2: E2) { c() }
+        // — `a` unwinds to the inner pad; `b` (in the inner catch)
+        // unwinds to the outer pad.
+        let mut b = Builder::new();
+        let e1 = b.class("E1", None, &[], vec![], vec![]);
+        let e2 = b.class("E2", None, &[], vec![], vec![]);
+        let a = b.user_fn("a", "scoop.a", Arena::new(), vec![]);
+        let bb = b.user_fn("b", "scoop.b", Arena::new(), vec![]);
+        let c = b.user_fn("c", "scoop.c", Arena::new(), vec![]);
+        let mut locals = Arena::new();
+        let e1_local = locals.alloc(local("e1", mir::Type::Class(e1)));
+        let e2_local = locals.alloc(local("e2", mir::Type::Class(e2)));
+        let main = b.main(
+            locals,
+            vec![stmt(mir::StatementKind::Try(mir::Try {
+                body: vec![stmt(mir::StatementKind::Try(mir::Try {
+                    body: vec![expr_stmt(user_call(a))],
+                    catches: vec![mir::CatchClause {
+                        local: e1_local,
+                        ty: Box::new(mir::Type::Class(e1)),
+                        body: vec![expr_stmt(user_call(bb))],
+                        span: SPAN,
+                    }],
+                    finally_body: None,
+                }))],
+                catches: vec![mir::CatchClause {
+                    local: e2_local,
+                    ty: Box::new(mir::Type::Class(e2)),
+                    body: vec![expr_stmt(user_call(c))],
+                    span: SPAN,
+                }],
+                finally_body: None,
+            }))],
+        );
+        let module = lower(&b.finish(main));
+
+        let function = module
+            .functions
+            .iter()
+            .find(|f| f.symbol == mir::ENTRY_SYMBOL)
+            .expect("the entry function");
+        // Two landing pads, one per try.
+        let pads: Vec<&str> = function
+            .blocks
+            .iter()
+            .filter(|(_, block)| {
+                matches!(
+                    block.instructions.first(),
+                    Some(lir::Instruction::LandingPad { .. })
+                )
+            })
+            .map(|(_, block)| block.name.as_str())
+            .collect();
+        assert_eq!(pads.len(), 2);
+        // `a` unwinds to the inner pad (created second), `b` to the
+        // outer one, `c` is outside both trys and stays a plain call.
+        let mut invokes = Vec::new();
+        let mut plain_calls = Vec::new();
+        for (_, block) in function.blocks.iter() {
+            for instruction in &block.instructions {
+                match instruction {
+                    lir::Instruction::Invoke { symbol, unwind, .. } => {
+                        invokes.push((symbol.as_str(), function.blocks[*unwind].name.as_str()))
+                    }
+                    lir::Instruction::Call { symbol, .. } => plain_calls.push(symbol.as_str()),
+                    _ => {}
+                }
+            }
+        }
+        let unwind_of = |symbol: &str| {
+            invokes
+                .iter()
+                .find(|(s, _)| *s == symbol)
+                .map(|(_, u)| *u)
+                .unwrap_or_else(|| panic!("{symbol} must be invoked"))
+        };
+        assert_eq!(unwind_of("scoop.a"), pads[1]);
+        assert_eq!(unwind_of("scoop.b"), pads[0]);
+        assert!(plain_calls.contains(&"scoop.c"));
     }
 }

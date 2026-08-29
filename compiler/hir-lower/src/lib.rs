@@ -71,6 +71,16 @@
 //! the synthesized `Any` members (vtable slots 0..2); the `@Intrinsic`
 //! registry only backs the single `rt_write` primitive and no
 //! call-site special rules remain.
+//!
+//! M8 (milestone8 DESIGN.md 3.2): exceptions. `scoop.core` must define
+//! a class `Throwable` (the root of the exception hierarchy, spec
+//! 11.7); `throw` operands and catch parameter types must be subtypes
+//! of it, catches are checked for shadowing in declaration order (a
+//! catch covered by an earlier one is unreachable — an error in M8,
+//! DESIGN.md 5.1), and the catch local scopes over its clause body.
+//! The validated `Throwable` stays a lowerer-internal field (the HIR
+//! `Module` is unchanged); mir-lower re-resolves the exception classes
+//! by name when it rewrites the M3 trap paths.
 
 mod class;
 mod expr;
@@ -235,6 +245,17 @@ pub(crate) struct Lowerer {
     /// when the core library is misconfigured (diagnosed, so the
     /// module is rejected anyway).
     pub(crate) option_enum: Option<EnumId>,
+    /// Classes named `Throwable` declared in core files, in
+    /// declaration order ((declaration, reference type)). Validated
+    /// after pass 1 (`validate_throwable`); a second `Throwable` was
+    /// already rejected as a duplicate class in pass 1.
+    throwable_candidates: Vec<(ClassId, TypeId)>,
+    /// The validated `Throwable` class of `scoop.core` and its
+    /// reference type (M8); `None` only when the core library is
+    /// misconfigured (diagnosed, so the module is rejected anyway).
+    /// Lowerer-internal on purpose: `hir::Module` is unchanged and
+    /// mir-lower re-resolves the exception classes by name.
+    pub(crate) throwable: Option<(ClassId, TypeId)>,
     /// Surface form of every variant, for pattern shape checks.
     pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
     /// Resolved signatures of all functions (pass 2.5), consulted by
@@ -316,6 +337,8 @@ impl Lowerer {
             class_prop_mutability: HashMap::new(),
             option_candidates: Vec::new(),
             option_enum: None,
+            throwable_candidates: Vec::new(),
+            throwable: None,
             variant_styles: HashMap::new(),
             signatures: HashMap::new(),
             type_params_in_scope: Vec::new(),
@@ -450,6 +473,7 @@ impl Lowerer {
                     ),
                     ast::Decl::Class(decl) => self.declare_class(
                         decl,
+                        is_core,
                         &mut pending_classes,
                         &mut pending_methods,
                         file_index,
@@ -467,6 +491,10 @@ impl Lowerer {
         // The core library's `Option<T>` must be validated before any
         // type annotation is resolved: `T?` desugars to it (spec 7.1).
         self.validate_option_enum(files);
+        // The core library's `Throwable` is the root every `throw`
+        // operand and catch parameter type is checked against (spec
+        // 11.7).
+        self.validate_throwable(files);
 
         // Pass 2: resolve struct fields, enum variants, class
         // constructor properties and inheritance clauses (all type
@@ -716,6 +744,7 @@ impl Lowerer {
     fn declare_class<'a>(
         &mut self,
         decl: &'a ast::ClassDecl,
+        is_core: bool,
         pending: &mut Vec<(ClassId, &'a ast::ClassDecl, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
@@ -751,6 +780,9 @@ impl Lowerer {
         self.classes_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.class_methods.insert(id, Vec::new());
+        if is_core && decl.name.text == "Throwable" {
+            self.throwable_candidates.push((id, ty));
+        }
         for method in &decl.methods {
             self.declare_method(method, Owner::Class(id), pending_methods, file_index);
         }
@@ -937,6 +969,35 @@ impl Lowerer {
             return;
         }
         self.option_enum = Some(id);
+    }
+
+    /// `scoop.core` must define a class named `Throwable` (spec 11.7,
+    /// milestone8 DESIGN.md 2.1): the root of the exception hierarchy
+    /// that `throw` operands and catch parameter types are checked
+    /// against. A `Throwable` declared as another type kind, or only
+    /// in the user file, is a core configuration error attributed to
+    /// the first file (with a core library present that is a core
+    /// file). A second core `Throwable` was already rejected as a
+    /// duplicate class in pass 1, so at most one candidate reaches
+    /// here.
+    fn validate_throwable(&mut self, files: &[ast::SourceFile]) {
+        let Some(&candidate) = self.throwable_candidates.first() else {
+            self.current_file = 0;
+            self.error(
+                files[0].span,
+                "scoop.core must define a class `Throwable`".to_string(),
+            );
+            return;
+        };
+        self.throwable = Some(candidate);
+    }
+
+    /// The `Throwable` reference type of `scoop.core`, when validated.
+    /// `throw` / catch lowering skips its subtype check when this is
+    /// `None` (the misconfigured core was already diagnosed, so the
+    /// module is rejected anyway).
+    pub(crate) fn throwable_ty(&self) -> Option<TypeId> {
+        self.throwable.map(|(_, ty)| ty)
     }
 
     /// Overload declaration check (pass 2.6, milestone7 DESIGN.md 1.1):

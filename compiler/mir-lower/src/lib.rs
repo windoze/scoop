@@ -30,8 +30,25 @@
 //! failed guard falls through to the next arm). The HIR Option nodes
 //! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) become generic
 //! enum operations; a trapping `Unwrap` (`!!`) becomes an if/else whose
-//! else branch calls the runtime trap. Equality on enums expands into a
-//! tag comparison plus a per-variant payload comparison.
+//! else branch throws `UnwrapException` (M8). Equality on enums expands
+//! into a tag comparison plus a per-variant payload comparison.
+//!
+//! M8: exceptions (docs/milestone8/DESIGN.md section 3.3). `try` /
+//! `catch` / `finally` and `throw` translate one-to-one — MIR keeps
+//! them structured; the control-flow expansion (invoke / landingpad)
+//! is LIR's job. The four trap paths of M3–M6 now throw core's
+//! built-in exceptions instead of calling `scoop_rt_trap`: `!!`
+//! throws `UnwrapException`, the array bounds checks (moved here from
+//! codegen for `ArrayGet` / `ArraySet`) throw
+//! `IndexOutOfBoundsException`, a failing `as` throws
+//! `ClassCastException`, and integer division gains a divisor check
+//! that throws `ArithmeticException`. The built-in exception classes
+//! (core's throwable.scoop) are ordinary classes, so construction is
+//! a plain call to the generated constructor function (M6); they are
+//! resolved by name — hir-lower validates that core declares
+//! `Throwable`, so a missing class is a core configuration error.
+//! `RuntimeFn::Trap` keeps exactly one generation path: the
+//! abstract-method stub (a cannot-happen pure-virtual trap).
 //!
 //! M7: print/println are ordinary core functions
 //! (docs/milestone7/DESIGN.md section 2) — their calls go through the
@@ -84,7 +101,7 @@
 //! itable slots point at adjust thunks that unbox `this` and
 //! tail-call the real value method. The boxed itables cover the value
 //! type's *declared* interfaces (spec 4.4.3) no matter what it was
-//! boxed to. `as` traps on failure (M8: `ClassCastException`); `as?`
+//! boxed to. `as` throws `ClassCastException` on failure (M8); `as?`
 //! wraps in `Option` like `!!` does. Equality on references is
 //! identity (the M6 `Any` default, milestone6 DESIGN 5.1) — a pointer
 //! comparison; `===` / `!==` (`RefEq` / `RefNe`) map onto the same
@@ -380,7 +397,6 @@ impl Lowerer {
             hidden_count: 0,
             prelude: Vec::new(),
             option_variants: self.option_variants,
-            function_name: &function.name,
         }
         .lower_function(function, body)
     }
@@ -769,7 +785,6 @@ impl Lowerer {
         let decl = &module.classes[hir_id];
         let mir_id = self.class_map[&hir_id];
         let field_count = self.classes[mir_id].fields.len();
-        let function_name = format!("ctor.{}", decl.name);
         let mut lowerer = BodyLowerer {
             module,
             struct_map: &self.struct_map,
@@ -795,7 +810,6 @@ impl Lowerer {
             hidden_count: 0,
             prelude: Vec::new(),
             option_variants: self.option_variants,
-            function_name: &function_name,
         };
         let mut params = Vec::new();
         let mut own = Vec::new();
@@ -979,7 +993,6 @@ impl Lowerer {
             hidden_count: 0,
             prelude: Vec::new(),
             option_variants: self.option_variants,
-            function_name: "equals",
         };
         let equality = lowerer.expand_equality(&Opd::Local(a), &Opd::Local(b), payload, &[], false);
         let body = mir::Body {
@@ -1710,8 +1723,6 @@ struct BodyLowerer<'a> {
     prelude: Vec<mir::StatementKind>,
     /// Declaration indices of `Option::Some` / `Option::None`.
     option_variants: (u32, u32),
-    /// Source name of the function, for trap messages.
-    function_name: &'a str,
 }
 
 /// A step from a compared operand down to the sub-value at an equality
@@ -1850,13 +1861,30 @@ impl BodyLowerer<'_> {
                         mir::StatementKind::Assign { local, value }
                     }
                     // `m[i] = v` (only `MutableArray`, checked at HIR).
+                    // M8: the bounds check moved here from codegen —
+                    // the array and the index are evaluated once into
+                    // hidden locals and checked before the store; the
+                    // value expression stays inside the `ArraySet`
+                    // node and is evaluated after the check.
                     hir::AssignTarget::Index { array, index } => {
-                        let array = self.lower_expr(array);
-                        let index = self.lower_expr(index);
+                        let array_ty = self.lower_type(array.ty);
+                        let array_slot = self.new_hidden("arr", array_ty, false);
+                        let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                        let array_value = self.lower_expr(array);
+                        self.prelude.push(mir::StatementKind::ValDecl {
+                            local: array_slot,
+                            init: array_value,
+                        });
+                        let index_value = self.lower_expr(index);
+                        self.prelude.push(mir::StatementKind::ValDecl {
+                            local: index_slot,
+                            init: index_value,
+                        });
+                        self.bounds_check(array_slot, index_slot, span);
                         let value = self.lower_expr(value);
                         mir::StatementKind::ArraySet {
-                            array,
-                            index,
+                            array: mir::Expr::Local(array_slot),
+                            index: mir::Expr::Local(index_slot),
                             value,
                         }
                     }
@@ -1902,8 +1930,97 @@ impl BodyLowerer<'_> {
                 self.lower_when(when, span, out);
                 return;
             }
+            // `try` / `catch` / `finally` stays structured in MIR
+            // (M8, DESIGN 3.3); the control-flow expansion (invoke /
+            // landingpad) is LIR's job.
+            hir::StatementKind::Try(try_) => mir::StatementKind::Try(self.lower_try(try_)),
+            hir::StatementKind::Throw(expr) => {
+                let value = self.lower_expr(expr);
+                self.drain_prelude(span, out);
+                mir::StatementKind::Throw(value)
+            }
         };
         out.push(mir::Statement { kind, span });
+    }
+
+    /// `try` translates one-to-one: body, ordered catches (the catch
+    /// type is resolved to the concrete MIR type), and the optional
+    /// finally body.
+    fn lower_try(&mut self, try_: &hir::Try) -> mir::Try {
+        let body = self.lower_statements(&try_.body);
+        let catches = try_
+            .catches
+            .iter()
+            .map(|catch| mir::CatchClause {
+                local: self.local_map[&catch.local],
+                ty: Box::new(self.lower_type(catch.ty)),
+                body: self.lower_statements(&catch.body),
+                span: catch.span,
+            })
+            .collect();
+        let finally_body = try_
+            .finally_body
+            .as_ref()
+            .map(|body| self.lower_statements(body));
+        mir::Try {
+            body,
+            catches,
+            finally_body,
+        }
+    }
+
+    /// `throw <Name>()`: one of core's built-in exception classes
+    /// (throwable.scoop). They are ordinary class declarations, so
+    /// construction is a plain call to the generated constructor
+    /// function — the same path a use-site `ClassInit` takes (M6).
+    /// The class is resolved by name; hir-lower validates that core
+    /// declares `Throwable`, so a missing class is a core
+    /// configuration error, not a user error.
+    fn throw_builtin(&mut self, name: &str, span: Span) -> mir::Statement {
+        let class = self
+            .module
+            .classes
+            .iter()
+            .find(|(_, decl)| decl.name == name)
+            .map(|(id, _)| id)
+            .unwrap_or_else(|| panic!("core must declare `{name}` (throwable.scoop)"));
+        let ctor = self.ctors[&class];
+        mir::Statement {
+            kind: mir::StatementKind::Throw(mir::Expr::Call(mir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee: mir::Callee::User(ctor),
+                },
+                args: Vec::new(),
+            })),
+            span,
+        }
+    }
+
+    /// The M8 array bounds check (DESIGN section 1), shared by
+    /// `ArrayGet` and `ArraySet`:
+    /// `if (index < 0 || index >= array.size) throw IndexOutOfBoundsException()`.
+    /// `||` stays a single operator; LIR expands the short-circuit.
+    fn bounds_check(&mut self, array: mir::LocalId, index: mir::LocalId, span: Span) {
+        let out_of_bounds = mir::Expr::Binary {
+            op: mir::BinOp::Or,
+            lhs: Box::new(mir::Expr::Binary {
+                op: mir::BinOp::IntLt,
+                lhs: Box::new(mir::Expr::Local(index)),
+                rhs: Box::new(mir::Expr::IntLiteral(0)),
+            }),
+            rhs: Box::new(mir::Expr::Binary {
+                op: mir::BinOp::IntGe,
+                lhs: Box::new(mir::Expr::Local(index)),
+                rhs: Box::new(mir::Expr::ArrayLen(Box::new(mir::Expr::Local(array)))),
+            }),
+        };
+        let throw = self.throw_builtin("IndexOutOfBoundsException", span);
+        self.prelude.push(mir::StatementKind::If {
+            cond: out_of_bounds,
+            then_body: vec![throw],
+            else_body: None,
+        });
     }
 
     /// A `val` declaration: either the plain M1–M3 binding form, or a
@@ -2242,10 +2359,31 @@ impl BodyLowerer<'_> {
             hir::ExprKind::ArrayLiteral(elements) => {
                 mir::Expr::ArrayLiteral(elements.iter().map(|e| self.lower_expr(e)).collect())
             }
-            hir::ExprKind::Index { receiver, index } => mir::Expr::ArrayGet {
-                array: Box::new(self.lower_expr(receiver)),
-                index: Box::new(self.lower_expr(index)),
-            },
+            // Subscript read. M8: the bounds check moved here from
+            // codegen — the array and the index are evaluated once
+            // into hidden locals, then `IndexOutOfBoundsException`
+            // throws when the index is out of range (the prelude
+            // mechanism `!!` uses).
+            hir::ExprKind::Index { receiver, index } => {
+                let array_ty = self.lower_type(receiver.ty);
+                let array_slot = self.new_hidden("arr", array_ty, false);
+                let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                let array = self.lower_expr(receiver);
+                self.prelude.push(mir::StatementKind::ValDecl {
+                    local: array_slot,
+                    init: array,
+                });
+                let index = self.lower_expr(index);
+                self.prelude.push(mir::StatementKind::ValDecl {
+                    local: index_slot,
+                    init: index,
+                });
+                self.bounds_check(array_slot, index_slot, expr.span);
+                mir::Expr::ArrayGet {
+                    array: Box::new(mir::Expr::Local(array_slot)),
+                    index: Box::new(mir::Expr::Local(index_slot)),
+                }
+            }
             hir::ExprKind::ArrayLen(operand) => {
                 mir::Expr::ArrayLen(Box::new(self.lower_expr(operand)))
             }
@@ -2313,7 +2451,7 @@ impl BodyLowerer<'_> {
                 type_args,
                 args,
             } => self.lower_call(*function, type_args, args),
-            hir::ExprKind::Binary { op, lhs, rhs } => self.lower_binary(*op, lhs, rhs),
+            hir::ExprKind::Binary { op, lhs, rhs } => self.lower_binary(*op, lhs, rhs, expr.span),
             hir::ExprKind::Unary { op, operand } => {
                 let operand = Box::new(self.lower_expr(operand));
                 let op = match op {
@@ -2372,12 +2510,11 @@ impl BodyLowerer<'_> {
     }
 
     /// `x!!`: the operand is evaluated once into a hidden local, then
-    /// `if (tag == Some) { val $uw = <field 0> } else { trap }`. The
-    /// if/else is queued in `prelude` — it must precede the statement
-    /// this expression belongs to — and the expression itself becomes
-    /// the result local. The trap message is an ordinary string
-    /// constant; LIR turns the trap call into a `CString` global plus
-    /// a noreturn `scoop_rt_trap` call.
+    /// `if (tag == Some) { val $uw = <field 0> } else { throw UnwrapException() }`.
+    /// The if/else is queued in `prelude` — it must precede the
+    /// statement this expression belongs to — and the expression
+    /// itself becomes the result local. The exception is an ordinary
+    /// constructor call (`throw_builtin`, M8).
     fn trapping_unwrap(
         &mut self,
         operand: &hir::Expr,
@@ -2390,8 +2527,7 @@ impl BodyLowerer<'_> {
         let value = self.lower_expr(operand);
         let slot = self.new_hidden("opt", option_ty, false);
         let result = self.new_hidden("uw", payload_ty, false);
-        let message =
-            self.trap_message(format!("unwrap on None (function {})", self.function_name));
+        let throw = self.throw_builtin("UnwrapException", span);
         self.prelude.push(mir::StatementKind::ValDecl {
             local: slot,
             init: value,
@@ -2413,16 +2549,7 @@ impl BodyLowerer<'_> {
                 },
                 span,
             }],
-            else_body: Some(vec![mir::Statement {
-                kind: mir::StatementKind::Expr(mir::Expr::Call(mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
-                    },
-                    args: vec![mir::Expr::StringConst(message)],
-                })),
-                span,
-            }]),
+            else_body: Some(vec![throw]),
         });
         mir::Expr::Local(result)
     }
@@ -2645,8 +2772,8 @@ impl BodyLowerer<'_> {
     }
 
     /// `as` / `as?` (DESIGN 2.3): the operand is evaluated once into
-    /// a hidden local. `as` traps when the runtime check fails (M8
-    /// turns this into `ClassCastException`); `as?` wraps the result
+    /// a hidden local. `as` throws `ClassCastException` when the
+    /// runtime check fails (M8); `as?` wraps the result
     /// in `Some` / `None` through core's `Option` — the same prelude
     /// mechanism `!!` uses. A target of `Any` is statically true and
     /// needs no check. Class / interface targets stay the same
@@ -2697,26 +2824,13 @@ impl BodyLowerer<'_> {
             _ => mir::Expr::Unbox(Box::new(mir::Expr::Local(slot))),
         };
         if !optional {
-            let message = self.trap_message(format!(
-                "invalid cast to {} (function {})",
-                mir::type_name(self.shell, &target),
-                self.function_name
-            ));
+            let throw = self.throw_builtin("ClassCastException", span);
             self.prelude.push(mir::StatementKind::If {
                 cond: mir::Expr::Unary {
                     op: mir::UnOp::BoolNot,
                     operand: Box::new(cond),
                 },
-                then_body: vec![mir::Statement {
-                    kind: mir::StatementKind::Expr(mir::Expr::Call(mir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
-                        },
-                        args: vec![mir::Expr::StringConst(message)],
-                    })),
-                    span,
-                }],
+                then_body: vec![throw],
                 else_body: None,
             });
             // The hir-level `Unbox` around this `Cast` (value targets
@@ -2767,7 +2881,13 @@ impl BodyLowerer<'_> {
         })
     }
 
-    fn lower_binary(&mut self, op: hir::BinOp, lhs: &hir::Expr, rhs: &hir::Expr) -> mir::Expr {
+    fn lower_binary(
+        &mut self,
+        op: hir::BinOp,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+        span: Span,
+    ) -> mir::Expr {
         use mir::BinOp::*;
         match op {
             // String `+` is runtime concatenation (DESIGN 2.3); hir-lower
@@ -2779,7 +2899,40 @@ impl BodyLowerer<'_> {
             hir::BinOp::Add => self.primitive(IntAdd, lhs, rhs),
             hir::BinOp::Sub => self.primitive(IntSub, lhs, rhs),
             hir::BinOp::Mul => self.primitive(IntMul, lhs, rhs),
-            hir::BinOp::Div => self.primitive(IntDiv, lhs, rhs),
+            // M8 (DESIGN section 1): integer division checks the
+            // divisor — a zero divisor throws `ArithmeticException`
+            // instead of hitting LLVM `sdiv` UB. Both operands are
+            // evaluated once into hidden locals (left to right), so
+            // the check and the division share one evaluation.
+            hir::BinOp::Div => {
+                let lhs_slot = self.new_hidden("div", mir::Type::Int, false);
+                let rhs_slot = self.new_hidden("div", mir::Type::Int, false);
+                let lhs = self.lower_expr(lhs);
+                self.prelude.push(mir::StatementKind::ValDecl {
+                    local: lhs_slot,
+                    init: lhs,
+                });
+                let rhs = self.lower_expr(rhs);
+                self.prelude.push(mir::StatementKind::ValDecl {
+                    local: rhs_slot,
+                    init: rhs,
+                });
+                let throw = self.throw_builtin("ArithmeticException", span);
+                self.prelude.push(mir::StatementKind::If {
+                    cond: mir::Expr::Binary {
+                        op: mir::BinOp::IntEq,
+                        lhs: Box::new(mir::Expr::Local(rhs_slot)),
+                        rhs: Box::new(mir::Expr::IntLiteral(0)),
+                    },
+                    then_body: vec![throw],
+                    else_body: None,
+                });
+                mir::Expr::Binary {
+                    op: IntDiv,
+                    lhs: Box::new(mir::Expr::Local(lhs_slot)),
+                    rhs: Box::new(mir::Expr::Local(rhs_slot)),
+                }
+            }
             hir::BinOp::Lt => self.primitive(IntLt, lhs, rhs),
             hir::BinOp::Le => self.primitive(IntLe, lhs, rhs),
             hir::BinOp::Gt => self.primitive(IntGt, lhs, rhs),
@@ -3484,6 +3637,16 @@ mod tests {
                 interfaces: interfaces.to_vec(),
                 span: SPAN,
             })
+        }
+
+        /// core's built-in exception classes (throwable.scoop),
+        /// declared flat — no constructor properties, no base:
+        /// mir-lower only resolves them by name to call the
+        /// generated constructor, so the test shell keeps the minimal
+        /// shape. Tests declare exactly the exceptions they use, so
+        /// unrelated dumps stay free of them.
+        fn exception(&mut self, name: &str) -> hir::ClassId {
+            self.class(name, hir::ClassModifier::Final, &[], None, &[])
         }
 
         /// A member function (kept out of `top_level`, as hir-lower
@@ -4419,11 +4582,13 @@ Module
     fn primitive_operators_map_to_primitive_mir_ops() {
         let mut h = Harness::new();
         let mut statements = Vec::new();
+        // Division is not here: its divisor check (M8) makes it a
+        // statement sequence — see
+        // `division_by_zero_throws_arithmetic_exception`.
         let int_cases = [
             (hir::BinOp::Add, mir::BinOp::IntAdd),
             (hir::BinOp::Sub, mir::BinOp::IntSub),
             (hir::BinOp::Mul, mir::BinOp::IntMul),
-            (hir::BinOp::Div, mir::BinOp::IntDiv),
             (hir::BinOp::Lt, mir::BinOp::IntLt),
             (hir::BinOp::Le, mir::BinOp::IntLe),
             (hir::BinOp::Gt, mir::BinOp::IntGt),
@@ -4432,10 +4597,7 @@ Module
             (hir::BinOp::Ne, mir::BinOp::IntNe),
         ];
         for (hir_op, _) in &int_cases {
-            let ty = if matches!(
-                hir_op,
-                hir::BinOp::Add | hir::BinOp::Sub | hir::BinOp::Mul | hir::BinOp::Div
-            ) {
+            let ty = if matches!(hir_op, hir::BinOp::Add | hir::BinOp::Sub | hir::BinOp::Mul) {
                 h.int
             } else {
                 h.boolean
@@ -4487,6 +4649,107 @@ Module
             })
             .collect();
         assert_eq!(ops, expected);
+    }
+
+    #[test]
+    fn division_by_zero_throws_arithmetic_exception() {
+        // val q = 10 / 2 — M8: both operands are evaluated once into
+        // hidden locals (left to right), the zero check precedes the
+        // division, and a zero divisor throws `ArithmeticException`.
+        let mut h = Harness::new();
+        h.exception("ArithmeticException");
+        let int = h.int;
+        let mut locals = Arena::new();
+        let q = locals.alloc(local("q", int));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![val_decl(
+                    q,
+                    binary(hir::BinOp::Div, int_lit(&h, 10), int_lit(&h, 2), int),
+                )],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let expected = "\
+Module
+  class ArithmeticException vtable=3 itables=0
+  fun main @scoop_main() -> Unit
+    val $div.1: Int
+      IntLiteral 10
+    val $div.2: Int
+      IntLiteral 2
+    if
+      Binary IntEq
+        Local $div.2
+        IntLiteral 0
+      throw
+        Call @scoop.ctor.ArithmeticException direct
+    val q: Int
+      Binary IntDiv
+        Local $div.1
+        Local $div.2
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    return
+      ClassInit ArithmeticException
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
+    }
+
+    #[test]
+    fn try_and_throw_stay_structured() {
+        // try { throw MyError() } catch (e: MyError) { 1 } finally { 2 }
+        // — MIR keeps the structured form (DESIGN 3.3); the
+        // control-flow expansion is LIR's job.
+        let mut h = Harness::new();
+        let my_error = h.exception("MyError");
+        let error_ty = h.class_ty(my_error);
+        let mut locals = Arena::new();
+        let e = locals.alloc(local("e", error_ty));
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![stmt(hir::StatementKind::Try(hir::Try {
+                    body: vec![stmt(hir::StatementKind::Throw(expr(
+                        hir::ExprKind::ClassInit {
+                            class_id: my_error,
+                            args: Vec::new(),
+                        },
+                        error_ty,
+                    )))],
+                    catches: vec![hir::CatchClause {
+                        local: e,
+                        ty: error_ty,
+                        body: vec![expr_stmt(int_lit(&h, 1))],
+                        span: SPAN,
+                    }],
+                    finally_body: Some(vec![expr_stmt(int_lit(&h, 2))]),
+                }))],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let expected = "\
+Module
+  class MyError vtable=3 itables=0
+  fun main @scoop_main() -> Unit
+    try
+      throw
+        Call @scoop.ctor.MyError direct
+    catch e: MyError
+      IntLiteral 1
+    finally
+      IntLiteral 2
+  fun ctor.MyError @scoop.ctor.MyError() -> MyError
+    return
+      ClassInit MyError
+  entry @scoop_main
+";
+        assert_eq!(mir::dump(&module), expected);
     }
 
     #[test]
@@ -5411,6 +5674,7 @@ Module
     fn trapping_unwrap_becomes_a_guarded_extraction() {
         // val o = Some(1); val y = o!!
         let mut h = Harness::new();
+        h.exception("UnwrapException");
         let int = h.int;
         let option_int = h.option(int);
         let mut locals = Arena::new();
@@ -5444,13 +5708,14 @@ Module
         let module = lower(&h.finish(main));
 
         // The operand is evaluated once into `$opt.1`; the tag test
-        // guards the extraction, and the else branch calls the runtime
-        // trap with the message string constant.
+        // guards the extraction, and the else branch throws
+        // `UnwrapException()` (M8) — an ordinary constructor call.
         let expected = "\
 Module
   enum Option$I
     Some(_1: Int)
     None()
+  class UnwrapException vtable=3 itables=0
   fun main @scoop_main() -> Unit
     val o: Option$I<Int>
       VariantConstruct Option$I<Int> v0
@@ -5466,11 +5731,13 @@ Module
         EnumField v0 f0
           Local $opt.1
     else
-      Call @scoop_rt_trap direct
-        StringConst @scoop.str.0
+      throw
+        Call @scoop.ctor.UnwrapException direct
     val y: Int
       Local $uw.2
-  str @scoop.str.0 \"unwrap on None (function main)\"
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    return
+      ClassInit UnwrapException
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);
@@ -5945,6 +6212,7 @@ Module
         // val a = [1, 2, 3]; val x = a[0]; val n = a.size
         // val m: MutableArray<Int> = MutableArray(a); m[0] = 40
         let mut h = Harness::new();
+        h.exception("IndexOutOfBoundsException");
         let int = h.int;
         let array_int = h.array(int);
         let mutable_int = h.mutable_array(int);
@@ -6005,28 +6273,65 @@ Module
         );
         let module = lower(&h.finish(main));
 
+        // The subscript read and the indexed store both get the M8
+        // bounds check: array and index evaluated once into hidden
+        // locals, then `IndexOutOfBoundsException` on failure.
         let expected = "\
 Module
+  class IndexOutOfBoundsException vtable=3 itables=0
   fun main @scoop_main() -> Unit
     val a: Array<Int>
       ArrayLiteral
         IntLiteral 1
         IntLiteral 2
         IntLiteral 3
+    val $arr.1: Array<Int>
+      Local a
+    val $idx.2: Int
+      IntLiteral 0
+    if
+      Binary Or
+        Binary IntLt
+          Local $idx.2
+          IntLiteral 0
+        Binary IntGe
+          Local $idx.2
+          ArrayLen
+            Local $arr.1
+      throw
+        Call @scoop.ctor.IndexOutOfBoundsException direct
     val x: Int
       ArrayGet
-        Local a
-        IntLiteral 0
+        Local $arr.1
+        Local $idx.2
     val n: Int
       ArrayLen
         Local a
     val m: MutableArray<Int>
       ArrayClone
         Local a
-    array_set
+    val $arr.3: MutableArray<Int>
       Local m
+    val $idx.4: Int
       IntLiteral 0
+    if
+      Binary Or
+        Binary IntLt
+          Local $idx.4
+          IntLiteral 0
+        Binary IntGe
+          Local $idx.4
+          ArrayLen
+            Local $arr.3
+      throw
+        Call @scoop.ctor.IndexOutOfBoundsException direct
+    array_set
+      Local $arr.3
+      Local $idx.4
       IntLiteral 40
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    return
+      ClassInit IndexOutOfBoundsException
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);
@@ -6613,6 +6918,7 @@ Module
     #[test]
     fn is_instance_and_casts_lower_to_runtime_checks() {
         let mut h = Harness::new();
+        h.exception("ClassCastException");
         let (int, boolean) = (h.int, h.boolean);
         let s = h.strukt("S", &[("x", int)]);
         let s_ty = h.types.alloc(hir::Type::Struct(s));
@@ -6669,15 +6975,17 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        // `is` stays a dedicated node; `as` traps on failure; `as?`
-        // wraps in Some / None. The value-type checks registered the
-        // boxed class (and its equals function).
+        // `is` stays a dedicated node; `as` throws
+        // `ClassCastException` on failure (M8); `as?` wraps in
+        // Some / None. The value-type checks registered the boxed
+        // class (and its equals function).
         let expected = "\
 Module
   struct S (x: Int)
   enum Option$S
     Some(_1: S)
     None()
+  class ClassCastException vtable=3 itables=0
   class box$S vtable=3 itables=0
   fun main @scoop_main() -> Unit
     val is_s: Boolean
@@ -6689,8 +6997,8 @@ Module
       Unary BoolNot
         IsInstance S
           Local $cast.1
-      Call @scoop_rt_trap direct
-        StringConst @scoop.str.0
+      throw
+        Call @scoop.ctor.ClassCastException direct
     val $ub.2: S
       Unbox
         Local $cast.1
@@ -6710,6 +7018,9 @@ Module
         VariantConstruct Option$S<S> v1
     val maybe: Option$S<S>
       Local $cast.4
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    return
+      ClassInit ClassCastException
   fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
     val $a: S
       Unbox
@@ -6723,7 +7034,6 @@ Module
           Local $a
         FieldAccess 0
           Local $b
-  str @scoop.str.0 \"invalid cast to S (function main)\"
   entry @scoop_main
 ";
         assert_eq!(mir::dump(&module), expected);

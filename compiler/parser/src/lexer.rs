@@ -5,12 +5,13 @@
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M6 subset. Reserved words are dedicated variants;
+/// Token kinds of the M8 subset. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word). Words that only matter in specific
 /// positions (`open`, `abstract`, `override`, `super`, `object`,
-/// `sealed`, `companion`, `init`, `constructor`) stay identifiers too —
-/// the parser matches them by text where they are meaningful.
+/// `sealed`, `companion`, `init`, `constructor`, `try`, `catch`,
+/// `finally`, `throw`) stay identifiers too — the parser matches them
+/// by text where they are meaningful.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
     Fun,

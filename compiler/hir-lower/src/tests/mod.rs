@@ -2,10 +2,10 @@
 //! AST/HIR contracts and the multi-file `lower` entry point.
 //!
 //! Every test compiles the user file together with a minimal
-//! `scoop.core` (`core_file()`: the `Option<T>` enum plus the M7
-//! `io.scoop` overloads and their three backing intrinsics), mirroring
-//! the driver's sysroot convention — core files first, the user file
-//! last.
+//! `scoop.core` (`core_file()`: the `Option<T>` enum, the `Throwable`
+//! exception root plus the M7 `io.scoop` overloads and their backing
+//! intrinsic), mirroring the driver's sysroot convention — core files
+//! first, the user file last.
 
 mod m2;
 mod m3;
@@ -13,6 +13,7 @@ mod m4;
 mod m5;
 mod m6;
 mod m7;
+mod m8;
 
 use super::*;
 use ast::{
@@ -885,10 +886,12 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
     }
 }
 
-/// The minimal `scoop.core` (sysroot): the `Option<T>` enum (spec 7.2)
-/// plus the M7 `io.scoop` final shape (docs/milestone7/DESIGN.md
-/// section 2) — the single `rt_write` intrinsic and `print` / `println`
-/// as ordinary `Any`-parameter functions dispatching `toString()`.
+/// The minimal `scoop.core` (sysroot): the `Option<T>` enum (spec 7.2),
+/// the `Throwable` exception root (spec 11.7; the subclasses live in
+/// `throwable_core()`) plus the M7 `io.scoop` final shape
+/// (docs/milestone7/DESIGN.md section 2) — the single `rt_write`
+/// intrinsic and `print` / `println` as ordinary `Any`-parameter
+/// functions dispatching `toString()`.
 pub(crate) fn core_file() -> SourceFile {
     file(vec![
         enum_decl(
@@ -898,6 +901,14 @@ pub(crate) fn core_file() -> SourceFile {
                 variant_positional("Some", vec![ty_named("T")]),
                 variant_unit("None"),
             ],
+        ),
+        class_decl(
+            ast::ClassModifier::Open,
+            "Throwable",
+            vec![],
+            None,
+            vec![],
+            vec![],
         ),
         intrinsic_fun(
             "write",
@@ -937,6 +948,96 @@ pub(crate) fn lower_user(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic
     lower(&[core_file(), user])
 }
 
+// --- M8: exceptions ---
+
+/// `throw expr` (M8).
+pub(crate) fn throw_stmt(value: Expr) -> Statement {
+    Statement {
+        kind: StatementKind::Throw(value),
+        span: sp(),
+    }
+}
+
+/// `try { body } catch... finally...` (M8).
+pub(crate) fn try_stmt(
+    body: Vec<Statement>,
+    catches: Vec<ast::CatchClause>,
+    finally_body: Option<Vec<Statement>>,
+) -> Statement {
+    Statement {
+        kind: StatementKind::Try(ast::Try {
+            body: block(body),
+            catches,
+            finally_body: finally_body.map(block),
+            span: sp(),
+        }),
+        span: sp(),
+    }
+}
+
+/// `catch (name: T) { body }`.
+pub(crate) fn catch_clause(name: &str, ty: TypeRef, body: Vec<Statement>) -> ast::CatchClause {
+    ast::CatchClause {
+        name: ident(name),
+        ty,
+        body: block(body),
+        span: sp(),
+    }
+}
+
+/// `catch (name: T) { body }` with an explicit clause span (diagnostic
+/// position assertions).
+pub(crate) fn catch_clause_at(
+    name: &str,
+    ty: TypeRef,
+    body: Vec<Statement>,
+    span: Span,
+) -> ast::CatchClause {
+    ast::CatchClause {
+        name: ident(name),
+        ty,
+        body: block(body),
+        span,
+    }
+}
+
+/// The exception subclasses of `scoop.core`
+/// (sysroot/lib/scoop.core/src/throwable.scoop) as a second core file
+/// for tests that exercise `throw` / `catch`; the `Throwable` root
+/// lives in `core_file()`.
+pub(crate) fn throwable_core() -> SourceFile {
+    let subclass = |name: &str, message: &str| {
+        class_decl(
+            ast::ClassModifier::Final,
+            name,
+            vec![],
+            Some(("Exception", vec![some(str_lit(message))])),
+            vec![],
+            vec![],
+        )
+    };
+    file(vec![
+        class_decl(
+            ast::ClassModifier::Open,
+            "Exception",
+            vec![(false, "message", ty_nullable(ty_named("String")))],
+            Some(("Throwable", vec![])),
+            vec![],
+            vec![],
+        ),
+        subclass("UnwrapException", "unwrap on None"),
+        subclass("ClassCastException", "invalid cast"),
+        subclass("ArithmeticException", "arithmetic error"),
+        subclass("IndexOutOfBoundsException", "array index out of bounds"),
+    ])
+}
+
+/// Lower a user file with the full core exception hierarchy available
+/// (M8 tests).
+pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
+    lower(&[core_file(), throwable_core(), user])
+}
+
 /// `main` calls `println("hello, world")` then `helper()`, which
 /// calls `print("!")` — the M1 hello world shape (milestone1
 /// DESIGN.md 1).
@@ -974,6 +1075,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit

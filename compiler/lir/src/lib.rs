@@ -295,6 +295,37 @@ pub enum Instruction {
         slot: u32,
         args: Vec<Value>,
     },
+    /// Call that may throw (inside a `try`): control transfers to
+    /// `normal` on success and to the `unwind` landing pad on a
+    /// thrown exception (spec 11.7, runtime spec 5). Terminator-like:
+    /// must be the last instruction of its block; the block's
+    /// `Terminator` is the redundant `Br(normal)` — it only restates
+    /// the normal successor for dump readability, and codegen uses
+    /// this instruction as the LLVM terminator without emitting the
+    /// branch.
+    Invoke {
+        out: Option<TempId>,
+        symbol: String,
+        args: Vec<Value>,
+        normal: BlockId,
+        unwind: BlockId,
+    },
+    /// Indirect variant of `Invoke` (same terminator convention).
+    InvokeIndirect {
+        out: Option<TempId>,
+        table: Value,
+        slot: u32,
+        args: Vec<Value>,
+        normal: BlockId,
+        unwind: BlockId,
+    },
+    /// Landing pad: extracts the caught exception object (`Ptr`).
+    /// Must be the first instruction of an unwind block.
+    LandingPad { out: TempId },
+    /// Throw an exception object (does not return). Terminator-like:
+    /// must be the last instruction of its block, which ends
+    /// `Unreachable` (the same shape as the M3 trap path).
+    Throw { exception: Value },
     /// Array operations. The element layout is the `Array(...)` type
     /// of the array operand (or of `out` for `ArrayAlloc`).
     /// Allocate an array object and store the elements in order.
@@ -602,6 +633,49 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
                     args.join(", ")
                 )),
             }
+        }
+        Instruction::Invoke {
+            out,
+            symbol,
+            args,
+            normal,
+            unwind,
+        } => {
+            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
+            buf.push_str(&format!(
+                "    invoke @{}({}) normal @{} unwind @{}\n",
+                symbol,
+                args.join(", "),
+                block_name(function, *normal),
+                block_name(function, *unwind)
+            ));
+            let _ = out;
+        }
+        Instruction::InvokeIndirect {
+            table,
+            slot,
+            args,
+            normal,
+            unwind,
+            ..
+        } => {
+            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
+            buf.push_str(&format!(
+                "    invoke_indirect {}[{}]({}) normal @{} unwind @{}\n",
+                value_name(*table),
+                slot,
+                args.join(", "),
+                block_name(function, *normal),
+                block_name(function, *unwind)
+            ));
+        }
+        Instruction::LandingPad { out } => buf.push_str(&format!(
+            "    t{} = landingpad : {}\n",
+            out.into_raw(),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::Throw { exception } => {
+            buf.push_str(&format!("    throw {}\n", value_name(*exception)))
         }
         Instruction::ArrayAlloc { out, elements } => {
             let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();

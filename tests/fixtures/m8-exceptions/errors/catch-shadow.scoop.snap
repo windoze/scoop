@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m8-exceptions/errors/catch-shadow.scoop:6:7: error: unreachable catch block: UnwrapException is already covered by an earlier catch
