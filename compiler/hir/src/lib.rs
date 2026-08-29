@@ -504,7 +504,16 @@ pub enum UnOp {
 /// The compiler's intrinsic registry (impl spec 2.10, M4 slice):
 /// signature rule + runtime symbol mapping live with the lowerers;
 /// this table is the single source of truth for valid names.
-pub const INTRINSIC_REGISTRY: &[&str] = &["rt_print", "rt_println"];
+pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[IntrinsicSpec {
+    name: "rt_write",
+    symbol: "scoop_rt_print",
+}];
+
+/// One entry of the intrinsic registry.
+pub struct IntrinsicSpec {
+    pub name: &'static str,
+    pub symbol: &'static str,
+}
 
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
 pub fn dump(module: &Module) -> String {

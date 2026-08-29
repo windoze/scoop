@@ -157,12 +157,14 @@ impl Lowerer {
         })
     }
 
-    /// `receiver.name(args)` (M6): the method is resolved against the
-    /// receiver's static type — class members (base chain included),
-    /// interface methods, or struct / enum methods. Argument checking
-    /// mirrors function calls; the dispatch kind (direct / virtual /
-    /// interface) is decided at MIR from the receiver's static type
-    /// (hir docs).
+    /// `receiver.name(args)` (M6/M7): the method overloads are
+    /// collected from the receiver's static type — class members (base
+    /// chain included), interface methods, or struct / enum methods —
+    /// and resolved by the M7 overload algorithm (`resolve_overload`;
+    /// an explicit-receiver call has only this member layer). A single
+    /// candidate keeps the pre-M7 path so its diagnostics stay intact.
+    /// The dispatch kind (direct / virtual / interface) is decided at
+    /// MIR from the receiver's static type (hir docs).
     ///
     /// One receiver shape is not a method call: the M6 parser folds a
     /// qualified enum variant construction `E.V(args)` into this
@@ -199,15 +201,51 @@ impl Lowerer {
             }
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
-        let Some(function) = self.resolve_method_by_ty(receiver.ty, &name.text) else {
+        let candidates = self.methods_by_name(receiver.ty, &name.text);
+        if candidates.is_empty() {
             let found = self.type_name(receiver.ty);
             self.error(
                 name.span,
                 format!("type `{found}` has no method `{}`", name.text),
             );
             return None;
+        }
+        if candidates.len() == 1 {
+            return self.finish_method_call(candidates[0], receiver, args, span, sink);
+        }
+        self.finish_overloaded_method_call(candidates, &name.text, receiver, args, span, sink)
+    }
+
+    /// The multi-candidate path of a method call (explicit receiver or
+    /// bare `m(...)`): `resolve_overload` picks the winner among the
+    /// receiver type's methods and the call becomes a resolved
+    /// `MethodCall`.
+    fn finish_overloaded_method_call(
+        &mut self,
+        candidates: Vec<hir::FunctionId>,
+        name: &str,
+        receiver: hir::Expr,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        // Enum methods mention the enum's type parameters; instantiate
+        // them with the receiver's type arguments.
+        let type_args: Vec<TypeId> = match self.types[receiver.ty] {
+            Type::Enum(_, ref args) => args.clone(),
+            _ => Vec::new(),
         };
-        self.finish_method_call(function, receiver, args, span, sink)
+        let resolved = self.resolve_overload(name, &candidates, &type_args, args, span, sink)?;
+        let ty = resolved.return_ty;
+        Some(hir::Expr {
+            kind: ExprKind::MethodCall {
+                receiver: Box::new(receiver),
+                function: resolved.function,
+                args: resolved.args,
+            },
+            ty,
+            span,
+        })
     }
 
     /// Whether the current host type has a property named `name`
@@ -1077,78 +1115,115 @@ impl Lowerer {
         })
     }
 
+    /// A bare call `f(args)` (M7): the candidate layers are, in order,
+    /// the current host's methods (inside a member function, where
+    /// `f(...)` means `this.f(...)`), the top-level functions declared
+    /// on the call site's own side of the core/user boundary (its
+    /// "same package" layer), and the other side (the implicitly
+    /// imported layer) — the first layer containing any candidate wins
+    /// whole (milestone7 DESIGN.md 1.2). The layering is relative to
+    /// the call site's file: for a user-file call that is user
+    /// top-level → core, for a core-file call core → user, so a user
+    /// declaration shadows core overloads for user code without
+    /// breaking the core library's own internal calls. (M13's
+    /// multi-Cone package system will redefine these layers per
+    /// package/Cone.) A single candidate keeps the pre-M7 path
+    /// (`finish_single_function_call` / `finish_method_call`) so its
+    /// diagnostics stay intact; several candidates go through
+    /// `resolve_overload`.
     fn lower_function_call(
         &mut self,
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let function = match self.functions_by_name.get(&call.callee.text) {
-            Some(&id) => id,
-            None => {
-                // Inside a member function a bare call falls back to a
-                // method of the host (`m(...)` meaning `this.m(...)`).
-                if let Some(owner) = self.current_owner {
-                    let host_ty = self.owner_ty(owner);
-                    if let Some(method) = self.resolve_method_by_ty(host_ty, &call.callee.text) {
-                        let (this_local, this_ty) =
-                            self.current_this.expect("a method body always has `this`");
-                        let receiver = hir::Expr {
-                            kind: ExprKind::Local(this_local),
-                            ty: this_ty,
-                            span: call.callee.span,
-                        };
-                        return self
-                            .finish_method_call(method, receiver, &call.args, call.span, sink);
-                    }
-                }
-                self.error(
-                    call.callee.span,
-                    format!("unknown function `{}`", call.callee.text),
-                );
-                return None;
-            }
-        };
-        let name = self.functions[function].name.clone();
+        let name = call.callee.text.clone();
 
-        // Intrinsics are checked against the registry's signature rules
-        // (impl spec 2.10), not their declared parameter list: the M4
-        // entries `rt_print` / `rt_println` take exactly one
-        // `String` / `Int` / `Boolean` argument and return `Unit`
-        // (M2/M3 behavior, milestone4 DESIGN.md 1.3). A type parameter
-        // is not printable: `T` is unconstrained, so there is no way to
-        // prove it at the definition site.
-        if let hir::FunctionKind::Intrinsic(intrinsic) = &self.functions[function].kind {
-            debug_assert!(
-                matches!(intrinsic.as_str(), "rt_print" | "rt_println"),
-                "every registry entry needs a signature rule here"
+        // Layer 1: members of the current host.
+        let members: Vec<hir::FunctionId> = match self.current_owner {
+            Some(owner) => {
+                let host_ty = self.owner_ty(owner);
+                self.methods_by_name(host_ty, &name)
+            }
+            None => Vec::new(),
+        };
+        if !members.is_empty() {
+            let (this_local, this_ty) = self.current_this.expect("a method body always has `this`");
+            let receiver = hir::Expr {
+                kind: ExprKind::Local(this_local),
+                ty: this_ty,
+                span: call.callee.span,
+            };
+            if members.len() == 1 {
+                return self.finish_method_call(members[0], receiver, &call.args, call.span, sink);
+            }
+            return self.finish_overloaded_method_call(
+                members, &name, receiver, &call.args, call.span, sink,
             );
-            if call.args.len() != 1 {
-                let supplied = call.args.len();
-                self.error(
-                    call.span,
-                    format!("`{name}` takes exactly 1 argument, but {supplied} were supplied"),
-                );
-                return None;
-            }
-            let arg = self.lower_expr(&call.args[0], sink, None)?;
-            if arg.ty != self.string && arg.ty != self.int && arg.ty != self.boolean {
-                let found = self.type_name(arg.ty);
-                self.error(
-                    arg.span,
-                    format!("argument of `{name}` must be String, Int or Boolean, found {found}"),
-                );
-                return None;
-            }
-            return Some(hir::Expr {
-                kind: ExprKind::Call {
-                    function,
-                    type_args: Vec::new(),
-                    args: vec![arg],
-                },
-                ty: self.unit,
-                span: call.span,
-            });
         }
+
+        // Layers 2 and 3, relative to the call site's file: the
+        // declarations on the call site's own side of the core/user
+        // boundary come first, the other side is the implicitly
+        // imported layer.
+        let candidates: Vec<hir::FunctionId> = match self.functions_by_name.get(&name) {
+            Some(ids) => {
+                let call_site_is_core = self.current_file < self.user_file_index;
+                let same_side: Vec<hir::FunctionId> = ids
+                    .iter()
+                    .copied()
+                    .filter(|id| {
+                        (self.function_files[id] < self.user_file_index) == call_site_is_core
+                    })
+                    .collect();
+                if same_side.is_empty() {
+                    ids.iter()
+                        .copied()
+                        .filter(|id| {
+                            (self.function_files[id] < self.user_file_index) != call_site_is_core
+                        })
+                        .collect()
+                } else {
+                    same_side
+                }
+            }
+            None => Vec::new(),
+        };
+        if candidates.is_empty() {
+            self.error(
+                call.callee.span,
+                format!("unknown function `{}`", call.callee.text),
+            );
+            return None;
+        }
+        if candidates.len() == 1 {
+            return self.finish_single_function_call(candidates[0], call, sink);
+        }
+        let resolved =
+            self.resolve_overload(&name, &candidates, &[], &call.args, call.span, sink)?;
+        let ty = resolved.return_ty;
+        Some(hir::Expr {
+            kind: ExprKind::Call {
+                function: resolved.function,
+                type_args: resolved.type_args,
+                args: resolved.args,
+            },
+            ty,
+            span: call.span,
+        })
+    }
+
+    /// A call to the single candidate of its layer: arity and
+    /// argument-type diagnostics name the function directly, and the
+    /// parameter types serve as expected-type hints for the arguments
+    /// (this is what types `None` in argument position). Type-argument
+    /// inference for generic callees follows the M3 rules.
+    fn finish_single_function_call(
+        &mut self,
+        function: hir::FunctionId,
+        call: &ast::CallExpr,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let name = self.functions[function].name.clone();
 
         let sig = self.signatures[&function].clone();
         if sig.params.len() != call.args.len() {

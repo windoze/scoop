@@ -31,8 +31,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun double(x: Int): Int
     return
       Binary Mul : Int
@@ -40,8 +50,9 @@ Module
         IntLiteral 2 : Int
   fun main(): Unit
     Call println : Unit
-      Call double : Int
-        IntLiteral 21 : Int
+      Box : Any
+        Call double : Int
+          IntLiteral 21 : Int
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -86,13 +97,23 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     Call f : Unit
   fun f(): Unit
     Call println : Unit
-      StringLiteral \"x\" : String
+      StringLiteral \"x\" : Any
     return
   entry main
 ";
@@ -125,17 +146,28 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun identity<T>(x: T0): T0
     return
       Local x : T0
   fun main(): Unit
     Call println : Unit
-      Call identity<Int> : Int
-        IntLiteral 42 : Int
+      Box : Any
+        Call identity<Int> : Int
+          IntLiteral 42 : Int
     Call println : Unit
-      Call identity<String> : String
+      Call identity<String> : Any
         StringLiteral \"hi\" : String
   entry main
   instance identity<Int>
@@ -234,8 +266,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun identity<T>(x: T0): T0
     return
       Local x : T0
@@ -246,8 +288,9 @@ Module
           Local v : T0
   fun main(): Unit
     Call println : Unit
-      Call twice<Int> : Int
-        IntLiteral 21 : Int
+      Box : Any
+        Call twice<Int> : Int
+          IntLiteral 21 : Int
   entry main
   instance identity<T0>
   instance twice<Int>
@@ -288,8 +331,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun unwrapOr<T>(o: Option<T0>, fallback: T0): T0
     val local2
       Local o : Option<T0>
@@ -309,9 +362,10 @@ Module
       VariantConstruct Option.Some<Int> : Option<Int>
         IntLiteral 41 : Int
     Call println : Unit
-      Call unwrapOr<Int> : Int
-        Local a : Option<Int>
-        IntLiteral 0 : Int
+      Box : Any
+        Call unwrapOr<Int> : Int
+          Local a : Option<Int>
+          IntLiteral 0 : Int
   entry main
   instance unwrapOr<Int>
 ";
@@ -342,8 +396,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       VariantConstruct Option.Some<Int> : Option<Int>
@@ -386,8 +450,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       VariantConstruct Option.Some<Point> : Option<Point>
@@ -429,8 +503,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       VariantConstruct Option.Some<Int> : Option<Int>
@@ -744,27 +828,6 @@ fn arithmetic_on_a_type_parameter_is_an_error() {
     assert_eq!(
         errors[0].message,
         "operator `+` requires Int operands, found T and Int"
-    );
-}
-
-/// `print(T)` cannot be proven printable at the definition site.
-#[test]
-fn print_of_a_type_parameter_is_an_error() {
-    let file = file(vec![
-        fun_sig(
-            "f",
-            vec!["T"],
-            vec![("x", ty_named("T"))],
-            None,
-            vec![stmt(call("print", vec![var("x")]))],
-        ),
-        fun("main", vec![]),
-    ]);
-    let errors = lower_user(file).expect_err("print of `T` must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "argument of `print` must be String, Int or Boolean, found T"
     );
 }
 

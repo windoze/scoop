@@ -6,9 +6,9 @@
 //! `abstract` class) and the interface list.
 //!
 //! Pass 2.5 (`resolve_method_signature`): member signatures. Methods
-//! have no type parameters of their own in M6 (generic member
-//! functions cannot participate in virtual dispatch, spec 3.2, and
-//! arrive with M7); enum methods resolve in the enum's type-parameter
+//! have no type parameters of their own (generic member functions
+//! cannot participate in virtual dispatch, spec 3.2, and remain
+//! unsupported in M7); enum methods resolve in the enum's type-parameter
 //! scope. Bodyless declarations — interface methods and `abstract`
 //! class methods — get their parameter-only body here (`this` plus
 //! the declared parameters; the statements are empty because there is
@@ -23,7 +23,7 @@
 //! DESIGN.md 5.2) and interface implementation (every interface
 //! method must have a same-signature concrete method on the class or
 //! its base chain — name, parameter types and return type all equal;
-//! M6 has no overloading).
+//! overloads only match exactly, M7).
 //!
 //! Object layout decision (see the crate docs): a subclass object is
 //! laid out as the base class's fields followed by its own, with
@@ -519,8 +519,9 @@ impl Lowerer {
         self.abstract_methods.contains(&id)
     }
 
-    /// Signature equality (M6, no overloading): name, parameter types
-    /// and return type all equal.
+    /// Signature equality for override / implementation matching:
+    /// name, parameter types and return type all equal (overloads
+    /// only match exactly, M7).
     fn same_signature(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
         let function = &self.functions[candidate];
         if function.name.rsplit('.').next() != Some(name) {
@@ -724,44 +725,54 @@ impl Lowerer {
         self.find_class_field(*base, name)
     }
 
-    /// Find a method by name on class `c` or its base chain (nearest
-    /// declaration first).
-    pub(crate) fn find_class_method(&self, c: ClassId, name: &str) -> Option<FunctionId> {
-        if let Some(&method) = self.class_methods[&c]
-            .iter()
-            .find(|&&m| self.functions[m].name.rsplit('.').next() == Some(name))
-        {
-            return Some(method);
-        }
-        let (base, _) = self.classes[c].base_class.as_ref()?;
-        self.find_class_method(*base, name)
-    }
-
-    /// Find a method by name on the given owner (no inheritance for
-    /// value types; interfaces have no superinterfaces in M6).
-    pub(crate) fn find_owner_method(&self, owner: Owner, name: &str) -> Option<FunctionId> {
-        let methods: &[FunctionId] = match owner {
-            Owner::Class(id) => return self.find_class_method(id, name),
-            Owner::Interface(id) => self.interface_methods[&id].as_slice(),
-            Owner::Struct(id) => self.struct_methods[&id].as_slice(),
-            Owner::Enum(id) => self.enum_methods[&id].as_slice(),
+    /// All methods named `name` on a receiver type (M7 overload
+    /// candidates): a class contributes its own methods plus its base
+    /// chain's (nearest first), interfaces / structs / enums their
+    /// own. The candidates of a method call (`x.m(...)` or a bare
+    /// `m(...)` meaning `this.m(...)`) come from this list.
+    ///
+    /// An `Any` receiver additionally resolves the three `Any`
+    /// members (`equals` / `hashCode` / `toString`), synthesized by
+    /// `synthesize_any_members`: mir-lower dispatches them virtually
+    /// through the fixed vtable prefix (slots 0..2), so every runtime
+    /// value behind the `Any` (boxed value types, class objects)
+    /// reaches its per-type implementation. Narrower static types
+    /// deliberately do not get this fallback yet: mir-lower only
+    /// virtualizes these three on an exactly-`Any` receiver (a class
+    /// receiver would come out as a direct call, an interface
+    /// receiver has no matching itable slot).
+    pub(crate) fn methods_by_name(&self, ty: TypeId, name: &str) -> Vec<FunctionId> {
+        let matches = |methods: &[FunctionId]| -> Vec<FunctionId> {
+            methods
+                .iter()
+                .copied()
+                .filter(|&m| self.functions[m].name.rsplit('.').next() == Some(name))
+                .collect()
         };
-        methods
-            .iter()
-            .find(|&&m| self.functions[m].name.rsplit('.').next() == Some(name))
-            .copied()
+        match self.types[ty] {
+            Type::Class(id) => {
+                let mut result = matches(&self.class_methods[&id]);
+                result.extend(matches(&self.base_chain_methods(id)));
+                result
+            }
+            Type::Interface(id) => matches(&self.interface_methods[&id]),
+            Type::Struct(id) => matches(&self.struct_methods[&id]),
+            Type::Enum(id, _) => matches(&self.enum_methods[&id]),
+            Type::Any => self.any_method(name).into_iter().collect(),
+            _ => Vec::new(),
+        }
     }
 
-    /// Resolve a method call receiver type to the owning declaration:
-    /// class → member (base chain included), interface → interface
-    /// method, struct / enum → its methods.
-    pub(crate) fn resolve_method_by_ty(&self, ty: TypeId, name: &str) -> Option<FunctionId> {
-        match self.types[ty] {
-            Type::Class(id) => self.find_class_method(id, name),
-            Type::Interface(id) => self.find_owner_method(Owner::Interface(id), name),
-            Type::Struct(id) => self.find_owner_method(Owner::Struct(id), name),
-            Type::Enum(id, _) => self.find_owner_method(Owner::Enum(id), name),
-            _ => None,
-        }
+    /// The synthesized `Any` member named `name`
+    /// (`synthesize_any_members`), when `name` is one of `equals` /
+    /// `hashCode` / `toString`.
+    fn any_method(&self, name: &str) -> Option<FunctionId> {
+        let index = match name {
+            "equals" => 0,
+            "hashCode" => 1,
+            "toString" => 2,
+            _ => return None,
+        };
+        Some(self.any_methods[index])
     }
 }

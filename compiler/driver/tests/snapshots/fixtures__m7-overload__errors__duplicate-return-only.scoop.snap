@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m7-overload/errors/duplicate-return-only.scoop:2:5: error: function `f` is already declared with the same signature
+m7-overload/errors/duplicate-return-only.scoop:5:13: error: call to `f` is ambiguous

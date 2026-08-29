@@ -1,0 +1,131 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  fun write(v: Int): String
+    =
+      StringLiteral "user-write"
+  fun main()
+    Call println
+      Call write
+        IntLiteral 1
+    Call println
+      StringLiteral "c"
+
+== hir ==
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun write(v: Int): String
+    return
+      StringLiteral "user-write" : String
+  fun main(): Unit
+    Call println : Unit
+      Call write : Any
+        IntLiteral 1 : Int
+    Call println : Unit
+      StringLiteral "c" : Any
+  entry main
+
+== mir ==
+Module
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
+  fun write @scoop.write(v: Int) -> String
+    return
+      StringConst @scoop.str.1
+  fun main @scoop_main() -> Unit
+    Call @scoop.println direct
+      Call @scoop.write direct
+        IntLiteral 1
+    Call @scoop.println direct
+      StringConst @scoop.str.2
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "user-write"
+  str @scoop.str.2 "c"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "user-write"
+  global @scoop.str.2 = "c"
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.write(i64) -> ptr
+  block entry
+    ret global1
+  fun @scoop_main() -> void
+  block entry
+    t0 = call @scoop.write(1) : ptr
+    call @scoop.println(t0)
+    t1 = aggregate () : {}
+    call @scoop.println(global2)
+    t2 = aggregate () : {}
+    ret
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+
+== run ==
+user-write
+c

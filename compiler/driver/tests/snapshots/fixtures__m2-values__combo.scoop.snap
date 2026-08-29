@@ -4,10 +4,19 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-    @Intrinsic("rt_print")
-  fun print(message: String)
-    @Intrinsic("rt_println")
-  fun println(message: String)
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
 SourceFile
   enum Option<T>
     Some(T)
@@ -59,8 +68,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
   fun main(): Unit
     val local0
       StructInit Tagged : Tagged
@@ -75,11 +94,12 @@ Module
           IntLiteral 1 : Int
           StringLiteral "one" : String
     Call println : Unit
-      Binary Eq : Boolean
-        Local a : Tagged
-        Local b : Tagged
+      Box : Any
+        Binary Eq : Boolean
+          Local a : Tagged
+          Local b : Tagged
     Call println : Unit
-      FieldAccess _2 : String
+      FieldAccess _2 : Any
         FieldAccess field 1 : (Int, String)
           Local a : Tagged
     val local2
@@ -89,7 +109,7 @@ Module
         Local count : Int
         IntLiteral 2 : Int
       Call println : Unit
-        FieldAccess field 0 : String
+        FieldAccess field 0 : Any
           Local a : Tagged
       assign count
         Binary Add : Int
@@ -100,42 +120,55 @@ Module
 == mir ==
 Module
   struct Tagged (tag: String, pair: (Int, String))
+  class box$B vtable=3 itables=0
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
   fun main @scoop_main() -> Unit
     val a: Tagged
       StructInit Tagged
-        StringConst @scoop.str.0
+        StringConst @scoop.str.1
         TupleLiteral
           IntLiteral 1
-          StringConst @scoop.str.1
+          StringConst @scoop.str.2
     val b: Tagged
       StructInit Tagged
-        StringConst @scoop.str.2
+        StringConst @scoop.str.3
         TupleLiteral
           IntLiteral 1
-          StringConst @scoop.str.3
-    Call @scoop_rt_println_boolean direct
-      Binary And
-        Call @scoop_rt_string_eq direct
-          FieldAccess 0
-            Local a
-          FieldAccess 0
-            Local b
+          StringConst @scoop.str.4
+    Call @scoop.println direct
+      Box
         Binary And
-          Binary IntEq
-            FieldAccess 0
-              FieldAccess 1
-                Local a
-            FieldAccess 0
-              FieldAccess 1
-                Local b
           Call @scoop_rt_string_eq direct
-            FieldAccess 1
+            FieldAccess 0
+              Local a
+            FieldAccess 0
+              Local b
+          Binary And
+            Binary IntEq
+              FieldAccess 0
+                FieldAccess 1
+                  Local a
+              FieldAccess 0
+                FieldAccess 1
+                  Local b
+            Call @scoop_rt_string_eq direct
               FieldAccess 1
-                Local a
-            FieldAccess 1
+                FieldAccess 1
+                  Local a
               FieldAccess 1
-                Local b
-    Call @scoop_rt_println direct
+                FieldAccess 1
+                  Local b
+    Call @scoop.println direct
       FieldAccess 1
         FieldAccess 1
           Local a
@@ -145,25 +178,62 @@ Module
       Binary IntLt
         Local count
         IntLiteral 2
-      Call @scoop_rt_println direct
+      Call @scoop.println direct
         FieldAccess 0
           Local a
       assign count
         Binary IntAdd
           Local count
           IntLiteral 1
-  str @scoop.str.0 "p"
-  str @scoop.str.1 "one"
-  str @scoop.str.2 "p"
-  str @scoop.str.3 "one"
+  fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
+    val $a: Boolean
+      Unbox
+        Local this
+    val $b: Boolean
+      Unbox
+        Local other
+    return
+      Binary BoolEq
+        Local $a
+        Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    return
+      Call @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "p"
+  str @scoop.str.2 "one"
+  str @scoop.str.3 "p"
+  str @scoop.str.4 "one"
   entry @scoop_main
 
 == lir ==
 Module
-  global @scoop.str.0 = "p"
-  global @scoop.str.1 = "one"
-  global @scoop.str.2 = "p"
-  global @scoop.str.3 = "one"
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "p"
+  global @scoop.str.2 = "one"
+  global @scoop.str.3 = "p"
+  global @scoop.str.4 = "one"
+  global @scoop_td_box$B = c""
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
   fun @scoop_main() -> void
     local %0 a: {ptr, {i64, ptr}}
     local %1 b: {ptr, {i64, ptr}}
@@ -171,11 +241,11 @@ Module
     local %3 $sc.1: i1
     local %4 $sc.2: i1
   block entry
-    t0 = aggregate (1, global1) : {i64, ptr}
-    t1 = aggregate (global0, t0) : {ptr, {i64, ptr}}
+    t0 = aggregate (1, global2) : {i64, ptr}
+    t1 = aggregate (global1, t0) : {ptr, {i64, ptr}}
     store t1 -> local0
-    t2 = aggregate (1, global3) : {i64, ptr}
-    t3 = aggregate (global2, t2) : {ptr, {i64, ptr}}
+    t2 = aggregate (1, global4) : {i64, ptr}
+    t3 = aggregate (global3, t2) : {ptr, {i64, ptr}}
     store t3 -> local1
     t4 = extract local0, 0 : ptr
     t5 = extract local1, 0 : ptr
@@ -191,12 +261,13 @@ Module
     store t11 -> local4
     cbr t11 then @sc.rhs.3 else @sc.merge.4
   block sc.merge.2
-    call @scoop_rt_println_boolean(local3)
-    t17 = aggregate () : {}
-    t18 = extract local0, 1 : {i64, ptr}
-    t19 = extract t18, 1 : ptr
-    call @scoop_rt_println(t19)
-    t20 = aggregate () : {}
+    t17 = call @scoop_rt_box(global5, local3, 1) : ptr
+    call @scoop.println(t17)
+    t18 = aggregate () : {}
+    t19 = extract local0, 1 : {i64, ptr}
+    t20 = extract t19, 1 : ptr
+    call @scoop.println(t20)
+    t21 = aggregate () : {}
     store 0 -> local2
     br @while.cond.5
   block sc.rhs.3
@@ -211,21 +282,38 @@ Module
     store local4 -> local3
     br @sc.merge.2
   block while.cond.5
-    t21 = Lt local2, 2 : i1
-    cbr t21 then @while.body.6 else @while.exit.7
+    t22 = Lt local2, 2 : i1
+    cbr t22 then @while.body.6 else @while.exit.7
   block while.body.6
-    t22 = extract local0, 0 : ptr
-    call @scoop_rt_println(t22)
-    t23 = aggregate () : {}
-    t24 = Add local2, 1 : i64
-    store t24 -> local2
+    t23 = extract local0, 0 : ptr
+    call @scoop.println(t23)
+    t24 = aggregate () : {}
+    t25 = Add local2, 1 : i64
+    store t25 -> local2
     br @while.cond.5
   block while.exit.7
     ret
+  fun @scoop.eq.B(ptr, ptr) -> i1
+    local %0 $a: i1
+    local %1 $b: i1
+  block entry
+    t0 = extract param0, 1 : i1
+    store t0 -> local0
+    t1 = extract param1, 1 : i1
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.B(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i1
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    ret t1
+  td box$B @scoop_td_box$B size=16 vtable=3 itables=0
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Tagged size=24 align=8 refs=[0, 16]
+  layout box$B size=16 align=8 refs=[]
   layout (Int, String) size=16 align=8 refs=[8]
   entry @scoop_main
 

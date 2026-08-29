@@ -1,0 +1,5 @@
+fun f(v: String): String = v
+
+fun main() {
+    println(f(1))
+}

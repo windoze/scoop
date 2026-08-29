@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m1-hello/errors/duplicate-function.scoop:5:5: error: duplicate function `main`
+m1-hello/errors/duplicate-function.scoop:5:5: error: function `main` is already declared with the same signature

@@ -4,3 +4,4 @@ expression: snapshot
 ---
 == diagnostics ==
 m6-classes/errors/missing-override.scoop:6:9: error: `f` overrides `A.f` and must be marked `override`
+m6-classes/errors/missing-override.scoop:11:13: error: call to `f` is ambiguous

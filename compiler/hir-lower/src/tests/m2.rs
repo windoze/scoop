@@ -33,8 +33,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       StructInit Point : Point
@@ -44,7 +54,8 @@ Module
       FieldAccess field 0 : Int
         Local p : Point
     Call println : Unit
-      Local x : Int
+      Box : Any
+        Local x : Int
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -122,8 +133,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       TupleLiteral : (Int, String)
@@ -133,15 +154,16 @@ Module
       FieldAccess _2 : String
         Local q : (Int, String)
     Call println : Unit
-      Local s : String
+      Local s : Any
     val local2
       UnitLiteral : Unit
     val local3
       TupleLiteral : (Int)
         IntLiteral 42 : Int
     Call print : Unit
-      FieldAccess _1 : Int
-        Local t : (Int)
+      Box : Any
+        FieldAccess _1 : Int
+          Local t : (Int)
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -228,8 +250,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       IntLiteral 0 : Int
@@ -248,10 +280,10 @@ Module
           IntLiteral 3 : Int
         BoolLiteral true : Boolean
       Call println : Unit
-        StringLiteral \"ok\" : String
+        StringLiteral \"ok\" : Any
     else
       Call println : Unit
-        StringLiteral \"ng\" : String
+        StringLiteral \"ng\" : Any
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -315,8 +347,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       IntLiteral 1 : Int
@@ -325,13 +367,15 @@ Module
       val local1
         StringLiteral \"inner\" : String
       Call println : Unit
-        Local x : String
+        Local x : Any
     Call println : Unit
-      Local x : Int
+      Box : Any
+        Local x : Int
     val local2
       IntLiteral 2 : Int
     Call println : Unit
-      Local y : Int
+      Box : Any
+        Local y : Int
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -753,37 +797,7 @@ fn field_access_on_scalar_is_an_error() {
     assert_eq!(errors[0].message, "type `Int` has no fields");
 }
 
-// --- negative: core intrinsics and statements ---
-
-#[test]
-fn print_rejects_non_printable_types() {
-    let point = struct_decl(
-        "Point",
-        vec![("x", ty_named("Int")), ("y", ty_named("Int"))],
-    );
-    for (arg, found) in [
-        (
-            call("Point", vec![int_lit(1), int_lit(2)]),
-            "Point".to_string(),
-        ),
-        (
-            tuple_lit(vec![int_lit(1), int_lit(2)]),
-            "(Int, Int)".to_string(),
-        ),
-        (unit_lit(), "Unit".to_string()),
-    ] {
-        let file = file(vec![
-            point.clone(),
-            fun("main", vec![stmt(call("print", vec![arg]))]),
-        ]);
-        let errors = lower_user(file).expect_err("non-printable argument must fail");
-        assert_eq!(errors.len(), 1);
-        assert_eq!(
-            errors[0].message,
-            format!("argument of `print` must be String, Int or Boolean, found {found}")
-        );
-    }
-}
+// --- negative: statements ---
 
 #[test]
 fn struct_init_statement_is_not_a_call() {

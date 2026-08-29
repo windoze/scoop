@@ -63,6 +63,13 @@ void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 void scoop_rt_print(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 
+const ScoopString *scoop_rt_string_identity(const ScoopString *s);
+
+/* M7 additions (milestone7 DESIGN section 3): primitive conversions
+ * backing core's intToString / boolToString. */
+const ScoopString *scoop_rt_int_to_string(int64_t v);
+const ScoopString *scoop_rt_bool_to_string(bool v);
+
 /* M2 additions (DESIGN section 3): String concat / structural equality
  * and Int / Boolean builtin output. */
 const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b);

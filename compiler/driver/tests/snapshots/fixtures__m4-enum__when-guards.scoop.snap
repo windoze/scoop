@@ -4,10 +4,19 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
-    @Intrinsic("rt_print")
-  fun print(message: String)
-    @Intrinsic("rt_println")
-  fun println(message: String)
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
 SourceFile
   enum Option<T>
     Some(T)
@@ -75,8 +84,18 @@ Module
     Num(_1: Int)
     Pair(_1: Int, _2: Int)
     Empty()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
   fun main(): Unit
     val local0
       VariantConstruct E.Num : E
@@ -85,18 +104,20 @@ Module
       Local v : E
       arm variant0(0: local1) if <guard>
         Call println : Unit
-          StringLiteral "big" : String
+          StringLiteral "big" : Any
       arm variant0(0: local2)
         Call println : Unit
-          Local n : Int
+          Box : Any
+            Local n : Int
       arm variant1(0: local3, 1: local4)
         Call println : Unit
-          Binary Add : Int
-            Local a : Int
-            Local b : Int
+          Box : Any
+            Binary Add : Int
+              Local a : Int
+              Local b : Int
       arm variant2()
         Call println : Unit
-          StringLiteral "empty" : String
+          StringLiteral "empty" : Any
     val local5
       VariantConstruct E.Pair : E
         IntLiteral 3 : Int
@@ -105,23 +126,24 @@ Module
       Local w : E
       arm variant0(0: local6)
         Call println : Unit
-          Local n : Int
+          Box : Any
+            Local n : Int
       arm variant1(0: local7, 1: _) if <guard>
         Call println : Unit
-          StringLiteral "big pair" : String
+          StringLiteral "big pair" : Any
       else
         Call println : Unit
-          StringLiteral "other" : String
+          StringLiteral "other" : Any
     val local8
       VariantConstruct E.Empty : E
     when
       Local e : E
       arm variant2()
         Call println : Unit
-          StringLiteral "empty" : String
+          StringLiteral "empty" : Any
       else
         Call println : Unit
-          StringLiteral "not empty" : String
+          StringLiteral "not empty" : Any
   entry main
 
 == mir ==
@@ -130,6 +152,18 @@ Module
     Num(_1: Int)
     Pair(_1: Int, _2: Int)
     Empty()
+  class box$I vtable=3 itables=0
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
   fun main @scoop_main() -> Unit
     val v: E
       VariantConstruct E v0
@@ -148,8 +182,8 @@ Module
         Binary IntGt
           Local n
           IntLiteral 100
-        Call @scoop_rt_println direct
-          StringConst @scoop.str.0
+        Call @scoop.println direct
+          StringConst @scoop.str.1
       else
         if
           Binary IntEq
@@ -159,8 +193,9 @@ Module
           val n: Int
             EnumField v0 f0
               Local $when.1
-          Call @scoop_rt_println_int direct
-            Local n
+          Call @scoop.println direct
+            Box
+              Local n
         else
           if
             Binary IntEq
@@ -173,18 +208,19 @@ Module
             val b: Int
               EnumField v1 f1
                 Local $when.1
-            Call @scoop_rt_println_int direct
-              Binary IntAdd
-                Local a
-                Local b
+            Call @scoop.println direct
+              Box
+                Binary IntAdd
+                  Local a
+                  Local b
           else
             if
               Binary IntEq
                 EnumTag
                   Local $when.1
                 IntLiteral 2
-              Call @scoop_rt_println direct
-                StringConst @scoop.str.1
+              Call @scoop.println direct
+                StringConst @scoop.str.2
     else
       if
         Binary IntEq
@@ -194,8 +230,9 @@ Module
         val n: Int
           EnumField v0 f0
             Local $when.1
-        Call @scoop_rt_println_int direct
-          Local n
+        Call @scoop.println direct
+          Box
+            Local n
       else
         if
           Binary IntEq
@@ -208,18 +245,19 @@ Module
           val b: Int
             EnumField v1 f1
               Local $when.1
-          Call @scoop_rt_println_int direct
-            Binary IntAdd
-              Local a
-              Local b
+          Call @scoop.println direct
+            Box
+              Binary IntAdd
+                Local a
+                Local b
         else
           if
             Binary IntEq
               EnumTag
                 Local $when.1
               IntLiteral 2
-            Call @scoop_rt_println direct
-              StringConst @scoop.str.2
+            Call @scoop.println direct
+              StringConst @scoop.str.3
     val w: E
       VariantConstruct E v1
         IntLiteral 3
@@ -234,8 +272,9 @@ Module
       val n: Int
         EnumField v0 f0
           Local $when.2
-      Call @scoop_rt_println_int direct
-        Local n
+      Call @scoop.println direct
+        Box
+          Local n
     else
       if
         Binary IntEq
@@ -249,14 +288,14 @@ Module
           Binary IntGt
             Local a
             IntLiteral 10
-          Call @scoop_rt_println direct
-            StringConst @scoop.str.3
-        else
-          Call @scoop_rt_println direct
+          Call @scoop.println direct
             StringConst @scoop.str.4
+        else
+          Call @scoop.println direct
+            StringConst @scoop.str.5
       else
-        Call @scoop_rt_println direct
-          StringConst @scoop.str.5
+        Call @scoop.println direct
+          StringConst @scoop.str.6
     val e: E
       VariantConstruct E v2
     val $when.3: E
@@ -266,32 +305,69 @@ Module
         EnumTag
           Local $when.3
         IntLiteral 2
-      Call @scoop_rt_println direct
-        StringConst @scoop.str.6
-    else
-      Call @scoop_rt_println direct
+      Call @scoop.println direct
         StringConst @scoop.str.7
-  str @scoop.str.0 "big"
-  str @scoop.str.1 "empty"
+    else
+      Call @scoop.println direct
+        StringConst @scoop.str.8
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    val $a: Int
+      Unbox
+        Local this
+    val $b: Int
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        Local $a
+        Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    return
+      Call @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "big"
   str @scoop.str.2 "empty"
-  str @scoop.str.3 "big pair"
-  str @scoop.str.4 "other"
+  str @scoop.str.3 "empty"
+  str @scoop.str.4 "big pair"
   str @scoop.str.5 "other"
-  str @scoop.str.6 "empty"
-  str @scoop.str.7 "not empty"
+  str @scoop.str.6 "other"
+  str @scoop.str.7 "empty"
+  str @scoop.str.8 "not empty"
   entry @scoop_main
 
 == lir ==
 Module
-  global @scoop.str.0 = "big"
-  global @scoop.str.1 = "empty"
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "big"
   global @scoop.str.2 = "empty"
-  global @scoop.str.3 = "big pair"
-  global @scoop.str.4 = "other"
+  global @scoop.str.3 = "empty"
+  global @scoop.str.4 = "big pair"
   global @scoop.str.5 = "other"
-  global @scoop.str.6 = "empty"
-  global @scoop.str.7 = "not empty"
+  global @scoop.str.6 = "other"
+  global @scoop.str.7 = "empty"
+  global @scoop.str.8 = "not empty"
+  global @scoop_td_box$I = c""
   enum E tagged size=16 align=8 variants=(i64) (i64, i64) ()
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
   fun @scoop_main() -> void
     local %0 v: enum0
     local %1 n: i64
@@ -318,18 +394,18 @@ Module
     t4 = Gt local1, 100 : i1
     cbr t4 then @if.then.4 else @if.else.5
   block if.else.2
-    t19 = enum_tag e0 local9 : i64
-    t20 = Eq t19, 0 : i1
-    cbr t20 then @if.then.15 else @if.else.16
+    t21 = enum_tag e0 local9 : i64
+    t22 = Eq t21, 0 : i1
+    cbr t22 then @if.then.15 else @if.else.16
   block if.merge.3
-    t32 = enum_wrap e0 v1 (3, 4) : enum0
-    store t32 -> local5
+    t36 = enum_wrap e0 v1 (3, 4) : enum0
+    store t36 -> local5
     store local5 -> local10
-    t33 = enum_tag e0 local10 : i64
-    t34 = Eq t33, 0 : i1
-    cbr t34 then @if.then.23 else @if.else.24
+    t37 = enum_tag e0 local10 : i64
+    t38 = Eq t37, 0 : i1
+    cbr t38 then @if.then.23 else @if.else.24
   block if.then.4
-    call @scoop_rt_println(global0)
+    call @scoop.println(global1)
     t5 = aggregate () : {}
     br @if.merge.6
   block if.else.5
@@ -341,121 +417,143 @@ Module
   block if.then.7
     t8 = enum_field e0 v0 f0 local9 : i64
     store t8 -> local2
-    call @scoop_rt_println_int(local2)
-    t9 = aggregate () : {}
+    t9 = call @scoop_rt_box(global9, local2, 8) : ptr
+    call @scoop.println(t9)
+    t10 = aggregate () : {}
     br @if.merge.9
   block if.else.8
-    t10 = enum_tag e0 local9 : i64
-    t11 = Eq t10, 1 : i1
-    cbr t11 then @if.then.10 else @if.else.11
+    t11 = enum_tag e0 local9 : i64
+    t12 = Eq t11, 1 : i1
+    cbr t12 then @if.then.10 else @if.else.11
   block if.merge.9
     br @if.merge.6
   block if.then.10
-    t12 = enum_field e0 v1 f0 local9 : i64
-    store t12 -> local3
-    t13 = enum_field e0 v1 f1 local9 : i64
-    store t13 -> local4
-    t14 = Add local3, local4 : i64
-    call @scoop_rt_println_int(t14)
-    t15 = aggregate () : {}
+    t13 = enum_field e0 v1 f0 local9 : i64
+    store t13 -> local3
+    t14 = enum_field e0 v1 f1 local9 : i64
+    store t14 -> local4
+    t15 = Add local3, local4 : i64
+    t16 = call @scoop_rt_box(global9, t15, 8) : ptr
+    call @scoop.println(t16)
+    t17 = aggregate () : {}
     br @if.merge.12
   block if.else.11
-    t16 = enum_tag e0 local9 : i64
-    t17 = Eq t16, 2 : i1
-    cbr t17 then @if.then.13 else @if.merge.14
+    t18 = enum_tag e0 local9 : i64
+    t19 = Eq t18, 2 : i1
+    cbr t19 then @if.then.13 else @if.merge.14
   block if.merge.12
     br @if.merge.9
   block if.then.13
-    call @scoop_rt_println(global1)
-    t18 = aggregate () : {}
+    call @scoop.println(global2)
+    t20 = aggregate () : {}
     br @if.merge.14
   block if.merge.14
     br @if.merge.12
   block if.then.15
-    t21 = enum_field e0 v0 f0 local9 : i64
-    store t21 -> local2
-    call @scoop_rt_println_int(local2)
-    t22 = aggregate () : {}
+    t23 = enum_field e0 v0 f0 local9 : i64
+    store t23 -> local2
+    t24 = call @scoop_rt_box(global9, local2, 8) : ptr
+    call @scoop.println(t24)
+    t25 = aggregate () : {}
     br @if.merge.17
   block if.else.16
-    t23 = enum_tag e0 local9 : i64
-    t24 = Eq t23, 1 : i1
-    cbr t24 then @if.then.18 else @if.else.19
+    t26 = enum_tag e0 local9 : i64
+    t27 = Eq t26, 1 : i1
+    cbr t27 then @if.then.18 else @if.else.19
   block if.merge.17
     br @if.merge.3
   block if.then.18
-    t25 = enum_field e0 v1 f0 local9 : i64
-    store t25 -> local3
-    t26 = enum_field e0 v1 f1 local9 : i64
-    store t26 -> local4
-    t27 = Add local3, local4 : i64
-    call @scoop_rt_println_int(t27)
-    t28 = aggregate () : {}
+    t28 = enum_field e0 v1 f0 local9 : i64
+    store t28 -> local3
+    t29 = enum_field e0 v1 f1 local9 : i64
+    store t29 -> local4
+    t30 = Add local3, local4 : i64
+    t31 = call @scoop_rt_box(global9, t30, 8) : ptr
+    call @scoop.println(t31)
+    t32 = aggregate () : {}
     br @if.merge.20
   block if.else.19
-    t29 = enum_tag e0 local9 : i64
-    t30 = Eq t29, 2 : i1
-    cbr t30 then @if.then.21 else @if.merge.22
+    t33 = enum_tag e0 local9 : i64
+    t34 = Eq t33, 2 : i1
+    cbr t34 then @if.then.21 else @if.merge.22
   block if.merge.20
     br @if.merge.17
   block if.then.21
-    call @scoop_rt_println(global2)
-    t31 = aggregate () : {}
+    call @scoop.println(global3)
+    t35 = aggregate () : {}
     br @if.merge.22
   block if.merge.22
     br @if.merge.20
   block if.then.23
-    t35 = enum_field e0 v0 f0 local10 : i64
-    store t35 -> local6
-    call @scoop_rt_println_int(local6)
-    t36 = aggregate () : {}
+    t39 = enum_field e0 v0 f0 local10 : i64
+    store t39 -> local6
+    t40 = call @scoop_rt_box(global9, local6, 8) : ptr
+    call @scoop.println(t40)
+    t41 = aggregate () : {}
     br @if.merge.25
   block if.else.24
-    t37 = enum_tag e0 local10 : i64
-    t38 = Eq t37, 1 : i1
-    cbr t38 then @if.then.26 else @if.else.27
+    t42 = enum_tag e0 local10 : i64
+    t43 = Eq t42, 1 : i1
+    cbr t43 then @if.then.26 else @if.else.27
   block if.merge.25
-    t44 = enum_wrap e0 v2 () : enum0
-    store t44 -> local8
+    t49 = enum_wrap e0 v2 () : enum0
+    store t49 -> local8
     store local8 -> local11
-    t45 = enum_tag e0 local11 : i64
-    t46 = Eq t45, 2 : i1
-    cbr t46 then @if.then.32 else @if.else.33
+    t50 = enum_tag e0 local11 : i64
+    t51 = Eq t50, 2 : i1
+    cbr t51 then @if.then.32 else @if.else.33
   block if.then.26
-    t39 = enum_field e0 v1 f0 local10 : i64
-    store t39 -> local7
-    t40 = Gt local7, 10 : i1
-    cbr t40 then @if.then.29 else @if.else.30
+    t44 = enum_field e0 v1 f0 local10 : i64
+    store t44 -> local7
+    t45 = Gt local7, 10 : i1
+    cbr t45 then @if.then.29 else @if.else.30
   block if.else.27
-    call @scoop_rt_println(global5)
-    t43 = aggregate () : {}
+    call @scoop.println(global6)
+    t48 = aggregate () : {}
     br @if.merge.28
   block if.merge.28
     br @if.merge.25
   block if.then.29
-    call @scoop_rt_println(global3)
-    t41 = aggregate () : {}
+    call @scoop.println(global4)
+    t46 = aggregate () : {}
     br @if.merge.31
   block if.else.30
-    call @scoop_rt_println(global4)
-    t42 = aggregate () : {}
+    call @scoop.println(global5)
+    t47 = aggregate () : {}
     br @if.merge.31
   block if.merge.31
     br @if.merge.28
   block if.then.32
-    call @scoop_rt_println(global6)
-    t47 = aggregate () : {}
+    call @scoop.println(global7)
+    t52 = aggregate () : {}
     br @if.merge.34
   block if.else.33
-    call @scoop_rt_println(global7)
-    t48 = aggregate () : {}
+    call @scoop.println(global8)
+    t53 = aggregate () : {}
     br @if.merge.34
   block if.merge.34
     ret
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = extract param0, 1 : i64
+    store t0 -> local0
+    t1 = extract param1, 1 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    ret t1
+  td box$I @scoop_td_box$I size=16 vtable=3 itables=0
   layout String size=16 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout E size=24 align=8 enum-refs=[[], [], []]
+  layout box$I size=16 align=8 refs=[]
   entry @scoop_main
 
 == run ==

@@ -64,34 +64,29 @@ fun main() {
 
 **不适用的 Kotlin 规则**（注明原因）：整型字面量的 `Widen` 处理（Scoop 无整数字面量类型）；默认值/vararg 相关条款（M7 无此特性）；`OverloadResolutionByLambdaReturnType` 与 lambda 相关细化（无 lambda）；`invoke` 约定与 property-like callables（无属性调用约定）；@JvmOverloads 及一切平台相关项（用户已明确排除）。**不需要单独的装箱优先规则**——子类型支配天然覆盖（`Any` 是父类型，非装箱候选自动更具体）。
 
-## 2. print/println 迁移（core 库普通重载）
+## 2. print/println 迁移（core 库函数，`Any.toString()` 分发——过渡基线）
 
-新增三个**原始** intrinsic（登记表条目，`rt_write` / `rt_int_to_string` / `rt_bool_to_string`），core 的 `io.scoop` 变为：
+> **后续设计变更（2026-08-28 定稿）**：spec 11.11 已改为接口化方案——`equals` 走 operator fun、`ToString` / `Hash` 为 opt-in 接口、`Any` 无任何成员。本节的 `Any.toString()` 分发形态作为**过渡基线**保留至 M12"泛型上界约束与接口化"，届时改造为 `fun <T : ToString> print(v: T)`（单态化静态分发）并拆除 vtable 前三槽。
+
+本节形态（当前实现）：**一个输出 intrinsic + `toString()` 分发**（与 Kotlin stdlib 及 spec 11.6 的 `add<T>` 语义一致），core 的 `io.scoop` 为：
 
 ```
 // sysroot/lib/scoop.core/src/io.scoop
 @Intrinsic("rt_write")
 fun write(message: String)
 
-@Intrinsic("rt_int_to_string")
-fun intToString(value: Int): String
+fun print(message: Any) = write(message.toString())
 
-@Intrinsic("rt_bool_to_string")
-fun boolToString(value: Boolean): String
-
-fun print(message: String) = write(message)
-fun print(message: Int) = write(intToString(message))
-fun print(message: Boolean) = write(boolToString(message))
-
-fun println(message: String) { write(message); write("\n") }
-fun println(message: Int) = println(intToString(message))
-fun println(message: Boolean) = println(boolToString(message))
+fun println(message: Any) {
+    write(message.toString())
+    write("\n")
+}
 ```
 
-- `@Intrinsic` 的 `rt_print` / `rt_println` 条目**移除**；HIR 对 print/println 的全部特殊检查（三类型规则）删除——它们就是普通重载函数；
-- mir-lower 的 print 六变体映射删除：`rt_write` → `scoop_rt_print`（无换行输出 String），`rt_int_to_string` → 新增 runtime 函数，`rt_bool_to_string` → 新增 runtime 函数（见第 3 章）；
-- core 内部的 `println(intToString(message))` 自身就是一次重载决议（静态选中 String 重载），是迁移正确性的内建测试；
-- 现有全部 fixture 的 `print`/`println` 调用行为不变（M1–M6 快照应保持，仅 dump 形状自然变化）。
+- `@Intrinsic` 的 `rt_print` / `rt_println` 条目**移除**（登记表只剩 `rt_write`）；HIR 对 print/println 的全部特殊检查删除——它们就是普通的 `Any` 参数函数；
+- **`toString()` 成为真实可分发的方法**：`Any` 的 `equals`/`hashCode`/`toString` 由 hir-lower 合成为 `Any` 成员（vtable 固定槽 0..2），`x.toString()` 在 `Any` 接收者上经 vtable 分发；
+- **装箱值类型的 vtable 槽 2 为逐类型实现**（mir-lower 生成 `scoop.tostring.<ty>`）：Int → `scoop_rt_int_to_string`、Boolean → `scoop_rt_bool_to_string`、其他值类型暂保持 Any 默认（"Object@hex"，结构化 toString 待 spec 定义格式后单独做）；**String 的 TD 补三槽 vtable**（槽 2 = `scoop_rt_string_identity`）——Int/String/Boolean 的输出行为与 M1–M6 完全一致；
+- 备选方案（未采用）：六个按类型的重载 + 三个 intrinsic——被本形态取代（少 intrinsic、形状即最终形态）。
 
 ## 3. runtime 新增
 

@@ -1,0 +1,6 @@
+fun f(v: Int): Int = v
+fun f(v: Int): Int = v + 1
+
+fun main() {
+    println(f(1))
+}

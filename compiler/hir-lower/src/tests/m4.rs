@@ -71,8 +71,18 @@ Module
     Circle(_1: Int)
     Named(w: Int, h: Int)
     WithDefault(d: Int)
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       VariantConstruct Color.Red : Color
@@ -173,8 +183,18 @@ Module
     Red()
     Green()
     Blue()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       VariantConstruct Color.Red : Color
@@ -182,13 +202,13 @@ Module
       Local c : Color
       arm variant0()
         Call println : Unit
-          StringLiteral \"red\" : String
+          StringLiteral \"red\" : Any
       arm variant1()
         Call println : Unit
-          StringLiteral \"green\" : String
+          StringLiteral \"green\" : Any
       arm variant2()
         Call println : Unit
-          StringLiteral \"blue\" : String
+          StringLiteral \"blue\" : Any
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -233,8 +253,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       VariantConstruct Option.Some<Int> : Option<Int>
@@ -243,13 +273,15 @@ Module
       Local o : Option<Int>
       arm variant0(0: local1) if <guard>
         Call println : Unit
-          Local x : Int
+          Box : Any
+            Local x : Int
       arm variant0(0: local2)
         Call println : Unit
-          IntLiteral 0 : Int
+          Box : Any
+            IntLiteral 0 : Int
       arm variant1()
         Call println : Unit
-          StringLiteral \"none\" : String
+          StringLiteral \"none\" : Any
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -318,8 +350,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       TupleLiteral : (Int, String)
@@ -329,10 +371,11 @@ Module
       Local t : (Int, String)
       arm (<lit IntLiteral(0)>, _)
         Call println : Unit
-          StringLiteral \"zero\" : String
+          StringLiteral \"zero\" : Any
       arm (local1, _)
         Call println : Unit
-          Local n : Int
+          Box : Any
+            Local n : Int
     val local2
       StructInit Point : Point
         IntLiteral 1 : Int
@@ -341,10 +384,11 @@ Module
       Local p : Point
       arm struct(0: local3, 1: local4) if <guard>
         Call println : Unit
-          StringLiteral \"eq\" : String
+          StringLiteral \"eq\" : Any
       arm struct(0: local5, 1: local6)
         Call println : Unit
-          Local a : Int
+          Box : Any
+            Local a : Int
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -481,8 +525,18 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
-  fun print(): Unit <intrinsic rt_print>
-  fun println(): Unit <intrinsic rt_println>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral \"\\n\" : String
   fun main(): Unit
     val local0
       TupleLiteral : (Int, Int, Int, Int)
@@ -509,13 +563,17 @@ Module
     val ((local7, local8), _)
       Local nested : ((Int, Int), String)
     Call println : Unit
-      Local a : Int
+      Box : Any
+        Local a : Int
     Call println : Unit
-      Local b : Int
+      Box : Any
+        Local b : Int
     Call println : Unit
-      Local px : Int
+      Box : Any
+        Local px : Int
     Call println : Unit
-      Local m : Int
+      Box : Any
+        Local m : Int
   entry main
 ";
     assert_eq!(hir::dump(&module), expected);
@@ -531,15 +589,15 @@ fn var_pat2(target: ast::Pattern, init: Expr) -> Statement {
 #[test]
 fn intrinsic_functions_are_marked() {
     let module = lower_user(file(vec![fun("main", vec![])])).expect("must lower");
-    let print = module
+    let write = module
         .top_level
         .iter()
         .map(|id| &module.functions[*id])
-        .find(|f| f.name == "print")
-        .expect("core declares print");
+        .find(|f| f.name == "write")
+        .expect("core declares write");
     assert!(matches!(
-        print.kind,
-        FunctionKind::Intrinsic(ref name) if name == "rt_print"
+        write.kind,
+        FunctionKind::Intrinsic(ref name) if name == "rt_write"
     ));
 }
 
@@ -575,12 +633,6 @@ fn core_file_diagnostic_carries_file_index() {
         ),
         struct_decl("Point", vec![]),
         struct_decl("Point", vec![]),
-        intrinsic_fun("print", "rt_print", vec![("message", ty_named("String"))]),
-        intrinsic_fun(
-            "println",
-            "rt_println",
-            vec![("message", ty_named("String"))],
-        ),
     ]);
     let errors = lower(&[bad_core, file(vec![fun("main", vec![])])])
         .expect_err("duplicate struct in core must fail");
@@ -823,7 +875,7 @@ fn duplicate_option_in_core_is_an_error() {
 fn unknown_intrinsic_is_an_error() {
     let mut core = core_file();
     core.declarations
-        .push(intrinsic_fun("reset", "rt_reset", vec![]));
+        .push(intrinsic_fun("reset", "rt_reset", vec![], None));
     let errors =
         lower(&[core, file(vec![fun("main", vec![])])]).expect_err("unknown intrinsic must fail");
     assert_eq!(errors.len(), 1);
@@ -834,7 +886,12 @@ fn unknown_intrinsic_is_an_error() {
 #[test]
 fn intrinsic_in_user_file_is_an_error() {
     let user = file(vec![
-        intrinsic_fun("wipe", "rt_print", vec![("message", ty_named("String"))]),
+        intrinsic_fun(
+            "wipe",
+            "rt_write",
+            vec![("message", ty_named("String"))],
+            None,
+        ),
         fun("main", vec![]),
     ]);
     let errors = lower(&[core_file(), user]).expect_err("user `@Intrinsic` must fail");
