@@ -51,9 +51,9 @@ class / 继承 / interface / 方法、vtable / itable 分派、装箱（spec 3�
 
 顶层函数与方法的 overload resolution（候选集分层 + 可应用性 + MSC，按 Kotlin 规范）；`print` / `println` 已迁移为 `scoop.core` 的普通重载定义（三个 `@Intrinsic` 原语支撑）。
 
-### M8 异常
+### M8 异常 ✅（2026-08-30 完成，设计见 `docs/milestone8/DESIGN.md`）
 
-try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。`!!` 与数组越界的 trap 改接 `UnwrapException` 等真实异常。
+try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。四条 trap 路径已全部改接真实异常：`!!` → `UnwrapException`、数组越界 → `IndexOutOfBoundsException`、`as` → `ClassCastException`、整数除零 → `ArithmeticException`（spec 11.7 已同步新增后者）。`scoop_rt_throw` 按 `__cxa_allocate_exception` + 拷贝的 ABI 正确形态实现。
 
 ### M9 真 GC
 
@@ -109,7 +109,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M3
 
-- `!!` 失败 trap → `UnwrapException`（→ M8）；
+- ~~`!!` 失败 trap → `UnwrapException`~~（M8 已完成）；
 - `while` 条件中禁用 `?.`/`?:`（诊断拒绝；待 `break` 或循环重组方案，需先回 spec 讨论）；
 - `f(None, 1)` 式"先 None 后绑定"的推断（M3 的实参顺序限制）；
 - 显式类型实参 `f<Int>(x)`（`<` 消歧方案待定）；
@@ -137,7 +137,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - `String` 下标/切片；
 - 数组 `==` 语义（spec 缺口，需先回 spec 第 10 章补充）；
 - 数组字面量混合引用类型的 LOB 推导（spec 10.3 完整规则）；
-- 数组越界 trap → 异常（→ M8）。
+- ~~数组越界 trap → 异常~~（M8 已完成）。
 
 ### 来自 M6
 
@@ -161,3 +161,11 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - `print` / `println` 的 `Any.toString()` 分发形态为过渡基线（→ M12 改造为 `fun <T : ToString> print(v: T)` 单态化分发，并拆除 vtable 前三槽）；
 - 歧义/无匹配诊断的候选明细展示（首版只报主消息）；
 - 默认参数/vararg 的决议规则、运算符重载（`operator fun`）、`context` 参数（spec 8.3）——随各自特性落地时补齐。
+
+### 来自 M8
+
+- try 的表达式形态（`val x = try {...}`）；
+- catch 遮蔽降级为警告（当前为错误；待警告级别诊断基础设施）；
+- finally 内的路径分析（finally 内 return/再抛异常的精细语义）；
+- 未捕获异常打印类型名（当前为通用消息；需要 TD 增加 name 字段，runtime spec 2.2 同步）；
+- 异常穿越 Scoop ABI FFI frame 的规则（维持 runtime spec 第 5 章的暂定“初版禁止”）。

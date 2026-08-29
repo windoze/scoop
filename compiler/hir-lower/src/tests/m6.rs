@@ -117,6 +117,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   open class Shape(name: String)
   class Point(x: Int, y: Int)
   interface Describable

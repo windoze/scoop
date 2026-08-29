@@ -1,0 +1,9 @@
+fun main() {
+    try {
+        throw UnwrapException()
+    } catch (e: Exception) {
+        println("generic")
+    } catch (e: UnwrapException) {
+        println("unwrap")
+    }
+}

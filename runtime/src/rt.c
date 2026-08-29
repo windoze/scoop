@@ -3,8 +3,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unwind.h>
 
 #include "scoop_rt.h"
+
+/* M8 (milestone8 DESIGN section 4): exception support on top of the
+ * Itanium C++ ABI (runtime spec 5). The __cxa_* entry points and the
+ * C++ personality come from the C++ ABI library (-lc++abi). */
+extern void *__cxa_allocate_exception(size_t thrown_size);
+extern _Noreturn void __cxa_throw(void *thrown_exception, void *tinfo, void (*dest)(void *));
+extern _Noreturn void __cxa_rethrow(void);
+extern _Unwind_Reason_Code __gxx_personality_v0(int version, _Unwind_Action actions,
+                                                _Unwind_Exception_Class exception_class,
+                                                struct _Unwind_Exception *exception,
+                                                struct _Unwind_Context *context);
+/* std::set_terminate(void (*)()) — Itanium mangling, also from the C++
+ * ABI library. */
+extern void _ZSt13set_terminatePFvvE(void (*handler)(void));
 
 /* TypeDescriptor for String, emitted by generated code (runtime spec
  * 2.2). Referenced by scoop_rt_string_concat when allocating. */
@@ -156,7 +171,59 @@ const ScoopString *scoop_rt_any_tostring(const void *a) {
     return result;
 }
 
+/* M8 (milestone8 DESIGN section 4, runtime spec 5). */
+
+_Noreturn void scoop_rt_throw(const void *obj) {
+    /* Copy the object into an ABI exception buffer (Itanium ABI
+     * usage): __cxa_throw writes the exception header immediately
+     * before the thrown pointer, so user objects must never be thrown
+     * in place. The buffer from __cxa_allocate_exception carries that
+     * headroom; catch handlers observe the buffer pointer — the copy
+     * is the exception object (throw-by-value identity, as in C++),
+     * and its copied object header keeps the TD available for catch
+     * type filtering. The C++ ABI releases the buffer when handling
+     * completes; the destructor is NULL because payload references
+     * are GC-managed (release policy re-evaluated in M9). */
+    const ScoopObjectHeader *header = obj;
+    size_t size = (size_t)header->td->size;
+    void *buffer = __cxa_allocate_exception(size);
+    memcpy(buffer, obj, size);
+    __cxa_throw(buffer, NULL, NULL);
+}
+
+_Noreturn void scoop_rt_rethrow(void) {
+    /* Contract (LIR): only called on the no-catch-matched path of a
+     * landing pad, i.e. while handling an exception. */
+    __cxa_rethrow();
+}
+
+int scoop_eh_personality(int version, unsigned int actions, unsigned long long exception_class,
+                         void *exception, void *context) {
+    /* Minimal personality (runtime spec 5 leaves the mechanism to the
+     * implementation): delegate to the C++ ABI personality. Scoop
+     * landing pads are catch-all and Scoop exceptions carry a NULL
+     * type_info, which __gxx_personality_v0 matches only against
+     * catch-all clauses — exactly the Scoop semantics. */
+    return (int)__gxx_personality_v0(version, (_Unwind_Action)actions,
+                                     (_Unwind_Exception_Class)exception_class,
+                                     (struct _Unwind_Exception *)exception,
+                                     (struct _Unwind_Context *)context);
+}
+
+/* M8 minimal uncaught-exception handling (milestone8 DESIGN 5.2):
+ * print a fixed message and abort. The exception's type name is not
+ * available yet (TypeDescriptors carry no name field). */
+static _Noreturn void scoop_uncaught_terminate(void) {
+    fprintf(stderr, "scoop: uncaught exception\n");
+    abort();
+}
+
+void scoop_rt_init_eh(void) {
+    _ZSt13set_terminatePFvvE(scoop_uncaught_terminate);
+}
+
 int main(void) {
+    scoop_rt_init_eh();
     scoop_main();
     return 0;
 }

@@ -33,6 +33,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -133,6 +134,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -250,6 +252,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -347,6 +350,7 @@ Module
   enum Option<T>
     Some(_1: T0)
     None()
+  open class Throwable()
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit

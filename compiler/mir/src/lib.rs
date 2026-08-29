@@ -252,6 +252,21 @@ pub struct Statement {
 }
 
 #[derive(Debug)]
+pub struct Try {
+    pub body: Vec<Statement>,
+    pub catches: Vec<CatchClause>,
+    pub finally_body: Option<Vec<Statement>>,
+}
+
+#[derive(Debug)]
+pub struct CatchClause {
+    pub local: LocalId,
+    pub ty: Box<Type>,
+    pub body: Vec<Statement>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
 pub enum StatementKind {
     Expr(Expr),
     Return {
@@ -279,6 +294,10 @@ pub enum StatementKind {
         index: u32,
         value: Expr,
     },
+    /// `try { } catch ... finally { }`; catches are ordered.
+    Try(Try),
+    /// `throw expr` (throws the evaluated exception object).
+    Throw(Expr),
     If {
         cond: Expr,
         then_body: Vec<Statement>,
@@ -596,6 +615,26 @@ fn dump_statements(
                     type_name(module, &local.ty)
                 ));
                 dump_expr(module, locals, init, indent + 1, out);
+            }
+            StatementKind::Try(try_) => {
+                out.push_str(&format!("{pad}try\n"));
+                dump_statements(module, locals, &try_.body, indent + 1, out);
+                for catch in &try_.catches {
+                    out.push_str(&format!(
+                        "{pad}catch {}: {}\n",
+                        locals[catch.local].name,
+                        type_name(module, &catch.ty)
+                    ));
+                    dump_statements(module, locals, &catch.body, indent + 1, out);
+                }
+                if let Some(finally_body) = &try_.finally_body {
+                    out.push_str(&format!("{pad}finally\n"));
+                    dump_statements(module, locals, finally_body, indent + 1, out);
+                }
+            }
+            StatementKind::Throw(expr) => {
+                out.push_str(&format!("{pad}throw\n"));
+                dump_expr(module, locals, expr, indent + 1, out);
             }
             StatementKind::FieldSet {
                 object,

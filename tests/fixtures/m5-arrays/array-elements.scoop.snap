@@ -1,0 +1,813 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+SourceFile
+  struct Point
+    field x: Int
+    field y: Int
+  enum E
+    Empty
+    One(Int)
+  fun main()
+    val ps
+      ArrayLiteral
+        Call Point
+          IntLiteral 1
+          IntLiteral 2
+        Call Point
+          IntLiteral 3
+          IntLiteral 4
+    Call println
+      FieldAccess x
+        Index
+          Var ps
+          IntLiteral 1
+    val nested
+      ArrayLiteral
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+        ArrayLiteral
+          IntLiteral 3
+    Call println
+      Index
+        Index
+          Var nested
+          IntLiteral 0
+        IntLiteral 1
+    val es
+      ArrayLiteral
+        MethodCall One
+          Var E
+          IntLiteral 1
+        FieldAccess Empty
+          Var E
+    when
+      Index
+        Var es
+        IntLiteral 0
+      arm One(v)
+        Call println
+          Var v
+      arm Empty
+        Call println
+          StringLiteral "empty"
+    val opts: Array<Int?>
+      ArrayLiteral
+        Call Some
+          IntLiteral 1
+        Var None
+    Call println
+      Elvis
+        Index
+          Var opts
+          IntLiteral 0
+        IntLiteral 9
+    Call println
+      Elvis
+        Index
+          Var opts
+          IntLiteral 1
+        IntLiteral 8
+
+== hir ==
+Module
+  struct Point
+    field x: Int
+    field y: Int
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  enum E
+    Empty()
+    One(_1: Int)
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun main(): Unit
+    val local0
+      ArrayLiteral : Array<Point>
+        StructInit Point : Point
+          IntLiteral 1 : Int
+          IntLiteral 2 : Int
+        StructInit Point : Point
+          IntLiteral 3 : Int
+          IntLiteral 4 : Int
+    Call println : Unit
+      Box : Any
+        FieldAccess field 0 : Int
+          Index : Point
+            Local ps : Array<Point>
+            IntLiteral 1 : Int
+    val local1
+      ArrayLiteral : Array<Array<Int>>
+        ArrayLiteral : Array<Int>
+          IntLiteral 1 : Int
+          IntLiteral 2 : Int
+        ArrayLiteral : Array<Int>
+          IntLiteral 3 : Int
+    Call println : Unit
+      Box : Any
+        Index : Int
+          Index : Array<Int>
+            Local nested : Array<Array<Int>>
+            IntLiteral 0 : Int
+          IntLiteral 1 : Int
+    val local2
+      ArrayLiteral : Array<E>
+        VariantConstruct E.One : E
+          IntLiteral 1 : Int
+        VariantConstruct E.Empty : E
+    when
+      Index : E
+        Local es : Array<E>
+        IntLiteral 0 : Int
+      arm variant1(0: local3)
+        Call println : Unit
+          Box : Any
+            Local v : Int
+      arm variant0()
+        Call println : Unit
+          StringLiteral "empty" : Any
+    val local4
+      ArrayLiteral : Array<Option<Int>>
+        VariantConstruct Option.Some<Int> : Option<Int>
+          IntLiteral 1 : Int
+        VariantConstruct Option.None<Int> : Option<Int>
+    val local5
+      Index : Option<Int>
+        Local opts : Array<Option<Int>>
+        IntLiteral 0 : Int
+    if
+      IsSome : Boolean
+        Local $opt.0 : Option<Int>
+      val local6
+        Unwrap trap=false : Int
+          Local $opt.0 : Option<Int>
+    else
+      val local6
+        IntLiteral 9 : Int
+    Call println : Unit
+      Box : Any
+        Local $res.1 : Int
+    val local7
+      Index : Option<Int>
+        Local opts : Array<Option<Int>>
+        IntLiteral 1 : Int
+    if
+      IsSome : Boolean
+        Local $opt.2 : Option<Int>
+      val local8
+        Unwrap trap=false : Int
+          Local $opt.2 : Option<Int>
+    else
+      val local8
+        IntLiteral 8 : Int
+    Call println : Unit
+      Box : Any
+        Local $res.3 : Int
+  entry main
+
+== mir ==
+Module
+  struct Point (x: Int, y: Int)
+  enum Option$S
+    Some(_1: String)
+    None()
+  enum E
+    Empty()
+    One(_1: Int)
+  enum Option$I
+    Some(_1: Int)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
+  fun main @scoop_main() -> Unit
+    val ps: Array<Point>
+      ArrayLiteral
+        StructInit Point
+          IntLiteral 1
+          IntLiteral 2
+        StructInit Point
+          IntLiteral 3
+          IntLiteral 4
+    val $arr.1: Array<Point>
+      Local ps
+    val $idx.2: Int
+      IntLiteral 1
+    if
+      Binary Or
+        Binary IntLt
+          Local $idx.2
+          IntLiteral 0
+        Binary IntGe
+          Local $idx.2
+          ArrayLen
+            Local $arr.1
+      throw
+        Call @scoop.ctor.IndexOutOfBoundsException direct
+    Call @scoop.println direct
+      Box
+        FieldAccess 0
+          ArrayGet
+            Local $arr.1
+            Local $idx.2
+    val nested: Array<Array<Int>>
+      ArrayLiteral
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+        ArrayLiteral
+          IntLiteral 3
+    val $arr.5: Array<Array<Int>>
+      Local nested
+    val $idx.6: Int
+      IntLiteral 0
+    if
+      Binary Or
+        Binary IntLt
+          Local $idx.6
+          IntLiteral 0
+        Binary IntGe
+          Local $idx.6
+          ArrayLen
+            Local $arr.5
+      throw
+        Call @scoop.ctor.IndexOutOfBoundsException direct
+    val $arr.3: Array<Int>
+      ArrayGet
+        Local $arr.5
+        Local $idx.6
+    val $idx.4: Int
+      IntLiteral 1
+    if
+      Binary Or
+        Binary IntLt
+          Local $idx.4
+          IntLiteral 0
+        Binary IntGe
+          Local $idx.4
+          ArrayLen
+            Local $arr.3
+      throw
+        Call @scoop.ctor.IndexOutOfBoundsException direct
+    Call @scoop.println direct
+      Box
+        ArrayGet
+          Local $arr.3
+          Local $idx.4
+    val es: Array<E>
+      ArrayLiteral
+        VariantConstruct E v1
+          IntLiteral 1
+        VariantConstruct E v0
+    val $arr.7: Array<E>
+      Local es
+    val $idx.8: Int
+      IntLiteral 0
+    if
+      Binary Or
+        Binary IntLt
+          Local $idx.8
+          IntLiteral 0
+        Binary IntGe
+          Local $idx.8
+          ArrayLen
+            Local $arr.7
+      throw
+        Call @scoop.ctor.IndexOutOfBoundsException direct
+    val $when.9: E
+      ArrayGet
+        Local $arr.7
+        Local $idx.8
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.9
+        IntLiteral 1
+      val v: Int
+        EnumField v1 f0
+          Local $when.9
+      Call @scoop.println direct
+        Box
+          Local v
+    else
+      if
+        Binary IntEq
+          EnumTag
+            Local $when.9
+          IntLiteral 0
+        Call @scoop.println direct
+          StringConst @scoop.str.1
+    val opts: Array<Option$I<Int>>
+      ArrayLiteral
+        VariantConstruct Option$I<Int> v0
+          IntLiteral 1
+        VariantConstruct Option$I<Int> v1
+    val $arr.10: Array<Option$I<Int>>
+      Local opts
+    val $idx.11: Int
+      IntLiteral 0
+    if
+      Binary Or
+        Binary IntLt
+          Local $idx.11
+          IntLiteral 0
+        Binary IntGe
+          Local $idx.11
+          ArrayLen
+            Local $arr.10
+      throw
+        Call @scoop.ctor.IndexOutOfBoundsException direct
+    val $opt.0: Option$I<Int>
+      ArrayGet
+        Local $arr.10
+        Local $idx.11
+    if
+      Binary IntEq
+        EnumTag
+          Local $opt.0
+        IntLiteral 0
+      val $res.1: Int
+        EnumField v0 f0
+          Local $opt.0
+    else
+      val $res.1: Int
+        IntLiteral 9
+    Call @scoop.println direct
+      Box
+        Local $res.1
+    val $arr.12: Array<Option$I<Int>>
+      Local opts
+    val $idx.13: Int
+      IntLiteral 1
+    if
+      Binary Or
+        Binary IntLt
+          Local $idx.13
+          IntLiteral 0
+        Binary IntGe
+          Local $idx.13
+          ArrayLen
+            Local $arr.12
+      throw
+        Call @scoop.ctor.IndexOutOfBoundsException direct
+    val $opt.2: Option$I<Int>
+      ArrayGet
+        Local $arr.12
+        Local $idx.13
+    if
+      Binary IntEq
+        EnumTag
+          Local $opt.2
+        IntLiteral 0
+      val $res.3: Int
+        EnumField v0 f0
+          Local $opt.2
+    else
+      val $res.3: Int
+        IntLiteral 8
+    Call @scoop.println direct
+      Box
+        Local $res.3
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    return
+      ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    return
+      ClassInit Exception
+        Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    return
+      ClassInit UnwrapException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.2
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    return
+      ClassInit ClassCastException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.3
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    return
+      ClassInit ArithmeticException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.4
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    return
+      ClassInit IndexOutOfBoundsException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.5
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    val $a: Int
+      Unbox
+        Local this
+    val $b: Int
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        Local $a
+        Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    return
+      Call @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "empty"
+  str @scoop.str.2 "unwrap on None"
+  str @scoop.str.3 "invalid cast"
+  str @scoop.str.4 "arithmetic error"
+  str @scoop.str.5 "array index out of bounds"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "empty"
+  global @scoop.str.2 = "unwrap on None"
+  global @scoop.str.3 = "invalid cast"
+  global @scoop.str.4 = "arithmetic error"
+  global @scoop.str.5 = "array index out of bounds"
+  global @scoop_td_box$I = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  enum Option$S niche(payload_variant=0)
+  enum E tagged size=8 align=8 variants=() (i64)
+  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop_main() -> void
+    local %0 ps: [{i64, i64}]
+    local %1 nested: [[i64]]
+    local %2 es: [enum1]
+    local %3 v: i64
+    local %4 opts: [enum2]
+    local %5 $opt.0: enum2
+    local %6 $res.1: i64
+    local %7 $opt.2: enum2
+    local %8 $res.3: i64
+    local %9 $arr.1: [{i64, i64}]
+    local %10 $idx.2: i64
+    local %11 $arr.3: [i64]
+    local %12 $idx.4: i64
+    local %13 $arr.5: [[i64]]
+    local %14 $idx.6: i64
+    local %15 $arr.7: [enum1]
+    local %16 $idx.8: i64
+    local %17 $when.9: enum1
+    local %18 $arr.10: [enum2]
+    local %19 $idx.11: i64
+    local %20 $arr.12: [enum2]
+    local %21 $idx.13: i64
+    local %22 $sc.1: i1
+    local %23 $sc.2: i1
+    local %24 $sc.3: i1
+    local %25 $sc.4: i1
+    local %26 $sc.5: i1
+    local %27 $sc.6: i1
+  block entry
+    t0 = aggregate (1, 2) : {i64, i64}
+    t1 = aggregate (3, 4) : {i64, i64}
+    t2 = array_alloc (t0, t1) : [{i64, i64}]
+    store t2 -> local0
+    store local0 -> local9
+    store 1 -> local10
+    t3 = Lt local10, 0 : i1
+    store t3 -> local22
+    cbr t3 then @sc.merge.2 else @sc.rhs.1
+  block sc.rhs.1
+    t4 = array_len local9 : i64
+    t5 = Ge local10, t4 : i1
+    store t5 -> local22
+    br @sc.merge.2
+  block sc.merge.2
+    cbr local22 then @if.then.3 else @if.merge.4
+  block if.then.3
+    t6 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    throw t6
+    unreachable
+  block if.merge.4
+    t7 = array_get local9 local10 : {i64, i64}
+    t8 = extract t7, 0 : i64
+    t9 = call @scoop_rt_box(global6, t8, 8) : ptr
+    call @scoop.println(t9)
+    t10 = aggregate () : {}
+    t11 = array_alloc (1, 2) : [i64]
+    t12 = array_alloc (3) : [i64]
+    t13 = array_alloc (t11, t12) : [[i64]]
+    store t13 -> local1
+    store local1 -> local13
+    store 0 -> local14
+    t14 = Lt local14, 0 : i1
+    store t14 -> local23
+    cbr t14 then @sc.merge.6 else @sc.rhs.5
+  block sc.rhs.5
+    t15 = array_len local13 : i64
+    t16 = Ge local14, t15 : i1
+    store t16 -> local23
+    br @sc.merge.6
+  block sc.merge.6
+    cbr local23 then @if.then.7 else @if.merge.8
+  block if.then.7
+    t17 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    throw t17
+    unreachable
+  block if.merge.8
+    t18 = array_get local13 local14 : [i64]
+    store t18 -> local11
+    store 1 -> local12
+    t19 = Lt local12, 0 : i1
+    store t19 -> local24
+    cbr t19 then @sc.merge.10 else @sc.rhs.9
+  block sc.rhs.9
+    t20 = array_len local11 : i64
+    t21 = Ge local12, t20 : i1
+    store t21 -> local24
+    br @sc.merge.10
+  block sc.merge.10
+    cbr local24 then @if.then.11 else @if.merge.12
+  block if.then.11
+    t22 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    throw t22
+    unreachable
+  block if.merge.12
+    t23 = array_get local11 local12 : i64
+    t24 = call @scoop_rt_box(global6, t23, 8) : ptr
+    call @scoop.println(t24)
+    t25 = aggregate () : {}
+    t26 = enum_wrap e1 v1 (1) : enum1
+    t27 = enum_wrap e1 v0 () : enum1
+    t28 = array_alloc (t26, t27) : [enum1]
+    store t28 -> local2
+    store local2 -> local15
+    store 0 -> local16
+    t29 = Lt local16, 0 : i1
+    store t29 -> local25
+    cbr t29 then @sc.merge.14 else @sc.rhs.13
+  block sc.rhs.13
+    t30 = array_len local15 : i64
+    t31 = Ge local16, t30 : i1
+    store t31 -> local25
+    br @sc.merge.14
+  block sc.merge.14
+    cbr local25 then @if.then.15 else @if.merge.16
+  block if.then.15
+    t32 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    throw t32
+    unreachable
+  block if.merge.16
+    t33 = array_get local15 local16 : enum1
+    store t33 -> local17
+    t34 = enum_tag e1 local17 : i64
+    t35 = Eq t34, 1 : i1
+    cbr t35 then @if.then.17 else @if.else.18
+  block if.then.17
+    t36 = enum_field e1 v1 f0 local17 : i64
+    store t36 -> local3
+    t37 = call @scoop_rt_box(global6, local3, 8) : ptr
+    call @scoop.println(t37)
+    t38 = aggregate () : {}
+    br @if.merge.19
+  block if.else.18
+    t39 = enum_tag e1 local17 : i64
+    t40 = Eq t39, 0 : i1
+    cbr t40 then @if.then.20 else @if.merge.21
+  block if.merge.19
+    t42 = enum_wrap e2 v0 (1) : enum2
+    t43 = enum_wrap e2 v1 () : enum2
+    t44 = array_alloc (t42, t43) : [enum2]
+    store t44 -> local4
+    store local4 -> local18
+    store 0 -> local19
+    t45 = Lt local19, 0 : i1
+    store t45 -> local26
+    cbr t45 then @sc.merge.23 else @sc.rhs.22
+  block if.then.20
+    call @scoop.println(global1)
+    t41 = aggregate () : {}
+    br @if.merge.21
+  block if.merge.21
+    br @if.merge.19
+  block sc.rhs.22
+    t46 = array_len local18 : i64
+    t47 = Ge local19, t46 : i1
+    store t47 -> local26
+    br @sc.merge.23
+  block sc.merge.23
+    cbr local26 then @if.then.24 else @if.merge.25
+  block if.then.24
+    t48 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    throw t48
+    unreachable
+  block if.merge.25
+    t49 = array_get local18 local19 : enum2
+    store t49 -> local5
+    t50 = enum_tag e2 local5 : i64
+    t51 = Eq t50, 0 : i1
+    cbr t51 then @if.then.26 else @if.else.27
+  block if.then.26
+    t52 = enum_field e2 v0 f0 local5 : i64
+    store t52 -> local6
+    br @if.merge.28
+  block if.else.27
+    store 9 -> local6
+    br @if.merge.28
+  block if.merge.28
+    t53 = call @scoop_rt_box(global6, local6, 8) : ptr
+    call @scoop.println(t53)
+    t54 = aggregate () : {}
+    store local4 -> local20
+    store 1 -> local21
+    t55 = Lt local21, 0 : i1
+    store t55 -> local27
+    cbr t55 then @sc.merge.30 else @sc.rhs.29
+  block sc.rhs.29
+    t56 = array_len local20 : i64
+    t57 = Ge local21, t56 : i1
+    store t57 -> local27
+    br @sc.merge.30
+  block sc.merge.30
+    cbr local27 then @if.then.31 else @if.merge.32
+  block if.then.31
+    t58 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    throw t58
+    unreachable
+  block if.merge.32
+    t59 = array_get local20 local21 : enum2
+    store t59 -> local7
+    t60 = enum_tag e2 local7 : i64
+    t61 = Eq t60, 0 : i1
+    cbr t61 then @if.then.33 else @if.else.34
+  block if.then.33
+    t62 = enum_field e2 v0 f0 local7 : i64
+    store t62 -> local8
+    br @if.merge.35
+  block if.else.34
+    store 8 -> local8
+    br @if.merge.35
+  block if.merge.35
+    t63 = call @scoop_rt_box(global6, local8, 8) : ptr
+    call @scoop.println(t63)
+    t64 = aggregate () : {}
+    ret
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global7, 8) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global8, 16) : ptr
+    heap_store t0 1 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global9, 16) : ptr
+    t1 = enum_wrap e0 v0 (global2) : enum0
+    heap_store t0 1 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global10, 16) : ptr
+    t1 = enum_wrap e0 v0 (global3) : enum0
+    heap_store t0 1 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global11, 16) : ptr
+    t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 1 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 16) : ptr
+    t1 = enum_wrap e0 v0 (global5) : enum0
+    heap_store t0 1 t1
+    ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = extract param0, 1 : i64
+    store t0 -> local0
+    t1 = extract param1, 1 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    ret t1
+  td Throwable @scoop_td_Throwable size=8 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=16 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=16 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=16 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=16 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=16 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=16 vtable=3 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Point size=16 align=8 refs=[]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout E size=16 align=8 enum-refs=[[], []]
+  layout Option$I size=16 align=8 enum-refs=[[], []]
+  layout Throwable size=8 align=8 refs=[]
+  layout Exception size=16 align=8 refs=[8]
+  layout UnwrapException size=16 align=8 refs=[8]
+  layout ClassCastException size=16 align=8 refs=[8]
+  layout ArithmeticException size=16 align=8 refs=[8]
+  layout IndexOutOfBoundsException size=16 align=8 refs=[8]
+  layout box$I size=16 align=8 refs=[]
+  layout Array<Point> size=16 align=8 array(element_is_ref=false)
+  layout Array<Array<Int>> size=8 align=8 array(element_is_ref=true)
+  layout Array<Int> size=8 align=8 array(element_is_ref=false)
+  layout Array<E> size=16 align=8 array(element_is_ref=false)
+  layout Array<Option$I<Int>> size=16 align=8 array(element_is_ref=false)
+  entry @scoop_main
+
+== run ==
+3
+2
+1
+1
+8

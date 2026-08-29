@@ -113,6 +113,30 @@ bool scoop_rt_any_equals(const void *a, const void *b);
 uint64_t scoop_rt_any_hashcode(const void *a);
 const ScoopString *scoop_rt_any_tostring(const void *a);
 
+/* M8 additions (milestone8 DESIGN section 4): exception support on top
+ * of the Itanium C++ ABI (runtime spec 5). Scoop exceptions are thrown
+ * with a NULL type_info; generated landing pads use a single catch-all
+ * (null) clause, and catch type filtering is done by generated code
+ * (scoop_rt_is_instance). Linking needs the C++ ABI library
+ * (-lc++abi). */
+
+/* Throw `obj` as a Scoop exception; does not return. */
+_Noreturn void scoop_rt_throw(const void *obj);
+
+/* Rethrow the exception currently being handled; does not return. */
+_Noreturn void scoop_rt_rethrow(void);
+
+/* Install the uncaught-exception terminate handler; called once from
+ * the runtime's main before scoop_main. */
+void scoop_rt_init_eh(void);
+
+/* Personality function set on every generated function that contains a
+ * landing pad. The arguments follow the Itanium personality protocol
+ * (declared with plain C types to keep this header unwind.h-free); the
+ * unwinder always passes all five. */
+int scoop_eh_personality(int version, unsigned int actions, unsigned long long exception_class,
+                         void *exception, void *context);
+
 /* Entry point provided by the compiled user program (its `fun main`). */
 void scoop_main(void);
 

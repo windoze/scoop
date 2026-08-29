@@ -1,0 +1,15 @@
+// Exception hierarchy (spec 11.7, docs/milestone8/DESIGN.md section 2).
+// Throwable / Exception are `open` so user code can define custom
+// exceptions; the built-in subclasses are final.
+
+open class Throwable
+
+open class Exception(val message: String?) : Throwable()
+
+class UnwrapException : Exception(Some("unwrap on None"))
+
+class ClassCastException : Exception(Some("invalid cast"))
+
+class ArithmeticException : Exception(Some("arithmetic error"))
+
+class IndexOutOfBoundsException : Exception(Some("array index out of bounds"))

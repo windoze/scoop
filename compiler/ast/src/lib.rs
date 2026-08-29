@@ -271,6 +271,10 @@ pub enum StatementKind {
     },
     /// Pattern `when` (spec 5). Statement-level only in M4.
     When(When),
+    /// `try { } catch (e: T) { } finally { }` (spec 11.7).
+    Try(Try),
+    /// `throw expr` (spec 11.7).
+    Throw(Expr),
     ValDecl(ValDecl),
     Assign(Assign),
     If(If),
@@ -335,6 +339,23 @@ pub struct FieldPattern {
     pub name: Ident,
     /// `field: renamed` — the binding name when it differs.
     pub rename: Option<Ident>,
+    pub span: Span,
+}
+
+/// `try { } catch ... finally { }` (statement form).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Try {
+    pub body: Block,
+    pub catches: Vec<CatchClause>,
+    pub finally_body: Option<Block>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CatchClause {
+    pub name: Ident,
+    pub ty: TypeRef,
+    pub body: Block,
     pub span: Span,
 }
 
@@ -817,6 +838,26 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
                 out.push_str(&format!("{pad}else\n"));
                 dump_block(else_block, indent + 1, out);
             }
+        }
+        StatementKind::Try(try_) => {
+            out.push_str(&format!("{pad}try\n"));
+            dump_block(&try_.body, indent + 1, out);
+            for catch in &try_.catches {
+                out.push_str(&format!(
+                    "{pad}catch {}: {}\n",
+                    catch.name.text,
+                    dump_type_ref(&catch.ty)
+                ));
+                dump_block(&catch.body, indent + 1, out);
+            }
+            if let Some(finally_body) = &try_.finally_body {
+                out.push_str(&format!("{pad}finally\n"));
+                dump_block(finally_body, indent + 1, out);
+            }
+        }
+        StatementKind::Throw(expr) => {
+            out.push_str(&format!("{pad}throw\n"));
+            dump_expr(expr, indent + 1, out);
         }
         StatementKind::While(while_) => {
             out.push_str(&format!("{pad}while\n"));

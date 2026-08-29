@@ -319,6 +319,9 @@ fn link(
     let output = Command::new("cc")
         .arg(object)
         .arg(runtime_lib)
+        // M8 exceptions: the runtime and generated landing pads call
+        // the Itanium C++ ABI (`__cxa_*`, personality; runtime spec 5).
+        .arg("-lc++abi")
         .arg("-o")
         .arg(binary)
         .output()

@@ -1,0 +1,593 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+SourceFile
+  fun main()
+    try
+      val a
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+      Call println
+        Index
+          Var a
+          IntLiteral 9
+    catch e: IndexOutOfBoundsException
+      Call println
+        StringLiteral "index"
+    try
+      val x: Int?
+        Var None
+      Call println
+        NullAssert
+          Var x
+    catch e: UnwrapException
+      Call println
+        StringLiteral "unwrap"
+    try
+      val a: Any
+        IntLiteral 1
+      val s
+        Cast String optional=false
+          Var a
+      Call println
+        Var s
+    catch e: ClassCastException
+      Call println
+        StringLiteral "cast"
+    try
+      Call println
+        Binary Div
+          IntLiteral 1
+          IntLiteral 0
+    catch e: ArithmeticException
+      Call println
+        StringLiteral "div"
+
+== hir ==
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun main(): Unit
+    try
+      val local0
+        ArrayLiteral : Array<Int>
+          IntLiteral 1 : Int
+          IntLiteral 2 : Int
+      Call println : Unit
+        Box : Any
+          Index : Int
+            Local a : Array<Int>
+            IntLiteral 9 : Int
+    catch e: IndexOutOfBoundsException
+      Call println : Unit
+        StringLiteral "index" : Any
+    try
+      val local2
+        VariantConstruct Option.None<Int> : Option<Int>
+      Call println : Unit
+        Box : Any
+          Unwrap trap=true : Int
+            Local x : Option<Int>
+    catch e: UnwrapException
+      Call println : Unit
+        StringLiteral "unwrap" : Any
+    try
+      val local4
+        Box : Any
+          IntLiteral 1 : Int
+      val local5
+        Cast optional=false : String
+          Local a : Any
+      Call println : Unit
+        Local s : Any
+    catch e: ClassCastException
+      Call println : Unit
+        StringLiteral "cast" : Any
+    try
+      Call println : Unit
+        Box : Any
+          Binary Div : Int
+            IntLiteral 1 : Int
+            IntLiteral 0 : Int
+    catch e: ArithmeticException
+      Call println : Unit
+        StringLiteral "div" : Any
+  entry main
+
+== mir ==
+Module
+  enum Option$S
+    Some(_1: String)
+    None()
+  enum Option$I
+    Some(_1: Int)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString direct
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
+  fun main @scoop_main() -> Unit
+    try
+      val a: Array<Int>
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+      val $arr.1: Array<Int>
+        Local a
+      val $idx.2: Int
+        IntLiteral 9
+      if
+        Binary Or
+          Binary IntLt
+            Local $idx.2
+            IntLiteral 0
+          Binary IntGe
+            Local $idx.2
+            ArrayLen
+              Local $arr.1
+        throw
+          Call @scoop.ctor.IndexOutOfBoundsException direct
+      Call @scoop.println direct
+        Box
+          ArrayGet
+            Local $arr.1
+            Local $idx.2
+    catch e: IndexOutOfBoundsException
+      Call @scoop.println direct
+        StringConst @scoop.str.1
+    try
+      val x: Option$I<Int>
+        VariantConstruct Option$I<Int> v1
+      val $opt.3: Option$I<Int>
+        Local x
+      if
+        Binary IntEq
+          EnumTag
+            Local $opt.3
+          IntLiteral 0
+        val $uw.4: Int
+          EnumField v0 f0
+            Local $opt.3
+      else
+        throw
+          Call @scoop.ctor.UnwrapException direct
+      Call @scoop.println direct
+        Box
+          Local $uw.4
+    catch e: UnwrapException
+      Call @scoop.println direct
+        StringConst @scoop.str.2
+    try
+      val a: Any
+        Box
+          IntLiteral 1
+      val $cast.5: Any
+        Local a
+      if
+        Unary BoolNot
+          IsInstance String
+            Local $cast.5
+        throw
+          Call @scoop.ctor.ClassCastException direct
+      val s: String
+        Local $cast.5
+      Call @scoop.println direct
+        Local s
+    catch e: ClassCastException
+      Call @scoop.println direct
+        StringConst @scoop.str.3
+    try
+      val $div.6: Int
+        IntLiteral 1
+      val $div.7: Int
+        IntLiteral 0
+      if
+        Binary IntEq
+          Local $div.7
+          IntLiteral 0
+        throw
+          Call @scoop.ctor.ArithmeticException direct
+      Call @scoop.println direct
+        Box
+          Binary IntDiv
+            Local $div.6
+            Local $div.7
+    catch e: ArithmeticException
+      Call @scoop.println direct
+        StringConst @scoop.str.4
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    return
+      ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    return
+      ClassInit Exception
+        Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    return
+      ClassInit UnwrapException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.5
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    return
+      ClassInit ClassCastException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.6
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    return
+      ClassInit ArithmeticException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.7
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    return
+      ClassInit IndexOutOfBoundsException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.8
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    val $a: Int
+      Unbox
+        Local this
+    val $b: Int
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        Local $a
+        Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    return
+      Call @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "index"
+  str @scoop.str.2 "unwrap"
+  str @scoop.str.3 "cast"
+  str @scoop.str.4 "div"
+  str @scoop.str.5 "unwrap on None"
+  str @scoop.str.6 "invalid cast"
+  str @scoop.str.7 "arithmetic error"
+  str @scoop.str.8 "array index out of bounds"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "index"
+  global @scoop.str.2 = "unwrap"
+  global @scoop.str.3 = "cast"
+  global @scoop.str.4 = "div"
+  global @scoop.str.5 = "unwrap on None"
+  global @scoop.str.6 = "invalid cast"
+  global @scoop.str.7 = "arithmetic error"
+  global @scoop.str.8 = "array index out of bounds"
+  global @scoop_td_box$I = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_String = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  enum Option$S niche(payload_variant=0)
+  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = extract param0, 0 : ptr
+    t1 = extract t0, 5 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop_main() -> void
+    local %0 a: [i64]
+    local %1 e: ptr
+    local %2 x: enum1
+    local %3 e: ptr
+    local %4 a: ptr
+    local %5 s: ptr
+    local %6 e: ptr
+    local %7 e: ptr
+    local %8 $arr.1: [i64]
+    local %9 $idx.2: i64
+    local %10 $opt.3: enum1
+    local %11 $uw.4: i64
+    local %12 $cast.5: ptr
+    local %13 $div.6: i64
+    local %14 $div.7: i64
+    local %15 $sc.1: i1
+  block entry
+    t0 = array_alloc (1, 2) : [i64]
+    store t0 -> local0
+    store local0 -> local8
+    store 9 -> local9
+    t1 = Lt local9, 0 : i1
+    store t1 -> local15
+    cbr t1 then @sc.merge.4 else @sc.rhs.3
+  block try.unwind.1
+    t8 = landingpad : ptr
+    t9 = call @scoop_rt_is_instance(t8, global10) : i1
+    cbr t9 then @try.catch.10 else @try.next.11
+  block try.end.2
+    t11 = enum_wrap e1 v1 () : enum1
+    store t11 -> local2
+    store local2 -> local10
+    t12 = enum_tag e1 local10 : i64
+    t13 = Eq t12, 0 : i1
+    cbr t13 then @if.then.14 else @if.else.15
+  block sc.rhs.3
+    t2 = array_len local8 : i64
+    t3 = Ge local9, t2 : i1
+    store t3 -> local15
+    br @sc.merge.4
+  block sc.merge.4
+    cbr local15 then @if.then.5 else @if.merge.6
+  block if.then.5
+    invoke @scoop.ctor.IndexOutOfBoundsException() normal @invoke.normal.7 unwind @try.unwind.1
+    br @invoke.normal.7
+  block if.merge.6
+    t5 = array_get local8 local9 : i64
+    t6 = call @scoop_rt_box(global9, t5, 8) : ptr
+    invoke @scoop.println(t6) normal @invoke.normal.9 unwind @try.unwind.1
+    br @invoke.normal.9
+  block invoke.normal.7
+    invoke @scoop_rt_throw(t4) normal @throw.normal.8 unwind @try.unwind.1
+    br @throw.normal.8
+  block throw.normal.8
+    unreachable
+  block invoke.normal.9
+    t7 = aggregate () : {}
+    br @try.end.2
+  block try.catch.10
+    store t8 -> local1
+    call @scoop.println(global1)
+    t10 = aggregate () : {}
+    br @try.end.2
+  block try.next.11
+    call @scoop_rt_rethrow()
+    unreachable
+  block try.unwind.12
+    t18 = landingpad : ptr
+    t19 = call @scoop_rt_is_instance(t18, global11) : i1
+    cbr t19 then @try.catch.20 else @try.next.21
+  block try.end.13
+    t21 = call @scoop_rt_box(global9, 1, 8) : ptr
+    store t21 -> local4
+    store local4 -> local12
+    t22 = call @scoop_rt_is_instance(local12, global12) : i1
+    t23 = Not t22 : i1
+    cbr t23 then @if.then.24 else @if.merge.25
+  block if.then.14
+    t14 = enum_field e1 v0 f0 local10 : i64
+    store t14 -> local11
+    br @if.merge.16
+  block if.else.15
+    invoke @scoop.ctor.UnwrapException() normal @invoke.normal.17 unwind @try.unwind.12
+    br @invoke.normal.17
+  block if.merge.16
+    t16 = call @scoop_rt_box(global9, local11, 8) : ptr
+    invoke @scoop.println(t16) normal @invoke.normal.19 unwind @try.unwind.12
+    br @invoke.normal.19
+  block invoke.normal.17
+    invoke @scoop_rt_throw(t15) normal @throw.normal.18 unwind @try.unwind.12
+    br @throw.normal.18
+  block throw.normal.18
+    unreachable
+  block invoke.normal.19
+    t17 = aggregate () : {}
+    br @try.end.13
+  block try.catch.20
+    store t18 -> local3
+    call @scoop.println(global2)
+    t20 = aggregate () : {}
+    br @try.end.13
+  block try.next.21
+    call @scoop_rt_rethrow()
+    unreachable
+  block try.unwind.22
+    t26 = landingpad : ptr
+    t27 = call @scoop_rt_is_instance(t26, global13) : i1
+    cbr t27 then @try.catch.29 else @try.next.30
+  block try.end.23
+    store 1 -> local13
+    store 0 -> local14
+    t29 = Eq local14, 0 : i1
+    cbr t29 then @if.then.33 else @if.merge.34
+  block if.then.24
+    invoke @scoop.ctor.ClassCastException() normal @invoke.normal.26 unwind @try.unwind.22
+    br @invoke.normal.26
+  block if.merge.25
+    store local12 -> local5
+    invoke @scoop.println(local5) normal @invoke.normal.28 unwind @try.unwind.22
+    br @invoke.normal.28
+  block invoke.normal.26
+    invoke @scoop_rt_throw(t24) normal @throw.normal.27 unwind @try.unwind.22
+    br @throw.normal.27
+  block throw.normal.27
+    unreachable
+  block invoke.normal.28
+    t25 = aggregate () : {}
+    br @try.end.23
+  block try.catch.29
+    store t26 -> local6
+    call @scoop.println(global3)
+    t28 = aggregate () : {}
+    br @try.end.23
+  block try.next.30
+    call @scoop_rt_rethrow()
+    unreachable
+  block try.unwind.31
+    t34 = landingpad : ptr
+    t35 = call @scoop_rt_is_instance(t34, global14) : i1
+    cbr t35 then @try.catch.38 else @try.next.39
+  block try.end.32
+    ret
+  block if.then.33
+    invoke @scoop.ctor.ArithmeticException() normal @invoke.normal.35 unwind @try.unwind.31
+    br @invoke.normal.35
+  block if.merge.34
+    t31 = SDiv local13, local14 : i64
+    t32 = call @scoop_rt_box(global9, t31, 8) : ptr
+    invoke @scoop.println(t32) normal @invoke.normal.37 unwind @try.unwind.31
+    br @invoke.normal.37
+  block invoke.normal.35
+    invoke @scoop_rt_throw(t30) normal @throw.normal.36 unwind @try.unwind.31
+    br @throw.normal.36
+  block throw.normal.36
+    unreachable
+  block invoke.normal.37
+    t33 = aggregate () : {}
+    br @try.end.32
+  block try.catch.38
+    store t34 -> local7
+    call @scoop.println(global4)
+    t36 = aggregate () : {}
+    br @try.end.32
+  block try.next.39
+    call @scoop_rt_rethrow()
+    unreachable
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global15, 8) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 16) : ptr
+    heap_store t0 1 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global11, 16) : ptr
+    t1 = enum_wrap e0 v0 (global5) : enum0
+    heap_store t0 1 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 16) : ptr
+    t1 = enum_wrap e0 v0 (global6) : enum0
+    heap_store t0 1 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global14, 16) : ptr
+    t1 = enum_wrap e0 v0 (global7) : enum0
+    heap_store t0 1 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global10, 16) : ptr
+    t1 = enum_wrap e0 v0 (global8) : enum0
+    heap_store t0 1 t1
+    ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = extract param0, 1 : i64
+    store t0 -> local0
+    t1 = extract param1, 1 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+  block entry
+    t0 = extract param0, 1 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    ret t1
+  td Throwable @scoop_td_Throwable size=8 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=16 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=16 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=16 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=16 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=16 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=16 vtable=3 itables=0
+  layout String size=16 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$I size=16 align=8 enum-refs=[[], []]
+  layout Throwable size=8 align=8 refs=[]
+  layout Exception size=16 align=8 refs=[8]
+  layout UnwrapException size=16 align=8 refs=[8]
+  layout ClassCastException size=16 align=8 refs=[8]
+  layout ArithmeticException size=16 align=8 refs=[8]
+  layout IndexOutOfBoundsException size=16 align=8 refs=[8]
+  layout box$I size=16 align=8 refs=[]
+  layout Array<Int> size=8 align=8 array(element_is_ref=false)
+  entry @scoop_main
+
+== run ==
+index
+unwrap
+cast
+div

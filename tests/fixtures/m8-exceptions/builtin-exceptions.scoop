@@ -1,0 +1,26 @@
+fun main() {
+    try {
+        val a = [1, 2]
+        println(a[9])
+    } catch (e: IndexOutOfBoundsException) {
+        println("index")
+    }
+    try {
+        val x: Int? = None
+        println(x!!)
+    } catch (e: UnwrapException) {
+        println("unwrap")
+    }
+    try {
+        val a: Any = 1
+        val s = a as String
+        println(s)
+    } catch (e: ClassCastException) {
+        println("cast")
+    }
+    try {
+        println(1 / 0)
+    } catch (e: ArithmeticException) {
+        println("div")
+    }
+}

@@ -1,0 +1,13 @@
+fun main() {
+    try {
+        throw ArithmeticException()
+    } catch (e: UnwrapException) {
+        println("unwrap")
+    } catch (e: ArithmeticException) {
+        println("arith")
+    } catch (e: Exception) {
+        println("generic")
+    } finally {
+        println("done")
+    }
+}

@@ -1,18 +1,19 @@
-//! Recursive-descent parser for the M6 subset: token vector -> AST.
+//! Recursive-descent parser for the M8 subset: token vector -> AST.
 //!
 //! Parsing is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the
 //! first error aborts parsing with a single spanned diagnostic. Constructs
 //! that are lexically recognizable but outside the subset (`for`, `when`
 //! expressions, string interpolation, field assignment, ranges, slices,
 //! `super`, secondary constructors, `init` blocks, member properties,
-//! companion/`object` declarations, `sealed` classes) get dedicated
-//! "not supported" diagnostics rather than generic syntax errors.
-//! Declaration parsing lives in `decl.rs`, expression parsing in
+//! companion/`object` declarations, `sealed` classes, `try` expressions)
+//! get dedicated "not supported" diagnostics rather than generic syntax
+//! errors. Declaration parsing lives in `decl.rs`, expression parsing in
 //! `expr.rs`, and pattern parsing in `pattern.rs`.
 
 use scoop_ast::{
-    Assign, AssignTarget, Block, Diagnostic, Expr, FieldSelector, Ident, If, SourceFile, Span,
-    Statement, StatementKind, TypeRef, TypeRefKind, ValDecl, When, WhenArm, While,
+    Assign, AssignTarget, Block, CatchClause, Diagnostic, Expr, FieldSelector, Ident, If,
+    SourceFile, Span, Statement, StatementKind, Try, TypeRef, TypeRefKind, ValDecl, When, WhenArm,
+    While,
 };
 
 use crate::lexer::{Token, TokenKind, lex};
@@ -241,6 +242,10 @@ impl Parser {
                 self.peek().span,
                 "`for` loops are not supported yet (milestone M5)",
             )),
+            // `try` / `catch` / `finally` / `throw` are contextual: they
+            // stay identifiers everywhere except statement position.
+            TokenKind::Ident(text) if text == "try" => self.parse_try(),
+            TokenKind::Ident(text) if text == "throw" => self.parse_throw(),
             // `name = ...` (a single `=`, not `==`) assigns to a local `var`.
             TokenKind::Ident(_) if matches!(self.tokens[self.pos + 1].kind, TokenKind::Equal) => {
                 self.parse_assign()
@@ -505,6 +510,75 @@ impl Parser {
         Ok(Statement {
             span,
             kind: StatementKind::While(While { cond, body, span }),
+        })
+    }
+
+    /// `try { ... } (catch (<name>: <type>) { ... })* (finally { ... })?`
+    /// — statement form only (spec 11.7; the expression form is rejected
+    /// in `parse_atom`). At least one `catch` or a `finally` is required.
+    /// Catch parameters always carry a type annotation (M8 has no
+    /// inference for them); `catch` clauses attach to the `try` even
+    /// across newlines.
+    fn parse_try(&mut self) -> Result<Statement, Diagnostic> {
+        let keyword = self.bump(); // `try`
+        let body = self.parse_block()?;
+        let mut end = body.span.end;
+        let mut catches = Vec::new();
+        while matches!(&self.peek().kind, TokenKind::Ident(text) if text == "catch") {
+            let catch_keyword = self.bump();
+            self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
+            let name = self.expect_ident("catch parameter name")?;
+            if !matches!(self.peek().kind, TokenKind::Colon) {
+                return Err(Diagnostic::at(
+                    self.peek().span,
+                    "catch parameter requires a type annotation",
+                ));
+            }
+            self.bump(); // `:`
+            let ty = self.parse_type_ref()?;
+            self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+            let catch_body = self.parse_block()?;
+            end = catch_body.span.end;
+            catches.push(CatchClause {
+                name,
+                ty,
+                body: catch_body,
+                span: Span::new(catch_keyword.span.start, end),
+            });
+        }
+        let finally_body = if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "finally")
+        {
+            self.bump();
+            let block = self.parse_block()?;
+            end = block.span.end;
+            Some(block)
+        } else {
+            None
+        };
+        if catches.is_empty() && finally_body.is_none() {
+            return self.unexpected("`catch` or `finally`");
+        }
+        let span = Span::new(keyword.span.start, end);
+        Ok(Statement {
+            span,
+            kind: StatementKind::Try(Try {
+                body,
+                catches,
+                finally_body,
+                span,
+            }),
+        })
+    }
+
+    /// `throw <expr>` — the operand is a full expression running to the
+    /// end of the statement (`throw f(1) + 2` throws `f(1) + 2`).
+    fn parse_throw(&mut self) -> Result<Statement, Diagnostic> {
+        let keyword = self.bump(); // `throw`
+        let value = self.parse_expr()?;
+        let span = Span::new(keyword.span.start, value.span().end);
+        Ok(Statement {
+            span,
+            kind: StatementKind::Throw(value),
         })
     }
 }
