@@ -1,6 +1,6 @@
 # M7 设计：函数重载
 
-版本：0.1（草案）
+版本：0.2（实现校准）
 
 对应 `docs/ROADMAP.md` 的 M7。目标：顶层函数与方法的 overload resolution（按参数个数与类型分派），并把 `print`/`println` 从 `@Intrinsic` 内建迁移为 `scoop.core` 的普通重载定义。
 
@@ -105,7 +105,8 @@ fun println(message: Any) {
 
 ### 4.2 MIR
 
-- 决议结果已经是唯一 FunctionId，MIR 无结构性变化；删除 print 六变体的 RuntimeFn 映射，改为 `rt_write`/`rt_int_to_string`/`rt_bool_to_string` 三个新映射（RuntimeFn 变体相应增删：去 PrintString/PrintInt/PrintBoolean/PrintlnString/PrintlnInt/PrintlnBoolean，加 Write/IntToString/BoolToString）。
+- 决议结果已经是唯一 FunctionId；单态化实例按 `(GenericFunctionId, concrete type args)` 去重，不能只按 `name + type args` 去重——两个泛型重载可能推导出相同类型实参。只有同一限定名下存在多个泛型定义时，实例符号才追加 Cone 内的泛型定义 discriminator（如 `scoop.pick$I.g0` / `.g1`），普通泛型函数继续使用 `scoop.<name>$<type args>`；
+- 删除 print 六变体的 RuntimeFn 映射，改为 `rt_write`/`rt_int_to_string`/`rt_bool_to_string` 三个新映射（RuntimeFn 变体相应增删：去 PrintString/PrintInt/PrintBoolean/PrintlnString/PrintlnInt/PrintlnBoolean，加 Write/IntToString/BoolToString）。
 
 ### 4.3 LIR / codegen
 
@@ -114,7 +115,7 @@ fun println(message: Any) {
 ## 5. 测试计划
 
 - **独立 fixture**（`tests/fixtures/m7-overload/`）：按类型/元数重载的基础决议；方法重载；子类型最具体选择（`f(Shape)` vs `f(Describable)`）；装箱优先（`f(Int)` vs `f(Any)`，Int 实参选前者）；core 迁移（`println(42)`/`println("x")`/`println(true)` 走 core 重载）；
-- **组合 fixture**：泛型重载（`fun <T> id(x: T)` vs `fun id(x: Int)`）；重载 + when + interface 数组分发；core 的 `println(intToString(...))` 间接验证；
+- **组合 fixture**：泛型与非泛型重载（`fun <T> id(x: T)` vs `fun id(x: Int)`）；两个泛型重载以相同具体类型实参生成不同实例；重载 + when + interface 数组分发；core 的 `println(intToString(...))` 间接验证；
 - **negative fixture**：同签名重复声明；歧义调用（如 `f(A)` 与 `f(B)` 对同时 is-a A 和 B 的实参）；无可应用候选；override 签名因重载存在但不匹配基类；
 - **迁移回归**：M1–M6 全部 fixture 原样通过（print/println 行为不变）。
 

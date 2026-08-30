@@ -137,7 +137,10 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         interface_map: HashMap::new(),
         method_slots: HashMap::new(),
         function_map: HashMap::new(),
-        instances: InstanceRegistry::default(),
+        instances: InstanceRegistry {
+            overloaded_names: generic_overloaded_names(module),
+            ..InstanceRegistry::default()
+        },
         enums: EnumRegistry::default(),
         boxed: BoxedRegistry::default(),
         ctors: HashMap::new(),
@@ -1338,6 +1341,25 @@ fn overloaded_names(module: &hir::Module) -> HashSet<String> {
         .collect()
 }
 
+/// Qualified names shared by multiple generic definitions. Their
+/// concrete type arguments alone do not identify an instance: two
+/// overloads can infer the same arguments from different parameter
+/// positions or shapes.
+fn generic_overloaded_names(module: &hir::Module) -> HashSet<String> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for (_, generic) in module.generic_functions.iter() {
+        let function = &module.functions[generic.function];
+        if matches!(function.kind, hir::FunctionKind::User(_)) {
+            *counts.entry(fn_name(function)).or_default() += 1;
+        }
+    }
+    counts
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(name, _)| name)
+        .collect()
+}
+
 /// A method's short name: hir-lower qualifies member functions as
 /// `Owner.method`; slot lookup, override matching and implementation
 /// resolution all use the short name (M6 has no overloading).
@@ -1811,10 +1833,14 @@ fn is_boxable(ty: &mir::Type) -> bool {
 /// worklist (DESIGN 2.3).
 #[derive(Default)]
 struct InstanceRegistry {
-    /// Mangled symbol -> instance. The symbol encodes the function and
-    /// its type arguments, so it is the deduplication key: one
-    /// instance per `(generic fn, concrete type args)` per Cone.
-    by_symbol: HashMap<String, mir::MonomorphizedFunctionId>,
+    /// Typed generic definition plus encoded concrete type arguments
+    /// -> instance. The typed identity is essential for generic
+    /// overloads whose inferred type arguments happen to be equal.
+    by_key: HashMap<(hir::GenericFunctionId, Vec<String>), mir::MonomorphizedFunctionId>,
+    /// Qualified names shared by more than one generic definition.
+    /// Only these instances need a definition discriminator in their
+    /// externally visible symbol.
+    overloaded_names: HashSet<String>,
     /// MIR metadata entries, indexed by the typed identity carried by
     /// monomorphized call sites.
     meta: Arena<mir::MonomorphizedFunction>,
@@ -1842,10 +1868,21 @@ impl InstanceRegistry {
         let hir_id = module.generic_functions[generic].function;
         let function = &module.functions[hir_id];
         let name = fn_name(function);
-        let symbol = mir::mangle_instance(shell, &name, &type_args);
-        if let Some(&id) = self.by_symbol.get(&symbol) {
+        let key = (
+            generic,
+            type_args
+                .iter()
+                .map(|ty| mir::encode_type(shell, ty))
+                .collect(),
+        );
+        if let Some(&id) = self.by_key.get(&key) {
             return id;
         }
+        let symbol = if self.overloaded_names.contains(&name) {
+            mir::mangle_generic_overload(shell, &name, &type_args, generic.into_raw().into_u32())
+        } else {
+            mir::mangle_instance(shell, &name, &type_args)
+        };
         let function_id = functions.alloc(mir::Function {
             name: name.clone(),
             symbol: symbol.clone(),
@@ -1864,7 +1901,7 @@ impl InstanceRegistry {
             source: name,
             type_args: type_args.clone(),
         });
-        self.by_symbol.insert(symbol, id);
+        self.by_key.insert(key, id);
         self.pending.push((generic, type_args, id));
         id
     }
