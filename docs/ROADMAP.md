@@ -37,11 +37,11 @@ struct / tuple、字段访问、`val` / `var`、if / while、结构相等。
 
 ### M4 enum 与模式匹配 ✅（2026-08-22 完成，设计见 `docs/milestone4/DESIGN.md`）
 
-enum 变体、when 扩展模式、守卫、穷尽性、解构声明与 `..`（spec 第 4、5 章）。同时建立了 sysroot 框架（`sysroot/lib/scoop.core`），`Option` 与 `print`/`println` 的硬编码定义正式迁移入 core 库。
+enum 变体、when 扩展模式、守卫、穷尽性、解构声明与 `..`（spec 第 4、5 章）。同时建立了 sysroot 框架（`sysroot/lib/scoop.core`），`Option` 与 `print`/`println` 的硬编码定义正式迁移入 core 库；tagged enum 的 per-variant GC 扫描可递归嵌入 struct / tuple / class。
 
 ### M5 数组 ✅（2026-08-27 完成，设计见 `docs/milestone5/DESIGN.md`）
 
-`Array<T>` / `MutableArray<T>`（暂为编译器内建）、字面量与推导规则、下标读写、`size`、构造函数形式互转（memcpy 快照）；越界 trap（M8 改异常）。
+`Array<T>` / `MutableArray<T>`（暂为编译器内建）、字面量与推导规则、下标读写、`size`、构造函数形式互转（memcpy 快照）；越界 trap（M8 改异常）。数组 TD 携带递归元素扫描，支持含引用的 struct / tuple 与 tagged enum 内联元素。
 
 ### M6 引用类型层级 ✅（2026-08-28 完成，设计见 `docs/milestone6/DESIGN.md`）
 
@@ -57,7 +57,7 @@ try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。
 
 ### M9 真 GC ✅（2026-08-30 完成，设计见 `docs/milestone9/DESIGN.md`）
 
-真 GC 替换 always-leak：Immix 核心（32KB block / 128B line、bump 分配、free-line 复用、标记-区域回收，1 GiB mmap arena）；statepoint 打开（GC strategy + `rewrite-statepoints-for-gc` + safepoint poll + stackmap）；对象头扩为 16B（td + gc_word）；pin（对象头标志位）与 GcHandle 表落地；`scoop.core.gc` 包（暂为 intrinsic）；写屏障卡片表（预偏置指针，为分代预留）；M1–M8 全部 fixture 在真 GC 下原样通过。
+真 GC 替换 always-leak：Immix 核心（32KB block / 128B line、bump 分配、free-line 复用、标记-区域回收，1 GiB mmap arena）；statepoint 打开（GC strategy + `rewrite-statepoints-for-gc` + safepoint poll + stackmap，runtime v1 暂用经对象起点校验的保守栈扫描）；对象头扩为 16B（td + gc_word）；递归 TD 扫描描述；pin（对象头标志位）与 GcHandle 表落地；`scoop.core.gc` 包（暂为 intrinsic）；写屏障卡片表（预偏置指针，为分代预留）；M1–M8 全部 fixture 在真 GC 下原样通过。
 
 ### M10 协程
 
@@ -94,7 +94,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M1
 
-- always-leak GC → M9 替换（runtime spec 第 3 章已定契约）；
+- ~~always-leak GC → M9 替换~~（已完成）；
 - parser 错误恢复（当前 fail-fast 于第一个错误）；
 - 单文件单 Cone 编译 → M13。
 
@@ -127,7 +127,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 命名字段模式的子模式（`S { f1: 0, .. }` 字面量匹配——ast::FieldPattern 需扩展）；
 - 表达式位的裸变体名解析推广到所有 enum（当前仅 `Option` 的 `Some`/`None`；spec 4.2/5.1 的"上下文可确定类型时可省略前缀"在表达式位只对 Option 生效）；
 - tuple/struct 的穷尽性按"穷尽模式组合"判定（当前要求 catch-all 或 `else`；spec 5.2/5.3 的组合判定是保守简化）；
-- **tagged enum 嵌入 struct/tuple/class 字段时引用偏移不压平**（LIR Plain 布局不记录嵌套 enum 的引用——M9 GC 前必须解决，runtime spec 2.2 已补按 tag 扫描契约）；
+- ~~tagged enum 嵌入 struct/tuple/class 字段时保留按 tag 扫描~~（已完成：LIR `RefScan` 递归组合 tag 偏移、per-variant 子扫描与普通引用）；
 - `for` 循环变量与 lambda 参数的解构（随 `for`/lambda）。
 
 ### 来自 M5
@@ -175,7 +175,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 分代（nursery、晋升、remembered set 消费卡片表、代间引用检查）；
 - evacuation / defragmentation（Immix 的碎片整理；arena 扩容与多段管理）；
 - 并行/并发回收与 STW 线程协调（线程注册/握手，safepoint poll 已是握手点形态）；
-- x86_64 栈扫描汇编（当前仅 aarch64，v1 为保守栈扫描；statepoint 精确栈扫描替换点已在 gc.c 预留）；
-- tagged enum 的 per-variant 扫描表发射（SCOOP_REFS_ENUM 的 LIR meta 扩展；当前保持 M4 边界）；
+- 精确消费 statepoint stackmap 的栈根扫描（v1 为架构无关的保守扫描；移动式回收前必须替换）；
+- ~~tagged enum 的 per-variant 扫描表发射~~（已完成：`SCOOP_REFS_ENUM` 与 `SCOOP_REFS_SEQUENCE` 可递归组合，数组复用同一元素扫描树）；
 - hir-lower 的泛型 struct 字段类型形参作用域（当前字段里的 T 需要进一步支持；core GC struct 的按名识别 stopgap 可摘除）；
 - 其余定宽整数族（Int8/16/32、UInt8/16/32，spec 11.2；UInt/UInt64 已落地）。

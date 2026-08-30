@@ -656,38 +656,48 @@ static void gc_trace_slot(const void *const *slot) {
     }
 }
 
-/* Scan one object's outgoing references as directed by its TD scan
- * descriptor (the contract in scoop_rt.h). Offsets are object-relative;
- * the 16-byte header places the array size / element base / enum tag
- * at offsets 16 / 24 / 16. */
-static void gc_trace_plain(const void *obj, const uint64_t *table) {
+/* Scan one inline value as directed by the recursive descriptor in
+ * scoop_rt.h. Plain offsets and enum tag offsets are relative to base. */
+static void gc_trace_descriptor(const void *base, const uint64_t *table) {
+    if (table == NULL) {
+        return;
+    }
+    if (table[0] == SCOOP_REFS_ARRAY) {
+        uint64_t stride = table[1];
+        const uint64_t *element_scan = (const uint64_t *)(uintptr_t)table[2];
+        uint64_t count = *(const uint64_t *)((const char *)base + 16);
+        const char *elements = (const char *)base + 24;
+        for (uint64_t i = 0; i < count; i++) {
+            gc_trace_descriptor(elements + i * stride, element_scan);
+        }
+        return;
+    }
+    if (table[0] == SCOOP_REFS_ENUM) {
+        uint64_t tag_offset = table[1];
+        uint64_t variant_count = table[2];
+        uint64_t tag = *(const uint64_t *)((const char *)base + tag_offset);
+        if (tag >= variant_count) {
+            gc_fatal("enum value tag out of range");
+        }
+        gc_trace_descriptor(base, (const uint64_t *)(uintptr_t)table[3 + tag]);
+        return;
+    }
+    if (table[0] == SCOOP_REFS_SEQUENCE) {
+        uint64_t child_count = table[1];
+        for (uint64_t i = 0; i < child_count; i++) {
+            gc_trace_descriptor(base, (const uint64_t *)(uintptr_t)table[2 + i]);
+        }
+        return;
+    }
     uint64_t count = table[0];
     for (uint64_t i = 0; i < count; i++) {
-        gc_trace_slot((const void *const *)((const char *)obj + table[1 + i]));
+        gc_trace_slot((const void *const *)((const char *)base + table[1 + i]));
     }
 }
 
 static void gc_trace_object(const void *obj) {
     const uint64_t *refs = ((const ScoopObjectHeader *)obj)->td->ref_offsets;
-    if (refs == NULL) {
-        return;
-    }
-    if (refs[0] == SCOOP_REFS_ARRAY) {
-        const uint64_t count = *(const uint64_t *)((const char *)obj + 16);
-        const void *const *elements = (const void *const *)((const char *)obj + 24);
-        for (uint64_t i = 0; i < count; i++) {
-            gc_trace_slot(&elements[i]);
-        }
-    } else if (refs[0] == SCOOP_REFS_ENUM) {
-        uint64_t variant_count = refs[1];
-        uint64_t tag = *(const uint64_t *)((const char *)obj + 16);
-        if (tag >= variant_count) {
-            gc_fatal("enum object tag out of range");
-        }
-        gc_trace_plain(obj, (const uint64_t *)(uintptr_t)refs[2 + tag]);
-    } else {
-        gc_trace_plain(obj, refs);
-    }
+    gc_trace_descriptor(obj, refs);
 }
 
 /* --- conservative stack scan (v1 transition) ---------------------------- */

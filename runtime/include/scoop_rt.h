@@ -39,19 +39,20 @@ typedef struct ScoopItableEntry {
  *
  * - NULL: the object has no outgoing references (String, plain objects
  *   without reference fields, arrays of non-reference elements).
- * - SCOOP_REFS_ARRAY: array object with reference elements. The array's
- *   own element count is at object offset 16 (right after the 16-byte
- *   header); the elements to scan are the `count` pointer-sized words
- *   starting at object offset 24. Only emitted for reference-element
- *   arrays; non-reference arrays use NULL.
- * - SCOOP_REFS_ENUM: boxed tagged enum object (runtime spec 2.2 按 tag
- *   分派). Word 1 is the variant count N; words 2 .. 2+N are pointers
- *   (stored as u64) to per-variant plain tables (same count-prefixed
- *   form as below, offsets object-relative). The variant tag (0-based,
- *   in declaration order) is the first word of the enum value, i.e. at
- *   object offset 16. A boxed niche-repr enum is *not* encoded this
- *   way: its whole payload is a single reference or null (runtime spec
- *   2.2), so it uses a plain table with one entry (offset 16).
+ * - SCOOP_REFS_ARRAY: array object. Word 1 is the element stride and
+ *   word 2 is a pointer (stored as u64) to the recursive scan program
+ *   for one element. The count is at object offset 16; elements start
+ *   at offset 24. A no-reference element scan makes the whole array
+ *   descriptor NULL.
+ * - SCOOP_REFS_ENUM: tagged enum at an arbitrary inline offset. Word 1
+ *   is the tag byte offset, word 2 is the variant count N, and words
+ *   3 .. 3+N are pointers to recursive per-variant scan programs. This
+ *   composes for enums nested in class/struct/tuple fields. Niche enums
+ *   are ordinary one-word references and use a plain table.
+ * - SCOOP_REFS_SEQUENCE: composition of independent scans over the same
+ *   base. Word 1 is child count N and words 2 .. 2+N are pointers to
+ *   recursive child programs. This combines unconditional references
+ *   with one or more nested tagged enums.
  * - otherwise the word is a count N (< SCOOP_REFS_ENUM) and the
  *   following N words are the object-relative byte offsets of the
  *   reference fields (plain layout).
@@ -61,6 +62,7 @@ typedef struct ScoopItableEntry {
  */
 #define SCOOP_REFS_ARRAY UINT64_MAX
 #define SCOOP_REFS_ENUM (UINT64_MAX - 1)
+#define SCOOP_REFS_SEQUENCE (UINT64_MAX - 2)
 
 struct ScoopTypeDescriptor {
     uint64_t type_id;

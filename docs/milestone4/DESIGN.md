@@ -1,6 +1,6 @@
 # M4 设计：enum、模式匹配与 sysroot 框架
 
-版本：0.1（草案）
+版本：0.2（实现同步）
 
 对应 `docs/ROADMAP.md` 的 M4。目标：enum 与 `when` 扩展模式（守卫、穷尽性）、解构声明与 `..`（spec 第 4、5 章）；同时建立 **sysroot 框架**，把 M3 硬编码的 `Option` 与 M1/M2 硬编码的 `print`/`println` 正式落地为 `scoop.core` 库定义。
 
@@ -112,15 +112,15 @@ enum Option<T> {                       // 泛型 enum（core 库）
 
 ### 3.4 LIR
 
-- **enum 布局**：`{ i32 tag, [N x i8] payload }`（N = 最大变体 payload 的自然对齐大小）；**niche 特例**（spec 7.4）：两变体、一变体无 payload、另一变体为单个 Ptr 字段 → 裸指针表示（这正是 `Option<String>`，M3 的布局 golden 必须保持通过）；
-- LirType 增加 `Enum(EnumDefId)`；LIR meta 记录 enum 布局（含各变体的 ref_field_offsets——**GC 按 tag 扫描的位图**，见第 7 章的文档同步项）；
+- **enum 布局**：`{ i64 tag, [N x i8] payload }`（payload 起点满足最大变体对齐，N = 最大变体 payload 的自然对齐大小）；**niche 特例**（spec 7.4）：两变体、一变体无 payload、另一变体为单个 Ptr 字段 → 裸指针表示（这正是 `Option<String>`，M3 的布局 golden 必须保持通过）；
+- `LirType` 增加 `Enum(EnumDefId)`；LIR meta 记录 enum 布局及每变体的递归 `RefScan`。当 tagged enum 内嵌进 struct / tuple / class / 装箱 payload 时，父布局保留 tag 相对偏移及各变体子扫描，不把各变体引用压平成无条件偏移；
 - 指令新增：`EnumWrap { out, variant, fields }`、`EnumTag { out, operand }`、`EnumField { out, operand, variant, field_index }`（codegen：alloca 副本 + GEP + bitcast + load，注释说明）；niche 表示下这组指令按 M3 的 Ptr 规则翻译（null 测试等）；
 - `scoop_rt_trap` 路径不变（`!!` 的 trap 仍走它）。
 
 ### 3.5 codegen
 
-- 上述指令的机械翻译；enum 类型的 LLVM 表示（niche 或 `{i32, [N x i8]}`）；
-- TypeDescriptor 暂不为 enum 生成（无装箱场景；M7 再议）。
+- 上述指令的机械翻译；enum 类型的 LLVM 表示（niche 或 `{i64, [N x i8]}`）；
+- enum 按值使用时不单独生成 TypeDescriptor；装箱或嵌入堆对象时由外层 TypeDescriptor 携带递归扫描描述。
 
 ## 4. runtime
 
@@ -140,7 +140,7 @@ M4 无新增 runtime 函数（print/println 的 shim 已有；enum 不需要 run
 
 ## 7. 文档同步项
 
-- **runtime spec 2.2**：TypeDescriptor 的引用位图目前假设固定字段；enum 的引用扫描依赖 tag（每变体不同的 ref offsets）——M4 在 LIR meta 记录 per-variant 位图，runtime spec 需要补一节说明 enum 的扫描契约（M9 GC 实现前必须落地）；
+- **runtime spec 2.2（已完成）**：TypeDescriptor 使用可组合的递归扫描描述；tagged enum 按 tag 选择 per-variant 子扫描，且可嵌入其他聚合布局；
 - **spec 7.2 / 11.5**：`Option` 从"内建"改为"core 库真实定义"，迁移完成后把 M3 设计 5.1 的临时决策标记为已退役（在 ROADMAP M4 记录）。
 
 ## 8. 测试计划
