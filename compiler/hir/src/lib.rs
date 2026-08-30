@@ -9,8 +9,6 @@
 //! variant/field indices and binding locals, and a module always has
 //! an entry point (`Module::entry`).
 
-use std::collections::HashMap;
-
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
@@ -48,7 +46,10 @@ pub enum Type {
     UInt,
     Boolean,
     String,
-    Struct(StructId),
+    /// A struct type with resolved type arguments (empty for
+    /// non-generic structs). Keeping the arguments in the type itself
+    /// makes every `TypeId` structurally complete.
+    Struct(StructId, Vec<TypeId>),
     /// A reference type declared with `class` (spec 9.1).
     Class(ClassId),
     /// An interface type (spec 9.1); values behind it are references.
@@ -81,7 +82,14 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::UInt, Type::UInt)
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
-        (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Struct(x, x_args), Type::Struct(y, y_args)) => {
+            x == y
+                && x_args.len() == y_args.len()
+                && x_args
+                    .iter()
+                    .zip(y_args.iter())
+                    .all(|(x, y)| types_equal(module, *x, *y))
+        }
         (Type::Class(x), Type::Class(y)) => *x == *y,
         (Type::Interface(x), Type::Interface(y)) => *x == *y,
         (Type::Any, Type::Any) => true,
@@ -116,7 +124,15 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
         Type::UInt => "UInt".to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
-        Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Struct(id, args) => {
+            let name = &module.structs[*id].name;
+            if args.is_empty() {
+                name.clone()
+            } else {
+                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                format!("{}<{}>", name, inner.join(", "))
+            }
+        }
         Type::Class(id) => module.classes[*id].name.clone(),
         Type::Interface(id) => module.interfaces[*id].name.clone(),
         Type::Any => "Any".to_string(),
@@ -169,14 +185,6 @@ pub struct Module {
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
-    /// Generic struct applications (M9, spec 3.2): because
-    /// `Type::Struct` carries no type arguments, each distinct
-    /// application (`PinHandle<String>`) is its own `Type::Struct`
-    /// arena entry and its arguments live here, keyed by that type id.
-    /// mir-lower instantiates the definition per argument list (the
-    /// same monomorphization shape as enums); types without an entry
-    /// here are non-generic structs.
-    pub struct_applications: HashMap<TypeId, (StructId, Vec<TypeId>)>,
 }
 
 impl Module {
@@ -217,6 +225,7 @@ pub enum Callable {
 #[derive(Debug)]
 pub struct StructDecl {
     pub name: String,
+    pub type_params: Vec<String>,
     pub fields: Vec<Field>,
     pub interfaces: Vec<InterfaceId>,
     pub span: Span,
@@ -643,7 +652,12 @@ pub struct IntrinsicSpec {
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
     for (_, decl) in module.structs.iter() {
-        out.push_str(&format!("  struct {}\n", decl.name));
+        let type_params = if decl.type_params.is_empty() {
+            String::new()
+        } else {
+            format!("<{}>", decl.type_params.join(", "))
+        };
+        out.push_str(&format!("  struct {}{}\n", decl.name, type_params));
         for field in &decl.fields {
             out.push_str(&format!(
                 "    field {}: {}\n",

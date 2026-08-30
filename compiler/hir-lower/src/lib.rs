@@ -87,10 +87,8 @@
 //! 11.2 — a distinct type from `Int` with no implicit conversion;
 //! arithmetic and comparisons follow the same rules as `Int`, with the
 //! unsigned semantics risks deferred) and the core GC facilities:
-//! generic structs `PinHandle<T>` / `GcHandle<T>` (recognized by name
-//! in core until generic struct declarations arrive; applications are
-//! tracked in `generic_struct_args` because HIR's `Type::Struct`
-//! carries no type arguments) and the `pin` / `unpin` / `getGcHandle`
+//! generic structs `PinHandle<T>` / `GcHandle<T>` and the `pin` /
+//! `unpin` / `getGcHandle`
 //! / `releaseGcHandle` intrinsics, whose inferred type argument must
 //! be a reference type — spec 14.1's `T : ref` in its pre-M12 form.
 //! `gcCollect` / `gcStats` are ordinary test-only intrinsics.
@@ -220,17 +218,6 @@ pub(crate) struct Lowerer {
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
     pub(crate) any: TypeId,
-    /// Generic structs and their type-parameter arity (M9: the core
-    /// GC handle types `PinHandle` / `GcHandle`, recognized by name —
-    /// see `declare_struct`). Generic struct declarations arrive with
-    /// parser support; `Type::Struct` carries no arguments, so
-    /// applications are tracked in `generic_struct_args` below.
-    pub(crate) generic_structs: HashMap<StructId, usize>,
-    /// Type arguments of each generic struct application TypeId
-    /// (`PinHandle<String>` → `(PinHandle, [String])`), consulted by
-    /// `types_equal`, `type_name`, `bind_type_args` and the
-    /// substitution helpers.
-    pub(crate) generic_struct_args: HashMap<TypeId, (StructId, Vec<TypeId>)>,
     /// The synthesized `Any` members `equals` / `hashCode` /
     /// `toString`, in vtable-slot order (0..2, mir-lower's fixed
     /// prefix). Calls on an `Any` receiver resolve to these.
@@ -351,8 +338,6 @@ impl Lowerer {
             boolean,
             string,
             any,
-            generic_structs: HashMap::new(),
-            generic_struct_args: HashMap::new(),
             // Filled by `synthesize_any_members` below.
             any_methods: [hir::FunctionId::from_raw(0.into()); 3],
             functions_by_name: HashMap::new(),
@@ -672,7 +657,6 @@ impl Lowerer {
             option_enum,
             entry,
             instantiations: self.instantiations,
-            struct_applications: self.generic_struct_args,
         })
     }
 
@@ -712,29 +696,32 @@ impl Lowerer {
             self.error(decl.name.span, what);
             return;
         }
+        let mut type_params = Vec::new();
+        for param in &decl.type_params {
+            if type_params.contains(&param.text) {
+                self.error(
+                    param.span,
+                    format!("duplicate type parameter `{}`", param.text),
+                );
+                continue;
+            }
+            type_params.push(param.text.clone());
+        }
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
+            type_params: type_params.clone(),
             fields: Vec::new(),
             // Filled in pass 2 together with the fields.
             interfaces: Vec::new(),
             span: decl.span,
         });
-        let ty = self.types.alloc(Type::Struct(id));
+        let type_args = (0..type_params.len())
+            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+            .collect();
+        let ty = self.intern_type(Type::Struct(id, type_args));
         self.structs_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.struct_methods.insert(id, Vec::new());
-        // Generic struct declarations (M9, spec 3.2): the arity comes
-        // from the declared type parameters. As a stopgap for the test
-        // harness (which builds its core ASTs by hand), the two core
-        // GC handle structs are also recognized by name.
-        if !decl.type_params.is_empty() {
-            self.generic_structs.insert(id, decl.type_params.len());
-        } else {
-            let is_core = file_index < self.user_file_index;
-            if is_core && matches!(decl.name.text.as_str(), "PinHandle" | "GcHandle") {
-                self.generic_structs.insert(id, 1);
-            }
-        }
         for method in &decl.methods {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }
@@ -1143,6 +1130,7 @@ impl Lowerer {
     /// duplicate names or unresolvable types are diagnosed and dropped;
     /// the module is rejected anyway once any diagnostic is recorded.
     fn resolve_fields(&mut self, id: StructId, decl: &ast::StructDecl) {
+        self.type_params_in_scope = self.structs[id].type_params.clone();
         let mut seen = HashSet::new();
         let mut fields = Vec::new();
         for field in &decl.fields {
@@ -1165,6 +1153,7 @@ impl Lowerer {
             });
         }
         self.structs[id].fields = fields;
+        self.type_params_in_scope.clear();
     }
 
     /// Resolve the variants of an enum declaration (pass 2): duplicate

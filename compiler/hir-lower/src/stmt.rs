@@ -29,11 +29,12 @@ impl Lowerer {
         // local of the host type; bare property / method names in the
         // body resolve against it.
         let owner = self.function_owner.get(&id).copied();
-        // Enum methods resolve in the enum's type-parameter scope (a
-        // method of `E<T>` may mention `T`); everything else uses the
-        // function's own type parameters.
+        // Generic value-type methods resolve in their owner's
+        // type-parameter scope; everything else uses the function's
+        // own type parameters.
         self.type_params_in_scope = match owner {
             Some(Owner::Enum(enum_id)) => self.enums[enum_id].type_params.clone(),
+            Some(Owner::Struct(struct_id)) => self.structs[struct_id].type_params.clone(),
             _ => sig.type_params.clone(),
         };
         self.current_return_ty = sig.return_ty;

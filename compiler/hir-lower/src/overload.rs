@@ -354,22 +354,13 @@ impl Lowerer {
                     .zip(arg_args)
                     .all(|(param, arg)| self.try_bind(*param, arg, bindings))
             }
-            // Generic struct applications (M9): see `bind_type_args`.
-            (Type::Struct(param_id), Type::Struct(arg_id)) if param_id == arg_id => {
-                match (
-                    self.generic_struct_args.get(&param_ty),
-                    self.generic_struct_args.get(&arg_ty),
-                ) {
-                    (Some((_, param_args)), Some((_, arg_args)))
-                        if param_args.len() == arg_args.len() =>
-                    {
-                        param_args
-                            .iter()
-                            .zip(arg_args.iter())
-                            .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
-                    }
-                    _ => true,
-                }
+            (Type::Struct(param_id, param_args), Type::Struct(arg_id, arg_args))
+                if param_id == arg_id && param_args.len() == arg_args.len() =>
+            {
+                param_args
+                    .iter()
+                    .zip(arg_args.iter())
+                    .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
             }
             (Type::Array(param), Type::Array(arg))
             | (Type::MutableArray(param), Type::MutableArray(arg)) => {

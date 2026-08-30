@@ -108,9 +108,9 @@ SourceFile
 
 == hir ==
 Module
-  struct PinHandle
+  struct PinHandle<T>
     field raw: UInt
-  struct GcHandle
+  struct GcHandle<T>
     field raw: UInt
   struct Item
     field payload: Payload
@@ -128,9 +128,9 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  fun pin<T>(): PinHandle <intrinsic rt_pin>
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle <intrinsic rt_get_handle>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
   fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
@@ -201,8 +201,6 @@ Module
 
 == mir ==
 Module
-  struct PinHandle (raw: UInt)
-  struct GcHandle (raw: UInt)
   struct Item (payload: Payload, tail: String)
   enum Payload
     Text(_1: String)
@@ -633,8 +631,6 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout PinHandle size=8 align=8 refs=[]
-  layout GcHandle size=8 align=8 refs=[]
   layout Item size=24 align=8 scan=seq(refs[16], enum@0[refs[8], none, none])
   layout Payload size=16 align=8 enum-refs=[[8], [], []]
   layout Option$S size=8 align=8 enum-refs=[[0], []]

@@ -579,21 +579,15 @@ pub(crate) fn intrinsic_generic_fun(
 }
 
 pub(crate) fn struct_decl(name: &str, fields: Vec<(&str, TypeRef)>) -> Decl {
-    Decl::Struct(AstStructDecl {
-        name: ident(name),
-        type_params: Vec::new(),
-        interfaces: Vec::new(),
-        methods: Vec::new(),
-        fields: fields
-            .into_iter()
-            .map(|(name, ty)| FieldDecl {
-                name: ident(name),
-                ty,
-                span: sp(),
-            })
-            .collect(),
-        span: sp(),
-    })
+    generic_struct_decl(name, Vec::new(), fields)
+}
+
+pub(crate) fn generic_struct_decl(
+    name: &str,
+    type_params: Vec<&str>,
+    fields: Vec<(&str, TypeRef)>,
+) -> Decl {
+    generic_struct_decl_full(name, type_params, fields, Vec::new(), Vec::new())
 }
 
 // --- M6: classes, interfaces, member functions ---
@@ -764,9 +758,19 @@ pub(crate) fn struct_decl_full(
     interfaces: Vec<&str>,
     methods: Vec<FunctionDecl>,
 ) -> Decl {
+    generic_struct_decl_full(name, Vec::new(), fields, interfaces, methods)
+}
+
+pub(crate) fn generic_struct_decl_full(
+    name: &str,
+    type_params: Vec<&str>,
+    fields: Vec<(&str, TypeRef)>,
+    interfaces: Vec<&str>,
+    methods: Vec<FunctionDecl>,
+) -> Decl {
     Decl::Struct(AstStructDecl {
         name: ident(name),
-        type_params: Vec::new(),
+        type_params: type_params.into_iter().map(ident).collect(),
         fields: fields
             .into_iter()
             .map(|(name, ty)| FieldDecl {
@@ -1073,15 +1077,12 @@ pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module
 /// (sysroot/lib/scoop.core/src/gc.scoop, M9) as another core file:
 /// the `PinHandle` / `GcHandle` structs, the four generic GC
 /// intrinsics and the test-only `gcCollect` / `gcStats` hooks. The
-/// surface declarations spell the handle types `PinHandle<T>`; the
-/// AST cannot declare generic structs yet, so the test core declares
-/// the plain structs and hir-lower recognizes them by name (see
-/// `declare_struct`).
+/// surface declarations spell the handle types `PinHandle<T>`.
 pub(crate) fn gc_core_file() -> SourceFile {
     let handle = |name: &str| ty_generic(name, vec![ty_named("T")]);
     file(vec![
-        struct_decl("PinHandle", vec![("raw", ty_named("UInt"))]),
-        struct_decl("GcHandle", vec![("raw", ty_named("UInt"))]),
+        generic_struct_decl("PinHandle", vec!["T"], vec![("raw", ty_named("UInt"))]),
+        generic_struct_decl("GcHandle", vec!["T"], vec![("raw", ty_named("UInt"))]),
         intrinsic_generic_fun(
             "pin",
             "rt_pin",

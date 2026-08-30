@@ -121,12 +121,16 @@ impl Lowerer {
                 }
                 // A positional struct pattern without the type prefix
                 // (spec 5.3: `(x, ..)` against a struct subject).
-                Type::Struct(struct_id) => {
+                Type::Struct(struct_id, type_args) => {
                     let owner = format!("struct `{}`", self.structs[struct_id].name);
-                    let field_types: Vec<TypeId> = self.structs[struct_id]
+                    let declared: Vec<TypeId> = self.structs[struct_id]
                         .fields
                         .iter()
                         .map(|f| f.ty)
+                        .collect();
+                    let field_types: Vec<TypeId> = declared
+                        .into_iter()
+                        .map(|ty| self.instantiate_ty(ty, &type_args))
                         .collect();
                     let fields = self.lower_positional_pattern(
                         elements,
@@ -194,12 +198,16 @@ impl Lowerer {
                             fields,
                         })
                     }
-                    PatternTarget::Struct(struct_id) => {
+                    PatternTarget::Struct(struct_id, type_args) => {
                         let owner = format!("struct `{}`", self.structs[struct_id].name);
-                        let field_types: Vec<TypeId> = self.structs[struct_id]
+                        let declared: Vec<TypeId> = self.structs[struct_id]
                             .fields
                             .iter()
                             .map(|f| f.ty)
+                            .collect();
+                        let field_types: Vec<TypeId> = declared
+                            .into_iter()
+                            .map(|ty| self.instantiate_ty(ty, &type_args))
                             .collect();
                         let fields = self.lower_positional_pattern(
                             elements,
@@ -261,12 +269,16 @@ impl Lowerer {
                             fields,
                         })
                     }
-                    PatternTarget::Struct(struct_id) => {
+                    PatternTarget::Struct(struct_id, type_args) => {
                         let owner = format!("struct `{}`", self.structs[struct_id].name);
-                        let named_fields: Vec<(String, TypeId)> = self.structs[struct_id]
+                        let declared: Vec<(String, TypeId)> = self.structs[struct_id]
                             .fields
                             .iter()
                             .map(|f| (f.name.clone(), f.ty))
+                            .collect();
+                        let named_fields: Vec<(String, TypeId)> = declared
+                            .into_iter()
+                            .map(|(name, ty)| (name, self.instantiate_ty(ty, &type_args)))
                             .collect();
                         let fields = self.lower_named_fields(
                             fields,
@@ -330,8 +342,10 @@ impl Lowerer {
     ) -> Option<PatternTarget> {
         match path {
             // `S { f1, .. }` without a prefix: only structs (spec 5.3).
-            [] => match self.types[matched_ty] {
-                Type::Struct(struct_id) => Some(PatternTarget::Struct(struct_id)),
+            [] => match self.types[matched_ty].clone() {
+                Type::Struct(struct_id, type_args) => {
+                    Some(PatternTarget::Struct(struct_id, type_args))
+                }
                 _ => {
                     let found = self.type_name(matched_ty);
                     self.error(
@@ -353,10 +367,10 @@ impl Lowerer {
                     };
                     Some(PatternTarget::Variant(enum_id, variant, type_args))
                 }
-                Type::Struct(struct_id) if self.structs[struct_id].name == name.text => {
-                    Some(PatternTarget::Struct(struct_id))
+                Type::Struct(struct_id, type_args) if self.structs[struct_id].name == name.text => {
+                    Some(PatternTarget::Struct(struct_id, type_args))
                 }
-                Type::Struct(_) => {
+                Type::Struct(..) => {
                     let found = self.type_name(matched_ty);
                     self.error(
                         name.span,
@@ -645,7 +659,7 @@ impl Lowerer {
 /// type's arguments, for instantiating field types) or a struct.
 enum PatternTarget {
     Variant(hir::EnumId, u32, Vec<TypeId>),
-    Struct(hir::StructId),
+    Struct(hir::StructId, Vec<TypeId>),
 }
 
 /// `variant \`V\` of \`E\``, for diagnostics.
