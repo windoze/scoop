@@ -1096,6 +1096,7 @@ impl Lowerer {
         let continuation = self.require_core_interface("Continuation", files);
         let suspend_task = self.require_core_interface("SuspendTask", files);
         let suspend_registration = self.require_core_interface("SuspendRegistration", files);
+        let throwable = self.throwable.map(|(id, _)| id);
 
         if let Some(id) = continuation {
             self.validate_continuation_contract(id);
@@ -1132,6 +1133,7 @@ impl Lowerer {
             .and_then(|id| self.interface_methods.get(&id))
             .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
         let (
+            Some(throwable),
             Some(illegal_state_exception),
             Some(continuation),
             Some((continuation_resume, continuation_resume_with_exception)),
@@ -1142,6 +1144,7 @@ impl Lowerer {
             Some(start_coroutine),
             Some(suspend_coroutine),
         ) = (
+            throwable,
             illegal_state_exception,
             continuation,
             continuation_methods,
@@ -1156,6 +1159,7 @@ impl Lowerer {
             return None;
         };
         Some(hir::CoroutineCore {
+            throwable,
             illegal_state_exception,
             continuation,
             continuation_resume,

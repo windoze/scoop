@@ -209,6 +209,7 @@ pub struct Module {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CoroutineCore {
+    pub throwable: ClassId,
     pub illegal_state_exception: ClassId,
     pub continuation: InterfaceId,
     pub continuation_resume: FunctionId,

@@ -5169,7 +5169,9 @@ mod tests {
         }
 
         fn test_coroutine_core(&mut self) -> hir::CoroutineCore {
+            let throwable = self.exception("Throwable");
             let illegal_state_exception = self.exception("IllegalStateException");
+            let throwable_ty = self.class_ty(throwable);
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
@@ -5207,12 +5209,12 @@ mod tests {
                 span: SPAN,
             });
             let mut failure_locals = Arena::new();
-            let failure = failure_locals.alloc(local("exception", self.string));
+            let failure = failure_locals.alloc(local("exception", throwable_ty));
             let continuation_resume_with_exception = self.functions.alloc(hir::Function {
                 name: "Continuation.resumeWithException".to_string(),
                 is_suspend: false,
                 type_params: vec!["T".to_string()],
-                params: vec![param("exception", self.string, failure)],
+                params: vec![param("exception", throwable_ty, failure)],
                 return_ty: self.unit,
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: failure_locals,
@@ -5238,7 +5240,7 @@ mod tests {
                     name: "resumeWithException".to_string(),
                     is_suspend: false,
                     type_params: Vec::new(),
-                    params: vec![param("exception", self.string, failure)],
+                    params: vec![param("exception", throwable_ty, failure)],
                     return_ty: self.unit,
                     span: SPAN,
                 },
@@ -5347,6 +5349,7 @@ mod tests {
                 self.top_level.push(function);
             }
             hir::CoroutineCore {
+                throwable,
                 illegal_state_exception,
                 continuation,
                 continuation_resume,
