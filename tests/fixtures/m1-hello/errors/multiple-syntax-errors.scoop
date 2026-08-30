@@ -1,0 +1,11 @@
+fun first() {
+    val = 1
+    println("still parsed")
+    val x =
+}
+
+fun broken(: Int) {}
+
+fun main() {
+    val = 2
+}

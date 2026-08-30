@@ -29,9 +29,9 @@ mod tests_m9;
 
 /// Parses a whole source file into an AST.
 ///
-/// The parser is fail-fast: on failure the returned vector holds exactly
-/// one [`scoop_ast::Diagnostic`] whose span points at the offending
-/// position.
+/// Syntax and lexical recovery collect independent diagnostics in source
+/// order. If any error is found, the partial AST is discarded and the
+/// returned vector contains every diagnostic recovered from this file.
 ///
 /// ```
 /// let file = scoop_parser::parse("fun main() {\n    println(\"hi\")\n}\n").unwrap();
@@ -42,5 +42,5 @@ mod tests_m9;
 /// assert_eq!(main.name.text, "main");
 /// ```
 pub fn parse(source: &str) -> Result<scoop_ast::SourceFile, Vec<scoop_ast::Diagnostic>> {
-    parser::parse_file(source).map_err(|diagnostic| vec![diagnostic])
+    parser::parse_file(source)
 }

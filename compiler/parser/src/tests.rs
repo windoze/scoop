@@ -11,10 +11,15 @@ pub(crate) fn ok(source: &str) -> scoop_ast::SourceFile {
     parse(source).unwrap_or_else(|diagnostics| panic!("should parse: {diagnostics:?}"))
 }
 
-/// Asserts fail-fast (exactly one diagnostic) and returns its span + message.
+/// Asserts that this focused negative case produces exactly one diagnostic
+/// and returns its span + message.
 pub(crate) fn err(source: &str) -> (Span, String) {
     let diagnostics = parse(source).expect_err("should fail");
-    assert_eq!(diagnostics.len(), 1, "the parser is fail-fast");
+    assert_eq!(
+        diagnostics.len(),
+        1,
+        "expected one focused diagnostic: {diagnostics:?}"
+    );
     let diagnostic = diagnostics.into_iter().next().unwrap();
     (
         diagnostic.span.expect("parser diagnostics carry a span"),
@@ -56,6 +61,72 @@ fn empty_file() {
 fn comments_only_file() {
     let file = ok("// nothing here\n/* and\nnothing\nhere either */\n");
     assert!(file.declarations.is_empty());
+}
+
+#[test]
+fn parser_recovers_across_statements_and_top_level_declarations() {
+    let diagnostics = parse(
+        "fun first() {\n    val = 1\n    println(\"ok\")\n    val x =\n}\n\
+         fun broken(: Int) {}\n\
+         fun main() {\n    val = 2\n}\n",
+    )
+    .expect_err("four independent syntax errors must be collected");
+    let messages: Vec<_> = diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.message.as_str())
+        .collect();
+    assert_eq!(
+        messages,
+        [
+            "expected pattern, found `=`",
+            "expected expression, found `}`",
+            "expected parameter name, found `:`",
+            "expected pattern, found `=`",
+        ]
+    );
+    assert!(diagnostics.windows(2).all(|pair| {
+        pair[0].span.expect("spanned").start < pair[1].span.expect("spanned").start
+    }));
+}
+
+#[test]
+fn parser_recovers_between_type_members() {
+    let diagnostics = parse(
+        "class C {\n\
+             val x = 1\n\
+             fun broken(: Int) {}\n\
+             object Nested\n\
+             fun ok() {}\n\
+         }\n\
+         fun main() {}\n",
+    )
+    .expect_err("independent member errors must be collected");
+    let messages: Vec<_> = diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.message.as_str())
+        .collect();
+    assert_eq!(
+        messages,
+        [
+            "member properties are not supported yet (milestone M6)",
+            "expected parameter name, found `:`",
+            "`object` declarations are not supported yet (milestone M6)",
+        ]
+    );
+}
+
+#[test]
+fn lexer_collects_multiple_bad_characters() {
+    let diagnostics =
+        parse("§\n$\nfun main() {}\n").expect_err("independent lexical errors must be collected");
+    let messages: Vec<_> = diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.message.as_str())
+        .collect();
+    assert_eq!(
+        messages,
+        ["unexpected character `§`", "unexpected character `$`"]
+    );
 }
 
 #[test]

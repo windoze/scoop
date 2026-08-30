@@ -1,8 +1,9 @@
 //! Recursive-descent parser for the M9 subset: token vector -> AST.
 //!
-//! Parsing is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the
-//! first error aborts parsing with a single spanned diagnostic. Constructs
-//! that are lexically recognizable but outside the subset (`for`, `when`
+//! Parsing recovers at declaration, member and statement boundaries and
+//! returns every independent spanned diagnostic found in one file. A file
+//! with any diagnostic does not produce an AST. Constructs that are
+//! lexically recognizable but outside the subset (`for`, `when`
 //! expressions, string interpolation, field assignment, ranges, slices,
 //! `super`, secondary constructors, `init` blocks, member properties,
 //! companion/`object` declarations, `sealed` classes, `try` expressions)
@@ -19,22 +20,42 @@ use scoop_ast::{
 use crate::lexer::{Token, TokenKind, lex};
 use crate::pattern::pattern_span;
 
-pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Diagnostic> {
-    let tokens = lex(source)?;
-    let mut parser = Parser { tokens, pos: 0 };
+pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
+    let (tokens, lexical_diagnostics) = lex(source);
+    if !lexical_diagnostics.is_empty() {
+        return Err(lexical_diagnostics);
+    }
+    let mut parser = Parser {
+        tokens,
+        pos: 0,
+        diagnostics: Vec::new(),
+    };
     let mut declarations = Vec::new();
     while !parser.at_eof() {
-        declarations.push(parser.parse_decl()?);
+        let start = parser.pos;
+        match parser.parse_decl() {
+            Ok(decl) => declarations.push(decl),
+            Err(diagnostic) => {
+                parser.diagnostics.push(diagnostic);
+                parser.synchronize_top_level(start);
+            }
+        }
     }
-    Ok(SourceFile {
+    let file = SourceFile {
         declarations,
         span: Span::new(0, source.len() as u32),
-    })
+    };
+    if parser.diagnostics.is_empty() {
+        Ok(file)
+    } else {
+        Err(parser.diagnostics)
+    }
 }
 
 pub(crate) struct Parser {
     pub(crate) tokens: Vec<Token>,
     pub(crate) pos: usize,
+    pub(crate) diagnostics: Vec<Diagnostic>,
 }
 
 impl Parser {
@@ -50,8 +71,74 @@ impl Parser {
         token
     }
 
-    fn at_eof(&self) -> bool {
+    pub(crate) fn at_eof(&self) -> bool {
         matches!(self.peek().kind, TokenKind::Eof)
+    }
+
+    /// Number of unmatched `{` tokens before the current position.
+    /// Computing it on demand keeps direct token advances in the small
+    /// parsing routines from having to maintain duplicate delimiter state.
+    pub(crate) fn brace_depth(&self) -> usize {
+        self.tokens[..self.pos]
+            .iter()
+            .fold(0usize, |depth, token| match token.kind {
+                TokenKind::LBrace => depth + 1,
+                TokenKind::RBrace => depth.saturating_sub(1),
+                _ => depth,
+            })
+    }
+
+    fn is_top_level_start(&self) -> bool {
+        match &self.peek().kind {
+            TokenKind::Fun
+            | TokenKind::Struct
+            | TokenKind::Enum
+            | TokenKind::Class
+            | TokenKind::Interface
+            | TokenKind::At => true,
+            TokenKind::Ident(text) => {
+                matches!(text.as_str(), "open" | "abstract" | "sealed" | "object")
+            }
+            _ => false,
+        }
+    }
+
+    /// Skip a malformed declaration without consuming the next declaration
+    /// starter at brace depth zero. Delimiters inside the malformed item are
+    /// crossed before synchronization, so errors in a body do not turn each
+    /// remaining statement into a top-level diagnostic.
+    fn synchronize_top_level(&mut self, item_start: usize) {
+        while !self.at_eof() {
+            if self.pos > item_start
+                && self.brace_depth() == 0
+                && self.peek().newline_before
+                && self.is_top_level_start()
+            {
+                return;
+            }
+            self.bump();
+        }
+    }
+
+    /// Recover to the next line/semicolon at `target_depth`, or stop before
+    /// the brace closing the current body. `item_start` prevents a token that
+    /// itself failed at the beginning of an item from being retried forever.
+    pub(crate) fn synchronize_body_item(&mut self, target_depth: usize, item_start: usize) {
+        while !self.at_eof() {
+            let depth = self.brace_depth();
+            if depth < target_depth
+                || (depth == target_depth && matches!(self.peek().kind, TokenKind::RBrace))
+            {
+                return;
+            }
+            if self.pos > item_start && depth == target_depth && self.peek().newline_before {
+                return;
+            }
+            let token = self.bump();
+            if depth == target_depth && matches!(token.kind, TokenKind::Semicolon) {
+                return;
+            }
+        }
     }
 
     /// Builds "expected <what>, found <token>" at the current token.
@@ -182,6 +269,7 @@ impl Parser {
 
     pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {
         let open = self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
+        let body_depth = self.brace_depth();
         let mut statements = Vec::new();
         loop {
             match self.peek().kind {
@@ -194,8 +282,23 @@ impl Parser {
                 }
                 TokenKind::Eof => return self.unexpected("`}`"),
                 _ => {
-                    statements.push(self.parse_statement()?);
-                    self.expect_statement_end()?;
+                    let start = self.pos;
+                    match self.parse_statement() {
+                        Ok(statement) => {
+                            statements.push(statement);
+                            if let Err(diagnostic) = self.expect_statement_end() {
+                                self.diagnostics.push(diagnostic);
+                                self.synchronize_body_item(body_depth, start);
+                            }
+                        }
+                        Err(diagnostic) => {
+                            if self.at_eof() {
+                                return Err(diagnostic);
+                            }
+                            self.diagnostics.push(diagnostic);
+                            self.synchronize_body_item(body_depth, start);
+                        }
+                    }
                 }
             }
         }

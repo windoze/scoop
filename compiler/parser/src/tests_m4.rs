@@ -344,7 +344,7 @@ fn intrinsic_with_two_arguments_is_an_error() {
 
 #[test]
 fn multiple_annotations_are_an_error() {
-    let (span, message) = err("@Intrinsic(\"a\")\n@Intrinsic(\"b\")\nfun f()\n");
+    let (span, message) = err("@Intrinsic(\"a\")\n@Intrinsic(\"b\")\nfun f() {}\n");
     assert_eq!(span, Span::new(16, 17));
     assert_eq!(
         message,
