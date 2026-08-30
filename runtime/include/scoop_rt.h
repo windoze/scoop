@@ -198,6 +198,11 @@ void scoop_rt_gc_add_root(void **slot);
  * the ABI exception buffer, milestone9 DESIGN 3.4). */
 void scoop_rt_gc_add_root_object(const void *obj);
 
+/* Remove a previously registered external object root. The exact
+ * pointer must be present once; used by the C++ ABI exception
+ * destructor when a thrown buffer's lifetime ends. */
+void scoop_rt_gc_remove_root_object(const void *obj);
+
 /* pin / unpin (runtime spec 3.4): O(1) object-header flag, no handle
  * table. Returns the object so the Scoop-level intrinsics can forward
  * it. null is a no-op returning null; a non-null pointer that is not a
@@ -232,6 +237,9 @@ uint64_t scoop_rt_gc_debug_block_count(void);
  * from (0 before the first allocation / gc init). */
 uintptr_t scoop_rt_gc_debug_arena_base(void);
 
+/* Test hook: number of registered global/external roots. */
+uint64_t scoop_rt_gc_debug_root_count(void);
+
 /* M8 additions (milestone8 DESIGN section 4): exception support on top
  * of the Itanium C++ ABI (runtime spec 5). Scoop exceptions are thrown
  * with a NULL type_info; generated landing pads use a single catch-all
@@ -240,9 +248,8 @@ uintptr_t scoop_rt_gc_debug_arena_base(void);
  * (-lc++abi). */
 
 /* Throw `obj` as a Scoop exception; does not return. M9 (DESIGN 3.4):
- * keeps the copy's references alive by pinning the original object and
- * registering the ABI buffer as a global root (conservative
- * approximation — the root is never removed). */
+ * registers the ABI buffer as an external object root; the exception
+ * destructor removes it when the ABI lifetime ends. */
 _Noreturn void scoop_rt_throw(const void *obj);
 
 /* Rethrow the exception currently being handled; does not return. */

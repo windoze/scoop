@@ -32,6 +32,9 @@ pub enum LirType {
     I1,
     I64,
     Ptr,
+    /// Opaque Itanium EH landing-pad record (`{ ptr, i32 }` in LLVM).
+    /// It is produced by exception pads and may be consumed by `Resume`.
+    ExceptionRecord,
     /// struct / tuple values: an LLVM literal struct.
     Aggregate(Vec<LirType>),
     /// An array object: pointer to `{ td, i64 size, inline elements }`
@@ -49,6 +52,7 @@ impl LirType {
             LirType::I1 => "i1".to_string(),
             LirType::I64 => "i64".to_string(),
             LirType::Ptr => "ptr".to_string(),
+            LirType::ExceptionRecord => "exception_record".to_string(),
             LirType::Aggregate(elements) => {
                 let inner: Vec<String> = elements.iter().map(LirType::dump).collect();
                 format!("{{{}}}", inner.join(", "))
@@ -319,9 +323,17 @@ pub enum Instruction {
         normal: BlockId,
         unwind: BlockId,
     },
-    /// Landing pad: extracts the caught exception object (`Ptr`).
-    /// Must be the first instruction of an unwind block.
-    LandingPad { out: TempId },
+    /// Catch-all landing pad. It captures the opaque unwind record and
+    /// raw exception pointer but does not begin the catch; `BeginCatch`
+    /// is explicit in the ordinary dispatch block.
+    LandingPad { record: TempId, raw: TempId },
+    /// Cleanup-only landing pad (no catch clause). It captures the same
+    /// record/raw pair for cleanup chaining or `Terminator::Resume`.
+    CleanupPad { record: TempId, raw: TempId },
+    /// Begin handling the raw exception and return its Scoop object.
+    BeginCatch { out: TempId, raw: Value },
+    /// End the innermost active catch (`__cxa_end_catch()`).
+    EndCatch,
     /// Throw an exception object (does not return). Terminator-like:
     /// must be the last instruction of its block, which ends
     /// `Unreachable` (the same shape as the M3 trap path).
@@ -404,6 +416,10 @@ pub enum Terminator {
     /// `value` is absent exactly for void (Unit-returning) functions.
     Return {
         value: Option<Value>,
+    },
+    /// Continue unwinding with the record produced by `CleanupPad`.
+    Resume {
+        exception: Value,
     },
     /// After a noreturn call (e.g. the trap function).
     Unreachable,
@@ -490,6 +506,9 @@ pub fn dump(module: &Module) -> String {
                     Some(value) => out.push_str(&format!("    ret {}\n", value_name(*value))),
                     None => out.push_str("    ret\n"),
                 },
+                Terminator::Resume { exception } => {
+                    out.push_str(&format!("    resume {}\n", value_name(*exception)))
+                }
                 Terminator::Unreachable => out.push_str("    unreachable\n"),
             }
         }
@@ -669,11 +688,27 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
                 block_name(function, *unwind)
             ));
         }
-        Instruction::LandingPad { out } => buf.push_str(&format!(
-            "    t{} = landingpad : {}\n",
+        Instruction::LandingPad { record, raw } => buf.push_str(&format!(
+            "    (t{}, t{}) = landingpad : ({}, {})\n",
+            record.into_raw(),
+            raw.into_raw(),
+            function.temps[*record].ty.dump(),
+            function.temps[*raw].ty.dump()
+        )),
+        Instruction::CleanupPad { record, raw } => buf.push_str(&format!(
+            "    (t{}, t{}) = cleanup_pad : ({}, {})\n",
+            record.into_raw(),
+            raw.into_raw(),
+            function.temps[*record].ty.dump(),
+            function.temps[*raw].ty.dump()
+        )),
+        Instruction::BeginCatch { out, raw } => buf.push_str(&format!(
+            "    t{} = begin_catch {} : {}\n",
             out.into_raw(),
+            value_name(*raw),
             function.temps[*out].ty.dump()
         )),
+        Instruction::EndCatch => buf.push_str("    end_catch\n"),
         Instruction::Throw { exception } => {
             buf.push_str(&format!("    throw {}\n", value_name(*exception)))
         }

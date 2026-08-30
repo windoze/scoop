@@ -134,7 +134,8 @@ TLAB 的有无、尺寸与 slow path 细节随 GC 方案确定；契约只要求
 
 ## 5. 异常
 
-- 抛出入口 `scoop_rt_throw(obj)`（M8 起）：从对象头的 TypeDescriptor 读 `size`，调 `__cxa_allocate_exception(size)` 分配 ABI 异常缓冲并把对象内容拷贝进去，再对该缓冲调 `__cxa_throw(buffer, NULL, NULL)`（throw-by-value：catch 侧取得的是缓冲指针，拷贝即异常对象本尊）。`__cxa_throw` 会把异常头写到抛出指针紧前方，因此用户对象绝不可原地抛出。栈展开机制为 landing pad + personality function（`scoop_eh_personality`，M8 最小实现委托 `__gxx_personality_v0`）。
+- 抛出入口 `scoop_rt_throw(obj)`（M8 起）：从对象头的 TypeDescriptor 读 `size`，调 `__cxa_allocate_exception(size)` 分配 ABI 异常缓冲并把对象内容拷贝进去，再对该缓冲调 `__cxa_throw(buffer, NULL, destructor)`（throw-by-value：catch 侧取得的是缓冲指针，拷贝即异常对象本尊）。`__cxa_throw` 会把异常头写到抛出指针紧前方，因此用户对象绝不可原地抛出。ABI 缓冲作为外部对象根登记；其 destructor 在异常生命周期结束时移除该根，原对象无需 pin。
+- 栈展开机制为 landing pad + personality function（`scoop_eh_personality`，M8 最小实现委托 `__gxx_personality_v0`）。landing pad 先捕获 ABI record/raw pointer，再由普通 dispatch 块调 `__cxa_begin_catch` 取得异常对象；每条正常离开 handler 的路径必须调一次 `__cxa_end_catch`。handler 内的新异常及 `__cxa_rethrow` 先进入 cleanup chain：保存替代异常、结束当前 catch，再转交同函数外层 handler/cleanup；没有同函数外层时以 `resume` 继续传播，保证 begin/end 严格配对且重抛保持异常身份。
 - 内置异常的抛出点：除零（`ArithmeticException`）、`as` 失败（`ClassCastException`）、`!!` 失败（`UnwrapException`）、数组越界等（spec 10.5、11.7）。
 - **边界规则**：异常不得穿越 C ABI frame（行为未定义）；能否穿越 Scoop ABI FFI frame 取决于实现（FFI 函数无 landing pad，穿越意味着跳过外部语言代码——初版建议禁止，行为定为终止进程）。
 

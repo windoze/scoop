@@ -86,15 +86,19 @@
 //! field. Use-site construction already became a plain ctor call in
 //! MIR.
 //!
-//! M8: exceptions (docs/milestone8/DESIGN.md section 3.4). A//! structured `mir::StatementKind::Try` becomes basic blocks: inside
+//! M8: exceptions (docs/milestone8/DESIGN.md section 3.4). A
+//! structured `mir::StatementKind::Try` becomes basic blocks: inside
 //! the body every user call / dispatch that may throw is emitted as
 //! `Invoke` / `InvokeIndirect` to the innermost try's unwind block
 //! (a per-function stack tracks the pads, so nested trys unwind to
 //! their own pad and catch / finally code unwinds to the enclosing
-//! one). The unwind block starts with `LandingPad` (the exception
-//! object, `Ptr`); catch matching is the `scoop_rt_is_instance`
-//! decision chain, and an exception no catch matches goes to
-//! `scoop_rt_rethrow` + `unreachable`. `finally` is inlined on every
+//! one). The unwind block starts with `LandingPad`, spills its ABI
+//! record/raw pointer, then an ordinary dispatch block performs
+//! `BeginCatch` and the `scoop_rt_is_instance` decision chain.
+//! Handler/exit pads balance the active catch and forward the same
+//! record into an enclosing dispatch/cleanup continuation (or resume
+//! out of the function). An exception no catch matches invokes
+//! `scoop_rt_rethrow` through that chain. `finally` is inlined on every
 //! path — normal completion, after each catch body, before the
 //! rethrow, and before a `return` out of the body or a catch (the
 //! copies are duplicated per exit site: a shared block cannot carry
@@ -988,7 +992,8 @@ fn lower_function<'a>(
         trap_blocks: HashMap::new(),
         current_sealed: false,
         try_stack: Vec::new(),
-        return_finally: Vec::new(),
+        exception_slots: None,
+        return_cleanups: Vec::new(),
     };
     lowerer.lower_statements(&function.body.statements);
     if !lowerer.current_sealed {
@@ -1053,6 +1058,35 @@ fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
     }
 }
 
+#[derive(Clone)]
+enum ReturnCleanup<'a> {
+    /// Run a finally body. `owner_unwind` is removed from the active
+    /// try stack while the copy is lowered, so it cannot catch an
+    /// exception thrown by its own finally.
+    Finally {
+        owner_unwind: lir::BlockId,
+        body: &'a [mir::Statement],
+    },
+    /// Balance the catch started by a `LandingPad`. Removing its
+    /// cleanup pad from `try_stack` ensures later outer finally bodies
+    /// cannot end the same catch twice if they throw.
+    EndCatch { cleanup_pad: lir::BlockId },
+}
+
+/// An LLVM unwind destination plus the ordinary block that consumes
+/// the exception record captured there. Cleanup chains branch to the
+/// continuation directly after saving a replacement exception in the
+/// shared EH locals; fresh invokes target `pad`.
+#[derive(Clone, Copy)]
+struct UnwindTarget {
+    pad: lir::BlockId,
+    continuation: lir::BlockId,
+    /// Whether the continuation chain eventually reaches a catch
+    /// dispatch in this function. Such pads need a catch-all clause;
+    /// chains ending in `resume` use cleanup-only pads.
+    handles_in_function: bool,
+}
+
 /// Per-function lowering state: locals, temps, and the basic blocks
 /// built so far. Invariant: the `current` block is always unsealed
 /// (its terminator is a placeholder); a block is sealed exactly when
@@ -1095,13 +1129,15 @@ struct FunctionLowerer<'a> {
     /// a call that may throw inside a try body is invoked to the
     /// innermost landing pad. Empty outside try bodies — calls stay
     /// plain there.
-    try_stack: Vec<lir::BlockId>,
-    /// The `finally` bodies of the enclosing trys, innermost last
-    /// (M8): a `return` runs a copy of each before returning (see
-    /// `emit_finally_copies`). The unwind block of the owning try is
-    /// kept alongside so the copy unwinds to the try *enclosing* its
-    /// owner, never to the owner's own pad.
-    return_finally: Vec<(lir::BlockId, &'a [mir::Statement])>,
+    try_stack: Vec<UnwindTarget>,
+    /// Function-local spill slots shared by all landing pads. They
+    /// avoid phi nodes when an inner catch cleanup forwards the same
+    /// exception to an enclosing try's dispatch block.
+    exception_slots: Option<(lir::LocalId, lir::LocalId)>,
+    /// Structured cleanups for `return`, innermost last (M8): finally
+    /// copies and active catches are interleaved in lexical order, so
+    /// nested handlers execute `end_catch; finally` from inside out.
+    return_cleanups: Vec<ReturnCleanup<'a>>,
 }
 
 impl<'a> FunctionLowerer<'a> {
@@ -1141,6 +1177,17 @@ impl<'a> FunctionLowerer<'a> {
             name: format!("$sc.{}", self.hidden_count),
             ty,
         })
+    }
+
+    fn exception_slots(&mut self) -> (lir::LocalId, lir::LocalId) {
+        if let Some(slots) = self.exception_slots {
+            return slots;
+        }
+        let record = self.new_hidden_local(lir::LirType::ExceptionRecord);
+        let raw = self.new_hidden_local(lir::LirType::Ptr);
+        let slots = (record, raw);
+        self.exception_slots = Some(slots);
+        slots
     }
 
     /// The value of a MIR local: a stack slot load, or the SSA
@@ -1389,14 +1436,13 @@ impl<'a> FunctionLowerer<'a> {
                     // hir-lower: non-Unit functions return a value.
                     (false, None) => unreachable!("non-Unit `return` without a value"),
                 };
-                if !self.return_finally.is_empty() {
-                    // `return` inside a try with `finally` (M8, DESIGN
-                    // 3.4): the value is already evaluated above; now
-                    // every enclosing finally runs (innermost first)
-                    // before the function returns. A `Local` value is
-                    // stashed first — a finally may assign to that
-                    // local, but the returned value must be the one
-                    // evaluated here.
+                if !self.return_cleanups.is_empty() {
+                    // `return` inside a try/finally or an active catch
+                    // (M8, DESIGN 3.4): the value is already evaluated
+                    // above; now every cleanup runs innermost first.
+                    // A `Local` value is stashed first — a finally may
+                    // assign to that local, but the returned value must
+                    // be the one evaluated here.
                     if let Some(lir::Value::Local(_)) = value {
                         let return_ty = self.mir_return_ty.clone();
                         let ty = self.value_type(&return_ty);
@@ -1407,7 +1453,7 @@ impl<'a> FunctionLowerer<'a> {
                         });
                         value = Some(lir::Value::Local(stash));
                     }
-                    self.emit_finally_copies();
+                    self.emit_return_cleanups();
                     // A `return` inside a finally copy wins: the block
                     // is sealed and this return is dropped.
                     if self.current_sealed {
@@ -1478,7 +1524,8 @@ impl<'a> FunctionLowerer<'a> {
                 let ty = self.expr_ty(expr);
                 let value = self.lower_expr(expr, &ty);
                 match self.try_stack.last() {
-                    Some(&unwind) => {
+                    Some(target) => {
+                        let unwind = target.pad;
                         let normal = self.new_block("throw.normal");
                         self.push(lir::Instruction::Invoke {
                             out: None,
@@ -1508,32 +1555,59 @@ impl<'a> FunctionLowerer<'a> {
     /// lowered its unwind block tops `try_stack`, so every potentially
     /// throwing operation in the body becomes an `Invoke` /
     /// `InvokeIndirect` to it (see `finish_call`); nested trys push
-    /// their own pad. The pad extracts the exception object
-    /// (`LandingPad`), the catches match in declaration order with the
-    /// `scoop_rt_is_instance` chain (the same decision-sequence shape
-    /// as `when`), and an exception no catch matches is rethrown.
+    /// their own pad. The pad captures the ABI record/raw pointer;
+    /// dispatch begins the catch and matches clauses in declaration
+    /// order with the `scoop_rt_is_instance` chain (the same shape as
+    /// `when`). An exception no catch matches is rethrown.
     ///
     /// `finally` runs on every path, inlined per exit site: once
     /// after normal completion of the body, once after each catch
     /// body, and once before the rethrow; a `return` out of the body
     /// or a catch is covered by the `Return` arm through
-    /// `return_finally`. Catch bodies, finally copies, and the
-    /// rethrow unwind to the *enclosing* try (this pad is popped
-    /// first) — an exception thrown from them is not caught by this
-    /// try's own catches.
+    /// `return_cleanups`. Catch bodies and their finally copies unwind
+    /// through handler/exit pads that end the active catch; a catch
+    /// body exit also runs finally before forwarding, while a throw
+    /// from finally and a rethrow use an exit chain that cannot re-run it.
     fn lower_try(&mut self, try_: &'a mir::Try) {
+        let enclosing = self.try_stack.last().copied();
+        let (record_slot, raw_slot) = self.exception_slots();
         let unwind = self.new_block("try.unwind");
+        let dispatch = self.new_block("try.dispatch");
+        let handler_target = if try_.catches.is_empty() {
+            None
+        } else {
+            let pad = self.new_block("try.handler_pad");
+            let continuation = self.new_block("try.handler_cleanup");
+            Some(UnwindTarget {
+                pad,
+                continuation,
+                handles_in_function: enclosing.is_some_and(|target| target.handles_in_function),
+            })
+        };
+        let exit_target = UnwindTarget {
+            pad: self.new_block("try.exit_pad"),
+            continuation: self.new_block("try.exit_cleanup"),
+            handles_in_function: enclosing.is_some_and(|target| target.handles_in_function),
+        };
         let end = self.new_block("try.end");
+        let own_target = UnwindTarget {
+            pad: unwind,
+            continuation: dispatch,
+            handles_in_function: true,
+        };
 
-        self.try_stack.push(unwind);
+        self.try_stack.push(own_target);
         if let Some(finally) = &try_.finally_body {
-            self.return_finally.push((unwind, finally));
+            self.return_cleanups.push(ReturnCleanup::Finally {
+                owner_unwind: unwind,
+                body: finally,
+            });
         }
         self.lower_statements(&try_.body);
         self.try_stack.pop();
         let finally = try_.finally_body.as_deref();
         if finally.is_some() {
-            self.return_finally.pop();
+            self.return_cleanups.pop();
         }
 
         let mut end_reachable = false;
@@ -1549,12 +1623,32 @@ impl<'a> FunctionLowerer<'a> {
             }
         }
 
-        // Exception path: the landing pad yields the exception object.
+        // Exception path: capture into function-local EH slots, then
+        // begin the catch in an ordinary block. Inner cleanup chains
+        // can branch to the same dispatch after replacing those slots.
         self.enter(unwind);
+        let record = self.new_temp(lir::LirType::ExceptionRecord);
+        let raw = self.new_temp(lir::LirType::Ptr);
+        self.push(lir::Instruction::LandingPad { record, raw });
+        self.push(lir::Instruction::Store {
+            local: record_slot,
+            value: lir::Value::Temp(record),
+        });
+        self.push(lir::Instruction::Store {
+            local: raw_slot,
+            value: lir::Value::Temp(raw),
+        });
+        self.seal(lir::Terminator::Br(dispatch));
+
+        self.enter(dispatch);
         let exception = self.new_temp(lir::LirType::Ptr);
-        self.push(lir::Instruction::LandingPad { out: exception });
+        self.push(lir::Instruction::BeginCatch {
+            out: exception,
+            raw: lir::Value::Local(raw_slot),
+        });
         let exception = lir::Value::Temp(exception);
         for catch in &try_.catches {
+            let handler_target = handler_target.expect("a catch has a handler cleanup");
             let catch_block = self.new_block("try.catch");
             let next = self.new_block("try.next");
             let cond = self.new_temp(lir::LirType::I1);
@@ -1574,15 +1668,26 @@ impl<'a> FunctionLowerer<'a> {
                 local: self.local_slot(catch.local),
                 value: exception,
             });
-            // A `return` inside a catch runs the finally too.
+            // Calls/throws in the catch body unwind through a cleanup
+            // that ends this catch, runs finally, then resumes.
+            self.try_stack.push(handler_target);
+            let cleanup_base = self.return_cleanups.len();
+            // Return cleanup order is LIFO: end the catch first, then
+            // run its finally with only the enclosing try active.
             if let Some(finally) = finally {
-                self.return_finally.push((unwind, finally));
+                self.return_cleanups.push(ReturnCleanup::Finally {
+                    owner_unwind: unwind,
+                    body: finally,
+                });
             }
+            self.return_cleanups.push(ReturnCleanup::EndCatch {
+                cleanup_pad: handler_target.pad,
+            });
             self.lower_statements(&catch.body);
-            if finally.is_some() {
-                self.return_finally.pop();
-            }
+            self.return_cleanups.truncate(cleanup_base);
+            self.try_stack.pop();
             if !self.current_sealed {
+                self.push(lir::Instruction::EndCatch);
                 if let Some(finally) = finally {
                     self.lower_statements(finally);
                 }
@@ -1594,17 +1699,112 @@ impl<'a> FunctionLowerer<'a> {
             self.enter(next);
         }
         // No catch matched: finally, then rethrow the active
-        // exception (noreturn).
+        // exception. A return or a new exception from the finally must
+        // still end the catch begun by LandingPad.
+        self.try_stack.push(exit_target);
+        let cleanup_base = self.return_cleanups.len();
+        self.return_cleanups.push(ReturnCleanup::EndCatch {
+            cleanup_pad: exit_target.pad,
+        });
         if let Some(finally) = finally {
             self.lower_statements(finally);
         }
+        self.return_cleanups.truncate(cleanup_base);
         if !self.current_sealed {
-            self.push(lir::Instruction::Call {
+            let normal = self.new_block("rethrow.normal");
+            self.push(lir::Instruction::Invoke {
                 out: None,
                 symbol: RETHROW_SYMBOL.to_string(),
                 args: Vec::new(),
+                normal,
+                unwind: exit_target.pad,
             });
+            self.seal(lir::Terminator::Br(normal));
+            self.enter(normal);
             self.seal(lir::Terminator::Unreachable);
+            self.current_sealed = true;
+        }
+        self.try_stack.pop();
+
+        // A catch-body exception first lands in a pad that captures the
+        // replacement record, then its ordinary continuation ends the
+        // old catch and runs finally. The captured exception is passed
+        // to the enclosing continuation without changing identity.
+        if let Some(handler_target) = handler_target {
+            self.enter(handler_target.pad);
+            let handler_record = self.new_temp(lir::LirType::ExceptionRecord);
+            let handler_raw = self.new_temp(lir::LirType::Ptr);
+            if handler_target.handles_in_function {
+                self.push(lir::Instruction::LandingPad {
+                    record: handler_record,
+                    raw: handler_raw,
+                });
+            } else {
+                self.push(lir::Instruction::CleanupPad {
+                    record: handler_record,
+                    raw: handler_raw,
+                });
+            }
+            self.push(lir::Instruction::Store {
+                local: record_slot,
+                value: lir::Value::Temp(handler_record),
+            });
+            self.push(lir::Instruction::Store {
+                local: raw_slot,
+                value: lir::Value::Temp(handler_raw),
+            });
+            self.seal(lir::Terminator::Br(handler_target.continuation));
+
+            self.enter(handler_target.continuation);
+            self.push(lir::Instruction::EndCatch);
+            if let Some(finally) = finally {
+                self.lower_statements(finally);
+            }
+            if !self.current_sealed {
+                match enclosing {
+                    Some(target) => self.seal(lir::Terminator::Br(target.continuation)),
+                    None => self.seal(lir::Terminator::Resume {
+                        exception: lir::Value::Local(record_slot),
+                    }),
+                }
+            }
+        }
+
+        // No-match rethrow and exceptions from a no-match finally have
+        // already run (or are replacing) that finally: capture the
+        // record, end the active catch, then continue the enclosing
+        // cleanup/dispatch chain.
+        self.enter(exit_target.pad);
+        let exit_record = self.new_temp(lir::LirType::ExceptionRecord);
+        let exit_raw = self.new_temp(lir::LirType::Ptr);
+        if exit_target.handles_in_function {
+            self.push(lir::Instruction::LandingPad {
+                record: exit_record,
+                raw: exit_raw,
+            });
+        } else {
+            self.push(lir::Instruction::CleanupPad {
+                record: exit_record,
+                raw: exit_raw,
+            });
+        }
+        self.push(lir::Instruction::Store {
+            local: record_slot,
+            value: lir::Value::Temp(exit_record),
+        });
+        self.push(lir::Instruction::Store {
+            local: raw_slot,
+            value: lir::Value::Temp(exit_raw),
+        });
+        self.seal(lir::Terminator::Br(exit_target.continuation));
+
+        self.enter(exit_target.continuation);
+        self.push(lir::Instruction::EndCatch);
+        match enclosing {
+            Some(target) => self.seal(lir::Terminator::Br(target.continuation)),
+            None => self.seal(lir::Terminator::Resume {
+                exception: lir::Value::Local(record_slot),
+            }),
         }
 
         self.enter(end);
@@ -1618,32 +1818,45 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// Inline a copy of every pending `finally` body into the current
-    /// block, innermost first (the `return` path; the copies are
-    /// duplicated per exit site because a shared block cannot carry
-    /// the per-site return value without a phi). While a copy is
-    /// lowered the stack holds only the *enclosing* bodies, so a
-    /// `return` inside a copy re-runs exactly those — which also
-    /// keeps lowering itself from recursing. The copy unwinds to the
-    /// try enclosing its owner (an exception thrown from a finally is
-    /// not caught by the owner's own catches), so the owner's pad —
-    /// and everything above it — is dropped from `try_stack` while
-    /// the copy is lowered.
-    fn emit_finally_copies(&mut self) {
-        let all = std::mem::take(&mut self.return_finally);
+    /// Emit every pending return cleanup, innermost first. Finally
+    /// bodies are duplicated per exit site because a shared block
+    /// cannot carry the per-site return value without a phi. While a
+    /// cleanup is lowered the stack contains only the remaining outer
+    /// actions, so a `return` inside a finally does not recurse into
+    /// that same copy. EndCatch actions also remove their cleanup pad
+    /// from `try_stack`, preserving the lexical nesting of handlers.
+    fn emit_return_cleanups(&mut self) {
+        let all = std::mem::take(&mut self.return_cleanups);
         let saved_try_stack = self.try_stack.clone();
         let mut remaining = all.clone();
-        while let Some((pad, body)) = remaining.pop() {
+        while let Some(cleanup) = remaining.pop() {
             if self.current_sealed {
                 break;
             }
-            self.return_finally = remaining.clone();
-            if let Some(pos) = self.try_stack.iter().rposition(|p| *p == pad) {
-                self.try_stack.truncate(pos);
+            self.return_cleanups = remaining.clone();
+            match cleanup {
+                ReturnCleanup::Finally { owner_unwind, body } => {
+                    if let Some(pos) = self
+                        .try_stack
+                        .iter()
+                        .rposition(|target| target.pad == owner_unwind)
+                    {
+                        self.try_stack.truncate(pos);
+                    }
+                    self.lower_statements(body);
+                }
+                ReturnCleanup::EndCatch { cleanup_pad } => {
+                    self.push(lir::Instruction::EndCatch);
+                    let active = self.try_stack.pop();
+                    assert_eq!(
+                        active.map(|target| target.pad),
+                        Some(cleanup_pad),
+                        "active catch cleanup nesting"
+                    );
+                }
             }
-            self.lower_statements(body);
         }
-        self.return_finally = all;
+        self.return_cleanups = all;
         self.try_stack = saved_try_stack;
     }
 
@@ -2210,7 +2423,8 @@ impl<'a> FunctionLowerer<'a> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        if let Some(&unwind) = self.try_stack.last() {
+        if let Some(target) = self.try_stack.last() {
+            let unwind = target.pad;
             let normal = self.new_block("invoke.normal");
             let out = if returns_unit {
                 None
@@ -2262,7 +2476,8 @@ impl<'a> FunctionLowerer<'a> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        if let Some(&unwind) = self.try_stack.last() {
+        if let Some(target) = self.try_stack.last() {
+            let unwind = target.pad;
             let normal = self.new_block("invoke.normal");
             let out = if returns_unit {
                 None
@@ -4668,25 +4883,53 @@ Module
     ret
   fun @scoop_main() -> void
     local %0 e: ptr
+    local %1 $sc.1: exception_record
+    local %2 $sc.2: ptr
   block entry
-    invoke @scoop.helper() normal @invoke.normal.3 unwind @try.unwind.1
-    br @invoke.normal.3
+    invoke @scoop.helper() normal @invoke.normal.8 unwind @try.unwind.1
+    br @invoke.normal.8
   block try.unwind.1
-    t1 = landingpad : ptr
-    t2 = call @scoop_rt_is_instance(t1, global0) : i1
-    cbr t2 then @try.catch.4 else @try.next.5
-  block try.end.2
+    (t1, t2) = landingpad : (exception_record, ptr)
+    store t1 -> local1
+    store t2 -> local2
+    br @try.dispatch.2
+  block try.dispatch.2
+    t3 = begin_catch local2 : ptr
+    t4 = call @scoop_rt_is_instance(t3, global0) : i1
+    cbr t4 then @try.catch.9 else @try.next.10
+  block try.handler_pad.3
+    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    store t6 -> local1
+    store t7 -> local2
+    br @try.handler_cleanup.4
+  block try.handler_cleanup.4
+    end_catch
+    resume local1
+  block try.exit_pad.5
+    (t8, t9) = cleanup_pad : (exception_record, ptr)
+    store t8 -> local1
+    store t9 -> local2
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local1
+  block try.end.7
     ret
-  block invoke.normal.3
+  block invoke.normal.8
     t0 = aggregate () : {}
-    br @try.end.2
-  block try.catch.4
-    store t1 -> local0
-    call @scoop.handled()
-    t3 = aggregate () : {}
-    br @try.end.2
-  block try.next.5
-    call @scoop_rt_rethrow()
+    br @try.end.7
+  block try.catch.9
+    store t3 -> local0
+    invoke @scoop.handled() normal @invoke.normal.11 unwind @try.handler_pad.3
+    br @invoke.normal.11
+  block try.next.10
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.12 unwind @try.exit_pad.5
+    br @rethrow.normal.12
+  block invoke.normal.11
+    t5 = aggregate () : {}
+    end_catch
+    br @try.end.7
+  block rethrow.normal.12
     unreachable
   td MyError @scoop_td_MyError size=16 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
@@ -4720,18 +4963,27 @@ Module
         let module = lower(&b.finish(main));
         let dump = lir::dump(&module);
 
-        // The finally body is inlined on all three paths: normal
-        // completion, after the catch body, and before the rethrow.
-        assert_eq!(dump.matches("call @scoop.cleanup()").count(), 3);
-        // The third copy is on the rethrow path, before the rethrow.
+        // The finally body is inlined on normal completion, after the
+        // catch body, on a catch-body exceptional exit, and before the
+        // no-match rethrow.
+        assert_eq!(
+            dump.matches("call @scoop.cleanup()").count()
+                + dump.matches("invoke @scoop.cleanup()").count(),
+            4
+        );
+        // The last copy is on the rethrow path, before the rethrow.
         let rethrow = dump
-            .find("call @scoop_rt_rethrow()")
+            .find("invoke @scoop_rt_rethrow()")
             .expect("a rethrow path");
         let last_cleanup = dump
-            .rfind("call @scoop.cleanup()")
+            .rfind("@scoop.cleanup()")
             .expect("the rethrow path runs the finally");
         assert!(last_cleanup < rethrow);
         assert!(dump.contains("landingpad"));
+        // A caught normal exit ends directly; catch-body exceptions
+        // and no-match/rethrow exits have distinct cleanup pads.
+        // Exactly one executes on each path.
+        assert_eq!(dump.matches("end_catch").count(), 3);
     }
 
     #[test]
@@ -4769,17 +5021,36 @@ Module
   block entry
     ret
   fun @scoop.f() -> i64
+    local %0 $sc.1: exception_record
+    local %1 $sc.2: ptr
   block entry
     call @scoop.cleanup()
     t0 = aggregate () : {}
     ret 1
   block try.unwind.1
-    t1 = landingpad : ptr
-    call @scoop.cleanup()
-    t2 = aggregate () : {}
-    call @scoop_rt_rethrow()
+    (t1, t2) = landingpad : (exception_record, ptr)
+    store t1 -> local0
+    store t2 -> local1
+    br @try.dispatch.2
+  block try.dispatch.2
+    t3 = begin_catch local1 : ptr
+    invoke @scoop.cleanup() normal @invoke.normal.6 unwind @try.exit_pad.3
+    br @invoke.normal.6
+  block try.exit_pad.3
+    (t5, t6) = cleanup_pad : (exception_record, ptr)
+    store t5 -> local0
+    store t6 -> local1
+    br @try.exit_cleanup.4
+  block try.exit_cleanup.4
+    end_catch
+    resume local0
+  block try.end.5
     unreachable
-  block try.end.2
+  block invoke.normal.6
+    t4 = aggregate () : {}
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.7 unwind @try.exit_pad.3
+    br @rethrow.normal.7
+  block rethrow.normal.7
     unreachable
   fun @scoop_main() -> void
   block entry
@@ -4910,7 +5181,7 @@ Module
     fn nested_trys_unwind_to_their_own_pads() {
         // try { try { a() } catch (e1: E1) { b() } } catch (e2: E2) { c() }
         // — `a` unwinds to the inner pad; `b` (in the inner catch)
-        // unwinds to the outer pad.
+        // unwinds through the inner cleanup before the outer pad.
         let mut b = Builder::new();
         let e1 = b.class("E1", None, &[], vec![], vec![]);
         let e2 = b.class("E2", None, &[], vec![], vec![]);
@@ -4949,31 +5220,42 @@ Module
             .iter()
             .find(|f| f.symbol == mir::ENTRY_SYMBOL)
             .expect("the entry function");
-        // Two landing pads, one per try.
+        // Two primary catch pads, one per try. Inner handler cleanup
+        // pads also carry catch-all clauses so they can forward to the
+        // outer dispatch; identify primaries by their block role.
         let pads: Vec<&str> = function
+            .blocks
+            .iter()
+            .filter(|(_, block)| block.name.contains("try.unwind"))
+            .map(|(_, block)| block.name.as_str())
+            .collect();
+        assert_eq!(pads.len(), 2);
+        let cleanup_pad_count = function
             .blocks
             .iter()
             .filter(|(_, block)| {
                 matches!(
                     block.instructions.first(),
-                    Some(lir::Instruction::LandingPad { .. })
+                    Some(lir::Instruction::CleanupPad { .. })
                 )
             })
+            .count();
+        assert_eq!(cleanup_pad_count, 2);
+        let handler_pads: Vec<&str> = function
+            .blocks
+            .iter()
+            .filter(|(_, block)| block.name.contains("handler_pad"))
             .map(|(_, block)| block.name.as_str())
             .collect();
-        assert_eq!(pads.len(), 2);
-        // `a` unwinds to the inner pad (created second), `b` to the
-        // outer one, `c` is outside both trys and stays a plain call.
+        assert_eq!(handler_pads.len(), 2);
+        // `a` unwinds to the inner catch pad. `b` runs inside that
+        // handler and therefore unwinds through the inner cleanup;
+        // `c` does the same through the outer cleanup.
         let mut invokes = Vec::new();
-        let mut plain_calls = Vec::new();
         for (_, block) in function.blocks.iter() {
             for instruction in &block.instructions {
-                match instruction {
-                    lir::Instruction::Invoke { symbol, unwind, .. } => {
-                        invokes.push((symbol.as_str(), function.blocks[*unwind].name.as_str()))
-                    }
-                    lir::Instruction::Call { symbol, .. } => plain_calls.push(symbol.as_str()),
-                    _ => {}
+                if let lir::Instruction::Invoke { symbol, unwind, .. } = instruction {
+                    invokes.push((symbol.as_str(), function.blocks[*unwind].name.as_str()));
                 }
             }
         }
@@ -4985,7 +5267,7 @@ Module
                 .unwrap_or_else(|| panic!("{symbol} must be invoked"))
         };
         assert_eq!(unwind_of("scoop.a"), pads[1]);
-        assert_eq!(unwind_of("scoop.b"), pads[0]);
-        assert!(plain_calls.contains(&"scoop.c"));
+        assert_eq!(unwind_of("scoop.b"), handler_pads[1]);
+        assert_eq!(unwind_of("scoop.c"), handler_pads[0]);
     }
 }

@@ -394,156 +394,262 @@ Module
     local %12 $cast.5: ptr
     local %13 $div.6: i64
     local %14 $div.7: i64
-    local %15 $sc.1: i1
+    local %15 $sc.1: exception_record
+    local %16 $sc.2: ptr
+    local %17 $sc.3: i1
   block entry
     t0 = array_alloc (1, 2) : [i64]
     store t0 -> local0
     store local0 -> local8
     store 9 -> local9
     t1 = Lt local9, 0 : i1
-    store t1 -> local15
-    cbr t1 then @sc.merge.4 else @sc.rhs.3
+    store t1 -> local17
+    cbr t1 then @sc.merge.9 else @sc.rhs.8
   block try.unwind.1
-    t8 = landingpad : ptr
-    t9 = call @scoop_rt_is_instance(t8, global10) : i1
-    cbr t9 then @try.catch.10 else @try.next.11
-  block try.end.2
-    t11 = enum_wrap e1 v1 () : enum1
-    store t11 -> local2
+    (t8, t9) = landingpad : (exception_record, ptr)
+    store t8 -> local15
+    store t9 -> local16
+    br @try.dispatch.2
+  block try.dispatch.2
+    t10 = begin_catch local16 : ptr
+    t11 = call @scoop_rt_is_instance(t10, global10) : i1
+    cbr t11 then @try.catch.15 else @try.next.16
+  block try.handler_pad.3
+    (t13, t14) = cleanup_pad : (exception_record, ptr)
+    store t13 -> local15
+    store t14 -> local16
+    br @try.handler_cleanup.4
+  block try.handler_cleanup.4
+    end_catch
+    resume local15
+  block try.exit_pad.5
+    (t15, t16) = cleanup_pad : (exception_record, ptr)
+    store t15 -> local15
+    store t16 -> local16
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local15
+  block try.end.7
+    t17 = enum_wrap e1 v1 () : enum1
+    store t17 -> local2
     store local2 -> local10
-    t12 = enum_tag e1 local10 : i64
-    t13 = Eq t12, 0 : i1
-    cbr t13 then @if.then.14 else @if.else.15
-  block sc.rhs.3
+    t18 = enum_tag e1 local10 : i64
+    t19 = Eq t18, 0 : i1
+    cbr t19 then @if.then.26 else @if.else.27
+  block sc.rhs.8
     t2 = array_len local8 : i64
     t3 = Ge local9, t2 : i1
-    store t3 -> local15
-    br @sc.merge.4
-  block sc.merge.4
-    cbr local15 then @if.then.5 else @if.merge.6
-  block if.then.5
-    invoke @scoop.ctor.IndexOutOfBoundsException() normal @invoke.normal.7 unwind @try.unwind.1
-    br @invoke.normal.7
-  block if.merge.6
+    store t3 -> local17
+    br @sc.merge.9
+  block sc.merge.9
+    cbr local17 then @if.then.10 else @if.merge.11
+  block if.then.10
+    invoke @scoop.ctor.IndexOutOfBoundsException() normal @invoke.normal.12 unwind @try.unwind.1
+    br @invoke.normal.12
+  block if.merge.11
     t5 = array_get local8 local9 : i64
     t6 = call @scoop_rt_box(global9, t5, 8) : ptr
-    invoke @scoop.println(t6) normal @invoke.normal.9 unwind @try.unwind.1
-    br @invoke.normal.9
-  block invoke.normal.7
-    invoke @scoop_rt_throw(t4) normal @throw.normal.8 unwind @try.unwind.1
-    br @throw.normal.8
-  block throw.normal.8
+    invoke @scoop.println(t6) normal @invoke.normal.14 unwind @try.unwind.1
+    br @invoke.normal.14
+  block invoke.normal.12
+    invoke @scoop_rt_throw(t4) normal @throw.normal.13 unwind @try.unwind.1
+    br @throw.normal.13
+  block throw.normal.13
     unreachable
-  block invoke.normal.9
+  block invoke.normal.14
     t7 = aggregate () : {}
-    br @try.end.2
-  block try.catch.10
-    store t8 -> local1
-    call @scoop.println(global1)
-    t10 = aggregate () : {}
-    br @try.end.2
-  block try.next.11
-    call @scoop_rt_rethrow()
-    unreachable
-  block try.unwind.12
-    t18 = landingpad : ptr
-    t19 = call @scoop_rt_is_instance(t18, global11) : i1
-    cbr t19 then @try.catch.20 else @try.next.21
-  block try.end.13
-    t21 = call @scoop_rt_box(global9, 1, 8) : ptr
-    store t21 -> local4
-    store local4 -> local12
-    t22 = call @scoop_rt_is_instance(local12, global12) : i1
-    t23 = Not t22 : i1
-    cbr t23 then @if.then.24 else @if.merge.25
-  block if.then.14
-    t14 = enum_field e1 v0 f0 local10 : i64
-    store t14 -> local11
-    br @if.merge.16
-  block if.else.15
-    invoke @scoop.ctor.UnwrapException() normal @invoke.normal.17 unwind @try.unwind.12
+    br @try.end.7
+  block try.catch.15
+    store t10 -> local1
+    invoke @scoop.println(global1) normal @invoke.normal.17 unwind @try.handler_pad.3
     br @invoke.normal.17
-  block if.merge.16
-    t16 = call @scoop_rt_box(global9, local11, 8) : ptr
-    invoke @scoop.println(t16) normal @invoke.normal.19 unwind @try.unwind.12
-    br @invoke.normal.19
+  block try.next.16
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.18 unwind @try.exit_pad.5
+    br @rethrow.normal.18
   block invoke.normal.17
-    invoke @scoop_rt_throw(t15) normal @throw.normal.18 unwind @try.unwind.12
-    br @throw.normal.18
-  block throw.normal.18
+    t12 = aggregate () : {}
+    end_catch
+    br @try.end.7
+  block rethrow.normal.18
     unreachable
-  block invoke.normal.19
-    t17 = aggregate () : {}
-    br @try.end.13
-  block try.catch.20
-    store t18 -> local3
-    call @scoop.println(global2)
-    t20 = aggregate () : {}
-    br @try.end.13
-  block try.next.21
-    call @scoop_rt_rethrow()
+  block try.unwind.19
+    (t24, t25) = landingpad : (exception_record, ptr)
+    store t24 -> local15
+    store t25 -> local16
+    br @try.dispatch.20
+  block try.dispatch.20
+    t26 = begin_catch local16 : ptr
+    t27 = call @scoop_rt_is_instance(t26, global11) : i1
+    cbr t27 then @try.catch.32 else @try.next.33
+  block try.handler_pad.21
+    (t29, t30) = cleanup_pad : (exception_record, ptr)
+    store t29 -> local15
+    store t30 -> local16
+    br @try.handler_cleanup.22
+  block try.handler_cleanup.22
+    end_catch
+    resume local15
+  block try.exit_pad.23
+    (t31, t32) = cleanup_pad : (exception_record, ptr)
+    store t31 -> local15
+    store t32 -> local16
+    br @try.exit_cleanup.24
+  block try.exit_cleanup.24
+    end_catch
+    resume local15
+  block try.end.25
+    t33 = call @scoop_rt_box(global9, 1, 8) : ptr
+    store t33 -> local4
+    store local4 -> local12
+    t34 = call @scoop_rt_is_instance(local12, global12) : i1
+    t35 = Not t34 : i1
+    cbr t35 then @if.then.43 else @if.merge.44
+  block if.then.26
+    t20 = enum_field e1 v0 f0 local10 : i64
+    store t20 -> local11
+    br @if.merge.28
+  block if.else.27
+    invoke @scoop.ctor.UnwrapException() normal @invoke.normal.29 unwind @try.unwind.19
+    br @invoke.normal.29
+  block if.merge.28
+    t22 = call @scoop_rt_box(global9, local11, 8) : ptr
+    invoke @scoop.println(t22) normal @invoke.normal.31 unwind @try.unwind.19
+    br @invoke.normal.31
+  block invoke.normal.29
+    invoke @scoop_rt_throw(t21) normal @throw.normal.30 unwind @try.unwind.19
+    br @throw.normal.30
+  block throw.normal.30
     unreachable
-  block try.unwind.22
-    t26 = landingpad : ptr
-    t27 = call @scoop_rt_is_instance(t26, global13) : i1
-    cbr t27 then @try.catch.29 else @try.next.30
-  block try.end.23
+  block invoke.normal.31
+    t23 = aggregate () : {}
+    br @try.end.25
+  block try.catch.32
+    store t26 -> local3
+    invoke @scoop.println(global2) normal @invoke.normal.34 unwind @try.handler_pad.21
+    br @invoke.normal.34
+  block try.next.33
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.35 unwind @try.exit_pad.23
+    br @rethrow.normal.35
+  block invoke.normal.34
+    t28 = aggregate () : {}
+    end_catch
+    br @try.end.25
+  block rethrow.normal.35
+    unreachable
+  block try.unwind.36
+    (t38, t39) = landingpad : (exception_record, ptr)
+    store t38 -> local15
+    store t39 -> local16
+    br @try.dispatch.37
+  block try.dispatch.37
+    t40 = begin_catch local16 : ptr
+    t41 = call @scoop_rt_is_instance(t40, global13) : i1
+    cbr t41 then @try.catch.48 else @try.next.49
+  block try.handler_pad.38
+    (t43, t44) = cleanup_pad : (exception_record, ptr)
+    store t43 -> local15
+    store t44 -> local16
+    br @try.handler_cleanup.39
+  block try.handler_cleanup.39
+    end_catch
+    resume local15
+  block try.exit_pad.40
+    (t45, t46) = cleanup_pad : (exception_record, ptr)
+    store t45 -> local15
+    store t46 -> local16
+    br @try.exit_cleanup.41
+  block try.exit_cleanup.41
+    end_catch
+    resume local15
+  block try.end.42
     store 1 -> local13
     store 0 -> local14
-    t29 = Eq local14, 0 : i1
-    cbr t29 then @if.then.33 else @if.merge.34
-  block if.then.24
-    invoke @scoop.ctor.ClassCastException() normal @invoke.normal.26 unwind @try.unwind.22
-    br @invoke.normal.26
-  block if.merge.25
+    t47 = Eq local14, 0 : i1
+    cbr t47 then @if.then.59 else @if.merge.60
+  block if.then.43
+    invoke @scoop.ctor.ClassCastException() normal @invoke.normal.45 unwind @try.unwind.36
+    br @invoke.normal.45
+  block if.merge.44
     store local12 -> local5
-    invoke @scoop.println(local5) normal @invoke.normal.28 unwind @try.unwind.22
-    br @invoke.normal.28
-  block invoke.normal.26
-    invoke @scoop_rt_throw(t24) normal @throw.normal.27 unwind @try.unwind.22
-    br @throw.normal.27
-  block throw.normal.27
+    invoke @scoop.println(local5) normal @invoke.normal.47 unwind @try.unwind.36
+    br @invoke.normal.47
+  block invoke.normal.45
+    invoke @scoop_rt_throw(t36) normal @throw.normal.46 unwind @try.unwind.36
+    br @throw.normal.46
+  block throw.normal.46
     unreachable
-  block invoke.normal.28
-    t25 = aggregate () : {}
-    br @try.end.23
-  block try.catch.29
-    store t26 -> local6
-    call @scoop.println(global3)
-    t28 = aggregate () : {}
-    br @try.end.23
-  block try.next.30
-    call @scoop_rt_rethrow()
+  block invoke.normal.47
+    t37 = aggregate () : {}
+    br @try.end.42
+  block try.catch.48
+    store t40 -> local6
+    invoke @scoop.println(global3) normal @invoke.normal.50 unwind @try.handler_pad.38
+    br @invoke.normal.50
+  block try.next.49
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.51 unwind @try.exit_pad.40
+    br @rethrow.normal.51
+  block invoke.normal.50
+    t42 = aggregate () : {}
+    end_catch
+    br @try.end.42
+  block rethrow.normal.51
     unreachable
-  block try.unwind.31
-    t34 = landingpad : ptr
-    t35 = call @scoop_rt_is_instance(t34, global14) : i1
-    cbr t35 then @try.catch.38 else @try.next.39
-  block try.end.32
+  block try.unwind.52
+    (t52, t53) = landingpad : (exception_record, ptr)
+    store t52 -> local15
+    store t53 -> local16
+    br @try.dispatch.53
+  block try.dispatch.53
+    t54 = begin_catch local16 : ptr
+    t55 = call @scoop_rt_is_instance(t54, global14) : i1
+    cbr t55 then @try.catch.64 else @try.next.65
+  block try.handler_pad.54
+    (t57, t58) = cleanup_pad : (exception_record, ptr)
+    store t57 -> local15
+    store t58 -> local16
+    br @try.handler_cleanup.55
+  block try.handler_cleanup.55
+    end_catch
+    resume local15
+  block try.exit_pad.56
+    (t59, t60) = cleanup_pad : (exception_record, ptr)
+    store t59 -> local15
+    store t60 -> local16
+    br @try.exit_cleanup.57
+  block try.exit_cleanup.57
+    end_catch
+    resume local15
+  block try.end.58
     ret
-  block if.then.33
-    invoke @scoop.ctor.ArithmeticException() normal @invoke.normal.35 unwind @try.unwind.31
-    br @invoke.normal.35
-  block if.merge.34
-    t31 = SDiv local13, local14 : i64
-    t32 = call @scoop_rt_box(global9, t31, 8) : ptr
-    invoke @scoop.println(t32) normal @invoke.normal.37 unwind @try.unwind.31
-    br @invoke.normal.37
-  block invoke.normal.35
-    invoke @scoop_rt_throw(t30) normal @throw.normal.36 unwind @try.unwind.31
-    br @throw.normal.36
-  block throw.normal.36
+  block if.then.59
+    invoke @scoop.ctor.ArithmeticException() normal @invoke.normal.61 unwind @try.unwind.52
+    br @invoke.normal.61
+  block if.merge.60
+    t49 = SDiv local13, local14 : i64
+    t50 = call @scoop_rt_box(global9, t49, 8) : ptr
+    invoke @scoop.println(t50) normal @invoke.normal.63 unwind @try.unwind.52
+    br @invoke.normal.63
+  block invoke.normal.61
+    invoke @scoop_rt_throw(t48) normal @throw.normal.62 unwind @try.unwind.52
+    br @throw.normal.62
+  block throw.normal.62
     unreachable
-  block invoke.normal.37
-    t33 = aggregate () : {}
-    br @try.end.32
-  block try.catch.38
-    store t34 -> local7
-    call @scoop.println(global4)
-    t36 = aggregate () : {}
-    br @try.end.32
-  block try.next.39
-    call @scoop_rt_rethrow()
+  block invoke.normal.63
+    t51 = aggregate () : {}
+    br @try.end.58
+  block try.catch.64
+    store t54 -> local7
+    invoke @scoop.println(global4) normal @invoke.normal.66 unwind @try.handler_pad.54
+    br @invoke.normal.66
+  block try.next.65
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.67 unwind @try.exit_pad.56
+    br @rethrow.normal.67
+  block invoke.normal.66
+    t56 = aggregate () : {}
+    end_catch
+    br @try.end.58
+  block rethrow.normal.67
     unreachable
   fun @scoop.ctor.Throwable() -> ptr
   block entry

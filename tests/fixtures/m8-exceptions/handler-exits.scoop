@@ -1,0 +1,64 @@
+fun returnFromCatch(): Int {
+    try {
+        throw UnwrapException()
+    } catch (e: UnwrapException) {
+        return 7
+    } finally {
+        println("return-finally")
+    }
+}
+
+fun replaceInCatch() {
+    try {
+        try {
+            throw UnwrapException()
+        } catch (e: UnwrapException) {
+            throw ArithmeticException()
+        } finally {
+            println("replace-finally")
+        }
+    } catch (e: ArithmeticException) {
+        println("replacement")
+    }
+}
+
+fun noMatchRethrow() {
+    try {
+        try {
+            throw ClassCastException()
+        } catch (e: ArithmeticException) {
+            println("wrong")
+        } finally {
+            println("rethrow-finally")
+        }
+    } catch (e: ClassCastException) {
+        println("rethrown")
+    }
+}
+
+fun nestedTryInHandler() {
+    try {
+        throw UnwrapException()
+    } catch (e: UnwrapException) {
+        try {
+            throw ClassCastException()
+        } catch (e: ClassCastException) {
+            throw ArithmeticException()
+        } finally {
+            println("nested-finally")
+        }
+    } finally {
+        println("handler-finally")
+    }
+}
+
+fun main() {
+    println(returnFromCatch())
+    replaceInCatch()
+    noMatchRethrow()
+    try {
+        nestedTryInHandler()
+    } catch (e: ArithmeticException) {
+        println("nested-out")
+    }
+}

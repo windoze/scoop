@@ -164,6 +164,10 @@ const ScoopString *scoop_rt_any_tostring(const void *a) {
 
 /* M8 (milestone8 DESIGN section 4, runtime spec 5). */
 
+static void scoop_exception_destructor(void *buffer) {
+    scoop_rt_gc_remove_root_object(buffer);
+}
+
 _Noreturn void scoop_rt_throw(const void *obj) {
     /* Copy the object into an ABI exception buffer (Itanium ABI
      * usage): __cxa_throw writes the exception header immediately
@@ -173,24 +177,21 @@ _Noreturn void scoop_rt_throw(const void *obj) {
      * is the exception object (throw-by-value identity, as in C++),
      * and its copied object header keeps the TD available for catch
      * type filtering. The C++ ABI releases the buffer when handling
-     * completes; the destructor is NULL because payload references
-     * are GC-managed.
+     * completes. The destructor removes the external GC root; payload
+     * references themselves remain GC-managed.
      *
      * M9 keep-alive (DESIGN 3.4): the buffer is not GC-managed, but
      * the references inside the copy must stay alive while the
-     * exception is in flight. v1 approximation: pin the ORIGINAL
-     * object (heap-allocated per the throw contract) and register the
-     * buffer as an external global root so its outgoing references
-     * are traced. Neither is ever released (the pinned list and root
-     * list only grow) — a known conservative approximation; precise
-     * buffer release is in the backlog (DESIGN section 6). */
+     * exception is in flight. Register the copied buffer as an
+     * external object root so its outgoing references are traced. No
+     * GC allocation occurs between the copy and registration, and the
+     * original need not stay pinned after that point. */
     const ScoopObjectHeader *header = obj;
     size_t size = (size_t)header->td->size;
     void *buffer = __cxa_allocate_exception(size);
     memcpy(buffer, obj, size);
-    scoop_rt_pin(obj);
     scoop_rt_gc_add_root_object(buffer);
-    __cxa_throw(buffer, NULL, NULL);
+    __cxa_throw(buffer, NULL, scoop_exception_destructor);
 }
 
 _Noreturn void scoop_rt_rethrow(void) {

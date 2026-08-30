@@ -175,7 +175,6 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - evacuation / defragmentation（Immix 的碎片整理；arena 扩容与多段管理）；
 - 并行/并发回收与 STW 线程协调（线程注册/握手，safepoint poll 已是握手点形态）；
 - x86_64 栈扫描汇编（当前仅 aarch64，v1 为保守栈扫描；statepoint 精确栈扫描替换点已在 gc.c 预留）；
-- 异常 ABI 缓冲的精确释放（v1 为 pin 原对象 + thrown 列表登记的保守近似）；
 - tagged enum 的 per-variant 扫描表发射（SCOOP_REFS_ENUM 的 LIR meta 扩展；当前保持 M4 边界）；
 - hir-lower 的泛型 struct 字段类型形参作用域（当前字段里的 T 需要进一步支持；core GC struct 的按名识别 stopgap 可摘除）；
 - 其余定宽整数族（Int8/16/32、UInt8/16/32，spec 11.2；UInt/UInt64 已落地）。

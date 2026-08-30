@@ -97,22 +97,22 @@ class IndexOutOfBoundsException : Exception(Some("array index out of bounds"))
 ### 3.4 LIR
 
 - **invoke 化**：try 体内（含嵌套）任何可能抛出的操作（函数调用、间接调用、数组越界检查、除零检查、`as` 检查、`!!`）都以 `Invoke { symbol/normal: BlockId, unwind: BlockId }` 发射（新增 `Invoke` 与 `InvokeIndirect` 指令；间接调用同理）；
-- **landingpad**：unwind 目标块以 `LandingPad { out }` 指令取回异常对象（Ptr）；catch 匹配 = 现有 IsInstance 检查链（与 `when` 决策序列同构）；全部不匹配 → `Rethrow`（调 runtime 重抛 + Unreachable）；命中后执行 catch 体；
+- **landingpad**：unwind 目标块以 `LandingPad { record, raw }` 捕获 ABI unwind record 与原始异常指针，写入函数级 EH spill 后跳到普通 dispatch 块；dispatch 以 `BeginCatch` 取得异常对象，catch 匹配 = 现有 IsInstance 检查链（与 `when` 决策序列同构）。正常离开 handler 发射 `EndCatch`；handler 内新异常与重抛先进入 handler/exit pad，保存替代异常、执行 `EndCatch`，再跳到同函数外层 try 的 dispatch/cleanup continuation；没有同函数外层时以 `Resume` 继续传播。pad 是否带 catch-all clause 由 continuation 最终是否到达同函数 handler 决定；
 - **finally**：正常路径在 try 结尾内联执行一次；异常路径在 landingpad 末尾（catch 处理完或 Rethrow 前）执行一次（cleanup 形态）；`try` 内的 `return` 在返回前先执行 finally（复制或跳转共享——选一种并在注释说明）；finally 内再抛异常的嵌套情形 M8 不做特殊处理（沿 unwind 自然传播）；
 - **personality**：函数带 try 的函数标记 personality 符号（`scoop_eh_personality`），codegen 发射。
 
 ### 3.5 codegen
 
-- `Invoke`/`InvokeIndirect` → LLVM `invoke` + 正常/异常块；`LandingPad` → `landingpad` 指令 + `__cxa_begin_catch` 取异常对象；
+- `Invoke`/`InvokeIndirect` → LLVM `invoke` + 正常/异常块；`LandingPad` → catch-all `landingpad`，`CleanupPad` → cleanup `landingpad`，二者只捕获 record/raw；`BeginCatch` → `__cxa_begin_catch(raw)`，`EndCatch` → `__cxa_end_catch()`，`Resume` → LLVM `resume`；
 - personality = C 实现的 `scoop_eh_personality`；
 - `scoop_rt_throw` / `scoop_rt_rethrow` → `__cxa_throw`（空 type_info）/ `__cxa_rethrow`；
 - 链接加 `c++abi`（macOS/Linux 的 __cxa_throw/begin_catch/end_catch 来源——driver 链接参数更新）。
 
 ## 4. runtime 新增
 
-- `void scoop_rt_throw(const void *obj)`：`__cxa_throw(obj, NULL, NULL)`；
+- `void scoop_rt_throw(const void *obj)`：分配 ABI 异常缓冲、按 TypeDescriptor 大小复制对象并登记外部 GC 根，再以负责移除该根的 destructor 调 `__cxa_throw(buffer, NULL, destructor)`（完整契约见 runtime spec 第 5 章）；
 - `void scoop_rt_rethrow(void)`：`__cxa_rethrow()`；
-- `const void *scoop_rt_begin_catch(...)` / `scoop_rt_end_catch(...)`（薄封装或 codegen 直调 `__cxa_*`——选一种并注释）；
+- `__cxa_begin_catch` / `__cxa_end_catch` 由 codegen 直调；runtime 不再增加同义薄封装；
 - `scoop_eh_personality`（C 实现，GCC/LLVM personality 协议）；
 - 进程启动注册 terminate 处理：未捕获异常打印 `uncaught exception: <type name>` 后 abort；type name 从异常对象 TypeDescriptor 的 `name` 字段读取（该字段的 ABI 契约见 runtime spec 2.2）。
 

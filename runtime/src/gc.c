@@ -484,6 +484,17 @@ void scoop_rt_gc_add_root_object(const void *obj) {
     gc_root_push(obj, 1);
 }
 
+void scoop_rt_gc_remove_root_object(const void *obj) {
+    for (size_t i = 0; i < gc_roots_len; i++) {
+        if (gc_roots[i].is_external_object && gc_roots[i].base == obj) {
+            gc_roots[i] = gc_roots[gc_roots_len - 1];
+            gc_roots_len--;
+            return;
+        }
+    }
+    gc_fatal("attempted to remove an unknown external object root");
+}
+
 /* --- handles (runtime spec 3.4 GcHandle) ------------------------------ */
 
 /* Growable table of object pointers; the handle value is the index + 1
@@ -848,6 +859,10 @@ uint64_t scoop_rt_gc_debug_block_count(void) {
 
 uintptr_t scoop_rt_gc_debug_arena_base(void) {
     return gc_arena_base;
+}
+
+uint64_t scoop_rt_gc_debug_root_count(void) {
+    return (uint64_t)gc_roots_len;
 }
 
 /* --- allocation (runtime spec 3.1 slow path; the managed fast path is
