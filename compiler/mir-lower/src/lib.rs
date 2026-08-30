@@ -1023,10 +1023,17 @@ impl Lowerer {
             symbol: format!("scoop.{name}"),
             name,
             params,
-            return_ty: target_return,
+            return_ty: target_return.clone(),
             body,
         });
         self.top_level.push(id);
+        if signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function: id,
+                source_return: target_return,
+                instance: None,
+            });
+        }
         id
     }
 
