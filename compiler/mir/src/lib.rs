@@ -395,7 +395,7 @@ pub enum Expr {
     },
     /// `array.size`; result is `Int`.
     ArrayLen(Box<Expr>),
-    /// `Array(m)` / `MutableArray(a)` conversion: memcpy snapshot.
+    /// Array-kind conversion (constructor or method form): memcpy snapshot.
     ArrayClone(Box<Expr>),
     Binary {
         op: BinOp,

@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m5-arrays/errors/conversion-method-arity.scoop:3:13: error: method `toMutableArray` takes exactly 0 arguments, but 1 were supplied

@@ -1,0 +1,11 @@
+fun main() {
+    val immutable = [1, 2]
+    val mutable = immutable.toMutableArray()
+    mutable[0] = 40
+    println(immutable[0])
+
+    val snapshot = mutable.toArray()
+    mutable[0] = 99
+    println(snapshot[0])
+    println(mutable[0])
+}

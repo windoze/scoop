@@ -527,9 +527,10 @@ pub enum ExprKind {
     },
     /// `array.size` (spec 10.5); result is `Int`.
     ArrayLen(Box<Expr>),
-    /// `Array(m)` / `MutableArray(a)` conversion (spec 10.4): a
-    /// memcpy snapshot of the other array kind with the same element
-    /// type. The target kind is in `Expr::ty`.
+    /// `Array(m)` / `MutableArray(a)` or `m.toArray()` /
+    /// `a.toMutableArray()` conversion (spec 10.4): a memcpy snapshot
+    /// of the other array kind with the same element type. The target
+    /// kind is in `Expr::ty`.
     ArrayClone(Box<Expr>),
     Call {
         callee: Callable,
