@@ -50,7 +50,7 @@ SourceFile
     fun describe
   class Doc(val title: String), Describable
     fun describe
-  struct Tag
+  struct Tag : Describable
     field v: Int
     fun describe
   fun main()
@@ -90,7 +90,7 @@ Module
     field raw: UInt
   struct GcHandle<T>
     field raw: UInt
-  struct Tag
+  struct Tag : Describable
     field v: Int
   enum Option<T>
     Some(_1: T0)
@@ -101,9 +101,9 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  class Doc(title: String)
+  class Doc(title: String) : Describable
   interface Describable
-    fun describe(..): String
+    fun describe(): String
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>

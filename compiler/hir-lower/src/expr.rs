@@ -294,6 +294,7 @@ impl Lowerer {
         let type_args: Vec<TypeId> = match self.types[receiver.ty] {
             Type::Enum(_, ref args) => args.clone(),
             Type::Struct(_, ref args) => args.clone(),
+            Type::Interface(_, ref args) => args.clone(),
             _ => Vec::new(),
         };
         let resolved = self.resolve_overload(name, &candidates, &type_args, args, span, sink)?;
@@ -342,6 +343,7 @@ impl Lowerer {
         let type_args: Vec<TypeId> = match self.types[receiver.ty] {
             Type::Enum(_, ref args) => args.clone(),
             Type::Struct(_, ref args) => args.clone(),
+            Type::Interface(_, ref args) => args.clone(),
             _ => Vec::new(),
         };
         let sig = self.signatures[&function].clone();

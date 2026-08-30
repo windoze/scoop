@@ -81,7 +81,9 @@ fn generic_struct_with_interfaces_and_methods() {
     };
     assert_eq!(decl.type_params.len(), 1);
     assert_eq!(decl.interfaces.len(), 1);
-    assert_eq!(decl.interfaces[0].text, "Describable");
+    assert!(
+        matches!(&decl.interfaces[0].kind, TypeRefKind::Named(name) if name.text == "Describable")
+    );
     assert_eq!(decl.methods.len(), 1);
 }
 

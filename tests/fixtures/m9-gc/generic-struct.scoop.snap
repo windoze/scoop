@@ -54,7 +54,7 @@ SourceFile
     field second: B
   interface Readable
     fun read
-  struct Holder<T>
+  struct Holder<T> : Readable
     field value: T
     fun read
   fun main()
@@ -90,7 +90,7 @@ Module
   struct Pair<A, B>
     field first: T0
     field second: T1
-  struct Holder<T>
+  struct Holder<T> : Readable
     field value: T0
   enum Option<T>
     Some(_1: T0)
@@ -102,7 +102,7 @@ Module
   class ArithmeticException()
   class IndexOutOfBoundsException()
   interface Readable
-    fun read(..): String
+    fun read(): String
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>

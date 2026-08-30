@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m9-gc/errors/interface-variance-position.scoop:2:5: error: covariant type parameter `T` occurs in contravariant position in interface method `consume`

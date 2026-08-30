@@ -614,7 +614,7 @@ pub(crate) fn class_decl(
             })
             .collect(),
         base_class: base.map(|(name, args)| (ident(name), args)),
-        interfaces: interfaces.into_iter().map(ident).collect(),
+        interfaces: interfaces.into_iter().map(ty_named).collect(),
         methods,
         span: sp(),
     })
@@ -624,6 +624,27 @@ pub(crate) fn class_decl(
 pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
         name: ident(name),
+        type_params: Vec::new(),
+        methods,
+        span: sp(),
+    })
+}
+
+pub(crate) fn generic_interface_decl(
+    name: &str,
+    type_params: Vec<(ast::Variance, &str)>,
+    methods: Vec<FunctionDecl>,
+) -> Decl {
+    Decl::Interface(ast::InterfaceDecl {
+        name: ident(name),
+        type_params: type_params
+            .into_iter()
+            .map(|(variance, name)| ast::TypeParamDecl {
+                name: ident(name),
+                variance,
+                span: sp(),
+            })
+            .collect(),
         methods,
         span: sp(),
     })
@@ -779,7 +800,7 @@ pub(crate) fn generic_struct_decl_full(
                 span: sp(),
             })
             .collect(),
-        interfaces: interfaces.into_iter().map(ident).collect(),
+        interfaces: interfaces.into_iter().map(ty_named).collect(),
         methods,
         span: sp(),
     })
@@ -807,7 +828,7 @@ pub(crate) fn enum_decl_full(
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         variants,
-        interfaces: interfaces.into_iter().map(ident).collect(),
+        interfaces: interfaces.into_iter().map(ty_named).collect(),
         methods,
         span: sp(),
     })

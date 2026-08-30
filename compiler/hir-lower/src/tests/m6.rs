@@ -106,6 +106,21 @@ fn interface_id(module: &hir::Module, name: &str) -> hir::InterfaceId {
         .unwrap_or_else(|| panic!("interface `{name}` must exist"))
 }
 
+fn interface_ty(module: &hir::Module, name: &str) -> hir::TypeId {
+    module
+        .types
+        .iter()
+        .find_map(|(ty, value)| match value {
+            hir::Type::Interface(id, args)
+                if args.is_empty() && module.interfaces[*id].name == name =>
+            {
+                Some(ty)
+            }
+            _ => None,
+        })
+        .expect("interface type")
+}
+
 // --- positive: golden dump ---
 
 #[test]
@@ -118,10 +133,10 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
-  open class Shape(name: String)
+  open class Shape(name: String) : Describable
   class Point(x: Int, y: Int)
   interface Describable
-    fun describe(..): String
+    fun describe(): String
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -154,7 +169,7 @@ fn class_and_interface_structure() {
     let shape = &module.classes[shape_id];
     assert_eq!(shape.modifier, hir::ClassModifier::Open);
     assert_eq!(shape.constructor.len(), 1);
-    assert_eq!(shape.interfaces, vec![describable_id]);
+    assert_eq!(shape.interfaces, vec![interface_ty(&module, "Describable")]);
 
     // Base-class clause with the lowered delegation arguments.
     let point = &module.classes[point_id];
@@ -182,7 +197,7 @@ fn class_and_interface_structure() {
     let iface_method = &module.functions[find_fn(&module, "Describable.describe")];
     assert!(matches!(
         module.types[iface_method.method.expect("a method").owner],
-        hir::Type::Interface(id) if id == describable_id
+        hir::Type::Interface(id, ref args) if id == describable_id && args.is_empty()
     ));
 
     // The interface's MethodSig mirrors the signature (params exclude `this`).
@@ -521,14 +536,14 @@ fn class_to_interface_is_a_zero_cost_retype() {
     // No Box: the local is retyped to the interface.
     let up = returned(body_of(&module, "up"));
     assert!(matches!(up.kind, hir::ExprKind::Local(_)));
-    assert!(matches!(module.types[up.ty], hir::Type::Interface(_)));
+    assert!(matches!(module.types[up.ty], hir::Type::Interface(..)));
 
     match &returned(body_of(&module, "mk")).kind {
         hir::ExprKind::ArrayLiteral(elements) => {
             assert!(matches!(elements[0].kind, hir::ExprKind::Local(_)));
             assert!(matches!(
                 module.types[elements[0].ty],
-                hir::Type::Interface(_)
+                hir::Type::Interface(..)
             ));
         }
         other => panic!("expected an array literal, found {other:?}"),
@@ -1852,14 +1867,14 @@ fn struct_implements_interface_and_boxes() {
         .unwrap();
     assert_eq!(
         module.structs[s_id].interfaces,
-        vec![interface_id(&module, "Describable")]
+        vec![interface_ty(&module, "Describable")]
     );
 
     let main = body_of(&module, "main");
     match &main.statements[0].kind {
         hir::StatementKind::ValDecl { init, .. } => {
             assert!(matches!(init.kind, hir::ExprKind::Box(_)));
-            assert!(matches!(module.types[init.ty], hir::Type::Interface(_)));
+            assert!(matches!(module.types[init.ty], hir::Type::Interface(..)));
         }
         other => panic!("expected a val decl, found {other:?}"),
     }

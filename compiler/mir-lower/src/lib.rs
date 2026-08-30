@@ -133,8 +133,7 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         struct_map: HashMap::new(),
         classes: Arena::new(),
         class_map: HashMap::new(),
-        interfaces: Arena::new(),
-        interface_map: HashMap::new(),
+        interfaces: InterfaceRegistry::default(),
         method_slots: HashMap::new(),
         function_map: HashMap::new(),
         instances: InstanceRegistry {
@@ -166,10 +165,9 @@ struct Lowerer {
     classes: Arena<mir::ClassDef>,
     /// HIR class -> MIR class (arena transposed in declaration order).
     class_map: HashMap<hir::ClassId, mir::ClassId>,
-    interfaces: Arena<mir::InterfaceDef>,
-    /// HIR interface -> MIR interface (arena transposed in declaration
-    /// order).
-    interface_map: HashMap<hir::InterfaceId, mir::InterfaceId>,
+    /// Concrete MIR interface applications, created on demand. Generic
+    /// interface declarations themselves never reach MIR.
+    interfaces: InterfaceRegistry,
     /// Method signature key (`fn_signature_key`) -> vtable slot, per
     /// class (computed by `compute_dispatch`; `BodyLowerer` reads it
     /// for call-kind annotation).
@@ -205,7 +203,8 @@ impl Lowerer {
         self.lower_structs(module);
         self.lower_interfaces(module);
         self.declare_classes(module);
-        self.shell = mangling_shell(&self.structs.defs, &self.classes, &self.interfaces);
+        self.shell = mangling_shell(&self.structs.defs, &self.classes, &self.interfaces.defs);
+        self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);
         self.option_variants = option_variants(module);
         // Classes are processed base-before-derived: the object layout
@@ -244,7 +243,7 @@ impl Lowerer {
                 Some(method)
                     if matches!(
                         module.types[method.owner],
-                        hir::Type::Interface(_) | hir::Type::Any
+                        hir::Type::Interface(..) | hir::Type::Any
                     ) => {}
                 Some(_) => {
                     let id = self.declare_function(module, hir_id);
@@ -256,6 +255,9 @@ impl Lowerer {
             }
         }
         for (hir_id, function) in module.functions.iter() {
+            if generic_of(module, hir_id).is_some() {
+                continue;
+            }
             let Some(method) = function.method else {
                 continue;
             };
@@ -266,7 +268,7 @@ impl Lowerer {
             // so the functions themselves are never emitted — their
             // declarations only give LIR the parameter / return types
             // for the indirect call.
-            if matches!(module.types[ty], hir::Type::Interface(_) | hir::Type::Any) {
+            if matches!(module.types[ty], hir::Type::Interface(..) | hir::Type::Any) {
                 self.declare_interface_method(module, hir_id);
             }
         }
@@ -325,13 +327,20 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                interface_map: &self.interface_map,
                 subst: None,
             };
             let type_args: Vec<mir::Type> = instantiation
                 .type_args
                 .iter()
-                .map(|&ty| types.lower(ty, &mut self.enums, &mut self.structs, &mut self.shell))
+                .map(|&ty| {
+                    types.lower(
+                        ty,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
                 .collect();
             self.instances.get_or_create(
                 module,
@@ -366,7 +375,10 @@ impl Lowerer {
                 self.finalize_boxed(module, next_boxed);
                 next_boxed += 1;
             }
-            if next_instance == self.instances.pending.len() && next_boxed == self.boxed.order.len()
+            let added_variance = self.finalize_variance_itables(module);
+            if next_instance == self.instances.pending.len()
+                && next_boxed == self.boxed.order.len()
+                && !added_variance
             {
                 break;
             }
@@ -382,12 +394,266 @@ impl Lowerer {
             structs: self.structs.defs,
             enums: self.enums.defs,
             classes: self.classes,
-            interfaces: self.interfaces,
+            interfaces: self.interfaces.defs,
             entry,
             meta: mir::MirMeta {
                 instances: self.instances.meta,
                 ..mir::MirMeta::default()
             },
+        }
+    }
+
+    fn finalize_variance_itables(&mut self, module: &hir::Module) -> bool {
+        let targets: Vec<mir::InterfaceId> =
+            self.interfaces.defs.iter().map(|(id, _)| id).collect();
+        let classes: Vec<mir::ClassId> = self.classes.iter().map(|(id, _)| id).collect();
+        let mut added = false;
+        for class in classes {
+            let sources: Vec<(mir::InterfaceId, Vec<mir::TableSlot>)> = self.classes[class]
+                .itables
+                .iter()
+                .map(|record| (record.interface, clone_slots(&record.slots)))
+                .collect();
+            for &target in &targets {
+                if self.classes[class]
+                    .itables
+                    .iter()
+                    .any(|record| record.interface == target)
+                {
+                    continue;
+                }
+                let Some((source, slots)) = sources
+                    .iter()
+                    .find(|(source, _)| self.interface_is_subtype(module, *source, target))
+                else {
+                    continue;
+                };
+                let bridge_slots = slots
+                    .iter()
+                    .enumerate()
+                    .map(|(index, slot)| {
+                        mir::TableSlot::Function(
+                            self.build_variance_bridge(module, class, *source, target, index, slot),
+                        )
+                    })
+                    .collect();
+                self.classes[class].interfaces.push(target);
+                self.classes[class].itables.push(mir::ItableRecord {
+                    interface: target,
+                    slots: bridge_slots,
+                });
+                added = true;
+            }
+        }
+        added
+    }
+
+    fn build_variance_bridge(
+        &mut self,
+        module: &hir::Module,
+        class: mir::ClassId,
+        source: mir::InterfaceId,
+        target: mir::InterfaceId,
+        method_index: usize,
+        source_slot: &mir::TableSlot,
+    ) -> mir::FunctionId {
+        let (source_id, source_args) = self.interfaces.source(source);
+        let source_args = source_args.to_vec();
+        let (target_id, target_args) = self.interfaces.source(target);
+        let target_args = target_args.to_vec();
+        debug_assert_eq!(source_id, target_id);
+        let signature = &module.interfaces[source_id].methods[method_index];
+        let source_types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            subst: (!source_args.is_empty()).then_some(source_args.as_slice()),
+        };
+        let target_types = Types {
+            subst: (!target_args.is_empty()).then_some(target_args.as_slice()),
+            ..source_types
+        };
+        let mut source_params = Vec::new();
+        let mut target_params = Vec::new();
+        for param in &signature.params {
+            source_params.push(source_types.lower(
+                param.ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            ));
+            target_params.push(target_types.lower(
+                param.ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            ));
+        }
+        let source_return = source_types.lower(
+            signature.return_ty,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+        let target_return = target_types.lower(
+            signature.return_ty,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+
+        let mut locals = Arena::new();
+        let this = locals.alloc(mir::Local {
+            name: "this".to_string(),
+            ty: mir::Type::Any,
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "this".to_string(),
+            ty: mir::Type::Any,
+            local: this,
+        }];
+        let mut args = vec![mir::Expr::Local(this)];
+        for ((param, target_ty), source_ty) in signature
+            .params
+            .iter()
+            .zip(target_params)
+            .zip(source_params)
+        {
+            let local = locals.alloc(mir::Local {
+                name: param.name.clone(),
+                ty: target_ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: param.name.clone(),
+                ty: target_ty.clone(),
+                local,
+            });
+            args.push(self.adapt_variance_bridge(mir::Expr::Local(local), &target_ty, &source_ty));
+        }
+        let callee = match source_slot {
+            mir::TableSlot::Function(function) => mir::Callee::User(*function),
+            mir::TableSlot::Runtime(function) => mir::Callee::Runtime(*function),
+        };
+        let call = mir::Expr::Call(mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Direct,
+                callee,
+            },
+            args,
+        });
+        let kind = if target_return == mir::Type::Unit {
+            mir::StatementKind::Expr(call)
+        } else {
+            let value = self.adapt_variance_bridge(call, &source_return, &target_return);
+            mir::StatementKind::Return { value: Some(value) }
+        };
+        let class_name = &self.classes[class].name;
+        let target_name = &self.interfaces.defs[target].name;
+        let name = format!(
+            "variance.{class_name}.{target_name}.{}.{}",
+            signature.name, method_index
+        );
+        let id = self.functions.alloc(mir::Function {
+            symbol: format!("scoop.{name}"),
+            name,
+            params,
+            return_ty: target_return,
+            body: mir::Body {
+                locals,
+                statements: vec![mir::Statement {
+                    kind,
+                    span: signature.span,
+                }],
+            },
+        });
+        self.top_level.push(id);
+        id
+    }
+
+    fn adapt_variance_bridge(
+        &mut self,
+        value: mir::Expr,
+        source: &mir::Type,
+        target: &mir::Type,
+    ) -> mir::Expr {
+        if source == target || (is_reference_mir(source) && is_reference_mir(target)) {
+            return value;
+        }
+        if is_boxable(source) && is_reference_mir(target) {
+            let boxed = self
+                .boxed
+                .get_or_create(&mut self.classes, &mut self.shell, source);
+            if let mir::Type::Interface(interface) = target {
+                if !self.classes[boxed].interfaces.contains(interface) {
+                    self.classes[boxed].interfaces.push(*interface);
+                }
+            }
+            return mir::Expr::Box(Box::new(value));
+        }
+        unreachable!("variance bridge adaptations always follow a subtype conversion")
+    }
+
+    fn interface_is_subtype(
+        &self,
+        module: &hir::Module,
+        source: mir::InterfaceId,
+        target: mir::InterfaceId,
+    ) -> bool {
+        if source == target {
+            return true;
+        }
+        let (source_id, source_args) = self.interfaces.source(source);
+        let (target_id, target_args) = self.interfaces.source(target);
+        if source_id != target_id || source_args.len() != target_args.len() {
+            return false;
+        }
+        module.interfaces[source_id]
+            .type_params
+            .iter()
+            .map(|param| param.variance)
+            .zip(source_args)
+            .zip(target_args)
+            .all(|((variance, source), target)| match variance {
+                hir::Variance::Invariant => source == target,
+                hir::Variance::Out => self.mir_type_is_subtype(module, source, target),
+                hir::Variance::In => self.mir_type_is_subtype(module, target, source),
+            })
+    }
+
+    fn mir_type_is_subtype(
+        &self,
+        module: &hir::Module,
+        source: &mir::Type,
+        target: &mir::Type,
+    ) -> bool {
+        if source == target || matches!(target, mir::Type::Any) {
+            return true;
+        }
+        match (source, target) {
+            (mir::Type::Class(source), mir::Type::Class(target)) => {
+                let mut current = Some(*source);
+                while let Some(class) = current {
+                    if class == *target {
+                        return true;
+                    }
+                    current = self.classes[class].base_class;
+                }
+                false
+            }
+            (mir::Type::Interface(source), mir::Type::Interface(target)) => {
+                self.interface_is_subtype(module, *source, *target)
+            }
+            (mir::Type::Class(source), mir::Type::Interface(target)) => self.classes[*source]
+                .interfaces
+                .iter()
+                .any(|interface| self.interface_is_subtype(module, *interface, *target)),
+            _ => false,
         }
     }
 
@@ -408,7 +674,7 @@ impl Lowerer {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            interface_map: &self.interface_map,
+            interfaces: &mut self.interfaces,
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
@@ -458,7 +724,6 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                interface_map: &self.interface_map,
                 subst: None,
             };
             let fields = decl
@@ -470,6 +735,7 @@ impl Lowerer {
                         field.ty,
                         &mut self.enums,
                         &mut self.structs,
+                        &mut self.interfaces,
                         &mut self.shell,
                     ),
                 })
@@ -478,20 +744,14 @@ impl Lowerer {
         }
     }
 
-    /// Transpose the HIR interface arena into MIR in declaration
-    /// order: the method names in declaration order are the itable
-    /// slot indices.
+    /// Materialize non-generic interfaces eagerly. Generic declarations
+    /// are templates and acquire concrete MIR identities on demand.
     fn lower_interfaces(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.interfaces.iter() {
-            let mir_id = self.interfaces.alloc(mir::InterfaceDef {
-                name: decl.name.clone(),
-                methods: decl
-                    .methods
-                    .iter()
-                    .map(|method| method.name.clone())
-                    .collect(),
-            });
-            self.interface_map.insert(hir_id, mir_id);
+            if decl.type_params.is_empty() {
+                self.interfaces
+                    .get_or_create(module, &mut self.shell, hir_id, Vec::new());
+            }
         }
     }
 
@@ -516,16 +776,40 @@ impl Lowerer {
             });
             self.class_map.insert(hir_id, mir_id);
         }
+    }
+
+    /// Resolve base classes and concrete interface applications after the
+    /// mangling shell contains every class name. Interface type arguments may
+    /// themselves be class types.
+    fn fill_class_hierarchy(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.classes.iter() {
             let mir_id = self.class_map[&hir_id];
             let base_class = decl
                 .base_class
                 .as_ref()
                 .map(|(base, _)| self.class_map[base]);
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                subst: None,
+            };
             let interfaces = decl
                 .interfaces
                 .iter()
-                .map(|iface| self.interface_map[iface])
+                .map(|&interface_ty| {
+                    let lowered = types.lower(
+                        interface_ty,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    );
+                    let mir::Type::Interface(interface) = lowered else {
+                        unreachable!("HIR implementation lists contain only interfaces")
+                    };
+                    interface
+                })
                 .collect();
             let class = &mut self.classes[mir_id];
             class.base_class = base_class;
@@ -562,7 +846,6 @@ impl Lowerer {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            interface_map: &self.interface_map,
             subst: None,
         };
         params
@@ -572,6 +855,7 @@ impl Lowerer {
                     param.ty,
                     &mut self.enums,
                     &mut self.structs,
+                    &mut self.interfaces,
                     &mut self.shell,
                 )
             })
@@ -597,8 +881,32 @@ impl Lowerer {
     }
 
     /// The dispatch signature key of an interface method signature.
-    fn sig_signature_key(&mut self, module: &hir::Module, sig: &hir::MethodSig) -> String {
-        let encoding = self.param_encoding(module, &sig.params);
+    fn sig_signature_key(
+        &mut self,
+        module: &hir::Module,
+        sig: &hir::MethodSig,
+        subst: &[mir::Type],
+    ) -> String {
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            subst: (!subst.is_empty()).then_some(subst),
+        };
+        let params: Vec<_> = sig
+            .params
+            .iter()
+            .map(|param| {
+                types.lower(
+                    param.ty,
+                    &mut self.enums,
+                    &mut self.structs,
+                    &mut self.interfaces,
+                    &mut self.shell,
+                )
+            })
+            .collect();
+        let encoding = mir::encode_params(&self.shell, &params);
         format!("{}({encoding})", sig.name)
     }
 
@@ -642,7 +950,6 @@ impl Lowerer {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            interface_map: &self.interface_map,
             subst: None,
         };
         let mut locals = Arena::new();
@@ -654,6 +961,7 @@ impl Lowerer {
                     param.ty,
                     &mut self.enums,
                     &mut self.structs,
+                    &mut self.interfaces,
                     &mut self.shell,
                 );
                 let local = locals.alloc(mir::Local {
@@ -672,6 +980,7 @@ impl Lowerer {
             function.return_ty,
             &mut self.enums,
             &mut self.structs,
+            &mut self.interfaces,
             &mut self.shell,
         );
         let name = fn_name(function);
@@ -705,7 +1014,6 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                interface_map: &self.interface_map,
                 subst: None,
             };
             for field in &decl.constructor {
@@ -715,6 +1023,7 @@ impl Lowerer {
                         field.ty,
                         &mut self.enums,
                         &mut self.structs,
+                        &mut self.interfaces,
                         &mut self.shell,
                     ),
                 });
@@ -788,18 +1097,18 @@ impl Lowerer {
                     .collect(),
                 None => Vec::new(),
             };
-            for &iface in &decl.interfaces {
-                let mir_iface = self.interface_map[&iface];
+            for mir_iface in self.classes[mir_id].interfaces.clone() {
                 if !covered.contains(&mir_iface) {
                     covered.push(mir_iface);
                 }
             }
             let mut itables = Vec::new();
             for mir_iface in covered {
-                let hir_iface = self.hir_interface(mir_iface);
+                let (hir_iface, interface_args) = self.interfaces.source(mir_iface);
+                let interface_args = interface_args.to_vec();
                 let mut slots_for = Vec::new();
                 for method in &module.interfaces[hir_iface].methods {
-                    let key = self.sig_signature_key(module, method);
+                    let key = self.sig_signature_key(module, method, &interface_args);
                     slots_for.push(mir::TableSlot::Function(
                         self.find_impl(module, hir_id, &key),
                     ));
@@ -857,7 +1166,7 @@ impl Lowerer {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            interface_map: &self.interface_map,
+            interfaces: &mut self.interfaces,
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
@@ -914,16 +1223,6 @@ impl Lowerer {
             }],
         };
         (params, mir::Type::Class(mir_id), body)
-    }
-
-    /// The HIR id behind a MIR interface (the arenas are transposed
-    /// 1:1).
-    fn hir_interface(&self, mir_id: mir::InterfaceId) -> hir::InterfaceId {
-        self.interface_map
-            .iter()
-            .find(|(_, mir)| **mir == mir_id)
-            .map(|(&hir, _)| hir)
-            .expect("every MIR interface comes from a HIR interface")
     }
 
     /// The function implementing the signature `key` for class
@@ -990,11 +1289,11 @@ impl Lowerer {
         ];
         let interfaces = self.classes[class_id].interfaces.clone();
         for iface in interfaces {
-            let hir_iface = self.hir_interface(iface);
+            let (hir_iface, _) = self.interfaces.source(iface);
             let method_count = module.interfaces[hir_iface].methods.len();
             let mut slots = Vec::new();
             for index in 0..method_count {
-                let thunk = self.build_thunk(module, &payload, &encoded, iface, hir_iface, index);
+                let thunk = self.build_thunk(module, &payload, &encoded, iface, index);
                 slots.push(mir::TableSlot::Function(thunk));
             }
             self.classes[class_id].itables.push(mir::ItableRecord {
@@ -1040,7 +1339,7 @@ impl Lowerer {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            interface_map: &self.interface_map,
+            interfaces: &mut self.interfaces,
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
@@ -1166,19 +1465,16 @@ impl Lowerer {
         payload: &mir::Type,
         encoded: &str,
         iface: mir::InterfaceId,
-        hir_iface: hir::InterfaceId,
         method_index: usize,
     ) -> mir::FunctionId {
+        let (hir_iface, interface_args) = self.interfaces.source(iface);
+        let interface_args = interface_args.to_vec();
         let signature = &module.interfaces[hir_iface].methods[method_index];
-        let encoding = self.param_encoding(module, &signature.params);
-        let key = format!("{}({encoding})", signature.name);
-        let impl_fn = self.value_method(module, payload, &key);
         let types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            interface_map: &self.interface_map,
-            subst: None,
+            subst: (!interface_args.is_empty()).then_some(interface_args.as_slice()),
         };
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
@@ -1192,13 +1488,17 @@ impl Lowerer {
             local: this,
         }];
         let mut args = vec![mir::Expr::Unbox(Box::new(mir::Expr::Local(this)))];
+        let mut target_params = Vec::new();
+        let mut argument_locals = Vec::new();
         for param in &signature.params {
             let ty = types.lower(
                 param.ty,
                 &mut self.enums,
                 &mut self.structs,
+                &mut self.interfaces,
                 &mut self.shell,
             );
+            target_params.push(ty.clone());
             let local = locals.alloc(mir::Local {
                 name: param.name.clone(),
                 ty: ty.clone(),
@@ -1209,27 +1509,62 @@ impl Lowerer {
                 ty,
                 local,
             });
-            args.push(mir::Expr::Local(local));
+            argument_locals.push(local);
         }
         let return_ty = types.lower(
             signature.return_ty,
             &mut self.enums,
             &mut self.structs,
+            &mut self.interfaces,
             &mut self.shell,
         );
+        let source_interface = self
+            .value_interfaces(module, payload)
+            .into_iter()
+            .find(|source| self.interface_is_subtype(module, *source, iface))
+            .expect("HIR guarantees the boxed value implements the target interface");
+        let (_, source_args) = self.interfaces.source(source_interface);
+        let source_args = source_args.to_vec();
+        let source_types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            subst: (!source_args.is_empty()).then_some(source_args.as_slice()),
+        };
+        let mut source_params = Vec::new();
+        for param in &signature.params {
+            source_params.push(source_types.lower(
+                param.ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            ));
+        }
+        let implementation = self.value_method(module, payload, &signature.name, &source_params);
+        for ((local, target_ty), source_ty) in argument_locals
+            .into_iter()
+            .zip(&target_params)
+            .zip(&implementation.1)
+        {
+            args.push(self.adapt_variance_bridge(mir::Expr::Local(local), target_ty, source_ty));
+        }
         let call = mir::Expr::Call(mir::Call {
             target: mir::CallTarget {
                 kind: mir::CallKind::Direct,
-                callee: mir::Callee::User(impl_fn),
+                callee: mir::Callee::User(implementation.0),
             },
             args,
         });
         let kind = if return_ty == mir::Type::Unit {
             mir::StatementKind::Expr(call)
         } else {
-            mir::StatementKind::Return { value: Some(call) }
+            mir::StatementKind::Return {
+                value: Some(self.adapt_variance_bridge(call, &implementation.2, &return_ty)),
+            }
         };
-        let iface_name = self.interfaces[iface].name.clone();
+        let encoding = mir::encode_params(&self.shell, &target_params);
+        let iface_name = self.interfaces.defs[iface].name.clone();
         // An interface overloading the method name needs the parameter
         // encoding to keep the thunk symbols distinct.
         let overloaded = module.interfaces[hir_iface]
@@ -1264,12 +1599,69 @@ impl Lowerer {
     /// implementation a boxed thunk tail-calls). HIR guarantees it
     /// exists: the value type was boxed to an interface that declares
     /// the method.
+    fn value_interfaces(
+        &mut self,
+        module: &hir::Module,
+        payload: &mir::Type,
+    ) -> Vec<mir::InterfaceId> {
+        let (declared, args) = match payload {
+            mir::Type::Struct(mir_id) => {
+                let hir_id = self
+                    .structs
+                    .instances
+                    .get(mir_id)
+                    .map(|(id, _)| *id)
+                    .or_else(|| {
+                        self.struct_map
+                            .iter()
+                            .find_map(|(hir, mir)| (*mir == *mir_id).then_some(*hir))
+                    })
+                    .expect("every MIR struct comes from HIR");
+                let args = self
+                    .structs
+                    .instances
+                    .get(mir_id)
+                    .map(|(_, args)| args.clone())
+                    .unwrap_or_default();
+                (module.structs[hir_id].interfaces.clone(), args)
+            }
+            mir::Type::Enum(mir_id, args) => {
+                let hir_id = self.enums.hir_ids[mir_id];
+                (module.enums[hir_id].interfaces.clone(), args.clone())
+            }
+            _ => return Vec::new(),
+        };
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            subst: (!args.is_empty()).then_some(args.as_slice()),
+        };
+        declared
+            .into_iter()
+            .map(|ty| {
+                let lowered = types.lower(
+                    ty,
+                    &mut self.enums,
+                    &mut self.structs,
+                    &mut self.interfaces,
+                    &mut self.shell,
+                );
+                let mir::Type::Interface(interface) = lowered else {
+                    unreachable!()
+                };
+                interface
+            })
+            .collect()
+    }
+
     fn value_method(
         &mut self,
         module: &hir::Module,
         payload: &mir::Type,
-        key: &str,
-    ) -> mir::FunctionId {
+        name: &str,
+        expected_params: &[mir::Type],
+    ) -> (mir::FunctionId, Vec<mir::Type>, mir::Type) {
         for (fn_id, function) in module.functions.iter() {
             let Some(method) = function.method else {
                 continue;
@@ -1294,10 +1686,38 @@ impl Lowerer {
             let Some(type_args) = type_args else {
                 continue;
             };
-            if self.fn_signature_key(module, function) != key {
+            if short_name(&function.name) != name {
                 continue;
             }
-            if let Some(generic) = generic_of(module, fn_id) {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                subst: (!type_args.is_empty()).then_some(type_args.as_slice()),
+            };
+            let params: Vec<_> = function.params[1..]
+                .iter()
+                .map(|param| {
+                    types.lower(
+                        param.ty,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect();
+            if params != expected_params {
+                continue;
+            }
+            let return_ty = types.lower(
+                function.return_ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let function = if let Some(generic) = generic_of(module, fn_id) {
                 let instance = self.instances.get_or_create_generic(
                     module,
                     &mut self.functions,
@@ -1306,11 +1726,13 @@ impl Lowerer {
                     generic,
                     type_args,
                 );
-                return self.instances.meta[instance].function;
-            }
-            return self.function_map[&fn_id];
+                self.instances.meta[instance].function
+            } else {
+                self.function_map[&fn_id]
+            };
+            return (function, params, return_ty);
         }
-        unreachable!("hir-lower guarantees `{key}` is implemented by the boxed value type")
+        unreachable!("hir-lower guarantees `{name}` is implemented by the boxed value type")
     }
 }
 
@@ -1541,8 +1963,63 @@ fn is_concrete(module: &hir::Module, ty: hir::TypeId) -> bool {
         }
         hir::Type::Tuple(elements) => elements.iter().all(|&e| is_concrete(module, e)),
         hir::Type::Struct(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
+        hir::Type::Interface(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
         hir::Type::Enum(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
         _ => true,
+    }
+}
+
+/// Concrete interface applications. The MIR identity includes every type
+/// argument because it is also the runtime TypeDescriptor / itable lookup key.
+#[derive(Default)]
+struct InterfaceRegistry {
+    defs: Arena<mir::InterfaceDef>,
+    by_name: HashMap<String, mir::InterfaceId>,
+    instances: HashMap<mir::InterfaceId, (hir::InterfaceId, Vec<mir::Type>)>,
+}
+
+impl InterfaceRegistry {
+    fn get_or_create(
+        &mut self,
+        module: &hir::Module,
+        shell: &mut mir::Module,
+        hir_id: hir::InterfaceId,
+        args: Vec<mir::Type>,
+    ) -> mir::InterfaceId {
+        let decl = &module.interfaces[hir_id];
+        let name = if args.is_empty() {
+            decl.name.clone()
+        } else {
+            let encoded: Vec<String> = args
+                .iter()
+                .map(|arg| mir::encode_type(shell, arg))
+                .collect();
+            format!("{}${}", decl.name, encoded.join("_"))
+        };
+        if let Some(&id) = self.by_name.get(&name) {
+            return id;
+        }
+        let methods = decl
+            .methods
+            .iter()
+            .map(|method| method.name.clone())
+            .collect();
+        let id = self.defs.alloc(mir::InterfaceDef {
+            name: name.clone(),
+            methods,
+        });
+        shell.interfaces.alloc(mir::InterfaceDef {
+            name: name.clone(),
+            methods: Vec::new(),
+        });
+        self.by_name.insert(name, id);
+        self.instances.insert(id, (hir_id, args));
+        id
+    }
+
+    fn source(&self, id: mir::InterfaceId) -> (hir::InterfaceId, &[mir::Type]) {
+        let (hir, args) = &self.instances[&id];
+        (*hir, args)
     }
 }
 
@@ -1556,7 +2033,6 @@ struct Types<'a> {
     module: &'a hir::Module,
     struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
-    interface_map: &'a HashMap<hir::InterfaceId, mir::InterfaceId>,
     subst: Option<&'a [mir::Type]>,
 }
 
@@ -1572,6 +2048,7 @@ impl Types<'_> {
         ty: hir::TypeId,
         enums: &mut EnumRegistry,
         structs: &mut StructRegistry,
+        interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
     ) -> mir::Type {
         match &self.module.types[ty] {
@@ -1588,32 +2065,41 @@ impl Types<'_> {
                 } else {
                     let args: Vec<mir::Type> = args
                         .iter()
-                        .map(|&arg| self.lower(arg, enums, structs, shell))
+                        .map(|&arg| self.lower(arg, enums, structs, interfaces, shell))
                         .collect();
-                    mir::Type::Struct(structs.get_or_create(self, enums, shell, *id, args))
+                    mir::Type::Struct(
+                        structs.get_or_create(self, enums, interfaces, shell, *id, args),
+                    )
                 }
             }
             hir::Type::Class(id) => mir::Type::Class(self.class_map[id]),
-            hir::Type::Interface(id) => mir::Type::Interface(self.interface_map[id]),
+            hir::Type::Interface(id, args) => {
+                let args = args
+                    .iter()
+                    .map(|&arg| self.lower(arg, enums, structs, interfaces, shell))
+                    .collect();
+                mir::Type::Interface(interfaces.get_or_create(self.module, shell, *id, args))
+            }
             hir::Type::Any => mir::Type::Any,
-            hir::Type::Array(element) => {
-                mir::Type::Array(Box::new(self.lower(*element, enums, structs, shell)))
-            }
-            hir::Type::MutableArray(element) => {
-                mir::Type::MutableArray(Box::new(self.lower(*element, enums, structs, shell)))
-            }
+            hir::Type::Array(element) => mir::Type::Array(Box::new(
+                self.lower(*element, enums, structs, interfaces, shell),
+            )),
+            hir::Type::MutableArray(element) => mir::Type::MutableArray(Box::new(
+                self.lower(*element, enums, structs, interfaces, shell),
+            )),
             hir::Type::Tuple(elements) => mir::Type::Tuple(
                 elements
                     .iter()
-                    .map(|&element| self.lower(element, enums, structs, shell))
+                    .map(|&element| self.lower(element, enums, structs, interfaces, shell))
                     .collect(),
             ),
             hir::Type::Enum(id, args) => {
                 let args: Vec<mir::Type> = args
                     .iter()
-                    .map(|&arg| self.lower(arg, enums, structs, shell))
+                    .map(|&arg| self.lower(arg, enums, structs, interfaces, shell))
                     .collect();
-                let enum_id = enums.get_or_create(self, structs, shell, *id, args.clone());
+                let enum_id =
+                    enums.get_or_create(self, structs, interfaces, shell, *id, args.clone());
                 mir::Type::Enum(enum_id, args)
             }
             hir::Type::Param(index) => self
@@ -1644,6 +2130,7 @@ impl EnumRegistry {
         &mut self,
         types: &Types,
         structs: &mut StructRegistry,
+        interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
         hir_id: hir::EnumId,
         args: Vec<mir::Type>,
@@ -1690,7 +2177,7 @@ impl EnumRegistry {
                     .iter()
                     .map(|field| mir::Field {
                         name: field.name.clone(),
-                        ty: variant_types.lower(field.ty, self, structs, shell),
+                        ty: variant_types.lower(field.ty, self, structs, interfaces, shell),
                     })
                     .collect(),
             })
@@ -1724,6 +2211,7 @@ impl StructRegistry {
         &mut self,
         types: &Types,
         enums: &mut EnumRegistry,
+        interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
         hir_id: hir::StructId,
         args: Vec<mir::Type>,
@@ -1759,7 +2247,7 @@ impl StructRegistry {
             .iter()
             .map(|field| mir::Field {
                 name: field.name.clone(),
-                ty: field_types.lower(field.ty, enums, self, shell),
+                ty: field_types.lower(field.ty, enums, self, interfaces, shell),
             })
             .collect();
         self.defs[id].fields = fields;
@@ -1832,6 +2320,18 @@ fn is_boxable(ty: &mir::Type) -> bool {
             | mir::Type::UInt
             | mir::Type::Boolean
             | mir::Type::Unit
+    )
+}
+
+fn is_reference_mir(ty: &mir::Type) -> bool {
+    matches!(
+        ty,
+        mir::Type::String
+            | mir::Type::Class(_)
+            | mir::Type::Interface(_)
+            | mir::Type::Any
+            | mir::Type::Array(_)
+            | mir::Type::MutableArray(_)
     )
 }
 
@@ -1936,7 +2436,7 @@ struct BodyLowerer<'a> {
     module: &'a hir::Module,
     struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
-    interface_map: &'a HashMap<hir::InterfaceId, mir::InterfaceId>,
+    interfaces: &'a mut InterfaceRegistry,
     /// MIR struct definitions (field types for the equality
     /// expansion; generic struct instances are appended on demand).
     structs: &'a mut StructRegistry,
@@ -2052,10 +2552,9 @@ impl BodyLowerer<'_> {
             module: self.module,
             struct_map: self.struct_map,
             class_map: self.class_map,
-            interface_map: self.interface_map,
             subst: self.subst,
         }
-        .lower(ty, self.enums, self.structs, self.shell)
+        .lower(ty, self.enums, self.structs, self.interfaces, self.shell)
     }
 
     /// A fresh hidden local (`$<prefix>.<n>`), compiler-generated.
@@ -2977,23 +3476,25 @@ impl BodyLowerer<'_> {
         // The receiver's static type decides the dispatch kind.
         enum Receiver {
             Class(hir::ClassId),
-            Interface(hir::InterfaceId),
+            Interface(hir::TypeId),
             Any,
             Value,
         }
         let receiver_kind = match &module.types[receiver.ty] {
             hir::Type::Class(class) => Receiver::Class(*class),
-            hir::Type::Interface(iface) => Receiver::Interface(*iface),
+            hir::Type::Interface(..) => Receiver::Interface(receiver.ty),
             hir::Type::Any => Receiver::Any,
             _ => Receiver::Value,
         };
-        let kind = if matches!(callable, hir::Callable::Generic(_)) {
+        let generic_static_method = matches!(callable, hir::Callable::Generic(_))
+            && !matches!(&receiver_kind, Receiver::Interface(_));
+        let kind = if generic_static_method {
             // Generic member functions never participate in virtual
-            // dispatch. M6 rejects call-level generic members; this
-            // path materializes methods of generic enum hosts.
+            // dispatch. Methods parameterized only by a generic interface
+            // host are different: they still dispatch through that concrete
+            // interface application's itable.
             mir::CallKind::Direct
         } else {
-            let key = self.signature_key(f);
             match receiver_kind {
                 Receiver::Class(_)
                     if f.method
@@ -3002,16 +3503,22 @@ impl BodyLowerer<'_> {
                     mir::CallKind::Direct
                 }
                 Receiver::Class(class) => {
+                    let key = self.signature_key(f);
                     match self.method_slots[&self.class_map[&class]].get(&key) {
                         Some(&slot) => mir::CallKind::Virtual { slot },
                         None => mir::CallKind::Direct,
                     }
                 }
-                Receiver::Interface(iface) => {
-                    let interface = self.interface_map[&iface];
+                Receiver::Interface(interface_ty) => {
+                    let mir::Type::Interface(interface) = self.lower_type(interface_ty) else {
+                        unreachable!()
+                    };
+                    let (iface, interface_args) = self.interfaces.source(interface);
+                    let interface_args = interface_args.to_vec();
+                    let key = self.signature_key_with_subst(f, &interface_args);
                     let mut slot = None;
                     for (index, sig) in module.interfaces[iface].methods.iter().enumerate() {
-                        if self.sig_key(sig) == key {
+                        if self.sig_key_with_subst(sig, &interface_args) == key {
                             slot = Some(index as u32);
                             break;
                         }
@@ -3051,15 +3558,50 @@ impl BodyLowerer<'_> {
         self.key_parts(short_name(&function.name), &function.params[skip..])
     }
 
-    /// The signature key of an interface method signature.
-    fn sig_key(&mut self, sig: &hir::MethodSig) -> String {
-        self.key_parts(&sig.name, &sig.params)
+    fn signature_key_with_subst(
+        &mut self,
+        function: &hir::Function,
+        subst: &[mir::Type],
+    ) -> String {
+        let skip = usize::from(function.method.is_some());
+        self.key_parts_with_subst(short_name(&function.name), &function.params[skip..], subst)
+    }
+
+    fn sig_key_with_subst(&mut self, sig: &hir::MethodSig, subst: &[mir::Type]) -> String {
+        self.key_parts_with_subst(&sig.name, &sig.params, subst)
     }
 
     fn key_parts(&mut self, name: &str, params: &[hir::Param]) -> String {
         let params: Vec<mir::Type> = params
             .iter()
             .map(|param| self.lower_type(param.ty))
+            .collect();
+        format!("{name}({})", mir::encode_params(self.shell, &params))
+    }
+
+    fn key_parts_with_subst(
+        &mut self,
+        name: &str,
+        params: &[hir::Param],
+        subst: &[mir::Type],
+    ) -> String {
+        let types = Types {
+            module: self.module,
+            struct_map: self.struct_map,
+            class_map: self.class_map,
+            subst: Some(subst),
+        };
+        let params: Vec<mir::Type> = params
+            .iter()
+            .map(|param| {
+                types.lower(
+                    param.ty,
+                    self.enums,
+                    self.structs,
+                    self.interfaces,
+                    self.shell,
+                )
+            })
             .collect();
         format!("{name}({})", mir::encode_params(self.shell, &params))
     }
@@ -3076,29 +3618,50 @@ impl BodyLowerer<'_> {
             return;
         }
         let class_id = self.boxed.get_or_create(self.classes, self.shell, payload);
-        let mut covered: Vec<mir::InterfaceId> = match payload {
+        let (declared, host_args): (Vec<hir::TypeId>, Vec<mir::Type>) = match payload {
             mir::Type::Struct(mir_id) => {
                 let hir_id = self.hir_struct(*mir_id);
-                self.module.structs[hir_id]
-                    .interfaces
-                    .iter()
-                    .map(|iface| self.interface_map[iface])
-                    .collect()
+                let args = self
+                    .structs
+                    .instances
+                    .get(mir_id)
+                    .map(|(_, args)| args.clone())
+                    .unwrap_or_default();
+                (self.module.structs[hir_id].interfaces.clone(), args)
             }
-            mir::Type::Enum(mir_id, _) => {
+            mir::Type::Enum(mir_id, args) => {
                 let hir_id = self.enums.hir_ids[mir_id];
-                self.module.enums[hir_id]
-                    .interfaces
-                    .iter()
-                    .map(|iface| self.interface_map[iface])
-                    .collect()
+                (self.module.enums[hir_id].interfaces.clone(), args.clone())
             }
             // Tuples and primitives implement no interfaces.
-            _ => Vec::new(),
+            _ => (Vec::new(), Vec::new()),
         };
+        let types = Types {
+            module: self.module,
+            struct_map: self.struct_map,
+            class_map: self.class_map,
+            subst: (!host_args.is_empty()).then_some(host_args.as_slice()),
+        };
+        let mut covered = Vec::new();
+        for interface_ty in declared {
+            let lowered = types.lower(
+                interface_ty,
+                self.enums,
+                self.structs,
+                self.interfaces,
+                self.shell,
+            );
+            let mir::Type::Interface(interface) = lowered else {
+                unreachable!()
+            };
+            covered.push(interface);
+        }
         if let Some(target) = target {
-            if let hir::Type::Interface(iface) = self.module.types[target] {
-                covered.push(self.interface_map[&iface]);
+            if matches!(self.module.types[target], hir::Type::Interface(..)) {
+                let mir::Type::Interface(interface) = self.lower_type(target) else {
+                    unreachable!()
+                };
+                covered.push(interface);
             }
         }
         for iface in covered {
@@ -3974,13 +4537,14 @@ mod tests {
         }
 
         fn interface_ty(&mut self, id: hir::InterfaceId) -> hir::TypeId {
-            self.types.alloc(hir::Type::Interface(id))
+            self.types.alloc(hir::Type::Interface(id, Vec::new()))
         }
 
         fn interface(&mut self, name: &str, methods: &[&str]) -> hir::InterfaceId {
             let unit = self.unit;
             self.interfaces.alloc(hir::InterfaceDecl {
                 name: name.to_string(),
+                type_params: Vec::new(),
                 methods: methods
                     .iter()
                     .map(|name| hir::MethodSig {
@@ -4003,6 +4567,10 @@ mod tests {
             base: Option<(hir::ClassId, Vec<hir::Expr>)>,
             interfaces: &[hir::InterfaceId],
         ) -> hir::ClassId {
+            let interfaces: Vec<_> = interfaces
+                .iter()
+                .map(|&interface| self.interface_ty(interface))
+                .collect();
             self.classes.alloc(hir::ClassDecl {
                 modifier,
                 name: name.to_string(),
@@ -4014,7 +4582,7 @@ mod tests {
                     })
                     .collect(),
                 base_class: base,
-                interfaces: interfaces.to_vec(),
+                interfaces,
                 span: SPAN,
             })
         }
@@ -4064,6 +4632,10 @@ mod tests {
             fields: &[(&str, hir::TypeId)],
             interfaces: &[hir::InterfaceId],
         ) -> hir::StructId {
+            let interfaces: Vec<_> = interfaces
+                .iter()
+                .map(|&interface| self.interface_ty(interface))
+                .collect();
             self.structs.alloc(hir::StructDecl {
                 name: name.to_string(),
                 type_params: Vec::new(),
@@ -4074,7 +4646,7 @@ mod tests {
                         ty: *ty,
                     })
                     .collect(),
-                interfaces: interfaces.to_vec(),
+                interfaces,
                 span: SPAN,
             })
         }
@@ -4788,6 +5360,63 @@ Module
     }
 
     #[test]
+    fn generic_interface_applications_get_distinct_mir_identities() {
+        let mut h = Harness::new();
+        let interface = h.interfaces.alloc(hir::InterfaceDecl {
+            name: "Channel".to_string(),
+            type_params: vec![hir::TypeParamDecl {
+                name: "T".to_string(),
+                variance: hir::Variance::Out,
+                span: SPAN,
+            }],
+            methods: Vec::new(),
+            span: SPAN,
+        });
+        let int_channel = h.types.alloc(hir::Type::Interface(interface, vec![h.int]));
+        let string_channel = h
+            .types
+            .alloc(hir::Type::Interface(interface, vec![h.string]));
+        h.classes.alloc(hir::ClassDecl {
+            modifier: hir::ClassModifier::Final,
+            name: "Ints".to_string(),
+            constructor: Vec::new(),
+            base_class: None,
+            interfaces: vec![int_channel],
+            span: SPAN,
+        });
+        h.classes.alloc(hir::ClassDecl {
+            modifier: hir::ClassModifier::Final,
+            name: "Strings".to_string(),
+            constructor: Vec::new(),
+            base_class: None,
+            interfaces: vec![string_channel],
+            span: SPAN,
+        });
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let names: Vec<_> = module
+            .interfaces
+            .iter()
+            .map(|(_, interface)| interface.name.as_str())
+            .collect();
+        assert_eq!(names, ["Channel$I", "Channel$S"]);
+        let class_interfaces: Vec<_> = module
+            .classes
+            .iter()
+            .filter(|(_, class)| class.name == "Ints" || class.name == "Strings")
+            .map(|(_, class)| class.interfaces[0])
+            .collect();
+        assert_ne!(class_interfaces[0], class_interfaces[1]);
+    }
+
+    #[test]
     fn print_overloads_are_ordinary_calls() {
         // M7: calls to core's `print` / `println` overloads resolve to
         // the overload's own MIR function (`Callee::User`); only the
@@ -5139,6 +5768,7 @@ Module
         let mut locals = Arena::new();
         h.interfaces.alloc(hir::InterfaceDecl {
             name: name.to_string(),
+            type_params: Vec::new(),
             methods: methods
                 .iter()
                 .map(|(name, ty)| {
@@ -7718,7 +8348,7 @@ Module
         let int = h.int;
         let iface = h.interface("Describable", &["describe"]);
         let iface_ty = h.interface_ty(iface);
-        let s = h.strukt("S", &[("x", int)]);
+        let s = h.strukt_with("S", &[("x", int)], &[iface]);
         let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
         let _describe = empty_method(&mut h, "S", "describe", s_ty);
         // `val d: Describable = S(1)` — a Box whose target is the

@@ -119,11 +119,35 @@ impl Lowerer {
                     }
                     return Some(self.struct_application(struct_id, resolved));
                 }
+                if let Some(&(interface_id, _)) = self.interfaces_by_name.get(&name.text) {
+                    let arity = self.interfaces[interface_id].type_params.len();
+                    if arity == 0 {
+                        self.error(
+                            name.span,
+                            format!("interface `{}` is not generic", name.text),
+                        );
+                        return None;
+                    }
+                    if arity != args.len() {
+                        self.error(
+                            name.span,
+                            format!(
+                                "interface `{}` takes {arity} type argument(s), but {} were supplied",
+                                name.text,
+                                args.len()
+                            ),
+                        );
+                        return None;
+                    }
+                    let mut resolved = Vec::with_capacity(args.len());
+                    for arg in args {
+                        resolved.push(self.resolve_type_ref(arg)?);
+                    }
+                    return Some(self.intern_type(Type::Interface(interface_id, resolved)));
+                }
                 let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
                     let what = if self.classes_by_name.contains_key(&name.text) {
                         format!("class `{}` is not generic", name.text)
-                    } else if self.interfaces_by_name.contains_key(&name.text) {
-                        format!("interface `{}` is not generic", name.text)
                     } else if name.text == "Any" {
                         "type `Any` takes no type arguments".to_string()
                     } else {
@@ -201,7 +225,18 @@ impl Lowerer {
                         if let Some(&(_, ty)) = self.classes_by_name.get(&name.text) {
                             return Some(ty);
                         }
-                        if let Some(&(_, ty)) = self.interfaces_by_name.get(&name.text) {
+                        if let Some(&(interface_id, ty)) = self.interfaces_by_name.get(&name.text) {
+                            let arity = self.interfaces[interface_id].type_params.len();
+                            if arity != 0 {
+                                self.error(
+                                    name.span,
+                                    format!(
+                                        "generic interface `{}` requires {arity} type argument(s)",
+                                        name.text
+                                    ),
+                                );
+                                return None;
+                            }
                             return Some(ty);
                         }
                         match self.enums_by_name.get(&name.text) {
@@ -294,6 +329,13 @@ impl Lowerer {
                 }
                 self.intern_type(Type::Struct(id, substituted))
             }
+            Type::Interface(id, args) => {
+                let mut substituted = Vec::with_capacity(args.len());
+                for arg in args {
+                    substituted.push(self.instantiate_ty(arg, type_args));
+                }
+                self.intern_type(Type::Interface(id, substituted))
+            }
             Type::Array(element) => {
                 let element = self.instantiate_ty(element, type_args);
                 self.intern_type(Type::Array(element))
@@ -335,6 +377,13 @@ impl Lowerer {
                     substituted.push(self.try_substitute(arg, bindings)?);
                 }
                 Some(self.intern_type(Type::Struct(id, substituted)))
+            }
+            Type::Interface(id, args) => {
+                let mut substituted = Vec::with_capacity(args.len());
+                for arg in args {
+                    substituted.push(self.try_substitute(arg, bindings)?);
+                }
+                Some(self.intern_type(Type::Interface(id, substituted)))
             }
             Type::Array(element) => {
                 let element = self.try_substitute(element, bindings)?;
@@ -400,16 +449,49 @@ impl Lowerer {
     /// types count as subtypes of `Any` (they cross via boxing, spec
     /// 4.4.4); arrays are invariant in the element type (spec 10.4), so
     /// no array is a subtype of another array.
-    pub(crate) fn is_subtype(&self, a: TypeId, b: TypeId) -> bool {
+    pub(crate) fn is_subtype(&mut self, a: TypeId, b: TypeId) -> bool {
         if self.types_equal(a, b) {
             return true;
         }
-        match (&self.types[a], &self.types[b]) {
+        let a_ty = self.types[a].clone();
+        let b_ty = self.types[b].clone();
+        match (a_ty, b_ty) {
             (_, Type::Any) => true,
-            (&Type::Class(a), &Type::Class(b)) => self.class_inherits(a, b),
-            (&Type::Class(a), &Type::Interface(i)) => self.class_implements(a, i),
-            (&Type::Struct(s, _), &Type::Interface(i)) => self.structs[s].interfaces.contains(&i),
-            (&Type::Enum(e, _), &Type::Interface(i)) => self.enums[e].interfaces.contains(&i),
+            (Type::Class(a), Type::Class(b)) => self.class_inherits(a, b),
+            (Type::Interface(a, a_args), Type::Interface(b, b_args)) if a == b => {
+                let variances: Vec<hir::Variance> = self.interfaces[a]
+                    .type_params
+                    .iter()
+                    .map(|param| param.variance)
+                    .collect();
+                variances
+                    .into_iter()
+                    .zip(a_args)
+                    .zip(b_args)
+                    .all(|((variance, a), b)| match variance {
+                        hir::Variance::Invariant => self.types_equal(a, b),
+                        hir::Variance::Out => self.is_subtype(a, b),
+                        hir::Variance::In => self.is_subtype(b, a),
+                    })
+            }
+            (Type::Class(class), Type::Interface(..)) => self
+                .class_interfaces_all(class)
+                .into_iter()
+                .any(|implemented| self.is_subtype(implemented, b)),
+            (Type::Struct(id, args), Type::Interface(..)) => {
+                let interfaces = self.structs[id].interfaces.clone();
+                interfaces.into_iter().any(|implemented| {
+                    let implemented = self.instantiate_ty(implemented, &args);
+                    self.is_subtype(implemented, b)
+                })
+            }
+            (Type::Enum(id, args), Type::Interface(..)) => {
+                let interfaces = self.enums[id].interfaces.clone();
+                interfaces.into_iter().any(|implemented| {
+                    let implemented = self.instantiate_ty(implemented, &args);
+                    self.is_subtype(implemented, b)
+                })
+            }
             _ => false,
         }
     }
@@ -420,15 +502,15 @@ impl Lowerer {
     /// subtyping relation in either direction, `Any` and interfaces
     /// can hold anything below them, and an open/abstract class may
     /// gain an interface implementation in a subclass.
-    pub(crate) fn could_hold(&self, a: TypeId, b: TypeId) -> bool {
+    pub(crate) fn could_hold(&mut self, a: TypeId, b: TypeId) -> bool {
         if self.is_subtype(a, b) || self.is_subtype(b, a) {
             return true;
         }
         match &self.types[a] {
-            Type::Any | Type::Interface(_) => true,
+            Type::Any | Type::Interface(..) => true,
             &Type::Class(id) => {
                 self.classes[id].modifier != hir::ClassModifier::Final
-                    && matches!(self.types[b], Type::Interface(_))
+                    && matches!(self.types[b], Type::Interface(..))
             }
             _ => false,
         }
@@ -462,12 +544,13 @@ impl Lowerer {
     /// reference types (spec 10.3). The current type system has no
     /// intersection types: if several incomparable minimal common
     /// supertypes remain, `Any` is the only representable result.
-    pub(crate) fn reference_lob(&self, element_types: &[TypeId]) -> TypeId {
+    pub(crate) fn reference_lob(&mut self, element_types: &[TypeId]) -> TypeId {
         debug_assert!(!element_types.is_empty());
         debug_assert!(element_types.iter().all(|&ty| self.is_ref_ty(ty)));
 
         let mut common_supertypes = Vec::new();
-        for (candidate, _) in self.types.iter() {
+        let candidates: Vec<TypeId> = self.types.iter().map(|(id, _)| id).collect();
+        for candidate in candidates {
             if !self.is_ref_ty(candidate)
                 || !element_types
                     .iter()
@@ -540,7 +623,14 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
                     .all(|(&x, &y)| type_value_equal(types, x, y))
         }
         (Type::Class(x), Type::Class(y)) => x == y,
-        (Type::Interface(x), Type::Interface(y)) => x == y,
+        (Type::Interface(x, x_args), Type::Interface(y, y_args)) => {
+            x == y
+                && x_args.len() == y_args.len()
+                && x_args
+                    .iter()
+                    .zip(y_args.iter())
+                    .all(|(&x, &y)| type_value_equal(types, x, y))
+        }
         (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
             type_value_equal(types, *x, *y)
         }
@@ -592,7 +682,17 @@ fn type_name(
             }
         }
         Type::Class(id) => classes[*id].name.clone(),
-        Type::Interface(id) => interfaces[*id].name.clone(),
+        Type::Interface(id, args) => {
+            if args.is_empty() {
+                interfaces[*id].name.clone()
+            } else {
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
+                    .collect();
+                format!("{}<{}>", interfaces[*id].name, inner.join(", "))
+            }
+        }
         Type::Any => "Any".to_string(),
         Type::Array(element) => {
             let inner = type_name(
