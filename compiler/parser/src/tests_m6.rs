@@ -55,7 +55,9 @@ fn class_with_base_and_interfaces() {
     assert_eq!(args.len(), 1);
     assert!(matches!(&args[0], Expr::StringLiteral { value, .. } if value == "point"));
     assert_eq!(decl.interfaces.len(), 1);
-    assert_eq!(decl.interfaces[0].text, "Describable");
+    assert!(
+        matches!(&decl.interfaces[0].kind, TypeRefKind::Named(name) if name.text == "Describable")
+    );
     assert_eq!(
         scoop_ast::dump(&file),
         "SourceFile\n  class Point(val x: Int) : Shape(<1 args>), Describable\n"
@@ -70,7 +72,14 @@ fn class_with_multiple_interfaces() {
     };
     assert!(decl.base_class.is_none());
     assert!(decl.constructor.is_empty());
-    let names: Vec<&str> = decl.interfaces.iter().map(|i| i.text.as_str()).collect();
+    let names: Vec<&str> = decl
+        .interfaces
+        .iter()
+        .map(|ty| match &ty.kind {
+            TypeRefKind::Named(name) => name.text.as_str(),
+            _ => panic!("expected a named interface"),
+        })
+        .collect();
     assert_eq!(names, ["I1", "I2"]);
 }
 
@@ -344,6 +353,30 @@ fn interface_with_multiple_methods() {
 }
 
 #[test]
+fn generic_interface_variance_and_applied_supertype() {
+    let file = ok(
+        "interface Flow<out T, in E, U> { fun next(): T\n fun fail(e: E) }\nclass C : Flow<Int, String, Boolean> {}",
+    );
+    let Decl::Interface(interface) = &file.declarations[0] else {
+        panic!("expected interface");
+    };
+    assert_eq!(interface.type_params.len(), 3);
+    assert_eq!(interface.type_params[0].variance, scoop_ast::Variance::Out);
+    assert_eq!(interface.type_params[1].variance, scoop_ast::Variance::In);
+    assert_eq!(
+        interface.type_params[2].variance,
+        scoop_ast::Variance::Invariant
+    );
+    let Decl::Class(class) = &file.declarations[1] else {
+        panic!("expected class");
+    };
+    assert!(matches!(
+        &class.interfaces[0].kind,
+        TypeRefKind::Generic(name, args) if name.text == "Flow" && args.len() == 3
+    ));
+}
+
+#[test]
 fn interface_method_body_not_supported() {
     let (span, message) = err("interface I {\n    fun f() = 1\n}\n");
     assert_eq!(span, Span::new(26, 27));
@@ -412,7 +445,9 @@ fn struct_interface_list() {
         panic!("expected a struct declaration");
     };
     assert_eq!(decl.interfaces.len(), 1);
-    assert_eq!(decl.interfaces[0].text, "Describable");
+    assert!(
+        matches!(&decl.interfaces[0].kind, TypeRefKind::Named(name) if name.text == "Describable")
+    );
     assert_eq!(decl.methods.len(), 1);
     assert!(decl.methods[0].is_override);
 }
@@ -423,7 +458,14 @@ fn struct_interface_list_without_body() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");
     };
-    let names: Vec<&str> = decl.interfaces.iter().map(|i| i.text.as_str()).collect();
+    let names: Vec<&str> = decl
+        .interfaces
+        .iter()
+        .map(|ty| match &ty.kind {
+            TypeRefKind::Named(name) => name.text.as_str(),
+            _ => panic!("expected a named interface"),
+        })
+        .collect();
     assert_eq!(names, ["I1", "I2"]);
     assert!(decl.methods.is_empty());
     assert_eq!(decl.span, Span::new(0, 29));
@@ -451,7 +493,9 @@ fn enum_interface_list() {
         panic!("expected an enum declaration");
     };
     assert_eq!(decl.interfaces.len(), 1);
-    assert_eq!(decl.interfaces[0].text, "Describable");
+    assert!(
+        matches!(&decl.interfaces[0].kind, TypeRefKind::Named(name) if name.text == "Describable")
+    );
     assert_eq!(decl.variants.len(), 1);
     assert_eq!(decl.methods.len(), 1);
     assert!(decl.methods[0].is_override);

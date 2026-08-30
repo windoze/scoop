@@ -143,6 +143,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - 次构造函数、`init` 块、body 属性（非构造函数属性）、`super` 调用；
 - interface 的属性与默认实现；
+- ~~泛型 interface 与声明点 `in` / `out` 变型~~（已完成：接口应用类型贯穿 AST/HIR/MIR，位置合法性与变型子类型关系在 HIR 检查；MIR 按具体实参生成独立接口 TypeDescriptor，并为引用/值 ABI 生成变型 itable bridge）；
 - `equals` / `hashCode` / `toString` 的用户覆写——已改道为接口化设计（spec 11.11）：`equals` 走 operator fun、`ToString` / `Hash` opt-in 接口、vtable 前三槽拆除（→ M12）；
 - companion object、`object` 声明、`sealed`、委托（`by`）；
 - 可见性修饰符（`internal` 语义 → M14 多 Cone 前）；

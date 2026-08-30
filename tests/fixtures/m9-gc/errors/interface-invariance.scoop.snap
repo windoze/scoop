@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m9-gc/errors/interface-invariance.scoop:8:44: error: body of `widen` must be of type Cell<Animal>, found Cell<Dog>

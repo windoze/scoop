@@ -34,11 +34,165 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use hir::{ClassId, FunctionId, InterfaceId, Type, TypeId};
+use hir::{ClassId, FunctionId, Type, TypeId};
 
 use crate::{FnParam, FnSig, Lowerer, Owner};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TypePosition {
+    Covariant,
+    Contravariant,
+    Invariant,
+}
+
+impl TypePosition {
+    fn through(self, variance: hir::Variance) -> Self {
+        match (self, variance) {
+            (Self::Invariant, _) | (_, hir::Variance::Invariant) => Self::Invariant,
+            (Self::Covariant, hir::Variance::Out) | (Self::Contravariant, hir::Variance::In) => {
+                Self::Covariant
+            }
+            (Self::Covariant, hir::Variance::In) | (Self::Contravariant, hir::Variance::Out) => {
+                Self::Contravariant
+            }
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Covariant => "covariant",
+            Self::Contravariant => "contravariant",
+            Self::Invariant => "invariant",
+        }
+    }
+}
+
 impl Lowerer {
+    /// Validate declaration-site variance against every resolved method
+    /// signature. Nested interface applications compose their own variance;
+    /// all currently invariant constructors collapse the nested position.
+    pub(crate) fn check_interface_variance(&mut self) {
+        let interfaces: Vec<hir::InterfaceId> = self.interfaces.iter().map(|(id, _)| id).collect();
+        for interface in interfaces {
+            if self.interfaces[interface].type_params.is_empty() {
+                continue;
+            }
+            let params = self.interfaces[interface].type_params.clone();
+            let methods: Vec<_> = self.interfaces[interface]
+                .methods
+                .iter()
+                .map(|method| {
+                    (
+                        method.name.clone(),
+                        method
+                            .params
+                            .iter()
+                            .map(|param| param.ty)
+                            .collect::<Vec<_>>(),
+                        method.return_ty,
+                        method.span,
+                    )
+                })
+                .collect();
+            if let Some(&method) = self.interface_methods[&interface].first()
+                && let Some(&file) = self.function_files.get(&method)
+            {
+                self.current_file = file;
+            }
+            for (method, method_params, return_ty, method_span) in methods {
+                for ty in method_params {
+                    self.check_variance_position(
+                        ty,
+                        TypePosition::Contravariant,
+                        &params,
+                        &method,
+                        method_span,
+                    );
+                }
+                self.check_variance_position(
+                    return_ty,
+                    TypePosition::Covariant,
+                    &params,
+                    &method,
+                    method_span,
+                );
+            }
+        }
+    }
+
+    fn check_variance_position(
+        &mut self,
+        ty: TypeId,
+        position: TypePosition,
+        params: &[hir::TypeParamDecl],
+        method: &str,
+        span: ast::Span,
+    ) {
+        match self.types[ty].clone() {
+            Type::Param(id) => {
+                let param = &params[id.into_raw() as usize];
+                let valid = matches!(param.variance, hir::Variance::Invariant)
+                    || matches!(
+                        (param.variance, position),
+                        (hir::Variance::Out, TypePosition::Covariant)
+                            | (hir::Variance::In, TypePosition::Contravariant)
+                    );
+                if !valid {
+                    let declared = match param.variance {
+                        hir::Variance::Out => "covariant",
+                        hir::Variance::In => "contravariant",
+                        hir::Variance::Invariant => unreachable!(),
+                    };
+                    self.error(
+                        span,
+                        format!(
+                            "{declared} type parameter `{}` occurs in {} position in interface method `{method}`",
+                            param.name,
+                            position.name()
+                        ),
+                    );
+                }
+            }
+            Type::Interface(id, args) => {
+                let variances: Vec<_> = self.interfaces[id]
+                    .type_params
+                    .iter()
+                    .map(|param| param.variance)
+                    .collect();
+                for (arg, variance) in args.into_iter().zip(variances) {
+                    self.check_variance_position(
+                        arg,
+                        position.through(variance),
+                        params,
+                        method,
+                        span,
+                    );
+                }
+            }
+            Type::Struct(_, args) | Type::Enum(_, args) | Type::Tuple(args) => {
+                for arg in args {
+                    self.check_variance_position(
+                        arg,
+                        TypePosition::Invariant,
+                        params,
+                        method,
+                        span,
+                    );
+                }
+            }
+            Type::Array(element) | Type::MutableArray(element) => {
+                self.check_variance_position(element, TypePosition::Invariant, params, method, span)
+            }
+            Type::Unit
+            | Type::Int
+            | Type::UInt
+            | Type::Boolean
+            | Type::String
+            | Type::Class(_)
+            | Type::Any => {}
+        }
+    }
+
     /// Resolve a class's constructor properties, base-class clause and
     /// interface list (pass 2).
     pub(crate) fn resolve_class(&mut self, id: ClassId, decl: &ast::ClassDecl) {
@@ -103,23 +257,21 @@ impl Lowerer {
     /// Resolve an interface list (`: I1, I2`) on any declaration —
     /// classes, structs and enums share the rules (spec 9.1 / 4.4.3):
     /// every name must be an interface, duplicates are dropped.
-    pub(crate) fn resolve_interface_list(&mut self, names: &[ast::Ident]) -> Vec<InterfaceId> {
+    pub(crate) fn resolve_interface_list(&mut self, refs: &[ast::TypeRef]) -> Vec<TypeId> {
         let mut interfaces = Vec::new();
-        for name in names {
-            match self.interfaces_by_name.get(&name.text) {
-                Some(&(iface, _)) => {
-                    if !interfaces.contains(&iface) {
-                        interfaces.push(iface);
-                    }
-                }
-                None => {
-                    let what = if self.type_namespace_conflict(&name.text).is_some() {
-                        format!("`{}` is not an interface", name.text)
-                    } else {
-                        format!("unknown type `{}`", name.text)
-                    };
-                    self.error(name.span, what);
-                }
+        for ty_ref in refs {
+            let Some(ty) = self.resolve_type_ref(ty_ref) else {
+                continue;
+            };
+            if !matches!(self.types[ty], Type::Interface(..)) {
+                self.error(
+                    ty_ref.span,
+                    format!("`{}` is not an interface", self.type_name(ty)),
+                );
+                continue;
+            }
+            if !interfaces.iter().any(|&other| self.types_equal(other, ty)) {
+                interfaces.push(ty);
             }
         }
         interfaces
@@ -158,6 +310,17 @@ impl Lowerer {
             }
             Owner::Struct(struct_id) => {
                 let type_params = self.structs[struct_id].type_params.clone();
+                if !type_params.is_empty() {
+                    self.register_generic(id);
+                }
+                type_params
+            }
+            Owner::Interface(interface_id) => {
+                let type_params = self.interfaces[interface_id]
+                    .type_params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect::<Vec<_>>();
                 if !type_params.is_empty() {
                     self.register_generic(id);
                 }
@@ -416,39 +579,44 @@ impl Lowerer {
     /// modifier there too, DESIGN.md 5.2). Interface methods have no
     /// candidates in M6 (no superinterfaces).
     fn check_override_rules(&mut self, id: FunctionId, decl: &ast::FunctionDecl, owner: Owner) {
-        let candidates = match owner {
+        let candidates: Vec<(FunctionId, Vec<TypeId>)> = match owner {
             Owner::Class(class_id) => {
-                let mut candidates = self.base_chain_methods(class_id);
-                for iface in self.class_interfaces_all(class_id) {
-                    candidates.extend(self.interface_methods[&iface].iter().copied());
+                let mut candidates: Vec<_> = self
+                    .base_chain_methods(class_id)
+                    .into_iter()
+                    .map(|method| (method, Vec::new()))
+                    .collect();
+                for interface_ty in self.class_interfaces_all(class_id) {
+                    let (iface, args) = self.interface_application(interface_ty);
+                    candidates.extend(
+                        self.interface_methods[&iface]
+                            .iter()
+                            .copied()
+                            .map(|method| (method, args.clone())),
+                    );
                 }
                 candidates
             }
-            Owner::Struct(struct_id) => self.structs[struct_id]
-                .interfaces
-                .iter()
-                .flat_map(|&iface| self.interface_methods[&iface].iter().copied())
-                .collect(),
-            Owner::Enum(enum_id) => self.enums[enum_id]
-                .interfaces
-                .iter()
-                .flat_map(|&iface| self.interface_methods[&iface].iter().copied())
-                .collect(),
+            Owner::Struct(struct_id) => {
+                self.interface_method_candidates(&self.structs[struct_id].interfaces.clone())
+            }
+            Owner::Enum(enum_id) => {
+                self.interface_method_candidates(&self.enums[enum_id].interfaces.clone())
+            }
             Owner::Interface(_) => return,
         };
         let sig = self.signatures[&id].clone();
         let short = decl.name.text.clone();
-        let overrides = candidates
-            .iter()
-            .copied()
-            .find(|&candidate| self.same_signature(candidate, &short, &sig));
-        if let Some(candidate) = overrides
-            && matches!(self.function_owner.get(&candidate), Some(Owner::Class(_)))
-            && self.functions[candidate]
+        let overrides = candidates.into_iter().find(|(candidate, args)| {
+            self.same_instantiated_signature(*candidate, &short, &sig, args)
+        });
+        if let Some((candidate, _)) = overrides.as_ref()
+            && matches!(self.function_owner.get(candidate), Some(Owner::Class(_)))
+            && self.functions[*candidate]
                 .method
                 .is_some_and(|method| method.modifier == hir::MethodModifier::Final)
         {
-            let owner = self.functions[candidate].name.clone();
+            let owner = self.functions[*candidate].name.clone();
             self.error(
                 decl.name.span,
                 format!("`{short}` cannot override final method `{owner}`"),
@@ -456,7 +624,7 @@ impl Lowerer {
             return;
         }
         match (overrides, decl.is_override) {
-            (Some(candidate), false) => {
+            (Some((candidate, _)), false) => {
                 let owner = self.functions[candidate].name.clone();
                 self.error(
                     decl.name.span,
@@ -482,13 +650,14 @@ impl Lowerer {
             return;
         }
         let class_name = self.classes[id].name.clone();
-        for iface in self.class_interfaces_all(id) {
+        for interface_ty in self.class_interfaces_all(id) {
+            let (iface, args) = self.interface_application(interface_ty);
             let methods: Vec<(String, FunctionId)> = self.interface_methods[&iface]
                 .iter()
                 .map(|&m| (self.functions[m].name.clone(), m))
                 .collect();
             for (qualified, method) in methods {
-                let sig = self.signatures[&method].clone();
+                let sig = self.instantiated_signature(method, &args);
                 let short = qualified.rsplit('.').next().expect("methods are qualified");
                 let implemented = self
                     .base_chain_methods(id)
@@ -516,7 +685,7 @@ impl Lowerer {
     /// (spec 4.4.3; value types have no base chain to inherit from,
     /// and their methods are always concrete).
     fn check_value_interface_implementation(&mut self, owner: Owner, span: ast::Span) {
-        let (interfaces, own_methods): (Vec<InterfaceId>, Vec<FunctionId>) = match owner {
+        let (interfaces, own_methods): (Vec<TypeId>, Vec<FunctionId>) = match owner {
             Owner::Struct(id) => (
                 self.structs[id].interfaces.clone(),
                 self.struct_methods[&id].clone(),
@@ -528,13 +697,14 @@ impl Lowerer {
             // Only called for value types.
             Owner::Class(_) | Owner::Interface(_) => return,
         };
-        for iface in interfaces {
+        for interface_ty in interfaces {
+            let (iface, args) = self.interface_application(interface_ty);
             let methods: Vec<(String, FunctionId)> = self.interface_methods[&iface]
                 .iter()
                 .map(|&m| (self.functions[m].name.clone(), m))
                 .collect();
             for (qualified, method) in methods {
-                let sig = self.signatures[&method].clone();
+                let sig = self.instantiated_signature(method, &args);
                 let short = qualified.rsplit('.').next().expect("methods are qualified");
                 let implemented = own_methods
                     .iter()
@@ -579,6 +749,64 @@ impl Lowerer {
                 .zip(&sig.params)
                 .all(|(a, b)| self.types_equal(a.ty, b.ty))
             && self.types_equal(candidate_sig.return_ty, sig.return_ty)
+    }
+
+    fn instantiated_signature(&mut self, method: FunctionId, args: &[TypeId]) -> FnSig {
+        let sig = self.signatures[&method].clone();
+        if args.is_empty() {
+            return sig;
+        }
+        FnSig {
+            type_params: Vec::new(),
+            params: sig
+                .params
+                .into_iter()
+                .map(|param| FnParam {
+                    name: param.name,
+                    ty: self.instantiate_ty(param.ty, args),
+                })
+                .collect(),
+            return_ty: self.instantiate_ty(sig.return_ty, args),
+        }
+    }
+
+    fn same_instantiated_signature(
+        &mut self,
+        candidate: FunctionId,
+        name: &str,
+        sig: &FnSig,
+        args: &[TypeId],
+    ) -> bool {
+        let candidate_sig = self.instantiated_signature(candidate, args);
+        self.functions[candidate].name.rsplit('.').next() == Some(name)
+            && candidate_sig.params.len() == sig.params.len()
+            && candidate_sig
+                .params
+                .iter()
+                .zip(&sig.params)
+                .all(|(a, b)| self.types_equal(a.ty, b.ty))
+            && self.types_equal(candidate_sig.return_ty, sig.return_ty)
+    }
+
+    fn interface_application(&self, ty: TypeId) -> (hir::InterfaceId, Vec<TypeId>) {
+        match &self.types[ty] {
+            Type::Interface(id, args) => (*id, args.clone()),
+            _ => unreachable!("resolved interface lists only contain interface applications"),
+        }
+    }
+
+    fn interface_method_candidates(&self, interfaces: &[TypeId]) -> Vec<(FunctionId, Vec<TypeId>)> {
+        let mut candidates = Vec::new();
+        for &interface_ty in interfaces {
+            let (iface, args) = self.interface_application(interface_ty);
+            candidates.extend(
+                self.interface_methods[&iface]
+                    .iter()
+                    .copied()
+                    .map(|method| (method, args.clone())),
+            );
+        }
+        candidates
     }
 
     /// Lower the base-constructor delegation arguments of
@@ -676,21 +904,15 @@ impl Lowerer {
         false
     }
 
-    /// Whether class `c` or one of its base classes implements
-    /// interface `i`.
-    pub(crate) fn class_implements(&self, c: ClassId, i: InterfaceId) -> bool {
-        self.class_interfaces_all(c).contains(&i)
-    }
-
     /// Every interface implemented by class `c` or its base classes,
     /// deduplicated, own list first (cycle-safe).
-    pub(crate) fn class_interfaces_all(&self, c: ClassId) -> Vec<InterfaceId> {
+    pub(crate) fn class_interfaces_all(&self, c: ClassId) -> Vec<TypeId> {
         let mut result = Vec::new();
         let mut seen = vec![c];
         let mut current = Some(c);
         while let Some(id) = current {
             for &iface in &self.classes[id].interfaces {
-                if !result.contains(&iface) {
+                if !result.iter().any(|&other| self.types_equal(other, iface)) {
                     result.push(iface);
                 }
             }
@@ -807,7 +1029,7 @@ impl Lowerer {
                 add_visible(&mut result, &self.base_chain_methods(id));
                 result
             }
-            Type::Interface(id) => {
+            Type::Interface(id, _) => {
                 let mut result = Vec::new();
                 add_visible(&mut result, &self.interface_methods[&id]);
                 result

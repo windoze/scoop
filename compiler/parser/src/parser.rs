@@ -111,42 +111,10 @@ impl Parser {
         match token.kind {
             TokenKind::Ident(text) => {
                 self.pos += 1;
-                if text == "Unit" {
-                    Ok(TypeRef {
-                        kind: TypeRefKind::Unit,
-                        span: token.span,
-                    })
-                } else if matches!(self.peek().kind, TokenKind::Less) {
-                    // Generic type application `Name<T1, T2>`: `<`
-                    // directly after a type name is unambiguous in
-                    // type position.
-                    let start = token.span.start;
-                    self.bump();
-                    let mut args = vec![self.parse_type_ref()?];
-                    while matches!(self.peek().kind, TokenKind::Comma) {
-                        self.bump();
-                        args.push(self.parse_type_ref()?);
-                    }
-                    let close = self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
-                    Ok(TypeRef {
-                        kind: TypeRefKind::Generic(
-                            Ident {
-                                text,
-                                span: token.span,
-                            },
-                            args,
-                        ),
-                        span: Span::new(start, close.span.end),
-                    })
-                } else {
-                    Ok(TypeRef {
-                        kind: TypeRefKind::Named(Ident {
-                            text,
-                            span: token.span,
-                        }),
-                        span: token.span,
-                    })
-                }
+                self.parse_named_type_ref_tail(Ident {
+                    text,
+                    span: token.span,
+                })
             }
             TokenKind::LParen => {
                 self.pos += 1;
@@ -169,7 +137,7 @@ impl Parser {
                 while matches!(self.peek().kind, TokenKind::Comma) {
                     self.bump();
                     if matches!(self.peek().kind, TokenKind::RParen) {
-                        break; // trailing comma: `(T,)` / `(T1, T2,)`
+                        break;
                     }
                     elements.push(self.parse_type_ref()?);
                 }
@@ -180,6 +148,35 @@ impl Parser {
                 })
             }
             _ => self.unexpected("type"),
+        }
+    }
+
+    /// Complete a named type after its identifier was consumed. Supertype
+    /// lists use the same generic-application grammar as annotations.
+    pub(crate) fn parse_named_type_ref_tail(&mut self, name: Ident) -> Result<TypeRef, Diagnostic> {
+        if name.text == "Unit" {
+            Ok(TypeRef {
+                kind: TypeRefKind::Unit,
+                span: name.span,
+            })
+        } else if matches!(self.peek().kind, TokenKind::Less) {
+            let start = name.span.start;
+            self.bump();
+            let mut args = vec![self.parse_type_ref()?];
+            while matches!(self.peek().kind, TokenKind::Comma) {
+                self.bump();
+                args.push(self.parse_type_ref()?);
+            }
+            let close = self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
+            Ok(TypeRef {
+                kind: TypeRefKind::Generic(name, args),
+                span: Span::new(start, close.span.end),
+            })
+        } else {
+            Ok(TypeRef {
+                span: name.span,
+                kind: TypeRefKind::Named(name),
+            })
         }
     }
 

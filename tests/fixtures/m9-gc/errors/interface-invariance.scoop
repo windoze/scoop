@@ -1,0 +1,10 @@
+interface Cell<T> {
+    fun get(): T
+}
+
+open class Animal {}
+class Dog : Animal() {}
+
+fun widen(cell: Cell<Dog>): Cell<Animal> = cell
+
+fun main() {}

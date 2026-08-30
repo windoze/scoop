@@ -4,7 +4,7 @@
 use scoop_ast::{
     Annotation, ClassDecl, ClassModifier, ConstructorProp, Decl, Diagnostic, EnumDecl, Expr,
     FieldDecl, FunctionBody, FunctionDecl, Ident, InterfaceDecl, MethodModifier, Param, Span,
-    StructDecl, VariantDecl, VariantDeclKind, VariantFieldDecl,
+    StructDecl, TypeParamDecl, Variance, VariantDecl, VariantDeclKind, VariantFieldDecl,
 };
 
 use crate::lexer::TokenKind;
@@ -39,13 +39,13 @@ pub(crate) struct Modifiers {
 #[derive(Debug, Default)]
 pub(crate) struct Supertypes {
     pub base_class: Option<(Ident, Vec<Expr>)>,
-    pub interfaces: Vec<Ident>,
+    pub interfaces: Vec<scoop_ast::TypeRef>,
 }
 
 /// Value types implement interfaces only (spec 4.4.3): a supertype with
 /// constructor arguments (a base class) is rejected, the rest are
 /// interface names.
-fn interfaces_only(supertypes: Supertypes) -> Result<Vec<Ident>, Diagnostic> {
+fn interfaces_only(supertypes: Supertypes) -> Result<Vec<scoop_ast::TypeRef>, Diagnostic> {
     if let Some((base, _)) = supertypes.base_class {
         return Err(Diagnostic::at(
             base.span,
@@ -445,7 +445,9 @@ impl Parser {
                 supertypes.base_class = Some((super_name, args));
                 *end = args_end;
             } else {
-                supertypes.interfaces.push(super_name);
+                let supertype = self.parse_named_type_ref_tail(super_name)?;
+                *end = supertype.span.end;
+                supertypes.interfaces.push(supertype);
             }
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
@@ -461,9 +463,11 @@ impl Parser {
     fn parse_interface(&mut self) -> Result<InterfaceDecl, Diagnostic> {
         let keyword = self.expect("`interface`", |k| matches!(k, TokenKind::Interface))?;
         let name = self.expect_ident("interface name")?;
+        let type_params = self.parse_interface_type_params()?;
         let (methods, end) = self.parse_member_body(FunctionContext::Interface)?;
         Ok(InterfaceDecl {
             name,
+            type_params,
             methods,
             span: Span::new(keyword.span.start, end),
         })
@@ -664,6 +668,48 @@ impl Parser {
             }
             self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
         }
+        Ok(type_params)
+    }
+
+    /// Interface declaration parameters additionally accept declaration-site
+    /// `in` / `out` variance. They remain identifiers elsewhere in the grammar.
+    fn parse_interface_type_params(&mut self) -> Result<Vec<TypeParamDecl>, Diagnostic> {
+        let mut type_params = Vec::new();
+        if !matches!(self.peek().kind, TokenKind::Less) {
+            return Ok(type_params);
+        }
+        self.bump();
+        loop {
+            let variance_token = self.peek().clone();
+            let variance = match &variance_token.kind {
+                TokenKind::Ident(text) if text == "in" => {
+                    self.bump();
+                    Variance::In
+                }
+                TokenKind::Ident(text) if text == "out" => {
+                    self.bump();
+                    Variance::Out
+                }
+                _ => Variance::Invariant,
+            };
+            let name = self.expect_ident("type parameter name")?;
+            let start = if variance == Variance::Invariant {
+                name.span.start
+            } else {
+                variance_token.span.start
+            };
+            type_params.push(TypeParamDecl {
+                span: Span::new(start, name.span.end),
+                name,
+                variance,
+            });
+            if matches!(self.peek().kind, TokenKind::Comma) {
+                self.bump();
+            } else {
+                break;
+            }
+        }
+        self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
         Ok(type_params)
     }
 

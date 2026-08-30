@@ -55,7 +55,7 @@ SourceFile
     fun name
   class Dog(), Named
     fun name
-  struct Tag
+  struct Tag : Named
     field text: String
     fun name
   fun baseCount(values: Array<Base>): Int
@@ -113,7 +113,7 @@ Module
     field raw: UInt
   struct GcHandle<T>
     field raw: UInt
-  struct Tag
+  struct Tag : Named
     field text: String
   enum Option<T>
     Some(_1: T0)
@@ -127,10 +127,10 @@ Module
   open class Base()
   class Left()
   class Right()
-  class Cat()
-  class Dog()
+  class Cat() : Named
+  class Dog() : Named
   interface Named
-    fun name(..): String
+    fun name(): String
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>

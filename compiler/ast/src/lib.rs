@@ -131,7 +131,7 @@ pub struct ClassDecl {
     pub constructor: Vec<ConstructorProp>,
     /// Base class and its constructor arguments (`: Base(args)`).
     pub base_class: Option<(Ident, Vec<Expr>)>,
-    pub interfaces: Vec<Ident>,
+    pub interfaces: Vec<TypeRef>,
     pub methods: Vec<FunctionDecl>,
     pub span: Span,
 }
@@ -149,7 +149,22 @@ pub struct ConstructorProp {
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceDecl {
     pub name: Ident,
+    pub type_params: Vec<TypeParamDecl>,
     pub methods: Vec<FunctionDecl>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Variance {
+    Invariant,
+    In,
+    Out,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeParamDecl {
+    pub name: Ident,
+    pub variance: Variance,
     pub span: Span,
 }
 
@@ -160,7 +175,7 @@ pub struct EnumDecl {
     pub type_params: Vec<Ident>,
     pub variants: Vec<VariantDecl>,
     /// Implemented interfaces (spec 4.4.3).
-    pub interfaces: Vec<Ident>,
+    pub interfaces: Vec<TypeRef>,
     /// Member functions (spec 4.2).
     pub methods: Vec<FunctionDecl>,
     pub span: Span,
@@ -204,7 +219,7 @@ pub struct StructDecl {
     pub type_params: Vec<Ident>,
     pub fields: Vec<FieldDecl>,
     /// Implemented interfaces (`struct S(...) : I1, I2`, spec 4.4.3).
-    pub interfaces: Vec<Ident>,
+    pub interfaces: Vec<TypeRef>,
     /// Member functions (value receiver, spec 4.1/4.4.3).
     pub methods: Vec<FunctionDecl>,
     pub span: Span,
@@ -607,7 +622,16 @@ pub fn dump(file: &SourceFile) -> String {
                     let names: Vec<&str> = e.type_params.iter().map(|p| p.text.as_str()).collect();
                     format!("<{}>", names.join(", "))
                 };
-                out.push_str(&format!("  enum {}{}\n", e.name.text, type_params));
+                let interfaces = if e.interfaces.is_empty() {
+                    String::new()
+                } else {
+                    let names: Vec<String> = e.interfaces.iter().map(dump_type_ref).collect();
+                    format!(" : {}", names.join(", "))
+                };
+                out.push_str(&format!(
+                    "  enum {}{}{}\n",
+                    e.name.text, type_params, interfaces
+                ));
                 for variant in &e.variants {
                     match &variant.kind {
                         VariantDeclKind::Unit => {
@@ -671,7 +695,7 @@ pub fn dump(file: &SourceFile) -> String {
                 let ifaces = if c.interfaces.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<&str> = c.interfaces.iter().map(|i| i.text.as_str()).collect();
+                    let names: Vec<String> = c.interfaces.iter().map(dump_type_ref).collect();
                     format!(", {}", names.join(", "))
                 };
                 out.push_str(&format!(
@@ -686,7 +710,24 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Interface(i) => {
-                out.push_str(&format!("  interface {}\n", i.name.text));
+                let params = if i.type_params.is_empty() {
+                    String::new()
+                } else {
+                    let params: Vec<String> = i
+                        .type_params
+                        .iter()
+                        .map(|param| {
+                            let variance = match param.variance {
+                                Variance::Invariant => "",
+                                Variance::In => "in ",
+                                Variance::Out => "out ",
+                            };
+                            format!("{variance}{}", param.name.text)
+                        })
+                        .collect();
+                    format!("<{}>", params.join(", "))
+                };
+                out.push_str(&format!("  interface {}{}\n", i.name.text, params));
                 for method in &i.methods {
                     out.push_str(&format!("    fun {}\n", method.name.text));
                 }
@@ -698,7 +739,16 @@ pub fn dump(file: &SourceFile) -> String {
                     let names: Vec<&str> = s.type_params.iter().map(|p| p.text.as_str()).collect();
                     format!("<{}>", names.join(", "))
                 };
-                out.push_str(&format!("  struct {}{}\n", s.name.text, type_params));
+                let interfaces = if s.interfaces.is_empty() {
+                    String::new()
+                } else {
+                    let names: Vec<String> = s.interfaces.iter().map(dump_type_ref).collect();
+                    format!(" : {}", names.join(", "))
+                };
+                out.push_str(&format!(
+                    "  struct {}{}{}\n",
+                    s.name.text, type_params, interfaces
+                ));
                 for field in &s.fields {
                     out.push_str(&format!(
                         "    field {}: {}\n",

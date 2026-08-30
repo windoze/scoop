@@ -524,13 +524,17 @@ impl Lowerer {
         for &(id, decl, file_index) in &pending_structs {
             self.current_file = file_index;
             self.resolve_fields(id, decl);
+            self.type_params_in_scope = self.structs[id].type_params.clone();
             let interfaces = self.resolve_interface_list(&decl.interfaces);
+            self.type_params_in_scope.clear();
             self.structs[id].interfaces = interfaces;
         }
         for &(id, decl, file_index) in &pending_enums {
             self.current_file = file_index;
             self.resolve_variants(id, decl);
+            self.type_params_in_scope = self.enums[id].type_params.clone();
             let interfaces = self.resolve_interface_list(&decl.interfaces);
+            self.type_params_in_scope.clear();
             self.enums[id].interfaces = interfaces;
         }
         for (id, decl, file_index) in &pending_classes {
@@ -551,6 +555,10 @@ impl Lowerer {
             self.current_file = file_index;
             self.resolve_method_signature(id, decl, owner);
         }
+
+        // Declaration-site variance is a property of the fully resolved
+        // interface signatures, so validate it after every signature exists.
+        self.check_interface_variance();
 
         // Pass 2.6: overload declarations must be distinguishable —
         // within one name (top-level) or one host (members) no two
@@ -846,13 +854,40 @@ impl Lowerer {
             self.error(decl.name.span, what);
             return;
         }
+        let mut type_params = Vec::new();
+        for param in &decl.type_params {
+            if type_params
+                .iter()
+                .any(|existing: &hir::TypeParamDecl| existing.name == param.name.text)
+            {
+                self.error(
+                    param.span,
+                    format!("duplicate type parameter `{}`", param.name.text),
+                );
+                continue;
+            }
+            let variance = match param.variance {
+                ast::Variance::Invariant => hir::Variance::Invariant,
+                ast::Variance::In => hir::Variance::In,
+                ast::Variance::Out => hir::Variance::Out,
+            };
+            type_params.push(hir::TypeParamDecl {
+                name: param.name.text.clone(),
+                variance,
+                span: param.span,
+            });
+        }
         let id = self.interfaces.alloc(InterfaceDecl {
             name: decl.name.text.clone(),
+            type_params: type_params.clone(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),
             span: decl.span,
         });
-        let ty = self.types.alloc(Type::Interface(id));
+        let type_args = (0..type_params.len())
+            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+            .collect();
+        let ty = self.intern_type(Type::Interface(id, type_args));
         self.interfaces_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.interface_methods.insert(id, Vec::new());
@@ -917,6 +952,7 @@ impl Lowerer {
             span: decl.span,
         });
         self.function_owner.insert(id, owner);
+        self.function_files.insert(id, file_index);
         match owner {
             Owner::Class(id) => self.class_methods.get_mut(&id),
             Owner::Interface(id) => self.interface_methods.get_mut(&id),

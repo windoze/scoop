@@ -1,0 +1,58 @@
+interface Producer<out T> {
+    fun get(): T
+}
+
+interface Consumer<in T> {
+    fun put(value: T)
+}
+
+open class Animal(val name: String) {}
+
+class Dog : Animal("dog") {}
+
+class DogProducer : Producer<Dog> {
+    override fun get(): Dog = Dog()
+}
+
+class IntProducer : Producer<Int> {
+    override fun get(): Int = 7
+}
+
+struct IntValue(val value: Int) : Producer<Int> {
+    override fun get(): Int = value
+}
+
+struct Value<T>(val value: T) : Producer<T> {
+    override fun get(): T = value
+}
+
+class AnimalConsumer : Consumer<Animal> {
+    override fun put(value: Animal) {
+        println(value.name)
+    }
+}
+
+class AnyConsumer : Consumer<Any> {
+    override fun put(value: Any) {
+        println(value)
+    }
+}
+
+fun widen(producer: Producer<Dog>): Producer<Animal> = producer
+
+fun narrow(consumer: Consumer<Animal>): Consumer<Dog> = consumer
+
+fun boxResult(producer: Producer<Int>): Producer<Any> = producer
+
+fun consumeInt(consumer: Consumer<Any>): Consumer<Int> = consumer
+
+fun main() {
+    val producer: Producer<Animal> = widen(DogProducer())
+    println(producer.get().name)
+    val consumer: Consumer<Dog> = narrow(AnimalConsumer())
+    consumer.put(Dog())
+    println(boxResult(IntProducer()).get())
+    println(boxResult(IntValue(8)).get())
+    println(boxResult(Value(10)).get())
+    consumeInt(AnyConsumer()).put(9)
+}

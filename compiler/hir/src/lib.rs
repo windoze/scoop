@@ -52,8 +52,9 @@ pub enum Type {
     Struct(StructId, Vec<TypeId>),
     /// A reference type declared with `class` (spec 9.1).
     Class(ClassId),
-    /// An interface type (spec 9.1); values behind it are references.
-    Interface(InterfaceId),
+    /// An interface application with complete type arguments (empty for a
+    /// non-generic interface). Values behind it are references.
+    Interface(InterfaceId, Vec<TypeId>),
     /// The root of all types (spec 3.1). Value types reaching it are
     /// boxed (spec 4.4.4).
     Any,
@@ -91,7 +92,14 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
                     .all(|(x, y)| types_equal(module, *x, *y))
         }
         (Type::Class(x), Type::Class(y)) => *x == *y,
-        (Type::Interface(x), Type::Interface(y)) => *x == *y,
+        (Type::Interface(x, x_args), Type::Interface(y, y_args)) => {
+            x == y
+                && x_args.len() == y_args.len()
+                && x_args
+                    .iter()
+                    .zip(y_args.iter())
+                    .all(|(x, y)| types_equal(module, *x, *y))
+        }
         (Type::Any, Type::Any) => true,
         (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
             types_equal(module, *x, *y)
@@ -134,7 +142,15 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             }
         }
         Type::Class(id) => module.classes[*id].name.clone(),
-        Type::Interface(id) => module.interfaces[*id].name.clone(),
+        Type::Interface(id, args) => {
+            let name = &module.interfaces[*id].name;
+            if args.is_empty() {
+                name.clone()
+            } else {
+                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                format!("{}<{}>", name, inner.join(", "))
+            }
+        }
         Type::Any => "Any".to_string(),
         Type::Array(inner) => format!("Array<{}>", type_name(module, *inner)),
         Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, *inner)),
@@ -227,7 +243,7 @@ pub struct StructDecl {
     pub name: String,
     pub type_params: Vec<String>,
     pub fields: Vec<Field>,
-    pub interfaces: Vec<InterfaceId>,
+    pub interfaces: Vec<TypeId>,
     pub span: Span,
 }
 
@@ -236,7 +252,7 @@ pub struct EnumDecl {
     pub name: String,
     pub type_params: Vec<String>,
     pub variants: Vec<Variant>,
-    pub interfaces: Vec<InterfaceId>,
+    pub interfaces: Vec<TypeId>,
     pub span: Span,
 }
 
@@ -272,14 +288,29 @@ pub struct ClassDecl {
     pub constructor: Vec<Field>,
     /// Base class and the resolved constructor argument expressions.
     pub base_class: Option<(ClassId, Vec<Expr>)>,
-    pub interfaces: Vec<InterfaceId>,
+    pub interfaces: Vec<TypeId>,
     pub span: Span,
 }
 
 #[derive(Debug)]
 pub struct InterfaceDecl {
     pub name: String,
+    pub type_params: Vec<TypeParamDecl>,
     pub methods: Vec<MethodSig>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Variance {
+    Invariant,
+    In,
+    Out,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeParamDecl {
+    pub name: String,
+    pub variance: Variance,
     pub span: Span,
 }
 
@@ -657,7 +688,11 @@ pub fn dump(module: &Module) -> String {
         } else {
             format!("<{}>", decl.type_params.join(", "))
         };
-        out.push_str(&format!("  struct {}{}\n", decl.name, type_params));
+        let interfaces = dump_interface_list(module, &decl.interfaces);
+        out.push_str(&format!(
+            "  struct {}{}{}\n",
+            decl.name, type_params, interfaces
+        ));
         for field in &decl.fields {
             out.push_str(&format!(
                 "    field {}: {}\n",
@@ -672,7 +707,11 @@ pub fn dump(module: &Module) -> String {
         } else {
             format!("<{}>", decl.type_params.join(", "))
         };
-        out.push_str(&format!("  enum {}{}\n", decl.name, type_params));
+        let interfaces = dump_interface_list(module, &decl.interfaces);
+        out.push_str(&format!(
+            "  enum {}{}{}\n",
+            decl.name, type_params, interfaces
+        ));
         for variant in &decl.variants {
             let fields: Vec<String> = variant
                 .fields
@@ -693,18 +732,43 @@ pub fn dump(module: &Module) -> String {
             .iter()
             .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
             .collect();
+        let interfaces = dump_interface_list(module, &decl.interfaces);
         out.push_str(&format!(
-            "  {modifier}class {}({})\n",
+            "  {modifier}class {}({}){}\n",
             decl.name,
-            ctor.join(", ")
+            ctor.join(", "),
+            interfaces
         ));
     }
     for (_, decl) in module.interfaces.iter() {
-        out.push_str(&format!("  interface {}\n", decl.name));
+        let type_params = if decl.type_params.is_empty() {
+            String::new()
+        } else {
+            let params: Vec<String> = decl
+                .type_params
+                .iter()
+                .map(|param| {
+                    let variance = match param.variance {
+                        Variance::Invariant => "",
+                        Variance::In => "in ",
+                        Variance::Out => "out ",
+                    };
+                    format!("{variance}{}", param.name)
+                })
+                .collect();
+            format!("<{}>", params.join(", "))
+        };
+        out.push_str(&format!("  interface {}{}\n", decl.name, type_params));
         for method in &decl.methods {
+            let params: Vec<String> = method
+                .params
+                .iter()
+                .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
+                .collect();
             out.push_str(&format!(
-                "    fun {}(..): {}\n",
+                "    fun {}({}): {}\n",
                 method.name,
+                params.join(", "),
                 type_name(module, method.return_ty)
             ));
         }
@@ -756,6 +820,15 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     out
+}
+
+fn dump_interface_list(module: &Module, interfaces: &[TypeId]) -> String {
+    if interfaces.is_empty() {
+        String::new()
+    } else {
+        let names: Vec<String> = interfaces.iter().map(|&ty| type_name(module, ty)).collect();
+        format!(" : {}", names.join(", "))
+    }
 }
 
 fn dump_statements(

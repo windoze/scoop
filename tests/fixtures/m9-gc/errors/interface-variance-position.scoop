@@ -1,0 +1,5 @@
+interface Invalid<out T> {
+    fun consume(value: T)
+}
+
+fun main() {}
