@@ -362,6 +362,13 @@ pub enum Expr {
         args: Vec<Expr>,
     },
     Local(LocalId),
+    /// Zero-cost reference retyping (for example an `Any` local narrowed by
+    /// a class smart cast). The explicit result type keeps downstream field
+    /// and dispatch reconstruction independent of the local's declared type.
+    Retype {
+        operand: Box<Expr>,
+        ty: Box<Type>,
+    },
     /// Field or element access; `index` is 0-based for both structs
     /// and tuples.
     FieldAccess {
@@ -776,6 +783,10 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             }
         }
         Expr::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        Expr::Retype { operand, ty } => {
+            out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
         Expr::FieldAccess { receiver, index } => {
             out.push_str(&format!("{pad}FieldAccess {index}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);

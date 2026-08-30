@@ -297,7 +297,8 @@ pub enum StatementKind {
     Return {
         value: Option<Expr>,
     },
-    /// Pattern `when` (spec 5). Statement-level only in M4.
+    /// Pattern `when` used in statement position (spec 5). Value position
+    /// uses `Expr::When` with the same payload.
     When(When),
     /// `try { } catch (e: T) { } finally { }` (spec 11.7).
     Try(Try),
@@ -370,7 +371,7 @@ pub struct FieldPattern {
     pub span: Span,
 }
 
-/// `try { } catch ... finally { }` (statement form).
+/// Shared payload of statement- and expression-form `try`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Try {
     pub body: Block,
@@ -531,6 +532,12 @@ pub enum Expr {
         index: Box<Expr>,
         span: Span,
     },
+    /// Structured control expressions. Their branch blocks use the same
+    /// syntax trees as the statement forms; HIR interprets the trailing
+    /// expression of each normally completing block as its value.
+    If(Box<If>),
+    When(Box<When>),
+    Try(Box<Try>),
 }
 
 impl Expr {
@@ -552,6 +559,9 @@ impl Expr {
             | Expr::Cast { span, .. }
             | Expr::ArrayLiteral { span, .. }
             | Expr::Index { span, .. } => *span,
+            Expr::If(if_) => if_.span,
+            Expr::When(when) => when.span,
+            Expr::Try(try_) => try_.span,
             Expr::Var(ident) => ident.span,
             Expr::FieldAccess(access) => access.span,
             Expr::Call(call) => call.span,
@@ -1103,6 +1113,43 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}Index\n"));
             dump_expr(receiver, indent + 1, out);
             dump_expr(index, indent + 1, out);
+        }
+        Expr::If(if_) => {
+            out.push_str(&format!("{pad}IfExpression\n"));
+            dump_expr(&if_.cond, indent + 1, out);
+            dump_block(&if_.then_block, indent + 1, out);
+            if let Some(else_block) = &if_.else_block {
+                out.push_str(&format!("{pad}  else\n"));
+                dump_block(else_block, indent + 1, out);
+            }
+        }
+        Expr::When(when) => {
+            out.push_str(&format!("{pad}WhenExpression\n"));
+            dump_expr(&when.subject, indent + 1, out);
+            for arm in &when.arms {
+                out.push_str(&format!("{pad}  arm {}\n", dump_pattern(&arm.pattern)));
+                dump_block(&arm.body, indent + 2, out);
+            }
+            if let Some(else_body) = &when.else_body {
+                out.push_str(&format!("{pad}  else\n"));
+                dump_block(else_body, indent + 2, out);
+            }
+        }
+        Expr::Try(try_) => {
+            out.push_str(&format!("{pad}TryExpression\n"));
+            dump_block(&try_.body, indent + 1, out);
+            for catch in &try_.catches {
+                out.push_str(&format!(
+                    "{pad}  catch {}: {}\n",
+                    catch.name.text,
+                    dump_type_ref(&catch.ty)
+                ));
+                dump_block(&catch.body, indent + 2, out);
+            }
+            if let Some(finally_body) = &try_.finally_body {
+                out.push_str(&format!("{pad}  finally\n"));
+                dump_block(finally_body, indent + 2, out);
+            }
         }
     }
 }

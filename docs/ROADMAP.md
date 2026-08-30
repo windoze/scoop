@@ -115,7 +115,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 显式类型实参 `f<Int>(x)`（`<` 消歧方案待定）；
 - `value` / `ref` 类型约束（spec 13.9）；
 - ~~非 Unit 函数返回的分支穷尽分析~~（已完成：按顺序块、`if`、穷尽 `when`、`try/catch/finally` 组合分析可落空路径）；
-- `if` 作为表达式；
+- ~~`if` 作为表达式~~（已完成：分支尾表达式定型并写入隐藏结果 local；无期望类型时计算可表达 LUB，无 `else` 的值位置诊断拒绝）；
 - ~~泛型 **struct** 声明~~（已完成：类型实参直接进入 HIR `Type::Struct`，字段/方法类型形参作用域、构造推断、嵌套应用与 MIR 单态化全链路落地）。
 
 ### 来自 M4
@@ -123,7 +123,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - core 与用户代码同单元编译 → M14 的 `.slib` 与 Cone 隔离；
 - 注解仅 `@Intrinsic` 且仅 sysroot → M11 扩展为完整 FFI 注解族；
 - 构造函数式变体的默认值只支持常量表达式（完整 spec 8.5"定义处解析、调用处求值"随函数默认参数一起做）；
-- `when` 的表达式形态（产生值）；
+- ~~`when` 的表达式形态（产生值）~~（已完成：模式绑定、守卫与穷尽检查沿用语句形态，正常分支尾值统一定型，支持嵌套控制表达式）；
 - 命名字段模式的子模式（`S { f1: 0, .. }` 字面量匹配——ast::FieldPattern 需扩展）；
 - 表达式位的裸变体名解析推广到所有 enum（当前仅 `Option` 的 `Some`/`None`；spec 4.2/5.1 的"上下文可确定类型时可省略前缀"在表达式位只对 Option 生效）；
 - tuple/struct 的穷尽性按"穷尽模式组合"判定（当前要求 catch-all 或 `else`；spec 5.2/5.3 的组合判定是保守简化）；
@@ -166,7 +166,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M8
 
-- try 的表达式形态（`val x = try {...}`）；
+- ~~try 的表达式形态（`val x = try {...}`）~~（已完成：try body / catch body 共同定型，结果写入发生在 finally 前，finally 值丢弃且 return / throw 仍覆盖待定结果）；
 - catch 遮蔽降级为警告（当前为错误；待警告级别诊断基础设施）；
 - ~~finally 内的路径分析~~（已完成：必退出的 finally 覆盖 try/catch 的返回、异常与正常继续路径；可落空 finally 保留原路径结果）；
 - 异常穿越 Scoop ABI FFI frame 的规则（维持 runtime spec 第 5 章的暂定“初版禁止”）。

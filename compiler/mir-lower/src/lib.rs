@@ -3132,7 +3132,18 @@ impl BodyLowerer<'_> {
                 variant: *variant,
                 fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
             },
-            hir::ExprKind::Local(local) => mir::Expr::Local(self.local_map[local]),
+            hir::ExprKind::Local(local) => {
+                let local = self.local_map[local];
+                let narrowed = self.lower_type(expr.ty);
+                if self.locals[local].ty == narrowed {
+                    mir::Expr::Local(local)
+                } else {
+                    mir::Expr::Retype {
+                        operand: Box::new(mir::Expr::Local(local)),
+                        ty: Box::new(narrowed),
+                    }
+                }
+            }
             // The array nodes translate one-to-one (M5); the literal's
             // kind (Array vs MutableArray) is fixed by the producing
             // context — `lower_type(expr.ty)` records it where needed.

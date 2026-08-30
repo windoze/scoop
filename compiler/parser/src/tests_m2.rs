@@ -412,13 +412,19 @@ fun main() {\n\
 // --- M2 "not supported" diagnostics ----------------------------------------
 
 #[test]
-fn when_expression_not_supported() {
-    // M4 adds the `when` statement; the expression form stays unsupported.
-    let (_, message) = err("fun main() { val x = when (y) {} }");
-    assert_eq!(
-        message,
-        "`when` expressions are not supported yet (milestone M4)"
+fn if_and_when_parse_in_expression_position() {
+    let file = ok(
+        "fun main() {\n    val x = if (true) { 1 } else { 2 }\n    val y = when (x) { else -> 3 }\n}",
     );
+    let body = block_body(only_function(&file));
+    let StatementKind::ValDecl(x) = &body.statements[0].kind else {
+        panic!("expected x declaration");
+    };
+    assert!(matches!(x.init, Expr::If(_)));
+    let StatementKind::ValDecl(y) = &body.statements[1].kind else {
+        panic!("expected y declaration");
+    };
+    assert!(matches!(y.init, Expr::When(_)));
 }
 
 #[test]

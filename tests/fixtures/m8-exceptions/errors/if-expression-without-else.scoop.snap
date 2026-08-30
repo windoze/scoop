@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m8-exceptions/errors/if-expression-without-else.scoop:2:17: error: if expression requires an `else` branch

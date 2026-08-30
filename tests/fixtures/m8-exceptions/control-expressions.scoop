@@ -1,0 +1,90 @@
+enum Input {
+    Number(Int),
+    Empty
+}
+
+open class Animal(val name: String) {}
+
+class Dog : Animal("dog") {}
+
+fun branchReturn(flag: Boolean): Int = if (flag) {
+    return 11
+} else {
+    12
+}
+
+fun finallyReturn(): Int = try {
+    1
+} finally {
+    return 13
+}
+
+fun main() {
+    val branch = if (true) {
+        val base = 40
+        base + 2
+    } else {
+        0
+    }
+    println(branch)
+
+    val nested = if (true) {
+        if (false) { 1 } else { 2 }
+    } else {
+        3
+    }
+    println(nested)
+
+    val mixed = if (true) { 5 } else { "mixed" }
+    println(mixed)
+
+    val inferred = if (false) { None } else { Some(4) }
+    println(inferred!!)
+
+    val animal = if (true) { Dog() } else { Animal("animal") }
+    println(animal.name)
+    val erased: Any = animal
+    val smartName = if (erased is Dog) { erased.name } else { "unknown" }
+    println(smartName)
+
+    val input = Input.Number(7)
+    val text = when (input) {
+        Number(value) -> {
+            if (value > 0) { "positive" } else { "negative" }
+        }
+        Empty -> "empty"
+    }
+    println(text)
+
+    val maybeWhen = when (input) {
+        Empty -> None
+        Number(value) -> Some(value)
+    }
+    println(maybeWhen!!)
+
+    val normal = try {
+        "normal"
+    } finally {
+        println("normal-finally")
+    }
+    println(normal)
+
+    val recovered = try {
+        throw UnwrapException()
+    } catch (e: UnwrapException) {
+        "caught"
+    } finally {
+        println("caught-finally")
+    }
+    println(recovered)
+
+    val maybeTry = try {
+        Some(9)
+    } catch (e: UnwrapException) {
+        None
+    }
+    println(maybeTry!!)
+    println(branchReturn(true))
+    println(branchReturn(false))
+    println(finallyReturn())
+}

@@ -471,6 +471,18 @@ impl Parser {
     /// parenthesized. `else if` chains get no special treatment (M2 design
     /// section 6): `else` must be followed by a block.
     fn parse_if(&mut self) -> Result<Statement, Diagnostic> {
+        let if_ = self.parse_if_node()?;
+        Ok(Statement {
+            span: if_.span,
+            kind: StatementKind::If(if_),
+        })
+    }
+
+    pub(crate) fn parse_if_expression(&mut self) -> Result<Expr, Diagnostic> {
+        Ok(Expr::If(Box::new(self.parse_if_node()?)))
+    }
+
+    fn parse_if_node(&mut self) -> Result<If, Diagnostic> {
         let keyword = self.bump(); // `if`
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let cond = self.parse_expr()?;
@@ -486,14 +498,11 @@ impl Parser {
             None
         };
         let span = Span::new(keyword.span.start, end);
-        Ok(Statement {
+        Ok(If {
+            cond,
+            then_block,
+            else_block,
             span,
-            kind: StatementKind::If(If {
-                cond,
-                then_block,
-                else_block,
-                span,
-            }),
         })
     }
 
@@ -503,6 +512,18 @@ impl Parser {
     /// a single expression statement (`Red -> println("red")`, spec 5.1);
     /// arms end like statements, and `else` must be the last one.
     fn parse_when(&mut self) -> Result<Statement, Diagnostic> {
+        let when = self.parse_when_node()?;
+        Ok(Statement {
+            span: when.span,
+            kind: StatementKind::When(when),
+        })
+    }
+
+    pub(crate) fn parse_when_expression(&mut self) -> Result<Expr, Diagnostic> {
+        Ok(Expr::When(Box::new(self.parse_when_node()?)))
+    }
+
+    fn parse_when_node(&mut self) -> Result<When, Diagnostic> {
         let keyword = self.bump(); // `when`
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let subject = self.parse_expr()?;
@@ -546,14 +567,11 @@ impl Parser {
             }
         };
         let span = Span::new(keyword.span.start, close.span.end);
-        Ok(Statement {
+        Ok(When {
+            subject,
+            arms,
+            else_body,
             span,
-            kind: StatementKind::When(When {
-                subject,
-                arms,
-                else_body,
-                span,
-            }),
         })
     }
 
@@ -614,12 +632,24 @@ impl Parser {
     }
 
     /// `try { ... } (catch (<name>: <type>) { ... })* (finally { ... })?`
-    /// — statement form only (spec 11.7; the expression form is rejected
-    /// in `parse_atom`). At least one `catch` or a `finally` is required.
+    /// — statement wrapper around the same payload used by `Expr::Try`.
+    /// At least one `catch` or a `finally` is required.
     /// Catch parameters always carry a type annotation (M8 has no
     /// inference for them); `catch` clauses attach to the `try` even
     /// across newlines.
     fn parse_try(&mut self) -> Result<Statement, Diagnostic> {
+        let try_ = self.parse_try_node()?;
+        Ok(Statement {
+            span: try_.span,
+            kind: StatementKind::Try(try_),
+        })
+    }
+
+    pub(crate) fn parse_try_expression(&mut self) -> Result<Expr, Diagnostic> {
+        Ok(Expr::Try(Box::new(self.parse_try_node()?)))
+    }
+
+    fn parse_try_node(&mut self) -> Result<Try, Diagnostic> {
         let keyword = self.bump(); // `try`
         let body = self.parse_block()?;
         let mut end = body.span.end;
@@ -659,14 +689,11 @@ impl Parser {
             return self.unexpected("`catch` or `finally`");
         }
         let span = Span::new(keyword.span.start, end);
-        Ok(Statement {
+        Ok(Try {
+            body,
+            catches,
+            finally_body,
             span,
-            kind: StatementKind::Try(Try {
-                body,
-                catches,
-                finally_body,
-                span,
-            }),
         })
     }
 

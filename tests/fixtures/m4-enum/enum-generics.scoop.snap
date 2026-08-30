@@ -227,7 +227,8 @@ Module
         EnumField v0 f0
           Local $when.2
       Call @scoop.println direct
-        Local v
+        Retype Any
+          Local v
     else
       if
         Binary IntEq

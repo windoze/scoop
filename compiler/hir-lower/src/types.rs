@@ -649,13 +649,23 @@ impl Lowerer {
         debug_assert!(!element_types.is_empty());
         debug_assert!(element_types.iter().all(|&ty| self.is_ref_ty(ty)));
 
+        self.least_upper_bound(element_types)
+    }
+
+    /// The least representable upper bound used by structured expression
+    /// branches. Unlike array inference this also accepts value types;
+    /// `is_subtype` includes their boxing conversions to interfaces/`Any`.
+    /// With no intersection types, incomparable minimal bounds fall back to
+    /// `Any`.
+    pub(crate) fn least_upper_bound(&mut self, types: &[TypeId]) -> TypeId {
+        debug_assert!(!types.is_empty());
+
         let mut common_supertypes = Vec::new();
         let candidates: Vec<TypeId> = self.types.iter().map(|(id, _)| id).collect();
         for candidate in candidates {
-            if !self.is_ref_ty(candidate)
-                || !element_types
-                    .iter()
-                    .all(|&element| self.is_subtype(element, candidate))
+            if !types
+                .iter()
+                .all(|&element| self.is_subtype(element, candidate))
                 || common_supertypes
                     .iter()
                     .any(|&existing| self.types_equal(existing, candidate))

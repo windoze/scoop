@@ -196,7 +196,8 @@ Module
       Call @scoop.Doc.describe direct
         Local d
     val i: Describable
-      Local d
+      Retype Describable
+        Local d
     Call @scoop.println direct
       Call @scoop.Describable.describe interface Describable[0]
         Local i

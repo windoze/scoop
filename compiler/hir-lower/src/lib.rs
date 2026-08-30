@@ -1533,6 +1533,19 @@ impl Lowerer {
         })
     }
 
+    /// Allocate the branch-result local used when a structured control
+    /// expression is lowered into statements. Every normally completing
+    /// branch assigns it before the resulting local read is reachable.
+    pub(crate) fn alloc_hidden_result(&mut self, ty: TypeId) -> hir::LocalId {
+        let name = format!("$result.{}", self.hidden_count);
+        self.hidden_count += 1;
+        self.locals.alloc(hir::Local {
+            name,
+            ty,
+            mutable: true,
+        })
+    }
+
     /// The `Option<T>` enum of `scoop.core` and the variant index of
     /// `name`, when `name` is one of its variants. These names
     /// (`Some` / `None`) are the globally visible constructors the core

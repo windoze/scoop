@@ -272,16 +272,20 @@ Module
       StringConst @scoop.str.0
   fun widen @scoop.widen(producer: Producer$Dog) -> Producer$Animal
     return
-      Local producer
+      Retype Producer$Animal
+        Local producer
   fun narrow @scoop.narrow(consumer: Consumer$Animal) -> Consumer$Dog
     return
-      Local consumer
+      Retype Consumer$Dog
+        Local consumer
   fun boxResult @scoop.boxResult(producer: Producer$I) -> Producer$Any
     return
-      Local producer
+      Retype Producer$Any
+        Local producer
   fun consumeInt @scoop.consumeInt(consumer: Consumer$Any) -> Consumer$I
     return
-      Local consumer
+      Retype Consumer$I
+        Local consumer
   fun main @scoop_main() -> Unit
     val producer: Producer$Animal
       Call @scoop.widen direct

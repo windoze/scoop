@@ -1281,6 +1281,7 @@ impl<'a> FunctionLowerer<'a> {
                 _ => unreachable!("an array conversion's operand is an array"),
             },
             mir::Expr::Local(local) => self.mir_locals[*local].ty.clone(),
+            mir::Expr::Retype { ty, .. } => ty.as_ref().clone(),
             mir::Expr::FieldAccess { receiver, index } => match self.expr_ty(receiver) {
                 mir::Type::Struct(id) => self.module.structs[id].fields[*index as usize].ty.clone(),
                 mir::Type::Tuple(elements) => elements[*index as usize].clone(),
@@ -2013,6 +2014,7 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::Temp(out)
             }
             mir::Expr::Local(local) => self.local_value(*local),
+            mir::Expr::Retype { operand, ty } => self.lower_expr(operand, ty),
             mir::Expr::FieldAccess { receiver, index } => {
                 let receiver_ty = self.expr_ty(receiver);
                 let receiver = self.lower_expr(receiver, &receiver_ty);

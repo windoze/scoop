@@ -260,7 +260,8 @@ Module
       val s: String
         Local $cast.5
       Call @scoop.println direct
-        Local s
+        Retype Any
+          Local s
     catch e: ClassCastException
       Call @scoop.println direct
         StringConst @scoop.str.3
