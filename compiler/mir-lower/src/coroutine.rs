@@ -9,6 +9,8 @@ use scoop_mir as mir;
 
 use super::Lowerer;
 
+mod eh;
+
 #[derive(Clone)]
 struct SuspendSite {
     block: mir::BlockId,
@@ -41,6 +43,9 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         if sites.is_empty() {
             continue;
         }
+        let throwable = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
+        eh::materialize_exceptions(&mut lowerer.functions[function].body, throwable);
+        sites = analyze_sites(lowerer, &lowerer.functions[function].body);
         for (index, site) in sites.iter_mut().enumerate() {
             site.state = index as u32 + 1;
         }
@@ -73,6 +78,7 @@ fn transform_function(
     let completion_old = completion.local;
     let completion_ty = completion.ty.clone();
     let source_params = &old_params[..old_params.len() - 1];
+    let throwable_ty = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
 
     let mut saved = HashSet::new();
     saved.extend(source_params.iter().map(|param| param.local));
@@ -123,6 +129,21 @@ fn transform_function(
             },
         );
     }
+    let (_, failure_slot_ty) =
+        lowerer
+            .coroutines
+            .slot_for(&throwable_ty, &mut lowerer.enums, &mut lowerer.shell);
+    let mir::Type::Enum(failure_slot_enum, _) = failure_slot_ty.clone() else {
+        unreachable!("CoroutineSlot is an enum")
+    };
+    let failure_slot = FrameSlot {
+        field: frame_fields.len() as u32,
+        enum_id: failure_slot_enum,
+    };
+    frame_fields.push(mir::Field {
+        name: "failure".to_string(),
+        ty: failure_slot_ty,
+    });
     let frame_name = format!("CoroutineFrame${}", sanitize(&source_symbol));
     let frame_class = generated_class(lowerer, frame_name, frame_fields, Vec::new(), Vec::new());
     let frame = lowerer.coroutines.frames.alloc(mir::CoroutineFrame {
@@ -144,7 +165,6 @@ fn transform_function(
         mutable: false,
     });
 
-    let throwable_ty = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
     let continuation = match completion_ty {
         mir::Type::Interface(interface) => interface,
         _ => unreachable!("hidden completion has a concrete Continuation<R> type"),
@@ -170,6 +190,7 @@ fn transform_function(
             frame_class,
             frame,
             &frame_slots,
+            failure_slot,
             &step_ty,
             continuation,
             outer_resume,
@@ -179,6 +200,7 @@ fn transform_function(
             site,
         );
         resume_targets.push((generated.state, generated.resume_block));
+        resume_targets.push((generated.failure_state, generated.failure_block));
         resume_points.push(generated.point);
     }
     resume_targets.sort_by_key(|(state, _)| *state);
@@ -202,13 +224,7 @@ fn transform_function(
     let invalid = protocol_error_block(lowerer, module, &mut body.locals, &mut body.blocks, None);
     let mut next = invalid;
     for (state, target) in resume_targets.iter().rev() {
-        next = dispatch_block(
-            &mut body.blocks,
-            frame_local,
-            i64::from(*state),
-            *target,
-            next,
-        );
+        next = dispatch_block(&mut body.blocks, frame_local, *state, *target, next);
     }
     let entry = dispatch_block(&mut body.blocks, frame_local, STATE_INITIAL, initial, next);
     body.entry = entry;
@@ -230,6 +246,7 @@ fn transform_function(
         &frame_slots,
         &wrapper_param_map,
         wrapper_completion,
+        failure_slot,
         driver,
         &step_ty,
     );
@@ -249,6 +266,10 @@ const ADAPTER_LATCHED_SUCCESS: i64 = 2;
 const ADAPTER_CONSUMED: i64 = 3;
 const ADAPTER_LATCHED_FAILURE: i64 = 4;
 
+fn failure_state(state: u32) -> i64 {
+    -i64::from(state) - 2
+}
+
 #[derive(Clone, Copy)]
 struct FrameSlot {
     field: u32,
@@ -256,8 +277,10 @@ struct FrameSlot {
 }
 
 struct GeneratedSite {
-    state: u32,
+    state: i64,
     resume_block: mir::BlockId,
+    failure_state: i64,
+    failure_block: mir::BlockId,
     point: mir::CoroutineResumePointId,
 }
 
@@ -270,6 +293,7 @@ fn rewrite_site(
     frame_class: mir::ClassId,
     frame: mir::CoroutineFrameId,
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
+    failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
@@ -310,6 +334,7 @@ fn rewrite_site(
             frame_class,
             frame,
             frame_slots,
+            failure_slot,
             outer_step,
             outer_continuation,
             outer_resume,
@@ -329,6 +354,7 @@ fn rewrite_site(
         frame_class,
         frame,
         destination.map(|local| frame_slots[&local]),
+        failure_slot,
         outer_step,
         outer_continuation,
         outer_resume,
@@ -336,6 +362,7 @@ fn rewrite_site(
         source_symbol,
         driver,
         site.state,
+        failure_state(site.state),
         &site.result,
         None,
     );
@@ -456,10 +483,55 @@ fn rewrite_site(
         unwind,
     });
     GeneratedSite {
-        state: site.state,
+        state: i64::from(site.state),
         resume_block,
+        failure_state: failure_state(site.state),
+        failure_block: failure_resume_block(
+            body,
+            frame_local,
+            frame_slots,
+            failure_slot,
+            &site,
+            unwind,
+        ),
         point: adapter.point,
     }
+}
+
+fn failure_resume_block(
+    body: &mut mir::Body,
+    frame: mir::LocalId,
+    frame_slots: &HashMap<mir::LocalId, FrameSlot>,
+    failure_slot: FrameSlot,
+    site: &SuspendSite,
+    unwind: Option<mir::BlockId>,
+) -> mir::BlockId {
+    let mut statements = vec![field_set(
+        mir::Expr::Local(frame),
+        0,
+        mir::Expr::IntLiteral(STATE_RUNNING),
+    )];
+    for local in &site.live_after {
+        if Some(*local) == site.destination {
+            continue;
+        }
+        if let Some(slot) = frame_slots.get(local) {
+            statements.push(restore_statement(frame, *local, *slot));
+        }
+    }
+    body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.failure.{}", site.state),
+        statements,
+        terminator: mir::Terminator::Throw {
+            exception: mir::Expr::EnumField {
+                operand: Box::new(frame_field(mir::Expr::Local(frame), failure_slot.field)),
+                variant: 1,
+                index: 0,
+            },
+            unwind,
+        },
+        unwind,
+    })
 }
 
 struct GeneratedAdapter {
@@ -474,6 +546,7 @@ fn generate_adapter(
     frame_class: mir::ClassId,
     frame: mir::CoroutineFrameId,
     destination: Option<FrameSlot>,
+    failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
@@ -481,6 +554,7 @@ fn generate_adapter(
     source_symbol: &str,
     driver: mir::FunctionId,
     state: u32,
+    failure_state: i64,
     result: &mir::Type,
     safe_latches: Option<(FrameSlot, FrameSlot)>,
 ) -> GeneratedAdapter {
@@ -516,11 +590,11 @@ fn generate_adapter(
         lowerer,
         module,
         class,
-        frame_class,
         destination,
         outer_step,
         outer_continuation,
         outer_resume,
+        outer_failure,
         driver,
         source_symbol,
         state,
@@ -531,11 +605,15 @@ fn generate_adapter(
         lowerer,
         module,
         class,
-        frame_class,
+        failure_slot,
+        outer_step,
         outer_continuation,
+        outer_resume,
         outer_failure,
+        driver,
         source_symbol,
         state,
+        failure_state,
         safe_latches.map(|(_, failure)| failure),
     );
     lowerer.classes[class].itables = vec![mir::ItableRecord {
@@ -564,11 +642,11 @@ fn generate_resume_method(
     lowerer: &mut Lowerer,
     module: &hir::Module,
     adapter: mir::ClassId,
-    frame_class: mir::ClassId,
     destination: Option<FrameSlot>,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
+    outer_failure: mir::FunctionId,
     driver: mir::FunctionId,
     source_symbol: &str,
     state: u32,
@@ -581,41 +659,17 @@ fn generate_resume_method(
     let step = locals.alloc(local("$step", outer_step.clone()));
     let mut blocks = Arena::new();
     let invalid = protocol_error_block(lowerer, module, &mut locals, &mut blocks, None);
-    let completed = blocks.alloc(mir::BasicBlock {
-        name: "completed".to_string(),
-        statements: vec![
-            field_set(
-                adapter_frame(this),
-                0,
-                mir::Expr::IntLiteral(STATE_COMPLETED),
-            ),
-            statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Interface {
-                        interface: outer_continuation,
-                        slot: 0,
-                    },
-                    callee: mir::Callee::User(outer_resume),
-                },
-                args: vec![
-                    frame_field(adapter_frame(this), 1),
-                    mir::Expr::EnumField {
-                        operand: Box::new(mir::Expr::Local(step)),
-                        variant: 0,
-                        index: 0,
-                    },
-                ],
-            }))),
-        ],
-        terminator: mir::Terminator::Return { value: None },
-        unwind: None,
-    });
-    let suspended = blocks.alloc(mir::BasicBlock {
-        name: "suspended".to_string(),
-        statements: Vec::new(),
-        terminator: mir::Terminator::Return { value: None },
-        unwind: None,
-    });
+    let exits = drive_exit_blocks(
+        lowerer,
+        module,
+        &mut locals,
+        &mut blocks,
+        this,
+        step,
+        outer_continuation,
+        outer_resume,
+        outer_failure,
+    );
     let valid = blocks.alloc(mir::BasicBlock {
         name: "valid".to_string(),
         statements: {
@@ -647,8 +701,18 @@ fn generate_resume_method(
         },
         terminator: mir::Terminator::Branch {
             cond: is_completed(step),
-            then_block: completed,
-            else_block: suspended,
+            then_block: exits.completed,
+            else_block: exits.suspended,
+        },
+        unwind: Some(exits.catch_pad),
+    });
+    let valid_state = blocks.alloc(mir::BasicBlock {
+        name: "valid_state".to_string(),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(frame_field(adapter_frame(this), 0), i64::from(state)),
+            then_block: valid,
+            else_block: invalid,
         },
         unwind: None,
     });
@@ -657,7 +721,7 @@ fn generate_resume_method(
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
             cond: int_eq(frame_field(mir::Expr::Local(this), 1), ADAPTER_WAITING),
-            then_block: valid,
+            then_block: valid_state,
             else_block: invalid,
         },
         unwind: None,
@@ -716,7 +780,6 @@ fn generate_resume_method(
         },
     });
     lowerer.top_level.push(function);
-    let _ = frame_class;
     function
 }
 
@@ -725,19 +788,35 @@ fn generate_failure_method(
     lowerer: &mut Lowerer,
     module: &hir::Module,
     adapter: mir::ClassId,
-    _frame_class: mir::ClassId,
+    failure_slot: FrameSlot,
+    outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
+    outer_resume: mir::FunctionId,
     outer_failure: mir::FunctionId,
+    driver: mir::FunctionId,
     source_symbol: &str,
     state: u32,
+    failure_state: i64,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
     let throwable = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let exception = locals.alloc(local("exception", throwable.clone()));
+    let step = locals.alloc(local("$step", outer_step.clone()));
     let mut blocks = Arena::new();
     let invalid = protocol_error_block(lowerer, module, &mut locals, &mut blocks, None);
+    let exits = drive_exit_blocks(
+        lowerer,
+        module,
+        &mut locals,
+        &mut blocks,
+        this,
+        step,
+        outer_continuation,
+        outer_resume,
+        outer_failure,
+    );
     let valid = blocks.alloc(mir::BasicBlock {
         name: "valid".to_string(),
         statements: vec![
@@ -748,24 +827,36 @@ fn generate_failure_method(
             ),
             field_set(
                 adapter_frame(this),
-                0,
-                mir::Expr::IntLiteral(STATE_COMPLETED),
+                failure_slot.field,
+                slot_value(failure_slot, mir::Expr::Local(exception), throwable.clone()),
             ),
-            statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Interface {
-                        interface: outer_continuation,
-                        slot: 1,
+            field_set(adapter_frame(this), 0, mir::Expr::IntLiteral(failure_state)),
+            statement(mir::StatementKind::Call(mir::CallEffect::Value {
+                destination: step,
+                call: mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(driver),
                     },
-                    callee: mir::Callee::User(outer_failure),
+                    args: vec![adapter_frame(this)],
                 },
-                args: vec![
-                    frame_field(adapter_frame(this), 1),
-                    mir::Expr::Local(exception),
-                ],
-            }))),
+            })),
         ],
-        terminator: mir::Terminator::Return { value: None },
+        terminator: mir::Terminator::Branch {
+            cond: is_completed(step),
+            then_block: exits.completed,
+            else_block: exits.suspended,
+        },
+        unwind: Some(exits.catch_pad),
+    });
+    let valid_state = blocks.alloc(mir::BasicBlock {
+        name: "valid_state".to_string(),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(frame_field(adapter_frame(this), 0), i64::from(state)),
+            then_block: valid,
+            else_block: invalid,
+        },
         unwind: None,
     });
     let waiting = blocks.alloc(mir::BasicBlock {
@@ -773,7 +864,7 @@ fn generate_failure_method(
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
             cond: int_eq(frame_field(mir::Expr::Local(this), 1), ADAPTER_WAITING),
-            then_block: valid,
+            then_block: valid_state,
             else_block: invalid,
         },
         unwind: None,
@@ -833,6 +924,115 @@ fn generate_failure_method(
     });
     lowerer.top_level.push(function);
     function
+}
+
+struct DriveExitBlocks {
+    completed: mir::BlockId,
+    suspended: mir::BlockId,
+    catch_pad: mir::BlockId,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn drive_exit_blocks(
+    lowerer: &Lowerer,
+    module: &hir::Module,
+    locals: &mut Arena<mir::Local>,
+    blocks: &mut Arena<mir::BasicBlock>,
+    this: mir::LocalId,
+    step: mir::LocalId,
+    outer_continuation: mir::InterfaceId,
+    outer_resume: mir::FunctionId,
+    outer_failure: mir::FunctionId,
+) -> DriveExitBlocks {
+    let throwable = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
+    let exception = locals.alloc(local("$uncaught", throwable));
+    let completed = blocks.alloc(mir::BasicBlock {
+        name: "completed".to_string(),
+        statements: vec![
+            field_set(
+                adapter_frame(this),
+                0,
+                mir::Expr::IntLiteral(STATE_COMPLETED),
+            ),
+            statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Interface {
+                        interface: outer_continuation,
+                        slot: 0,
+                    },
+                    callee: mir::Callee::User(outer_resume),
+                },
+                args: vec![
+                    frame_field(adapter_frame(this), 1),
+                    mir::Expr::EnumField {
+                        operand: Box::new(mir::Expr::Local(step)),
+                        variant: 0,
+                        index: 0,
+                    },
+                ],
+            }))),
+        ],
+        terminator: mir::Terminator::Return { value: None },
+        unwind: None,
+    });
+    let suspended = blocks.alloc(mir::BasicBlock {
+        name: "suspended".to_string(),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Return { value: None },
+        unwind: None,
+    });
+    let failed = blocks.alloc(mir::BasicBlock {
+        name: "failed".to_string(),
+        statements: vec![
+            field_set(
+                adapter_frame(this),
+                0,
+                mir::Expr::IntLiteral(STATE_COMPLETED),
+            ),
+            statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Interface {
+                        interface: outer_continuation,
+                        slot: 1,
+                    },
+                    callee: mir::Callee::User(outer_failure),
+                },
+                args: vec![
+                    frame_field(adapter_frame(this), 1),
+                    mir::Expr::Local(exception),
+                ],
+            }))),
+        ],
+        terminator: mir::Terminator::Return { value: None },
+        unwind: None,
+    });
+    let catch_pad = blocks.alloc(mir::BasicBlock {
+        name: "body_failure".to_string(),
+        statements: vec![
+            statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: false,
+            })),
+            statement(mir::StatementKind::Eh(mir::EhStatement::BeginCatch)),
+            statement(mir::StatementKind::Call(mir::CallEffect::Value {
+                destination: exception,
+                call: mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
+                    },
+                    args: vec![mir::Expr::CaughtException],
+                },
+            })),
+            statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
+        ],
+        terminator: mir::Terminator::Goto(failed),
+        unwind: None,
+    });
+    DriveExitBlocks {
+        completed,
+        suspended,
+        catch_pad,
+    }
 }
 
 fn generated_class(
@@ -907,6 +1107,7 @@ fn wrapper_body(
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
     params: &HashMap<mir::LocalId, mir::LocalId>,
     completion: mir::LocalId,
+    failure_slot: FrameSlot,
     driver: mir::FunctionId,
     step_ty: &mir::Type,
 ) -> mir::Body {
@@ -927,6 +1128,7 @@ fn wrapper_body(
             None => slot_empty(slot),
         });
     }
+    args.push(slot_empty(failure_slot));
     let mut blocks = Arena::new();
     let entry = blocks.alloc(mir::BasicBlock {
         name: "entry".to_string(),
@@ -1133,6 +1335,7 @@ fn rewrite_intrinsic_site(
     frame_class: mir::ClassId,
     frame: mir::CoroutineFrameId,
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
+    failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
     outer_resume: mir::FunctionId,
@@ -1176,6 +1379,7 @@ fn rewrite_intrinsic_site(
         frame_class,
         frame,
         site.destination.map(|local| frame_slots[&local]),
+        failure_slot,
         outer_step,
         outer_continuation,
         outer_resume,
@@ -1183,6 +1387,7 @@ fn rewrite_intrinsic_site(
         source_symbol,
         driver,
         site.state,
+        failure_state(site.state),
         &site.result,
         Some((result_latch, failure_latch)),
     );
@@ -1232,11 +1437,15 @@ fn rewrite_intrinsic_site(
         }));
     call.target.callee = mir::Callee::Monomorphized(register);
     call.args.push(mir::Expr::Local(adapter_local));
-    current
-        .statements
-        .push(statement(mir::StatementKind::Call(mir::CallEffect::Unit(
+    let register_call = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.register.{}", site.state),
+        statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
             call,
-        ))));
+        )))],
+        terminator: mir::Terminator::Unreachable,
+        unwind: None,
+    });
+    body.blocks[site.block].terminator = mir::Terminator::Goto(register_call);
 
     let success = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registered_success.{}", site.state),
@@ -1329,7 +1538,59 @@ fn rewrite_intrinsic_site(
         },
         unwind,
     });
-    body.blocks[site.block].terminator = mir::Terminator::Branch {
+    let registration_propagate = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.registration_propagate.{}", site.state),
+        statements: vec![field_set(
+            mir::Expr::Local(adapter_local),
+            1,
+            mir::Expr::IntLiteral(ADAPTER_CONSUMED),
+        )],
+        terminator: mir::Terminator::Throw {
+            exception: mir::Expr::Local(exception),
+            unwind,
+        },
+        unwind,
+    });
+    let registration_protocol = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.registration_protocol.{}", site.state),
+        statements: vec![field_set(
+            mir::Expr::Local(adapter_local),
+            1,
+            mir::Expr::IntLiteral(ADAPTER_CONSUMED),
+        )],
+        terminator: mir::Terminator::Goto(invalid),
+        unwind,
+    });
+    let registration_failure = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.registration_failure.{}", site.state),
+        statements: vec![
+            statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: false,
+            })),
+            statement(mir::StatementKind::Eh(mir::EhStatement::BeginCatch)),
+            statement(mir::StatementKind::Call(mir::CallEffect::Value {
+                destination: exception,
+                call: mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
+                    },
+                    args: vec![mir::Expr::CaughtException],
+                },
+            })),
+            statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
+        ],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(
+                frame_field(mir::Expr::Local(adapter_local), 1),
+                ADAPTER_REGISTERING,
+            ),
+            then_block: registration_propagate,
+            else_block: registration_protocol,
+        },
+        unwind: None,
+    });
+    body.blocks[register_call].terminator = mir::Terminator::Branch {
         cond: int_eq(
             frame_field(mir::Expr::Local(adapter_local), 1),
             ADAPTER_LATCHED_SUCCESS,
@@ -1337,6 +1598,7 @@ fn rewrite_intrinsic_site(
         then_block: success,
         else_block: check_failure,
     };
+    body.blocks[register_call].unwind = Some(registration_failure);
 
     let mut resume_statements = vec![field_set(
         mir::Expr::Local(frame_local),
@@ -1365,8 +1627,17 @@ fn rewrite_intrinsic_site(
         unwind,
     });
     GeneratedSite {
-        state: site.state,
+        state: i64::from(site.state),
         resume_block,
+        failure_state: failure_state(site.state),
+        failure_block: failure_resume_block(
+            body,
+            frame_local,
+            frame_slots,
+            failure_slot,
+            &site,
+            unwind,
+        ),
         point: adapter.point,
     }
 }

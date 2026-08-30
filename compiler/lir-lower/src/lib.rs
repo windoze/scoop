@@ -1981,6 +1981,7 @@ impl<'a> FunctionLowerer<'a> {
                         vec![mir::Type::UInt]
                     }
                     mir::RuntimeFn::GcCollect | mir::RuntimeFn::GcStats => Vec::new(),
+                    mir::RuntimeFn::MaterializeException => vec![mir::Type::Any],
                     // The M6 runtime functions are emitted by the
                     // dedicated lowerings (Box / IsInstance / dispatch)
                     // or appear only as vtable slot symbols — never as
@@ -2018,7 +2019,9 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::Pin | mir::RuntimeFn::GetHandle | mir::RuntimeFn::GcStats => {
                         self.call_with_result(symbol, args, lir::LirType::I64)
                     }
-                    mir::RuntimeFn::Unpin | mir::RuntimeFn::ReleaseHandle => {
+                    mir::RuntimeFn::Unpin
+                    | mir::RuntimeFn::ReleaseHandle
+                    | mir::RuntimeFn::MaterializeException => {
                         self.call_with_result(symbol, args, lir::LirType::Ptr)
                     }
                     mir::RuntimeFn::Write | mir::RuntimeFn::GcCollect => {

@@ -200,6 +200,18 @@ _Noreturn void scoop_rt_rethrow(void) {
     __cxa_rethrow();
 }
 
+void *scoop_rt_materialize_exception(const void *caught) {
+    const ScoopObjectHeader *source = caught;
+    size_t size = (size_t)source->td->size;
+    void *managed = scoop_rt_alloc(source->td, size);
+    if (size > sizeof(ScoopObjectHeader)) {
+        memcpy((char *)managed + sizeof(ScoopObjectHeader),
+               (const char *)caught + sizeof(ScoopObjectHeader),
+               size - sizeof(ScoopObjectHeader));
+    }
+    return managed;
+}
+
 int scoop_eh_personality(int version, unsigned int actions, unsigned long long exception_class,
                          void *exception, void *context) {
     /* Minimal personality (runtime spec 5 leaves the mechanism to the

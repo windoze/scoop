@@ -221,6 +221,7 @@ struct CoroutineRegistry {
     frames: Arena<mir::CoroutineFrame>,
     resume_points: Arena<mir::CoroutineResumePoint>,
     continuation_shells: Vec<(mir::Type, mir::FunctionId, mir::FunctionId)>,
+    start_helpers: Vec<(mir::Type, mir::FunctionId)>,
 }
 
 impl CoroutineRegistry {
@@ -387,6 +388,174 @@ impl CoroutineRegistry {
         self.continuation_shells
             .push((result.clone(), resume, failure));
         (resume, failure)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn start_helper(
+        &mut self,
+        result: &mir::Type,
+        task_interface: mir::InterfaceId,
+        continuation_interface: mir::InterfaceId,
+        run: mir::MonomorphizedFunctionId,
+        resume: mir::MonomorphizedFunctionId,
+        resume_with_exception: mir::MonomorphizedFunctionId,
+        step_ty: &mir::Type,
+        throwable: mir::Type,
+        functions: &mut Arena<mir::Function>,
+        top_level: &mut Vec<mir::FunctionId>,
+        shell: &mir::Module,
+    ) -> mir::FunctionId {
+        if let Some((_, function)) = self.start_helpers.iter().find(|(found, _)| found == result) {
+            return *function;
+        }
+
+        let mut locals = Arena::new();
+        let task = locals.alloc(mir::Local {
+            name: "task".to_string(),
+            ty: mir::Type::Interface(task_interface),
+            mutable: false,
+        });
+        let completion = locals.alloc(mir::Local {
+            name: "completion".to_string(),
+            ty: mir::Type::Interface(continuation_interface),
+            mutable: false,
+        });
+        let step = locals.alloc(mir::Local {
+            name: "$step".to_string(),
+            ty: step_ty.clone(),
+            mutable: false,
+        });
+        let exception = locals.alloc(mir::Local {
+            name: "$exception".to_string(),
+            ty: throwable,
+            mutable: false,
+        });
+        let span = Span { start: 0, end: 0 };
+        let statement = |kind| mir::Statement { kind, span };
+        let mut blocks = Arena::new();
+        let suspended = blocks.alloc(mir::BasicBlock {
+            name: "suspended".to_string(),
+            statements: Vec::new(),
+            terminator: mir::Terminator::Return { value: None },
+            unwind: None,
+        });
+        let completed = blocks.alloc(mir::BasicBlock {
+            name: "completed".to_string(),
+            statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
+                mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Interface {
+                            interface: continuation_interface,
+                            slot: 0,
+                        },
+                        callee: mir::Callee::Monomorphized(resume),
+                    },
+                    args: vec![
+                        mir::Expr::Local(completion),
+                        mir::Expr::EnumField {
+                            operand: Box::new(mir::Expr::Local(step)),
+                            variant: 0,
+                            index: 0,
+                        },
+                    ],
+                },
+            )))],
+            terminator: mir::Terminator::Return { value: None },
+            unwind: None,
+        });
+        let failed = blocks.alloc(mir::BasicBlock {
+            name: "failed".to_string(),
+            statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
+                mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Interface {
+                            interface: continuation_interface,
+                            slot: 1,
+                        },
+                        callee: mir::Callee::Monomorphized(resume_with_exception),
+                    },
+                    args: vec![mir::Expr::Local(completion), mir::Expr::Local(exception)],
+                },
+            )))],
+            terminator: mir::Terminator::Return { value: None },
+            unwind: None,
+        });
+        let catch_pad = blocks.alloc(mir::BasicBlock {
+            name: "body_failure".to_string(),
+            statements: vec![
+                statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                    cleanup: false,
+                })),
+                statement(mir::StatementKind::Eh(mir::EhStatement::BeginCatch)),
+                statement(mir::StatementKind::Call(mir::CallEffect::Value {
+                    destination: exception,
+                    call: mir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
+                        },
+                        args: vec![mir::Expr::CaughtException],
+                    },
+                })),
+                statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
+            ],
+            terminator: mir::Terminator::Goto(failed),
+            unwind: None,
+        });
+        let entry = blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements: vec![statement(mir::StatementKind::Call(
+                mir::CallEffect::Value {
+                    destination: step,
+                    call: mir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Interface {
+                                interface: task_interface,
+                                slot: 0,
+                            },
+                            callee: mir::Callee::Monomorphized(run),
+                        },
+                        args: vec![mir::Expr::Local(task), mir::Expr::Local(completion)],
+                    },
+                },
+            ))],
+            terminator: mir::Terminator::Branch {
+                cond: mir::Expr::Binary {
+                    op: mir::BinOp::IntEq,
+                    lhs: Box::new(mir::Expr::EnumTag(Box::new(mir::Expr::Local(step)))),
+                    rhs: Box::new(mir::Expr::IntLiteral(0)),
+                },
+                then_block: completed,
+                else_block: suspended,
+            },
+            unwind: Some(catch_pad),
+        });
+        let encoded = mir::encode_type(shell, result);
+        let function = functions.alloc(mir::Function {
+            name: format!("startCoroutine${encoded}"),
+            symbol: format!("scoop.coroutine.start${encoded}"),
+            params: vec![
+                mir::Param {
+                    name: "task".to_string(),
+                    ty: mir::Type::Interface(task_interface),
+                    local: task,
+                },
+                mir::Param {
+                    name: "completion".to_string(),
+                    ty: mir::Type::Interface(continuation_interface),
+                    local: completion,
+                },
+            ],
+            return_ty: mir::Type::Unit,
+            body: mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
+        });
+        top_level.push(function);
+        self.start_helpers.push((result.clone(), function));
+        function
     }
 }
 
@@ -3716,52 +3885,46 @@ impl BodyLowerer<'_> {
             self.top_level,
             self.shell,
             resume_generic,
-            vec![result],
+            vec![result.clone()],
         );
-        let step_local = self.new_hidden("start.step", step_ty.clone(), false);
-        self.prelude.push(smir::StatementKind::ValDecl {
-            local: step_local,
-            init: smir::Expr::Call(smir::Call {
+        let failure_generic = generic_of(
+            self.module,
+            self.module
+                .coroutine_core
+                .continuation_resume_with_exception,
+        )
+        .expect("Continuation<T>.resumeWithException has a generic owner");
+        let failure = self.instances.get_or_create_generic(
+            self.module,
+            self.functions,
+            self.top_level,
+            self.shell,
+            failure_generic,
+            vec![result.clone()],
+        );
+        let throwable = mir::Type::Class(self.class_map[&self.module.coroutine_core.throwable]);
+        let helper = self.coroutines.start_helper(
+            &result,
+            task_interface,
+            continuation_interface,
+            run,
+            resume,
+            failure,
+            &step_ty,
+            throwable,
+            self.functions,
+            self.top_level,
+            self.shell,
+        );
+        self.prelude
+            .push(smir::StatementKind::Expr(smir::Expr::Call(smir::Call {
                 target: mir::CallTarget {
-                    kind: mir::CallKind::Interface {
-                        interface: task_interface,
-                        slot: 0,
-                    },
-                    callee: mir::Callee::Monomorphized(run),
+                    kind: mir::CallKind::Direct,
+                    callee: mir::Callee::User(helper),
                 },
-                args: vec![task, completion.clone()],
-                return_ty: step_ty,
-            }),
-        });
-        self.prelude.push(smir::StatementKind::If {
-            cond: smir::Expr::Binary {
-                op: mir::BinOp::IntEq,
-                lhs: Box::new(smir::Expr::EnumTag(Box::new(smir::Expr::Local(step_local)))),
-                rhs: Box::new(smir::Expr::IntLiteral(0)),
-            },
-            then_body: vec![smir::Statement {
-                kind: smir::StatementKind::Expr(smir::Expr::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Interface {
-                            interface: continuation_interface,
-                            slot: 0,
-                        },
-                        callee: mir::Callee::Monomorphized(resume),
-                    },
-                    args: vec![
-                        completion,
-                        smir::Expr::EnumField {
-                            operand: Box::new(smir::Expr::Local(step_local)),
-                            variant: 0,
-                            index: 0,
-                        },
-                    ],
-                    return_ty: mir::Type::Unit,
-                })),
-                span: Span { start: 0, end: 0 },
-            }],
-            else_body: None,
-        });
+                args: vec![task, completion],
+                return_ty: mir::Type::Unit,
+            })));
         smir::Expr::UnitLiteral
     }
 
@@ -5913,7 +6076,14 @@ mod tests {
             .iter()
             .find_map(|(_, function)| (function.name == "launcher").then_some(function))
             .expect("launcher is lowered");
-        let entry = &launcher.body.blocks[launcher.body.entry];
+        let launcher_entry = &launcher.body.blocks[launcher.body.entry];
+        let (start, destination) = statement_call(&launcher_entry.statements[0]);
+        assert!(destination.is_none(), "startCoroutine returns Unit");
+        let mir::Callee::User(helper) = start.target.callee else {
+            panic!("startCoroutine lowers to its concrete guarded helper")
+        };
+        let helper = &module.functions[helper];
+        let entry = &helper.body.blocks[helper.body.entry];
         let (run, step_local) = statement_call(&entry.statements[0]);
         let mir::CallKind::Interface {
             interface: task_interface,
@@ -5934,7 +6104,7 @@ mod tests {
             panic!("startCoroutine must distinguish Completed from Suspended")
         };
 
-        let completed = &launcher.body.blocks[completed];
+        let completed = &helper.body.blocks[completed];
         let (resume, destination) = statement_call(&completed.statements[0]);
         assert!(destination.is_none(), "Continuation.resume returns Unit");
         let mir::CallKind::Interface {
@@ -5960,12 +6130,28 @@ mod tests {
             ] if matches!(operand.as_ref(), mir::Expr::Local(local) if *local == step_local)
         ));
 
-        let suspended = &launcher.body.blocks[suspended];
+        let suspended = &helper.body.blocks[suspended];
         assert!(suspended.statements.is_empty());
         assert!(matches!(
             suspended.terminator,
             mir::Terminator::Return { value: None }
         ));
+        let catch_pad = entry
+            .unwind
+            .expect("task body exceptions enter the guarded helper pad");
+        assert!(
+            helper.body.blocks[catch_pad]
+                .statements
+                .iter()
+                .any(|statement| {
+                    matches!(
+                        &statement.kind,
+                        mir::StatementKind::Call(mir::CallEffect::Value { call, .. })
+                            if call.target.callee
+                                == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException)
+                    )
+                })
+        );
     }
 
     #[test]

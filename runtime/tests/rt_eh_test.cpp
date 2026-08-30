@@ -41,6 +41,7 @@ void *scoop_rt_alloc(const void *td, size_t size);
 bool scoop_rt_is_instance(const void *obj, const void *td);
 void scoop_rt_throw(const void *obj);
 void scoop_rt_rethrow(void);
+void *scoop_rt_materialize_exception(const void *caught);
 void scoop_rt_gc_collect(void);
 unsigned long long scoop_rt_gc_stats(void);
 unsigned long long scoop_rt_gc_debug_root_count(void);
@@ -161,6 +162,11 @@ extern "C" void scoop_main(void) {
     }
     if (!scoop_rt_is_instance(caught, &exception_td)) {
         fail("scoop_rt_throw: is-instance failed on the copy");
+    }
+    void *materialized = scoop_rt_materialize_exception(caught);
+    if (materialized == caught || header_td(materialized) != &exception_td ||
+        payload(materialized) != 42) {
+        fail("scoop_rt_materialize_exception: managed copy is invalid");
     }
     __cxa_decrement_exception_refcount(const_cast<void *>(caught));
     caught = nullptr;

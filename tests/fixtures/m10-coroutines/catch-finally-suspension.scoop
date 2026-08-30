@@ -1,0 +1,87 @@
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun waitFor(gate: Gate): Int {
+    val registration: SuspendRegistration<Int> = Registration(gate)
+    return suspendCoroutine(registration)
+}
+
+class CatchTask(val gate: Gate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        try {
+            throw UnwrapException()
+        } catch (exception: UnwrapException) {
+            return waitFor(gate) + 1
+        }
+    }
+}
+
+class ReturnFinallyTask(val gate: Gate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        try {
+            return 40
+        } finally {
+            println(waitFor(gate))
+        }
+    }
+}
+
+suspend fun failAfterCleanup(gate: Gate): Int {
+    try {
+        throw UnwrapException()
+    } finally {
+        println(waitFor(gate))
+    }
+}
+
+class ThrowFinallyTask(val gate: Gate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        try {
+            return failAfterCleanup(gate)
+        } catch (exception: UnwrapException) {
+            return 42
+        }
+    }
+}
+
+class RecordingCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun launch(task: SuspendTask<Int>, completion: Continuation<Int>) {
+    startCoroutine(task, completion)
+}
+
+fun main() {
+    val catchGate = Gate(None)
+    launch(CatchTask(catchGate), RecordingCompletion())
+    println("catch-returned")
+    catchGate.complete(41)
+
+    val returnGate = Gate(None)
+    launch(ReturnFinallyTask(returnGate), RecordingCompletion())
+    println("return-returned")
+    returnGate.complete(2)
+
+    val throwGate = Gate(None)
+    launch(ThrowFinallyTask(throwGate), RecordingCompletion())
+    println("throw-returned")
+    throwGate.complete(3)
+}

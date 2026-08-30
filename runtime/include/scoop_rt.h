@@ -257,6 +257,11 @@ _Noreturn void scoop_rt_throw(const void *obj);
 /* Rethrow the exception currently being handled; does not return. */
 _Noreturn void scoop_rt_rethrow(void);
 
+/* Copy an ABI exception buffer back into an ordinary GC-managed object.
+ * The freshly allocated object's header is retained; only the payload
+ * after ScoopObjectHeader is copied from `caught` (runtime spec 5). */
+void *scoop_rt_materialize_exception(const void *caught);
+
 /* Install the uncaught-exception terminate handler; called once from
  * the runtime's main before scoop_main. */
 void scoop_rt_init_eh(void);
