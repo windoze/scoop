@@ -17,6 +17,16 @@ class Holder(var waiter: Continuation<Int>?) {
             println("invalidated")
         }
     }
+
+    fun failThenResume(value: Int) {
+        val continuation = waiter!!
+        continuation.resumeWithException(UnwrapException())
+        try {
+            continuation.resume(value)
+        } catch (exception: IllegalStateException) {
+            println("failure-duplicate")
+        }
+    }
 }
 
 class SavingRegistration(val holder: Holder) : SuspendRegistration<Int> {
@@ -110,4 +120,8 @@ fun main() {
     val invalidated = Holder(None)
     launch(SaveThenThrowTask(invalidated), RecordingCompletion())
     invalidated.resumeInvalidated(44)
+
+    val failed = Holder(None)
+    launch(WaitingTask(failed), RecordingCompletion())
+    failed.failThenResume(45)
 }
