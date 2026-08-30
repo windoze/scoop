@@ -29,6 +29,80 @@ fn local_ty(module: &hir::Module, name: &str) -> String {
         .1
 }
 
+// --- generic struct declarations and applications ---
+
+#[test]
+fn generic_struct_fields_construct_access_and_instantiate_methods() {
+    let file = file(vec![
+        generic_struct_decl_full(
+            "Pair",
+            vec!["A", "B"],
+            vec![("first", ty_named("A")), ("second", ty_named("B"))],
+            vec![],
+            vec![method_expr(
+                "getSecond",
+                vec![],
+                Some(ty_named("B")),
+                var("second"),
+            )],
+        ),
+        fun(
+            "main",
+            vec![
+                val(
+                    "pair",
+                    struct_init("Pair", vec![int_lit(7), str_lit("seven")]),
+                ),
+                val("first", field(var("pair"), "first")),
+                val("second", method_call(var("pair"), "getSecond", vec![])),
+            ],
+        ),
+    ]);
+    let module = lower_user(file).expect("generic struct must lower");
+    assert_eq!(local_ty(&module, "pair"), "Pair<Int, String>");
+    assert_eq!(local_ty(&module, "first"), "Int");
+    assert_eq!(local_ty(&module, "second"), "String");
+    assert!(
+        hir::dump(&module).contains("struct Pair<A, B>\n    field first: T0\n    field second: T1")
+    );
+}
+
+#[test]
+fn nested_generic_struct_fields_participate_in_inference() {
+    let file = file(vec![
+        generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
+        generic_struct_decl(
+            "Wrap",
+            vec!["T"],
+            vec![("box", ty_generic("Box", vec![ty_named("T")]))],
+        ),
+        fun(
+            "main",
+            vec![
+                val(
+                    "wrapped",
+                    struct_init("Wrap", vec![struct_init("Box", vec![str_lit("value")])]),
+                ),
+                val("value", field(field(var("wrapped"), "box"), "value")),
+            ],
+        ),
+    ]);
+    let module = lower_user(file).expect("nested generic structs must lower");
+    assert_eq!(local_ty(&module, "wrapped"), "Wrap<String>");
+    assert_eq!(local_ty(&module, "value"), "String");
+}
+
+#[test]
+fn duplicate_generic_struct_type_parameter_is_an_error() {
+    let file = file(vec![
+        generic_struct_decl("Bad", vec!["T", "T"], vec![("value", ty_named("T"))]),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("duplicate type parameter must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "duplicate type parameter `T`");
+}
+
 // --- UInt ---
 
 #[test]
@@ -154,9 +228,9 @@ fn gc_intrinsics_golden() {
     assert_eq!(local_ty(&module, "n"), "UInt");
     let expected = "\
 Module
-  struct PinHandle
+  struct PinHandle<T>
     field raw: UInt
-  struct GcHandle
+  struct GcHandle<T>
     field raw: UInt
   enum Option<T>
     Some(_1: T0)
@@ -174,9 +248,9 @@ Module
         Local message : Any
     Call write : Unit
       StringLiteral \"\\n\" : String
-  fun pin<T>(): PinHandle <intrinsic rt_pin>
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle <intrinsic rt_get_handle>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
   fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
@@ -184,17 +258,17 @@ Module
     val local0
       StringLiteral \"hello\" : String
     val local1
-      Call pin<String> : PinHandle
+      Call pin<String> : PinHandle<String>
         Local s : String
     val local2
       Call unpin<String> : String
-        Local h : PinHandle
+        Local h : PinHandle<String>
     val local3
-      Call getGcHandle<String> : GcHandle
+      Call getGcHandle<String> : GcHandle<String>
         Local s : String
     val local4
       Call releaseGcHandle<String> : String
-        Local g : GcHandle
+        Local g : GcHandle<String>
     Call gcCollect : Unit
     val local5
       Call gcStats : UInt
@@ -393,7 +467,7 @@ fn bare_handle_type_requires_type_arguments() {
     );
 }
 
-// --- PinHandle as a plain struct: construction and field access ---
+// --- PinHandle as a generic struct: construction and field access ---
 
 #[test]
 fn pin_handle_construction_and_field_access() {
@@ -401,7 +475,11 @@ fn pin_handle_construction_and_field_access() {
         "main",
         vec![
             val("u", call("gcStats", vec![])),
-            val("h", struct_init("PinHandle", vec![var("u")])),
+            val_ty(
+                "h",
+                Some(ty_generic("PinHandle", vec![ty_named("String")])),
+                struct_init("PinHandle", vec![var("u")]),
+            ),
             val("r", field(var("h"), "raw")),
             // Field access also works on a `PinHandle<T>` application
             // (the `raw` field is an ordinary struct field).
@@ -413,7 +491,7 @@ fn pin_handle_construction_and_field_access() {
         ],
     )]);
     let module = lower_user_with_gc(file).expect("handle construction must lower");
-    assert_eq!(local_ty(&module, "h"), "PinHandle");
+    assert_eq!(local_ty(&module, "h"), "PinHandle<String>");
     assert_eq!(local_ty(&module, "r"), "UInt");
     assert_eq!(local_ty(&module, "r2"), "UInt");
 }
@@ -422,7 +500,11 @@ fn pin_handle_construction_and_field_access() {
 fn pin_handle_construction_checks_the_raw_field() {
     let file = file(vec![fun(
         "main",
-        vec![val("h", struct_init("PinHandle", vec![int_lit(1)]))],
+        vec![val_ty(
+            "h",
+            Some(ty_generic("PinHandle", vec![ty_named("String")])),
+            struct_init("PinHandle", vec![int_lit(1)]),
+        )],
     )]);
     let errors = lower_user_with_gc(file).expect_err("an Int `raw` must fail");
     assert_eq!(errors.len(), 1);

@@ -596,7 +596,7 @@ fn is_cast_and_ref_eq() {
 
     match &returned(body_of(&module, "check")).kind {
         hir::ExprKind::IsInstance { check_ty, .. } => {
-            assert!(matches!(module.types[*check_ty], hir::Type::Struct(_)));
+            assert!(matches!(module.types[*check_ty], hir::Type::Struct(..)));
         }
         other => panic!("expected an is-check, found {other:?}"),
     }
@@ -616,7 +616,7 @@ fn is_cast_and_ref_eq() {
             hir::Type::Enum(id, args) => {
                 assert_eq!(*id, module.option_enum);
                 assert_eq!(args.len(), 1);
-                assert!(matches!(module.types[args[0]], hir::Type::Struct(_)));
+                assert!(matches!(module.types[args[0]], hir::Type::Struct(..)));
             }
             other => panic!("expected Option<S>, found {other:?}"),
         },

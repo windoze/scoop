@@ -59,9 +59,9 @@ SourceFile
 
 == hir ==
 Module
-  struct PinHandle
+  struct PinHandle<T>
     field raw: UInt
-  struct GcHandle
+  struct GcHandle<T>
     field raw: UInt
   enum Option<T>
     Some(_1: T0)
@@ -72,9 +72,9 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
-  fun pin<T>(): PinHandle <intrinsic rt_pin>
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle <intrinsic rt_get_handle>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
   fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
@@ -105,8 +105,6 @@ Module
 
 == mir ==
 Module
-  struct PinHandle (raw: UInt)
-  struct GcHandle (raw: UInt)
   enum Option$S
     Some(_1: String)
     None()
@@ -325,8 +323,6 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout PinHandle size=8 align=8 refs=[]
-  layout GcHandle size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-refs=[[0], []]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]

@@ -116,7 +116,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - `value` / `ref` 类型约束（spec 13.9）；
 - 非 Unit 函数返回的分支穷尽分析（当前要求函数体以 `return` 结尾）；
 - `if` 作为表达式；
-- 泛型 **struct** 声明（泛型 enum 已在 M4 完成）。
+- ~~泛型 **struct** 声明~~（已完成：类型实参直接进入 HIR `Type::Struct`，字段/方法类型形参作用域、构造推断、嵌套应用与 MIR 单态化全链路落地）。
 
 ### 来自 M4
 
@@ -177,5 +177,5 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 并行/并发回收与 STW 线程协调（线程注册/握手，safepoint poll 已是握手点形态）；
 - 精确消费 statepoint stackmap 的栈根扫描（v1 为架构无关的保守扫描；移动式回收前必须替换）；
 - ~~tagged enum 的 per-variant 扫描表发射~~（已完成：`SCOOP_REFS_ENUM` 与 `SCOOP_REFS_SEQUENCE` 可递归组合，数组复用同一元素扫描树）；
-- hir-lower 的泛型 struct 字段类型形参作用域（当前字段里的 T 需要进一步支持；core GC struct 的按名识别 stopgap 可摘除）；
+- ~~hir-lower 的泛型 struct 字段类型形参作用域~~（已完成：移除 core GC struct 按名识别 stopgap，泛型定义本身不进入 MIR，仅发射具体实例）；
 - 其余定宽整数族（Int8/16/32、UInt8/16/32，spec 11.2；UInt/UInt64 已落地）。

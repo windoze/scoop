@@ -145,12 +145,19 @@ impl Lowerer {
         }
         self.check_method_body_shape(id, decl, owner);
 
-        // Enum methods resolve in the enum's type-parameter scope (a
-        // method of `E<T>` may mention `T`); every other owner has no
-        // type parameters in scope.
+        // Generic value-type methods resolve in their owner's
+        // type-parameter scope (`E<T>` / `S<T>` methods may mention
+        // `T`).
         self.type_params_in_scope = match owner {
             Owner::Enum(enum_id) => {
                 let type_params = self.enums[enum_id].type_params.clone();
+                if !type_params.is_empty() {
+                    self.register_generic(id);
+                }
+                type_params
+            }
+            Owner::Struct(struct_id) => {
+                let type_params = self.structs[struct_id].type_params.clone();
                 if !type_params.is_empty() {
                     self.register_generic(id);
                 }
@@ -805,7 +812,7 @@ impl Lowerer {
                 add_visible(&mut result, &self.interface_methods[&id]);
                 result
             }
-            Type::Struct(id) => {
+            Type::Struct(id, _) => {
                 let mut result = Vec::new();
                 add_visible(&mut result, &self.struct_methods[&id]);
                 result

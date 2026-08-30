@@ -92,7 +92,7 @@ impl Lowerer {
             // a type (struct or enum variant path).
             ast::Expr::StructInit { name, args, span } => match self.classify_constructor(name)? {
                 Constructor::Struct { struct_id, ty } => {
-                    self.lower_struct_init(struct_id, ty, args, *span, sink)
+                    self.lower_struct_init(struct_id, ty, args, *span, sink, expected)
                 }
                 Constructor::Variant { enum_id, variant } => {
                     self.lower_variant_construct(enum_id, variant, args, *span, sink, expected)
@@ -289,10 +289,11 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        // Enum methods mention the enum's type parameters; instantiate
-        // them with the receiver's type arguments.
+        // Generic type methods mention their owner's type parameters;
+        // instantiate them with the receiver's type arguments.
         let type_args: Vec<TypeId> = match self.types[receiver.ty] {
             Type::Enum(_, ref args) => args.clone(),
+            Type::Struct(_, ref args) => args.clone(),
             _ => Vec::new(),
         };
         let resolved = self.resolve_overload(name, &candidates, &type_args, args, span, sink)?;
@@ -336,10 +337,11 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let name = self.functions[function].name.clone();
-        // Enum methods mention the enum's type parameters; instantiate
-        // them with the receiver's type arguments.
+        // Generic type methods mention their owner's type parameters;
+        // instantiate them with the receiver's type arguments.
         let type_args: Vec<TypeId> = match self.types[receiver.ty] {
             Type::Enum(_, ref args) => args.clone(),
+            Type::Struct(_, ref args) => args.clone(),
             _ => Vec::new(),
         };
         let sig = self.signatures[&function].clone();
@@ -1002,7 +1004,7 @@ impl Lowerer {
             Constructor::Variant { enum_id, variant } => self
                 .lower_variant_construct(enum_id, variant, &call.args, call.span, sink, expected),
             Constructor::Struct { struct_id, ty } => {
-                self.lower_struct_init(struct_id, ty, &call.args, call.span, sink)
+                self.lower_struct_init(struct_id, ty, &call.args, call.span, sink, expected)
             }
             Constructor::Class { class_id } => {
                 self.lower_class_construct(class_id, &call.args, call.span, sink)
@@ -1490,25 +1492,14 @@ impl Lowerer {
                 }
                 ok
             }
-            // Generic struct applications (M9): the argument lists
-            // live in the side table, not in the `Type` value.
-            (Type::Struct(param_id), Type::Struct(arg_id)) if param_id == arg_id => {
-                let pair = (
-                    self.generic_struct_args.get(&param_ty).cloned(),
-                    self.generic_struct_args.get(&arg_ty).cloned(),
-                );
-                match pair {
-                    (Some((_, param_args)), Some((_, arg_args)))
-                        if param_args.len() == arg_args.len() =>
-                    {
-                        let mut ok = true;
-                        for (param, arg) in param_args.iter().zip(arg_args.iter()) {
-                            ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
-                        }
-                        ok
-                    }
-                    _ => true,
+            (Type::Struct(param_id, param_args), Type::Struct(arg_id, arg_args))
+                if param_id == arg_id && param_args.len() == arg_args.len() =>
+            {
+                let mut ok = true;
+                for (param, arg) in param_args.iter().zip(arg_args.iter()) {
+                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
                 }
+                ok
             }
             (Type::Array(param_element), Type::Array(arg_element))
             | (Type::MutableArray(param_element), Type::MutableArray(arg_element)) => {
@@ -1533,12 +1524,14 @@ impl Lowerer {
     fn lower_struct_init(
         &mut self,
         struct_id: hir::StructId,
-        ty: TypeId,
+        definition_ty: TypeId,
         args: &[ast::Expr],
         span: Span,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         let name = self.structs[struct_id].name.clone();
+        let type_params = self.structs[struct_id].type_params.clone();
         let fields: Vec<(String, TypeId)> = self.structs[struct_id]
             .fields
             .iter()
@@ -1560,9 +1553,44 @@ impl Lowerer {
             );
             return None;
         }
+        let mut bindings = vec![None; type_params.len()];
+        if let Some(expected) = expected {
+            if let Type::Struct(id, expected_args) = self.types[expected].clone() {
+                if id == struct_id && expected_args.len() == type_params.len() {
+                    for (binding, arg) in bindings.iter_mut().zip(expected_args) {
+                        *binding = Some(arg);
+                    }
+                }
+            }
+        }
+
         let mut lowered = Vec::with_capacity(args.len());
-        for (arg, (field_name, field_ty)) in args.iter().zip(fields) {
-            let arg = self.lower_expr(arg, sink, Some(field_ty))?;
+        for (arg_expr, (_, field_ty)) in args.iter().zip(&fields) {
+            let hint = self.try_substitute(*field_ty, &bindings);
+            let arg = self.lower_expr(arg_expr, sink, hint)?;
+            if !self.bind_type_args(*field_ty, arg.ty, &mut bindings, &type_params, arg.span) {
+                return None;
+            }
+            lowered.push(arg);
+        }
+
+        let mut type_args = Vec::with_capacity(bindings.len());
+        for (binding, param_name) in bindings.into_iter().zip(&type_params) {
+            match binding {
+                Some(ty) => type_args.push(ty),
+                None => {
+                    self.error(
+                        span,
+                        format!("cannot infer type argument `{param_name}` for struct `{name}`"),
+                    );
+                    return None;
+                }
+            }
+        }
+
+        let mut adapted = Vec::with_capacity(lowered.len());
+        for ((field_name, field_ty), arg) in fields.iter().zip(lowered) {
+            let field_ty = self.instantiate_ty(*field_ty, &type_args);
             if !self.is_subtype(arg.ty, field_ty) {
                 let expected = self.type_name(field_ty);
                 let found = self.type_name(arg.ty);
@@ -1574,12 +1602,17 @@ impl Lowerer {
                 );
                 return None;
             }
-            lowered.push(self.adapt_to(arg, field_ty));
+            adapted.push(self.adapt_to(arg, field_ty));
         }
+        let ty = if type_args.is_empty() {
+            definition_ty
+        } else {
+            self.struct_application(struct_id, type_args)
+        };
         Some(hir::Expr {
             kind: ExprKind::StructInit {
                 struct_id,
-                args: lowered,
+                args: adapted,
             },
             ty,
             span,
@@ -1913,7 +1946,7 @@ impl Lowerer {
                     }
                 }
             }
-            Type::Struct(struct_id) => {
+            Type::Struct(struct_id, type_args) => {
                 let struct_name = self.structs[struct_id].name.clone();
                 match selector {
                     ast::FieldSelector::Name(field) => {
@@ -1926,6 +1959,7 @@ impl Lowerer {
                             return None;
                         };
                         let ty = fields[index].ty;
+                        let ty = self.instantiate_ty(ty, &type_args);
                         Some((
                             hir::FieldRef::StructField {
                                 struct_id,

@@ -1,0 +1,4 @@
+struct Bad<T, T>(val value: T)
+
+fun main() {
+}

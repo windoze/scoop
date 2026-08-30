@@ -1,6 +1,6 @@
 # M9 设计：真 GC（Immix 核心 + statepoint）
 
-版本：0.2（实现同步）
+版本：0.3（实现同步）
 
 对应 `docs/ROADMAP.md` 的 M9。目标：用真正的 GC 替换 always-leak——打开 statepoint、落地 Immix 核心（块/行结构、bump 分配、标记-区域回收）与 pin/handle 设施（runtime spec 第 3、4 章）。**分代（nursery/remembered set/晋升）与 evacuation/defrag 不在本里程碑**（见 5.1 与第 6 章）。
 
@@ -13,7 +13,7 @@
 
 ## 1. 语言与库子集
 
-无新语法。新增 core 库设施（spec 14.1 的 M9 形态）：
+补齐泛型 struct 声明及应用，并新增 core 库设施（spec 14.1 的 M9 形态）：
 
 ```
 // sysroot/lib/scoop.core/src/gc.scoop
@@ -27,6 +27,7 @@ struct GcHandle<T>(val raw: UInt)
 ```
 
 - `UInt64`/`UInt` 类型本里程碑一并落地（spec 11.2 已有定义；当前只有 Int——加一个 `UInt`（= `UInt64`）基本类型即可，其余定宽类型进 backlog）；
+- 泛型 struct 的类型实参直接保存在 HIR `Type::Struct` 中；字段与宿主方法可引用类型形参，构造函数按实参/expected type 推断，MIR 只保留按具体类型实参单态化后的实例；
 - 四个函数 M9 走 `@Intrinsic`（spec 的 `@Unsafe` 形态等 M11 的 FFI 注解族，见 5.2）；T 实际只接受引用类型（spec 14.1 的 `T : ref` 约束在 M12 上界落地前按"引用类型才合法"诊断实现）；
 - 测试钩子：`scoop_rt_gc_collect()`（强制回收）与 `scoop_rt_gc_stats()`（分配/存活计数），经 `@Intrinsic("rt_gc_collect")`/`@Intrinsic("rt_gc_stats")` 暴露给 core，供 fixture 断言回收行为（见 5.3）。
 

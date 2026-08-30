@@ -156,12 +156,12 @@ struct Lowerer {
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,
-    /// MIR struct definitions: the transposed HIR declarations plus
-    /// one instance per (generic struct, concrete type args) — see
-    /// `StructRegistry`.
+    /// MIR struct definitions: transposed non-generic HIR declarations
+    /// plus one instance per (generic struct, concrete type args) —
+    /// see `StructRegistry`.
     structs: StructRegistry,
-    /// HIR struct -> MIR struct (arena transposed in declaration order;
-    /// generic structs additionally get instances on demand).
+    /// Non-generic HIR struct -> MIR struct. Generic structs only get
+    /// concrete instances on demand.
     struct_map: HashMap<hir::StructId, mir::StructId>,
     classes: Arena<mir::ClassDef>,
     /// HIR class -> MIR class (arena transposed in declaration order).
@@ -343,27 +343,34 @@ impl Lowerer {
             );
         }
 
-        // Drain the worklist: lowering an instance body can discover
-        // further instances (generic functions calling generic
-        // functions), which get appended to `pending`.
-        let mut next = 0;
-        while next < self.instances.pending.len() {
-            let (generic, type_args, instance) = self.instances.pending[next].clone();
-            next += 1;
-            let hir_id = module.generic_functions[generic].function;
-            let mir_id = self.instances.meta[instance].function;
-            let (params, return_ty, body) =
-                self.lower_user_function(module, hir_id, Some(&type_args));
-            let function = &mut self.functions[mir_id];
-            function.params = params;
-            function.return_ty = return_ty;
-            function.body = body;
+        // Drain generic instances and finalize boxed value types to a
+        // fixed point. A boxed generic struct may request its concrete
+        // method instance for an interface thunk; lowering that method
+        // may in turn discover more instances or boxed payloads.
+        let mut next_instance = 0;
+        let mut next_boxed = 0;
+        loop {
+            while next_instance < self.instances.pending.len() {
+                let (generic, type_args, instance) = self.instances.pending[next_instance].clone();
+                next_instance += 1;
+                let hir_id = module.generic_functions[generic].function;
+                let mir_id = self.instances.meta[instance].function;
+                let (params, return_ty, body) =
+                    self.lower_user_function(module, hir_id, Some(&type_args));
+                let function = &mut self.functions[mir_id];
+                function.params = params;
+                function.return_ty = return_ty;
+                function.body = body;
+            }
+            while next_boxed < self.boxed.order.len() {
+                self.finalize_boxed(module, next_boxed);
+                next_boxed += 1;
+            }
+            if next_instance == self.instances.pending.len() && next_boxed == self.boxed.order.len()
+            {
+                break;
+            }
         }
-
-        // Boxed value types are discovered while lowering bodies
-        // (`Box` / `is` / `as`); their generated members (the
-        // structural equals and the adjust thunks) come last.
-        self.finalize_boxed(module);
 
         // The entry point is a non-generic user function, hence always
         // in the map.
@@ -424,10 +431,13 @@ impl Lowerer {
         .lower_function(function, body)
     }
 
-    /// Transpose the HIR struct arena into MIR in declaration order
+    /// Transpose non-generic HIR structs into MIR in declaration order
     /// (ids only; field types are filled by `fill_struct_fields`).
     fn lower_structs(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
+            if !decl.type_params.is_empty() {
+                continue;
+            }
             let mir_id = self.structs.defs.alloc(mir::StructDef {
                 name: decl.name.clone(),
                 fields: Vec::new(),
@@ -437,17 +447,11 @@ impl Lowerer {
     }
 
     /// Fill the MIR struct field types. This runs after the mangling
-    /// shell exists, because field types can instantiate enums. A
-    /// generic struct's fields mention its type parameters, which only
-    /// make sense per instantiated copy (`StructRegistry`), so such a
-    /// base definition stays a field-less shell.
+    /// shell exists, because field types can instantiate enums.
+    /// Generic structs are instantiated separately by `StructRegistry`.
     fn fill_struct_fields(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
-            if decl
-                .fields
-                .iter()
-                .any(|field| !is_concrete(module, field.ty))
-            {
+            if !decl.type_params.is_empty() {
                 continue;
             }
             let types = Types {
@@ -963,43 +967,40 @@ impl Lowerer {
     /// an itable whose slots point at adjust thunks — the thunk's
     /// `this` is the boxed object; it unboxes and tail-calls the real
     /// value method.
-    fn finalize_boxed(&mut self, module: &hir::Module) {
-        for index in 0..self.boxed.order.len() {
-            let class_id = self.boxed.order[index];
-            let payload = self.classes[class_id].fields[0].ty.clone();
-            let encoded = mir::encode_type(&self.shell, &payload);
-            let equals = self.build_boxed_equals(module, &payload, &encoded);
-            let tostring = match payload {
-                mir::Type::Int => {
-                    let f = self.build_boxed_tostring(&encoded, mir::RuntimeFn::IntToString);
-                    mir::TableSlot::Function(f)
-                }
-                mir::Type::Boolean => {
-                    let f = self.build_boxed_tostring(&encoded, mir::RuntimeFn::BoolToString);
-                    mir::TableSlot::Function(f)
-                }
-                _ => mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
-            };
-            self.classes[class_id].vtable = vec![
-                mir::TableSlot::Function(equals),
-                mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-                tostring,
-            ];
-            let interfaces = self.classes[class_id].interfaces.clone();
-            for iface in interfaces {
-                let hir_iface = self.hir_interface(iface);
-                let method_count = module.interfaces[hir_iface].methods.len();
-                let mut slots = Vec::new();
-                for index in 0..method_count {
-                    let thunk =
-                        self.build_thunk(module, &payload, &encoded, iface, hir_iface, index);
-                    slots.push(mir::TableSlot::Function(thunk));
-                }
-                self.classes[class_id].itables.push(mir::ItableRecord {
-                    interface: iface,
-                    slots,
-                });
+    fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
+        let class_id = self.boxed.order[index];
+        let payload = self.classes[class_id].fields[0].ty.clone();
+        let encoded = mir::encode_type(&self.shell, &payload);
+        let equals = self.build_boxed_equals(module, &payload, &encoded);
+        let tostring = match payload {
+            mir::Type::Int => {
+                let f = self.build_boxed_tostring(&encoded, mir::RuntimeFn::IntToString);
+                mir::TableSlot::Function(f)
             }
+            mir::Type::Boolean => {
+                let f = self.build_boxed_tostring(&encoded, mir::RuntimeFn::BoolToString);
+                mir::TableSlot::Function(f)
+            }
+            _ => mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
+        };
+        self.classes[class_id].vtable = vec![
+            mir::TableSlot::Function(equals),
+            mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
+            tostring,
+        ];
+        let interfaces = self.classes[class_id].interfaces.clone();
+        for iface in interfaces {
+            let hir_iface = self.hir_interface(iface);
+            let method_count = module.interfaces[hir_iface].methods.len();
+            let mut slots = Vec::new();
+            for index in 0..method_count {
+                let thunk = self.build_thunk(module, &payload, &encoded, iface, hir_iface, index);
+                slots.push(mir::TableSlot::Function(thunk));
+            }
+            self.classes[class_id].itables.push(mir::ItableRecord {
+                interface: iface,
+                slots,
+            });
         }
     }
 
@@ -1274,29 +1275,40 @@ impl Lowerer {
                 continue;
             };
             let ty = method.owner;
-            let matches = match (&module.types[ty], payload) {
-                (hir::Type::Struct(hir_id), mir::Type::Struct(mir_id)) => {
-                    // Struct instances are named `<name>$<encoded
-                    // args>` (see `StructRegistry`).
-                    let hir_name = &module.structs[*hir_id].name;
-                    let mir_name = &self.structs.defs[*mir_id].name;
-                    mir_name == hir_name || mir_name.starts_with(&format!("{hir_name}$"))
-                }
-                (hir::Type::Enum(hir_id, _), mir::Type::Enum(mir_id, _)) => {
-                    // Enum instances are named `<name>` or
-                    // `<name>$<encoded args>` (see `EnumRegistry`).
-                    let hir_name = &module.enums[*hir_id].name;
-                    let mir_name = &self.enums.defs[*mir_id].name;
-                    mir_name == hir_name || mir_name.starts_with(&format!("{hir_name}$"))
-                }
-                _ => false,
+            let type_args = match (&module.types[ty], payload) {
+                (hir::Type::Struct(hir_id, _), mir::Type::Struct(mir_id)) => self
+                    .structs
+                    .instances
+                    .get(mir_id)
+                    .filter(|(source, _)| source == hir_id)
+                    .map(|(_, args)| args.clone())
+                    .or_else(|| (self.struct_map.get(hir_id) == Some(mir_id)).then(Vec::new)),
+                (hir::Type::Enum(hir_id, _), mir::Type::Enum(mir_id, args)) => self
+                    .enums
+                    .hir_ids
+                    .get(mir_id)
+                    .filter(|source| *source == hir_id)
+                    .map(|_| args.clone()),
+                _ => None,
             };
-            if matches
-                && generic_of(module, fn_id).is_none()
-                && self.fn_signature_key(module, function) == key
-            {
-                return self.function_map[&fn_id];
+            let Some(type_args) = type_args else {
+                continue;
+            };
+            if self.fn_signature_key(module, function) != key {
+                continue;
             }
+            if let Some(generic) = generic_of(module, fn_id) {
+                let instance = self.instances.get_or_create_generic(
+                    module,
+                    &mut self.functions,
+                    &mut self.top_level,
+                    &self.shell,
+                    generic,
+                    type_args,
+                );
+                return self.instances.meta[instance].function;
+            }
+            return self.function_map[&fn_id];
         }
         unreachable!("hir-lower guarantees `{key}` is implemented by the boxed value type")
     }
@@ -1522,17 +1534,13 @@ fn option_variants(module: &hir::Module) -> (u32, u32) {
 
 /// Whether a HIR type mentions no type parameters.
 fn is_concrete(module: &hir::Module, ty: hir::TypeId) -> bool {
-    // A generic struct application's arguments live in the side table
-    // (M9), not in the `Type::Struct` value.
-    if let Some((_, args)) = module.struct_applications.get(&ty) {
-        return args.iter().all(|&arg| is_concrete(module, arg));
-    }
     match &module.types[ty] {
         hir::Type::Param(_) => false,
         hir::Type::Array(element) | hir::Type::MutableArray(element) => {
             is_concrete(module, *element)
         }
         hir::Type::Tuple(elements) => elements.iter().all(|&e| is_concrete(module, e)),
+        hir::Type::Struct(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
         hir::Type::Enum(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
         _ => true,
     }
@@ -1574,19 +1582,16 @@ impl Types<'_> {
             hir::Type::UInt => mir::Type::UInt,
             hir::Type::Boolean => mir::Type::Boolean,
             hir::Type::String => mir::Type::String,
-            hir::Type::Struct(id) => {
-                // A generic struct application (`PinHandle<String>`):
-                // the arguments live in `Module::struct_applications`
-                // because `Type::Struct` carries none. Types without
-                // an entry there are plain structs.
-                if let Some((_, args)) = self.module.struct_applications.get(&ty).cloned() {
+            hir::Type::Struct(id, args) => {
+                if args.is_empty() {
+                    mir::Type::Struct(self.struct_map[id])
+                } else {
                     let args: Vec<mir::Type> = args
                         .iter()
                         .map(|&arg| self.lower(arg, enums, structs, shell))
                         .collect();
-                    return mir::Type::Struct(structs.get_or_create(self, enums, shell, *id, args));
+                    mir::Type::Struct(structs.get_or_create(self, enums, shell, *id, args))
                 }
-                mir::Type::Struct(self.struct_map[id])
             }
             hir::Type::Class(id) => mir::Type::Class(self.class_map[id]),
             hir::Type::Interface(id) => mir::Type::Interface(self.interface_map[id]),
@@ -1696,22 +1701,22 @@ impl EnumRegistry {
 }
 
 /// Instantiated generic struct definitions (M9, spec 3.2): one
-/// `mir::StructDef` per (generic struct, concrete type args) beyond
-/// the transposed declarations, deduplicated by the mangled instance
+/// `mir::StructDef` per (generic struct, concrete type args),
+/// deduplicated by the mangled instance
 /// name (`PinHandle$V`, the same shape as enum instances).
 ///
 /// The substitution machinery is general: field types mentioning the
 /// struct's type parameters resolve through the argument list. The
-/// current core users (`PinHandle` / `GcHandle`) declare only a
-/// phantom parameter (no field mentions it — their `raw` field is a
-/// plain `UInt`); fields typed by a parameter arrive once hir-lower
-/// scopes struct type parameters over field declarations.
+/// `PinHandle` / `GcHandle` use a phantom parameter while ordinary
+/// user structs may mention parameters in fields.
 #[derive(Default)]
 struct StructRegistry {
     defs: Arena<mir::StructDef>,
     /// Mangled instance name -> struct. The name encodes the struct
     /// and its type arguments, so it is the deduplication key.
     by_name: HashMap<String, mir::StructId>,
+    /// Concrete generic instance -> source declaration and arguments.
+    instances: HashMap<mir::StructId, (hir::StructId, Vec<mir::Type>)>,
 }
 
 impl StructRegistry {
@@ -1740,6 +1745,7 @@ impl StructRegistry {
             fields: Vec::new(),
         });
         self.by_name.insert(name, id);
+        self.instances.insert(id, (hir_id, args.clone()));
         // Fill the definition eagerly: the id is already registered, so
         // a field mentioning this same instance terminates. Field types
         // mention the struct's type parameters, which the instance's
@@ -1864,7 +1870,25 @@ impl InstanceRegistry {
         type_args: Vec<mir::Type>,
     ) -> mir::MonomorphizedFunctionId {
         let resolved = &module.instantiations[resolved_id];
-        let generic = resolved.generic;
+        self.get_or_create_generic(
+            module,
+            functions,
+            top_level,
+            shell,
+            resolved.generic,
+            type_args,
+        )
+    }
+
+    fn get_or_create_generic(
+        &mut self,
+        module: &hir::Module,
+        functions: &mut Arena<mir::Function>,
+        top_level: &mut Vec<mir::FunctionId>,
+        shell: &mir::Module,
+        generic: hir::GenericFunctionId,
+        type_args: Vec<mir::Type>,
+    ) -> mir::MonomorphizedFunctionId {
         let hir_id = module.generic_functions[generic].function;
         let function = &module.functions[hir_id];
         let name = fn_name(function);
@@ -3085,8 +3109,11 @@ impl BodyLowerer<'_> {
         }
     }
 
-    /// The HIR id behind a MIR struct (the arenas are transposed 1:1).
+    /// The HIR declaration behind a plain or instantiated MIR struct.
     fn hir_struct(&self, mir_id: mir::StructId) -> hir::StructId {
+        if let Some((hir_id, _)) = self.structs.instances.get(&mir_id) {
+            return *hir_id;
+        }
         self.struct_map
             .iter()
             .find(|(_, mir)| **mir == mir_id)
@@ -3638,10 +3665,6 @@ mod tests {
         println_int: Option<hir::FunctionId>,
         println_boolean: Option<hir::FunctionId>,
         instantiations: Arena<hir::ResolvedGenericFunction>,
-        /// Generic struct applications (hir-lower's
-        /// `struct_application` shape), plus the lazily-created core
-        /// GC facilities (M9).
-        struct_applications: HashMap<hir::TypeId, (hir::StructId, Vec<hir::TypeId>)>,
         uint: Option<hir::TypeId>,
         gc_core: Option<GcCore>,
     }
@@ -3746,7 +3769,6 @@ mod tests {
                 println_int: None,
                 println_boolean: None,
                 instantiations: Arena::new(),
-                struct_applications: HashMap::new(),
                 uint: None,
                 gc_core: None,
             }
@@ -4044,6 +4066,7 @@ mod tests {
         ) -> hir::StructId {
             self.structs.alloc(hir::StructDecl {
                 name: name.to_string(),
+                type_params: Vec::new(),
                 fields: fields
                     .iter()
                     .map(|(name, ty)| hir::Field {
@@ -4067,18 +4090,13 @@ mod tests {
             ty
         }
 
-        /// Intern a generic struct application type (hir-lower's
-        /// `struct_application` shape): the value is a plain
-        /// `Type::Struct`, the arguments live in the side table.
+        /// Intern a generic struct application type.
         fn struct_app(&mut self, struct_id: hir::StructId, args: Vec<hir::TypeId>) -> hir::TypeId {
-            for (ty, (decl, existing)) in &self.struct_applications {
-                if *decl == struct_id && *existing == args {
-                    return *ty;
-                }
+            if self.structs[struct_id].type_params.is_empty() {
+                self.structs[struct_id].type_params =
+                    (0..args.len()).map(|index| format!("T{index}")).collect();
             }
-            let ty = self.types.alloc(hir::Type::Struct(struct_id));
-            self.struct_applications.insert(ty, (struct_id, args));
-            ty
+            self.types.alloc(hir::Type::Struct(struct_id, args))
         }
 
         /// core's GC facilities (M9): `PinHandle<T>` / `GcHandle<T>`
@@ -4090,6 +4108,8 @@ mod tests {
             let uint = self.uint();
             let pin_handle = self.strukt("PinHandle", &[("raw", uint)]);
             let gc_handle = self.strukt("GcHandle", &[("raw", uint)]);
+            self.structs[pin_handle].type_params = vec!["T".to_string()];
+            self.structs[gc_handle].type_params = vec!["T".to_string()];
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
@@ -4253,7 +4273,6 @@ mod tests {
                 option_enum: self.option_enum,
                 entry,
                 instantiations: self.instantiations,
-                struct_applications: self.struct_applications,
             }
         }
     }
@@ -4678,9 +4697,7 @@ Module
         let (string, uint) = (h.string, h.uint());
         // Two applications of one generic struct, one of them twice
         // (dedup), plus a struct whose field mentions its type
-        // parameter (the general substitution; hir-lower cannot scope
-        // parameters over fields yet, so the test declares it in HIR
-        // directly).
+        // parameter (the general substitution path).
         let pin_handle_v = h.struct_app(gc.pin_handle, vec![uint]);
         let pin_handle_s = h.struct_app(gc.pin_handle, vec![string]);
         let t = h
@@ -4718,10 +4735,8 @@ Module
 
         // One instance per (struct, args): `PinHandle$V` once,
         // `PinHandle$S` once despite two uses, `Box2$S` once — named
-        // like the enum instances. The base definitions stay (the
-        // phantom `PinHandle` keeps its concrete field; `Box2`'s
-        // `Param` field only exists per instance, so its base def is
-        // a field-less shell).
+        // like the enum instances. Generic definitions themselves do
+        // not survive into MIR: MIR contains no generic types.
         let defs = |name: &str| {
             module
                 .structs
@@ -4730,10 +4745,8 @@ Module
                 .map(|(_, def)| def)
                 .collect::<Vec<_>>()
         };
-        assert_eq!(defs("PinHandle").len(), 1);
-        assert_eq!(defs("PinHandle")[0].fields.len(), 1);
-        assert_eq!(defs("Box2").len(), 1);
-        assert!(defs("Box2")[0].fields.is_empty());
+        assert!(defs("PinHandle").is_empty());
+        assert!(defs("Box2").is_empty());
         assert_eq!(defs("PinHandle$V").len(), 1);
         assert_eq!(defs("PinHandle$V")[0].fields[0].ty, mir::Type::UInt);
         assert_eq!(defs("PinHandle$S").len(), 1);
@@ -5241,7 +5254,7 @@ Module
         let multi = overloaded_interface(&mut h, "Multi", &[("m", int), ("m", string)]);
         let multi_ty = h.interface_ty(multi);
         let s = h.strukt_with("S", &[("x", int)], &[multi]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
         int_method(&mut h, "S.m", s_ty, Some(int), 1);
         int_method(&mut h, "S.m", s_ty, Some(string), 2);
         let mut locals = Arena::new();
@@ -5658,7 +5671,7 @@ Module
     fn struct_equality_expands_into_per_field_comparisons() {
         let mut h = Harness::new();
         let point = h.strukt("Point", &[("x", h.int), ("y", h.int)]);
-        let point_ty = h.types.alloc(hir::Type::Struct(point));
+        let point_ty = h.types.alloc(hir::Type::Struct(point, Vec::new()));
         let mut locals = Arena::new();
         let p = locals.alloc(local("p", point_ty));
         let q = locals.alloc(local("q", point_ty));
@@ -5728,7 +5741,7 @@ Module
         let mut h = Harness::new();
         let pair = h.tuple(&[h.int, h.boolean]);
         let wrap = h.strukt("Wrap", &[("tag", h.string), ("pair", pair)]);
-        let wrap_ty = h.types.alloc(hir::Type::Struct(wrap));
+        let wrap_ty = h.types.alloc(hir::Type::Struct(wrap, Vec::new()));
         let mut locals = Arena::new();
         let w1 = locals.alloc(local("w1", wrap_ty));
         let w2 = locals.alloc(local("w2", wrap_ty));
@@ -5890,7 +5903,7 @@ Module
     fn field_access_uses_zero_based_indices() {
         let mut h = Harness::new();
         let point = h.strukt("Point", &[("x", h.int), ("y", h.int)]);
-        let point_ty = h.types.alloc(hir::Type::Struct(point));
+        let point_ty = h.types.alloc(hir::Type::Struct(point, Vec::new()));
         let pair = h.tuple(&[h.int, h.string]);
         let mut locals = Arena::new();
         let p = locals.alloc(local("p", point_ty));
@@ -6906,7 +6919,7 @@ Module
         let mut h = Harness::new();
         let (int, string) = (h.int, h.string);
         let point = h.strukt("Point", &[("x", int), ("y", int)]);
-        let point_ty = h.types.alloc(hir::Type::Struct(point));
+        let point_ty = h.types.alloc(hir::Type::Struct(point, Vec::new()));
         let pair = h.tuple(&[int, string]);
         let mut locals = Arena::new();
         let a = locals.alloc(local("a", int));
@@ -7404,7 +7417,7 @@ Module
         // A value type method.
         let int = h.int;
         let s = h.strukt("S", &[("x", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
         let s_describe = empty_method(&mut h, "S", "describe", s_ty);
 
         let unit = h.unit;
@@ -7541,7 +7554,7 @@ Module
         let mut h = Harness::new();
         let int = h.int;
         let s = h.strukt("S", &[("x", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
         let any = h.any();
         let mut locals = Arena::new();
         let a = locals.alloc(local("a", any));
@@ -7706,7 +7719,7 @@ Module
         let iface = h.interface("Describable", &["describe"]);
         let iface_ty = h.interface_ty(iface);
         let s = h.strukt("S", &[("x", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
         let _describe = empty_method(&mut h, "S", "describe", s_ty);
         // `val d: Describable = S(1)` — a Box whose target is the
         // interface.
@@ -7767,7 +7780,7 @@ Module
         h.exception("ClassCastException");
         let (int, boolean) = (h.int, h.boolean);
         let s = h.strukt("S", &[("x", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
         let any = h.any();
         let option_s = h.option(s_ty);
         let mut locals = Arena::new();
@@ -8089,7 +8102,7 @@ Module
         let int = h.int;
         let iface = h.interface("Describable", &["describe"]);
         let s = h.strukt_with("S", &[("x", int)], &[iface]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
         let _describe = empty_method(&mut h, "S", "describe", s_ty);
         let any = h.any();
         let mut locals = Arena::new();
@@ -8266,7 +8279,7 @@ Module
         let println_int = h.println_int();
         let (int, boolean) = (h.int, h.boolean);
         let s = h.strukt("S", &[("v", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s));
+        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
         let any = h.any();
         let mut locals = Arena::new();
         let a = locals.alloc(local("a", any));
