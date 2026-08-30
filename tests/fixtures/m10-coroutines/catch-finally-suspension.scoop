@@ -55,6 +55,36 @@ class ThrowFinallyTask(val gate: Gate) : SuspendTask<Int> {
     }
 }
 
+class OverrideReturnFinallyTask(val gate: Gate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        try {
+            return 1
+        } finally {
+            println(waitFor(gate))
+            return 45
+        }
+    }
+}
+
+suspend fun returnThenThrow(gate: Gate): Int {
+    try {
+        return 1
+    } finally {
+        println(waitFor(gate))
+        throw UnwrapException()
+    }
+}
+
+class OverrideThrowFinallyTask(val gate: Gate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        try {
+            return returnThenThrow(gate)
+        } catch (exception: UnwrapException) {
+            return 46
+        }
+    }
+}
+
 class RecordingCompletion() : Continuation<Int> {
     final override fun resume(value: Int) {
         println(value)
@@ -84,4 +114,14 @@ fun main() {
     launch(ThrowFinallyTask(throwGate), RecordingCompletion())
     println("throw-returned")
     throwGate.complete(3)
+
+    val overrideReturnGate = Gate(None)
+    launch(OverrideReturnFinallyTask(overrideReturnGate), RecordingCompletion())
+    println("override-return-returned")
+    overrideReturnGate.complete(4)
+
+    val overrideThrowGate = Gate(None)
+    launch(OverrideThrowFinallyTask(overrideThrowGate), RecordingCompletion())
+    println("override-throw-returned")
+    overrideThrowGate.complete(5)
 }
