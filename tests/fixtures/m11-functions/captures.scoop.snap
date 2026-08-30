@@ -1,0 +1,880 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  struct Label
+    field text: String
+  struct Snapshot
+    field value: Int
+    fun getter
+  class Counter(var value: Int)
+    fun incrementer
+  fun makeAdder(base: Int): (Int) -> Int
+    =
+      Lambda 2 suspend=false
+        param value: Int
+        Binary Add
+          Var value
+          Var base
+  fun makeNested(base: Int): () -> () -> Int
+    =
+      Lambda 4 suspend=false
+        parameters omitted
+        Lambda 3 suspend=false
+          parameters omitted
+          Var base
+  fun labelReader(label: Label): () -> String
+    =
+      Lambda 5 suspend=false
+        parameters omitted
+        FieldAccess text
+          Var label
+  fun snapshot(): () -> Int
+    var value
+      IntLiteral 41
+    val captured
+      Var value
+    val result
+      Lambda 6 suspend=false
+        parameters omitted
+        Binary Add
+          Var captured
+          IntLiteral 1
+    assign value
+      IntLiteral 0
+    return
+      Var result
+  fun main()
+    val adder
+      Call makeAdder
+        IntLiteral 2
+    val outer
+      Call makeNested
+        IntLiteral 41
+    val inner
+      Call outer
+    val reader
+      Call labelReader
+        Call Label
+          StringLiteral "alive"
+    var source
+      Call Snapshot
+        IntLiteral 1
+    val getter
+      MethodCall getter
+        Var source
+    assign source
+      Call Snapshot
+        IntLiteral 2
+    val counter
+      Call Counter
+        IntLiteral 40
+    val increment
+      MethodCall incrementer
+        Var counter
+    Call gcCollect
+    Call println
+      Call adder
+        IntLiteral 40
+    Call println
+      Call inner
+    Call println
+      Call reader
+    Call println
+      Call getter
+    Call println
+      FieldAccess value
+        Var source
+    Call println
+      Call increment
+    Call println
+      FieldAccess value
+        Var counter
+    Call println
+      Invoke
+        Call snapshot
+
+== hir ==
+Module
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  struct Label
+    field text: String
+  struct Snapshot
+    field value: Int
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  class Counter(value: Int)
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun makeAdder(base: Int): (Int) -> Int
+    return
+      Lambda lambda0 invoke=$lambda.0 captures=1 : (Int) -> Int
+        capture base binding13 : Int
+  fun makeNested(base: Int): () -> () -> Int
+    return
+      Lambda lambda2 invoke=$lambda.1 captures=1 : () -> () -> Int
+        capture base binding16 : Int
+  fun labelReader(label: Label): () -> String
+    return
+      Lambda lambda3 invoke=$lambda.3 captures=1 : () -> String
+        capture label binding19 : Label
+  fun snapshot(): () -> Int
+    val local0
+      IntLiteral 41 : Int
+    val local1
+      Local value : Int
+    val local2
+      Lambda lambda4 invoke=$lambda.4 captures=1 : () -> Int
+        capture captured binding22 : Int
+    assign value
+      IntLiteral 0 : Int
+    return
+      Local result : () -> Int
+  fun main(): Unit
+    val local0
+      Call makeAdder : (Int) -> Int
+        IntLiteral 2 : Int
+    val local1
+      Call makeNested : () -> () -> Int
+        IntLiteral 41 : Int
+    val local2
+      CallableCall function_type2 : () -> Int
+        Local outer : () -> () -> Int
+    val local3
+      Call labelReader : () -> String
+        StructInit Label : Label
+          StringLiteral "alive" : String
+    val local4
+      StructInit Snapshot : Snapshot
+        IntLiteral 1 : Int
+    val local5
+      MethodCall Snapshot.getter : () -> Int
+        Local source : Snapshot
+    assign source
+      StructInit Snapshot : Snapshot
+        IntLiteral 2 : Int
+    val local6
+      ClassInit Counter : Counter
+        IntLiteral 40 : Int
+    val local7
+      MethodCall Counter.incrementer : () -> Int
+        Local counter : Counter
+    Call gcCollect : Unit
+    Call println : Unit
+      Box : Any
+        CallableCall function_type0 : Int
+          Local adder : (Int) -> Int
+          IntLiteral 40 : Int
+    Call println : Unit
+      Box : Any
+        CallableCall function_type1 : Int
+          Local inner : () -> Int
+    Call println : Unit
+      CallableCall function_type3 : Any
+        Local reader : () -> String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type1 : Int
+          Local getter : () -> Int
+    Call println : Unit
+      Box : Any
+        FieldAccess field 0 : Int
+          Local source : Snapshot
+    Call println : Unit
+      Box : Any
+        CallableCall function_type1 : Int
+          Local increment : () -> Int
+    Call println : Unit
+      Box : Any
+        FieldAccess class field 0 : Int
+          Local counter : Counter
+    Call println : Unit
+      Box : Any
+        CallableCall function_type1 : Int
+          Call snapshot : () -> Int
+  entry main
+
+== mir ==
+Module
+  struct Label (text: String)
+  struct Snapshot (value: Int)
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class Counter vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@scoop.$lambda.0 captures=1
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@scoop.$lambda.1.FRIX captures=1
+  closure cc2 $Closure$lambda2 type=function_type1 invoke=@scoop.$lambda.1.FRFRIXX captures=1
+  closure cc3 $Closure$lambda3 type=function_type3 invoke=@scoop.$lambda.3 captures=1
+  closure cc4 $Closure$lambda4 type=function_type0 invoke=@scoop.$lambda.4 captures=1
+  closure cc5 $Closure$lambda5 type=function_type0 invoke=@scoop.$lambda.5 captures=1
+  closure cc6 $Closure$lambda6 type=function_type0 invoke=@scoop.$lambda.6 captures=1
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
+  fun makeAdder @scoop.makeAdder(base: Int) -> (Int) -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc0 $Closure$lambda0
+          Local base
+  fun makeNested @scoop.makeNested(base: Int) -> () -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc2 $Closure$lambda2
+          Local base
+  fun labelReader @scoop.labelReader(label: Label) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc3 $Closure$lambda3
+          Local label
+  fun snapshot @scoop.snapshot() -> () -> Int
+    bb0 entry
+      var value: Int
+        IntLiteral 41
+      val captured: Int
+        Local value
+      val result: () -> Int
+        ClosureAlloc cc4 $Closure$lambda4
+          Local captured
+      assign value
+        IntLiteral 0
+      return
+        Local result
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      call adder: (Int) -> Int = @scoop.makeAdder direct
+        IntLiteral 2
+      call outer: () -> () -> Int = @scoop.makeNested direct
+        IntLiteral 41
+      call inner: () -> Int = <closure:function_type1> closure[function_type1]
+        Local outer
+      call reader: () -> String = @scoop.labelReader direct
+        StructInit Label
+          StringConst @scoop.str.1
+      var source: Snapshot
+        StructInit Snapshot
+          IntLiteral 1
+      call getter: () -> Int = @scoop.Snapshot.getter direct
+        Local source
+      assign source
+        StructInit Snapshot
+          IntLiteral 2
+      call counter: Counter = @scoop.ctor.Counter direct
+        IntLiteral 40
+      call increment: () -> Int = @scoop.Counter.incrementer direct
+        Local counter
+      call @scoop_rt_gc_collect direct
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Local adder
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.1
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Local inner
+      call @scoop.println direct
+        Box
+          Local $call.2
+      call $call.3: Any = <closure:function_type3> closure[function_type3]
+        Local reader
+      call @scoop.println direct
+        Local $call.3
+      call $call.4: Int = <closure:function_type0> closure[function_type0]
+        Local getter
+      call @scoop.println direct
+        Box
+          Local $call.4
+      call @scoop.println direct
+        Box
+          FieldAccess 0
+            Local source
+      call $call.5: Int = <closure:function_type0> closure[function_type0]
+        Local increment
+      call @scoop.println direct
+        Box
+          Local $call.5
+      call @scoop.println direct
+        Box
+          FieldAccess 0
+            Local counter
+      call $call.6: () -> Int = @scoop.snapshot direct
+      call $call.7: Int = <closure:function_type0> closure[function_type0]
+        Local $call.6
+      call @scoop.println direct
+        Box
+          Local $call.7
+      return
+  fun Snapshot.getter @scoop.Snapshot.getter(this: Snapshot) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc5 $Closure$lambda5
+          Local this
+  fun Counter.incrementer @scoop.Counter.incrementer(this: Counter) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc6 $Closure$lambda6
+          Local this
+  fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          ClosureCapture cc0 0
+            Local $closure
+  fun $lambda.1 @scoop.$lambda.1.FRIX($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        ClosureCapture cc1 0
+          Local $closure
+  fun $lambda.1 @scoop.$lambda.1.FRFRIXX($closure: () -> () -> Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc1 $Closure$lambda1
+          ClosureCapture cc2 0
+            Local $closure
+  fun $lambda.3 @scoop.$lambda.3($closure: () -> String) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          ClosureCapture cc3 0
+            Local $closure
+  fun $lambda.4 @scoop.$lambda.4($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          ClosureCapture cc4 0
+            Local $closure
+          IntLiteral 1
+  fun $lambda.5 @scoop.$lambda.5($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        FieldAccess 0
+          ClosureCapture cc5 0
+            Local $closure
+  fun $lambda.6 @scoop.$lambda.6($closure: () -> Int) -> Int
+    bb0 entry
+      field_set 0
+        ClosureCapture cc6 0
+          Local $closure
+        Binary IntAdd
+          FieldAccess 0
+            ClosureCapture cc6 0
+              Local $closure
+          IntLiteral 1
+      return
+        FieldAccess 0
+          ClosureCapture cc6 0
+            Local $closure
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
+  fun ctor.Counter @scoop.ctor.Counter(value: Int) -> Counter
+    bb0 entry
+      return
+        ClassInit Counter
+          Local value
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "alive"
+  str @scoop.str.2 "unwrap on None"
+  str @scoop.str.3 "invalid cast"
+  str @scoop.str.4 "arithmetic error"
+  str @scoop.str.5 "array index out of bounds"
+  str @scoop.str.6 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "alive"
+  global @scoop.str.2 = "unwrap on None"
+  global @scoop.str.3 = "invalid cast"
+  global @scoop.str.4 = "arithmetic error"
+  global @scoop.str.5 = "array index out of bounds"
+  global @scoop.str.6 = "illegal state"
+  global @scoop_td_$Closure$lambda0 = c""
+  global @scoop_td_$Closure$lambda2 = c""
+  global @scoop_td_$Closure$lambda3 = c""
+  global @scoop_td_$Closure$lambda4 = c""
+  global @scoop_td_box$I = c""
+  global @scoop_td_$Closure$lambda5 = c""
+  global @scoop_td_$Closure$lambda6 = c""
+  global @scoop_td_$Closure$lambda1 = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
+  global @scoop_td_Counter = c""
+  enum Option$S niche(payload_variant=0)
+  fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.makeAdder(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global7, 32) : ptr
+    t1 = function_address @scoop.$lambda.0 : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeNested(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global8, 32) : ptr
+    t1 = function_address @scoop.$lambda.1.FRFRIXX : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.labelReader({ptr}) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global9, 32) : ptr
+    t1 = function_address @scoop.$lambda.3 : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.snapshot() -> ptr
+    local %0 value: i64
+    local %1 captured: i64
+    local %2 result: ptr
+  block entry
+    store 41 -> local0
+    store local0 -> local1
+    t0 = call @scoop_rt_alloc(global10, 32) : ptr
+    t1 = function_address @scoop.$lambda.4 : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 local1
+    store t0 -> local2
+    store 0 -> local0
+    ret local2
+  fun @scoop_main() -> void
+    local %0 adder: ptr
+    local %1 outer: ptr
+    local %2 inner: ptr
+    local %3 reader: ptr
+    local %4 source: {i64}
+    local %5 getter: ptr
+    local %6 counter: ptr
+    local %7 increment: ptr
+    local %8 $call.1: i64
+    local %9 $call.2: i64
+    local %10 $call.3: ptr
+    local %11 $call.4: i64
+    local %12 $call.5: i64
+    local %13 $call.6: ptr
+    local %14 $call.7: i64
+  block entry
+    t0 = call @scoop.makeAdder(2) : ptr
+    store t0 -> local0
+    t1 = call @scoop.makeNested(41) : ptr
+    store t1 -> local1
+    t2 = call_indirect local1[2](local1) : ptr
+    store t2 -> local2
+    t3 = aggregate (global1) : {ptr}
+    t4 = call @scoop.labelReader(t3) : ptr
+    store t4 -> local3
+    t5 = aggregate (1) : {i64}
+    store t5 -> local4
+    t6 = call @scoop.Snapshot.getter(local4) : ptr
+    store t6 -> local5
+    t7 = aggregate (2) : {i64}
+    store t7 -> local4
+    t8 = call @scoop.ctor.Counter(40) : ptr
+    store t8 -> local6
+    t9 = call @scoop.Counter.incrementer(local6) : ptr
+    store t9 -> local7
+    call @scoop_rt_gc_collect()
+    t10 = aggregate () : {}
+    t11 = call_indirect local0[2](local0, 40) : i64
+    store t11 -> local8
+    t12 = call @scoop_rt_box(global11, local8, 8) : ptr
+    call @scoop.println(t12)
+    t13 = aggregate () : {}
+    t14 = call_indirect local2[2](local2) : i64
+    store t14 -> local9
+    t15 = call @scoop_rt_box(global11, local9, 8) : ptr
+    call @scoop.println(t15)
+    t16 = aggregate () : {}
+    t17 = call_indirect local3[2](local3) : ptr
+    store t17 -> local10
+    call @scoop.println(local10)
+    t18 = aggregate () : {}
+    t19 = call_indirect local5[2](local5) : i64
+    store t19 -> local11
+    t20 = call @scoop_rt_box(global11, local11, 8) : ptr
+    call @scoop.println(t20)
+    t21 = aggregate () : {}
+    t22 = extract local4, 0 : i64
+    t23 = call @scoop_rt_box(global11, t22, 8) : ptr
+    call @scoop.println(t23)
+    t24 = aggregate () : {}
+    t25 = call_indirect local7[2](local7) : i64
+    store t25 -> local12
+    t26 = call @scoop_rt_box(global11, local12, 8) : ptr
+    call @scoop.println(t26)
+    t27 = aggregate () : {}
+    t28 = heap_load local6 +16 : i64
+    t29 = call @scoop_rt_box(global11, t28, 8) : ptr
+    call @scoop.println(t29)
+    t30 = aggregate () : {}
+    t31 = call @scoop.snapshot() : ptr
+    store t31 -> local13
+    t32 = call_indirect local13[2](local13) : i64
+    store t32 -> local14
+    t33 = call @scoop_rt_box(global11, local14, 8) : ptr
+    call @scoop.println(t33)
+    t34 = aggregate () : {}
+    ret
+  fun @scoop.Snapshot.getter({i64}) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 32) : ptr
+    t1 = function_address @scoop.$lambda.5 : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.Counter.incrementer(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 32) : ptr
+    t1 = function_address @scoop.$lambda.6 : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.$lambda.0(ptr, i64) -> i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    t1 = Add param1, t0 : i64
+    ret t1
+  fun @scoop.$lambda.1.FRIX(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    ret t0
+  fun @scoop.$lambda.1.FRFRIXX(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global14, 32) : ptr
+    t1 = function_address @scoop.$lambda.1.FRIX : ptr
+    heap_store t0 +16 t1
+    t2 = heap_load param0 +24 : i64
+    heap_store t0 +24 t2
+    ret t0
+  fun @scoop.$lambda.3(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +24 : {ptr}
+    t1 = extract t0, 0 : ptr
+    ret t1
+  fun @scoop.$lambda.4(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    t1 = Add t0, 1 : i64
+    ret t1
+  fun @scoop.$lambda.5(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +24 : {i64}
+    t1 = extract t0, 0 : i64
+    ret t1
+  fun @scoop.$lambda.6(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load param0 +24 : ptr
+    t2 = heap_load t1 +16 : i64
+    t3 = Add t2, 1 : i64
+    heap_store t0 +16 t3
+    t4 = heap_load param0 +24 : ptr
+    t5 = heap_load t4 +16 : i64
+    ret t5
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global15, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr
+    t1 = enum_wrap e0 v0 (global2) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr
+    t1 = enum_wrap e0 v0 (global3) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global19, 24) : ptr
+    t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global20, 24) : ptr
+    t1 = enum_wrap e0 v0 (global5) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global21, 24) : ptr
+    t1 = enum_wrap e0 v0 (global6) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.Counter(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global22, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td Counter @scoop_td_Counter size=24 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=0 itables=0
+  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=0 itables=0
+  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=0 itables=0
+  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=0 itables=0
+  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=0 itables=0
+  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=0 itables=0
+  td $Closure$lambda6 @scoop_td_$Closure$lambda6 size=32 vtable=0 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Label size=8 align=8 refs=[0]
+  layout Snapshot size=8 align=8 refs=[]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout Counter size=24 align=8 refs=[]
+  layout box$I size=24 align=8 refs=[]
+  layout $Closure$lambda0 size=32 align=8 refs=[]
+  layout $Closure$lambda1 size=32 align=8 refs=[]
+  layout $Closure$lambda2 size=32 align=8 refs=[]
+  layout $Closure$lambda3 size=32 align=8 refs=[24]
+  layout $Closure$lambda4 size=32 align=8 refs=[]
+  layout $Closure$lambda5 size=32 align=8 refs=[]
+  layout $Closure$lambda6 size=32 align=8 refs=[24]
+  entry @scoop_main
+
+== run ==
+42
+41
+alive
+1
+2
+41
+41
+42

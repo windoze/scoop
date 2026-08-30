@@ -70,11 +70,7 @@ impl Lowerer {
         let mut params = Vec::with_capacity(sig.params.len() + 1);
         if let Some(owner) = owner {
             let host_ty = self.owner_ty(owner);
-            let local = self.locals.alloc(hir::Local {
-                name: "this".to_string(),
-                ty: host_ty,
-                mutable: false,
-            });
+            let local = self.alloc_local("this".to_string(), host_ty, false);
             self.scopes.declare("this".to_string(), local);
             self.current_this = Some((local, host_ty));
             params.push(hir::Param {
@@ -91,11 +87,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let local = self.locals.alloc(hir::Local {
-                name: param.name.text.clone(),
-                ty: param.ty,
-                mutable: false,
-            });
+            let local = self.alloc_local(param.name.text.clone(), param.ty, false);
             self.scopes.declare(param.name.text.clone(), local);
             params.push(hir::Param {
                 name: param.name.text.clone(),
@@ -964,11 +956,7 @@ impl Lowerer {
                 continue;
             }
             self.scopes.push();
-            let local = self.locals.alloc(hir::Local {
-                name: catch.name.text.clone(),
-                ty,
-                mutable: false,
-            });
+            let local = self.alloc_local(catch.name.text.clone(), ty, false);
             self.scopes.declare(catch.name.text.clone(), local);
             let body = self.lower_block(&catch.body);
             self.scopes.pop();
@@ -1023,11 +1011,7 @@ impl Lowerer {
                 continue;
             }
             covered.push(ty);
-            let local = self.locals.alloc(hir::Local {
-                name: catch.name.text.clone(),
-                ty,
-                mutable: false,
-            });
+            let local = self.alloc_local(catch.name.text.clone(), ty, false);
             resolved.push((catch, ty, local));
         }
 
@@ -1248,6 +1232,23 @@ impl Lowerer {
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
         let Some(local) = self.scopes.lookup(&name.text) else {
+            if let Some(capture) = self.available_capture(&name.text) {
+                if capture.mutable {
+                    self.error(
+                        name.span,
+                        format!(
+                            "cannot capture mutable local `{}`; bind its current value to a `val` snapshot or capture explicit reference state",
+                            name.text
+                        ),
+                    );
+                } else {
+                    self.error(
+                        name.span,
+                        format!("cannot assign to immutable variable `{}`", name.text),
+                    );
+                }
+                return None;
+            }
             match self.current_owner {
                 Some(Owner::Class(class_id)) => {
                     if let Some((_, _, _, mutable)) = self.find_class_field(class_id, &name.text) {
@@ -1258,13 +1259,9 @@ impl Lowerer {
                             );
                             return None;
                         }
-                        let (this_local, this_ty) =
-                            self.current_this.expect("a method body always has `this`");
-                        let receiver = hir::Expr {
-                            kind: hir::ExprKind::Local(this_local),
-                            ty: this_ty,
-                            span: name.span,
-                        };
+                        let receiver = self
+                            .lower_current_this(name.span)
+                            .expect("a member callable body always has a lexical `this`");
                         let mut sink = Vec::new();
                         let kind = self.assign_class_field(assign, receiver, name, &mut sink)?;
                         out.extend(sink);

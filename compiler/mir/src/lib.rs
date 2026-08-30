@@ -539,6 +539,12 @@ pub enum Expr {
         class: ClosureClassId,
         captures: Vec<Expr>,
     },
+    /// Read one inline capture field from a concrete closure object.
+    ClosureCapture {
+        closure: Box<Expr>,
+        class: ClosureClassId,
+        index: u32,
+    },
     Local(LocalId),
     /// The managed exception pointer produced by the active `BeginCatch`.
     /// It is only valid in blocks dominated by that statement.
@@ -1105,6 +1111,17 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             for capture in captures {
                 dump_expr(module, locals, capture, indent + 1, out);
             }
+        }
+        Expr::ClosureCapture {
+            closure,
+            class,
+            index,
+        } => {
+            out.push_str(&format!(
+                "{pad}ClosureCapture cc{} {index}\n",
+                class.into_raw().into_u32()
+            ));
+            dump_expr(module, locals, closure, indent + 1, out);
         }
         Expr::StructInit { struct_id, args } => {
             out.push_str(&format!(

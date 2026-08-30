@@ -158,6 +158,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         closure_invokes: Arena::new(),
         lambda_closures: HashMap::new(),
         reference_closures: HashMap::new(),
+        closure_by_function: HashMap::new(),
+        closure_capture_indices: HashMap::new(),
     }
     .run(module)
 }
@@ -210,6 +212,10 @@ struct Lowerer {
     closure_invokes: Arena<mir::ClosureInvokeFunction>,
     lambda_closures: HashMap<hir::LambdaId, mir::ClosureClassId>,
     reference_closures: HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
+    /// Generated HIR invoke body -> its concrete closure class.
+    closure_by_function: HashMap<hir::FunctionId, mir::ClosureClassId>,
+    /// HIR lexical binding -> concrete inline field index for one closure.
+    closure_capture_indices: HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
 }
 
 #[derive(Clone)]
@@ -1177,6 +1183,9 @@ impl Lowerer {
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             reference_closures: &self.reference_closures,
+            closure_capture_indices: &self.closure_capture_indices,
+            current_closure: self.closure_by_function.get(&hir_id).copied(),
+            current_closure_local: None,
         }
         .lower_function(function, body)
     }
@@ -1456,6 +1465,26 @@ impl Lowerer {
     fn declare_closures(&mut self, module: &hir::Module) {
         for (id, lambda) in module.lambdas.iter() {
             let function_type = self.lower_function_type_id(module, lambda.function_type);
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                subst: None,
+            };
+            let captures: Vec<_> = lambda
+                .captures
+                .iter()
+                .map(|capture| mir::Field {
+                    name: capture.name.clone(),
+                    ty: types.lower(
+                        capture.ty,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    ),
+                })
+                .collect();
             let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
                 function: self.function_map[&lambda.function],
             });
@@ -1463,8 +1492,13 @@ impl Lowerer {
                 name: format!("$Closure$lambda{}", id.into_raw()),
                 function_type,
                 invoke,
-                captures: Vec::new(),
+                captures,
             });
+            self.closure_by_function.insert(lambda.function, class);
+            for (index, capture) in lambda.captures.iter().enumerate() {
+                self.closure_capture_indices
+                    .insert((class, capture.binding), index as u32);
+            }
             self.lambda_closures.insert(id, class);
         }
         for (id, reference) in module.callable_references.iter() {
@@ -1808,6 +1842,9 @@ impl Lowerer {
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             reference_closures: &self.reference_closures,
+            closure_capture_indices: &self.closure_capture_indices,
+            current_closure: None,
+            current_closure_local: None,
         };
         let mut params = Vec::new();
         let mut own = Vec::new();
@@ -1987,6 +2024,9 @@ impl Lowerer {
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
             reference_closures: &self.reference_closures,
+            closure_capture_indices: &self.closure_capture_indices,
+            current_closure: None,
+            current_closure_local: None,
         };
         let equality = lowerer.expand_equality(&Opd::Local(a), &Opd::Local(b), payload, &[], false);
         let body = smir::Body {
@@ -3147,6 +3187,9 @@ struct BodyLowerer<'a> {
     coroutines: &'a mut CoroutineRegistry,
     lambda_closures: &'a HashMap<hir::LambdaId, mir::ClosureClassId>,
     reference_closures: &'a HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
+    closure_capture_indices: &'a HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    current_closure: Option<mir::ClosureClassId>,
+    current_closure_local: Option<mir::LocalId>,
 }
 
 /// A step from a compared operand down to the sub-value at an equality
@@ -3190,6 +3233,12 @@ impl BodyLowerer<'_> {
                 local: self.local_map[&param.local],
             })
             .collect();
+        if self.current_closure.is_some() {
+            self.current_closure_local = function
+                .params
+                .first()
+                .map(|param| self.local_map[&param.local]);
+        }
         let return_ty = self.lower_type(function.return_ty);
         let statements = if is_abstract_bodiless(function) {
             // An abstract method (hir-lower materializes it bodiless):
@@ -3799,13 +3848,35 @@ impl BodyLowerer<'_> {
                     }
                 }
             }
+            hir::ExprKind::Capture(binding) => {
+                let class = self
+                    .current_closure
+                    .expect("capture reads only appear in closure invoke bodies");
+                let index = self.closure_capture_indices[&(class, *binding)];
+                let closure = self
+                    .current_closure_local
+                    .expect("a closure invoke body has its hidden receiver local");
+                smir::Expr::ClosureCapture {
+                    closure: Box::new(smir::Expr::Local(closure)),
+                    class,
+                    index,
+                }
+            }
             hir::ExprKind::Lambda(id) => smir::Expr::ClosureAlloc {
                 class: self.lambda_closures[id],
-                captures: Vec::new(),
+                captures: self.module.lambdas[*id]
+                    .captures
+                    .iter()
+                    .map(|capture| self.lower_expr(&capture.source))
+                    .collect(),
             },
             hir::ExprKind::CallableReference(id) => smir::Expr::ClosureAlloc {
                 class: self.reference_closures[id],
-                captures: Vec::new(),
+                captures: self.module.callable_references[*id]
+                    .captures
+                    .iter()
+                    .map(|capture| self.lower_expr(&capture.source))
+                    .collect(),
             },
             // The array nodes translate one-to-one (M5); the literal's
             // kind (Array vs MutableArray) is fixed by the producing
@@ -5627,6 +5698,7 @@ mod tests {
                             name: name.to_string(),
                             ty,
                             local: dummy_locals.alloc(hir::Local {
+                                binding: hir::BindingId::from_raw(dummy_locals.len() as u32),
                                 name: name.to_string(),
                                 ty,
                                 mutable: false,
@@ -5997,6 +6069,7 @@ mod tests {
 
     fn local(name: &str, ty: hir::TypeId) -> hir::Local {
         hir::Local {
+            binding: hir::BindingId::from_raw(0),
             name: name.to_string(),
             ty,
             mutable: false,

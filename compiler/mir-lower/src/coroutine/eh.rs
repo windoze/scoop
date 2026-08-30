@@ -147,6 +147,9 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
             }
         }
         mir::Expr::Retype { operand, .. }
+        | mir::Expr::ClosureCapture {
+            closure: operand, ..
+        }
         | mir::Expr::FieldAccess {
             receiver: operand, ..
         }

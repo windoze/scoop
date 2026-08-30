@@ -25,6 +25,23 @@ pub type ClassId = Idx<ClassDecl>;
 pub type InterfaceId = Idx<InterfaceDecl>;
 pub type LocalId = Idx<Local>;
 
+/// Cone-wide identity of a lexical value binding. Unlike `LocalId`, which is
+/// only meaningful inside one function body's local arena, this identity is
+/// stable across nested callable bodies and can therefore name a capture
+/// without falling back to a source name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BindingId(u32);
+
+impl BindingId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
 /// A function- or generic-type-local type-parameter index. This is a
 /// distinct id type so it cannot be mixed with field, variant or
 /// arena indices by accident.
@@ -262,11 +279,16 @@ pub struct CallableReference {
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Capture {
-    pub binding: LocalId,
+    pub binding: BindingId,
+    pub name: String,
     pub ty: TypeId,
     pub first_use_span: Span,
+    /// Expression evaluated in the immediately enclosing callable when the
+    /// closure object is created. It is either a local read or a transitive
+    /// capture read, and therefore preserves by-value creation-time semantics.
+    pub source: Expr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -475,6 +497,7 @@ pub struct Body {
 
 #[derive(Debug)]
 pub struct Local {
+    pub binding: BindingId,
     pub name: String,
     pub ty: TypeId,
     pub mutable: bool,
@@ -625,6 +648,9 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     Local(LocalId),
+    /// Read one immutable binding from the current closure environment. The
+    /// binding identity is resolved to a concrete field by closure conversion.
+    Capture(BindingId),
     Lambda(LambdaId),
     CallableReference(CallableReferenceId),
     FieldAccess {
@@ -1180,6 +1206,12 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         ExprKind::Local(local) => {
             out.push_str(&format!("{pad}Local {} : {ty}\n", locals[*local].name));
         }
+        ExprKind::Capture(binding) => {
+            out.push_str(&format!(
+                "{pad}Capture binding{} : {ty}\n",
+                binding.into_raw()
+            ));
+        }
         ExprKind::Lambda(id) => {
             let lambda = &module.lambdas[*id];
             out.push_str(&format!(
@@ -1188,6 +1220,15 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 module.functions[lambda.function].name,
                 lambda.captures.len()
             ));
+            for capture in &lambda.captures {
+                out.push_str(&format!(
+                    "{}capture {} binding{} : {}\n",
+                    "  ".repeat(indent + 1),
+                    capture.name,
+                    capture.binding.into_raw(),
+                    type_name(module, capture.ty)
+                ));
+            }
         }
         ExprKind::CallableReference(id) => {
             let reference = &module.callable_references[*id];

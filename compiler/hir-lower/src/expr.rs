@@ -54,7 +54,10 @@ use hir::{ExprKind, FunctionKind, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
-use crate::{ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext};
+use crate::{
+    AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer, Owner,
+    PendingCapture, SuspensionContext,
+};
 
 struct InferredArguments {
     args: Vec<Option<hir::Expr>>,
@@ -74,6 +77,167 @@ impl InferredArguments {
 }
 
 impl Lowerer {
+    /// Snapshot the bindings visible at a nested callable creation point.
+    /// Bindings inherited from the enclosing callable are represented as
+    /// transitive capture reads; locals declared by that callable override
+    /// them according to ordinary lexical shadowing.
+    fn capture_environment(&self) -> std::collections::HashMap<String, AvailableCapture> {
+        let mut available: std::collections::HashMap<String, AvailableCapture> = self
+            .capture_contexts
+            .last()
+            .map(|context| {
+                context
+                    .available
+                    .iter()
+                    .map(|(name, capture)| {
+                        let mut capture = capture.clone();
+                        capture.source = CaptureSource::Capture(capture.binding);
+                        (name.clone(), capture)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let declaration_depth = self.capture_contexts.len();
+        for (name, local) in self.scopes.visible() {
+            let local_def = &self.locals[local];
+            available.insert(
+                name,
+                AvailableCapture {
+                    binding: local_def.binding,
+                    ty: local_def.ty,
+                    mutable: local_def.mutable,
+                    source: CaptureSource::Local(local),
+                    declaration_depth,
+                },
+            );
+        }
+        available
+    }
+
+    fn register_capture_at(
+        &mut self,
+        context_index: usize,
+        name: &str,
+        available: AvailableCapture,
+        first_use_span: Span,
+    ) {
+        if matches!(available.source, CaptureSource::Capture(_)) {
+            assert!(
+                context_index > 0,
+                "a transitive capture always has an enclosing closure"
+            );
+            let parent_index = context_index - 1;
+            let parent_available = self.capture_contexts[parent_index]
+                .available
+                .values()
+                .find(|candidate| candidate.binding == available.binding)
+                .cloned()
+                .expect("the enclosing closure can provide a transitive capture");
+            self.register_capture_at(parent_index, name, parent_available, first_use_span);
+        }
+        let context = &mut self.capture_contexts[context_index];
+        if context.by_binding.contains_key(&available.binding) {
+            return;
+        }
+        let index = context.captures.len();
+        context.by_binding.insert(available.binding, index);
+        context.captures.push(PendingCapture {
+            binding: available.binding,
+            name: name.to_string(),
+            ty: available.ty,
+            first_use_span,
+            source: available.source,
+            declaration_depth: available.declaration_depth,
+        });
+    }
+
+    fn lower_capture(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
+        let context_index = self.capture_contexts.len().checked_sub(1)?;
+        let available = self.capture_contexts[context_index]
+            .available
+            .get(&name.text)?
+            .clone();
+        if available.mutable {
+            self.error(
+                name.span,
+                format!(
+                    "cannot capture mutable local `{}`; bind its current value to a `val` snapshot or capture explicit reference state",
+                    name.text
+                ),
+            );
+            return None;
+        }
+        self.register_capture_at(context_index, &name.text, available.clone(), name.span);
+        Some(hir::Expr {
+            kind: ExprKind::Capture(available.binding),
+            ty: available.ty,
+            span: name.span,
+        })
+    }
+
+    pub(crate) fn available_capture(&self, name: &str) -> Option<AvailableCapture> {
+        self.capture_contexts
+            .last()
+            .and_then(|context| context.available.get(name))
+            .cloned()
+    }
+
+    fn finish_current_captures(&mut self) -> Vec<hir::Capture> {
+        let context = self
+            .capture_contexts
+            .last_mut()
+            .expect("a lambda capture context is active");
+        context.captures.sort_by_key(|capture| {
+            (
+                capture.declaration_depth,
+                capture.first_use_span.start,
+                capture.binding,
+            )
+        });
+        context
+            .captures
+            .drain(..)
+            .map(|capture| {
+                let source = match capture.source {
+                    CaptureSource::Local(local) => hir::Expr {
+                        kind: ExprKind::Local(local),
+                        ty: capture.ty,
+                        span: capture.first_use_span,
+                    },
+                    CaptureSource::Capture(binding) => hir::Expr {
+                        kind: ExprKind::Capture(binding),
+                        ty: capture.ty,
+                        span: capture.first_use_span,
+                    },
+                };
+                hir::Capture {
+                    binding: capture.binding,
+                    name: capture.name,
+                    ty: capture.ty,
+                    first_use_span: capture.first_use_span,
+                    source,
+                }
+            })
+            .collect()
+    }
+
+    pub(crate) fn lower_current_this(&mut self, span: Span) -> Option<hir::Expr> {
+        if let Some((local, ty)) = self.current_this {
+            return Some(hir::Expr {
+                kind: ExprKind::Local(local),
+                ty,
+                span,
+            });
+        }
+        if self.current_owner.is_some() {
+            return self.lower_capture(&ast::Ident {
+                text: "this".to_string(),
+                span,
+            });
+        }
+        None
+    }
+
     /// Lower an expression, recording a diagnostic and returning `None`
     /// on error. See the module docs for the `sink` / `expected`
     /// mechanisms.
@@ -189,18 +353,14 @@ impl Lowerer {
     /// `this` (M6): only inside member functions, where it is
     /// parameter 0 (`lower_body` registers it as a local).
     fn lower_this(&mut self, span: Span) -> Option<hir::Expr> {
-        let Some((local, ty)) = self.current_this else {
+        let Some(this) = self.lower_current_this(span) else {
             self.error(
                 span,
                 "`this` is only allowed inside member functions".to_string(),
             );
             return None;
         };
-        Some(hir::Expr {
-            kind: ExprKind::Local(local),
-            ty,
-            span,
-        })
+        Some(this)
     }
 
     /// `receiver.name(args)` (M6/M7): the method overloads are
@@ -787,6 +947,9 @@ impl Lowerer {
             return None;
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
+            if self.available_capture(&name.text).is_some() {
+                return self.lower_capture(name);
+            }
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
@@ -839,7 +1002,7 @@ impl Lowerer {
     /// chain). Methods are not values in M6, so only fields resolve.
     fn bare_member_fallback(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
         let owner = self.current_owner?;
-        let (this_local, host_ty) = self.current_this?;
+        let receiver = self.lower_current_this(name.span)?;
         let (field, ty) = match owner {
             Owner::Class(class_id) => {
                 let (declaring, index, ty, _) = self.find_class_field(class_id, &name.text)?;
@@ -870,11 +1033,7 @@ impl Lowerer {
         };
         Some(hir::Expr {
             kind: ExprKind::FieldAccess {
-                receiver: Box::new(hir::Expr {
-                    kind: ExprKind::Local(this_local),
-                    ty: host_ty,
-                    span: name.span,
-                }),
+                receiver: Box::new(receiver),
                 field,
             },
             ty,
@@ -1390,13 +1549,19 @@ impl Lowerer {
             return None;
         }
 
+        let capture_environment = self.capture_environment();
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
-        let outer_owner = self.current_owner.take();
+        let outer_owner = self.current_owner;
         let outer_this = self.current_this.take();
         let outer_smart_casts = std::mem::take(&mut self.smart_casts);
+        self.capture_contexts.push(CaptureContext {
+            available: capture_environment,
+            captures: Vec::new(),
+            by_binding: std::collections::HashMap::new(),
+        });
         self.current_fn_name = format!("$lambda.{}", self.lambdas.len());
         self.push_suspension_context(SuspensionContext::Forbidden(
             ForbiddenSuspendContext::Function,
@@ -1474,11 +1639,7 @@ impl Lowerer {
                         local,
                     });
                 } else {
-                    let local = self.locals.alloc(hir::Local {
-                        name: format!("$arg.{index}"),
-                        ty: parameter_ty,
-                        mutable: false,
-                    });
+                    let local = self.alloc_local(format!("$arg.{index}"), parameter_ty, false);
                     let pattern = self.lower_pattern(
                         target.expect("non-binding source parameter has a pattern"),
                         parameter_ty,
@@ -1552,11 +1713,7 @@ impl Lowerer {
             let Type::Function(function_type) = self.types[function_ty] else {
                 unreachable!()
             };
-            let closure_local = self.locals.alloc(hir::Local {
-                name: "$closure".to_string(),
-                ty: function_ty,
-                mutable: false,
-            });
+            let closure_local = self.alloc_local("$closure".to_string(), function_ty, false);
             let mut params = Vec::with_capacity(abi_params.len() + 1);
             params.push(hir::Param {
                 name: "$closure".to_string(),
@@ -1577,10 +1734,11 @@ impl Lowerer {
                 method: None,
                 span,
             });
+            let captures = self.finish_current_captures();
             let id = self.lambdas.alloc(hir::Lambda {
                 function,
                 function_type,
-                captures: Vec::new(),
+                captures,
                 span,
             });
             Some(hir::Expr {
@@ -1592,6 +1750,7 @@ impl Lowerer {
 
         self.scopes.pop();
         self.pop_suspension_context();
+        self.capture_contexts.pop();
         self.locals = outer_locals;
         self.scopes = outer_scopes;
         self.current_return_ty = outer_return_ty;
@@ -1810,12 +1969,9 @@ impl Lowerer {
             None => Vec::new(),
         };
         if !members.is_empty() {
-            let (this_local, this_ty) = self.current_this.expect("a method body always has `this`");
-            let receiver = hir::Expr {
-                kind: ExprKind::Local(this_local),
-                ty: this_ty,
-                span: call.callee.span,
-            };
+            let receiver = self
+                .lower_current_this(call.callee.span)
+                .expect("a member callable body always has a lexical `this`");
             if members.len() == 1 {
                 return self.finish_method_call(members[0], receiver, &call.args, call.span, sink);
             }

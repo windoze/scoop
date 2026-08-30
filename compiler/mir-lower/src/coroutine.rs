@@ -1873,6 +1873,9 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
             }
         }
         mir::Expr::Retype { operand, .. }
+        | mir::Expr::ClosureCapture {
+            closure: operand, ..
+        }
         | mir::Expr::FieldAccess {
             receiver: operand, ..
         }

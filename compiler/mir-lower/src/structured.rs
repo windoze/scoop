@@ -87,6 +87,11 @@ pub(crate) enum Expr {
         class: mir::ClosureClassId,
         captures: Vec<Expr>,
     },
+    ClosureCapture {
+        closure: Box<Expr>,
+        class: mir::ClosureClassId,
+        index: u32,
+    },
     Local(mir::LocalId),
     Retype {
         operand: Box<Expr>,

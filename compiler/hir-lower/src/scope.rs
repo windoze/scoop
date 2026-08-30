@@ -9,6 +9,7 @@ use scoop_hir::LocalId;
 /// and if/while bodies each push a scope; a local is visible from its
 /// declaration to the end of its scope, and shadows outer locals with
 /// the same name.
+#[derive(Clone)]
 pub(crate) struct Scopes {
     stack: Vec<HashMap<String, LocalId>>,
 }
@@ -49,5 +50,16 @@ impl Scopes {
             .iter()
             .rev()
             .find_map(|scope| scope.get(name).copied())
+    }
+
+    /// The bindings visible at the current source position. Inner scopes
+    /// replace outer bindings with the same name. Capture analysis consumes
+    /// this snapshot before entering a nested callable body.
+    pub(crate) fn visible(&self) -> HashMap<String, LocalId> {
+        let mut visible = HashMap::new();
+        for scope in &self.stack {
+            visible.extend(scope.iter().map(|(name, local)| (name.clone(), *local)));
+        }
+        visible
     }
 }

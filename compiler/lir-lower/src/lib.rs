@@ -1323,6 +1323,10 @@ impl<'a> FunctionLowerer<'a> {
             mir::Expr::ClosureAlloc { class, .. } => {
                 mir::Type::Function(self.module.closure_classes[*class].function_type)
             }
+            mir::Expr::ClosureCapture { class, index, .. } => self.module.closure_classes[*class]
+                .captures[*index as usize]
+                .ty
+                .clone(),
             mir::Expr::EnumTag(_) => mir::Type::Int,
             mir::Expr::EnumField {
                 operand,
@@ -1715,6 +1719,19 @@ impl<'a> FunctionLowerer<'a> {
                         value,
                     });
                 }
+                lir::Value::Temp(out)
+            }
+            mir::Expr::ClosureCapture {
+                closure,
+                class,
+                index,
+            } => {
+                let def = &self.module.closure_classes[*class];
+                let (capture_offsets, _, _, _) = closure_shape(self.module, self.enums, def);
+                let closure_ty = self.expr_ty(closure);
+                let closure = self.lower_expr(closure, &closure_ty);
+                let out_ty = self.value_type(ty);
+                let out = self.load_at_offset(closure, capture_offsets[*index as usize], out_ty);
                 lir::Value::Temp(out)
             }
             // The array operations map onto the corresponding LIR

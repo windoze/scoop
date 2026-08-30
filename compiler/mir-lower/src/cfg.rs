@@ -566,6 +566,15 @@ impl<'a> CfgLowerer<'a> {
                     .map(|capture| self.lower_expr(capture, span))
                     .collect(),
             },
+            smir::Expr::ClosureCapture {
+                closure,
+                class,
+                index,
+            } => mir::Expr::ClosureCapture {
+                closure: Box::new(self.lower_expr(closure, span)),
+                class: *class,
+                index: *index,
+            },
             smir::Expr::Local(local) => mir::Expr::Local(*local),
             smir::Expr::Retype { operand, ty } => mir::Expr::Retype {
                 operand: Box::new(self.lower_expr(operand, span)),

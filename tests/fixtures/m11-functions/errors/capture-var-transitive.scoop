@@ -1,0 +1,4 @@
+fun main() {
+    var value = 0
+    val outer = { ({ value }) }
+}

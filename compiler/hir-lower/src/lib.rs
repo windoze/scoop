@@ -215,6 +215,38 @@ impl Owner {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(crate) enum CaptureSource {
+    /// A local in the immediately enclosing callable body.
+    Local(hir::LocalId),
+    /// A binding already supplied by the immediately enclosing closure.
+    Capture(hir::BindingId),
+}
+
+#[derive(Clone)]
+pub(crate) struct AvailableCapture {
+    pub(crate) binding: hir::BindingId,
+    pub(crate) ty: TypeId,
+    pub(crate) mutable: bool,
+    pub(crate) source: CaptureSource,
+    pub(crate) declaration_depth: usize,
+}
+
+pub(crate) struct PendingCapture {
+    pub(crate) binding: hir::BindingId,
+    pub(crate) name: String,
+    pub(crate) ty: TypeId,
+    pub(crate) first_use_span: Span,
+    pub(crate) source: CaptureSource,
+    pub(crate) declaration_depth: usize,
+}
+
+pub(crate) struct CaptureContext {
+    pub(crate) available: HashMap<String, AvailableCapture>,
+    pub(crate) captures: Vec<PendingCapture>,
+    pub(crate) by_binding: HashMap<hir::BindingId, usize>,
+}
+
 pub(crate) struct Lowerer {
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
@@ -328,6 +360,12 @@ pub(crate) struct Lowerer {
     /// finished `hir::Body`).
     pub(crate) locals: Arena<hir::Local>,
     pub(crate) scopes: Scopes,
+    /// Active nested callable capture analyses. The outer callable remains
+    /// on the stack while an inner one is lowered so transitive captures can
+    /// be propagated without reading an exited native stack frame.
+    pub(crate) capture_contexts: Vec<CaptureContext>,
+    /// Monotonic Cone-wide lexical binding identity allocator.
+    pub(crate) next_binding_id: u32,
     /// Deduplicated monomorphization requests, in first-use order.
     pub(crate) instantiations: Arena<hir::ResolvedGenericFunction>,
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
@@ -336,6 +374,22 @@ pub(crate) struct Lowerer {
 }
 
 impl Lowerer {
+    pub(crate) fn fresh_binding(&mut self) -> hir::BindingId {
+        let binding = hir::BindingId::from_raw(self.next_binding_id);
+        self.next_binding_id += 1;
+        binding
+    }
+
+    pub(crate) fn alloc_local(&mut self, name: String, ty: TypeId, mutable: bool) -> hir::LocalId {
+        let binding = self.fresh_binding();
+        self.locals.alloc(hir::Local {
+            binding,
+            name,
+            ty,
+            mutable,
+        })
+    }
+
     fn new() -> Self {
         // Well-known types are allocated first, in a fixed order
         // (impl spec 2.2): Unit, Int, UInt (M9), Boolean, String.
@@ -403,6 +457,8 @@ impl Lowerer {
             current_file: 0,
             locals: Arena::new(),
             scopes: Scopes::new(),
+            capture_contexts: Vec::new(),
+            next_binding_id: 0,
             instantiations: Arena::new(),
             hidden_count: 0,
             diagnostics: Vec::new(),
@@ -428,7 +484,9 @@ impl Lowerer {
             ("toString", Vec::new(), self.string),
         ] {
             let mut locals = Arena::new();
+            let this_binding = self.fresh_binding();
             let this = locals.alloc(hir::Local {
+                binding: this_binding,
                 name: "this".to_string(),
                 ty: self.any,
                 mutable: false,
@@ -440,7 +498,9 @@ impl Lowerer {
             }];
             let mut sig_params = Vec::new();
             for (param_name, param_ty) in params {
+                let binding = self.fresh_binding();
                 let local = locals.alloc(hir::Local {
+                    binding,
                     name: param_name.to_string(),
                     ty: param_ty,
                     mutable: false,
@@ -1908,11 +1968,7 @@ impl Lowerer {
     pub(crate) fn alloc_hidden(&mut self, prefix: &str, ty: TypeId) -> hir::LocalId {
         let name = format!("${prefix}.{}", self.hidden_count);
         self.hidden_count += 1;
-        self.locals.alloc(hir::Local {
-            name,
-            ty,
-            mutable: false,
-        })
+        self.alloc_local(name, ty, false)
     }
 
     /// Allocate the branch-result local used when a structured control
@@ -1921,11 +1977,7 @@ impl Lowerer {
     pub(crate) fn alloc_hidden_result(&mut self, ty: TypeId) -> hir::LocalId {
         let name = format!("$result.{}", self.hidden_count);
         self.hidden_count += 1;
-        self.locals.alloc(hir::Local {
-            name,
-            ty,
-            mutable: true,
-        })
+        self.alloc_local(name, ty, true)
     }
 
     /// The `Option<T>` enum of `scoop.core` and the variant index of

@@ -1,0 +1,47 @@
+struct Label(val text: String)
+
+struct Snapshot(val value: Int) {
+    fun getter(): () -> Int = { this.value }
+}
+
+class Counter(var value: Int) {
+    fun incrementer(): () -> Int = {
+        value = value + 1
+        value
+    }
+}
+
+fun makeAdder(base: Int): (Int) -> Int = { value: Int -> value + base }
+
+fun makeNested(base: Int): () -> () -> Int = { ({ base }) }
+
+fun labelReader(label: Label): () -> String = { label.text }
+
+fun snapshot(): () -> Int {
+    var value = 41
+    val captured = value
+    val result = { captured + 1 }
+    value = 0
+    return result
+}
+
+fun main() {
+    val adder = makeAdder(2)
+    val outer = makeNested(41)
+    val inner = outer()
+    val reader = labelReader(Label("alive"))
+    var source = Snapshot(1)
+    val getter = source.getter()
+    source = Snapshot(2)
+    val counter = Counter(40)
+    val increment = counter.incrementer()
+    gcCollect()
+    println(adder(40))
+    println(inner())
+    println(reader())
+    println(getter())
+    println(source.value)
+    println(increment())
+    println(counter.value)
+    println(snapshot()())
+}
