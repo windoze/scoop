@@ -388,7 +388,7 @@ impl Lowerer {
 
     /// One binding step of `try_infer_type_args` (see
     /// `bind_type_args` for the rules this mirrors).
-    fn try_bind(
+    pub(crate) fn try_bind(
         &mut self,
         param_ty: TypeId,
         arg_ty: TypeId,

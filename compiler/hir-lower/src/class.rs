@@ -926,7 +926,7 @@ impl Lowerer {
         }
         let mut lowered_args = Vec::with_capacity(args.len());
         let mut ok = true;
-        self.scopes.push();
+        self.push_scope();
         self.push_suspension_context(SuspensionContext::Forbidden(
             ForbiddenSuspendContext::ConstructorDelegation,
         ));
@@ -961,7 +961,7 @@ impl Lowerer {
             lowered_args.push(self.adapt_to(arg, *prop_ty));
         }
         self.pop_suspension_context();
-        self.scopes.pop();
+        self.pop_scope();
         if ok {
             self.classes[id].base_class = Some((base_id, lowered_args));
         }

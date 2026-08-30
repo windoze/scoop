@@ -320,6 +320,9 @@ pub struct Statement {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind {
     Expr(Expr),
+    /// A named function declared in a block. Its name is visible in its own
+    /// body and from this statement to the end of the lexical scope.
+    LocalFunction(FunctionDecl),
     /// `return` with an optional value (bare `return` in `Unit`
     /// functions).
     Return {
@@ -951,6 +954,40 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match &statement.kind {
         StatementKind::Expr(expr) => dump_expr(expr, indent, out),
+        StatementKind::LocalFunction(function) => {
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            let type_params = if function.type_params.is_empty() {
+                String::new()
+            } else {
+                let names: Vec<_> = function
+                    .type_params
+                    .iter()
+                    .map(|param| param.text.as_str())
+                    .collect();
+                format!("<{}>", names.join(", "))
+            };
+            let params: Vec<_> = function
+                .params
+                .iter()
+                .map(|param| format!("{}: {}", param.name.text, dump_type_ref(&param.ty)))
+                .collect();
+            let return_ty = function
+                .return_ty
+                .as_ref()
+                .map(|ty| format!(": {}", dump_type_ref(ty)))
+                .unwrap_or_default();
+            out.push_str(&format!(
+                "{pad}{suspend}fun {}{}({}){return_ty}\n",
+                function.name.text,
+                type_params,
+                params.join(", ")
+            ));
+            match &function.body {
+                FunctionBody::Block(block) => dump_block(block, indent + 1, out),
+                FunctionBody::Expr(expr) => dump_expr(expr, indent + 1, out),
+                FunctionBody::None => {}
+            }
+        }
         StatementKind::Return { value } => {
             out.push_str(&format!("{pad}return\n"));
             if let Some(value) = value {

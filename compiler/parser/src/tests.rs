@@ -344,9 +344,9 @@ fn unclosed_body() {
 }
 
 #[test]
-fn anonymous_function_missing_parameter_list() {
+fn local_function_missing_name() {
     let (_, message) = err("fun main() { fun }");
-    assert_eq!(message, "expected `(`, found `}`");
+    assert_eq!(message, "expected function name, found `}`");
 }
 
 #[test]

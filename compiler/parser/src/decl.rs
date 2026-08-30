@@ -22,6 +22,9 @@ pub(crate) enum FunctionContext {
     /// Interface body: method signatures only — bodies (default
     /// implementations) are outside the M6 subset.
     Interface,
+    /// Block-local declaration: no annotations or member modifiers and a
+    /// body is mandatory, like a top-level user function.
+    Local,
 }
 
 /// The modality / `override` modifiers in front of a member `fun`.
@@ -216,7 +219,7 @@ impl Parser {
     /// interface method signatures, and `@Intrinsic` functions (spec 13.1).
     /// A non-abstract, non-intrinsic function outside an interface must
     /// have a body.
-    fn parse_function(
+    pub(crate) fn parse_function(
         &mut self,
         annotations: Vec<Annotation>,
         modifiers: Modifiers,

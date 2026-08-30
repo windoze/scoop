@@ -200,6 +200,29 @@ fn parses_anonymous_function_with_local_return() {
 }
 
 #[test]
+fn parses_local_functions_as_block_declarations() {
+    let file = parse(
+        "fun main() {\n  fun <T> identity(value: T): T = value\n  suspend fun task(): Int { return 1 }\n  identity(42)\n}",
+    )
+    .expect("local functions should parse as declarations");
+    let Decl::Function(main) = &file.declarations[0] else {
+        panic!("expected main");
+    };
+    let scoop_ast::FunctionBody::Block(body) = &main.body else {
+        panic!("expected block");
+    };
+    let StatementKind::LocalFunction(identity) = &body.statements[0].kind else {
+        panic!("expected local identity declaration");
+    };
+    assert_eq!(identity.name.text, "identity");
+    assert_eq!(identity.type_params.len(), 1);
+    let StatementKind::LocalFunction(task) = &body.statements[1].kind else {
+        panic!("expected local task declaration");
+    };
+    assert!(task.is_suspend);
+}
+
+#[test]
 fn callable_reference_requires_a_name() {
     let diagnostics = parse("fun main() { val operation = :: }")
         .expect_err("a bare double colon must be rejected");

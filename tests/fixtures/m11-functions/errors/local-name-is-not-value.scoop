@@ -1,0 +1,5 @@
+fun main() {
+    fun answer(): Int = 42
+    val operation = answer
+    println(operation())
+}

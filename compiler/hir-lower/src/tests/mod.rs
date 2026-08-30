@@ -538,6 +538,22 @@ pub(crate) fn fun_sig(
     })
 }
 
+pub(crate) fn local_fun_sig(
+    name: &str,
+    type_params: Vec<&str>,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    statements: Vec<Statement>,
+) -> Statement {
+    let Decl::Function(function) = fun_sig(name, type_params, params, return_ty, statements) else {
+        unreachable!("fun_sig always builds a function declaration")
+    };
+    Statement {
+        span: function.span,
+        kind: StatementKind::LocalFunction(function),
+    }
+}
+
 /// An expression-bodied function: `fun f(...) [: T] = expr`.
 pub(crate) fn fun_expr(
     name: &str,

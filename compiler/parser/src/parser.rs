@@ -388,6 +388,37 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<Statement, Diagnostic> {
         match &self.peek().kind {
+            TokenKind::Fun if !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) => {
+                let function = self.parse_function(
+                    Vec::new(),
+                    crate::decl::Modifiers::default(),
+                    crate::decl::FunctionContext::Local,
+                )?;
+                Ok(Statement {
+                    span: function.span,
+                    kind: StatementKind::LocalFunction(function),
+                })
+            }
+            TokenKind::Suspend
+                if matches!(self.tokens[self.pos + 1].kind, TokenKind::Fun)
+                    && !matches!(self.tokens[self.pos + 2].kind, TokenKind::LParen) =>
+            {
+                let suspend = self.bump();
+                let function = self.parse_function(
+                    Vec::new(),
+                    crate::decl::Modifiers {
+                        is_suspend: true,
+                        suspend_span: Some(suspend.span),
+                        start: Some(suspend.span.start),
+                        ..crate::decl::Modifiers::default()
+                    },
+                    crate::decl::FunctionContext::Local,
+                )?;
+                Ok(Statement {
+                    span: function.span,
+                    kind: StatementKind::LocalFunction(function),
+                })
+            }
             TokenKind::Val | TokenKind::Var => self.parse_val_decl(),
             TokenKind::If => self.parse_if(),
             TokenKind::When => self.parse_when(),

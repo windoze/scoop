@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/local-before-declaration.scoop:2:13: error: unknown function `answer`

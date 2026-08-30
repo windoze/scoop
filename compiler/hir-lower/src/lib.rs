@@ -114,7 +114,7 @@ use hir::{
     ClassDecl, ClassId, EnumDecl, EnumId, Function, FunctionId, FunctionKind, GenericFunction,
     GenericFunctionId, InterfaceDecl, InterfaceId, StructDecl, StructId, Type, TypeId,
 };
-use scope::Scopes;
+use scope::{LocalFunctionScopes, Scopes};
 
 /// Lower parsed source files to HIR.
 ///
@@ -258,6 +258,8 @@ pub(crate) struct Lowerer {
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,
     pub(crate) anonymous_functions: Arena<hir::AnonymousFunction>,
+    pub(crate) local_functions: Arena<hir::LocalFunction>,
+    pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) structs: Arena<StructDecl>,
     pub(crate) enums: Arena<EnumDecl>,
@@ -370,6 +372,7 @@ pub(crate) struct Lowerer {
     /// finished `hir::Body`).
     pub(crate) locals: Arena<hir::Local>,
     pub(crate) scopes: Scopes,
+    pub(crate) local_function_scopes: LocalFunctionScopes,
     /// Active nested callable capture analyses. The outer callable remains
     /// on the stack while an inner one is lowered so transitive captures can
     /// be propagated without reading an exited native stack frame.
@@ -400,6 +403,16 @@ impl Lowerer {
         })
     }
 
+    pub(crate) fn push_scope(&mut self) {
+        self.scopes.push();
+        self.local_function_scopes.push();
+    }
+
+    pub(crate) fn pop_scope(&mut self) {
+        self.scopes.pop();
+        self.local_function_scopes.pop();
+    }
+
     fn new() -> Self {
         // Well-known types are allocated first, in a fixed order
         // (impl spec 2.2): Unit, Int, UInt (M9), Boolean, String.
@@ -418,6 +431,8 @@ impl Lowerer {
             function_types: Arena::new(),
             lambdas: Arena::new(),
             anonymous_functions: Arena::new(),
+            local_functions: Arena::new(),
+            local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
             structs: Arena::new(),
             enums: Arena::new(),
@@ -469,6 +484,7 @@ impl Lowerer {
             current_file: 0,
             locals: Arena::new(),
             scopes: Scopes::new(),
+            local_function_scopes: LocalFunctionScopes::new(),
             capture_contexts: Vec::new(),
             next_binding_id: 0,
             instantiations: Arena::new(),
@@ -778,6 +794,7 @@ impl Lowerer {
             function_types: self.function_types,
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,
+            local_functions: self.local_functions,
             callable_references: self.callable_references,
             functions: self.functions,
             generic_functions: self.generic_functions,

@@ -16,6 +16,7 @@ pub type TypeId = Idx<Type>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type LambdaId = Idx<Lambda>;
 pub type AnonymousFunctionId = Idx<AnonymousFunction>;
+pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionId = Idx<Function>;
 pub type GenericFunctionId = Idx<GenericFunction>;
@@ -229,6 +230,7 @@ pub struct Module {
     /// separate from the generated invoke functions they own.
     pub lambdas: Arena<Lambda>,
     pub anonymous_functions: Arena<AnonymousFunction>,
+    pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
     pub functions: Arena<Function>,
     /// Generic function definitions. Their ids are distinct from
@@ -281,12 +283,35 @@ pub struct AnonymousFunction {
     pub span: Span,
 }
 
+/// A block-local named function. `function` is its lifted body; direct calls
+/// pass `captures` as hidden parameters, while taking `::name` materializes a
+/// closure over the same body.
+#[derive(Debug)]
+pub struct LocalFunction {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
+    pub captures: Vec<Capture>,
+    /// Type parameters inherited from enclosing generic callables form the
+    /// prefix of the lifted function's combined type-parameter namespace.
+    pub owner_type_param_count: usize,
+    pub span: Span,
+}
+
 #[derive(Debug)]
 pub struct CallableReference {
-    pub target: Callable,
+    pub target: CallableReferenceTarget,
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallableReferenceTarget {
+    Named(Callable),
+    Local {
+        local_function: LocalFunctionId,
+        callee: Callable,
+    },
 }
 
 #[derive(Debug)]
@@ -522,6 +547,9 @@ pub struct Statement {
 #[derive(Debug)]
 pub enum StatementKind {
     Expr(Expr),
+    /// Compile-time declaration marker. The lifted body lives in
+    /// `Module::local_functions`; executing this statement has no effect.
+    LocalFunction(LocalFunctionId),
     Return {
         /// Absent in `Unit` functions (bare `return`).
         value: Option<Expr>,
@@ -710,6 +738,14 @@ pub enum ExprKind {
     ArrayClone(Box<Expr>),
     Call {
         callee: Callable,
+        args: Vec<Expr>,
+    },
+    /// Direct call of a lifted local function. Hidden capture arguments are
+    /// explicit and precede source arguments in the lowered ABI.
+    LocalFunctionCall {
+        local_function: LocalFunctionId,
+        callee: Callable,
+        captures: Vec<Expr>,
         args: Vec<Expr>,
     },
     /// Calling a managed function value. The callee expression is kept
@@ -1027,6 +1063,15 @@ fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
+            StatementKind::LocalFunction(id) => {
+                let local = &module.local_functions[*id];
+                out.push_str(&format!(
+                    "{pad}LocalFunction local{} body={} captures={}\n",
+                    id.into_raw(),
+                    module.functions[local.function].name,
+                    local.captures.len()
+                ));
+            }
             StatementKind::Return { value } => {
                 out.push_str(&format!("{pad}return\n"));
                 if let Some(value) = value {
@@ -1261,7 +1306,11 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         ExprKind::CallableReference(id) => {
             let reference = &module.callable_references[*id];
-            let (function, _) = callable_parts(module, reference.target);
+            let callable = match reference.target {
+                CallableReferenceTarget::Named(callable) => callable,
+                CallableReferenceTarget::Local { callee, .. } => callee,
+            };
+            let (function, _) = callable_parts(module, callable);
             out.push_str(&format!(
                 "{pad}CallableReference reference{} target={} captures={} : {ty}\n",
                 id.into_raw(),
@@ -1286,6 +1335,30 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 format!("<{}>", args.join(", "))
             });
             out.push_str(&format!("{pad}Call {}{type_args} : {ty}\n", callee.name));
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
+        ExprKind::LocalFunctionCall {
+            local_function,
+            callee,
+            captures,
+            args,
+        } => {
+            let (function, type_args) = callable_parts(module, *callee);
+            let type_args = type_args.map_or_else(String::new, |type_args| {
+                let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
+                format!("<{}>", args.join(", "))
+            });
+            out.push_str(&format!(
+                "{pad}LocalFunctionCall local{} {}{type_args} captures={} : {ty}\n",
+                local_function.into_raw(),
+                module.functions[function].name,
+                captures.len()
+            ));
+            for capture in captures {
+                dump_expr(module, locals, capture, indent + 1, out);
+            }
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }

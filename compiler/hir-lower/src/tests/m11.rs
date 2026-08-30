@@ -180,7 +180,10 @@ fn top_level_reference_is_a_distinct_typed_entity() {
         .next()
         .expect("reference entity");
     assert!(reference.captures.is_empty());
-    let target = module.callable_function(reference.target);
+    let hir::CallableReferenceTarget::Named(callable) = reference.target else {
+        panic!("expected a top-level callable reference")
+    };
+    let target = module.callable_function(callable);
     assert_eq!(module.functions[target].name, "increment");
 }
 
@@ -321,4 +324,60 @@ fn anonymous_function_infers_return_and_owns_local_return() {
         body.statements.last().map(|statement| &statement.kind),
         Some(hir::StatementKind::Return { value: Some(_) })
     ));
+}
+
+#[test]
+fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![
+            val("base", int_lit(2)),
+            local_fun_sig(
+                "add",
+                vec![],
+                vec![("value", ty_named("Int"))],
+                Some(ty_named("Int")),
+                vec![ret(Some(binary(
+                    ast::BinOp::Add,
+                    var("value"),
+                    var("base"),
+                )))],
+            ),
+            val("result", call("add", vec![int_lit(40)])),
+        ],
+    )]))
+    .expect("capturing local function should lower");
+
+    assert_eq!(module.local_functions.len(), 1);
+    let (local_id, local) = module
+        .local_functions
+        .iter()
+        .next()
+        .expect("local function");
+    assert_eq!(local.captures.len(), 1);
+    assert_eq!(local.captures[0].name, "base");
+    let hir::FunctionKind::User(main_body) = &module.functions[module.entry].kind else {
+        panic!("main body")
+    };
+    assert!(matches!(
+        main_body.statements[1].kind,
+        hir::StatementKind::LocalFunction(id) if id == local_id
+    ));
+    let hir::StatementKind::ValDecl { init, .. } = &main_body.statements[2].kind else {
+        panic!("result declaration")
+    };
+    assert!(matches!(
+        init.kind,
+        hir::ExprKind::LocalFunctionCall {
+            local_function,
+            ref captures,
+            ..
+        } if local_function == local_id && captures.len() == 1
+    ));
+    let lifted = &module.functions[local.function];
+    assert_eq!(
+        lifted.params.len(),
+        2,
+        "capture parameter precedes source parameter"
+    );
 }
