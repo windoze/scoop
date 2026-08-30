@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/shadowed-owner-type-parameter.scoop:2:10: error: duplicate type parameter `T`

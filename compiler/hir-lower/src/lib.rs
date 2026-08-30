@@ -137,6 +137,8 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> 
 /// before any body, so calls resolve regardless of declaration order.
 #[derive(Clone)]
 pub(crate) struct FnSig {
+    /// Number of owner parameters at the front of `type_params`.
+    pub(crate) owner_type_param_count: usize,
     pub(crate) type_params: Vec<String>,
     pub(crate) params: Vec<FnParam>,
     pub(crate) return_ty: TypeId,
@@ -435,12 +437,14 @@ impl Lowerer {
                 method: Some(hir::Method {
                     owner: self.any,
                     modifier: hir::MethodModifier::Open,
+                    owner_type_param_count: 0,
                 }),
                 span,
             });
             self.signatures.insert(
                 id,
                 FnSig {
+                    owner_type_param_count: 0,
                     type_params: Vec::new(),
                     params: sig_params,
                     return_ty,
@@ -934,6 +938,7 @@ impl Lowerer {
                 ast::MethodModifier::Abstract => hir::MethodModifier::Abstract,
             },
         };
+        let owner_type_param_count = self.owner_type_param_names(owner).len() as u32;
         let id = self.functions.alloc(Function {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
             // Filled in pass 2.5 (signature) and pass 3 (body and
@@ -948,6 +953,7 @@ impl Lowerer {
             method: Some(hir::Method {
                 owner: host_ty,
                 modifier,
+                owner_type_param_count,
             }),
             span: decl.span,
         });
@@ -1441,6 +1447,7 @@ impl Lowerer {
         self.signatures.insert(
             id,
             FnSig {
+                owner_type_param_count: 0,
                 type_params,
                 params,
                 return_ty,
@@ -1494,6 +1501,21 @@ impl Lowerer {
                     .collect();
                 self.intern_type(Type::Enum(id, params))
             }
+        }
+    }
+
+    /// Type parameters contributed by a member's owning declaration. They
+    /// form the prefix of the member function's combined parameter space.
+    pub(crate) fn owner_type_param_names(&self, owner: Owner) -> Vec<String> {
+        match owner {
+            Owner::Class(_) => Vec::new(),
+            Owner::Struct(id) => self.structs[id].type_params.clone(),
+            Owner::Enum(id) => self.enums[id].type_params.clone(),
+            Owner::Interface(id) => self.interfaces[id]
+                .type_params
+                .iter()
+                .map(|param| param.name.clone())
+                .collect(),
         }
     }
 

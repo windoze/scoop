@@ -1,0 +1,11 @@
+interface Identity {
+    fun <T> id(value: T): T
+}
+
+class Tool : Identity {
+    final override fun <T> id(value: T): T = value
+}
+
+fun bad(value: Identity): Int = value.id(1)
+
+fun main() {}

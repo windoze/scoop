@@ -362,6 +362,107 @@ impl Lowerer {
         }
     }
 
+    /// Replace the owner-parameter prefix of a method signature and rebase
+    /// its remaining method parameters behind a target owner's prefix. This
+    /// is used when an interface method is compared with a concrete
+    /// implementation whose own generic host has a distinct parameter
+    /// namespace.
+    pub(crate) fn instantiate_method_owner_ty(
+        &mut self,
+        ty: TypeId,
+        owner_args: &[TypeId],
+        source_owner_count: usize,
+        target_owner_count: usize,
+    ) -> TypeId {
+        match self.types[ty].clone() {
+            Type::Param(index) => {
+                let index = index.into_raw() as usize;
+                if index < source_owner_count {
+                    owner_args[index]
+                } else {
+                    self.intern_type(Type::Param(hir::TypeParamId::from_raw(
+                        (target_owner_count + index - source_owner_count) as u32,
+                    )))
+                }
+            }
+            Type::Struct(id, args) => {
+                let args = args
+                    .into_iter()
+                    .map(|arg| {
+                        self.instantiate_method_owner_ty(
+                            arg,
+                            owner_args,
+                            source_owner_count,
+                            target_owner_count,
+                        )
+                    })
+                    .collect();
+                self.intern_type(Type::Struct(id, args))
+            }
+            Type::Interface(id, args) => {
+                let args = args
+                    .into_iter()
+                    .map(|arg| {
+                        self.instantiate_method_owner_ty(
+                            arg,
+                            owner_args,
+                            source_owner_count,
+                            target_owner_count,
+                        )
+                    })
+                    .collect();
+                self.intern_type(Type::Interface(id, args))
+            }
+            Type::Array(element) => {
+                let element = self.instantiate_method_owner_ty(
+                    element,
+                    owner_args,
+                    source_owner_count,
+                    target_owner_count,
+                );
+                self.intern_type(Type::Array(element))
+            }
+            Type::MutableArray(element) => {
+                let element = self.instantiate_method_owner_ty(
+                    element,
+                    owner_args,
+                    source_owner_count,
+                    target_owner_count,
+                );
+                self.intern_type(Type::MutableArray(element))
+            }
+            Type::Enum(id, args) => {
+                let args = args
+                    .into_iter()
+                    .map(|arg| {
+                        self.instantiate_method_owner_ty(
+                            arg,
+                            owner_args,
+                            source_owner_count,
+                            target_owner_count,
+                        )
+                    })
+                    .collect();
+                self.intern_type(Type::Enum(id, args))
+            }
+            Type::Tuple(elements) => {
+                let elements = elements
+                    .into_iter()
+                    .map(|element| {
+                        self.instantiate_method_owner_ty(
+                            element,
+                            owner_args,
+                            source_owner_count,
+                            target_owner_count,
+                        )
+                    })
+                    .collect();
+                self.intern_type(Type::Tuple(elements))
+            }
+            _ => ty,
+        }
+    }
+
     /// Best-effort substitution for expected-type hints: `None` when
     /// the type still mentions an unbound type parameter.
     pub(crate) fn try_substitute(

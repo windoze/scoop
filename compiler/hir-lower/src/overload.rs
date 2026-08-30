@@ -45,15 +45,18 @@ pub(crate) struct ResolvedCallee {
 }
 
 /// A candidate prepared for resolution: parameter and return types
-/// already instantiated with the receiver's type arguments (enum
-/// methods). A generic function's parameters still mention
-/// `Type::Param`; they are instantiated with the inferred call-level
-/// type arguments during applicability and dominance checks.
+/// still use the function's combined type-parameter namespace. A generic
+/// receiver pre-binds the owner prefix; applicability infers the remaining
+/// method suffix and substitutes the complete vector.
 struct Candidate {
     function: FunctionId,
     params: Vec<TypeId>,
     return_ty: TypeId,
-    type_param_count: usize,
+    /// Parameters declared by the function/method itself. Owner-only
+    /// genericity does not make an otherwise concrete overload generic for
+    /// MSC tie-breaking.
+    own_type_param_count: usize,
+    initial_bindings: Vec<Option<TypeId>>,
     /// Whether the candidate's declared (pre-instantiation) parameter
     /// types mention type parameters — its own or its host's. Such
     /// candidates lose MSC ties against fully concrete ones
@@ -103,26 +106,17 @@ impl Lowerer {
                     .params
                     .iter()
                     .any(|param| self.mentions_type_param(param.ty));
-                // The receiver substitution only applies to enum
-                // methods; for everything else it is empty and the
-                // declared types (possibly still mentioning the
-                // function's own `Type::Param`s) are used as-is.
-                let substitute = |this: &mut Self, ty: TypeId| {
-                    if receiver_type_args.is_empty() {
-                        ty
-                    } else {
-                        this.instantiate_ty(ty, receiver_type_args)
-                    }
-                };
+                debug_assert_eq!(sig.owner_type_param_count, receiver_type_args.len());
+                let mut initial_bindings = vec![None; sig.type_params.len()];
+                for (binding, &ty) in initial_bindings.iter_mut().zip(receiver_type_args) {
+                    *binding = Some(ty);
+                }
                 Candidate {
                     function,
-                    params: sig
-                        .params
-                        .iter()
-                        .map(|param| substitute(self, param.ty))
-                        .collect(),
-                    return_ty: substitute(self, sig.return_ty),
-                    type_param_count: sig.type_params.len(),
+                    params: sig.params.iter().map(|param| param.ty).collect(),
+                    return_ty: sig.return_ty,
+                    own_type_param_count: sig.type_params.len() - sig.owner_type_param_count,
+                    initial_bindings,
                     parameterized,
                 }
             })
@@ -201,12 +195,9 @@ impl Lowerer {
         if !self.check_gc_ref_constraint(function, &type_args, &args) {
             return None;
         }
-        // Enum methods instantiate over the receiver's type arguments;
-        // generic functions over the inferred call-level ones. The
-        // resolved entity itself is stored on the HIR call.
-        let callee = if !receiver_type_args.is_empty() {
-            hir::Callable::Generic(self.record_instantiation(function, receiver_type_args.to_vec()))
-        } else if !type_args.is_empty() {
+        // The complete owner-prefix plus method-suffix vector identifies
+        // the resolved generic entity stored on the HIR call.
+        let callee = if !type_args.is_empty() {
             hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
         } else {
             hir::Callable::Function(function)
@@ -268,7 +259,7 @@ impl Lowerer {
             .copied()
             .filter(|&a| {
                 let candidate = &prepared[applicable[a].0];
-                candidate.type_param_count == 0 && !candidate.parameterized
+                candidate.own_type_param_count == 0 && !candidate.parameterized
             })
             .collect();
         let pool = if non_generic.is_empty() {
@@ -372,10 +363,10 @@ impl Lowerer {
         candidate: &Candidate,
         arg_tys: &[Option<TypeId>],
     ) -> Option<Vec<TypeId>> {
-        if candidate.type_param_count == 0 {
+        if candidate.initial_bindings.is_empty() {
             return Some(Vec::new());
         }
-        let mut bindings = vec![None; candidate.type_param_count];
+        let mut bindings = candidate.initial_bindings.clone();
         for (&param, arg) in candidate.params.iter().zip(arg_tys) {
             let Some(arg) = *arg else {
                 continue;

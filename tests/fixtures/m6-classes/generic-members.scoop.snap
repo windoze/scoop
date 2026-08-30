@@ -1,0 +1,548 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+SourceFile
+  interface Exchange<T>
+    fun exchange
+    fun current
+  struct Box<T> : Exchange<T>
+    field value: T
+    fun exchange
+    fun current
+  interface Identity
+    fun id
+  open class Tool(), Identity
+    fun id
+  class Overloads()
+    fun id
+    fun id
+  fun read(value: Exchange<Int>): Int
+    =
+      MethodCall current
+        Var value
+  fun main()
+    val box
+      Call Box
+        IntLiteral 7
+    Call println
+      MethodCall exchange
+        Var box
+        IntLiteral 7
+        Var None
+        StringLiteral "struct"
+    Call println
+      Call read
+        Var box
+    Call println
+      MethodCall id
+        Call Tool
+        StringLiteral "class"
+    val overloads
+      Call Overloads
+    Call println
+      MethodCall id
+        Var overloads
+        IntLiteral 1
+    Call println
+      MethodCall id
+        Var overloads
+        StringLiteral "generic overload"
+
+== hir ==
+Module
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  struct Box<T> : Exchange<T0>
+    field value: T0
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  open class Tool() : Identity
+  class Overloads()
+  interface Exchange<T>
+    fun exchange<U>(owner: T0, missing: Option<T1>, value: T1): T1
+    fun current(): T0
+  interface Identity
+    fun id<T>(value: T0): T0
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun read(value: Exchange<Int>): Int
+    return
+      MethodCall Exchange.current : Int
+        Local value : Exchange<Int>
+  fun main(): Unit
+    val local0
+      StructInit Box : Box<Int>
+        IntLiteral 7 : Int
+    Call println : Unit
+      MethodCall Box.exchange : Any
+        Local box : Box<Int>
+        IntLiteral 7 : Int
+        VariantConstruct Option.None<String> : Option<String>
+        StringLiteral "struct" : String
+    Call println : Unit
+      Box : Any
+        Call read : Int
+          Box : Exchange<Int>
+            Local box : Box<Int>
+    Call println : Unit
+      MethodCall Tool.id : Any
+        ClassInit Tool : Tool
+        StringLiteral "class" : String
+    val local1
+      ClassInit Overloads : Overloads
+    Call println : Unit
+      Box : Any
+        MethodCall Overloads.id : Int
+          Local overloads : Overloads
+          IntLiteral 1 : Int
+    Call println : Unit
+      MethodCall Overloads.id : Any
+        Local overloads : Overloads
+        StringLiteral "generic overload" : String
+  entry main
+  instance Exchange.current<Int>
+  instance Box.exchange<Int, String>
+  instance Tool.id<String>
+  instance Overloads.id<String>
+
+== mir ==
+Module
+  struct Box$I (value: Int)
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class Tool vtable=3 itables=1
+  class Overloads vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  class box$Box$I vtable=3 itables=1
+  interface Identity
+  interface Exchange$I
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString virtual[2]
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString virtual[2]
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
+  fun read @scoop.read(value: Exchange$I) -> Int
+    return
+      Call @scoop.Exchange.current$I interface Exchange$I[0]
+        Local value
+  fun main @scoop_main() -> Unit
+    val box: Box$I
+      StructInit Box$I
+        IntLiteral 7
+    Call @scoop.println direct
+      Call @scoop.Box.exchange$I_S direct
+        Local box
+        IntLiteral 7
+        VariantConstruct Option$S<String> v1
+        StringConst @scoop.str.1
+    Call @scoop.println direct
+      Box
+        Call @scoop.read direct
+          Box
+            Local box
+    Call @scoop.println direct
+      Call @scoop.Tool.id$S direct
+        Call @scoop.ctor.Tool direct
+        StringConst @scoop.str.2
+    val overloads: Overloads
+      Call @scoop.ctor.Overloads direct
+    Call @scoop.println direct
+      Box
+        Call @scoop.Overloads.id direct
+          Local overloads
+          IntLiteral 1
+    Call @scoop.println direct
+      Call @scoop.Overloads.id$S direct
+        Local overloads
+        StringConst @scoop.str.3
+  fun Overloads.id @scoop.Overloads.id(this: Overloads, value: Int) -> Int
+    return
+      IntLiteral 100
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    return
+      ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    return
+      ClassInit Exception
+        Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    return
+      ClassInit UnwrapException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.4
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    return
+      ClassInit ClassCastException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.5
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    return
+      ClassInit ArithmeticException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.6
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    return
+      ClassInit IndexOutOfBoundsException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.7
+  fun ctor.Tool @scoop.ctor.Tool() -> Tool
+    return
+      ClassInit Tool
+  fun ctor.Overloads @scoop.ctor.Overloads() -> Overloads
+    return
+      ClassInit Overloads
+  fun Exchange.current @scoop.Exchange.current$I(this: Exchange$I) -> Int
+    Call @scoop_rt_trap direct
+      StringConst @scoop.str.8
+  fun Box.exchange @scoop.Box.exchange$I_S(this: Box$I, owner: Int, missing: Option$S<String>, value: String) -> String
+    return
+      Local value
+  fun Tool.id @scoop.Tool.id$S(this: Tool, value: String) -> String
+    return
+      Local value
+  fun Overloads.id @scoop.Overloads.id$S(this: Overloads, value: String) -> String
+    return
+      Local value
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    val $a: Int
+      Unbox
+        Local this
+    val $b: Int
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        Local $a
+        Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    return
+      Call @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+  fun eq.Box$I @scoop.eq.Box$I(this: Any, other: Any) -> Boolean
+    val $a: Box$I
+      Unbox
+        Local this
+    val $b: Box$I
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        FieldAccess 0
+          Local $a
+        FieldAccess 0
+          Local $b
+  fun Box.current @scoop.Box.current$I(this: Box$I) -> Int
+    return
+      FieldAccess 0
+        Local this
+  fun thunk.Box$I.Exchange$I.current @scoop.thunk.Box$I.Exchange$I.current(this: Any) -> Int
+    return
+      Call @scoop.Box.current$I direct
+        Unbox
+          Local this
+  instance @scoop.Exchange.current$I <- Exchange.current
+  instance @scoop.Box.exchange$I_S <- Box.exchange
+  instance @scoop.Tool.id$S <- Tool.id
+  instance @scoop.Overloads.id$S <- Overloads.id
+  instance @scoop.Box.current$I <- Box.current
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "struct"
+  str @scoop.str.2 "class"
+  str @scoop.str.3 "generic overload"
+  str @scoop.str.4 "unwrap on None"
+  str @scoop.str.5 "invalid cast"
+  str @scoop.str.6 "arithmetic error"
+  str @scoop.str.7 "array index out of bounds"
+  str @scoop.str.8 "call to abstract method `Exchange.current`"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "struct"
+  global @scoop.str.2 = "class"
+  global @scoop.str.3 = "generic overload"
+  global @scoop.str.4 = "unwrap on None"
+  global @scoop.str.5 = "invalid cast"
+  global @scoop.str.6 = "arithmetic error"
+  global @scoop.str.7 = "array index out of bounds"
+  global @scoop.str.8 = "call to abstract method `Exchange.current`"
+  global @scoop_td_Exchange$I = c""
+  global @scoop_td_box$Box$I = c""
+  global @scoop_td_box$I = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_Tool = c""
+  global @scoop_td_Overloads = c""
+  global @scoop.cstr.0 = c"call to abstract method `Exchange.current`"
+  enum Option$S niche(payload_variant=0)
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.read(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = call @scoop_rt_itable_lookup(t0, global9) : ptr
+    t2 = call_indirect t1[0](param0) : i64
+    ret t2
+  fun @scoop_main() -> void
+    local %0 box: {i64}
+    local %1 overloads: ptr
+  block entry
+    t0 = aggregate (7) : {i64}
+    store t0 -> local0
+    t1 = enum_wrap e0 v1 () : enum0
+    t2 = call @scoop.Box.exchange$I_S(local0, 7, t1, global1) : ptr
+    call @scoop.println(t2)
+    t3 = aggregate () : {}
+    t4 = call @scoop_rt_box(global10, local0, 8) : ptr
+    t5 = call @scoop.read(t4) : i64
+    t6 = call @scoop_rt_box(global11, t5, 8) : ptr
+    call @scoop.println(t6)
+    t7 = aggregate () : {}
+    t8 = call @scoop.ctor.Tool() : ptr
+    t9 = call @scoop.Tool.id$S(t8, global2) : ptr
+    call @scoop.println(t9)
+    t10 = aggregate () : {}
+    t11 = call @scoop.ctor.Overloads() : ptr
+    store t11 -> local1
+    t12 = call @scoop.Overloads.id(local1, 1) : i64
+    t13 = call @scoop_rt_box(global11, t12, 8) : ptr
+    call @scoop.println(t13)
+    t14 = aggregate () : {}
+    t15 = call @scoop.Overloads.id$S(local1, global3) : ptr
+    call @scoop.println(t15)
+    t16 = aggregate () : {}
+    ret
+  fun @scoop.Overloads.id(ptr, i64) -> i64
+  block entry
+    ret 100
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr
+    t1 = enum_wrap e0 v0 (global5) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    t1 = enum_wrap e0 v0 (global6) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr
+    t1 = enum_wrap e0 v0 (global7) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.Tool() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global18, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Overloads() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global19, 16) : ptr
+    ret t0
+  fun @scoop.Exchange.current$I(ptr) -> i64
+  block entry
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call @scoop_rt_trap(global20)
+    unreachable
+  fun @scoop.Box.exchange$I_S({i64}, i64, enum0, ptr) -> ptr
+  block entry
+    ret param3
+  fun @scoop.Tool.id$S(ptr, ptr) -> ptr
+  block entry
+    ret param1
+  fun @scoop.Overloads.id$S(ptr, ptr) -> ptr
+  block entry
+    ret param1
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    ret t1
+  fun @scoop.eq.Box$I(ptr, ptr) -> i1
+    local %0 $a: {i64}
+    local %1 $b: {i64}
+  block entry
+    t0 = heap_load param0 +16 : {i64}
+    store t0 -> local0
+    t1 = heap_load param1 +16 : {i64}
+    store t1 -> local1
+    t2 = extract local0, 0 : i64
+    t3 = extract local1, 0 : i64
+    t4 = Eq t2, t3 : i1
+    ret t4
+  fun @scoop.Box.current$I({i64}) -> i64
+  block entry
+    t0 = extract param0, 0 : i64
+    ret t0
+  fun @scoop.thunk.Box$I.Exchange$I.current(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +16 : {i64}
+    t1 = call @scoop.Box.current$I(t0) : i64
+    ret t1
+  td Identity @scoop_td_Identity size=0 vtable=0 itables=0
+  td Exchange$I @scoop_td_Exchange$I size=0 vtable=0 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td Tool @scoop_td_Tool size=16 vtable=3 itables=1
+  td Overloads @scoop_td_Overloads size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td box$Box$I @scoop_td_box$Box$I size=24 vtable=3 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Box$I size=8 align=8 refs=[]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout Tool size=16 align=8 refs=[]
+  layout Overloads size=16 align=8 refs=[]
+  layout box$I size=24 align=8 refs=[]
+  layout box$Box$I size=24 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+struct
+7
+class
+100
+generic overload

@@ -1470,19 +1470,35 @@ fn concrete_method_without_a_body_is_an_error() {
 }
 
 #[test]
-fn generic_member_functions_are_an_error() {
-    let mut generic = method("m", vec![], None, vec![]);
+fn final_generic_member_functions_are_resolved() {
+    let mut generic = method_expr(
+        "id",
+        vec![("value", ty_named("T"))],
+        Some(ty_named("T")),
+        var("value"),
+    );
     generic.type_params = vec![ident("T")];
     let file = file(vec![
         class_decl(Final, "C", vec![], None, vec![], vec![generic]),
-        fun("main", vec![]),
+        fun(
+            "main",
+            vec![stmt(method_call(
+                call("C", vec![]),
+                "id",
+                vec![str_lit("ok")],
+            ))],
+        ),
     ]);
-    let errors = lower_user(file).expect_err("generic methods must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "generic member function `m` is not supported in M6"
-    );
+    let module = lower_user(file).expect("a final generic method must lower");
+    let method = find_fn(&module, "C.id");
+    assert_eq!(module.functions[method].type_params, ["T"]);
+    assert_eq!(module.generic_functions.len(), 1);
+    let (_, request) = module
+        .instantiations
+        .iter()
+        .next()
+        .expect("the call requests an instance");
+    assert_eq!(request.type_args, [module.string]);
 }
 
 // --- negative: method calls, fields, assignment ---

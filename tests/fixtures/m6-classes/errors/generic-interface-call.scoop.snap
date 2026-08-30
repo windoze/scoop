@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/generic-interface-call.scoop:9:39: error: generic member function `id` cannot be called through interface type `Identity`

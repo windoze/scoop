@@ -1,0 +1,5 @@
+open class Bad {
+    open fun <T> id(value: T): T = value
+}
+
+fun main() {}

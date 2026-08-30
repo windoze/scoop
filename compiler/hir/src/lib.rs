@@ -278,6 +278,10 @@ pub enum MethodModifier {
 pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
+    /// Number of owner type parameters at the front of the containing
+    /// function's combined type-parameter namespace. Method parameters
+    /// follow this prefix.
+    pub owner_type_param_count: u32,
 }
 
 #[derive(Debug)]
@@ -318,6 +322,10 @@ pub struct TypeParamDecl {
 #[derive(Debug)]
 pub struct MethodSig {
     pub name: String,
+    /// Type parameters declared by this method (the owning interface's
+    /// parameters are stored on `InterfaceDecl`). An empty list means the
+    /// method occupies an itable slot; generic methods are static-only.
+    pub type_params: Vec<String>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub span: Span,
@@ -343,7 +351,10 @@ pub struct Field {
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
-    /// Generic type parameter names; empty for non-generic functions.
+    /// Generic type parameter names; empty for non-generic functions. For
+    /// methods this is one combined namespace: owner parameters first,
+    /// method-declared parameters second (`Method::owner_type_param_count`
+    /// separates the two groups).
     pub type_params: Vec<String>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
@@ -760,14 +771,20 @@ pub fn dump(module: &Module) -> String {
         };
         out.push_str(&format!("  interface {}{}\n", decl.name, type_params));
         for method in &decl.methods {
+            let method_type_params = if method.type_params.is_empty() {
+                String::new()
+            } else {
+                format!("<{}>", method.type_params.join(", "))
+            };
             let params: Vec<String> = method
                 .params
                 .iter()
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
             out.push_str(&format!(
-                "    fun {}({}): {}\n",
+                "    fun {}{}({}): {}\n",
                 method.name,
+                method_type_params,
                 params.join(", "),
                 type_name(module, method.return_ty)
             ));
