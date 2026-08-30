@@ -258,8 +258,9 @@ fn validate_core_manifest(manifest: &str, path: &Path) -> Result<(), Vec<Diagnos
 }
 
 /// Compile the C runtime into a static library cached under
-/// `target/scoop-rt/`. M1 has a single C file, so rebuilding every time is
-/// cheap enough (see `docs/milestone1/DESIGN.md` section 2.7).
+/// `target/scoop-rt/`. The runtime is two C files since M9 (`rt.c` +
+/// `gc.c`), so rebuilding every time is still cheap enough (see
+/// `docs/milestone1/DESIGN.md` section 2.7).
 fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
     let root = workspace_root();
     let out_dir = root.join("target/scoop-rt");
@@ -275,6 +276,7 @@ fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
     let triple = host_triple();
     cc::Build::new()
         .file(root.join("runtime/src/rt.c"))
+        .file(root.join("runtime/src/gc.c"))
         .include(root.join("runtime/include"))
         .out_dir(&out_dir)
         // The driver is not a build script: cargo does not provide

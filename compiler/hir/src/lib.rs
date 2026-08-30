@@ -9,6 +9,8 @@
 //! variant/field indices and binding locals, and a module always has
 //! an entry point (`Module::entry`).
 
+use std::collections::HashMap;
+
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
@@ -24,6 +26,8 @@ pub type LocalId = Idx<Local>;
 pub enum Type {
     Unit,
     Int,
+    /// Unsigned 64-bit integer (`UInt`, spec 11.2).
+    UInt,
     Boolean,
     String,
     Struct(StructId),
@@ -56,6 +60,7 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
     match (&module.types[a], &module.types[b]) {
         (Type::Unit, Type::Unit)
         | (Type::Int, Type::Int)
+        | (Type::UInt, Type::UInt)
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
         (Type::Struct(x), Type::Struct(y)) => x == y,
@@ -90,6 +95,7 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
     match &module.types[ty] {
         Type::Unit => "Unit".to_string(),
         Type::Int => "Int".to_string(),
+        Type::UInt => "UInt".to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
@@ -141,6 +147,14 @@ pub struct Module {
     /// arguments), deduplicated, including nested requests from
     /// generic function bodies (impl spec 2.2).
     pub instantiations: Vec<Instantiation>,
+    /// Generic struct applications (M9, spec 3.2): because
+    /// `Type::Struct` carries no type arguments, each distinct
+    /// application (`PinHandle<String>`) is its own `Type::Struct`
+    /// arena entry and its arguments live here, keyed by that type id.
+    /// mir-lower instantiates the definition per argument list (the
+    /// same monomorphization shape as enums); types without an entry
+    /// here are non-generic structs.
+    pub struct_applications: HashMap<TypeId, (StructId, Vec<TypeId>)>,
 }
 
 /// A monomorphization request produced by HIR and materialized by MIR.
@@ -523,10 +537,36 @@ pub enum UnOp {
 /// The compiler's intrinsic registry (impl spec 2.10, M4 slice):
 /// signature rule + runtime symbol mapping live with the lowerers;
 /// this table is the single source of truth for valid names.
-pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[IntrinsicSpec {
-    name: "rt_write",
-    symbol: "scoop_rt_print",
-}];
+pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
+    IntrinsicSpec {
+        name: "rt_write",
+        symbol: "scoop_rt_print",
+    },
+    IntrinsicSpec {
+        name: "rt_pin",
+        symbol: "scoop_rt_pin",
+    },
+    IntrinsicSpec {
+        name: "rt_unpin",
+        symbol: "scoop_rt_unpin",
+    },
+    IntrinsicSpec {
+        name: "rt_get_handle",
+        symbol: "scoop_rt_get_handle",
+    },
+    IntrinsicSpec {
+        name: "rt_release_handle",
+        symbol: "scoop_rt_release_handle",
+    },
+    IntrinsicSpec {
+        name: "rt_gc_collect",
+        symbol: "scoop_rt_gc_collect",
+    },
+    IntrinsicSpec {
+        name: "rt_gc_stats",
+        symbol: "scoop_rt_gc_stats",
+    },
+];
 
 /// One entry of the intrinsic registry.
 pub struct IntrinsicSpec {

@@ -1,7 +1,21 @@
 # runtime
 
-C runtime: Immix generational GC, FFI runtime functions, and backing
-implementations of core types. See `docs/specs/SCOOP-RUNTIME-SPEC.md`.
+C runtime: Immix-core GC (`src/gc.c`, M9 — block/line heap, mark-region
+collection, pin/handle; see `docs/milestone9/DESIGN.md` section 2),
+runtime entry points and backing implementations of core types
+(`src/rt.c`). See `docs/specs/SCOOP-RUNTIME-SPEC.md`.
 
-Build integration (via the `cc` crate or a standalone Makefile) will be
-set up together with the first runtime code.
+The driver (`scoopc`) compiles both C files into `target/scoop-rt/
+libscoop_rt.a` (via the `cc` crate) and links it into every compiled
+program. Standalone test builds:
+
+```
+cc -std=c11 -Wall -Wextra -I runtime/include runtime/src/rt.c runtime/src/gc.c runtime/tests/rt_test.c -o /tmp/scoop_rt_test -lc++abi
+/tmp/scoop_rt_test   # stdout must match runtime/tests/rt_test_expected.txt
+
+cc  -std=c11 -Wall -Wextra -I runtime/include -c runtime/src/rt.c -o /tmp/scoop_rt.o
+cc  -std=c11 -Wall -Wextra -I runtime/include -c runtime/src/gc.c -o /tmp/scoop_gc.o
+c++ -std=c++11 -Wall -Wextra -c runtime/tests/rt_eh_test.cpp -o /tmp/scoop_rt_eh_test.o
+c++ /tmp/scoop_rt.o /tmp/scoop_gc.o /tmp/scoop_rt_eh_test.o -o /tmp/scoop_rt_eh_test
+/tmp/scoop_rt_eh_test
+```

@@ -9,6 +9,24 @@
 //! map. Function signatures come from LIR (`params` / `return_ty`);
 //! runtime functions are declared at their call sites with the signature
 //! implied by the operands.
+//!
+//! M9: GC support (milestone9 DESIGN section 3.1). Every heap object
+//! carries the 16-byte header `{ td, gc_word }`: class fields start at
+//! raw index 2, the boxed payload and the array size live at offset 16,
+//! array elements at 24, and string constants get a zeroed GC word
+//! between the TD and the length. `scoop_rt_alloc` writes both header
+//! words, so no allocation site stores the header. Every function is
+//! declared with the `statepoint-example` GC strategy and the whole
+//! module runs through `rewrite-statepoints-for-gc` before object
+//! emission, so the `.o` carries the `__llvm_stackmaps` section the
+//! runtime's stack scan reads (impl spec 2.4's statepoint insertion
+//! happens here rather than in LIR: it is an instrumentation of the
+//! emitted LLVM, and keeping it out of LIR keeps the LIR dumps
+//! stable). Safepoint polls — plain calls to the runtime's
+//! `scoop_rt_safepoint` — are emitted at every function entry and at
+//! the loop-header blocks `loop_headers` finds. Every `HeapStore` /
+//! `ArraySet` is followed by the write-barrier card mark
+//! (`scoop_gc_card_table[addr >> 9] = 1`, runtime spec 3.6).
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -16,6 +34,7 @@ use std::path::Path;
 use inkwell::attributes::{Attribute, AttributeLoc};
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
+use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{
     CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine,
 };
@@ -40,30 +59,64 @@ impl std::fmt::Display for CodegenError {
 
 impl std::error::Error for CodegenError {}
 
+/// The GC strategy set on every generated function (M9, milestone9
+/// DESIGN 5.5): LLVM's built-in statepoint strategy, verified by the
+/// M0 spike. Runtime functions get no strategy — they are not managed
+/// code.
+const GC_STRATEGY: &str = "statepoint-example";
+
+/// Runtime safepoint poll (M9, milestone9 DESIGN 3.1): a `void()`
+/// call the GC can suspend the polling thread at; emitted at every
+/// function entry and loop header.
+const SAFEPOINT_SYMBOL: &str = "scoop_rt_safepoint";
+
+/// The write barrier's card table (M9, runtime spec 3.6): the runtime
+/// exports `extern unsigned char *scoop_gc_card_table` — a pointer
+/// variable pre-biased with the arena base, loaded at every marking
+/// site. The v1 collector ignores the table; the remembered-set
+/// consumer arrives with generations.
+const CARD_TABLE_SYMBOL: &str = "scoop_gc_card_table";
+
+/// Card granularity of the write barrier: one card per 512 bytes.
+const CARD_SHIFT: u64 = 9;
+
 /// Translate `module` to LLVM IR and emit an object file at `output`
 /// using the host target.
 pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
+    let machine = host_target_machine()?;
+    let context = Context::create();
+    let llvm = emit_llvm_module(&context, module, &machine)?;
+
+    llvm.verify()
+        .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
+
+    // M9 (milestone9 DESIGN 3.1, M0 spike): rewrite every call and
+    // invoke in the GC-strategy functions into a `gc.statepoint`; the
+    // object file's `__llvm_stackmaps` section is produced from them.
+    // Runs after verification, right before object emission.
+    llvm.run_passes(
+        "rewrite-statepoints-for-gc",
+        &machine,
+        PassBuilderOptions::create(),
+    )
+    .map_err(|e| CodegenError(format!("rewrite-statepoints-for-gc failed: {e}")))?;
+
+    machine
+        .write_to_file(&llvm, FileType::Object, output)
+        .map_err(|e| CodegenError(format!("failed to write {}: {e}", output.display())))?;
+    Ok(())
+}
+
+/// The host target machine, created up front: array TypeDescriptors
+/// take element size/align from the target's data layout (the same
+/// layout GEP uses), keeping alloc size and element stride consistent.
+fn host_target_machine() -> Result<TargetMachine, CodegenError> {
     Target::initialize_native(&InitializationConfig::default())
         .map_err(|e| CodegenError(format!("failed to initialize native target: {e}")))?;
-
-    let string_layout = module
-        .meta
-        .layouts
-        .iter()
-        .find(|layout| layout.name == "String")
-        .ok_or_else(|| CodegenError("LIR meta lacks a layout for String".to_string()))?;
-
-    let context = Context::create();
-    let llvm = context.create_module("scoop");
-    let builder = context.create_builder();
-
-    // The target machine is created up front: array TypeDescriptors take
-    // element size/align from the target's data layout (the same layout
-    // GEP uses), keeping alloc size and element stride consistent.
     let triple = TargetMachine::get_default_triple();
     let target = Target::from_triple(&triple)
         .map_err(|e| CodegenError(format!("no target for host triple: {e}")))?;
-    let machine = target
+    target
         .create_target_machine(
             &triple,
             "generic",
@@ -72,7 +125,25 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
             RelocMode::Default,
             CodeModel::Default,
         )
-        .ok_or_else(|| CodegenError("failed to create host target machine".to_string()))?;
+        .ok_or_else(|| CodegenError("failed to create host target machine".to_string()))
+}
+
+/// Translate `module` to an (unverified) LLVM module: globals,
+/// TypeDescriptors, and every function.
+fn emit_llvm_module<'ctx>(
+    context: &'ctx Context,
+    module: &Module,
+    machine: &TargetMachine,
+) -> Result<LlvmModule<'ctx>, CodegenError> {
+    let string_layout = module
+        .meta
+        .layouts
+        .iter()
+        .find(|layout| layout.name == "String")
+        .ok_or_else(|| CodegenError("LIR meta lacks a layout for String".to_string()))?;
+
+    let llvm = context.create_module("scoop");
+    let builder = context.create_builder();
     let target_data = machine.get_target_data();
 
     let ptr_ty = context.ptr_type(AddressSpace::default());
@@ -101,7 +172,7 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     // boxed, so `Any.toString()` on a String dispatches through this
     // table — core's `print` / `println` rely on it.
     let string_vtable = emit_fn_table(
-        &context,
+        context,
         &llvm,
         "scoop_td_String.vtable",
         &[
@@ -130,10 +201,25 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     // 2.2): same struct as String's TD, size/align of the *element*
     // layout, type_ids from 100 (1 is String). `size` here is the
     // element size, which is also what `scoop_rt_array_clone` needs.
+    // The scan descriptor (M9, runtime/include/scoop_rt.h) is the
+    // SCOOP_REFS_ARRAY sentinel for reference-element arrays — the GC
+    // scans the `count` pointer slots at object offset 24 — and null
+    // for arrays without outgoing references.
     let array_elements = array_element_types(module);
     let mut array_tds: Vec<GlobalValue> = Vec::with_capacity(array_elements.len());
     for (index, element) in array_elements.iter().enumerate() {
-        let element_ty = basic_ty(&context, &module.enums, element)?;
+        let element_ty = basic_ty(context, &module.enums, element)?;
+        let ref_offsets: BasicValueEnum = if element_is_ref(&module.enums, element) {
+            let sentinel = i64_ty.const_array(&[i64_ty.const_int(u64::MAX, false)]);
+            private_const_global(
+                &llvm,
+                &format!("scoop_td_array.{index}.refs"),
+                sentinel.into(),
+            )
+            .into()
+        } else {
+            ptr_ty.const_null().into()
+        };
         let array_td = llvm.add_global(td_ty, None, &format!("scoop_td_array.{index}"));
         array_td.set_constant(true);
         array_td.set_initializer(
@@ -146,7 +232,7 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
                     i64_ty
                         .const_int(target_data.get_abi_alignment(&element_ty) as u64, false)
                         .into(),
-                    ptr_ty.const_null().into(),
+                    ref_offsets,
                     ptr_ty.const_null().into(),
                     ptr_ty.const_null().into(),
                     ptr_ty.const_null().into(),
@@ -194,11 +280,13 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
         }
         match &global.init {
             GlobalInit::StringConst(value) => {
-                // { ptr td, i64 len, [N x i8] data } (runtime spec 2.4).
+                // { ptr td, i64 gc_word, i64 len, [N x i8] data }
+                // (runtime spec 2.4; the 16-byte header is M9).
                 let bytes = value.as_bytes();
                 let ty = context.struct_type(
                     &[
                         ptr_ty.into(),
+                        i64_ty.into(),
                         i64_ty.into(),
                         i8_ty.array_type(bytes.len() as u32).into(),
                     ],
@@ -209,6 +297,7 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
                 llvm_global.set_initializer(&context.const_struct(
                     &[
                         string_td.as_pointer_value().into(),
+                        i64_ty.const_zero().into(),
                         i64_ty.const_int(bytes.len() as u64, false).into(),
                         context.const_string(bytes, false).into(),
                     ],
@@ -244,22 +333,15 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
         bounds_message,
     };
     for function in &module.functions {
-        declare_function(&context, &llvm, &module.enums, function)?;
+        declare_function(context, &llvm, &module.enums, function)?;
     }
     // Meta TypeDescriptors reference module functions (vtable / itable
     // slots), so they are emitted after the declare pass.
-    emit_type_descriptors(&context, &llvm, td_ty, module)?;
+    emit_type_descriptors(context, &llvm, td_ty, module)?;
     for function in &module.functions {
-        emit_function(&context, &llvm, &builder, &module_ctx, function)?;
+        emit_function(context, &llvm, &builder, &module_ctx, function)?;
     }
-
-    llvm.verify()
-        .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
-
-    machine
-        .write_to_file(&llvm, FileType::Object, output)
-        .map_err(|e| CodegenError(format!("failed to write {}: {e}", output.display())))?;
-    Ok(())
+    Ok(llvm)
 }
 
 /// The LLVM type of a (non-void) LIR type: aggregates are literal
@@ -339,6 +421,19 @@ fn array_element(ty: &LirType) -> Result<&LirType, CodegenError> {
     }
 }
 
+/// Whether an array element is a reference for the GC scan (runtime
+/// spec 2.2's M9 contract): pointer-like elements (String, classes,
+/// arrays, niche-form enums) are; scalars, aggregates, and tagged
+/// enums are not. This mirrors lir-lower's `element_is_ref` on the
+/// mapped LIR types (including its M4 boundary for tagged enums).
+fn element_is_ref(enums: &Arena<EnumDef>, element: &LirType) -> bool {
+    match element {
+        LirType::Ptr | LirType::Array(_) => true,
+        LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Niche { .. }),
+        LirType::Void | LirType::I1 | LirType::I64 | LirType::Aggregate(_) => false,
+    }
+}
+
 /// Every distinct array element type used in the module, in first-seen
 /// order; each gets its own array TypeDescriptor (`scoop_td_array.<n>`).
 fn array_element_types(module: &Module) -> Vec<LirType> {
@@ -409,14 +504,20 @@ fn emit_type_descriptors<'ctx>(
     // ScoopItableEntry: { ptr interface, ptr slots }.
     let entry_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
     for (index, td) in module.meta.type_descriptors.iter().enumerate() {
+        // The GC scan descriptor (runtime spec 2.2's M9 form,
+        // runtime/include/scoop_rt.h): a count-prefixed plain table
+        // `[N, off0, .., offN-1]` of object-relative byte offsets, or
+        // null when the type has no outgoing references.
         let ref_offsets: BasicValueEnum = if td.ref_offsets.is_empty() {
             ptr.const_null().into()
         } else {
-            let offsets: Vec<IntValue> = td
-                .ref_offsets
-                .iter()
-                .map(|offset| i64_ty.const_int(*offset, false))
-                .collect();
+            let mut offsets: Vec<IntValue> = Vec::with_capacity(td.ref_offsets.len() + 1);
+            offsets.push(i64_ty.const_int(td.ref_offsets.len() as u64, false));
+            offsets.extend(
+                td.ref_offsets
+                    .iter()
+                    .map(|offset| i64_ty.const_int(*offset, false)),
+            );
             let array = i64_ty.const_array(&offsets);
             private_const_global(llvm, &format!("{}.refs", td.symbol), array.into()).into()
         };
@@ -716,12 +817,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 ) {
                     // Heap object field load (lir-lower module docs):
                     // the operand points at the raw object struct
-                    // `{ ptr header, fields... }`; 0 reads the header
-                    // (the TypeDescriptor pointer), 1..=n the fields,
-                    // and for a TypeDescriptor pointer the indices
-                    // follow the `ScoopTypeDescriptor` field order
-                    // (vtable = 5). Every slot is 8 bytes, so the byte
-                    // offset is `index * 8`.
+                    // `{ ptr td, i64 gc_word, fields... }`; 0 reads
+                    // the TD pointer, 1 the GC word, 2..=n+1 the
+                    // fields, and for a TypeDescriptor pointer the
+                    // indices follow the `ScoopTypeDescriptor` field
+                    // order (vtable = 5). Every slot is 8 bytes, so
+                    // the byte offset is `index * 8`.
                     let object = self.value(*aggregate)?.into_pointer_value();
                     let field_ptr = self.byte_gep(object, u64::from(*index) * 8, "field_ptr")?;
                     let field_ty = basic_ty(context, self.enums, &function.temps[*out].ty)?;
@@ -753,11 +854,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 value,
             } => {
                 // Same slot indexing as the heap load above; the LIR
-                // contract requires `index` >= 1 (0 is the header).
-                if *index == 0 {
+                // contract requires `index` >= 2 (0 and 1 are the
+                // 16-byte object header: the TD pointer and the GC
+                // word).
+                if *index < 2 {
                     return Err(CodegenError(format!(
-                        "heap_store @{symbol}: index 0 is the object header",
-                        symbol = function.symbol
+                        "heap_store @{symbol}: index {index} is the object header",
+                        symbol = function.symbol,
+                        index = *index
                     )));
                 }
                 let object = self.value(*object)?.into_pointer_value();
@@ -770,6 +874,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol
                         ))
                     })?;
+                // M9 write barrier: mark the stored-to address's card.
+                self.card_mark(field_ptr)?;
             }
             Instruction::Store { local, value: v } => {
                 let operand = self.value(*v)?;
@@ -1134,14 +1240,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
             }
             Instruction::ArrayAlloc { out, elements } => {
-                // `{ ptr td, i64 size, [n x elem] }` (runtime spec 2.5):
-                // allocate 16 + n * stride bytes, store the size, then
-                // store each element in order.
+                // `{ ptr td, i64 gc_word, i64 size, [n x elem] }`
+                // (runtime spec 2.5; the 16-byte header is M9):
+                // allocate 24 + n * stride bytes, store the size at
+                // offset 16, then store each element in order.
                 let element = array_element(&function.temps[*out].ty)?;
                 let element_ty = basic_ty(context, self.enums, element)?;
                 let stride = self.target_data.get_abi_size(&element_ty);
                 let td = self.array_td(element)?.as_pointer_value();
-                let total = 16 + elements.len() as u64 * stride;
+                let total = 24 + elements.len() as u64 * stride;
                 let alloc = self.runtime_fn(
                     "scoop_rt_alloc",
                     ptr_ty(context)
@@ -1163,7 +1270,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .basic()
                     .ok_or_else(|| CodegenError("scoop_rt_alloc returned void".to_string()))?
                     .into_pointer_value();
-                let size_ptr = self.byte_gep(array, 8, "size_ptr")?;
+                let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 builder
                     .build_store(
                         size_ptr,
@@ -1195,7 +1302,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::ArrayLen { out, operand } => {
                 let array = self.value(*operand)?.into_pointer_value();
-                let size_ptr = self.byte_gep(array, 8, "size_ptr")?;
+                let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 let name = format!("t{}", out.into_raw().into_u32());
                 let size = builder
                     .build_load(context.i64_type(), size_ptr, &name)
@@ -1246,6 +1353,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol
                         ))
                     })?;
+                // M9 write barrier: mark the stored-to address's card
+                // (array element stores are heap stores too).
+                self.card_mark(element_ptr)?;
             }
             Instruction::ArrayClone { out, operand } => {
                 // `ptr scoop_rt_array_clone(ptr obj, i64 elem_size)`.
@@ -1603,8 +1713,83 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         })
     }
 
-    /// Address of element `index` of an array object: the element area
-    /// starts right after the header + size field (16 bytes).
+    /// M9 write-barrier instrumentation point (milestone9 DESIGN 3.1,
+    /// runtime spec 3.6): after a heap store, mark the card covering
+    /// the stored-to address — `scoop_gc_card_table[addr >> 9] = 1`.
+    /// Emitted unconditionally (also for scalar stores); the v1
+    /// collector ignores the table, and the generational remembered
+    /// set consumes it once generations land.
+    fn card_mark(&self, addr: PointerValue<'ctx>) -> Result<(), CodegenError> {
+        let context = self.context;
+        let builder = self.builder;
+        let error = |e: inkwell::builder::BuilderError| {
+            CodegenError(format!(
+                "card mark @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        };
+        // The card table is a runtime POINTER VARIABLE (`extern
+        // unsigned char *scoop_gc_card_table`), pre-biased by the
+        // runtime with the arena base so `base + (addr >> 9)` lands
+        // inside the backing table for every heap address (see
+        // runtime/include/scoop_rt.h): load the pointer, then GEP.
+        let card_table_global = self.llvm.get_global(CARD_TABLE_SYMBOL).unwrap_or_else(|| {
+            self.llvm
+                .add_global(ptr_ty(context), None, CARD_TABLE_SYMBOL)
+        });
+        let card_table = builder
+            .build_load(
+                ptr_ty(context),
+                card_table_global.as_pointer_value(),
+                "card_table",
+            )
+            .map_err(error)?
+            .into_pointer_value();
+        let addr = builder
+            .build_ptr_to_int(addr, context.i64_type(), "card_addr")
+            .map_err(error)?;
+        // Logical shift: the card index of the address.
+        let card = builder
+            .build_right_shift(
+                addr,
+                context.i64_type().const_int(CARD_SHIFT, false),
+                false,
+                "card_index",
+            )
+            .map_err(error)?;
+        // SAFETY: the loaded card table base is pre-biased so that
+        // `base + card` addresses the card of any heap address (one
+        // card per 512 bytes of the GC window).
+        let card_ptr =
+            unsafe { builder.build_gep(context.i8_type(), card_table, &[card], "card_ptr") }
+                .map_err(error)?;
+        builder
+            .build_store(card_ptr, context.i8_type().const_int(1, false))
+            .map_err(error)?;
+        Ok(())
+    }
+
+    /// A safepoint poll (M9, milestone9 DESIGN 3.1): a plain call to
+    /// the runtime's `scoop_rt_safepoint`, which the
+    /// `rewrite-statepoints-for-gc` pass turns into a statepoint —
+    /// exactly the spot where the GC can suspend the polling thread.
+    fn safepoint_poll(&self) -> Result<(), CodegenError> {
+        let safepoint = self.runtime_fn(
+            SAFEPOINT_SYMBOL,
+            self.context.void_type().fn_type(&[], false),
+        );
+        self.builder.build_call(safepoint, &[], "").map_err(|e| {
+            CodegenError(format!(
+                "safepoint poll @{symbol}: {e}",
+                symbol = self.function.symbol
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Address of element `index` of an array object: the element
+    /// area starts right after the 16-byte header (M9) + size field
+    /// (24 bytes).
     fn element_ptr(
         &self,
         array: PointerValue<'ctx>,
@@ -1612,7 +1797,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         index: IntValue<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
-        let base = self.byte_gep(array, 16, "elements")?;
+        let base = self.byte_gep(array, 24, "elements")?;
         // SAFETY: `base` addresses the element area of an array whose
         // elements have layout `element_ty`; `index` was bounds-checked
         // against the array size (or is a valid constant index).
@@ -1635,7 +1820,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         index: IntValue<'ctx>,
     ) -> Result<(), CodegenError> {
         let builder = self.builder;
-        let size_ptr = self.byte_gep(array, 8, "size_ptr")?;
+        let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
         let size = builder
             .build_load(self.context.i64_type(), size_ptr, "size")
             .map_err(|e| {
@@ -1830,7 +2015,12 @@ fn fn_type_of<'ctx>(
     })
 }
 
-/// Declare a function with its final symbol and signature.
+/// Declare a function with its final symbol and signature. Every
+/// function carries the GC strategy (M9, milestone9 DESIGN 5.5):
+/// `rewrite-statepoints-for-gc` rewrites the body's call sites into
+/// statepoints and LLVM emits their stackmaps. Only module functions
+/// get it — the runtime declarations created at call sites are not
+/// managed code.
 fn declare_function<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -1838,7 +2028,8 @@ fn declare_function<'ctx>(
     function: &Function,
 ) -> Result<(), CodegenError> {
     let fn_ty = fn_type_of(context, enums, function)?;
-    llvm.add_function(&function.symbol, fn_ty, None);
+    llvm.add_function(&function.symbol, fn_ty, None)
+        .set_gc(GC_STRATEGY);
     Ok(())
 }
 
@@ -1852,6 +2043,91 @@ struct ModuleCtx<'a, 'ctx> {
     array_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
     bounds_message: Option<GlobalValue<'ctx>>,
+}
+
+/// The loop-header blocks of `function`: targets of back edges, where
+/// an edge B -> T is a back edge when T dominates B. Computed over the
+/// full LIR control-flow graph (branch terminators plus the unwind
+/// edges of invokes) with the standard iterative dominator dataflow.
+/// lir-lower's only loop shape is `while`, whose condition block the
+/// body branches back to, so in practice the headers are exactly the
+/// `while.cond` blocks; a landing pad never dominates its invoke
+/// blocks, so no header is a pad (the extra check at the insertion
+/// site only restates LLVM's landingpad-first rule).
+fn loop_headers(function: &Function) -> Vec<bool> {
+    let len = function.blocks.len();
+    let mut successors: Vec<Vec<usize>> = vec![Vec::new(); len];
+    for (id, block) in function.blocks.iter() {
+        let from = arena_index(id);
+        match &block.terminator {
+            Terminator::Br(target) => successors[from].push(arena_index(*target)),
+            Terminator::CondBr {
+                then_block,
+                else_block,
+                ..
+            } => {
+                successors[from].push(arena_index(*then_block));
+                successors[from].push(arena_index(*else_block));
+            }
+            Terminator::Return { .. } | Terminator::Unreachable => {}
+        }
+        // Invoke / InvokeIndirect are terminator-like: the block's own
+        // terminator restates the normal successor (counted above), so
+        // only the unwind edge is extra.
+        if let Some(
+            Instruction::Invoke { unwind, .. } | Instruction::InvokeIndirect { unwind, .. },
+        ) = block.instructions.last()
+        {
+            successors[from].push(arena_index(*unwind));
+        }
+    }
+
+    let mut predecessors: Vec<Vec<usize>> = vec![Vec::new(); len];
+    for (from, targets) in successors.iter().enumerate() {
+        for &to in targets {
+            predecessors[to].push(from);
+        }
+    }
+    // dom(entry) = {entry}; dom(b) = {b} ∪ ⋂ dom(p) over preds p,
+    // iterated to a fixed point. Unreachable blocks keep just
+    // themselves, the usual treatment.
+    let entry = arena_index(function.entry);
+    let mut dominators: Vec<HashSet<usize>> = vec![(0..len).collect(); len];
+    dominators[entry] = [entry].into_iter().collect();
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for block in 0..len {
+            if block == entry {
+                continue;
+            }
+            let mut dom: HashSet<usize> = match predecessors[block].as_slice() {
+                [] => [block].into_iter().collect(),
+                [first, rest @ ..] => {
+                    let mut dom = dominators[*first].clone();
+                    for pred in rest {
+                        dom.retain(|b| dominators[*pred].contains(b));
+                    }
+                    dom
+                }
+            };
+            dom.insert(block);
+            if dom != dominators[block] {
+                dominators[block] = dom;
+                changed = true;
+            }
+        }
+    }
+
+    let mut headers = vec![false; len];
+    for (from, targets) in successors.iter().enumerate() {
+        for &to in targets {
+            if dominators[from].contains(&to) {
+                headers[to] = true;
+            }
+        }
+    }
+    headers
 }
 
 fn emit_function<'ctx>(
@@ -1927,9 +2203,25 @@ fn emit_function<'ctx>(
                 .map_err(|e| CodegenError(format!("alloca %{}: {e}", local.name)))?,
         );
     }
+    // M9 safepoint poll (milestone9 DESIGN 3.1): every function polls
+    // at entry, right after the allocas.
+    emitter.safepoint_poll()?;
 
+    let headers = loop_headers(function);
     for (block_id, block) in function.blocks.iter() {
         builder.position_at_end(blocks[arena_index(block_id)]);
+        // ... and every loop header polls at its top. The header set
+        // provably never contains a landing pad (see `loop_headers`);
+        // the LandingPad check only restates LLVM's landingpad-first
+        // rule at the insertion site.
+        if headers[arena_index(block_id)]
+            && !matches!(
+                block.instructions.first(),
+                Some(Instruction::LandingPad { .. })
+            )
+        {
+            emitter.safepoint_poll()?;
+        }
         // Invoke / InvokeIndirect are LLVM terminators even though they
         // are LIR instructions: one must be the last instruction of its
         // block, and the block's LIR terminator must be the redundant
@@ -2212,7 +2504,7 @@ mod tests {
             meta: LirMeta {
                 layouts: vec![Layout {
                     name: "String".to_string(),
-                    size: 16,
+                    size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
                         ref_field_offsets: vec![],
@@ -2507,7 +2799,7 @@ mod tests {
                 layouts: vec![
                     Layout {
                         name: "String".to_string(),
-                        size: 16,
+                        size: 24,
                         align: 8,
                         kind: LayoutKind::Plain {
                             ref_field_offsets: vec![],
@@ -2701,7 +2993,7 @@ mod tests {
                 layouts: vec![
                     Layout {
                         name: "String".to_string(),
-                        size: 16,
+                        size: 24,
                         align: 8,
                         kind: LayoutKind::Plain {
                             ref_field_offsets: vec![],
@@ -2822,7 +3114,7 @@ mod tests {
             meta: LirMeta {
                 layouts: vec![Layout {
                     name: "String".to_string(),
-                    size: 16,
+                    size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
                         ref_field_offsets: vec![],
@@ -2844,9 +3136,9 @@ mod tests {
                     TypeDescriptor {
                         name: "Shape".to_string(),
                         symbol: "scoop_td_Shape".to_string(),
-                        size: 16,
+                        size: 24,
                         align: 8,
-                        ref_offsets: vec![8],
+                        ref_offsets: vec![16],
                         parent: None,
                         vtable: any_slots()
                             .into_iter()
@@ -2858,9 +3150,9 @@ mod tests {
                     TypeDescriptor {
                         name: "Point".to_string(),
                         symbol: "scoop_td_Point".to_string(),
-                        size: 24,
+                        size: 32,
                         align: 8,
-                        ref_offsets: vec![8],
+                        ref_offsets: vec![16],
                         parent: Some("scoop_td_Shape".to_string()),
                         vtable: any_slots()
                             .into_iter()
@@ -2925,13 +3217,14 @@ mod tests {
             entry: describe_entry,
         };
 
-        // fun @scoop_main() -> void:
-        //   t0 = scoop_rt_alloc(@scoop_td_Point, 24)  (stub operand)
-        //   heap_store t0, 1, 42      (i64 field)
-        //   heap_store t0, 2, t0      (ptr field)
+        // fun @scoop_main() -> void (M9 16-byte header: fields are the
+        // raw indices 2 and 3):
+        //   t0 = scoop_rt_alloc(@scoop_td_Point, 32)  (stub operand)
+        //   heap_store t0, 2, 42      (i64 field)
+        //   heap_store t0, 3, t0      (ptr field)
         //   t1 = extract t0, 0 : ptr  (object header: the TD)
-        //   t2 = extract t0, 1 : i64  (field 1)
-        //   t3 = extract t0, 2 : ptr  (field 2)
+        //   t2 = extract t0, 2 : i64  (field 1)
+        //   t3 = extract t0, 3 : ptr  (field 2)
         //   t4 = extract t1, 5 : ptr  (TD field 5: the vtable pointer)
         //   t5 = aggregate (t2) : {i64}
         //   t6 = scoop_rt_box(@scoop_td_Point, t5, 8)  (by-value payload)
@@ -2955,16 +3248,16 @@ mod tests {
                 Instruction::Call {
                     out: Some(t0),
                     symbol: "scoop_rt_alloc".to_string(),
-                    args: vec![Value::Global(point_td_stub), Value::IntConst(24)],
-                },
-                Instruction::HeapStore {
-                    object: Value::Temp(t0),
-                    index: 1,
-                    value: Value::IntConst(42),
+                    args: vec![Value::Global(point_td_stub), Value::IntConst(32)],
                 },
                 Instruction::HeapStore {
                     object: Value::Temp(t0),
                     index: 2,
+                    value: Value::IntConst(42),
+                },
+                Instruction::HeapStore {
+                    object: Value::Temp(t0),
+                    index: 3,
                     value: Value::Temp(t0),
                 },
                 Instruction::ExtractValue {
@@ -2975,12 +3268,12 @@ mod tests {
                 Instruction::ExtractValue {
                     out: t2,
                     aggregate: Value::Temp(t0),
-                    index: 1,
+                    index: 2,
                 },
                 Instruction::ExtractValue {
                     out: t3,
                     aggregate: Value::Temp(t0),
-                    index: 2,
+                    index: 3,
                 },
                 Instruction::ExtractValue {
                     out: t4,
@@ -3042,7 +3335,7 @@ mod tests {
             meta: LirMeta {
                 layouts: vec![Layout {
                     name: "String".to_string(),
-                    size: 16,
+                    size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
                         ref_field_offsets: vec![],
@@ -3051,9 +3344,9 @@ mod tests {
                 type_descriptors: vec![TypeDescriptor {
                     name: "Point".to_string(),
                     symbol: "scoop_td_Point".to_string(),
-                    size: 24,
+                    size: 32,
                     align: 8,
-                    ref_offsets: vec![16],
+                    ref_offsets: vec![24],
                     parent: None,
                     vtable: vec![
                         "scoop_rt_any_equals".to_string(),
@@ -3200,7 +3493,7 @@ mod tests {
             meta: LirMeta {
                 layouts: vec![Layout {
                     name: "String".to_string(),
-                    size: 16,
+                    size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
                         ref_field_offsets: vec![],
@@ -3217,7 +3510,10 @@ mod tests {
         let output =
             std::env::temp_dir().join(format!("scoop_codegen_m8_test_{}.o", std::process::id()));
         // `emit_object` verifies the LLVM module before writing, so a
-        // successful return means `module.verify()` passed.
+        // successful return means `module.verify()` passed. M9: this
+        // also proves invoke / landingpad and the GC strategy coexist
+        // — every function carries `gc "statepoint-example"` and the
+        // module goes through `rewrite-statepoints-for-gc`.
         emit_object(&module, &output).expect("emit object");
         let bytes = std::fs::read(&output).expect("read object");
         assert!(!bytes.is_empty(), "object file is empty");
@@ -3227,6 +3523,249 @@ mod tests {
             text.contains("gcc_except_tab"),
             "object file lacks exception tables"
         );
+        assert!(
+            text.contains("__llvm_stackmaps"),
+            "object file lacks the __llvm_stackmaps section"
+        );
         std::fs::remove_file(&output).ok();
+    }
+
+    // ---- M9: GC support ----
+
+    /// The LLVM IR text of a module, verified, before the statepoint
+    /// rewrite.
+    fn ir_of(module: &Module) -> String {
+        let machine = host_target_machine().expect("target machine");
+        let context = Context::create();
+        let llvm = emit_llvm_module(&context, module, &machine).expect("emit module");
+        llvm.verify().expect("valid LLVM module");
+        llvm.print_to_string().to_string()
+    }
+
+    /// An M9-shaped module: a HeapStore and an ArraySet (both carry
+    /// the write-barrier card mark) in the entry block, then a
+    /// `while`-shaped loop (header ← body back edge) for the loop
+    /// safepoint poll.
+    fn barrier_module() -> Module {
+        let mut temps = Arena::default();
+        let t0 = temps.alloc(Temp { ty: LirType::Ptr }); // alloc result
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![],
+            terminator: Terminator::Unreachable, // placeholder, filled below
+        });
+        let header = blocks.alloc(BasicBlock {
+            name: "while.cond".to_string(),
+            instructions: vec![],
+            terminator: Terminator::Unreachable,
+        });
+        let body = blocks.alloc(BasicBlock {
+            name: "while.body".to_string(),
+            instructions: vec![],
+            terminator: Terminator::Unreachable,
+        });
+        let exit = blocks.alloc(BasicBlock {
+            name: "while.exit".to_string(),
+            instructions: vec![],
+            terminator: Terminator::Return { value: None },
+        });
+        blocks[entry] = BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::Call {
+                    out: Some(t0),
+                    symbol: "scoop_rt_alloc".to_string(),
+                    args: vec![Value::Param(0), Value::IntConst(24)],
+                },
+                Instruction::HeapStore {
+                    object: Value::Temp(t0),
+                    index: 2,
+                    value: Value::IntConst(42),
+                },
+                Instruction::ArraySet {
+                    array: Value::Param(1),
+                    index: Value::IntConst(0),
+                    value: Value::IntConst(7),
+                },
+            ],
+            terminator: Terminator::Br(header),
+        };
+        blocks[header] = BasicBlock {
+            name: "while.cond".to_string(),
+            instructions: vec![],
+            terminator: Terminator::CondBr {
+                cond: Value::BoolConst(true),
+                then_block: body,
+                else_block: exit,
+            },
+        };
+        blocks[body] = BasicBlock {
+            name: "while.body".to_string(),
+            instructions: vec![],
+            terminator: Terminator::Br(header),
+        };
+        Module {
+            globals: Arena::default(),
+            enums: Arena::default(),
+            functions: vec![Function {
+                symbol: "scoop_main".to_string(),
+                params: vec![LirType::Ptr, LirType::Array(Box::new(LirType::I64))],
+                return_ty: LirType::Void,
+                locals: Arena::default(),
+                temps,
+                blocks,
+                entry,
+            }],
+            entry_symbol: "scoop_main".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 24,
+                    align: 8,
+                    kind: LayoutKind::Plain {
+                        ref_field_offsets: vec![],
+                    },
+                }],
+                type_descriptors: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn functions_carry_the_gc_strategy_and_poll_safepoints() {
+        let ir = ir_of(&barrier_module());
+        assert!(
+            ir.contains("gc \"statepoint-example\""),
+            "function lacks the GC strategy:\n{ir}"
+        );
+        // One poll at the function entry, one at the loop header.
+        let polls = ir.matches("call void @scoop_rt_safepoint()").count();
+        assert_eq!(polls, 2, "entry + loop-header safepoint polls:\n{ir}");
+    }
+
+    #[test]
+    fn heap_stores_mark_the_write_barrier_card() {
+        let ir = ir_of(&barrier_module());
+        // The card table is a pointer variable: load the (pre-biased)
+        // base, then GEP by the card index.
+        assert!(
+            ir.contains("@scoop_gc_card_table = external global ptr"),
+            "card table pointer global missing:\n{ir}"
+        );
+        assert!(
+            ir.contains("load ptr, ptr @scoop_gc_card_table"),
+            "card table base load missing:\n{ir}"
+        );
+        assert!(ir.contains("lshr i64"), "card index shift missing:\n{ir}");
+        // One card mark (`store i8 1`) per heap store: the HeapStore
+        // and the ArraySet element store.
+        let marks = ir.matches("store i8 1").count();
+        assert_eq!(marks, 2, "one card mark per heap store:\n{ir}");
+    }
+
+    #[test]
+    fn heap_store_below_index_2_is_rejected() {
+        let mut module = barrier_module();
+        let function = &mut module.functions[0];
+        let entry = function.entry;
+        function.blocks[entry].instructions[1] = Instruction::HeapStore {
+            object: Value::IntConst(0),
+            index: 1,
+            value: Value::IntConst(42),
+        };
+        let machine = host_target_machine().expect("target machine");
+        let context = Context::create();
+        let error = emit_llvm_module(&context, &module, &machine)
+            .expect_err("index 1 is the object header, not a field");
+        assert!(
+            error.0.contains("object header"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn statepoints_and_stackmaps_are_emitted() {
+        let module = values_module();
+        let machine = host_target_machine().expect("target machine");
+        let context = Context::create();
+        let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+        llvm.verify().expect("valid LLVM module");
+        // The same pass `emit_object` runs before writing the object
+        // (the M0 spike's shape).
+        llvm.run_passes(
+            "rewrite-statepoints-for-gc",
+            &machine,
+            PassBuilderOptions::create(),
+        )
+        .expect("rewrite-statepoints-for-gc pass");
+        let ir = llvm.print_to_string().to_string();
+        assert!(
+            ir.contains("gc.statepoint"),
+            "statepoint intrinsics missing after rewrite-statepoints-for-gc:\n{ir}"
+        );
+
+        let output =
+            std::env::temp_dir().join(format!("scoop_codegen_m9_test_{}.o", std::process::id()));
+        machine
+            .write_to_file(&llvm, FileType::Object, &output)
+            .expect("write object");
+        let bytes = std::fs::read(&output).expect("read object");
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(
+            text.contains("__llvm_stackmaps"),
+            "object file lacks the __llvm_stackmaps section"
+        );
+        std::fs::remove_file(&output).ok();
+    }
+
+    #[test]
+    fn type_descriptors_carry_the_gc_scan_descriptors() {
+        // A class's plain table is count-prefixed (`[N, off0, ..]`,
+        // runtime/include/scoop_rt.h's M9 scan-descriptor contract).
+        let ir = ir_of(&heap_module());
+        assert!(
+            ir.contains("@scoop_td_Point.refs = private constant [2 x i64] [i64 1, i64 24]"),
+            "plain scan table must be count-prefixed:\n{ir}"
+        );
+
+        // A reference-element array's TD carries the SCOOP_REFS_ARRAY
+        // sentinel (u64::MAX, printed -1) instead of a plain table.
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![],
+            terminator: Terminator::Return { value: None },
+        });
+        let module = Module {
+            globals: Arena::default(),
+            enums: Arena::default(),
+            functions: vec![Function {
+                symbol: "scoop_main".to_string(),
+                params: vec![LirType::Array(Box::new(LirType::Ptr))],
+                return_ty: LirType::Void,
+                locals: Arena::default(),
+                temps: Arena::default(),
+                blocks,
+                entry,
+            }],
+            entry_symbol: "scoop_main".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 24,
+                    align: 8,
+                    kind: LayoutKind::Plain {
+                        ref_field_offsets: vec![],
+                    },
+                }],
+                type_descriptors: vec![],
+            },
+        };
+        let ir = ir_of(&module);
+        assert!(
+            ir.contains("@scoop_td_array.0.refs = private constant [1 x i64] [i64 -1]"),
+            "reference-element array TD must carry SCOOP_REFS_ARRAY:\n{ir}"
+        );
     }
 }

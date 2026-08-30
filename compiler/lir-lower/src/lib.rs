@@ -1,6 +1,7 @@
-//! LIR stage: type layout, statepoint insertion, exception lowering.
-//! LIR contains nothing Scoop-specific and is mechanically translatable
-//! to the target IR.
+//! LIR stage: type layout, exception lowering. LIR contains nothing
+//! Scoop-specific and is mechanically translatable to the target IR.
+//! (Impl spec 2.4's statepoint insertion is applied one stage later,
+//! in codegen — see the M9 note below.)
 //!
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.4 and
 //! `docs/milestone4/DESIGN.md` section 3.4.
@@ -33,8 +34,8 @@
 //! depends on its tag (runtime spec 2.2).
 //!
 //! M5: arrays (docs/milestone5/DESIGN.md 2.4). Both array kinds map
-//! onto `LirType::Array` — a pointer to `{ td, i64 size, inline
-//! elements }`; mutability is compile-time only. The MIR array nodes
+//! onto `LirType::Array` — a pointer to `{ td, gc_word, i64 size,
+//! inline elements }`; mutability is compile-time only. The MIR array nodes
 //! become the `ArrayAlloc` / `ArrayGet` / `ArrayLen` / `ArraySet` /
 //! `ArrayClone` instructions (bounds checks and the clone's runtime
 //! call are codegen's job). Every array type appearing in the module
@@ -59,9 +60,10 @@
 //! existing instruction set (DESIGN 2.4's "复用 GEP 类指令，实现时统一"):
 //!
 //! - `ExtractValue` with a `Ptr` aggregate operand is a heap object
-//!   field load over the raw object struct `{ ptr header, fields...
-//!   }`: index 0 reads the object header (the TypeDescriptor
-//!   pointer), indices 1..=n read the fields. For TypeDescriptor
+//!   field load over the raw object struct `{ ptr td, u64 gc_word,
+//!   fields... }` (M9: the 16-byte object header, milestone9 DESIGN
+//!   section 0): index 0 reads the TypeDescriptor pointer, index 1 the
+//!   GC word, indices 2..=n+1 read the fields. For TypeDescriptor
 //!   pointers the indices follow the codegen-emitted
 //!   `ScoopTypeDescriptor` struct (field 5 is the vtable pointer).
 //!   This plays the role of DESIGN 2.4's `LoadField`. `HeapStore`
@@ -84,8 +86,7 @@
 //! field. Use-site construction already became a plain ctor call in
 //! MIR.
 //!
-//! M8: exceptions (docs/milestone8/DESIGN.md section 3.4). A
-//! structured `mir::StatementKind::Try` becomes basic blocks: inside
+//! M8: exceptions (docs/milestone8/DESIGN.md section 3.4). A//! structured `mir::StatementKind::Try` becomes basic blocks: inside
 //! the body every user call / dispatch that may throw is emitted as
 //! `Invoke` / `InvokeIndirect` to the innermost try's unwind block
 //! (a per-function stack tracks the pads, so nested trys unwind to
@@ -114,6 +115,20 @@
 //! gets `scoop_eh_personality` — codegen derives the flag from the
 //! instruction, so no separate field exists. Functions without a try
 //! are unaffected: their calls stay plain `Call`s.
+//!
+//! M9: the 16-byte object header (milestone9 DESIGN section 0). Every
+//! heap object is `{ ptr td, u64 gc_word, ... }` — the GC's mark / pin
+//! word sits between the TypeDescriptor pointer and the payload, so
+//! every heap index and layout shifts by one slot: class fields are
+//! raw indices 2..=n+1, the boxed payload is index 2, the array size
+//! is index 2 (elements start at byte 24), and the String length is
+//! index 2 (bytes at 24). The layout math below counts the header as
+//! 16 bytes; `scoop_rt_alloc` writes both header words (the TD from
+//! its argument, a zeroed GC word), so no lowering stores the header.
+//! The statepoint side of M9 (the GC strategy, safepoint polls, and
+//! the stackmap emission of impl spec 2.4's statepoint insertion) is
+//! applied in codegen — it is an instrumentation of the emitted LLVM,
+//! and keeping it out of LIR keeps these dumps stable.
 
 use std::collections::HashMap;
 
@@ -234,6 +249,7 @@ fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>
         // References hide whatever they point at behind a pointer.
         mir::Type::Unit
         | mir::Type::Int
+        | mir::Type::UInt
         | mir::Type::Boolean
         | mir::Type::String
         | mir::Type::Class(_)
@@ -421,13 +437,14 @@ fn layouts(
     layouts
 }
 
-/// The runtime `String` object layout (runtime spec 2.4): object
-/// header (one pointer, 8 bytes) + `len` (u64, 8 bytes). The string
-/// data is variable-length and not counted in `size`.
+/// The runtime `String` object layout (runtime spec 2.4): the 16-byte
+/// object header (TD pointer + GC word, M9) + `len` (u64, 8 bytes) at
+/// offset 16. The string data is variable-length and not counted in
+/// `size`.
 fn string_layout() -> lir::Layout {
     lir::Layout {
         name: "String".to_string(),
-        size: 16,
+        size: 24,
         align: 8,
         kind: lir::LayoutKind::Plain {
             ref_field_offsets: Vec::new(),
@@ -536,13 +553,13 @@ fn enum_layout(
     }
 }
 
-/// Layout of an array object (M5, DESIGN 2.4): `{ td, i64 size,
-/// inline elements }`. The object is variable-length, so `size` /
-/// `align` here are element-level information: the element stride
+/// Layout of an array object (M5, DESIGN 2.4): `{ td, gc_word, i64
+/// size, inline elements }`. The object is variable-length, so `size`
+/// / `align` here are element-level information: the element stride
 /// (element size rounded up to its alignment) and alignment of the
-/// element region that follows the 8-byte header + 8-byte size field.
-/// `element_is_ref` tells the M9 GC whether the whole element region
-/// is scanned as references.
+/// element region that follows the 16-byte header (M9) + 8-byte size
+/// field. `element_is_ref` tells the M9 GC whether the whole element
+/// region is scanned as references.
 fn array_layout(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
@@ -561,8 +578,8 @@ fn array_layout(
     }
 }
 
-/// Layout of a class object (M6, runtime spec 2.1/2.2): the 8-byte
-/// object header (the TypeDescriptor pointer) followed by the fields
+/// Layout of a class object (M6, runtime spec 2.1/2.2): the 16-byte
+/// object header (M9: TD pointer + GC word) followed by the fields
 /// — mir-lower already flattened the base-class prefix into
 /// `ClassDef::fields`. Returns size, align, and the reference offsets
 /// relative to the object start (the header itself is not a scanned
@@ -575,7 +592,7 @@ fn class_layout(
 ) -> (u64, u64, Vec<u64>) {
     let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
     let mut offsets = Vec::with_capacity(def.fields.len());
-    let mut size = 8u64;
+    let mut size = 16u64;
     let mut align = 8u64;
     for field in &def.fields {
         let (field_size, field_align) = size_align(module, &enum_shape, &field.ty);
@@ -694,6 +711,7 @@ fn element_is_ref(enums: &Arena<lir::EnumDef>, element: &mir::Type) -> bool {
         }
         mir::Type::Unit
         | mir::Type::Int
+        | mir::Type::UInt
         | mir::Type::Boolean
         | mir::Type::Struct(_)
         | mir::Type::Tuple(_) => false,
@@ -734,7 +752,8 @@ fn size_align(
 ) -> (u64, u64) {
     match ty {
         mir::Type::Unit => (0, 1),
-        mir::Type::Int => (8, 8),
+        // UInt shares Int's machine word (M9, spec 11.2).
+        mir::Type::Int | mir::Type::UInt => (8, 8),
         mir::Type::Boolean => (1, 1),
         mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
             (8, 8)
@@ -800,7 +819,7 @@ fn collect_ref_offsets(
             lir::EnumRepr::Tagged { .. } => return,
         },
         // Scalars contain no references.
-        mir::Type::Unit | mir::Type::Int | mir::Type::Boolean => return,
+        mir::Type::Unit | mir::Type::Int | mir::Type::UInt | mir::Type::Boolean => return,
     };
     let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
     let (field_offsets, _, _) = aggregate_shape(module, &enum_shape, &fields);
@@ -843,7 +862,9 @@ fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
 fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
-        mir::Type::Int => lir::LirType::I64,
+        // UInt shares Int's machine word (M9, spec 11.2): the same
+        // `i64` at LIR, so codegen needs no UInt-specific handling.
+        mir::Type::Int | mir::Type::UInt => lir::LirType::I64,
         mir::Type::Boolean => lir::LirType::I1,
         mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
             lir::LirType::Ptr
@@ -1023,6 +1044,7 @@ fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
         | mir::Type::Enum(..)
         | mir::Type::Tuple(_)
         | mir::Type::Int
+        | mir::Type::UInt
         | mir::Type::Boolean
         | mir::Type::Unit => td_symbol(&format!("box${}", mir::encode_type(module, ty))),
         mir::Type::Any | mir::Type::Array(_) | mir::Type::MutableArray(_) => {
@@ -1221,6 +1243,19 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::Write
                     // The trap is noreturn; its statement is typed Unit.
                     | mir::RuntimeFn::Trap => mir::Type::Unit,
+                    // The test-only GC hooks have fixed types.
+                    mir::RuntimeFn::GcCollect => mir::Type::Unit,
+                    mir::RuntimeFn::GcStats => mir::Type::UInt,
+                    // mir-lower routes the handle intrinsics through
+                    // context-typed positions only (the wrapping
+                    // StructInit's argument, a typed hidden local), so
+                    // their type is never reconstructed here.
+                    mir::RuntimeFn::Pin
+                    | mir::RuntimeFn::Unpin
+                    | mir::RuntimeFn::GetHandle
+                    | mir::RuntimeFn::ReleaseHandle => {
+                        unreachable!("{function:?} results are typed by the mir-lower context")
+                    }
                 },
             },
             // A `Box` result is a reference (`Any` or an interface;
@@ -1313,8 +1348,9 @@ impl<'a> FunctionLowerer<'a> {
             }
             // `obj.field = value`: a heap field store. The MIR index
             // is the flattened field index; the raw object struct has
-            // the header at index 0, so the field sits at index + 1
-            // (the same indexing as `ExtractValue` on a pointer).
+            // the 16-byte header at indices 0 (TD) and 1 (GC word),
+            // so the field sits at index + 2 (the same indexing as
+            // `ExtractValue` on a pointer).
             mir::StatementKind::FieldSet {
                 object,
                 index,
@@ -1331,7 +1367,7 @@ impl<'a> FunctionLowerer<'a> {
                 let value = self.lower_expr(value, &field_ty);
                 self.push(lir::Instruction::HeapStore {
                     object,
-                    index: index + 1,
+                    index: index + 2,
                     value,
                 });
             }
@@ -1650,7 +1686,8 @@ impl<'a> FunctionLowerer<'a> {
             }
             // Raw class construction (only ever inside mir-lower's
             // generated ctor functions): `scoop_rt_alloc(td, size)`,
-            // then one heap store per flattened field.
+            // then one heap store per flattened field (the header is
+            // raw indices 0/1, so the fields start at index 2).
             mir::Expr::ClassInit { class_id, args } => {
                 let def = &self.module.classes[*class_id];
                 let (size, _, _) = class_layout(self.module, self.enums, def);
@@ -1672,7 +1709,7 @@ impl<'a> FunctionLowerer<'a> {
                     let value = self.lower_expr(arg, field_ty);
                     self.push(lir::Instruction::HeapStore {
                         object: lir::Value::Temp(out),
-                        index: index as u32 + 1,
+                        index: index as u32 + 2,
                         value,
                     });
                 }
@@ -1728,11 +1765,11 @@ impl<'a> FunctionLowerer<'a> {
                 let ty = self.value_type(ty);
                 let out = self.new_temp(ty);
                 // A class field is a heap object load: index into the
-                // raw object struct `{ ptr header, fields... }` (see
-                // the module docs), so the field sits at index + 1.
-                // Aggregate receivers extract from the SSA value.
+                // raw object struct `{ ptr td, u64 gc_word, fields...
+                // }` (see the module docs), so the field sits at index
+                // + 2. Aggregate receivers extract from the SSA value.
                 let index = if matches!(receiver_ty, mir::Type::Class(_)) {
-                    index + 1
+                    index + 2
                 } else {
                     *index
                 };
@@ -1762,9 +1799,9 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 lir::Value::Temp(out)
             }
-            // The payload sits right behind the object header: field
-            // 1 of the boxed object's `{ ptr header, payload }` (see
-            // the module docs).
+            // The payload sits right behind the 16-byte object header:
+            // field 2 of the boxed object's `{ ptr td, u64 gc_word,
+            // payload }` (see the module docs).
             mir::Expr::Unbox(operand) => {
                 let object = self.lower_expr(operand, &mir::Type::Any);
                 let ty = self.value_type(ty);
@@ -1772,7 +1809,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.push(lir::Instruction::ExtractValue {
                     out,
                     aggregate: object,
-                    index: 1,
+                    index: 2,
                 });
                 lir::Value::Temp(out)
             }
@@ -2077,6 +2114,15 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringEq => {
                         vec![mir::Type::String, mir::Type::String]
                     }
+                    // The GC intrinsics (M9, runtime spec 3.4): the
+                    // pin / handle operations speak raw machine words
+                    // — the object reference in, the word out (or the
+                    // reverse); the hooks take nothing.
+                    mir::RuntimeFn::Pin | mir::RuntimeFn::GetHandle => vec![mir::Type::Any],
+                    mir::RuntimeFn::Unpin | mir::RuntimeFn::ReleaseHandle => {
+                        vec![mir::Type::UInt]
+                    }
+                    mir::RuntimeFn::GcCollect | mir::RuntimeFn::GcStats => Vec::new(),
                     // The M6 runtime functions are emitted by the
                     // dedicated lowerings (Box / IsInstance / dispatch)
                     // or appear only as vtable slot symbols — never as
@@ -2107,7 +2153,17 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::StringEq => {
                         self.call_with_result(symbol, args, lir::LirType::I1)
                     }
-                    mir::RuntimeFn::Write => {
+                    // The pin / handle intrinsics exchange a word with
+                    // the runtime: `pin` / `getGcHandle` yield the raw
+                    // word (i64), `unpin` / `releaseGcHandle` yield the
+                    // reference (ptr), `gcStats` yields the count.
+                    mir::RuntimeFn::Pin | mir::RuntimeFn::GetHandle | mir::RuntimeFn::GcStats => {
+                        self.call_with_result(symbol, args, lir::LirType::I64)
+                    }
+                    mir::RuntimeFn::Unpin | mir::RuntimeFn::ReleaseHandle => {
+                        self.call_with_result(symbol, args, lir::LirType::Ptr)
+                    }
+                    mir::RuntimeFn::Write | mir::RuntimeFn::GcCollect => {
                         self.push(lir::Instruction::Call {
                             out: None,
                             symbol,
@@ -2589,7 +2645,7 @@ Module
     call @scoop.helper()
     t1 = aggregate () : {}
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -2635,7 +2691,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -2688,7 +2744,7 @@ Module
     br @while.cond.1
   block while.exit.3
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -2742,7 +2798,7 @@ Module
   block sc.merge.2
     store local1 -> local0
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -2789,7 +2845,7 @@ Module
   block sc.merge.2
     store local3 -> local2
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -3097,6 +3153,42 @@ Module
     }
 
     #[test]
+    fn uint_shares_ints_machine_word() {
+        // UInt (spec 11.2, M9) maps onto `i64` at LIR — the same
+        // machine word as Int, so codegen needs no UInt-specific
+        // handling.
+        let mut b = Builder::new();
+        // A UInt field in a class: an 8-byte scalar slot behind the
+        // 16-byte header, exactly like an Int field.
+        let _c = b.class("C", None, &[("u", mir::Type::UInt)], any_slots(), vec![]);
+        let mut locals = Arena::new();
+        let u = locals.alloc(local("u", mir::Type::UInt));
+        let main = b.main(locals, vec![val_decl(u, mir::Expr::IntLiteral(1))]);
+        let module = lower(&b.finish(main));
+
+        let function = &module.functions[0];
+        let (_, u_local) = function.locals.iter().next().expect("one local");
+        assert_eq!(u_local.ty, lir::LirType::I64);
+
+        let c_layout = module
+            .meta
+            .layouts
+            .iter()
+            .find(|l| l.name == "C")
+            .expect("a layout per class");
+        assert_eq!((c_layout.size, c_layout.align), (24, 8));
+        assert!(plain_refs(c_layout).is_empty());
+        let c_td = module
+            .meta
+            .type_descriptors
+            .iter()
+            .find(|td| td.name == "C")
+            .expect("a TypeDescriptor per class");
+        assert_eq!(c_td.size, 24);
+        assert!(c_td.ref_offsets.is_empty());
+    }
+
+    #[test]
     fn layouts_mark_reference_fields_for_the_gc() {
         let mut b = Builder::new();
         // String field behind one Int: the reference sits at offset 8.
@@ -3146,7 +3238,7 @@ Module
         );
 
         let string = by_name("String");
-        assert_eq!((string.size, string.align), (16, 8));
+        assert_eq!((string.size, string.align), (24, 8));
         assert!(plain_refs(string).is_empty());
 
         // S { a: Int @0, s: String @8 }: size 16, align 8, refs [8].
@@ -3240,7 +3332,7 @@ Module
     t0 = call @scoop.add(40, 2) : i64
     store t0 -> local0
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -3274,13 +3366,13 @@ Module
 Module
   fun @scoop.tostring.I(ptr) -> ptr
   block entry
-    t0 = extract param0, 1 : i64
+    t0 = extract param0, 2 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
     ret t1
   fun @scoop_main() -> void
   block entry
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -3327,7 +3419,7 @@ Module
   fun @scoop_main() -> void
   block entry
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -3410,7 +3502,7 @@ Module
     t3 = enum_wrap e0 v0 (local2) : enum0
     store t3 -> local3
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option$S size=8 align=8 enum-refs=[[0], []]
@@ -3443,7 +3535,7 @@ Module
     t3 = enum_wrap e0 v0 (local2) : enum0
     store t3 -> local3
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option$I size=16 align=8 enum-refs=[[], []]
@@ -3700,7 +3792,7 @@ Module
   fun @scoop_main() -> void
   block entry
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option$I size=16 align=8 enum-refs=[[], []]
@@ -3770,7 +3862,7 @@ Module
     store t3 -> local3
     array_set local3 0 40
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Array<Int> size=8 align=8 array(element_is_ref=false)
@@ -3919,11 +4011,11 @@ Module
     t2 = call_indirect t1[3](local0) : i64
     store t2 -> local1
     ret
-  td C @scoop_td_C size=8 vtable=3 itables=0
-  layout String size=16 align=8 refs=[]
+  td C @scoop_td_C size=16 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout C size=8 align=8 refs=[]
+  layout C size=16 align=8 refs=[]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
@@ -3980,7 +4072,7 @@ Module
     store t2 -> local1
     ret
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -4067,7 +4159,8 @@ Module
 
         assert_eq!(base_td.name, "Base");
         assert_eq!(base_td.symbol, "scoop_td_Base");
-        assert_eq!((base_td.size, base_td.align), (16, 8));
+        // 16-byte header + Int @16 → size 24.
+        assert_eq!((base_td.size, base_td.align), (24, 8));
         assert!(base_td.ref_offsets.is_empty());
         assert!(base_td.parent.is_none());
         assert_eq!(
@@ -4085,10 +4178,10 @@ Module
 
         assert_eq!(derived_td.symbol, "scoop_td_Derived");
         assert_eq!(derived_td.parent.as_deref(), Some("scoop_td_Base"));
-        // header 8 + Int @8 + String @16 → size 24; the String is the
-        // one reference.
-        assert_eq!((derived_td.size, derived_td.align), (24, 8));
-        assert_eq!(derived_td.ref_offsets, [16]);
+        // header 16 + Int @16 + String @24 → size 32; the String is
+        // the one reference.
+        assert_eq!((derived_td.size, derived_td.align), (32, 8));
+        assert_eq!(derived_td.ref_offsets, [24]);
         assert_eq!(
             derived_td.vtable,
             [
@@ -4139,15 +4232,15 @@ Module
                 .find(|l| l.name == name)
                 .unwrap_or_else(|| panic!("missing layout for {name}"))
         };
-        // C: header 8; a @8, s @16, flag @24, r @32 → size 40.
+        // C: header 16; a @16, s @24, flag @32, r @40 → size 48.
         let c_layout = by_name("C");
-        assert_eq!((c_layout.size, c_layout.align), (40, 8));
-        assert_eq!(plain_refs(c_layout), [16, 32]);
-        // box$S: header 8 + payload { Int @0, String @8 } @8 → the
-        // String lands at 16.
+        assert_eq!((c_layout.size, c_layout.align), (48, 8));
+        assert_eq!(plain_refs(c_layout), [24, 40]);
+        // box$S: header 16 + payload { Int @0, String @8 } @16 → the
+        // String lands at 24.
         let boxed_layout = by_name("box$S");
-        assert_eq!((boxed_layout.size, boxed_layout.align), (24, 8));
-        assert_eq!(plain_refs(boxed_layout), [16]);
+        assert_eq!((boxed_layout.size, boxed_layout.align), (32, 8));
+        assert_eq!(plain_refs(boxed_layout), [24]);
         // The TypeDescriptors carry the same reference offsets.
         let td = |name: &str| {
             module
@@ -4157,8 +4250,8 @@ Module
                 .find(|td| td.name == name)
                 .unwrap_or_else(|| panic!("missing TypeDescriptor for {name}"))
         };
-        assert_eq!(td("C").ref_offsets, [16, 32]);
-        assert_eq!(td("box$S").ref_offsets, [16]);
+        assert_eq!(td("C").ref_offsets, [24, 40]);
+        assert_eq!(td("box$S").ref_offsets, [24]);
         assert!(td("C").parent.is_none());
         assert!(td("box$S").parent.is_none());
     }
@@ -4216,17 +4309,125 @@ Module
     t0 = aggregate (1) : {i64}
     t1 = call @scoop_rt_box(global0, t0, 8) : ptr
     store t1 -> local0
-    t2 = extract local0, 1 : {i64}
+    t2 = extract local0, 2 : {i64}
     store t2 -> local1
     t3 = call @scoop_rt_is_instance(local0, global0) : i1
     store t3 -> local2
     ret
-  td box$S @scoop_td_box$S size=16 vtable=3 itables=0
-  layout String size=16 align=8 refs=[]
+  td box$S @scoop_td_box$S size=24 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout S size=8 align=8 refs=[]
-  layout box$S size=16 align=8 refs=[]
+  layout box$S size=24 align=8 refs=[]
+  entry @scoop_main
+";
+        assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn gc_intrinsics_exchange_words_with_the_runtime() {
+        // The MIR shapes mir-lower produces for the M9 GC intrinsics
+        // (milestone9 DESIGN section 1): `pin` / `getGcHandle` wrap
+        // the runtime's raw word into the handle struct, `unpin` /
+        // `releaseGcHandle` unwrap field 0 for the reverse call, and
+        // the hooks are a void call / an i64 result.
+        let mut b = Builder::new();
+        let pin_handle = b.strukt("PinHandle$S", &[("raw", mir::Type::UInt)]);
+        let gc_handle = b.strukt("GcHandle$S", &[("raw", mir::Type::UInt)]);
+        let mut locals = Arena::new();
+        let v = locals.alloc(local("v", mir::Type::String));
+        let h = locals.alloc(local("h", mir::Type::Struct(pin_handle)));
+        let gc1 = locals.alloc(local("$gc.1", mir::Type::String));
+        let p = locals.alloc(local("p", mir::Type::String));
+        let gh = locals.alloc(local("gh", mir::Type::Struct(gc_handle)));
+        let gc2 = locals.alloc(local("$gc.2", mir::Type::String));
+        let p2 = locals.alloc(local("p2", mir::Type::String));
+        let n = locals.alloc(local("n", mir::Type::UInt));
+        let main = b.main(
+            locals,
+            vec![
+                val_decl(
+                    h,
+                    mir::Expr::StructInit {
+                        struct_id: pin_handle,
+                        args: vec![runtime_call(mir::RuntimeFn::Pin, vec![mir::Expr::Local(v)])],
+                    },
+                ),
+                val_decl(
+                    gc1,
+                    runtime_call(
+                        mir::RuntimeFn::Unpin,
+                        vec![mir::Expr::FieldAccess {
+                            receiver: Box::new(mir::Expr::Local(h)),
+                            index: 0,
+                        }],
+                    ),
+                ),
+                val_decl(p, mir::Expr::Local(gc1)),
+                val_decl(
+                    gh,
+                    mir::Expr::StructInit {
+                        struct_id: gc_handle,
+                        args: vec![runtime_call(
+                            mir::RuntimeFn::GetHandle,
+                            vec![mir::Expr::Local(v)],
+                        )],
+                    },
+                ),
+                val_decl(
+                    gc2,
+                    runtime_call(
+                        mir::RuntimeFn::ReleaseHandle,
+                        vec![mir::Expr::FieldAccess {
+                            receiver: Box::new(mir::Expr::Local(gh)),
+                            index: 0,
+                        }],
+                    ),
+                ),
+                val_decl(p2, mir::Expr::Local(gc2)),
+                expr_stmt(runtime_call(mir::RuntimeFn::GcCollect, vec![])),
+                val_decl(n, runtime_call(mir::RuntimeFn::GcStats, vec![])),
+            ],
+        );
+        let module = lower(&b.finish(main));
+
+        let expected = "\
+Module
+  fun @scoop_main() -> void
+    local %0 v: ptr
+    local %1 h: {i64}
+    local %2 $gc.1: ptr
+    local %3 p: ptr
+    local %4 gh: {i64}
+    local %5 $gc.2: ptr
+    local %6 p2: ptr
+    local %7 n: i64
+  block entry
+    t0 = call @scoop_rt_pin(local0) : i64
+    t1 = aggregate (t0) : {i64}
+    store t1 -> local1
+    t2 = extract local1, 0 : i64
+    t3 = call @scoop_rt_unpin(t2) : ptr
+    store t3 -> local2
+    store local2 -> local3
+    t4 = call @scoop_rt_get_handle(local0) : i64
+    t5 = aggregate (t4) : {i64}
+    store t5 -> local4
+    t6 = extract local4, 0 : i64
+    t7 = call @scoop_rt_release_handle(t6) : ptr
+    store t7 -> local5
+    store local5 -> local6
+    call @scoop_rt_gc_collect()
+    t8 = aggregate () : {}
+    t9 = call @scoop_rt_gc_stats() : i64
+    store t9 -> local7
+    ret
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout PinHandle$S size=8 align=8 refs=[]
+  layout GcHandle$S size=8 align=8 refs=[]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
@@ -4257,14 +4458,14 @@ Module
         );
         let module = lower(&b.finish(main));
 
-        // Field 1 of the raw `{ ptr header, a, s }` object struct is
-        // at index 2 (the header is index 0).
+        // Field 1 of the raw `{ ptr td, u64 gc_word, a, s }` object
+        // struct is at index 3 (0 and 1 are the 16-byte header).
         let function = &module.functions[0];
         let instructions = &function.blocks[function.entry].instructions;
         let lir::Instruction::ExtractValue { out, index, .. } = &instructions[0] else {
             panic!("a class field read must be a heap object load")
         };
-        assert_eq!(*index, 2);
+        assert_eq!(*index, 3);
         assert_eq!(function.temps[*out].ty, lir::LirType::Ptr);
     }
 
@@ -4317,18 +4518,18 @@ Module
         );
         let module = lower(&b.finish(main));
 
-        // `scoop_rt_alloc(td, size)` with the class layout size (8
-        // header + Int @8 + String @16 = 24), then the fields at the
-        // raw object indices 1 and 2.
+        // `scoop_rt_alloc(td, size)` with the class layout size (16
+        // header + Int @16 + String @24 = 32), then the fields at the
+        // raw object indices 2 and 3.
         let expected = "\
 Module
   global @scoop.str.0 = \"x\"
   global @scoop_td_Point = c\"\"
   fun @scoop.ctor.Point(i64, ptr) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global1, 24) : ptr
-    heap_store t0 1 param0
-    heap_store t0 2 param1
+    t0 = call @scoop_rt_alloc(global1, 32) : ptr
+    heap_store t0 2 param0
+    heap_store t0 3 param1
     ret t0
   fun @scoop_main() -> void
     local %0 p: ptr
@@ -4336,11 +4537,11 @@ Module
     t0 = call @scoop.ctor.Point(1, global0) : ptr
     store t0 -> local0
     ret
-  td Point @scoop_td_Point size=24 vtable=3 itables=0
-  layout String size=16 align=8 refs=[]
+  td Point @scoop_td_Point size=32 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Point size=24 align=8 refs=[16]
+  layout Point size=32 align=8 refs=[24]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
@@ -4349,7 +4550,7 @@ Module
     #[test]
     fn field_set_lowers_to_a_heap_store() {
         // `p.y = 3`: MIR FieldSet index 1 → heap store at the raw
-        // object index 2 (the header is index 0).
+        // object index 3 (0 and 1 are the 16-byte header).
         let mut b = Builder::new();
         let c = b.class(
             "C",
@@ -4374,7 +4575,7 @@ Module
         let instructions = &function.blocks[function.entry].instructions;
         let lir::Instruction::HeapStore {
             object,
-            index: 2,
+            index: 3,
             value,
         } = &instructions[0]
         else {
@@ -4487,11 +4688,11 @@ Module
   block try.next.5
     call @scoop_rt_rethrow()
     unreachable
-  td MyError @scoop_td_MyError size=8 vtable=0 itables=0
-  layout String size=16 align=8 refs=[]
+  td MyError @scoop_td_MyError size=16 vtable=0 itables=0
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout MyError size=8 align=8 refs=[]
+  layout MyError size=16 align=8 refs=[]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
@@ -4583,7 +4784,7 @@ Module
   fun @scoop_main() -> void
   block entry
     ret
-  layout String size=16 align=8 refs=[]
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
@@ -4630,18 +4831,18 @@ Module
   global @scoop_td_MyError = c\"\"
   fun @scoop.makeError() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global0, 8) : ptr
+    t0 = call @scoop_rt_alloc(global0, 16) : ptr
     ret t0
   fun @scoop_main() -> void
   block entry
     t0 = call @scoop.makeError() : ptr
     throw t0
     unreachable
-  td MyError @scoop_td_MyError size=8 vtable=0 itables=0
-  layout String size=16 align=8 refs=[]
+  td MyError @scoop_td_MyError size=16 vtable=0 itables=0
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout MyError size=8 align=8 refs=[]
+  layout MyError size=16 align=8 refs=[]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);

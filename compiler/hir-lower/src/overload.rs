@@ -157,6 +157,11 @@ impl Lowerer {
             args.push(self.adapt_to(arg, expected));
         }
         let return_ty = self.substitute_call_level(candidate.return_ty, &type_args);
+        // M9: the GC intrinsics constrain their type argument to
+        // reference types (see `check_gc_ref_constraint`).
+        if !self.check_gc_ref_constraint(function, &type_args, &args) {
+            return None;
+        }
         // Enum methods instantiate over the receiver's type arguments;
         // generic functions over the inferred call-level ones.
         if !receiver_type_args.is_empty() {
@@ -350,6 +355,23 @@ impl Lowerer {
                     .iter()
                     .zip(arg_args)
                     .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+            }
+            // Generic struct applications (M9): see `bind_type_args`.
+            (Type::Struct(param_id), Type::Struct(arg_id)) if param_id == arg_id => {
+                match (
+                    self.generic_struct_args.get(&param_ty),
+                    self.generic_struct_args.get(&arg_ty),
+                ) {
+                    (Some((_, param_args)), Some((_, arg_args)))
+                        if param_args.len() == arg_args.len() =>
+                    {
+                        param_args
+                            .iter()
+                            .zip(arg_args.iter())
+                            .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
+                    }
+                    _ => true,
+                }
             }
             (Type::Array(param), Type::Array(arg))
             | (Type::MutableArray(param), Type::MutableArray(arg)) => {

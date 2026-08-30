@@ -1,4 +1,4 @@
-//! Recursive-descent parser for the M8 subset: token vector -> AST.
+//! Recursive-descent parser for the M9 subset: token vector -> AST.
 //!
 //! Parsing is fail-fast (see `docs/milestone2/DESIGN.md` section 5): the
 //! first error aborts parsing with a single spanned diagnostic. Constructs

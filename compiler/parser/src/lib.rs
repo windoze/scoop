@@ -1,8 +1,9 @@
 //! Parser stage: source text -> AST.
 //!
-//! Hand-written lexer + recursive-descent parser for the M8 subset; see
-//! `docs/milestone8/DESIGN.md` section 3.1 and `docs/specs/SCOOP-IMPL-SPEC.md`
-//! section 2.1. Depends only on `scoop-ast` (the output data channel).
+//! Hand-written lexer + recursive-descent parser for the M9 subset; see
+//! `docs/milestone9/DESIGN.md` (generic struct declarations) and
+//! `docs/specs/SCOOP-IMPL-SPEC.md` section 2.1. Depends only on
+//! `scoop-ast` (the output data channel).
 
 mod decl;
 mod expr;
@@ -23,6 +24,8 @@ mod tests_m5;
 mod tests_m6;
 #[cfg(test)]
 mod tests_m8;
+#[cfg(test)]
+mod tests_m9;
 
 /// Parses a whole source file into an AST.
 ///

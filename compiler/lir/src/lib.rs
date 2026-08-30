@@ -269,10 +269,10 @@ pub enum Instruction {
     /// `store value -> local`'s stack slot.
     Store { local: LocalId, value: Value },
     /// Heap field store: `object` is a `ptr` to a heap object laid
-    /// out as `{ ptr header, fields... }` (the same indexing as
-    /// `ExtractValue` on a `ptr` aggregate: 0 = header, 1..=n =
-    /// flattened fields, base-class fields first). `index` must be
-    /// >= 1.
+    /// out as `{ ptr td, u64 gc_word, fields... }` (the same indexing
+    /// as `ExtractValue` on a `ptr` aggregate: 0 = TD pointer,
+    /// 1 = GC word, 2..=n+1 = flattened fields, base-class fields
+    /// first). `index` must be >= 2 (0 and 1 are the object header).
     HeapStore {
         object: Value,
         index: u32,

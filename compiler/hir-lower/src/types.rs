@@ -30,11 +30,25 @@
 //! accompanying conversion: a value type crossing into `Any` / an
 //! interface is boxed (`ExprKind::Box`, spec 4.4.4); a class reference
 //! crossing to a base class / interface / `Any` is a zero-cost retype.
+//!
+//! M9 (milestone9 DESIGN.md section 1): the `UInt` well-known type
+//! (spec 11.2; distinct from `Int` — `types_equal` stays strict and
+//! there is no implicit conversion) and generic struct applications
+//! (`PinHandle<T>` / `GcHandle<T>` from the core GC facilities). HIR's
+//! `Type::Struct` carries no type arguments, so an application is a
+//! fresh `Type::Struct` arena entry whose arguments live in the
+//! lowerer-side `generic_struct_args` table; the phantom parameters
+//! exist only for HIR-level checking and mir-lower maps every entry
+//! of one struct to the same MIR type. Generic struct *declarations*
+//! arrive with parser support; until then the two core GC handle
+//! structs are recognized by name (like `Option` / `Throwable`).
+
+use std::collections::HashMap;
 
 use la_arena::Arena;
 use scoop_ast as ast;
 use scoop_hir as hir;
-use scoop_hir::{ClassDecl, EnumDecl, InterfaceDecl, StructDecl, Type, TypeId};
+use scoop_hir::{ClassDecl, EnumDecl, InterfaceDecl, StructDecl, StructId, Type, TypeId};
 
 use crate::Lowerer;
 
@@ -49,8 +63,9 @@ impl Lowerer {
             ast::TypeRefKind::Unit => Some(self.unit),
             ast::TypeRefKind::Generic(name, args) => {
                 // `Name<T1, ...>`: generic type application. M4: only
-                // generic enums (structs are not generic yet). M5: the
-                // built-in `Array<T>` / `MutableArray<T>`.
+                // generic enums. M5: the built-in `Array<T>` /
+                // `MutableArray<T>`. M9: generic structs (the core GC
+                // handle types).
                 if let Some(index) = self
                     .type_params_in_scope
                     .iter()
@@ -87,10 +102,32 @@ impl Lowerer {
                     };
                     return Some(self.intern_type(ty));
                 }
+                // Generic structs (M9: the core GC handle types, see
+                // the module docs); every other struct is not generic.
+                if let Some(&(struct_id, _)) = self.structs_by_name.get(&name.text) {
+                    let Some(&arity) = self.generic_structs.get(&struct_id) else {
+                        self.error(name.span, format!("struct `{}` is not generic", name.text));
+                        return None;
+                    };
+                    if arity != args.len() {
+                        self.error(
+                            name.span,
+                            format!(
+                                "struct `{}` takes {arity} type argument(s), but {} were supplied",
+                                name.text,
+                                args.len()
+                            ),
+                        );
+                        return None;
+                    }
+                    let mut resolved = Vec::with_capacity(args.len());
+                    for arg in args {
+                        resolved.push(self.resolve_type_ref(arg)?);
+                    }
+                    return Some(self.struct_application(struct_id, resolved));
+                }
                 let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
-                    let what = if self.structs_by_name.contains_key(&name.text) {
-                        format!("struct `{}` is not generic", name.text)
-                    } else if self.classes_by_name.contains_key(&name.text) {
+                    let what = if self.classes_by_name.contains_key(&name.text) {
                         format!("class `{}` is not generic", name.text)
                     } else if self.interfaces_by_name.contains_key(&name.text) {
                         format!("interface `{}` is not generic", name.text)
@@ -131,6 +168,7 @@ impl Lowerer {
                 match name.text.as_str() {
                     "Unit" => Some(self.unit),
                     "Int" => Some(self.int),
+                    "UInt" => Some(self.uint),
                     "Boolean" => Some(self.boolean),
                     "String" => Some(self.string),
                     // `Any` is a compiler built-in (milestone6 DESIGN.md
@@ -147,7 +185,21 @@ impl Lowerer {
                             );
                             return None;
                         }
-                        if let Some(&(_, ty)) = self.structs_by_name.get(&name.text) {
+                        if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
+                            // A generic struct needs its type
+                            // arguments (`PinHandle<T>` goes through
+                            // TypeRefKind::Generic), mirroring the
+                            // generic enum rule below.
+                            if let Some(&arity) = self.generic_structs.get(&struct_id) {
+                                self.error(
+                                    name.span,
+                                    format!(
+                                        "generic struct `{}` requires {arity} type argument(s)",
+                                        name.text
+                                    ),
+                                );
+                                return None;
+                            }
                             return Some(ty);
                         }
                         if let Some(&(_, ty)) = self.classes_by_name.get(&name.text) {
@@ -213,13 +265,46 @@ impl Lowerer {
 
     /// Intern a type, so structurally equal types share a single
     /// `TypeId` (this makes instantiation dedup a plain id comparison).
+    /// The candidate is allocated first so `type_value_equal` can
+    /// consult `generic_struct_args` for nested generic struct
+    /// applications; on a dedup hit the fresh entry simply stays
+    /// unreferenced (nothing iterates the arena semantically).
     pub(crate) fn intern_type(&mut self, candidate: Type) -> TypeId {
+        let id = self.types.alloc(candidate);
+        for (other, _) in self.types.iter() {
+            if other != id && type_value_equal(&self.types, &self.generic_struct_args, other, id) {
+                return other;
+            }
+        }
+        id
+    }
+
+    /// Intern a generic struct application (`PinHandle<String>`, M9).
+    /// HIR's `Type::Struct` carries no type arguments, so each
+    /// distinct application is a fresh `Type::Struct(struct_id)` arena
+    /// entry with the arguments recorded in `generic_struct_args`;
+    /// equality and rendering consult that table, and mir-lower maps
+    /// every entry of one struct to the same MIR type.
+    pub(crate) fn struct_application(&mut self, struct_id: StructId, args: Vec<TypeId>) -> TypeId {
         for (id, ty) in self.types.iter() {
-            if type_value_equal(&self.types, ty, &candidate) {
+            if !matches!(ty, Type::Struct(existing) if *existing == struct_id) {
+                continue;
+            }
+            let Some((_, existing_args)) = self.generic_struct_args.get(&id) else {
+                continue;
+            };
+            if existing_args.len() == args.len()
+                && existing_args
+                    .iter()
+                    .zip(args.iter())
+                    .all(|(&x, &y)| self.types_equal(x, y))
+            {
                 return id;
             }
         }
-        self.types.alloc(candidate)
+        let id = self.types.alloc(Type::Struct(struct_id));
+        self.generic_struct_args.insert(id, (struct_id, args));
+        id
     }
 
     /// Substitute bound type arguments for `Type::Param`, recursively.
@@ -229,6 +314,16 @@ impl Lowerer {
     /// every parameter is bound (unbound parameters are diagnosed at
     /// the use site first).
     pub(crate) fn instantiate_ty(&mut self, ty: TypeId, type_args: &[TypeId]) -> TypeId {
+        // Generic struct applications substitute inside their argument
+        // list and re-intern (the arguments live in the side table,
+        // not in the `Type` value).
+        if let Some((struct_id, args)) = self.generic_struct_args.get(&ty).cloned() {
+            let substituted = args
+                .iter()
+                .map(|&arg| self.instantiate_ty(arg, type_args))
+                .collect();
+            return self.struct_application(struct_id, substituted);
+        }
         match self.types[ty].clone() {
             Type::Param(index) => type_args[index as usize],
             Type::Array(element) => {
@@ -264,6 +359,13 @@ impl Lowerer {
         ty: TypeId,
         bindings: &[Option<TypeId>],
     ) -> Option<TypeId> {
+        if let Some((struct_id, args)) = self.generic_struct_args.get(&ty).cloned() {
+            let mut substituted = Vec::with_capacity(args.len());
+            for arg in args {
+                substituted.push(self.try_substitute(arg, bindings)?);
+            }
+            return Some(self.struct_application(struct_id, substituted));
+        }
         match self.types[ty].clone() {
             Type::Param(index) => bindings.get(index as usize).copied().flatten(),
             Type::Array(element) => {
@@ -301,9 +403,11 @@ impl Lowerer {
     }
 
     /// Structural type equality (tuple and enum types compare
-    /// elementwise).
+    /// elementwise; generic struct applications compare by struct and
+    /// argument list, so `PinHandle<Int>` and `PinHandle<String>` are
+    /// different types — just as `Int` and `UInt` are, spec 11.2).
     pub(crate) fn types_equal(&self, a: TypeId, b: TypeId) -> bool {
-        type_value_equal(&self.types, &self.types[a], &self.types[b])
+        type_value_equal(&self.types, &self.generic_struct_args, a, b)
     }
 
     /// Render a type for diagnostics. Type parameters render with
@@ -312,6 +416,7 @@ impl Lowerer {
     pub(crate) fn type_name(&self, ty: TypeId) -> String {
         type_name(
             &self.types,
+            &self.generic_struct_args,
             &self.structs,
             &self.enums,
             &self.classes,
@@ -370,6 +475,7 @@ impl Lowerer {
             self.types[ty],
             Type::Unit
                 | Type::Int
+                | Type::UInt
                 | Type::Boolean
                 | Type::Struct(_)
                 | Type::Enum(..)
@@ -411,18 +517,38 @@ impl Lowerer {
     }
 }
 
-fn type_value_equal(types: &Arena<Type>, a: &Type, b: &Type) -> bool {
-    match (a, b) {
+fn type_value_equal(
+    types: &Arena<Type>,
+    struct_args: &HashMap<TypeId, (StructId, Vec<TypeId>)>,
+    a: TypeId,
+    b: TypeId,
+) -> bool {
+    match (&types[a], &types[b]) {
         (Type::Unit, Type::Unit)
         | (Type::Int, Type::Int)
+        | (Type::UInt, Type::UInt)
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String)
         | (Type::Any, Type::Any) => true,
-        (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Struct(x), Type::Struct(y)) => {
+            x == y
+                && match (struct_args.get(&a), struct_args.get(&b)) {
+                    (None, None) => true,
+                    (Some((_, xs)), Some((_, ys))) => {
+                        xs.len() == ys.len()
+                            && xs
+                                .iter()
+                                .zip(ys.iter())
+                                .all(|(&x, &y)| type_value_equal(types, struct_args, x, y))
+                    }
+                    // A bare struct type never equals an application.
+                    _ => false,
+                }
+        }
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
-            type_value_equal(types, &types[*x], &types[*y])
+            type_value_equal(types, struct_args, *x, *y)
         }
         (Type::Param(x), Type::Param(y)) => x == y,
         (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
@@ -431,21 +557,23 @@ fn type_value_equal(types: &Arena<Type>, a: &Type, b: &Type) -> bool {
                 && x_args
                     .iter()
                     .zip(y_args.iter())
-                    .all(|(&x, &y)| type_value_equal(types, &types[x], &types[y]))
+                    .all(|(&x, &y)| type_value_equal(types, struct_args, x, y))
         }
         (Type::Tuple(xs), Type::Tuple(ys)) => {
             xs.len() == ys.len()
                 && xs
                     .iter()
                     .zip(ys.iter())
-                    .all(|(&x, &y)| type_value_equal(types, &types[x], &types[y]))
+                    .all(|(&x, &y)| type_value_equal(types, struct_args, x, y))
         }
         _ => false,
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn type_name(
     types: &Arena<Type>,
+    struct_args: &HashMap<TypeId, (StructId, Vec<TypeId>)>,
     structs: &Arena<StructDecl>,
     enums: &Arena<EnumDecl>,
     classes: &Arena<ClassDecl>,
@@ -456,15 +584,37 @@ fn type_name(
     match &types[ty] {
         Type::Unit => "Unit".to_string(),
         Type::Int => "Int".to_string(),
+        Type::UInt => "UInt".to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
-        Type::Struct(id) => structs[*id].name.clone(),
+        Type::Struct(id) => match struct_args.get(&ty) {
+            Some((_, args)) => {
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|t| {
+                        type_name(
+                            types,
+                            struct_args,
+                            structs,
+                            enums,
+                            classes,
+                            interfaces,
+                            type_params,
+                            *t,
+                        )
+                    })
+                    .collect();
+                format!("{}<{}>", structs[*id].name, inner.join(", "))
+            }
+            None => structs[*id].name.clone(),
+        },
         Type::Class(id) => classes[*id].name.clone(),
         Type::Interface(id) => interfaces[*id].name.clone(),
         Type::Any => "Any".to_string(),
         Type::Array(element) => {
             let inner = type_name(
                 types,
+                struct_args,
                 structs,
                 enums,
                 classes,
@@ -477,6 +627,7 @@ fn type_name(
         Type::MutableArray(element) => {
             let inner = type_name(
                 types,
+                struct_args,
                 structs,
                 enums,
                 classes,
@@ -493,7 +644,18 @@ fn type_name(
             } else {
                 let inner: Vec<String> = args
                     .iter()
-                    .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
+                    .map(|t| {
+                        type_name(
+                            types,
+                            struct_args,
+                            structs,
+                            enums,
+                            classes,
+                            interfaces,
+                            type_params,
+                            *t,
+                        )
+                    })
                     .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
@@ -501,7 +663,18 @@ fn type_name(
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements
                 .iter()
-                .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
+                .map(|t| {
+                    type_name(
+                        types,
+                        struct_args,
+                        structs,
+                        enums,
+                        classes,
+                        interfaces,
+                        type_params,
+                        *t,
+                    )
+                })
                 .collect();
             format!("({})", inner.join(", "))
         }

@@ -5,7 +5,7 @@
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M8 subset. Reserved words are dedicated variants;
+/// Token kinds of the M9 subset. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word). Words that only matter in specific
 /// positions (`open`, `abstract`, `override`, `super`, `object`,

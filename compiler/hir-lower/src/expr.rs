@@ -38,12 +38,19 @@
 //! and element type from an expected array type. Every other expression
 //! ignores the hint and mismatches are reported by the context's own
 //! type check.
+//!
+//! M9 (milestone9 DESIGN.md section 1): arithmetic and comparison
+//! operators accept `UInt` operands under the same rules as `Int`
+//! (both sides must share one type — no `Int`/`UInt` mixing), and
+//! calls to the GC intrinsics (`pin` / `unpin` / `getGcHandle` /
+//! `releaseGcHandle`) check that the inferred type argument is a
+//! reference type (`check_gc_ref_constraint`).
 
 use scoop_ast as ast;
 use scoop_hir as hir;
 
 use ast::Span;
-use hir::{ExprKind, Type, TypeId};
+use hir::{ExprKind, FunctionKind, Type, TypeId};
 
 use crate::{Lowerer, Owner};
 
@@ -1272,6 +1279,12 @@ impl Lowerer {
             }
         }
 
+        // M9: the GC intrinsics constrain their type argument to
+        // reference types (spec 14.1's `T : ref` before M12 bounds).
+        if !self.check_gc_ref_constraint(function, &type_args, &args) {
+            return None;
+        }
+
         // Argument types must be subtypes of the (instantiated)
         // parameter types; the adaptation boxes value types crossing
         // into `Any` / an interface (M6).
@@ -1313,10 +1326,52 @@ impl Lowerer {
         })
     }
 
+    /// The M9 form of spec 14.1's `T : ref` bound (milestone9 DESIGN.md
+    /// section 1): a call to one of the four GC intrinsics (`pin` /
+    /// `unpin` / `getGcHandle` / `releaseGcHandle`) is only legal when
+    /// the inferred type argument is a reference type — full
+    /// type-parameter bounds arrive with M12. `args` are the lowered
+    /// call arguments; the diagnostic points at the argument whose
+    /// type (or handle type parameter) is constrained. Returns `false`
+    /// after recording the diagnostic.
+    pub(crate) fn check_gc_ref_constraint(
+        &mut self,
+        function: hir::FunctionId,
+        type_args: &[TypeId],
+        args: &[hir::Expr],
+    ) -> bool {
+        let FunctionKind::Intrinsic(intrinsic) = &self.functions[function].kind else {
+            return true;
+        };
+        if !matches!(
+            intrinsic.as_str(),
+            "rt_pin" | "rt_unpin" | "rt_get_handle" | "rt_release_handle"
+        ) {
+            return true;
+        }
+        // All four declare exactly one type parameter and one value
+        // parameter (`gc.scoop`); inference bound the former.
+        let (Some(&t), Some(arg)) = (type_args.first(), args.first()) else {
+            return true;
+        };
+        if self.is_ref_ty(t) {
+            return true;
+        }
+        let name = self.functions[function].name.clone();
+        let found = self.type_name(t);
+        self.error(
+            arg.span,
+            format!("{name} requires a reference type argument, found {found}"),
+        );
+        false
+    }
+
     /// Bind type arguments by matching a parameter (or variant field)
     /// type against the argument type: `T` binds to the argument type,
     /// `Option<T>` vs `Option<Int>` recurses (so `T = Int`) — as do
-    /// other enum applications — and tuples match elementwise. Anything
+    /// other enum applications — generic struct applications
+    /// (`PinHandle<T>`, M9) match by struct and recurse into their
+    /// argument lists, and tuples match elementwise. Anything
     /// else is left to the argument type check. Returns `false` after
     /// recording a conflict diagnostic.
     fn bind_type_args(
@@ -1361,6 +1416,26 @@ impl Lowerer {
                     ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
                 }
                 ok
+            }
+            // Generic struct applications (M9): the argument lists
+            // live in the side table, not in the `Type` value.
+            (Type::Struct(param_id), Type::Struct(arg_id)) if param_id == arg_id => {
+                let pair = (
+                    self.generic_struct_args.get(&param_ty).cloned(),
+                    self.generic_struct_args.get(&arg_ty).cloned(),
+                );
+                match pair {
+                    (Some((_, param_args)), Some((_, arg_args)))
+                        if param_args.len() == arg_args.len() =>
+                    {
+                        let mut ok = true;
+                        for (param, arg) in param_args.iter().zip(arg_args.iter()) {
+                            ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                        }
+                        ok
+                    }
+                    _ => true,
+                }
             }
             (Type::Array(param_element), Type::Array(arg_element))
             | (Type::MutableArray(param_element), Type::MutableArray(arg_element)) => {
@@ -1888,20 +1963,19 @@ impl Lowerer {
         let ty = match op {
             hir::BinOp::Add => {
                 // `String + String` concatenates (docs/milestone2/
-                // DESIGN.md 2.3); all other arithmetic is Int-only.
+                // DESIGN.md 2.3); all other arithmetic is numeric
+                // (Int, or UInt since M9).
                 if lhs.ty == self.string && rhs.ty == self.string {
                     self.string
                 } else {
-                    self.expect_int_operands(symbol, &lhs, &rhs, span)?;
-                    self.int
+                    self.expect_numeric_operands(symbol, &lhs, &rhs, span)?
                 }
             }
             hir::BinOp::Sub | hir::BinOp::Mul | hir::BinOp::Div => {
-                self.expect_int_operands(symbol, &lhs, &rhs, span)?;
-                self.int
+                self.expect_numeric_operands(symbol, &lhs, &rhs, span)?
             }
             hir::BinOp::Lt | hir::BinOp::Le | hir::BinOp::Gt | hir::BinOp::Ge => {
-                self.expect_int_operands(symbol, &lhs, &rhs, span)?;
+                self.expect_numeric_operands(symbol, &lhs, &rhs, span)?;
                 self.boolean
             }
             hir::BinOp::Eq | hir::BinOp::Ne | hir::BinOp::RefEq | hir::BinOp::RefNe => {
@@ -1995,26 +2069,40 @@ impl Lowerer {
         })
     }
 
-    /// Arithmetic and comparison operators only accept `Int` operands —
-    /// in particular not type parameters: `T` is unconstrained, so no
-    /// operation beyond `==` / `!=` can be proven valid at the
-    /// definition site (DESIGN.md 2.2).
-    fn expect_int_operands(
+    /// Arithmetic and comparison operators require both operands to
+    /// share one numeric type and return it (`Int` or — M9,
+    /// milestone9 DESIGN.md section 1 — `UInt`, under the same rules;
+    /// comparisons yield `Boolean` at the call site). Mixing `Int`
+    /// and `UInt` is an error: the types are distinct and there is no
+    /// implicit conversion (spec 11.2). Type parameters are rejected
+    /// too: `T` is unconstrained, so no operation beyond `==` / `!=`
+    /// can be proven valid at the definition site (DESIGN.md 2.2).
+    /// The unsigned semantics risks of `UInt` arithmetic (subtraction
+    /// underflow, signed-vs-unsigned comparison) are deferred to a
+    /// later milestone; the machine word wraps for now.
+    fn expect_numeric_operands(
         &mut self,
         symbol: &str,
         lhs: &hir::Expr,
         rhs: &hir::Expr,
         span: Span,
-    ) -> Option<()> {
+    ) -> Option<TypeId> {
         if lhs.ty == self.int && rhs.ty == self.int {
-            return Some(());
+            return Some(self.int);
+        }
+        if lhs.ty == self.uint && rhs.ty == self.uint {
+            return Some(self.uint);
         }
         let lhs_ty = self.type_name(lhs.ty);
         let rhs_ty = self.type_name(rhs.ty);
-        self.error(
-            span,
-            format!("operator `{symbol}` requires Int operands, found {lhs_ty} and {rhs_ty}"),
-        );
+        let message = if lhs.ty == self.uint || rhs.ty == self.uint {
+            format!(
+                "operator `{symbol}` requires Int or UInt operands of the same type, found {lhs_ty} and {rhs_ty}"
+            )
+        } else {
+            format!("operator `{symbol}` requires Int operands, found {lhs_ty} and {rhs_ty}")
+        };
+        self.error(span, message);
         None
     }
 
