@@ -4,6 +4,18 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -45,6 +57,7 @@ SourceFile
   class ClassCastException() : Exception(<1 args>)
   class ArithmeticException() : Exception(<1 args>)
   class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
 SourceFile
   struct Point
     field x: Int
@@ -104,6 +117,16 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalStateException()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -243,6 +266,7 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
@@ -448,6 +472,12 @@ Module
         ClassInit IndexOutOfBoundsException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.4
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Int
@@ -472,6 +502,7 @@ Module
   str @scoop.str.2 "invalid cast"
   str @scoop.str.3 "arithmetic error"
   str @scoop.str.4 "array index out of bounds"
+  str @scoop.str.5 "illegal state"
   entry @scoop_main
 
 == lir ==
@@ -481,6 +512,7 @@ Module
   global @scoop.str.2 = "invalid cast"
   global @scoop.str.3 = "arithmetic error"
   global @scoop.str.4 = "array index out of bounds"
+  global @scoop.str.5 = "illegal state"
   global @scoop_td_box$I = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
@@ -488,6 +520,7 @@ Module
   global @scoop_td_ClassCastException = c""
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   enum Option$I tagged size=8 align=8 variants=(i64) ()
   enum Option$Point tagged size=16 align=8 variants=({i64, i64}) ()
@@ -548,7 +581,7 @@ Module
     store 0 -> local2
     br @if.merge.3
   block if.merge.3
-    t4 = call @scoop_rt_box(global5, local2, 8) : ptr
+    t4 = call @scoop_rt_box(global6, local2, 8) : ptr
     call @scoop.println(t4)
     t5 = aggregate () : {}
     t6 = enum_wrap e1 v1 () : enum1
@@ -565,7 +598,7 @@ Module
     store 99 -> local5
     br @if.merge.6
   block if.merge.6
-    t10 = call @scoop_rt_box(global5, local5, 8) : ptr
+    t10 = call @scoop_rt_box(global6, local5, 8) : ptr
     call @scoop.println(t10)
     t11 = aggregate () : {}
     t12 = aggregate (10, 20) : {i64, i64}
@@ -598,7 +631,7 @@ Module
     store 0 -> local10
     br @if.merge.12
   block if.merge.12
-    t23 = call @scoop_rt_box(global5, local10, 8) : ptr
+    t23 = call @scoop_rt_box(global6, local10, 8) : ptr
     call @scoop.println(t23)
     t24 = aggregate () : {}
     t25 = enum_wrap e2 v1 () : enum2
@@ -630,7 +663,7 @@ Module
     store 0 -> local15
     br @if.merge.18
   block if.merge.18
-    t35 = call @scoop_rt_box(global5, local15, 8) : ptr
+    t35 = call @scoop_rt_box(global6, local15, 8) : ptr
     call @scoop.println(t35)
     t36 = aggregate () : {}
     store local0 -> local16
@@ -648,41 +681,47 @@ Module
     unreachable
   block if.merge.21
     t41 = Add local17, 1 : i64
-    t42 = call @scoop_rt_box(global5, t41, 8) : ptr
+    t42 = call @scoop_rt_box(global6, t41, 8) : ptr
     call @scoop.println(t42)
     t43 = aggregate () : {}
     ret
   fun @scoop.ctor.Throwable() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global6, 16) : ptr
+    t0 = call @scoop_rt_alloc(global7, 16) : ptr
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global7, 24) : ptr
+    t0 = call @scoop_rt_alloc(global8, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global8, 24) : ptr
+    t0 = call @scoop_rt_alloc(global9, 24) : ptr
     t1 = enum_wrap e0 v0 (global1) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global9, 24) : ptr
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global10, 24) : ptr
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr
     t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.eq.I(ptr, ptr) -> i1
@@ -709,6 +748,7 @@ Module
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -722,6 +762,7 @@ Module
   layout ClassCastException size=24 align=8 refs=[16]
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
   entry @scoop_main
 

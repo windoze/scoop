@@ -133,10 +133,20 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
+  class IllegalStateException()
   open class Shape(name: String) : Describable
   class Point(x: Int, y: Int)
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
   interface Describable
     fun describe(): String
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -1492,11 +1502,15 @@ fn final_generic_member_functions_are_resolved() {
     let module = lower_user(file).expect("a final generic method must lower");
     let method = find_fn(&module, "C.id");
     assert_eq!(module.functions[method].type_params, ["T"]);
-    assert_eq!(module.generic_functions.len(), 1);
+    let generic = module
+        .generic_functions
+        .iter()
+        .find_map(|(id, generic)| (generic.function == method).then_some(id))
+        .expect("C.id generic entity");
     let (_, request) = module
         .instantiations
         .iter()
-        .next()
+        .find(|(_, request)| request.generic == generic)
         .expect("the call requests an instance");
     assert_eq!(request.type_args, [module.string]);
 }

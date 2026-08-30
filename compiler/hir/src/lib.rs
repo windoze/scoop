@@ -655,44 +655,78 @@ pub enum UnOp {
     Not,
 }
 
-/// The compiler's intrinsic registry (impl spec 2.10, M4 slice):
-/// signature rule + runtime symbol mapping live with the lowerers;
-/// this table is the single source of truth for valid names.
+/// The compiler's intrinsic registry (impl spec 2.10). Signature rules
+/// live with hir-lower; this table is the single source of truth for
+/// valid names, expansion stage, and backend kind.
 pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
     IntrinsicSpec {
         name: "rt_write",
-        symbol: "scoop_rt_print",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_print"),
     },
     IntrinsicSpec {
         name: "rt_pin",
-        symbol: "scoop_rt_pin",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_pin"),
     },
     IntrinsicSpec {
         name: "rt_unpin",
-        symbol: "scoop_rt_unpin",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_unpin"),
     },
     IntrinsicSpec {
         name: "rt_get_handle",
-        symbol: "scoop_rt_get_handle",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_get_handle"),
     },
     IntrinsicSpec {
         name: "rt_release_handle",
-        symbol: "scoop_rt_release_handle",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_release_handle"),
     },
     IntrinsicSpec {
         name: "rt_gc_collect",
-        symbol: "scoop_rt_gc_collect",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_gc_collect"),
     },
     IntrinsicSpec {
         name: "rt_gc_stats",
-        symbol: "scoop_rt_gc_stats",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_gc_stats"),
+    },
+    IntrinsicSpec {
+        name: "coroutine_start",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::CoroutineStart,
+    },
+    IntrinsicSpec {
+        name: "coroutine_suspend",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::CoroutineSuspend,
     },
 ];
 
 /// One entry of the intrinsic registry.
 pub struct IntrinsicSpec {
     pub name: &'static str,
-    pub symbol: &'static str,
+    pub stage: IntrinsicStage,
+    pub kind: IntrinsicKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicStage {
+    Mir,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicKind {
+    Runtime(&'static str),
+    CoroutineStart,
+    CoroutineSuspend,
+}
+
+pub fn intrinsic_spec(name: &str) -> Option<&'static IntrinsicSpec> {
+    INTRINSIC_REGISTRY.iter().find(|spec| spec.name == name)
 }
 
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).

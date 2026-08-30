@@ -13,3 +13,5 @@ class ClassCastException : Exception(Some("invalid cast"))
 class ArithmeticException : Exception(Some("arithmetic error"))
 
 class IndexOutOfBoundsException : Exception(Some("array index out of bounds"))
+
+class IllegalStateException : Exception(Some("illegal state"))

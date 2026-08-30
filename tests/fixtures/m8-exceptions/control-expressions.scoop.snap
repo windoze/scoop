@@ -4,6 +4,18 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -45,6 +57,7 @@ SourceFile
   class ClassCastException() : Exception(<1 args>)
   class ArithmeticException() : Exception(<1 args>)
   class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
 SourceFile
   enum Input
     Number(Int)
@@ -216,8 +229,18 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalStateException()
   open class Animal(name: String)
   class Dog()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -450,6 +473,7 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
   class Animal vtable=3 itables=0
   class Dog vtable=3 itables=0
   class box$I vtable=3 itables=0
@@ -946,6 +970,12 @@ Module
         ClassInit IndexOutOfBoundsException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.14
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.15
   fun ctor.Animal @scoop.ctor.Animal(name: String) -> Animal
     bb0 entry
       return
@@ -955,7 +985,7 @@ Module
     bb0 entry
       return
         ClassInit Dog
-          StringConst @scoop.str.15
+          StringConst @scoop.str.16
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Int
@@ -990,7 +1020,8 @@ Module
   str @scoop.str.12 "invalid cast"
   str @scoop.str.13 "arithmetic error"
   str @scoop.str.14 "array index out of bounds"
-  str @scoop.str.15 "dog"
+  str @scoop.str.15 "illegal state"
+  str @scoop.str.16 "dog"
   entry @scoop_main
 
 == lir ==
@@ -1010,7 +1041,8 @@ Module
   global @scoop.str.12 = "invalid cast"
   global @scoop.str.13 = "arithmetic error"
   global @scoop.str.14 = "array index out of bounds"
-  global @scoop.str.15 = "dog"
+  global @scoop.str.15 = "illegal state"
+  global @scoop.str.16 = "dog"
   global @scoop_td_box$I = c""
   global @scoop_td_Dog = c""
   global @scoop_td_UnwrapException = c""
@@ -1019,6 +1051,7 @@ Module
   global @scoop_td_ClassCastException = c""
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
   global @scoop_td_Animal = c""
   enum Option$S niche(payload_variant=0)
   enum Option$I tagged size=8 align=8 variants=(i64) ()
@@ -1156,7 +1189,7 @@ Module
     br @if.merge.3
   block if.merge.3
     store local1 -> local2
-    t1 = call @scoop_rt_box(global16, local2, 8) : ptr
+    t1 = call @scoop_rt_box(global17, local2, 8) : ptr
     call @scoop.println(t1)
     t2 = aggregate () : {}
     cbr true then @if.then.4 else @if.else.5
@@ -1167,7 +1200,7 @@ Module
     br @if.merge.6
   block if.merge.6
     store local4 -> local5
-    t3 = call @scoop_rt_box(global16, local5, 8) : ptr
+    t3 = call @scoop_rt_box(global17, local5, 8) : ptr
     call @scoop.println(t3)
     t4 = aggregate () : {}
     cbr true then @if.then.10 else @if.else.11
@@ -1181,7 +1214,7 @@ Module
     store local3 -> local4
     br @if.merge.6
   block if.then.10
-    t5 = call @scoop_rt_box(global16, 5, 8) : ptr
+    t5 = call @scoop_rt_box(global17, 5, 8) : ptr
     store t5 -> local6
     br @if.merge.12
   block if.else.11
@@ -1216,7 +1249,7 @@ Module
     throw local39
     unreachable
   block if.merge.18
-    t13 = call @scoop_rt_box(global16, local32, 8) : ptr
+    t13 = call @scoop_rt_box(global17, local32, 8) : ptr
     call @scoop.println(t13)
     t14 = aggregate () : {}
     cbr true then @if.then.19 else @if.else.20
@@ -1236,7 +1269,7 @@ Module
     call @scoop.println(t17)
     t18 = aggregate () : {}
     store local11 -> local12
-    t19 = call @scoop_rt_is_instance(local12, global17) : i1
+    t19 = call @scoop_rt_is_instance(local12, global18) : i1
     cbr t19 then @if.then.22 else @if.else.23
   block if.then.22
     t20 = heap_load local12 +16 : ptr
@@ -1318,7 +1351,7 @@ Module
     throw local42
     unreachable
   block if.merge.40
-    t41 = call @scoop_rt_box(global16, local36, 8) : ptr
+    t41 = call @scoop_rt_box(global17, local36, 8) : ptr
     call @scoop.println(t41)
     t42 = aggregate () : {}
     br @try.body.46
@@ -1362,7 +1395,7 @@ Module
   block try.dispatch.50
     t53 = begin_catch local49 : ptr
     store t53 -> local50
-    t54 = call @scoop_rt_is_instance(local50, global18) : i1
+    t54 = call @scoop_rt_is_instance(local50, global19) : i1
     cbr t54 then @try.catch.57 else @try.next.58
   block try.handler_pad.51
     (t55, t56) = cleanup_pad : (exception_record, ptr)
@@ -1412,7 +1445,7 @@ Module
   block try.dispatch.62
     t66 = begin_catch local49 : ptr
     store t66 -> local50
-    t67 = call @scoop_rt_is_instance(local50, global18) : i1
+    t67 = call @scoop_rt_is_instance(local50, global19) : i1
     cbr t67 then @try.catch.70 else @try.next.71
   block try.handler_pad.63
     (t68, t69) = cleanup_pad : (exception_record, ptr)
@@ -1465,22 +1498,22 @@ Module
     throw local44
     unreachable
   block if.merge.76
-    t78 = call @scoop_rt_box(global16, local38, 8) : ptr
+    t78 = call @scoop_rt_box(global17, local38, 8) : ptr
     call @scoop.println(t78)
     t79 = aggregate () : {}
     t80 = call @scoop.branchReturn(true) : i64
     store t80 -> local45
-    t81 = call @scoop_rt_box(global16, local45, 8) : ptr
+    t81 = call @scoop_rt_box(global17, local45, 8) : ptr
     call @scoop.println(t81)
     t82 = aggregate () : {}
     t83 = call @scoop.branchReturn(false) : i64
     store t83 -> local46
-    t84 = call @scoop_rt_box(global16, local46, 8) : ptr
+    t84 = call @scoop_rt_box(global17, local46, 8) : ptr
     call @scoop.println(t84)
     t85 = aggregate () : {}
     t86 = call @scoop.finallyReturn() : i64
     store t86 -> local47
-    t87 = call @scoop_rt_box(global16, local47, 8) : ptr
+    t87 = call @scoop_rt_box(global17, local47, 8) : ptr
     call @scoop.println(t87)
     t88 = aggregate () : {}
     ret
@@ -1506,46 +1539,52 @@ Module
     unreachable
   fun @scoop.ctor.Throwable() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global19, 16) : ptr
+    t0 = call @scoop_rt_alloc(global20, 16) : ptr
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global20, 24) : ptr
+    t0 = call @scoop_rt_alloc(global21, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global18, 24) : ptr
+    t0 = call @scoop_rt_alloc(global19, 24) : ptr
     t1 = enum_wrap e0 v0 (global11) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global21, 24) : ptr
+    t0 = call @scoop_rt_alloc(global22, 24) : ptr
     t1 = enum_wrap e0 v0 (global12) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global22, 24) : ptr
+    t0 = call @scoop_rt_alloc(global23, 24) : ptr
     t1 = enum_wrap e0 v0 (global13) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global23, 24) : ptr
+    t0 = call @scoop_rt_alloc(global24, 24) : ptr
     t1 = enum_wrap e0 v0 (global14) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global25, 24) : ptr
+    t1 = enum_wrap e0 v0 (global15) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Animal(ptr) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global24, 24) : ptr
+    t0 = call @scoop_rt_alloc(global26, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.Dog() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr
-    heap_store t0 +16 global15
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr
+    heap_store t0 +16 global16
     ret t0
   fun @scoop.eq.I(ptr, ptr) -> i1
     local %0 $a: i64
@@ -1573,6 +1612,7 @@ Module
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -1585,6 +1625,7 @@ Module
   layout ClassCastException size=24 align=8 refs=[16]
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
   layout Animal size=24 align=8 refs=[16]
   layout Dog size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]

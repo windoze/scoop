@@ -11,6 +11,121 @@ fn function_id(module: &hir::Module, name: &str) -> hir::FunctionId {
 }
 
 #[test]
+fn validates_and_preserves_coroutine_core_contract() {
+    let module = lower_user(file(vec![fun("main", vec![])]))
+        .expect("the canonical coroutine core protocol should lower");
+
+    let continuation = module
+        .interfaces
+        .iter()
+        .find_map(|(_, interface)| (interface.name == "Continuation").then_some(interface))
+        .expect("Continuation interface");
+    assert_eq!(continuation.type_params.len(), 1);
+    assert_eq!(continuation.type_params[0].variance, hir::Variance::In);
+    assert_eq!(continuation.methods.len(), 2);
+    assert_eq!(continuation.methods[0].name, "resume");
+    assert_eq!(continuation.methods[1].name, "resumeWithException");
+
+    let task = module
+        .interfaces
+        .iter()
+        .find_map(|(_, interface)| (interface.name == "SuspendTask").then_some(interface))
+        .expect("SuspendTask interface");
+    assert_eq!(task.type_params[0].variance, hir::Variance::Out);
+    assert!(task.methods[0].is_suspend);
+
+    let start = function_id(&module, "startCoroutine");
+    assert!(matches!(
+        &module.functions[start].kind,
+        hir::FunctionKind::Intrinsic(name) if name == "coroutine_start"
+    ));
+    let suspend = function_id(&module, "suspendCoroutine");
+    assert!(module.functions[suspend].is_suspend);
+    assert!(matches!(
+        &module.functions[suspend].kind,
+        hir::FunctionKind::Intrinsic(name) if name == "coroutine_suspend"
+    ));
+}
+
+#[test]
+fn rejects_malformed_continuation_core_contract() {
+    let mut core = core_file();
+    let interface = core
+        .declarations
+        .iter_mut()
+        .find_map(|decl| match decl {
+            Decl::Interface(interface) if interface.name.text == "Continuation" => Some(interface),
+            _ => None,
+        })
+        .expect("Continuation declaration");
+    interface.methods[0].name.text = "complete".to_string();
+
+    let errors = lower(&[core, file(vec![fun("main", vec![])])])
+        .expect_err("the compiler-known interface contract must be exact");
+    let contract = errors
+        .iter()
+        .find(|error| {
+            error
+                .message
+                .starts_with("interface `Continuation<in T>` in scoop.core must declare exactly")
+        })
+        .expect("Continuation contract diagnostic");
+    assert_eq!(contract.file, 0);
+}
+
+#[test]
+fn rejects_malformed_coroutine_start_intrinsic() {
+    let mut core = core_file();
+    let function = core
+        .declarations
+        .iter_mut()
+        .find_map(|decl| match decl {
+            Decl::Function(function) if function.name.text == "startCoroutine" => Some(function),
+            _ => None,
+        })
+        .expect("startCoroutine declaration");
+    function.return_ty = Some(ty_named("Int"));
+
+    let errors = lower(&[core, file(vec![fun("main", vec![])])])
+        .expect_err("the coroutine_start signature must be exact");
+    let contract = errors
+        .iter()
+        .find(|error| {
+            error
+                .message
+                .starts_with("intrinsic `coroutine_start` must have signature")
+        })
+        .expect("coroutine_start contract diagnostic");
+    assert_eq!(contract.file, 0);
+}
+
+#[test]
+fn rejects_non_suspend_coroutine_suspend_intrinsic() {
+    let mut core = core_file();
+    let function = core
+        .declarations
+        .iter_mut()
+        .find_map(|decl| match decl {
+            Decl::Function(function) if function.name.text == "suspendCoroutine" => Some(function),
+            _ => None,
+        })
+        .expect("suspendCoroutine declaration");
+    function.is_suspend = false;
+
+    let errors = lower(&[core, file(vec![fun("main", vec![])])])
+        .expect_err("the coroutine_suspend signature must be suspend");
+    let contract = errors
+        .iter()
+        .find(|error| {
+            error
+                .message
+                .starts_with("intrinsic `coroutine_suspend` must have signature")
+        })
+        .expect("coroutine_suspend contract diagnostic");
+    assert_eq!(contract.file, 0);
+}
+
+#[test]
 fn suspend_flag_reaches_hir_and_suspend_body_may_call_suspend() {
     let module = lower_user(file(vec![
         suspend_fun("leaf", vec![]),
@@ -46,8 +161,18 @@ fn generic_suspend_call_keeps_typed_callee_identity() {
     .expect("generic suspend calls should lower");
     let identity = function_id(&module, "identity");
     assert!(module.functions[identity].is_suspend);
-    assert_eq!(module.generic_functions.len(), 1);
-    assert_eq!(module.instantiations.len(), 1);
+    let identity_generic = module
+        .generic_functions
+        .iter()
+        .find_map(|(id, generic)| (generic.function == identity).then_some(id))
+        .expect("identity generic entity");
+    let identity_requests: Vec<_> = module
+        .instantiations
+        .iter()
+        .filter(|(_, request)| request.generic == identity_generic)
+        .collect();
+    assert_eq!(identity_requests.len(), 1);
+    assert_eq!(identity_requests[0].1.type_args, [module.int]);
 }
 
 #[test]
