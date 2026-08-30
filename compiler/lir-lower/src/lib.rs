@@ -252,6 +252,7 @@ fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>
         | mir::Type::String
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
+        | mir::Type::Function(_)
         | mir::Type::Any => {}
     }
 }
@@ -720,9 +721,11 @@ fn size_align(
         // UInt shares Int's machine word (M9, spec 11.2).
         mir::Type::Int | mir::Type::UInt => (8, 8),
         mir::Type::Boolean => (1, 1),
-        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-            (8, 8)
-        }
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Function(_)
+        | mir::Type::Any => (8, 8),
         mir::Type::Struct(id) => {
             let fields: Vec<mir::Type> = module.structs[*id]
                 .fields
@@ -805,9 +808,11 @@ fn ref_scan(
     base: u64,
 ) -> lir::RefScan {
     match ty {
-        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-            lir::RefScan::References(vec![base])
-        }
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Function(_)
+        | mir::Type::Any => lir::RefScan::References(vec![base]),
         mir::Type::Array(_) | mir::Type::MutableArray(_) => lir::RefScan::References(vec![base]),
         mir::Type::Struct(id) => {
             let fields: Vec<mir::Type> = module.structs[*id]
@@ -896,9 +901,11 @@ fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         // `i64` at LIR, so codegen needs no UInt-specific handling.
         mir::Type::Int | mir::Type::UInt => lir::LirType::I64,
         mir::Type::Boolean => lir::LirType::I1,
-        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-            lir::LirType::Ptr
-        }
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Function(_)
+        | mir::Type::Any => lir::LirType::Ptr,
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
             lir::LirType::Array(Box::new(lir_type(module, element)))
         }
@@ -1079,6 +1086,7 @@ fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
         | mir::Type::UInt
         | mir::Type::Boolean
         | mir::Type::Unit => td_symbol(&format!("box${}", mir::encode_type(module, ty))),
+        mir::Type::Function(_) => td_symbol(&format!("function${}", mir::encode_type(module, ty))),
         mir::Type::Any | mir::Type::Array(_) | mir::Type::MutableArray(_) => {
             unreachable!("no referenceable TypeDescriptor for {ty:?}")
         }
@@ -2388,6 +2396,7 @@ mod tests {
         fn finish(self, entry: mir::FunctionId) -> mir::Module {
             mir::Module {
                 functions: self.functions,
+                function_types: Arena::new(),
                 top_level: self.top_level,
                 strings: self.strings,
                 structs: self.structs,

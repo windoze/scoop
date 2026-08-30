@@ -1777,6 +1777,13 @@ impl Lowerer {
                     self.mark_type_params(*arg, bound);
                 }
             }
+            Type::Function(id) => {
+                let function = &self.function_types[*id];
+                for parameter in &function.parameter_types {
+                    self.mark_type_params(*parameter, bound);
+                }
+                self.mark_type_params(function.return_type, bound);
+            }
             _ => {}
         }
     }
@@ -1935,6 +1942,27 @@ impl Lowerer {
                 for (param, arg) in param_elements.iter().zip(arg_elements.iter()) {
                     ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
                 }
+                ok
+            }
+            (Type::Function(param_id), Type::Function(arg_id)) => {
+                let param = self.function_types[param_id].clone();
+                let arg = self.function_types[arg_id].clone();
+                if param.is_suspend != arg.is_suspend
+                    || param.parameter_types.len() != arg.parameter_types.len()
+                {
+                    return true;
+                }
+                let mut ok = true;
+                for (param, arg) in param.parameter_types.iter().zip(arg.parameter_types.iter()) {
+                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                }
+                ok &= self.bind_type_args(
+                    param.return_type,
+                    arg.return_type,
+                    bindings,
+                    type_params,
+                    span,
+                );
                 ok
             }
             _ => true,

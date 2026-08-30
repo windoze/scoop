@@ -217,6 +217,7 @@ impl Owner {
 
 pub(crate) struct Lowerer {
     pub(crate) types: Arena<Type>,
+    pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) structs: Arena<StructDecl>,
     pub(crate) enums: Arena<EnumDecl>,
     pub(crate) classes: Arena<ClassDecl>,
@@ -348,6 +349,7 @@ impl Lowerer {
 
         let mut lowerer = Lowerer {
             types,
+            function_types: Arena::new(),
             structs: Arena::new(),
             enums: Arena::new(),
             classes: Arena::new(),
@@ -697,6 +699,7 @@ impl Lowerer {
             .expect("a missing or invalid coroutine core protocol is always diagnosed");
         Ok(hir::Module {
             types: self.types,
+            function_types: self.function_types,
             functions: self.functions,
             generic_functions: self.generic_functions,
             structs: self.structs,

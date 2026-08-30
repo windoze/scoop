@@ -190,6 +190,25 @@ impl Lowerer {
             Type::Array(element) | Type::MutableArray(element) => {
                 self.check_variance_position(element, TypePosition::Invariant, params, method, span)
             }
+            Type::Function(id) => {
+                let function = self.function_types[id].clone();
+                for parameter in function.parameter_types {
+                    self.check_variance_position(
+                        parameter,
+                        position.through(hir::Variance::In),
+                        params,
+                        method,
+                        span,
+                    );
+                }
+                self.check_variance_position(
+                    function.return_type,
+                    position.through(hir::Variance::Out),
+                    params,
+                    method,
+                    span,
+                );
+            }
             Type::Unit
             | Type::Int
             | Type::UInt

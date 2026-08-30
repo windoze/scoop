@@ -86,8 +86,20 @@ pub enum TypeRefKind {
     Tuple(Vec<TypeRef>),
     /// The `Unit` type name (also written `()` in type position).
     Unit,
+    /// `(P1, P2, ...) -> R` / `suspend (P1, P2, ...) -> R`.
+    Function(FunctionTypeRef),
     /// `T?` — desugars to `Option<T>` in HIR (spec 7.1).
     Nullable(Box<TypeRef>),
+}
+
+/// The structural source form of a function type. Parameter names,
+/// defaults and `vararg` are deliberately absent from function type
+/// identity (spec 8.1.1).
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionTypeRef {
+    pub is_suspend: bool,
+    pub parameters: Vec<TypeRef>,
+    pub return_type: Box<TypeRef>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -851,7 +863,19 @@ fn dump_type_ref(ty: &TypeRef) -> String {
             let inner: Vec<String> = elements.iter().map(dump_type_ref).collect();
             format!("({})", inner.join(", "))
         }
-        TypeRefKind::Nullable(inner) => format!("{}?", dump_type_ref(inner)),
+        TypeRefKind::Function(function) => {
+            let parameters: Vec<String> = function.parameters.iter().map(dump_type_ref).collect();
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            format!(
+                "{suspend}({}) -> {}",
+                parameters.join(", "),
+                dump_type_ref(&function.return_type)
+            )
+        }
+        TypeRefKind::Nullable(inner) => match inner.kind {
+            TypeRefKind::Function(_) => format!("({})?", dump_type_ref(inner)),
+            _ => format!("{}?", dump_type_ref(inner)),
+        },
     }
 }
 

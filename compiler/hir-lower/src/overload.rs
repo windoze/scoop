@@ -350,6 +350,14 @@ impl Lowerer {
             Type::Tuple(elements) => elements
                 .iter()
                 .any(|&element| self.mentions_type_param(element)),
+            Type::Function(id) => {
+                let function = &self.function_types[id];
+                function
+                    .parameter_types
+                    .iter()
+                    .any(|&parameter| self.mentions_type_param(parameter))
+                    || self.mentions_type_param(function.return_type)
+            }
             _ => false,
         }
     }
@@ -440,6 +448,18 @@ impl Lowerer {
                 .iter()
                 .zip(args)
                 .all(|(param, arg)| self.try_bind(*param, arg, bindings)),
+            (Type::Function(param_id), Type::Function(arg_id)) => {
+                let param = self.function_types[param_id].clone();
+                let arg = self.function_types[arg_id].clone();
+                param.is_suspend == arg.is_suspend
+                    && param.parameter_types.len() == arg.parameter_types.len()
+                    && param
+                        .parameter_types
+                        .iter()
+                        .zip(arg.parameter_types)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                    && self.try_bind(param.return_type, arg.return_type, bindings)
+            }
             _ => true,
         }
     }

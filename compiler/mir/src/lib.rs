@@ -13,6 +13,7 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub type FunctionId = Idx<Function>;
+pub type FunctionTypeId = Idx<FunctionType>;
 pub type MonomorphizedFunctionId = Idx<MonomorphizedFunction>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;
@@ -105,6 +106,20 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
             let inner: Vec<String> = elements.iter().map(|t| encode_type(module, t)).collect();
             format!("T{}X", inner.join("_"))
         }
+        Type::Function(id) => {
+            let function = &module.function_types[*id];
+            let kind = if function.is_suspend { "S" } else { "F" };
+            let parameters = function
+                .parameter_types
+                .iter()
+                .map(|ty| encode_type(module, ty))
+                .collect::<Vec<_>>()
+                .join("_");
+            format!(
+                "{kind}{parameters}R{}X",
+                encode_type(module, &function.return_type)
+            )
+        }
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
@@ -137,8 +152,18 @@ pub enum Type {
     Array(Box<Type>),
     MutableArray(Box<Type>),
     Tuple(Vec<Type>),
+    /// Concrete managed function signature. Function values have reference
+    /// representation; closure classes are materialized by M11 conversion.
+    Function(FunctionTypeId),
     /// An instantiated enum type (including `Option<T>` since M4).
     Enum(EnumId, Vec<Type>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionType {
+    pub is_suspend: bool,
+    pub parameter_types: Vec<Type>,
+    pub return_type: Type,
 }
 
 #[derive(Debug)]
@@ -224,6 +249,7 @@ pub struct Local {
 #[derive(Debug)]
 pub struct Module {
     pub functions: Arena<Function>,
+    pub function_types: Arena<FunctionType>,
     /// User functions in declaration order (builtins have no MIR body).
     pub top_level: Vec<FunctionId>,
     pub strings: Arena<StringConst>,
@@ -848,6 +874,20 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, t)).collect();
             format!("({})", inner.join(", "))
+        }
+        Type::Function(id) => {
+            let function = &module.function_types[*id];
+            let parameters: Vec<String> = function
+                .parameter_types
+                .iter()
+                .map(|ty| type_name(module, ty))
+                .collect();
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            format!(
+                "{suspend}({}) -> {}",
+                parameters.join(", "),
+                type_name(module, &function.return_type)
+            )
         }
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;

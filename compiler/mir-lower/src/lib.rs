@@ -774,6 +774,7 @@ impl Lowerer {
         let entry = self.function_map[&module.entry];
         mir::Module {
             functions: self.functions,
+            function_types: self.shell.function_types,
             top_level: self.top_level,
             strings: self.strings,
             structs: self.structs.defs,
@@ -2408,6 +2409,7 @@ fn mangling_shell(
     });
     mir::Module {
         functions,
+        function_types: Arena::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: shell_structs,
@@ -2441,6 +2443,14 @@ fn is_concrete(module: &hir::Module, ty: hir::TypeId) -> bool {
             is_concrete(module, *element)
         }
         hir::Type::Tuple(elements) => elements.iter().all(|&e| is_concrete(module, e)),
+        hir::Type::Function(id) => {
+            let function = &module.function_types[*id];
+            function
+                .parameter_types
+                .iter()
+                .all(|&parameter| is_concrete(module, parameter))
+                && is_concrete(module, function.return_type)
+        }
         hir::Type::Struct(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
         hir::Type::Interface(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
         hir::Type::Enum(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
@@ -2573,6 +2583,31 @@ impl Types<'_> {
                     .map(|&element| self.lower(element, enums, structs, interfaces, shell))
                     .collect(),
             ),
+            hir::Type::Function(id) => {
+                let function = self.module.function_types[*id].clone();
+                let parameter_types: Vec<mir::Type> = function
+                    .parameter_types
+                    .into_iter()
+                    .map(|parameter| self.lower(parameter, enums, structs, interfaces, shell))
+                    .collect();
+                let return_type =
+                    self.lower(function.return_type, enums, structs, interfaces, shell);
+                let existing = shell.function_types.iter().find_map(|(id, candidate)| {
+                    (candidate.is_suspend == function.is_suspend
+                        && candidate.parameter_types == parameter_types
+                        && candidate.return_type == return_type)
+                        .then_some(id)
+                });
+                let id = match existing {
+                    Some(id) => id,
+                    None => shell.function_types.alloc(mir::FunctionType {
+                        is_suspend: function.is_suspend,
+                        parameter_types,
+                        return_type,
+                    }),
+                };
+                mir::Type::Function(id)
+            }
             hir::Type::Enum(id, args) => {
                 let args: Vec<mir::Type> = args
                     .iter()
@@ -4381,9 +4416,10 @@ impl BodyLowerer<'_> {
             },
         };
         let unboxed = match &target {
-            mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-                smir::Expr::Local(slot)
-            }
+            mir::Type::Class(_)
+            | mir::Type::Interface(_)
+            | mir::Type::Function(_)
+            | mir::Type::Any => smir::Expr::Local(slot),
             // Only `as?` unwraps here: hir-lower wraps a value-typed
             // `as` in a hir-level `Unbox(Cast)` node, so the payload
             // extraction for `as` happens when that outer `Unbox` is
@@ -4636,7 +4672,10 @@ impl BodyLowerer<'_> {
             // user-defined `equals` (milestone6 DESIGN 5.1). The
             // operands are pointers, so the primitive integer
             // comparison is a pointer comparison here.
-            mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
+            mir::Type::Class(_)
+            | mir::Type::Interface(_)
+            | mir::Type::Function(_)
+            | mir::Type::Any => {
                 let op = if negate {
                     mir::BinOp::IntNe
                 } else {
@@ -5736,6 +5775,7 @@ mod tests {
             let coroutine_core = self.test_coroutine_core(include_exceptions);
             hir::Module {
                 types: self.types,
+                function_types: Arena::new(),
                 functions: self.functions,
                 generic_functions: self.generic_functions,
                 structs: self.structs,

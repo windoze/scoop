@@ -13,6 +13,7 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub type TypeId = Idx<Type>;
+pub type FunctionTypeId = Idx<FunctionType>;
 pub type FunctionId = Idx<Function>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
@@ -64,6 +65,9 @@ pub enum Type {
     Array(TypeId),
     MutableArray(TypeId),
     Tuple(Vec<TypeId>),
+    /// A managed function value type. The referenced entry carries the
+    /// complete structural signature and is canonical within the Cone.
+    Function(FunctionTypeId),
     /// An enum type with resolved type arguments (empty for
     /// non-generic enums). `Option<T>` is one of these since M4
     /// (defined in `scoop.core`).
@@ -72,6 +76,16 @@ pub enum Type {
     /// generic function/type definition; instantiated MIR never
     /// contains it.
     Param(TypeParamId),
+}
+
+/// Canonical structural identity of an ordinary or suspend function type.
+/// Declaration-only metadata such as parameter names/defaults is absent by
+/// construction (spec 8.1.1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionType {
+    pub is_suspend: bool,
+    pub parameter_types: Vec<TypeId>,
+    pub return_type: TypeId,
 }
 
 /// Structural type equality (tuple types are compared by elements,
@@ -111,6 +125,7 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
                     .zip(ys.iter())
                     .all(|(x, y)| types_equal(module, *x, *y))
         }
+        (Type::Function(x), Type::Function(y)) => x == y,
         (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
             x == y
                 && x_args.len() == y_args.len()
@@ -167,6 +182,20 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, *t)).collect();
             format!("({})", inner.join(", "))
         }
+        Type::Function(id) => {
+            let function = &module.function_types[*id];
+            let parameters: Vec<String> = function
+                .parameter_types
+                .iter()
+                .map(|ty| type_name(module, *ty))
+                .collect();
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            format!(
+                "{suspend}({}) -> {}",
+                parameters.join(", "),
+                type_name(module, function.return_type)
+            )
+        }
         Type::Param(index) => format!("T{}", index.into_raw()),
     }
 }
@@ -174,6 +203,8 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
 #[derive(Debug)]
 pub struct Module {
     pub types: Arena<Type>,
+    /// Canonical function signatures referenced by `Type::Function`.
+    pub function_types: Arena<FunctionType>,
     pub functions: Arena<Function>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR

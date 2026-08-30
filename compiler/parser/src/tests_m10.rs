@@ -120,18 +120,6 @@ fn rejects_suspend_on_non_function_members() {
 }
 
 #[test]
-fn rejects_suspend_function_types_with_a_dedicated_diagnostic() {
-    let diagnostics = parse("fun use(task: suspend (Int) -> Int) {}\nfun main() {}")
-        .expect_err("M10 has no suspend function types");
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].span, Some(Span::new(14, 21)));
-    assert_eq!(
-        diagnostics[0].message,
-        "suspend function types are not supported in M10"
-    );
-}
-
-#[test]
 fn rejects_suspend_lambdas_with_a_dedicated_diagnostic() {
     let diagnostics = parse("fun main() {\n    val task = suspend { Unit }\n}")
         .expect_err("M10 has no suspend lambdas");

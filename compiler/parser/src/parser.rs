@@ -177,8 +177,9 @@ impl Parser {
         }
     }
 
-    /// A type annotation: a named type, `Unit` (also written `()`), or a
-    /// tuple type `(T1, T2, ...)`, each with any number of `?` suffixes
+    /// A type annotation: a named type, `Unit` (also written `()`), a
+    /// tuple type `(T1, T2, ...)`, or a function type `(P...) -> R` /
+    /// `suspend (P...) -> R`, each with any number of `?` suffixes
     /// (`T?` is `Option<T>`, and `T??` does not collapse — spec 7.1).
     /// Parenthesized disambiguation mirrors expressions (spec section
     /// 4.3): `(T)` is just `T` in parentheses, `(T,)` a 1-tuple type.
@@ -197,10 +198,10 @@ impl Parser {
     fn parse_type_atom(&mut self) -> Result<TypeRef, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
-            TokenKind::Suspend => Err(Diagnostic::at(
-                token.span,
-                "suspend function types are not supported in M10",
-            )),
+            TokenKind::Suspend => {
+                self.pos += 1;
+                self.parse_paren_type(true, token.span.start)
+            }
             TokenKind::Ident(text) => {
                 self.pos += 1;
                 self.parse_named_type_ref_tail(Ident {
@@ -208,39 +209,69 @@ impl Parser {
                     span: token.span,
                 })
             }
-            TokenKind::LParen => {
-                self.pos += 1;
-                if matches!(self.peek().kind, TokenKind::RParen) {
-                    let close = self.bump();
-                    return Ok(TypeRef {
-                        kind: TypeRefKind::Unit,
-                        span: Span::new(token.span.start, close.span.end),
-                    });
-                }
-                let first = self.parse_type_ref()?;
-                if !matches!(self.peek().kind, TokenKind::Comma) {
-                    let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-                    return Ok(TypeRef {
-                        kind: first.kind,
-                        span: Span::new(token.span.start, close.span.end),
-                    });
-                }
-                let mut elements = vec![first];
-                while matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                    if matches!(self.peek().kind, TokenKind::RParen) {
-                        break;
-                    }
-                    elements.push(self.parse_type_ref()?);
-                }
-                let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-                Ok(TypeRef {
-                    kind: TypeRefKind::Tuple(elements),
-                    span: Span::new(token.span.start, close.span.end),
-                })
-            }
+            TokenKind::LParen => self.parse_paren_type(false, token.span.start),
             _ => self.unexpected("type"),
         }
+    }
+
+    /// Parse a parenthesized/tuple type or a function type parameter list.
+    /// `suspend` has already been consumed when `is_suspend` is true.
+    fn parse_paren_type(&mut self, is_suspend: bool, start: u32) -> Result<TypeRef, Diagnostic> {
+        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
+        let mut elements = Vec::new();
+        let mut had_comma = false;
+        if !matches!(self.peek().kind, TokenKind::RParen) {
+            elements.push(self.parse_type_ref()?);
+            while matches!(self.peek().kind, TokenKind::Comma) {
+                had_comma = true;
+                self.bump();
+                if matches!(self.peek().kind, TokenKind::RParen) {
+                    break;
+                }
+                elements.push(self.parse_type_ref()?);
+            }
+        }
+        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+
+        if matches!(self.peek().kind, TokenKind::Arrow) {
+            self.bump();
+            let return_type = self.parse_type_ref()?;
+            return Ok(TypeRef {
+                span: Span::new(start, return_type.span.end),
+                kind: TypeRefKind::Function(scoop_ast::FunctionTypeRef {
+                    is_suspend,
+                    parameters: elements,
+                    return_type: Box::new(return_type),
+                }),
+            });
+        }
+
+        if is_suspend {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                format!(
+                    "expected `->` in suspend function type, found {}",
+                    self.peek().describe()
+                ),
+            ));
+        }
+        if elements.is_empty() {
+            return Ok(TypeRef {
+                kind: TypeRefKind::Unit,
+                span: Span::new(start, close.span.end),
+            });
+        }
+        if elements.len() == 1 && !had_comma {
+            let first = elements.pop().expect("one parenthesized type");
+            return Ok(TypeRef {
+                kind: first.kind,
+                span: Span::new(start, close.span.end),
+            });
+        }
+        Ok(TypeRef {
+            kind: TypeRefKind::Tuple(elements),
+            span: Span::new(start, close.span.end),
+        })
     }
 
     /// Complete a named type after its identifier was consumed. Supertype

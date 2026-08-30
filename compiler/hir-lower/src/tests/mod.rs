@@ -8,6 +8,7 @@
 //! sysroot convention — core files first, the user file last.
 
 mod m10;
+mod m11;
 mod m2;
 mod m3;
 mod m4;
@@ -61,6 +62,21 @@ pub(crate) fn ty_named(name: &str) -> TypeRef {
 pub(crate) fn ty_tuple(elements: Vec<TypeRef>) -> TypeRef {
     TypeRef {
         kind: TypeRefKind::Tuple(elements),
+        span: sp(),
+    }
+}
+
+pub(crate) fn ty_function(
+    is_suspend: bool,
+    parameters: Vec<TypeRef>,
+    return_type: TypeRef,
+) -> TypeRef {
+    TypeRef {
+        kind: TypeRefKind::Function(ast::FunctionTypeRef {
+            is_suspend,
+            parameters,
+            return_type: Box::new(return_type),
+        }),
         span: sp(),
     }
 }
