@@ -5169,6 +5169,7 @@ mod tests {
         }
 
         fn test_coroutine_core(&mut self) -> hir::CoroutineCore {
+            let illegal_state_exception = self.exception("IllegalStateException");
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
@@ -5346,6 +5347,7 @@ mod tests {
                 self.top_level.push(function);
             }
             hir::CoroutineCore {
+                illegal_state_exception,
                 continuation,
                 continuation_resume,
                 continuation_resume_with_exception,

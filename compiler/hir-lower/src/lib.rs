@@ -1131,8 +1131,8 @@ impl Lowerer {
         let suspend_registration_register = suspend_registration
             .and_then(|id| self.interface_methods.get(&id))
             .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
-        illegal_state_exception?;
         let (
+            Some(illegal_state_exception),
             Some(continuation),
             Some((continuation_resume, continuation_resume_with_exception)),
             Some(suspend_task),
@@ -1142,6 +1142,7 @@ impl Lowerer {
             Some(start_coroutine),
             Some(suspend_coroutine),
         ) = (
+            illegal_state_exception,
             continuation,
             continuation_methods,
             suspend_task,
@@ -1155,6 +1156,7 @@ impl Lowerer {
             return None;
         };
         Some(hir::CoroutineCore {
+            illegal_state_exception,
             continuation,
             continuation_resume,
             continuation_resume_with_exception,

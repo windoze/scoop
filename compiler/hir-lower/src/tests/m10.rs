@@ -26,6 +26,10 @@ fn validates_and_preserves_coroutine_core_contract() {
     assert_eq!(continuation.methods[0].name, "resume");
     assert_eq!(continuation.methods[1].name, "resumeWithException");
     assert_eq!(
+        module.classes[module.coroutine_core.illegal_state_exception].name,
+        "IllegalStateException"
+    );
+    assert_eq!(
         module.coroutine_core.continuation_resume,
         function_id(&module, "Continuation.resume")
     );
