@@ -62,7 +62,7 @@ fn call_in_main(
     let hir::StatementKind::Expr(expr) = &body.statements[index].kind else {
         panic!("statement {index} is not an expression statement")
     };
-    let hir::ExprKind::Call { function, args, .. } = &expr.kind else {
+    let hir::ExprKind::Call { callee, args } = &expr.kind else {
         panic!("statement {index} is not a call")
     };
     if unnest {
@@ -72,13 +72,24 @@ fn call_in_main(
             hir::ExprKind::Box(operand) => &operand.kind,
             kind => kind,
         };
-        let hir::ExprKind::Call { function, args, .. } = inner else {
+        let hir::ExprKind::Call { callee, args } = inner else {
             panic!("the argument of statement {index} is not a call")
         };
-        (*function, args)
+        (module.callable_function(*callee), args)
     } else {
-        (*function, args)
+        (module.callable_function(*callee), args)
     }
+}
+
+fn has_instantiation(
+    module: &hir::Module,
+    function: hir::FunctionId,
+    type_args: &[hir::TypeId],
+) -> bool {
+    module.instantiations.iter().any(|(_, resolved)| {
+        module.generic_functions[resolved.generic].function == function
+            && resolved.type_args == type_args
+    })
 }
 
 // --- declaration rules (DESIGN 1.1) ---
@@ -558,25 +569,17 @@ fn non_generic_wins_ties_against_generic() {
     let hir::ExprKind::Box(nested) = &args[0].kind else {
         panic!("the Int result must be boxed into `Any`")
     };
-    let hir::ExprKind::Call { type_args, .. } = &nested.kind else {
+    let hir::ExprKind::Call { callee, .. } = &nested.kind else {
         panic!("expected a nested call")
     };
-    assert!(type_args.is_empty());
+    assert!(module.callable_type_args(*callee).is_empty());
 
     // `id("s")`: only the generic candidate is applicable, with
     // `T = String` inferred and recorded.
     let (second, _) = call_in_main(&module, 1, true);
     assert_eq!(second, generic);
-    let instantiation = hir::Instantiation {
-        function: generic,
-        type_args: vec![module.string],
-    };
-    assert!(module.instantiations.contains(&instantiation));
-    let concrete_int = hir::Instantiation {
-        function: generic,
-        type_args: vec![module.int],
-    };
-    assert!(!module.instantiations.contains(&concrete_int));
+    assert!(has_instantiation(&module, generic, &[module.string]));
+    assert!(!has_instantiation(&module, generic, &[module.int]));
 }
 
 // --- method overloads and layering (DESIGN 1.2, step 1) ---
@@ -636,10 +639,13 @@ fn method_overloads_resolve() {
     let hir::ExprKind::Call { args, .. } = &outer.kind else {
         panic!("expected a call")
     };
-    let hir::ExprKind::MethodCall { function, .. } = &args[0].kind else {
+    let hir::ExprKind::MethodCall { callee, .. } = &args[0].kind else {
         panic!("expected a method call")
     };
-    assert_eq!(*function, method_fn(&module, "C", "m", &["String"]));
+    assert_eq!(
+        module.callable_function(*callee),
+        method_fn(&module, "C", "m", &["String"])
+    );
 
     // The bare `m(1)` inside `probe` is `this.m(1)` and picks the
     // `Int` overload.
@@ -649,12 +655,15 @@ fn method_overloads_resolve() {
         panic!("expected a return")
     };
     let hir::ExprKind::MethodCall {
-        function, receiver, ..
+        callee, receiver, ..
     } = &value.kind
     else {
         panic!("expected a method call")
     };
-    assert_eq!(*function, method_fn(&module, "C", "m", &["Int"]));
+    assert_eq!(
+        module.callable_function(*callee),
+        method_fn(&module, "C", "m", &["Int"])
+    );
     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
 }
 
@@ -689,13 +698,16 @@ fn member_layer_shadows_top_level() {
     let hir::StatementKind::Return { value: Some(value) } = &body.statements[0].kind else {
         panic!("expected a return")
     };
-    let hir::ExprKind::MethodCall { function, .. } = &value.kind else {
+    let hir::ExprKind::MethodCall { callee, .. } = &value.kind else {
         panic!(
             "the bare call must resolve to the member, found {:?}",
             value.kind
         )
     };
-    assert_eq!(*function, method_fn(&module, "C", "value", &[]));
+    assert_eq!(
+        module.callable_function(*callee),
+        method_fn(&module, "C", "value", &[])
+    );
 }
 
 /// The user layer wins whole over the core implicit-import layer for
@@ -790,10 +802,10 @@ fn layering_is_relative_to_the_call_site_file() {
     let hir::StatementKind::Expr(value) = &body.statements[0].kind else {
         panic!("expected the call statement")
     };
-    let hir::ExprKind::Call { function, .. } = &value.kind else {
+    let hir::ExprKind::Call { callee, .. } = &value.kind else {
         panic!("expected a call")
     };
-    assert_eq!(*function, core_write);
+    assert_eq!(module.callable_function(*callee), core_write);
 
     // Core's `println` body is likewise unaffected: both of its
     // `write` calls target the core primitive.
@@ -803,10 +815,10 @@ fn layering_is_relative_to_the_call_site_file() {
         let hir::StatementKind::Expr(value) = &statement.kind else {
             panic!("expected a call statement")
         };
-        let hir::ExprKind::Call { function, .. } = &value.kind else {
+        let hir::ExprKind::Call { callee, .. } = &value.kind else {
             panic!("expected a call")
         };
-        assert_eq!(*function, core_write);
+        assert_eq!(module.callable_function(*callee), core_write);
     }
 }
 
@@ -890,17 +902,17 @@ fn print_and_println_take_any_and_dispatch_to_string() {
     let hir::StatementKind::Expr(value) = &body.statements[0].kind else {
         panic!("expected a call statement")
     };
-    let hir::ExprKind::Call { function, args, .. } = &value.kind else {
+    let hir::ExprKind::Call { callee, args } = &value.kind else {
         panic!("expected a call")
     };
-    assert_eq!(*function, write);
+    assert_eq!(module.callable_function(*callee), write);
     let hir::ExprKind::MethodCall {
-        function, receiver, ..
+        callee, receiver, ..
     } = &args[0].kind
     else {
         panic!("expected a `toString()` method call")
     };
-    assert_eq!(*function, to_string);
+    assert_eq!(module.callable_function(*callee), to_string);
     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
 }
 
@@ -941,10 +953,10 @@ fn any_receiver_resolves_the_any_members() {
             hir::ExprKind::Box(operand) => &operand.kind,
             kind => kind,
         };
-        let hir::ExprKind::MethodCall { function, .. } = inner else {
+        let hir::ExprKind::MethodCall { callee, .. } = inner else {
             panic!("expected a method call")
         };
-        assert_eq!(*function, any_member(&module, name));
+        assert_eq!(module.callable_function(*callee), any_member(&module, name));
     }
 }
 
@@ -1025,24 +1037,18 @@ fn enum_method_overloads_instantiate_with_the_receiver() {
             hir::ExprKind::Box(operand) => &operand.kind,
             kind => kind,
         };
-        let hir::ExprKind::MethodCall { function, .. } = inner else {
+        let hir::ExprKind::MethodCall { callee, .. } = inner else {
             panic!("expected a method call")
         };
-        *function
+        module.callable_function(*callee)
     };
     assert_eq!(method_target(1), pick_t);
     assert_eq!(method_target(3), pick_int);
 
     // The chosen enum methods request instantiations with the
     // receiver's type arguments.
-    assert!(module.instantiations.contains(&hir::Instantiation {
-        function: pick_t,
-        type_args: vec![module.string],
-    }));
-    assert!(module.instantiations.contains(&hir::Instantiation {
-        function: pick_int,
-        type_args: vec![module.int],
-    }));
+    assert!(has_instantiation(&module, pick_t, &[module.string]));
+    assert!(has_instantiation(&module, pick_int, &[module.int]));
 }
 
 // --- entry point ---

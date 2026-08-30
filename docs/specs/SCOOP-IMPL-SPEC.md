@@ -50,7 +50,7 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 - 把 `when` 模式匹配降级为 decision tree / 跳转序列；
 - 输出 MIR type/function list，其中不再包含任何 generic 和 suspend（诊断信息除外）。
 
-**MIR meta**：每个 Cone 的 MIR 同时输出一份 metadata，随 `.slib` 导出（见 2.6），内容包括：各导出类型的 vtable / itable 结构、TypeDescriptor 符号与 name mangling 结果。类型布局不在其中——布局由 LIR 生产、经 LIR meta 导出（见 2.4）。
+**MIR meta**：每个 Cone 的 MIR 同时输出一份 metadata，随 `.slib` 导出（见 2.6），内容包括：各单态化实例的符号、泛型来源与具体类型实参，各导出类型的 vtable / itable 结构、TypeDescriptor 符号与 name mangling 结果。类型布局不在其中——布局由 LIR 生产、经 LIR meta 导出（见 2.4）。HIR 的 generic function、已解析类型实参的 generic function 与 MIR 的单态化实例是三类实体，分别使用不同的类型化 id。
 
 ### 2.4 LIR
 

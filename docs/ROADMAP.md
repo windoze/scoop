@@ -33,7 +33,7 @@ struct / tuple、字段访问、`val` / `var`、if / while、结构相等。
 
 ### M3 泛型与 Option ✅（2026-08-22 完成，设计见 `docs/milestone3/DESIGN.md`）
 
-单态化、`enum Option<T>`（暂为编译器内建）、`T?` 脱糖与 `?.` / `?:` / `!!`（spec 第 7 章）。Option 是核心设施，越早越好。
+单态化、`Option<T>`、`T?` 脱糖与 `?.` / `?:` / `!!`（spec 第 7 章）。M3 首版将 Option 作为编译器内建，M4 已迁移为 `scoop.core` 的真正泛型 enum；泛型定义、HIR 解析后实例与 MIR 单态化实例使用三类独立的类型化 id。
 
 ### M4 enum 与模式匹配 ✅（2026-08-22 完成，设计见 `docs/milestone4/DESIGN.md`）
 

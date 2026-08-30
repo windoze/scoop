@@ -335,6 +335,9 @@ Module
       Call @scoop_rt_bool_to_string direct
         Unbox
           Local this
+  instance @scoop.unwrapOr$I <- unwrapOr
+  instance @scoop.isPresent$S <- isPresent
+  instance @scoop.isPresent$I <- isPresent
   str @scoop.str.0 "\n"
   str @scoop.str.1 "x"
   str @scoop.str.2 "unwrap on None"

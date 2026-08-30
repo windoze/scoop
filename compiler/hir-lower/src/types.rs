@@ -163,7 +163,9 @@ impl Lowerer {
                     .iter()
                     .position(|param| param == &name.text)
                 {
-                    return Some(self.intern_type(Type::Param(index as u32)));
+                    return Some(
+                        self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))),
+                    );
                 }
                 match name.text.as_str() {
                     "Unit" => Some(self.unit),
@@ -325,7 +327,7 @@ impl Lowerer {
             return self.struct_application(struct_id, substituted);
         }
         match self.types[ty].clone() {
-            Type::Param(index) => type_args[index as usize],
+            Type::Param(index) => type_args[index.into_raw() as usize],
             Type::Array(element) => {
                 let element = self.instantiate_ty(element, type_args);
                 self.intern_type(Type::Array(element))
@@ -367,7 +369,7 @@ impl Lowerer {
             return Some(self.struct_application(struct_id, substituted));
         }
         match self.types[ty].clone() {
-            Type::Param(index) => bindings.get(index as usize).copied().flatten(),
+            Type::Param(index) => bindings.get(index.into_raw() as usize).copied().flatten(),
             Type::Array(element) => {
                 let element = self.try_substitute(element, bindings)?;
                 Some(self.intern_type(Type::Array(element)))
@@ -679,8 +681,8 @@ fn type_name(
             format!("({})", inner.join(", "))
         }
         Type::Param(index) => type_params
-            .get(*index as usize)
+            .get(index.into_raw() as usize)
             .cloned()
-            .unwrap_or_else(|| format!("T{index}")),
+            .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }
 }

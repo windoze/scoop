@@ -37,10 +37,7 @@ use crate::Lowerer;
 /// The winner of overload resolution, ready to be wrapped in an
 /// `ExprKind::Call` / `ExprKind::MethodCall` by the caller.
 pub(crate) struct ResolvedCallee {
-    pub(crate) function: FunctionId,
-    /// Inferred call-level type arguments (empty unless the winner is
-    /// a generic function).
-    pub(crate) type_args: Vec<TypeId>,
+    pub(crate) callee: hir::Callable,
     /// The arguments, lowered once and adapted (boxed where needed) to
     /// the winner's parameter types.
     pub(crate) args: Vec<hir::Expr>,
@@ -163,16 +160,17 @@ impl Lowerer {
             return None;
         }
         // Enum methods instantiate over the receiver's type arguments;
-        // generic functions over the inferred call-level ones.
-        if !receiver_type_args.is_empty() {
-            self.record_instantiation(function, receiver_type_args.to_vec());
-        }
-        if !type_args.is_empty() {
-            self.record_instantiation(function, type_args.clone());
-        }
+        // generic functions over the inferred call-level ones. The
+        // resolved entity itself is stored on the HIR call.
+        let callee = if !receiver_type_args.is_empty() {
+            hir::Callable::Generic(self.record_instantiation(function, receiver_type_args.to_vec()))
+        } else if !type_args.is_empty() {
+            hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
+        } else {
+            hir::Callable::Function(function)
+        };
         Some(ResolvedCallee {
-            function,
-            type_args,
+            callee,
             args,
             return_ty,
         })
@@ -339,7 +337,7 @@ impl Lowerer {
     fn try_bind(&self, param_ty: TypeId, arg_ty: TypeId, bindings: &mut [Option<TypeId>]) -> bool {
         match (self.types[param_ty].clone(), self.types[arg_ty].clone()) {
             (Type::Param(index), _) => {
-                let index = index as usize;
+                let index = index.into_raw() as usize;
                 match bindings[index] {
                     Some(existing) => self.types_equal(existing, arg_ty),
                     None => {

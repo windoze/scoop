@@ -112,8 +112,8 @@ use scoop_hir as hir;
 
 use ast::{Diagnostic, Span};
 use hir::{
-    ClassDecl, ClassId, EnumDecl, EnumId, Function, FunctionId, FunctionKind, InterfaceDecl,
-    InterfaceId, StructDecl, StructId, Type, TypeId,
+    ClassDecl, ClassId, EnumDecl, EnumId, Function, FunctionId, FunctionKind, GenericFunction,
+    GenericFunctionId, InterfaceDecl, InterfaceId, StructDecl, StructId, Type, TypeId,
 };
 use scope::Scopes;
 
@@ -204,6 +204,11 @@ pub(crate) struct Lowerer {
     pub(crate) classes: Arena<ClassDecl>,
     pub(crate) interfaces: Arena<InterfaceDecl>,
     pub(crate) functions: Arena<Function>,
+    /// Generic definitions are separate HIR entities. The reverse map
+    /// is lowerer-only and lets call resolution turn a selected
+    /// `FunctionId` into a typed generic identity.
+    pub(crate) generic_functions: Arena<GenericFunction>,
+    pub(crate) generic_by_function: HashMap<FunctionId, GenericFunctionId>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     pub(crate) int: TypeId,
@@ -309,7 +314,7 @@ pub(crate) struct Lowerer {
     pub(crate) locals: Arena<hir::Local>,
     pub(crate) scopes: Scopes,
     /// Deduplicated monomorphization requests, in first-use order.
-    pub(crate) instantiations: Vec<hir::Instantiation>,
+    pub(crate) instantiations: Arena<hir::ResolvedGenericFunction>,
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
     pub(crate) hidden_count: u32,
     pub(crate) diagnostics: Vec<Diagnostic>,
@@ -336,6 +341,8 @@ impl Lowerer {
             classes: Arena::new(),
             interfaces: Arena::new(),
             functions: Arena::new(),
+            generic_functions: Arena::new(),
+            generic_by_function: HashMap::new(),
             top_level: Vec::new(),
             unit,
             int,
@@ -375,7 +382,7 @@ impl Lowerer {
             current_file: 0,
             locals: Arena::new(),
             scopes: Scopes::new(),
-            instantiations: Vec::new(),
+            instantiations: Arena::new(),
             hidden_count: 0,
             diagnostics: Vec::new(),
         };
@@ -651,6 +658,7 @@ impl Lowerer {
         Ok(hir::Module {
             types: self.types,
             functions: self.functions,
+            generic_functions: self.generic_functions,
             structs: self.structs,
             enums: self.enums,
             classes: self.classes,
@@ -1380,6 +1388,9 @@ impl Lowerer {
             }
             type_params.push(param.text.clone());
         }
+        if !type_params.is_empty() {
+            self.register_generic(id);
+        }
         self.type_params_in_scope = type_params.clone();
 
         let mut params = Vec::with_capacity(decl.params.len());
@@ -1411,19 +1422,36 @@ impl Lowerer {
         );
     }
 
-    /// Record a monomorphization request, deduplicated by
-    /// (function, type arguments). Type ids are interned, so id
-    /// equality is structural equality. Requests from inside generic
-    /// function bodies may still mention `Type::Param`; mir-lower
-    /// concretizes those when the requesting instance is materialized.
-    pub(crate) fn record_instantiation(&mut self, function: FunctionId, type_args: Vec<TypeId>) {
-        let request = hir::Instantiation {
-            function,
-            type_args,
-        };
-        if !self.instantiations.contains(&request) {
-            self.instantiations.push(request);
+    /// Register a generic definition once and return its typed id.
+    pub(crate) fn register_generic(&mut self, function: FunctionId) -> GenericFunctionId {
+        if let Some(&generic) = self.generic_by_function.get(&function) {
+            return generic;
         }
+        let generic = self.generic_functions.alloc(GenericFunction { function });
+        self.generic_by_function.insert(function, generic);
+        generic
+    }
+
+    /// Record a resolved generic application, deduplicated by
+    /// (generic definition, type arguments), and return the entity id
+    /// carried by the HIR call. Requests from inside generic bodies may
+    /// still mention `Type::Param`; mir-lower concretizes them when the
+    /// requesting instance is materialized.
+    pub(crate) fn record_instantiation(
+        &mut self,
+        function: FunctionId,
+        type_args: Vec<TypeId>,
+    ) -> hir::ResolvedGenericFunctionId {
+        let generic = self.generic_by_function[&function];
+        if let Some((id, _)) = self
+            .instantiations
+            .iter()
+            .find(|(_, request)| request.generic == generic && request.type_args == type_args)
+        {
+            return id;
+        }
+        self.instantiations
+            .alloc(hir::ResolvedGenericFunction { generic, type_args })
     }
 
     /// The host type of a member-function owner: the class / interface
@@ -1436,7 +1464,7 @@ impl Lowerer {
             Owner::Struct(id) => self.structs_by_name[&self.structs[id].name].1,
             Owner::Enum(id) => {
                 let params = (0..self.enums[id].type_params.len() as u32)
-                    .map(|index| self.intern_type(Type::Param(index)))
+                    .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index))))
                     .collect();
                 self.intern_type(Type::Enum(id, params))
             }

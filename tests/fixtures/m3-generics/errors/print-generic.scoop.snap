@@ -171,6 +171,7 @@ Module
       Call @scoop_rt_int_to_string direct
         Unbox
           Local this
+  instance @scoop.f$I <- f
   str @scoop.str.0 "\n"
   str @scoop.str.1 "unwrap on None"
   str @scoop.str.2 "invalid cast"
