@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/non-final-generic-method.scoop:2:18: error: generic member function `id` in a class must be final

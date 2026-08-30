@@ -106,7 +106,7 @@ codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 
 - 表的内容由 MIR 定义，由 codegen 以数据形式发射，并从 `TypeDescriptor` 引用：TypeDescriptor 内嵌 vtable 指针与 itable 数组（见 runtime spec 2.2）。`Any` 的 `equals` / `hashCode` / `toString` 即 vtable 的固定前三个槽位。
 - **装箱值类型的 this 调整**：值类型装箱后对象为 header + payload，而值类型成员函数以 payload 为 `this`；vtable / itable 中对应装箱值类型的表项指向 MIR 生成的 **adjust thunk**（`this` 加 header 偏移后 tail-call 真正的成员函数）。
 - **跨 Cone 的槽位识别**：初版 itable 采用（接口 TypeDescriptor 指针 → 方法表）的键值查找，调用点按接口 TypeDescriptor 地址查找，不需要跨 Cone 的全局槽位编号；槽位编号等优化留待后续。
-- **泛型成员函数不参与虚分派**：带类型参数的成员函数不进入 vtable / itable（单态化实例无法枚举）；通过 interface 或父类引用调用它是编译错误（HIR 检查，见 spec 3.2），静态类型的直接调用不受影响。
+- **泛型成员函数不参与虚分派**：带自身类型参数的成员函数不进入 vtable / itable（单态化实例无法枚举）；interface 可保留这类方法的声明与实现约束，但分派表布局必须跳过它，经 interface 静态类型调用由 HIR 拒绝。class 上的泛型成员必须为 final，值类型成员本来即为 final，因此合法调用一律标为 direct。泛型宿主的参数与方法自身参数使用同一类型参数编号空间，前缀为宿主参数、后缀为方法参数；`ResolvedGenericFunction` 与 MIR 单态化键携带同序的完整实参向量。把 interface 签名代入某个实现宿主时，必须在替换 interface 参数后把方法参数重基化到实现宿主参数前缀之后，避免两组 `TypeParamId` 碰撞。
 
 ### 2.10 intrinsic 的分阶段处理
 

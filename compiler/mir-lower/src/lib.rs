@@ -428,13 +428,25 @@ impl Lowerer {
                 else {
                     continue;
                 };
+                let (source_id, _) = self.interfaces.source(*source);
+                let method_indices: Vec<_> = module.interfaces[source_id]
+                    .methods
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, method)| method.type_params.is_empty().then_some(index))
+                    .collect();
                 let bridge_slots = slots
                     .iter()
                     .enumerate()
-                    .map(|(index, slot)| {
-                        mir::TableSlot::Function(
-                            self.build_variance_bridge(module, class, *source, target, index, slot),
-                        )
+                    .map(|(slot_index, slot)| {
+                        mir::TableSlot::Function(self.build_variance_bridge(
+                            module,
+                            class,
+                            *source,
+                            target,
+                            method_indices[slot_index],
+                            slot,
+                        ))
                     })
                     .collect();
                 self.classes[class].interfaces.push(target);
@@ -1107,7 +1119,11 @@ impl Lowerer {
                 let (hir_iface, interface_args) = self.interfaces.source(mir_iface);
                 let interface_args = interface_args.to_vec();
                 let mut slots_for = Vec::new();
-                for method in &module.interfaces[hir_iface].methods {
+                for method in module.interfaces[hir_iface]
+                    .methods
+                    .iter()
+                    .filter(|method| method.type_params.is_empty())
+                {
                     let key = self.sig_signature_key(module, method, &interface_args);
                     slots_for.push(mir::TableSlot::Function(
                         self.find_impl(module, hir_id, &key),
@@ -1290,9 +1306,14 @@ impl Lowerer {
         let interfaces = self.classes[class_id].interfaces.clone();
         for iface in interfaces {
             let (hir_iface, _) = self.interfaces.source(iface);
-            let method_count = module.interfaces[hir_iface].methods.len();
+            let method_indices: Vec<_> = module.interfaces[hir_iface]
+                .methods
+                .iter()
+                .enumerate()
+                .filter_map(|(index, method)| method.type_params.is_empty().then_some(index))
+                .collect();
             let mut slots = Vec::new();
-            for index in 0..method_count {
+            for index in method_indices {
                 let thunk = self.build_thunk(module, &payload, &encoded, iface, index);
                 slots.push(mir::TableSlot::Function(thunk));
             }
@@ -2002,6 +2023,7 @@ impl InterfaceRegistry {
         let methods = decl
             .methods
             .iter()
+            .filter(|method| method.type_params.is_empty())
             .map(|method| method.name.clone())
             .collect();
         let id = self.defs.alloc(mir::InterfaceDef {
@@ -3517,7 +3539,12 @@ impl BodyLowerer<'_> {
                     let interface_args = interface_args.to_vec();
                     let key = self.signature_key_with_subst(f, &interface_args);
                     let mut slot = None;
-                    for (index, sig) in module.interfaces[iface].methods.iter().enumerate() {
+                    for (index, sig) in module.interfaces[iface]
+                        .methods
+                        .iter()
+                        .filter(|method| method.type_params.is_empty())
+                        .enumerate()
+                    {
                         if self.sig_key_with_subst(sig, &interface_args) == key {
                             slot = Some(index as u32);
                             break;
@@ -4549,6 +4576,7 @@ mod tests {
                     .iter()
                     .map(|name| hir::MethodSig {
                         name: name.to_string(),
+                        type_params: Vec::new(),
                         params: Vec::new(),
                         return_ty: unit,
                         span: SPAN,
@@ -4617,6 +4645,7 @@ mod tests {
                 method: Some(hir::Method {
                     owner: method_of,
                     modifier: hir::MethodModifier::Open,
+                    owner_type_param_count: 0,
                 }),
                 span: SPAN,
             })
@@ -5775,6 +5804,7 @@ Module
                     let v = locals.alloc(local("v", *ty));
                     hir::MethodSig {
                         name: name.to_string(),
+                        type_params: Vec::new(),
                         params: vec![param("v", *ty, v)],
                         return_ty: unit,
                         span: SPAN,

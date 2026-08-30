@@ -5,11 +5,11 @@
 //! diagnosed), the base-class clause (the base must be an `open` or
 //! `abstract` class) and the interface list.
 //!
-//! Pass 2.5 (`resolve_method_signature`): member signatures. Methods
-//! have no type parameters of their own (generic member functions
-//! cannot participate in virtual dispatch, spec 3.2, and remain
-//! unsupported in M7); enum methods resolve in the enum's type-parameter
-//! scope. Bodyless declarations — interface methods and `abstract`
+//! Pass 2.5 (`resolve_method_signature`): member signatures. A generic
+//! host's parameters form the prefix of the method's parameter space and
+//! parameters declared by the method form the suffix. Generic member
+//! functions are static-only (spec 3.2). Bodyless declarations — interface
+//! methods and `abstract`
 //! class methods — get their parameter-only body here (`this` plus
 //! the declared parameters; the statements are empty because there is
 //! nothing to execute — MIR only ever reaches them through a vtable /
@@ -130,7 +130,14 @@ impl Lowerer {
     ) {
         match self.types[ty].clone() {
             Type::Param(id) => {
-                let param = &params[id.into_raw() as usize];
+                let index = id.into_raw() as usize;
+                // Parameters declared by a generic interface method follow
+                // the interface's own prefix and do not participate in the
+                // declaration-site variance of that prefix.
+                if index >= params.len() {
+                    return;
+                }
+                let param = &params[index];
                 let valid = matches!(param.variance, hir::Variance::Invariant)
                     || matches!(
                         (param.variance, position),
@@ -289,45 +296,35 @@ impl Lowerer {
         owner: Owner,
     ) {
         let short = decl.name.text.clone();
-        if !decl.type_params.is_empty() {
+        if !decl.type_params.is_empty()
+            && matches!(owner, Owner::Class(_))
+            && decl.modifier != ast::MethodModifier::Final
+        {
             self.error(
                 decl.name.span,
-                format!("generic member function `{short}` is not supported in M6"),
+                format!("generic member function `{short}` in a class must be final"),
             );
         }
         self.check_method_body_shape(id, decl, owner);
 
-        // Generic value-type methods resolve in their owner's
-        // type-parameter scope (`E<T>` / `S<T>` methods may mention
-        // `T`).
-        self.type_params_in_scope = match owner {
-            Owner::Enum(enum_id) => {
-                let type_params = self.enums[enum_id].type_params.clone();
-                if !type_params.is_empty() {
-                    self.register_generic(id);
-                }
-                type_params
+        let mut type_params = self.owner_type_param_names(owner);
+        let owner_type_param_count = type_params.len();
+        let mut method_type_params = Vec::new();
+        for param in &decl.type_params {
+            if type_params.contains(&param.text) {
+                self.error(
+                    param.span,
+                    format!("duplicate type parameter `{}`", param.text),
+                );
+                continue;
             }
-            Owner::Struct(struct_id) => {
-                let type_params = self.structs[struct_id].type_params.clone();
-                if !type_params.is_empty() {
-                    self.register_generic(id);
-                }
-                type_params
-            }
-            Owner::Interface(interface_id) => {
-                let type_params = self.interfaces[interface_id]
-                    .type_params
-                    .iter()
-                    .map(|param| param.name.clone())
-                    .collect::<Vec<_>>();
-                if !type_params.is_empty() {
-                    self.register_generic(id);
-                }
-                type_params
-            }
-            _ => Vec::new(),
-        };
+            type_params.push(param.text.clone());
+            method_type_params.push(param.text.clone());
+        }
+        if !type_params.is_empty() {
+            self.register_generic(id);
+        }
+        self.type_params_in_scope = type_params.clone();
         let mut params = Vec::with_capacity(decl.params.len());
         for param in &decl.params {
             if let Some(ty) = self.resolve_type_ref(&param.ty) {
@@ -343,11 +340,13 @@ impl Lowerer {
         };
         self.type_params_in_scope.clear();
 
+        self.functions[id].type_params = type_params.clone();
         self.functions[id].return_ty = return_ty;
         self.signatures.insert(
             id,
             FnSig {
-                type_params: Vec::new(),
+                owner_type_param_count,
+                type_params,
                 params,
                 return_ty,
             },
@@ -362,6 +361,7 @@ impl Lowerer {
             if let Owner::Interface(iface) = owner {
                 self.interfaces[iface].methods.push(hir::MethodSig {
                     name: short,
+                    type_params: method_type_params,
                     params: declared,
                     return_ty,
                     span: decl.span,
@@ -606,9 +606,10 @@ impl Lowerer {
             Owner::Interface(_) => return,
         };
         let sig = self.signatures[&id].clone();
+        let target_owner_count = sig.owner_type_param_count;
         let short = decl.name.text.clone();
         let overrides = candidates.into_iter().find(|(candidate, args)| {
-            self.same_instantiated_signature(*candidate, &short, &sig, args)
+            self.same_instantiated_signature(*candidate, &short, &sig, args, target_owner_count)
         });
         if let Some((candidate, _)) = overrides.as_ref()
             && matches!(self.function_owner.get(candidate), Some(Owner::Class(_)))
@@ -657,7 +658,7 @@ impl Lowerer {
                 .map(|&m| (self.functions[m].name.clone(), m))
                 .collect();
             for (qualified, method) in methods {
-                let sig = self.instantiated_signature(method, &args);
+                let sig = self.instantiated_signature(method, &args, 0);
                 let short = qualified.rsplit('.').next().expect("methods are qualified");
                 let implemented = self
                     .base_chain_methods(id)
@@ -697,6 +698,7 @@ impl Lowerer {
             // Only called for value types.
             Owner::Class(_) | Owner::Interface(_) => return,
         };
+        let target_owner_count = self.owner_type_param_names(owner).len();
         for interface_ty in interfaces {
             let (iface, args) = self.interface_application(interface_ty);
             let methods: Vec<(String, FunctionId)> = self.interface_methods[&iface]
@@ -704,7 +706,7 @@ impl Lowerer {
                 .map(|&m| (self.functions[m].name.clone(), m))
                 .collect();
             for (qualified, method) in methods {
-                let sig = self.instantiated_signature(method, &args);
+                let sig = self.instantiated_signature(method, &args, target_owner_count);
                 let short = qualified.rsplit('.').next().expect("methods are qualified");
                 let implemented = own_methods
                     .iter()
@@ -742,7 +744,11 @@ impl Lowerer {
         let Some(candidate_sig) = self.signatures.get(&candidate) else {
             return false;
         };
-        candidate_sig.params.len() == sig.params.len()
+        let candidate_own_count =
+            candidate_sig.type_params.len() - candidate_sig.owner_type_param_count;
+        let expected_own_count = sig.type_params.len() - sig.owner_type_param_count;
+        candidate_own_count == expected_own_count
+            && candidate_sig.params.len() == sig.params.len()
             && candidate_sig
                 .params
                 .iter()
@@ -751,22 +757,38 @@ impl Lowerer {
             && self.types_equal(candidate_sig.return_ty, sig.return_ty)
     }
 
-    fn instantiated_signature(&mut self, method: FunctionId, args: &[TypeId]) -> FnSig {
+    fn instantiated_signature(
+        &mut self,
+        method: FunctionId,
+        args: &[TypeId],
+        target_owner_count: usize,
+    ) -> FnSig {
         let sig = self.signatures[&method].clone();
-        if args.is_empty() {
-            return sig;
-        }
+        let own_type_params = sig.type_params[sig.owner_type_param_count..].to_vec();
+        let mut type_params = vec![String::new(); target_owner_count];
+        type_params.extend(own_type_params);
         FnSig {
-            type_params: Vec::new(),
+            owner_type_param_count: target_owner_count,
+            type_params,
             params: sig
                 .params
                 .into_iter()
                 .map(|param| FnParam {
                     name: param.name,
-                    ty: self.instantiate_ty(param.ty, args),
+                    ty: self.instantiate_method_owner_ty(
+                        param.ty,
+                        args,
+                        sig.owner_type_param_count,
+                        target_owner_count,
+                    ),
                 })
                 .collect(),
-            return_ty: self.instantiate_ty(sig.return_ty, args),
+            return_ty: self.instantiate_method_owner_ty(
+                sig.return_ty,
+                args,
+                sig.owner_type_param_count,
+                target_owner_count,
+            ),
         }
     }
 
@@ -776,9 +798,14 @@ impl Lowerer {
         name: &str,
         sig: &FnSig,
         args: &[TypeId],
+        target_owner_count: usize,
     ) -> bool {
-        let candidate_sig = self.instantiated_signature(candidate, args);
+        let candidate_sig = self.instantiated_signature(candidate, args, target_owner_count);
+        let candidate_own_count =
+            candidate_sig.type_params.len() - candidate_sig.owner_type_param_count;
+        let expected_own_count = sig.type_params.len() - sig.owner_type_param_count;
         self.functions[candidate].name.rsplit('.').next() == Some(name)
+            && candidate_own_count == expected_own_count
             && candidate_sig.params.len() == sig.params.len()
             && candidate_sig
                 .params

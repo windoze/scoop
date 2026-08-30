@@ -243,7 +243,7 @@ impl Lowerer {
                 element,
             );
         }
-        let candidates = self.methods_by_name(receiver.ty, &name.text);
+        let mut candidates = self.methods_by_name(receiver.ty, &name.text);
         if candidates.is_empty() {
             let found = self.type_name(receiver.ty);
             self.error(
@@ -251,6 +251,24 @@ impl Lowerer {
                 format!("type `{found}` has no method `{}`", name.text),
             );
             return None;
+        }
+        if matches!(self.types[receiver.ty], Type::Interface(..)) {
+            let before = candidates.len();
+            candidates.retain(|&function| {
+                let sig = &self.signatures[&function];
+                sig.type_params.len() == sig.owner_type_param_count
+            });
+            if candidates.is_empty() && before != 0 {
+                let found = self.type_name(receiver.ty);
+                self.error(
+                    name.span,
+                    format!(
+                        "generic member function `{}` cannot be called through interface type `{found}`",
+                        name.text
+                    ),
+                );
+                return None;
+            }
         }
         if candidates.len() == 1 {
             return self.finish_method_call(candidates[0], receiver, args, span, sink);
@@ -306,15 +324,17 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        // Generic type methods mention their owner's type parameters;
-        // instantiate them with the receiver's type arguments.
-        let type_args: Vec<TypeId> = match self.types[receiver.ty] {
+        // A generic host contributes the already-known prefix. Overload
+        // resolution infers any method-declared suffix independently for
+        // each candidate.
+        let owner_type_args: Vec<TypeId> = match self.types[receiver.ty] {
             Type::Enum(_, ref args) => args.clone(),
             Type::Struct(_, ref args) => args.clone(),
             Type::Interface(_, ref args) => args.clone(),
             _ => Vec::new(),
         };
-        let resolved = self.resolve_overload(name, &candidates, &type_args, args, span, sink)?;
+        let resolved =
+            self.resolve_overload(name, &candidates, &owner_type_args, args, span, sink)?;
         let ty = resolved.return_ty;
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
@@ -343,9 +363,9 @@ impl Lowerer {
     }
 
     /// Check and build a resolved method call: arity and argument
-    /// types against the method's declared parameters (instantiated
-    /// with the receiver's type arguments for enum methods), with
-    /// subtype adaptation (boxing) at argument positions.
+    /// types against the method's declared parameters. The receiver binds
+    /// the owner prefix and the complete argument group infers the method
+    /// suffix; subtype adaptation (boxing) happens afterwards.
     fn finish_method_call(
         &mut self,
         function: hir::FunctionId,
@@ -355,9 +375,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let name = self.functions[function].name.clone();
-        // Generic type methods mention their owner's type parameters;
-        // instantiate them with the receiver's type arguments.
-        let type_args: Vec<TypeId> = match self.types[receiver.ty] {
+        let owner_type_args: Vec<TypeId> = match self.types[receiver.ty] {
             Type::Enum(_, ref args) => args.clone(),
             Type::Struct(_, ref args) => args.clone(),
             Type::Interface(_, ref args) => args.clone(),
@@ -380,10 +398,30 @@ impl Lowerer {
             );
             return None;
         }
-        let mut lowered = Vec::with_capacity(args.len());
-        for (param, arg_expr) in sig.params.iter().zip(args) {
+        debug_assert_eq!(sig.owner_type_param_count, owner_type_args.len());
+        let mut bindings = vec![None; sig.type_params.len()];
+        for (binding, &ty) in bindings.iter_mut().zip(&owner_type_args) {
+            *binding = Some(ty);
+        }
+        let param_tys: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
+        let inferred = self.lower_inference_args(args, &param_tys, bindings, &sig.type_params)?;
+        let mut type_args = Vec::with_capacity(sig.type_params.len());
+        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
+            match binding {
+                Some(ty) => type_args.push(ty),
+                None => {
+                    self.error(
+                        span,
+                        format!("cannot infer type argument `{param_name}` for `{name}`"),
+                    );
+                    return None;
+                }
+            }
+        }
+        let lowered = inferred.finish(sink);
+        let mut adapted = Vec::with_capacity(lowered.len());
+        for (param, arg) in sig.params.iter().zip(lowered) {
             let param_ty = self.instantiate_ty(param.ty, &type_args);
-            let arg = self.lower_expr(arg_expr, sink, Some(param_ty))?;
             if !self.is_subtype(arg.ty, param_ty) {
                 let param_name = param.name.text.clone();
                 let expected = self.type_name(param_ty);
@@ -396,7 +434,7 @@ impl Lowerer {
                 );
                 return None;
             }
-            lowered.push(self.adapt_to(arg, param_ty));
+            adapted.push(self.adapt_to(arg, param_ty));
         }
         let callee = if type_args.is_empty() {
             hir::Callable::Function(function)
@@ -408,7 +446,7 @@ impl Lowerer {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
                 callee,
-                args: lowered,
+                args: adapted,
             },
             ty,
             span,
