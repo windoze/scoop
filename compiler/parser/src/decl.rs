@@ -268,13 +268,16 @@ impl Parser {
         })
     }
 
-    /// `struct <name>(val <field>: <type>, ...) (: <interface>, ...)?
-    /// ({ <fun>, ... })?` — M6 adds an optional interface list (spec
-    /// 4.4.3) and an optional member body holding member functions
-    /// (value receiver).
+    /// `struct <name><T, ...>?(val <field>: <type>, ...) (: <interface>, ...)?
+    /// ({ <fun>, ... })?` — the type parameter list sits between the name
+    /// and the constructor `(`, like `enum` (a `<` right after the name is
+    /// unambiguous here). M6 adds an optional interface list (spec 4.4.3)
+    /// and an optional member body holding member functions (value
+    /// receiver).
     fn parse_struct(&mut self) -> Result<StructDecl, Diagnostic> {
         let keyword = self.expect("`struct`", |k| matches!(k, TokenKind::Struct))?;
         let name = self.expect_ident("struct name")?;
+        let type_params = self.parse_type_params()?;
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut fields = Vec::new();
         if matches!(self.peek().kind, TokenKind::RParen) {
@@ -321,6 +324,7 @@ impl Parser {
         };
         Ok(StructDecl {
             name,
+            type_params,
             fields,
             interfaces,
             methods,

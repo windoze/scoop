@@ -190,6 +190,9 @@ pub struct VariantFieldDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructDecl {
     pub name: Ident,
+    /// Generic type parameters (`struct Name<T, U>(...)`); empty for
+    /// non-generic structs.
+    pub type_params: Vec<Ident>,
     pub fields: Vec<FieldDecl>,
     /// Implemented interfaces (`struct S(...) : I1, I2`, spec 4.4.3).
     pub interfaces: Vec<Ident>,
@@ -679,7 +682,13 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Struct(s) => {
-                out.push_str(&format!("  struct {}\n", s.name.text));
+                let type_params = if s.type_params.is_empty() {
+                    String::new()
+                } else {
+                    let names: Vec<&str> = s.type_params.iter().map(|p| p.text.as_str()).collect();
+                    format!("<{}>", names.join(", "))
+                };
+                out.push_str(&format!("  struct {}{}\n", s.name.text, type_params));
                 for field in &s.fields {
                     out.push_str(&format!(
                         "    field {}: {}\n",

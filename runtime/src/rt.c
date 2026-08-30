@@ -25,16 +25,8 @@ extern void _ZSt13set_terminatePFvvE(void (*handler)(void));
  * 2.2). Referenced by scoop_rt_string_concat when allocating. */
 extern const ScoopTypeDescriptor scoop_td_String;
 
-void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
-    /* Always-leak: memory is never freed (DESIGN 5.1). */
-    ScoopObjectHeader *obj = malloc(size);
-    if (obj == NULL) {
-        fprintf(stderr, "scoop_rt_alloc: out of memory\n");
-        abort();
-    }
-    obj->td = td;
-    return obj;
-}
+/* scoop_rt_alloc lives in gc.c (M9): it allocates from the GC heap and
+ * may trigger a collection. */
 
 void scoop_rt_print(const ScoopString *s) {
     fwrite(s->data, 1, s->len, stdout);
@@ -50,7 +42,7 @@ const ScoopString *scoop_rt_string_identity(const ScoopString *s) {
     return s;
 }
 
-// Format an i64 into a fresh ScoopString (always-leak), backing
+// Format an i64 into a fresh ScoopString (GC-allocated), backing
 // core's `intToString` (M7).
 const ScoopString *scoop_rt_int_to_string(int64_t v) {
     char buf[24]; // -2^63 needs 20 chars + NUL
@@ -111,12 +103,10 @@ _Noreturn void scoop_rt_trap(const char *message) {
 
 const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size) {
     const ScoopArray *src = obj;
-    size_t bytes = sizeof(void *) + sizeof(uint64_t) + (size_t)(src->size * elem_size);
-    void *copy = malloc(bytes);
-    if (copy == NULL) {
-        fprintf(stderr, "scoop_rt_array_clone: out of memory\n");
-        abort();
-    }
+    size_t bytes = sizeof(ScoopObjectHeader) + sizeof(uint64_t) + (size_t)(src->size * elem_size);
+    /* GC allocation: the copy keeps the source's TypeDescriptor (the
+     * conversion preserves the array type, spec 10.4). */
+    void *copy = scoop_rt_alloc(src->header.td, bytes);
     memcpy(copy, obj, bytes);
     return copy;
 }
@@ -183,11 +173,22 @@ _Noreturn void scoop_rt_throw(const void *obj) {
      * and its copied object header keeps the TD available for catch
      * type filtering. The C++ ABI releases the buffer when handling
      * completes; the destructor is NULL because payload references
-     * are GC-managed (release policy re-evaluated in M9). */
+     * are GC-managed.
+     *
+     * M9 keep-alive (DESIGN 3.4): the buffer is not GC-managed, but
+     * the references inside the copy must stay alive while the
+     * exception is in flight. v1 approximation: pin the ORIGINAL
+     * object (heap-allocated per the throw contract) and register the
+     * buffer as an external global root so its outgoing references
+     * are traced. Neither is ever released (the pinned list and root
+     * list only grow) — a known conservative approximation; precise
+     * buffer release is in the backlog (DESIGN section 6). */
     const ScoopObjectHeader *header = obj;
     size_t size = (size_t)header->td->size;
     void *buffer = __cxa_allocate_exception(size);
     memcpy(buffer, obj, size);
+    scoop_rt_pin(obj);
+    scoop_rt_gc_add_root_object(buffer);
     __cxa_throw(buffer, NULL, NULL);
 }
 
@@ -224,6 +225,10 @@ void scoop_rt_init_eh(void) {
 
 int main(void) {
     scoop_rt_init_eh();
+    /* Record the mutator stack base for the v1 conservative stack
+     * scan (gc.c); replaced by statepoint stackmaps once codegen
+     * emits them (milestone9 DESIGN 3.2). */
+    scoop_rt_gc_init(__builtin_frame_address(0));
     scoop_main();
     return 0;
 }

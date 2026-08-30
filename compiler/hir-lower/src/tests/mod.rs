@@ -14,6 +14,7 @@ mod m5;
 mod m6;
 mod m7;
 mod m8;
+mod m9;
 
 use super::*;
 use ast::{
@@ -541,6 +542,18 @@ pub(crate) fn intrinsic_fun(
     params: Vec<(&str, TypeRef)>,
     return_ty: Option<TypeRef>,
 ) -> Decl {
+    intrinsic_generic_fun(name, intrinsic, vec![], params, return_ty)
+}
+
+/// `@Intrinsic("...") fun <T, ...> name(params) [: T]` (core library
+/// only) — the M9 GC intrinsics are generic.
+pub(crate) fn intrinsic_generic_fun(
+    name: &str,
+    intrinsic: &str,
+    type_params: Vec<&str>,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: vec![ast::Annotation {
             name: ident("Intrinsic"),
@@ -550,7 +563,7 @@ pub(crate) fn intrinsic_fun(
         is_override: false,
         is_abstract: false,
         name: ident(name),
-        type_params: Vec::new(),
+        type_params: type_params.into_iter().map(ident).collect(),
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
@@ -568,6 +581,7 @@ pub(crate) fn intrinsic_fun(
 pub(crate) fn struct_decl(name: &str, fields: Vec<(&str, TypeRef)>) -> Decl {
     Decl::Struct(AstStructDecl {
         name: ident(name),
+        type_params: Vec::new(),
         interfaces: Vec::new(),
         methods: Vec::new(),
         fields: fields
@@ -736,6 +750,7 @@ pub(crate) fn struct_decl_full(
 ) -> Decl {
     Decl::Struct(AstStructDecl {
         name: ident(name),
+        type_params: Vec::new(),
         fields: fields
             .into_iter()
             .map(|(name, ty)| FieldDecl {
@@ -1036,6 +1051,57 @@ pub(crate) fn throwable_core() -> SourceFile {
 /// (M8 tests).
 pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
     lower(&[core_file(), throwable_core(), user])
+}
+
+/// The GC facilities of `scoop.core`
+/// (sysroot/lib/scoop.core/src/gc.scoop, M9) as another core file:
+/// the `PinHandle` / `GcHandle` structs, the four generic GC
+/// intrinsics and the test-only `gcCollect` / `gcStats` hooks. The
+/// surface declarations spell the handle types `PinHandle<T>`; the
+/// AST cannot declare generic structs yet, so the test core declares
+/// the plain structs and hir-lower recognizes them by name (see
+/// `declare_struct`).
+pub(crate) fn gc_core_file() -> SourceFile {
+    let handle = |name: &str| ty_generic(name, vec![ty_named("T")]);
+    file(vec![
+        struct_decl("PinHandle", vec![("raw", ty_named("UInt"))]),
+        struct_decl("GcHandle", vec![("raw", ty_named("UInt"))]),
+        intrinsic_generic_fun(
+            "pin",
+            "rt_pin",
+            vec!["T"],
+            vec![("v", ty_named("T"))],
+            Some(handle("PinHandle")),
+        ),
+        intrinsic_generic_fun(
+            "unpin",
+            "rt_unpin",
+            vec!["T"],
+            vec![("h", handle("PinHandle"))],
+            Some(ty_named("T")),
+        ),
+        intrinsic_generic_fun(
+            "getGcHandle",
+            "rt_get_handle",
+            vec!["T"],
+            vec![("v", ty_named("T"))],
+            Some(handle("GcHandle")),
+        ),
+        intrinsic_generic_fun(
+            "releaseGcHandle",
+            "rt_release_handle",
+            vec!["T"],
+            vec![("h", handle("GcHandle"))],
+            Some(ty_named("T")),
+        ),
+        intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
+        intrinsic_fun("gcStats", "rt_gc_stats", vec![], Some(ty_named("UInt"))),
+    ])
+}
+
+/// Lower a user file with the core GC facilities available (M9 tests).
+pub(crate) fn lower_user_with_gc(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
+    lower(&[core_file(), gc_core_file(), user])
 }
 
 /// `main` calls `println("hello, world")` then `helper()`, which

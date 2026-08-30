@@ -57,7 +57,7 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 接收**本 Cone** 的 MIR output，以及**上游 Cone 的 LIR meta**（见下），负责：
 
 - 为每个 type 生成布局信息（struct/enum/tuple 布局、`@CLayout` 的 pack/align、`Option` 的 niche 编码——spec 7.4）。需要上游布局的场景：本 Cone 的类继承上游类（继承字段的偏移）、跨 Cone 嵌套的值类型（上游 struct/enum/tuple 嵌入本地类型、作为数组元素、按值传参的 ABI）；
-- 给每个 function 插入 statepoint（spec 14.2）；
+- statepoint 的落地形态（M9 定稿）：LIR 保持 statepoint 无关的指令形态，由 codegen 给每个 function 设置 GC strategy（`statepoint-example`）并执行 `rewrite-statepoints-for-gc` pass，同时在函数入口与循环回边插入 safepoint poll（详见 codegen 的实现与注释；statepoint 的"插入职责在 LIR"是早期表述，以此为准）；
 - try / catch / finally 降级为 landingpad + personality function；`throw` 接到 runtime 入口；
 - 输出 LIR type/function list，不再包含任何 Scoop 特有的内容，可以机械翻译成目标 IR 或其他格式。
 

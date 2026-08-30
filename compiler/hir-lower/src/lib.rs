@@ -81,6 +81,18 @@
 //! The validated `Throwable` stays a lowerer-internal field (the HIR
 //! `Module` is unchanged); mir-lower re-resolves the exception classes
 //! by name when it rewrites the M3 trap paths.
+//!
+//! M9 (milestone9 DESIGN.md section 1): the `UInt` basic type (spec
+//! 11.2 — a distinct type from `Int` with no implicit conversion;
+//! arithmetic and comparisons follow the same rules as `Int`, with the
+//! unsigned semantics risks deferred) and the core GC facilities:
+//! generic structs `PinHandle<T>` / `GcHandle<T>` (recognized by name
+//! in core until generic struct declarations arrive; applications are
+//! tracked in `generic_struct_args` because HIR's `Type::Struct`
+//! carries no type arguments) and the `pin` / `unpin` / `getGcHandle`
+//! / `releaseGcHandle` intrinsics, whose inferred type argument must
+//! be a reference type — spec 14.1's `T : ref` in its pre-M12 form.
+//! `gcCollect` / `gcStats` are ordinary test-only intrinsics.
 
 mod class;
 mod expr;
@@ -195,10 +207,24 @@ pub(crate) struct Lowerer {
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     pub(crate) int: TypeId,
+    /// The `UInt` well-known type (M9, spec 11.2); lowerer-internal
+    /// like `any` — `hir::Module`'s well-known list is unchanged.
+    pub(crate) uint: TypeId,
     pub(crate) boolean: TypeId,
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
     pub(crate) any: TypeId,
+    /// Generic structs and their type-parameter arity (M9: the core
+    /// GC handle types `PinHandle` / `GcHandle`, recognized by name —
+    /// see `declare_struct`). Generic struct declarations arrive with
+    /// parser support; `Type::Struct` carries no arguments, so
+    /// applications are tracked in `generic_struct_args` below.
+    pub(crate) generic_structs: HashMap<StructId, usize>,
+    /// Type arguments of each generic struct application TypeId
+    /// (`PinHandle<String>` → `(PinHandle, [String])`), consulted by
+    /// `types_equal`, `type_name`, `bind_type_args` and the
+    /// substitution helpers.
+    pub(crate) generic_struct_args: HashMap<TypeId, (StructId, Vec<TypeId>)>,
     /// The synthesized `Any` members `equals` / `hashCode` /
     /// `toString`, in vtable-slot order (0..2, mir-lower's fixed
     /// prefix). Calls on an `Any` receiver resolve to these.
@@ -296,12 +322,13 @@ pub(crate) struct Lowerer {
 impl Lowerer {
     fn new() -> Self {
         // Well-known types are allocated first, in a fixed order
-        // (impl spec 2.2): Unit, Int, Boolean, String. `Any` (M6)
-        // follows them; it is not part of the `hir::Module` well-known
-        // list, so hir-lower interns it once here.
+        // (impl spec 2.2): Unit, Int, UInt (M9), Boolean, String.
+        // `Any` (M6) follows them; it is not part of the `hir::Module`
+        // well-known list, so hir-lower interns it once here.
         let mut types = Arena::new();
         let unit = types.alloc(Type::Unit);
         let int = types.alloc(Type::Int);
+        let uint = types.alloc(Type::UInt);
         let boolean = types.alloc(Type::Boolean);
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
@@ -316,9 +343,12 @@ impl Lowerer {
             top_level: Vec::new(),
             unit,
             int,
+            uint,
             boolean,
             string,
             any,
+            generic_structs: HashMap::new(),
+            generic_struct_args: HashMap::new(),
             // Filled by `synthesize_any_members` below.
             any_methods: [hir::FunctionId::from_raw(0.into()); 3],
             functions_by_name: HashMap::new(),
@@ -633,6 +663,7 @@ impl Lowerer {
             option_enum,
             entry,
             instantiations: self.instantiations,
+            struct_applications: self.generic_struct_args,
         })
     }
 
@@ -683,6 +714,18 @@ impl Lowerer {
         self.structs_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.struct_methods.insert(id, Vec::new());
+        // Generic struct declarations (M9, spec 3.2): the arity comes
+        // from the declared type parameters. As a stopgap for the test
+        // harness (which builds its core ASTs by hand), the two core
+        // GC handle structs are also recognized by name.
+        if !decl.type_params.is_empty() {
+            self.generic_structs.insert(id, decl.type_params.len());
+        } else {
+            let is_core = file_index < self.user_file_index;
+            if is_core && matches!(decl.name.text.as_str(), "PinHandle" | "GcHandle") {
+                self.generic_structs.insert(id, 1);
+            }
+        }
         for method in &decl.methods {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }

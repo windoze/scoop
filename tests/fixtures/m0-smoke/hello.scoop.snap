@@ -4,6 +4,23 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
     @Intrinsic("rt_write")
   fun write(message: String)
   fun print(message: Any)
@@ -35,6 +52,10 @@ SourceFile
 
 == hir ==
 Module
+  struct PinHandle
+    field raw: UInt
+  struct GcHandle
+    field raw: UInt
   enum Option<T>
     Some(_1: T0)
     None()
@@ -44,6 +65,12 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  fun pin<T>(): PinHandle <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit
@@ -63,6 +90,8 @@ Module
 
 == mir ==
 Module
+  struct PinHandle (raw: UInt)
+  struct GcHandle (raw: UInt)
   enum Option$S
     Some(_1: String)
     None()
@@ -161,53 +190,55 @@ Module
     ret
   fun @scoop.ctor.Throwable() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global6, 8) : ptr
+    t0 = call @scoop_rt_alloc(global6, 16) : ptr
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global7, 16) : ptr
-    heap_store t0 1 param0
+    t0 = call @scoop_rt_alloc(global7, 24) : ptr
+    heap_store t0 2 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global8, 16) : ptr
+    t0 = call @scoop_rt_alloc(global8, 24) : ptr
     t1 = enum_wrap e0 v0 (global2) : enum0
-    heap_store t0 1 t1
+    heap_store t0 2 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global9, 16) : ptr
+    t0 = call @scoop_rt_alloc(global9, 24) : ptr
     t1 = enum_wrap e0 v0 (global3) : enum0
-    heap_store t0 1 t1
+    heap_store t0 2 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global10, 16) : ptr
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr
     t1 = enum_wrap e0 v0 (global4) : enum0
-    heap_store t0 1 t1
+    heap_store t0 2 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global11, 16) : ptr
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr
     t1 = enum_wrap e0 v0 (global5) : enum0
-    heap_store t0 1 t1
+    heap_store t0 2 t1
     ret t0
-  td Throwable @scoop_td_Throwable size=8 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=16 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=16 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=16 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=16 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=16 vtable=3 itables=0
-  layout String size=16 align=8 refs=[]
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout PinHandle size=8 align=8 refs=[]
+  layout GcHandle size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-refs=[[0], []]
-  layout Throwable size=8 align=8 refs=[]
-  layout Exception size=16 align=8 refs=[8]
-  layout UnwrapException size=16 align=8 refs=[8]
-  layout ClassCastException size=16 align=8 refs=[8]
-  layout ArithmeticException size=16 align=8 refs=[8]
-  layout IndexOutOfBoundsException size=16 align=8 refs=[8]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   entry @scoop_main
 
 == run ==

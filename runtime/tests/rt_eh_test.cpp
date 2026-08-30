@@ -10,28 +10,39 @@
  * scoop_eh_personality, which generated code references as the
  * personality of functions with landing pads.
  *
+ * M9: layouts carry the 16-byte object header ({ td, gc_word }), and
+ * the last block verifies exception keep-alive under the GC
+ * (milestone9 DESIGN 3.4): a reference payload of an in-flight
+ * exception survives collections (the original is pinned and the ABI
+ * buffer is registered as an external global root).
+ *
  * Provides scoop_main; the runtime's own main() runs it after
  * scoop_rt_init_eh.
  *
  * Expected stdout:
  *   caught
  *   rethrown
+ *   kept
  *
- * Build & run (rt.c is C; linking needs the C++ ABI for __cxa_* and the
- * personality — the c++ driver adds it, otherwise use -lc++abi):
+ * Build & run (rt.c/gc.c are C; linking needs the C++ ABI for __cxa_*
+ * and the personality — the c++ driver adds it, otherwise -lc++abi):
  *   cc  -std=c11 -Wall -Wextra -I runtime/include -c runtime/src/rt.c -o /tmp/scoop_rt.o
+ *   cc  -std=c11 -Wall -Wextra -I runtime/include -c runtime/src/gc.c -o /tmp/scoop_gc.o
  *   c++ -std=c++11 -Wall -Wextra -c runtime/tests/rt_eh_test.cpp -o /tmp/scoop_rt_eh_test.o
- *   c++ /tmp/scoop_rt.o /tmp/scoop_rt_eh_test.o -o /tmp/scoop_rt_eh_test
+ *   c++ /tmp/scoop_rt.o /tmp/scoop_gc.o /tmp/scoop_rt_eh_test.o -o /tmp/scoop_rt_eh_test
  *   /tmp/scoop_rt_eh_test
  */
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 extern "C" {
 void *scoop_rt_alloc(const void *td, size_t size);
 bool scoop_rt_is_instance(const void *obj, const void *td);
 void scoop_rt_throw(const void *obj);
 void scoop_rt_rethrow(void);
+void scoop_rt_gc_collect(void);
+unsigned long long scoop_rt_gc_stats(void);
 int scoop_eh_personality(int version, unsigned int actions, unsigned long long exception_class,
                          void *exception, void *context);
 }
@@ -42,19 +53,27 @@ int scoop_eh_personality(int version, unsigned int actions, unsigned long long e
 extern "C" void *__cxa_current_primary_exception();
 
 /* Matches the layout of the TypeDescriptor globals emitted by codegen
- * (eight 8-byte slots, runtime spec 2.2; slot 1 is the instance size).
- * scoop_td_String is referenced by rt.c's string helpers. */
+ * (eight 8-byte slots, runtime spec 2.2; slot 1 is the instance size,
+ * slot 3 the GC scan descriptor). scoop_td_String is referenced by
+ * rt.c's string helpers. Its size is the fixed part (16-byte header +
+ * len); this test never scans a String, so the descriptor stays 0. */
 struct ScoopTypeDescriptorLayout {
     unsigned long long slots[8];
 };
-extern "C" const ScoopTypeDescriptorLayout scoop_td_String = {{1, 16, 8, 0, 0, 0, 0, 0}};
+extern "C" const ScoopTypeDescriptorLayout scoop_td_String = {{1, 24, 8, 0, 0, 0, 0, 0}};
 
 namespace {
 
-/* Test exception type: instance size 16 = object header (8) + one i64
- * payload slot. */
-const ScoopTypeDescriptorLayout exception_td = {{1000, 16, 8, 0, 0, 0, 0, 0}};
-const size_t payload_offset = 8;
+/* Test exception type: instance size 24 = 16-byte object header + one
+ * i64 payload slot. No references, so the scan descriptor is 0. */
+const ScoopTypeDescriptorLayout exception_td = {{1000, 24, 8, 0, 0, 0, 0, 0}};
+const size_t payload_offset = 16;
+
+/* M9 keep-alive fixture: exception whose payload is a reference
+ * (scan descriptor: plain table, one reference at offset 16). */
+const unsigned long long ref_payload_scan[] = {1, 16};
+const ScoopTypeDescriptorLayout ref_exception_td = {
+    {2000, 24, 8, (unsigned long long)&ref_payload_scan[0], 0, 0, 0, 0}};
 
 [[noreturn]] void fail(const char *what) {
     std::fprintf(stderr, "rt_eh_test: %s\n", what);
@@ -82,10 +101,27 @@ void throw_and_rethrow(const void *obj, const void **inner_caught) {
     }
 }
 
+/* String object layout (16-byte header + len + inline data). */
+void *make_string(const char *text, size_t len) {
+    void *s = scoop_rt_alloc(&scoop_td_String, 24 + len);
+    *reinterpret_cast<unsigned long long *>(static_cast<char *>(s) + 16) = len;
+    std::memcpy(static_cast<char *>(s) + 24, text, len);
+    return s;
+}
+
+/* Overwrite dead stack frames so the conservative stack scan (gc.c
+ * v1) does not retain pointers that only lived in helper frames. */
+void clobber_stack() {
+    volatile unsigned long long buf[2048];
+    for (size_t i = 0; i < 2048; i++) {
+        buf[i] = 0;
+    }
+}
+
 } // namespace
 
 extern "C" void scoop_main(void) {
-    void *original = scoop_rt_alloc(&exception_td, 16);
+    void *original = scoop_rt_alloc(&exception_td, 24);
     if (original == nullptr) {
         fail("out of memory");
     }
@@ -139,4 +175,37 @@ extern "C" void scoop_main(void) {
     if (personality == nullptr) {
         fail("scoop_eh_personality missing");
     }
+
+    // M9 (DESIGN 3.4): a reference payload of an in-flight exception
+    // survives collections. The string is referenced only from the
+    // exception payload; the throw pins the original and registers the
+    // ABI buffer as an external global root.
+    void *ref_ex = scoop_rt_alloc(&ref_exception_td, 24);
+    void *kept = make_string("zombie", 6);
+    *reinterpret_cast<void **>(static_cast<char *>(ref_ex) + payload_offset) = kept;
+    kept = nullptr;
+    clobber_stack();
+    try {
+        scoop_rt_throw(ref_ex);
+    } catch (...) {
+        const void *in_flight = __cxa_current_primary_exception();
+        scoop_rt_gc_collect();
+        scoop_rt_gc_collect();
+        const char *payload_data =
+            *reinterpret_cast<char *const *>(static_cast<char *>(const_cast<void *>(in_flight)) +
+                                             payload_offset);
+        if (payload_data == nullptr) {
+            fail("gc: in-flight exception lost its payload reference");
+        }
+        unsigned long long kept_len =
+            *reinterpret_cast<const unsigned long long *>(payload_data + 16);
+        if (kept_len != 6 || std::memcmp(payload_data + 24, "zombie", 6) != 0) {
+            fail("gc: in-flight exception payload string was collected");
+        }
+        // Collect only while the exception is in flight: after the
+        // handler exits, the C++ ABI frees the buffer while the v1
+        // root registration stays (known conservative approximation,
+        // DESIGN 3.4/6) — tracing it then would be a use-after-free.
+    }
+    std::puts("kept");
 }

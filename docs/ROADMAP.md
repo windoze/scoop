@@ -55,9 +55,9 @@ class / 继承 / interface / 方法、vtable / itable 分派、装箱（spec 3�
 
 try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。四条 trap 路径已全部改接真实异常：`!!` → `UnwrapException`、数组越界 → `IndexOutOfBoundsException`、`as` → `ClassCastException`、整数除零 → `ArithmeticException`（spec 11.7 已同步新增后者）。`scoop_rt_throw` 按 `__cxa_allocate_exception` + 拷贝的 ABI 正确形态实现。
 
-### M9 真 GC
+### M9 真 GC ✅（2026-08-30 完成，设计见 `docs/milestone9/DESIGN.md`）
 
-Immix 分代 GC 替换 always-leak；打开 statepoint；handle / pin 设施（runtime spec 第 3、4 章）。M9 之前的全部代码必须在 always-leak GC 下保持正确，GC 实现因此获得一个长的并行开发窗口。
+真 GC 替换 always-leak：Immix 核心（32KB block / 128B line、bump 分配、free-line 复用、标记-区域回收，1 GiB mmap arena）；statepoint 打开（GC strategy + `rewrite-statepoints-for-gc` + safepoint poll + stackmap）；对象头扩为 16B（td + gc_word）；pin（对象头标志位）与 GcHandle 表落地；`scoop.core.gc` 包（暂为 intrinsic）；写屏障卡片表（预偏置指针，为分代预留）；M1–M8 全部 fixture 在真 GC 下原样通过。
 
 ### M10 协程
 
@@ -169,3 +169,14 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - finally 内的路径分析（finally 内 return/再抛异常的精细语义）；
 - 未捕获异常打印类型名（当前为通用消息；需要 TD 增加 name 字段，runtime spec 2.2 同步）；
 - 异常穿越 Scoop ABI FFI frame 的规则（维持 runtime spec 第 5 章的暂定“初版禁止”）。
+
+### 来自 M9
+
+- 分代（nursery、晋升、remembered set 消费卡片表、代间引用检查）；
+- evacuation / defragmentation（Immix 的碎片整理；arena 扩容与多段管理）；
+- 并行/并发回收与 STW 线程协调（线程注册/握手，safepoint poll 已是握手点形态）；
+- x86_64 栈扫描汇编（当前仅 aarch64，v1 为保守栈扫描；statepoint 精确栈扫描替换点已在 gc.c 预留）；
+- 异常 ABI 缓冲的精确释放（v1 为 pin 原对象 + thrown 列表登记的保守近似）；
+- tagged enum 的 per-variant 扫描表发射（SCOOP_REFS_ENUM 的 LIR meta 扩展；当前保持 M4 边界）；
+- hir-lower 的泛型 struct 字段类型形参作用域（当前字段里的 T 需要进一步支持；core GC struct 的按名识别 stopgap 可摘除）；
+- 其余定宽整数族（Int8/16/32、UInt8/16/32，spec 11.2；UInt/UInt64 已落地）。

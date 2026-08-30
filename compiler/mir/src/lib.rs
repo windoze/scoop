@@ -61,6 +61,7 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
     match ty {
         Type::Unit => "U".to_string(),
         Type::Int => "I".to_string(),
+        Type::UInt => "V".to_string(),
         Type::Boolean => "B".to_string(),
         Type::String => "S".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
@@ -89,6 +90,9 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
 pub enum Type {
     Unit,
     Int,
+    /// Unsigned 64-bit integer (`UInt`, spec 11.2; same machine word
+    /// as `Int`, mapped to `i64` at LIR).
+    UInt,
     Boolean,
     String,
     Struct(StructId),
@@ -440,6 +444,15 @@ pub enum RuntimeFn {
     AnyEquals,
     AnyHashCode,
     AnyToString,
+    /// GC facilities (spec 14.1; M9 via intrinsics, see
+    /// docs/milestone9/DESIGN.md 5.2).
+    Pin,
+    Unpin,
+    GetHandle,
+    ReleaseHandle,
+    /// Test-only GC hooks (not in the spec, milestone9 DESIGN 5.2).
+    GcCollect,
+    GcStats,
     /// Primitive output intrinsics backing core's `print`/`println`
     /// overloads (M7, docs/milestone7/DESIGN.md section 2).
     Write,
@@ -461,6 +474,12 @@ impl RuntimeFn {
             RuntimeFn::AnyEquals => "scoop_rt_any_equals",
             RuntimeFn::AnyHashCode => "scoop_rt_any_hashcode",
             RuntimeFn::AnyToString => "scoop_rt_any_tostring",
+            RuntimeFn::Pin => "scoop_rt_pin",
+            RuntimeFn::Unpin => "scoop_rt_unpin",
+            RuntimeFn::GetHandle => "scoop_rt_get_handle",
+            RuntimeFn::ReleaseHandle => "scoop_rt_release_handle",
+            RuntimeFn::GcCollect => "scoop_rt_gc_collect",
+            RuntimeFn::GcStats => "scoop_rt_gc_stats",
             RuntimeFn::Write => "scoop_rt_print",
             RuntimeFn::IntToString => "scoop_rt_int_to_string",
             RuntimeFn::BoolToString => "scoop_rt_bool_to_string",
@@ -565,6 +584,7 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
     match ty {
         Type::Unit => "Unit".to_string(),
         Type::Int => "Int".to_string(),
+        Type::UInt => "UInt".to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
