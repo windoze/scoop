@@ -927,7 +927,7 @@ fn unsupported_annotation_is_an_error() {
             span: sp(),
         }],
         is_override: false,
-        is_abstract: false,
+        modifier: ast::MethodModifier::Final,
         name: ident("pure_fn"),
         type_params: vec![],
         params: vec![],

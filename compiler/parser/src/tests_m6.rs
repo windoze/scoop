@@ -7,7 +7,8 @@
 //! diagnostic.
 
 use scoop_ast::{
-    AssignTarget, ClassModifier, Decl, Expr, FunctionBody, Span, StatementKind, TypeRefKind,
+    AssignTarget, ClassModifier, Decl, Expr, FunctionBody, MethodModifier, Span, StatementKind,
+    TypeRefKind,
 };
 
 use crate::tests::{block_body, err, ok, only_function};
@@ -99,7 +100,7 @@ fn class_without_constructor_parens() {
     assert_eq!(decl.span, Span::new(0, 52));
     assert_eq!(decl.methods.len(), 1);
     let method = &decl.methods[0];
-    assert!(method.is_abstract);
+    assert_eq!(method.modifier, MethodModifier::Abstract);
     assert!(!method.is_override);
     assert_eq!(method.name.text, "kind");
     assert_eq!(method.span, Span::new(26, 50));
@@ -117,7 +118,7 @@ fn class_member_functions() {
     assert!(matches!(decl.methods[0].body, FunctionBody::Block(_)));
     let b = &decl.methods[1];
     assert!(b.is_override);
-    assert!(!b.is_abstract);
+    assert_eq!(b.modifier, MethodModifier::Open);
     assert_eq!(b.span, Span::new(29, 54));
     assert!(matches!(b.body, FunctionBody::Expr(_)));
 }
@@ -129,9 +130,49 @@ fn class_member_modifiers_in_any_order() {
         panic!("expected a class declaration");
     };
     let method = &decl.methods[0];
-    assert!(method.is_abstract);
+    assert_eq!(method.modifier, MethodModifier::Abstract);
     assert!(method.is_override);
     assert!(matches!(method.body, FunctionBody::None));
+}
+
+#[test]
+fn method_modality_defaults_and_explicit_forms() {
+    let file = ok(
+        "class C {\n    fun a() {}\n    open fun b() {}\n    override fun c() {}\n    final override fun d() {}\n}\n",
+    );
+    let Decl::Class(decl) = &file.declarations[0] else {
+        panic!("expected a class declaration");
+    };
+    assert_eq!(decl.methods[0].modifier, MethodModifier::Final);
+    assert_eq!(decl.methods[1].modifier, MethodModifier::Open);
+    // An override remains open unless explicitly closed.
+    assert_eq!(decl.methods[2].modifier, MethodModifier::Open);
+    assert!(decl.methods[2].is_override);
+    assert_eq!(decl.methods[3].modifier, MethodModifier::Final);
+    assert!(decl.methods[3].is_override);
+}
+
+#[test]
+fn method_modality_keywords_are_mutually_exclusive() {
+    let (_, message) = err("class C { open final fun f() {} }");
+    assert_eq!(
+        message,
+        "`open` and `final` cannot be combined on a member function"
+    );
+}
+
+#[test]
+fn interface_methods_cannot_be_final_or_open() {
+    let (_, final_message) = err("interface I { final fun f() }");
+    assert_eq!(
+        final_message,
+        "`final` modifier is not allowed on interface methods"
+    );
+    let (_, open_message) = err("interface I { open fun f() }");
+    assert_eq!(
+        open_message,
+        "`open` modifier is not allowed on interface methods"
+    );
 }
 
 // --- class diagnostics ---------------------------------------------------------
@@ -248,7 +289,7 @@ fn abstract_function_must_not_have_a_body() {
 #[test]
 fn duplicate_member_modifier_is_an_error() {
     let (_, message) = err("class C {\n    override override fun f() = 1\n}\n");
-    assert_eq!(message, "expected `fun`, found `override`");
+    assert_eq!(message, "duplicate `override` modifier on member function");
 }
 
 #[test]
@@ -277,7 +318,7 @@ fn interface_decl() {
     assert_eq!(method.name.text, "describe");
     assert_eq!(method.span, Span::new(28, 50));
     assert!(!method.is_override);
-    assert!(!method.is_abstract);
+    assert_eq!(method.modifier, MethodModifier::Abstract);
     assert!(matches!(method.body, FunctionBody::None));
     assert!(method.return_ty.is_some());
     assert_eq!(

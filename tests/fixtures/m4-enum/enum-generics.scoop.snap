@@ -181,12 +181,12 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     Call @scoop_rt_print direct
-      Call @scoop.Any.toString direct
+      Call @scoop.Any.toString virtual[2]
         Local message
     return
   fun println @scoop.println(message: Any) -> Unit
     Call @scoop_rt_print direct
-      Call @scoop.Any.toString direct
+      Call @scoop.Any.toString virtual[2]
         Local message
     Call @scoop_rt_print direct
       StringConst @scoop.str.0

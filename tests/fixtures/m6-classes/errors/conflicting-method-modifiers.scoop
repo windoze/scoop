@@ -1,0 +1,5 @@
+open class C {
+    open final fun id(): Int = 1
+}
+
+fun main() {}

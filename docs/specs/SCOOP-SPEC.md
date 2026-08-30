@@ -205,6 +205,7 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 
 值类型可以实现 interface，但**不得因此获得可变性**：
 
+- 实现 interface 方法必须使用 `override`；值类型方法始终为 final，不参与 vtable 分派，但装箱为 interface 后通过该 interface 的 itable 分派；
 - 实现 interface 的成员函数、属性 getter 不得修改 `this` 的任何字段（值类型字段本来就不可写，此规则是自然推论）；
 - 若 interface 契约要求可变行为（例如要求实现 `var` 属性的 setter），值类型实现它是**编译错误**。
 
@@ -519,6 +520,9 @@ enum Option<T> {
 
 - `class` / `abstract class` / `interface` / `object` / `companion object`：与 Kotlin 一致，均为引用类型。
 - 类可以实现 interface，可以继承一个类；struct/enum 不能被继承，也不能继承类。
+- 类与成员方法默认均为 `final`。只有 `open` / `abstract` 类可以被继承；类可被继承不代表其方法自动可覆写，普通基类方法必须显式声明为 `open fun` 才能首次被覆写。
+- `abstract fun` 隐含 `open` 且没有函数体，只能声明在 `abstract class` 或 interface 中。覆写类或 interface 方法必须写 `override`；与 Kotlin 一致，`override fun` 默认继续保持 `open`，可用 `final override fun` 终止后续覆写，也可用 `open override fun` 显式强调继续开放。
+- final 方法不得被覆写。静态接收者上已知的 final 方法调用使用直接分派；open / abstract 类方法调用使用 vtable 分派，interface 方法调用使用 itable 分派。final override 仍替换继承来的 vtable 槽，以保证经基类引用调用时到达该实现。
 - `sealed`：`sealed class` / `sealed interface` 保留（引用类型的受限继承）；值类型的等价物直接使用 `enum`。
 
 ### 9.2 委托

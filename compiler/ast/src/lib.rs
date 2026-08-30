@@ -113,6 +113,15 @@ pub enum ClassModifier {
     Abstract,
 }
 
+/// Effective modality of a member function (spec 9.1). Plain class
+/// methods are final; an override is open unless explicitly final.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodModifier {
+    Final,
+    Open,
+    Abstract,
+}
+
 /// `class Name(props) : Base(args), I1, I2 { members }` (spec 9.1).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl {
@@ -214,8 +223,9 @@ pub struct FunctionDecl {
     pub annotations: Vec<Annotation>,
     /// `override` (required when overriding, forbidden otherwise).
     pub is_override: bool,
-    /// `abstract` (bodyless; only in abstract classes / interfaces).
-    pub is_abstract: bool,
+    /// Effective member modality. It is `Final` for top-level
+    /// functions, where member modality is not applicable.
+    pub modifier: MethodModifier,
     pub name: Ident,
     /// Generic type parameters (`fun <T> f(...)`); empty for
     /// non-generic functions.
@@ -725,9 +735,18 @@ pub fn dump(file: &SourceFile) -> String {
                     .as_ref()
                     .map(|t| format!(": {}", dump_type_ref(t)))
                     .unwrap_or_default();
+                let modifier = match (f.modifier, f.is_override) {
+                    (MethodModifier::Final, false) => "",
+                    (MethodModifier::Final, true) => "final ",
+                    (MethodModifier::Open, false) => "open ",
+                    // `override` is open by default, so avoid printing
+                    // a redundant effective-modality marker.
+                    (MethodModifier::Open, true) => "",
+                    (MethodModifier::Abstract, _) => "abstract ",
+                };
                 let flags = format!(
                     "{}{}",
-                    if f.is_abstract { "abstract " } else { "" },
+                    modifier,
                     if f.is_override { "override " } else { "" }
                 );
                 out.push_str(&format!(

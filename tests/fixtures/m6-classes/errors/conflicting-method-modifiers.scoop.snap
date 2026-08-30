@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/conflicting-method-modifiers.scoop:2:10: error: `open` and `final` cannot be combined on a member function

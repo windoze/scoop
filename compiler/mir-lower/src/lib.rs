@@ -237,9 +237,12 @@ impl Lowerer {
             {
                 continue;
             }
-            match function.method_of {
-                Some(ty)
-                    if matches!(module.types[ty], hir::Type::Interface(_) | hir::Type::Any) => {}
+            match function.method {
+                Some(method)
+                    if matches!(
+                        module.types[method.owner],
+                        hir::Type::Interface(_) | hir::Type::Any
+                    ) => {}
                 Some(_) => {
                     let id = self.declare_function(module, hir_id);
                     user_functions.push((hir_id, id));
@@ -250,9 +253,10 @@ impl Lowerer {
             }
         }
         for (hir_id, function) in module.functions.iter() {
-            let Some(ty) = function.method_of else {
+            let Some(method) = function.method else {
                 continue;
             };
+            let ty = method.owner;
             // Interface methods and the synthesized `Any` members
             // (`equals` / `hashCode` / `toString`) are signature-only
             // shells: dispatch goes through the vtable prefix / itable,
@@ -533,7 +537,7 @@ impl Lowerer {
         // A method's receiver (parameter 0, hir-lower's contract) is
         // not part of the overload signature: `Doc.describe(Int)`
         // encodes as `scoop.Doc.describe.I`.
-        let skip = usize::from(function.method_of.is_some());
+        let skip = usize::from(function.method.is_some());
         let params = self.lower_params(module, &function.params[skip..]);
         mir::mangle_overload(&self.shell, &name, &params)
     }
@@ -574,7 +578,7 @@ impl Lowerer {
     /// so keying vtable slots by it replaces the base slot in place,
     /// while overloads get distinct keys and thus distinct slots.
     fn fn_signature_key(&mut self, module: &hir::Module, function: &hir::Function) -> String {
-        let skip = usize::from(function.method_of.is_some());
+        let skip = usize::from(function.method.is_some());
         let encoding = self.param_encoding(module, &function.params[skip..]);
         format!("{}({encoding})", short_name(&function.name))
     }
@@ -749,12 +753,18 @@ impl Lowerer {
                 }
                 let mir_fn = self.function_map[&fn_id];
                 let key = self.fn_signature_key(module, function);
+                let modifier = function.method.expect("class method metadata").modifier;
                 match slots.get(&key) {
                     Some(&slot) => vtable[slot as usize] = mir::TableSlot::Function(mir_fn),
-                    None => {
+                    None if modifier != hir::MethodModifier::Final => {
                         slots.insert(key, vtable.len() as u32);
                         vtable.push(mir::TableSlot::Function(mir_fn));
                     }
+                    // A fresh final method is statically dispatched and
+                    // does not consume a vtable slot. A final override
+                    // took the existing-slot arm above so base-typed
+                    // calls still reach it.
+                    None => {}
                 }
             }
             let mut covered: Vec<mir::InterfaceId> = match decl.base_class {
@@ -1250,9 +1260,10 @@ impl Lowerer {
         key: &str,
     ) -> mir::FunctionId {
         for (fn_id, function) in module.functions.iter() {
-            let Some(ty) = function.method_of else {
+            let Some(method) = function.method else {
                 continue;
             };
+            let ty = method.owner;
             let matches = match (&module.types[ty], payload) {
                 (hir::Type::Struct(hir_id), mir::Type::Struct(mir_id)) => {
                     // Struct instances are named `<name>$<encoded
@@ -1320,23 +1331,18 @@ fn short_name(name: &str) -> &str {
     name.rsplit('.').next().unwrap_or(name)
 }
 
-/// Whether a function is an abstract class method as hir-lower
-/// materializes it: a bodiless `User` function (parameters only, no
-/// statements) with a non-`Unit` return type in a class. A concrete
-/// non-`Unit` function without statements is a HIR error, so this
-/// shape can only be an abstract method. (`Unit`-returning abstract
-/// methods lower as ordinary empty functions: they are unreachable in
-/// valid programs and behaviorally identical to an empty body.)
-fn is_abstract_bodiless(module: &hir::Module, function: &hir::Function, body: &hir::Body) -> bool {
-    body.statements.is_empty()
-        && !matches!(module.types[function.return_ty], hir::Type::Unit)
-        && matches!(function.method_of, Some(ty) if matches!(module.types[ty], hir::Type::Class(_)))
+/// Whether a function is an abstract class method. HIR carries this
+/// explicitly, including for `Unit`-returning methods.
+fn is_abstract_bodiless(function: &hir::Function) -> bool {
+    function
+        .method
+        .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
 }
 
 /// The class a function is a method of, if any.
 fn method_class(module: &hir::Module, function: &hir::Function) -> Option<hir::ClassId> {
-    match function.method_of {
-        Some(ty) => match module.types[ty] {
+    match function.method {
+        Some(method) => match module.types[method.owner] {
             hir::Type::Class(id) => Some(id),
             _ => None,
         },
@@ -1919,7 +1925,7 @@ impl BodyLowerer<'_> {
             })
             .collect();
         let return_ty = self.lower_type(function.return_ty);
-        let statements = if is_abstract_bodiless(self.module, function, body) {
+        let statements = if is_abstract_bodiless(function) {
             // An abstract method (hir-lower materializes it bodiless):
             // every override replaces its vtable slot and the class
             // cannot be instantiated, so the slot is never reached;
@@ -2880,6 +2886,12 @@ impl BodyLowerer<'_> {
         };
         let key = self.signature_key(f);
         let kind = match receiver_kind {
+            Receiver::Class(_)
+                if f.method
+                    .is_some_and(|method| method.modifier == hir::MethodModifier::Final) =>
+            {
+                mir::CallKind::Direct
+            }
             Receiver::Class(class) => match self.method_slots[&self.class_map[&class]].get(&key) {
                 Some(&slot) => mir::CallKind::Virtual { slot },
                 None => mir::CallKind::Direct,
@@ -2922,7 +2934,7 @@ impl BodyLowerer<'_> {
     /// receiver excluded) — must agree with
     /// `Lowerer::fn_signature_key`, which keys the vtable slots.
     fn signature_key(&mut self, function: &hir::Function) -> String {
-        let skip = usize::from(function.method_of.is_some());
+        let skip = usize::from(function.method.is_some());
         self.key_parts(short_name(&function.name), &function.params[skip..])
     }
 
@@ -3575,7 +3587,7 @@ mod tests {
                 params: Vec::new(),
                 return_ty: unit,
                 kind: hir::FunctionKind::Intrinsic("rt_write".to_string()),
-                method_of: None,
+                method: None,
                 span: SPAN,
             });
             let int_to_string = functions.alloc(hir::Function {
@@ -3584,7 +3596,7 @@ mod tests {
                 params: Vec::new(),
                 return_ty: string,
                 kind: hir::FunctionKind::Intrinsic("rt_int_to_string".to_string()),
-                method_of: None,
+                method: None,
                 span: SPAN,
             });
             let bool_to_string = functions.alloc(hir::Function {
@@ -3593,7 +3605,7 @@ mod tests {
                 params: Vec::new(),
                 return_ty: string,
                 kind: hir::FunctionKind::Intrinsic("rt_bool_to_string".to_string()),
-                method_of: None,
+                method: None,
                 span: SPAN,
             });
             // scoop.core's `enum Option<T> { Some(T), None }`.
@@ -3905,9 +3917,7 @@ mod tests {
         }
 
         /// A member function (kept out of `top_level`, as hir-lower
-        /// does); `method_of` is the receiver type.
-        /// A member function (kept out of `top_level`, as hir-lower
-        /// does); `method_of` is the receiver type. The name is
+        /// does); member metadata carries the receiver type. The name is
         /// qualified `Owner.method`, as hir-lower names members.
         fn method_fn(
             &mut self,
@@ -3923,7 +3933,10 @@ mod tests {
                 params,
                 return_ty,
                 kind: hir::FunctionKind::User(body),
-                method_of: Some(method_of),
+                method: Some(hir::Method {
+                    owner: method_of,
+                    modifier: hir::MethodModifier::Open,
+                }),
                 span: SPAN,
             })
         }
@@ -4012,7 +4025,7 @@ mod tests {
                         .collect(),
                     return_ty,
                     kind: hir::FunctionKind::Intrinsic(intrinsic.to_string()),
-                    method_of: None,
+                    method: None,
                     span: SPAN,
                 });
                 self.top_level.push(id);
@@ -4094,7 +4107,7 @@ mod tests {
                 params,
                 return_ty,
                 kind: hir::FunctionKind::User(body),
-                method_of: None,
+                method: None,
                 span: SPAN,
             });
             self.top_level.push(id);
@@ -7308,6 +7321,84 @@ Module
     }
 
     #[test]
+    fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
+        let mut h = Harness::new();
+        let base = h.class("Base", hir::ClassModifier::Open, &[], None, &[]);
+        let base_ty = h.class_ty(base);
+        let base_open = empty_method(&mut h, "Base", "openMethod", base_ty);
+        let base_final = empty_method(&mut h, "Base", "finalMethod", base_ty);
+        h.functions[base_final]
+            .method
+            .as_mut()
+            .expect("method")
+            .modifier = hir::MethodModifier::Final;
+
+        let derived = h.class(
+            "Derived",
+            hir::ClassModifier::Final,
+            &[],
+            Some((base, vec![])),
+            &[],
+        );
+        let derived_ty = h.class_ty(derived);
+        let derived_override = empty_method(&mut h, "Derived", "openMethod", derived_ty);
+        h.functions[derived_override]
+            .method
+            .as_mut()
+            .expect("method")
+            .modifier = hir::MethodModifier::Final;
+
+        let unit = h.unit;
+        let mut locals = Arena::new();
+        let as_base = locals.alloc(local("asBase", base_ty));
+        let as_derived = locals.alloc(local("asDerived", derived_ty));
+        let call = |receiver: hir::Expr, function: hir::FunctionId| {
+            expr(
+                hir::ExprKind::MethodCall {
+                    receiver: Box::new(receiver),
+                    function,
+                    args: Vec::new(),
+                },
+                unit,
+            )
+        };
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals,
+                statements: vec![
+                    expr_stmt(call(local_ref(as_base, base_ty), base_open)),
+                    expr_stmt(call(local_ref(as_base, base_ty), base_final)),
+                    expr_stmt(call(local_ref(as_derived, derived_ty), derived_override)),
+                ],
+            },
+        );
+        let module = lower(&h.finish(main));
+
+        let base_vtable = &module.classes[class_index(0)].vtable;
+        assert_eq!(base_vtable.len(), 4);
+        assert_eq!(slot_fn(&module, &base_vtable[3]), "scoop.Base.openMethod");
+        let derived_vtable = &module.classes[class_index(1)].vtable;
+        assert_eq!(derived_vtable.len(), 4);
+        assert_eq!(
+            slot_fn(&module, &derived_vtable[3]),
+            "scoop.Derived.openMethod"
+        );
+
+        let body = &module.functions[module.entry].body;
+        let kind = |index: usize| {
+            let mir::StatementKind::Expr(mir::Expr::Call(call)) = &body.statements[index].kind
+            else {
+                panic!("expected a call")
+            };
+            &call.target.kind
+        };
+        assert!(matches!(kind(0), mir::CallKind::Virtual { slot: 3 }));
+        assert!(matches!(kind(1), mir::CallKind::Direct));
+        assert!(matches!(kind(2), mir::CallKind::Direct));
+    }
+
+    #[test]
     fn boxing_a_value_type_creates_a_boxed_class_with_structural_equals() {
         let mut h = Harness::new();
         let int = h.int;
@@ -7958,7 +8049,7 @@ Module
         let base_ty = h.class_ty(base);
         let mut locals = Arena::new();
         let this = locals.alloc(local("this", base_ty));
-        let _id = h.method_fn(
+        let id = h.method_fn(
             "Base.id",
             base_ty,
             vec![param("this", base_ty, this)],
@@ -7968,6 +8059,7 @@ Module
                 statements: Vec::new(),
             },
         );
+        h.functions[id].method.as_mut().expect("a method").modifier = hir::MethodModifier::Abstract;
         let main = empty_main(&mut h);
         let module = lower(&h.finish(main));
 

@@ -162,17 +162,17 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
-  class Point vtable=5 itables=0
+  class Point vtable=3 itables=0
   class box$I vtable=3 itables=0
   class box$B vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     Call @scoop_rt_print direct
-      Call @scoop.Any.toString direct
+      Call @scoop.Any.toString virtual[2]
         Local message
     return
   fun println @scoop.println(message: Any) -> Unit
     Call @scoop_rt_print direct
-      Call @scoop.Any.toString direct
+      Call @scoop.Any.toString virtual[2]
         Local message
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
@@ -333,34 +333,30 @@ Module
   block entry
     t0 = call @scoop.ctor.Point(1, 2) : ptr
     store t0 -> local0
-    t1 = extract local0, 0 : ptr
-    t2 = extract t1, 5 : ptr
-    t3 = call_indirect t2[3](local0) : i64
-    t4 = call @scoop_rt_box(global5, t3, 8) : ptr
-    call @scoop.println(t4)
-    t5 = aggregate () : {}
-    t6 = extract local0, 3 : i64
-    t7 = call @scoop_rt_box(global5, t6, 8) : ptr
-    call @scoop.println(t7)
-    t8 = aggregate () : {}
-    t9 = extract local0, 0 : ptr
-    t10 = extract t9, 5 : ptr
-    call_indirect t10[4](local0, 10)
-    t11 = aggregate () : {}
-    t12 = extract local0, 3 : i64
-    t13 = call @scoop_rt_box(global5, t12, 8) : ptr
-    call @scoop.println(t13)
-    t14 = aggregate () : {}
+    t1 = call @scoop.Point.sum(local0) : i64
+    t2 = call @scoop_rt_box(global5, t1, 8) : ptr
+    call @scoop.println(t2)
+    t3 = aggregate () : {}
+    t4 = extract local0, 3 : i64
+    t5 = call @scoop_rt_box(global5, t4, 8) : ptr
+    call @scoop.println(t5)
+    t6 = aggregate () : {}
+    call @scoop.Point.moveTo(local0, 10)
+    t7 = aggregate () : {}
+    t8 = extract local0, 3 : i64
+    t9 = call @scoop_rt_box(global5, t8, 8) : ptr
+    call @scoop.println(t9)
+    t10 = aggregate () : {}
     heap_store local0 3 20
-    t15 = extract local0, 3 : i64
-    t16 = call @scoop_rt_box(global5, t15, 8) : ptr
-    call @scoop.println(t16)
-    t17 = aggregate () : {}
+    t11 = extract local0, 3 : i64
+    t12 = call @scoop_rt_box(global5, t11, 8) : ptr
+    call @scoop.println(t12)
+    t13 = aggregate () : {}
     store local0 -> local1
-    t18 = Eq local0, local1 : i1
-    t19 = call @scoop_rt_box(global6, t18, 1) : ptr
-    call @scoop.println(t19)
-    t20 = aggregate () : {}
+    t14 = Eq local0, local1 : i1
+    t15 = call @scoop_rt_box(global6, t14, 1) : ptr
+    call @scoop.println(t15)
+    t16 = aggregate () : {}
     ret
   fun @scoop.Point.sum(ptr) -> i64
   block entry
@@ -442,7 +438,7 @@ Module
     t1 = call @scoop_rt_bool_to_string(t0) : ptr
     ret t1
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Point @scoop_td_Point size=32 vtable=5 itables=0
+  td Point @scoop_td_Point size=32 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td box$B @scoop_td_box$B size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0

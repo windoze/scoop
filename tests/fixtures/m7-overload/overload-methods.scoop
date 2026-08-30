@@ -1,5 +1,5 @@
 open class A {
-    fun s(v: Int): Int = 1
+    open fun s(v: Int): Int = 1
     fun s(v: String): Int = 2
 }
 
