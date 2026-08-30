@@ -21,6 +21,8 @@
 
 解析源代码，为每个源文件生成语法树。
 
+lexer 对坏字符及可恢复的字面量错误继续扫描；parser 分别以顶层声明、类型成员、块内语句为同步边界，在一次解析中收集同一文件的多个独立诊断。诊断按源码顺序输出；只要存在任一诊断，恢复得到的残缺 AST 必须整体丢弃，不得进入 HIR。
+
 ### 2.2 HIR
 
 负责 desugaring、type check 和 overload resolution；综合上游 Cone 的 generic HIR representation；解析每个表达式/子表达式的 type，解析每个 callable 的 target。输出：

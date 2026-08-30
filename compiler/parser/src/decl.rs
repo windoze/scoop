@@ -482,50 +482,59 @@ impl Parser {
         context: FunctionContext,
     ) -> Result<(Vec<FunctionDecl>, u32), Diagnostic> {
         self.bump(); // `{`
+        let body_depth = self.brace_depth();
         let mut methods = Vec::new();
         let close = loop {
-            match &self.peek().kind {
-                TokenKind::RBrace => break self.bump(),
-                TokenKind::Eof => return self.unexpected("`}`"),
-                TokenKind::Val | TokenKind::Var => {
-                    return Err(Diagnostic::at(
-                        self.peek().span,
-                        "member properties are not supported yet (milestone M6)",
-                    ));
-                }
+            if matches!(self.peek().kind, TokenKind::RBrace) {
+                break self.bump();
+            }
+            if matches!(self.peek().kind, TokenKind::Eof) {
+                return self.unexpected("`}`");
+            }
+            let start = self.pos;
+            let parsed = match &self.peek().kind {
+                TokenKind::Val | TokenKind::Var => Err(Diagnostic::at(
+                    self.peek().span,
+                    "member properties are not supported yet (milestone M6)",
+                )),
                 TokenKind::Struct | TokenKind::Enum | TokenKind::Class | TokenKind::Interface => {
-                    return Err(Diagnostic::at(
+                    Err(Diagnostic::at(
                         self.peek().span,
                         "nested type declarations are not supported yet (milestone M6)",
-                    ));
+                    ))
                 }
-                TokenKind::Ident(text) if text == "init" => {
-                    return Err(Diagnostic::at(
-                        self.peek().span,
-                        "`init` blocks are not supported yet (milestone M6)",
-                    ));
+                TokenKind::Ident(text) if text == "init" => Err(Diagnostic::at(
+                    self.peek().span,
+                    "`init` blocks are not supported yet (milestone M6)",
+                )),
+                TokenKind::Ident(text) if text == "constructor" => Err(Diagnostic::at(
+                    self.peek().span,
+                    "secondary constructors are not supported yet (milestone M6)",
+                )),
+                TokenKind::Ident(text) if text == "companion" => Err(Diagnostic::at(
+                    self.peek().span,
+                    "companion objects are not supported yet (milestone M6)",
+                )),
+                TokenKind::Ident(text) if text == "object" => Err(Diagnostic::at(
+                    self.peek().span,
+                    "`object` declarations are not supported yet (milestone M6)",
+                )),
+                _ => self.parse_member_function(context),
+            };
+            match parsed {
+                Ok(method) => {
+                    methods.push(method);
+                    if let Err(diagnostic) = self.expect_statement_end() {
+                        self.diagnostics.push(diagnostic);
+                        self.synchronize_body_item(body_depth, start);
+                    }
                 }
-                TokenKind::Ident(text) if text == "constructor" => {
-                    return Err(Diagnostic::at(
-                        self.peek().span,
-                        "secondary constructors are not supported yet (milestone M6)",
-                    ));
-                }
-                TokenKind::Ident(text) if text == "companion" => {
-                    return Err(Diagnostic::at(
-                        self.peek().span,
-                        "companion objects are not supported yet (milestone M6)",
-                    ));
-                }
-                TokenKind::Ident(text) if text == "object" => {
-                    return Err(Diagnostic::at(
-                        self.peek().span,
-                        "`object` declarations are not supported yet (milestone M6)",
-                    ));
-                }
-                _ => {
-                    methods.push(self.parse_member_function(context)?);
-                    self.expect_statement_end()?;
+                Err(diagnostic) => {
+                    if self.at_eof() {
+                        return Err(diagnostic);
+                    }
+                    self.diagnostics.push(diagnostic);
+                    self.synchronize_body_item(body_depth, start);
                 }
             }
         };
@@ -617,30 +626,41 @@ impl Parser {
         let mut end = name.span.end;
         let interfaces = interfaces_only(self.parse_supertypes(&mut end)?)?;
         self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
+        let body_depth = self.brace_depth();
         let mut variants = Vec::new();
         let mut methods = Vec::new();
         let close = loop {
-            match &self.peek().kind {
-                TokenKind::RBrace => break self.bump(),
-                TokenKind::Eof => return self.unexpected("`}`"),
-                TokenKind::Fun => {
-                    methods.push(self.parse_member_function(FunctionContext::TypeBody)?);
-                    self.expect_statement_end()?;
+            if matches!(self.peek().kind, TokenKind::RBrace) {
+                break self.bump();
+            }
+            if matches!(self.peek().kind, TokenKind::Eof) {
+                return self.unexpected("`}`");
+            }
+            let start = self.pos;
+            let parsed = match &self.peek().kind {
+                TokenKind::Fun => self
+                    .parse_member_function(FunctionContext::TypeBody)
+                    .map(|method| methods.push(method))
+                    .and_then(|()| self.expect_statement_end()),
+                TokenKind::Ident(text) if text == "override" || text == "abstract" => self
+                    .parse_member_function(FunctionContext::TypeBody)
+                    .map(|method| methods.push(method))
+                    .and_then(|()| self.expect_statement_end()),
+                TokenKind::Ident(text) if text == "init" => Err(Diagnostic::at(
+                    self.peek().span,
+                    "`init` blocks are not supported yet (milestone M6)",
+                )),
+                _ => self
+                    .parse_variant()
+                    .map(|variant| variants.push(variant))
+                    .and_then(|()| self.expect_variant_end()),
+            };
+            if let Err(diagnostic) = parsed {
+                if self.at_eof() {
+                    return Err(diagnostic);
                 }
-                TokenKind::Ident(text) if text == "override" || text == "abstract" => {
-                    methods.push(self.parse_member_function(FunctionContext::TypeBody)?);
-                    self.expect_statement_end()?;
-                }
-                TokenKind::Ident(text) if text == "init" => {
-                    return Err(Diagnostic::at(
-                        self.peek().span,
-                        "`init` blocks are not supported yet (milestone M6)",
-                    ));
-                }
-                _ => {
-                    variants.push(self.parse_variant()?);
-                    self.expect_variant_end()?;
-                }
+                self.diagnostics.push(diagnostic);
+                self.synchronize_body_item(body_depth, start);
             }
         };
         Ok(EnumDecl {

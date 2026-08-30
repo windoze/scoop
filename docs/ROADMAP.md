@@ -95,7 +95,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 ### 来自 M1
 
 - ~~always-leak GC → M9 替换~~（已完成）；
-- parser 错误恢复（当前 fail-fast 于第一个错误）；
+- ~~parser 错误恢复~~（已完成：lexer 收集多个可恢复词法错误；parser 按顶层声明、类型成员和块内语句同步，存在诊断时丢弃残缺 AST）；
 - 单文件单 Cone 编译 → M14。
 
 ### 来自 M2
