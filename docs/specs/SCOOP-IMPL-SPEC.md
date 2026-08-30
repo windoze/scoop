@@ -37,6 +37,7 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 此外归属 HIR 的语义工作：
 
 - 字符串插值脱糖（spec 6.2）、`?.` / `?:` 脱糖（spec 7.3）、`for` 脱糖（spec 11.8）等；
+- 对非 `Unit` 块体执行组合式控制流分析，证明所有可达路径均以有值 `return` 或 `throw` 结束；`finally` 的必退出路径覆盖 try/catch 的待执行结果（spec 第 8 章）；
 - 默认参数值的调用处实例化（spec 8.5）；`getCurrentSourceLocation` 在缺省参数中的常量化（spec 11.12）；
 - 装箱/拆箱的插入（spec 4.4.4 的 O(1) 规则）；
 - `when` 的穷尽性检查（spec 第 5 章）。

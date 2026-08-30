@@ -114,7 +114,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - `f(None, 1)` 式"先 None 后绑定"的推断（M3 的实参顺序限制）；
 - 显式类型实参 `f<Int>(x)`（`<` 消歧方案待定）；
 - `value` / `ref` 类型约束（spec 13.9）；
-- 非 Unit 函数返回的分支穷尽分析（当前要求函数体以 `return` 结尾）；
+- ~~非 Unit 函数返回的分支穷尽分析~~（已完成：按顺序块、`if`、穷尽 `when`、`try/catch/finally` 组合分析可落空路径）；
 - `if` 作为表达式；
 - ~~泛型 **struct** 声明~~（已完成：类型实参直接进入 HIR `Type::Struct`，字段/方法类型形参作用域、构造推断、嵌套应用与 MIR 单态化全链路落地）。
 
@@ -168,7 +168,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - try 的表达式形态（`val x = try {...}`）；
 - catch 遮蔽降级为警告（当前为错误；待警告级别诊断基础设施）；
-- finally 内的路径分析（finally 内 return/再抛异常的精细语义）；
+- ~~finally 内的路径分析~~（已完成：必退出的 finally 覆盖 try/catch 的返回、异常与正常继续路径；可落空 finally 保留原路径结果）；
 - 异常穿越 Scoop ABI FFI frame 的规则（维持 runtime spec 第 5 章的暂定“初版禁止”）。
 
 ### 来自 M9

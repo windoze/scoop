@@ -1,0 +1,61 @@
+enum Choice { Left, Right }
+
+fun afterReturn(): Int {
+    return 1
+    println("unreachable")
+}
+
+fun fromIf(flag: Boolean): Int {
+    if (flag) {
+        return 10
+    } else {
+        return 11
+    }
+}
+
+fun fromWhen(choice: Choice): Int {
+    when (choice) {
+        Left -> { return 20 }
+        Right -> { return 21 }
+    }
+}
+
+fun fromFinally(): Int {
+    try {
+        return 30
+    } finally {
+        return 31
+    }
+}
+
+fun exceptionReplacedByFinally(): Int {
+    try {
+        throw UnwrapException()
+    } finally {
+        return 40
+    }
+}
+
+fun branchingFinally(flag: Boolean): Int {
+    try {
+        println("body")
+    } finally {
+        if (flag) {
+            return 50
+        } else {
+            return 51
+        }
+    }
+}
+
+fun main() {
+    println(afterReturn())
+    println(fromIf(true))
+    println(fromIf(false))
+    println(fromWhen(Choice.Left))
+    println(fromWhen(Choice.Right))
+    println(fromFinally())
+    println(exceptionReplacedByFinally())
+    println(branchingFinally(true))
+    println(branchingFinally(false))
+}
