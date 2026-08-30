@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m5-arrays/errors/value-element-auto-box.scoop:10:29: error: array literal element must be of type I, found S

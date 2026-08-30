@@ -50,10 +50,10 @@ fun main() {
 ### 2.2 HIR
 
 - `Type` 新增 `Array(TypeId)` / `MutableArray(TypeId)`（types_equal 按元素类型严格相等——不变性）；`TypeRefKind::Generic` 的 `Array`/`MutableArray` 解析为内建。
-- **字面量推导**（spec 10.2/10.3 的 M5 形态）：
-  - 有期望类型（标注/实参位）：期望为 `Array<U>` 或 `MutableArray<U>` 时逐元素检查类型 = `U`；`[]` 仅此时合法；
-  - 无期望类型：M5 简化——**所有元素类型必须完全相同**（值类型规则与 spec 10.3 一致；spec 对引用类型的 LOB 规则暂缓——M5 只有 String 与数组自身两种引用类型，无混合场景；混合一律报 "array literal elements must have the same type, found X and Y"），推导为 `Array<T>`；
-  - spec 10.3 的"值类型元素不 auto-box"在 M5 自然成立（没有 auto-box 场景）。
+- **字面量推导**（spec 10.2/10.3）：
+  - 有期望类型（标注/实参位）：期望为 `Array<U>` 或 `MutableArray<U>` 时逐元素检查为 `U` 的子类型；引用类型可零成本向上转型，值类型不得在元素位 auto-box；`[]` 仅此时合法；
+  - 无期望类型：若包含值类型，所有元素类型必须完全相同；若全为引用类型，则枚举当前 HIR 可表达的共同父类型并选择唯一的最具体者作为 LOB。若有多个互不可比较的最具体共同父类型（HIR 没有交叉类型），退化为 `Any`；
+  - 元素在 HIR 中统一重标为推导/期望的元素类型，引用向上转型不产生 `Box`。
 - 下标读：接收者必须 `Array<T>`/`MutableArray<T>`，下标必须 `Int`，结果 `T`；下标写：仅 `MutableArray<T>`、值类型 `T`；`.size` 只对数组类型解析（其他类型的 `.size` 照旧 unknown field）。
 - 互转构造：callee 名 `Array`/`MutableArray` 优先按转换内建解析（实参恰好 1 个、类型为另一种类且元素类型相同），否则按未知函数诊断。
 
@@ -93,7 +93,7 @@ fun main() {
 
 1. **数组是编译器内建类型**（同 M3 Option 的先例）：class/方法已在 M6 落地，但 core 的数组 class 声明尚未补齐；内建识别点收敛在 HIR 一处，布局与语义不变。
 2. **越界 trap（已退役）**：M8 已由 `IndexOutOfBoundsException` 取代。
-3. **引用类型元素必须同类型**（无 LOB 推导）：spec 10.3 的 LOB 规则仍在 ROADMAP 的 M5 backlog。
+3. **引用类型元素必须同类型（已退役）**：M6 类型层级落地后已补齐 LOB 推导；无法用单个最具体类型表达时按 spec 退化为 `Any`。
 4. **互转只支持构造函数形式（已退役）**：M6 方法调用落地后，`toArray` / `toMutableArray` 已补齐。
 
 ## 6. 明确不做

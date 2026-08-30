@@ -1,0 +1,11 @@
+interface I {
+    fun value(): Int
+}
+
+struct S(val v: Int) : I {
+    override fun value(): Int = v
+}
+
+fun main() {
+    val values: Array<I> = [S(1)]
+}
