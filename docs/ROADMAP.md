@@ -132,7 +132,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M5
 
-- `toArray` / `toMutableArray` 方法形式（spec 10.4；方法体系已在 M6 就位）；
+- ~~`toArray` / `toMutableArray` 方法形式~~（已完成：与构造函数形式共用 `ArrayClone`，保持 memcpy 独立快照语义）；
 - `for` 循环与区间 `IntRange` 等（spec 11.8；含 `..` 区间运算符与 rest 的共存验证）；
 - `String` 下标/切片；
 - 数组 `==` 语义（spec 缺口，需先回 spec 第 10 章补充）；

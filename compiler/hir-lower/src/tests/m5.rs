@@ -343,6 +343,35 @@ fn conversion_resolves_before_user_functions() {
     assert_eq!(hir::type_name(&module, init.ty), "Array<Int>");
 }
 
+#[test]
+fn conversion_method_forms_clone_to_the_opposite_kind() {
+    let file = file(vec![fun(
+        "main",
+        vec![
+            val("a", array_lit(vec![int_lit(1)])),
+            val_ty(
+                "m",
+                Some(ty_mutable_int_array()),
+                array_lit(vec![int_lit(2)]),
+            ),
+            val("immutable", method_call(var("m"), "toArray", vec![])),
+            val("mutable", method_call(var("a"), "toMutableArray", vec![])),
+        ],
+    )]);
+    let module = lower_user(file).expect("array conversion methods must lower");
+    let body = match &module.functions[module.entry].kind {
+        FunctionKind::User(body) => body,
+        FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+    };
+    for (index, expected) in [(2, "Array<Int>"), (3, "MutableArray<Int>")] {
+        let hir::StatementKind::ValDecl { init, .. } = &body.statements[index].kind else {
+            panic!("expected a val declaration")
+        };
+        assert!(matches!(init.kind, hir::ExprKind::ArrayClone(_)));
+        assert_eq!(hir::type_name(&module, init.ty), expected);
+    }
+}
+
 // --- negative: literal inference ---
 
 #[test]
@@ -629,6 +658,40 @@ fn conversion_takes_exactly_one_argument() {
     assert_eq!(
         errors[0].message,
         "`Array` takes exactly 1 argument, but 2 were supplied"
+    );
+}
+
+#[test]
+fn conversion_methods_take_no_arguments_and_only_exist_on_the_source_kind() {
+    let file = file(vec![fun(
+        "main",
+        vec![
+            val("a", array_lit(vec![int_lit(1)])),
+            val(
+                "m",
+                method_call(var("a"), "toMutableArray", vec![int_lit(2)]),
+            ),
+        ],
+    )]);
+    let errors = lower_user(file).expect_err("conversion method arguments must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "method `toMutableArray` takes exactly 0 arguments, but 1 were supplied"
+    );
+
+    let file2 = super::file(vec![fun(
+        "main",
+        vec![
+            val("a", array_lit(vec![int_lit(1)])),
+            val("same", method_call(var("a"), "toArray", vec![])),
+        ],
+    )]);
+    let errors = lower_user(file2).expect_err("same-kind method conversion must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "type `Array<Int>` has no method `toArray`"
     );
 }
 

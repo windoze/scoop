@@ -76,8 +76,8 @@
 //! M5: arrays (docs/milestone5/DESIGN.md). `Array<T>` /
 //! `MutableArray<T>` map onto the corresponding MIR types, and the
 //! array nodes translate one-to-one: literals, subscript reads, `size`,
-//! `m[i] = v` (an `ArraySet` statement), and the `Array(m)` /
-//! `MutableArray(a)` conversions (`ArrayClone`). There is no array
+//! `m[i] = v` (an `ArraySet` statement), and constructor / method
+//! conversions between the two kinds (`ArrayClone`). There is no array
 //! equality in M5 (DESIGN 6): hir-lower rejects `==` / `!=` on array
 //! types, so the equality expansion treats them as unreachable.
 //!

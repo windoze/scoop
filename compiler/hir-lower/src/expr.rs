@@ -181,7 +181,10 @@ impl Lowerer {
     /// variant path and goes through variant construction (M4 rules:
     /// variant existence, per-field argument checks, type-argument
     /// inference, constructor-style defaults). Variables and host
-    /// properties shadow enum names.
+    /// properties shadow enum names. The two compiler-built-in array
+    /// conversion methods are recognized after lowering the receiver
+    /// and produce the same `ArrayClone` node as their constructor
+    /// forms (spec 10.4).
     fn lower_method_call(
         &mut self,
         receiver: &ast::Expr,
@@ -208,6 +211,21 @@ impl Lowerer {
             }
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
+        let array_conversion = match (&self.types[receiver.ty], name.text.as_str()) {
+            (Type::MutableArray(element), "toArray") => Some((true, *element)),
+            (Type::Array(element), "toMutableArray") => Some((false, *element)),
+            _ => None,
+        };
+        if let Some((to_immutable, element)) = array_conversion {
+            return self.lower_array_method_conversion(
+                receiver,
+                name,
+                args,
+                span,
+                to_immutable,
+                element,
+            );
+        }
         let candidates = self.methods_by_name(receiver.ty, &name.text);
         if candidates.is_empty() {
             let found = self.type_name(receiver.ty);
@@ -221,6 +239,41 @@ impl Lowerer {
             return self.finish_method_call(candidates[0], receiver, args, span, sink);
         }
         self.finish_overloaded_method_call(candidates, &name.text, receiver, args, span, sink)
+    }
+
+    /// `m.toArray()` / `a.toMutableArray()` (spec 10.4). Arrays remain
+    /// compiler-built-in until their core class declarations land, so
+    /// these two methods are represented directly as `ArrayClone`.
+    fn lower_array_method_conversion(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        args: &[ast::Expr],
+        span: Span,
+        to_immutable: bool,
+        element: TypeId,
+    ) -> Option<hir::Expr> {
+        if !args.is_empty() {
+            self.error(
+                span,
+                format!(
+                    "method `{}` takes exactly 0 arguments, but {} were supplied",
+                    name.text,
+                    args.len()
+                ),
+            );
+            return None;
+        }
+        let ty = if to_immutable {
+            self.intern_type(Type::Array(element))
+        } else {
+            self.intern_type(Type::MutableArray(element))
+        };
+        Some(hir::Expr {
+            kind: ExprKind::ArrayClone(Box::new(receiver)),
+            ty,
+            span,
+        })
     }
 
     /// The multi-candidate path of a method call (explicit receiver or

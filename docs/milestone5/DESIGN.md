@@ -7,7 +7,7 @@
 ## 0. 范围说明
 
 - 数组在 spec 中是 `class`（引用类型），但 class/方法体系在 M6 落地。当前两种数组仍是**编译器内建类型**（core 库声明待补齐，见 5.1）；类型标注 `Array<Int>` / `MutableArray<Int>` 直接用 M4 已有的 `Name<T>` 语法。
-- spec 10.4 的互转有"以对方为参数的构造函数"与 `toArray`/`toMutableArray` 方法两种形式；M5 实现了**构造函数形式**（`Array(m)` / `MutableArray(a)`），方法形式仍在 ROADMAP 的 M5 backlog。
+- spec 10.4 的两组显式互转均已实现：构造函数形式 `Array(m)` / `MutableArray(a)`，以及 `m.toArray()` / `a.toMutableArray()` 方法形式；四者都降为同一个 `ArrayClone`，执行独立的 memcpy 快照。
 - spec 10.5 的 `Iterable<T>` / `for` 依赖接口与方法，不在 M5；迭代用 `while` + 下标 + `size`（`for` 与区间的归属在 M12 前的某个里程碑单独立项，见第 6 章）。
 - 越界检查：M5 初版为 trap；M8 已改接 `IndexOutOfBoundsException`。
 
@@ -94,7 +94,7 @@ fun main() {
 1. **数组是编译器内建类型**（同 M3 Option 的先例）：class/方法已在 M6 落地，但 core 的数组 class 声明尚未补齐；内建识别点收敛在 HIR 一处，布局与语义不变。
 2. **越界 trap（已退役）**：M8 已由 `IndexOutOfBoundsException` 取代。
 3. **引用类型元素必须同类型**（无 LOB 推导）：spec 10.3 的 LOB 规则仍在 ROADMAP 的 M5 backlog。
-4. **互转只支持构造函数形式**：`toArray`/`toMutableArray` 方法仍在 ROADMAP 的 M5 backlog。
+4. **互转只支持构造函数形式（已退役）**：M6 方法调用落地后，`toArray` / `toMutableArray` 已补齐。
 
 ## 6. 明确不做
 

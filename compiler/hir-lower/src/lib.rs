@@ -31,8 +31,9 @@
 //! with context-sensitive inference (the expected type picks the kind;
 //! without one every element must share a type and the result is
 //! `Array<T>`), subscript reads, the `.size` pseudo-property,
-//! subscript writes (`MutableArray` only), and the `Array(m)` /
-//! `MutableArray(a)` conversion constructors.
+//! subscript writes (`MutableArray` only), and both explicit conversion
+//! forms: `Array(m)` / `MutableArray(a)` plus `m.toArray()` /
+//! `a.toMutableArray()`; all four produce an independent snapshot.
 //!
 //! M6 (milestone6 DESIGN.md 2.2): the reference-type hierarchy — class
 //! declarations (modifiers, primary-constructor properties, single
