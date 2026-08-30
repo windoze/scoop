@@ -13,6 +13,7 @@
 extern void *__cxa_allocate_exception(size_t thrown_size);
 extern _Noreturn void __cxa_throw(void *thrown_exception, void *tinfo, void (*dest)(void *));
 extern _Noreturn void __cxa_rethrow(void);
+extern void *__cxa_current_primary_exception(void);
 extern _Unwind_Reason_Code __gxx_personality_v0(int version, _Unwind_Action actions,
                                                 _Unwind_Exception_Class exception_class,
                                                 struct _Unwind_Exception *exception,
@@ -211,11 +212,16 @@ int scoop_eh_personality(int version, unsigned int actions, unsigned long long e
                                      (struct _Unwind_Context *)context);
 }
 
-/* M8 minimal uncaught-exception handling (milestone8 DESIGN 5.2):
- * print a fixed message and abort. The exception's type name is not
- * available yet (TypeDescriptors carry no name field). */
+/* M8 uncaught-exception handling (milestone8 DESIGN 5.2): obtain the
+ * active ABI exception buffer, then read the concrete Scoop type name
+ * from its object header. */
 static _Noreturn void scoop_uncaught_terminate(void) {
-    fprintf(stderr, "scoop: uncaught exception\n");
+    const ScoopObjectHeader *exception = __cxa_current_primary_exception();
+    const char *name = "<unknown>";
+    if (exception != NULL && exception->td != NULL && exception->td->name != NULL) {
+        name = exception->td->name;
+    }
+    fprintf(stderr, "scoop: uncaught exception: %s\n", name);
     abort();
 }
 

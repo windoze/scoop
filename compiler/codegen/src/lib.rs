@@ -152,7 +152,7 @@ fn emit_llvm_module<'ctx>(
 
     // ScoopTypeDescriptor (runtime spec 2.2, full M6 form):
     // { i64 type_id, i64 size, i64 align, ptr ref_offsets, ptr parent,
-    //   ptr vtable, ptr itables, i64 itable_count }.
+    //   ptr vtable, ptr itables, i64 itable_count, ptr name }.
     let td_ty = context.struct_type(
         &[
             i64_ty.into(),
@@ -163,6 +163,7 @@ fn emit_llvm_module<'ctx>(
             ptr_ty.into(),
             ptr_ty.into(),
             i64_ty.into(),
+            ptr_ty.into(),
         ],
         false,
     );
@@ -181,6 +182,7 @@ fn emit_llvm_module<'ctx>(
             "scoop_rt_string_identity".to_string(),
         ],
     )?;
+    let string_name = private_c_string(context, &llvm, "scoop_td_String.name", "String");
     let string_td = llvm.add_global(td_ty, None, scoop_lir::STRING_TD_SYMBOL);
     string_td.set_constant(true);
     string_td.set_initializer(&context.const_struct(
@@ -193,6 +195,7 @@ fn emit_llvm_module<'ctx>(
             string_vtable,
             ptr_ty.const_null().into(),
             i64_ty.const_zero().into(),
+            string_name.into(),
         ],
         false,
     ));
@@ -220,6 +223,12 @@ fn emit_llvm_module<'ctx>(
         } else {
             ptr_ty.const_null().into()
         };
+        let array_name = private_c_string(
+            context,
+            &llvm,
+            &format!("scoop_td_array.{index}.name"),
+            &format!("Array<{}>", element.dump()),
+        );
         let array_td = llvm.add_global(td_ty, None, &format!("scoop_td_array.{index}"));
         array_td.set_constant(true);
         array_td.set_initializer(
@@ -237,6 +246,7 @@ fn emit_llvm_module<'ctx>(
                     ptr_ty.const_null().into(),
                     ptr_ty.const_null().into(),
                     i64_ty.const_zero().into(),
+                    array_name.into(),
                 ],
                 false,
             ),
@@ -563,6 +573,7 @@ fn emit_type_descriptors<'ctx>(
             (global.into(), td.itables.len() as u64)
         };
         let global = llvm.add_global(td_ty, None, &td.symbol);
+        let name = private_c_string(context, llvm, &format!("{}.name", td.symbol), &td.name);
         global.set_constant(true);
         global.set_initializer(
             &context.const_struct(
@@ -577,6 +588,7 @@ fn emit_type_descriptors<'ctx>(
                     vtable,
                     itables,
                     i64_ty.const_int(itable_count, false).into(),
+                    name.into(),
                 ],
                 false,
             ),
@@ -596,6 +608,21 @@ fn private_const_global<'ctx>(
     global.set_linkage(inkwell::module::Linkage::Private);
     global.set_initializer(&value);
     global.as_pointer_value()
+}
+
+/// A private NUL-terminated UTF-8 string whose address is stable for
+/// the lifetime of the generated module.
+fn private_c_string<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    name: &str,
+    value: &str,
+) -> PointerValue<'ctx> {
+    private_const_global(
+        llvm,
+        name,
+        context.const_string(value.as_bytes(), true).into(),
+    )
 }
 
 /// A global `[N x ptr]` of function addresses (a vtable or one itable's

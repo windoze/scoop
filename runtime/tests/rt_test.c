@@ -38,7 +38,7 @@
  * Non-static: rt.c references it from scoop_rt_string_concat. size is
  * the fixed part (16-byte header + len); Strings have no references,
  * so the scan descriptor is NULL. */
-const ScoopTypeDescriptor scoop_td_String = {1, 24, 8, NULL, NULL, NULL, NULL, 0};
+const ScoopTypeDescriptor scoop_td_String = {1, 24, 8, NULL, NULL, NULL, NULL, 0, "String"};
 
 /* Same layout codegen uses for StringConst globals:
  * { td, gc_word, len, data } (16-byte header, runtime spec 2.4). */
@@ -60,7 +60,8 @@ static int64_t point_describe(const void *self) {
     return 7;
 }
 
-static const ScoopTypeDescriptor describable_td = {1002, 0, 8, NULL, NULL, NULL, NULL, 0};
+static const ScoopTypeDescriptor describable_td = {
+    1002, 0, 8, NULL, NULL, NULL, NULL, 0, "Describable"};
 static const void *const point_describable_slots[] = {(const void *)&point_describe};
 static const ScoopItableEntry point_itables[] = {{&describable_td, point_describable_slots}};
 static const void *const point_vtable[] = {
@@ -69,9 +70,9 @@ static const void *const point_vtable[] = {
     (const void *)&scoop_rt_any_tostring,
     (const void *)&point_describe,
 };
-static const ScoopTypeDescriptor shape_td = {1000, 24, 8, NULL, NULL, NULL, NULL, 0};
+static const ScoopTypeDescriptor shape_td = {1000, 24, 8, NULL, NULL, NULL, NULL, 0, "Shape"};
 static const ScoopTypeDescriptor point_td = {
-    1001, 32, 8, NULL, &shape_td, point_vtable, point_itables, 1};
+    1001, 32, 8, NULL, &shape_td, point_vtable, point_itables, 1, "Point"};
 
 /* M9 GC fixtures. */
 
@@ -83,7 +84,8 @@ typedef struct ScoopNode {
     struct ScoopNode *next; /* 24 */
 } ScoopNode; /* size 32 */
 static const uint64_t node_refs[] = {1, 24};
-static const ScoopTypeDescriptor node_td = {2000, 32, 8, node_refs, NULL, NULL, NULL, 0};
+static const ScoopTypeDescriptor node_td = {
+    2000, 32, 8, node_refs, NULL, NULL, NULL, 0, "Node"};
 
 /* 64-byte plain object without references: exactly two per line, for
  * the free-line reuse test. */
@@ -91,12 +93,13 @@ typedef struct {
     ScoopObjectHeader header;
     int64_t words[6];
 } ScoopBig64; /* size 64 */
-static const ScoopTypeDescriptor big64_td = {2001, 64, 8, NULL, NULL, NULL, NULL, 0};
+static const ScoopTypeDescriptor big64_td = {2001, 64, 8, NULL, NULL, NULL, NULL, 0, "Big64"};
 
 /* Array with reference elements (scan descriptor SCOOP_REFS_ARRAY);
  * `size` in the TD is the element size (pointer). */
 static const uint64_t ref_array_scan[] = {SCOOP_REFS_ARRAY};
-static const ScoopTypeDescriptor ref_array_td = {2100, 8, 8, ref_array_scan, NULL, NULL, NULL, 0};
+static const ScoopTypeDescriptor ref_array_td = {
+    2100, 8, 8, ref_array_scan, NULL, NULL, NULL, 0, "Array<String>"};
 
 /* Boxed tagged enum E { A(String), B(i64) }: { tag, payload } after
  * the header; tag at object offset 16, payload word at 24. */
@@ -109,7 +112,8 @@ static const uint64_t enum_a_refs[] = {1, 24}; /* variant A: one ref */
 static const uint64_t enum_b_refs[] = {0}; /* variant B: no refs */
 static const uint64_t enum_scan[] = {SCOOP_REFS_ENUM, 2, (uint64_t)(uintptr_t)enum_a_refs,
                                      (uint64_t)(uintptr_t)enum_b_refs};
-static const ScoopTypeDescriptor enum_td = {2002, 32, 8, enum_scan, NULL, NULL, NULL, 0};
+static const ScoopTypeDescriptor enum_td = {
+    2002, 32, 8, enum_scan, NULL, NULL, NULL, 0, "E"};
 
 static ScoopNode *new_node(int64_t value, ScoopNode *next) {
     ScoopNode *node = scoop_rt_alloc(&node_td, sizeof(ScoopNode));
@@ -213,7 +217,8 @@ void scoop_main(void) {
      * original after the clone must not affect the copy, and the copy
      * keeps the header (td) and size. The source is a stack object
      * laid out like a codegen array (16-byte header). */
-    const ScoopTypeDescriptor array_td = {100, 8, 8, NULL, NULL, NULL, NULL, 0};
+    const ScoopTypeDescriptor array_td = {
+        100, 8, 8, NULL, NULL, NULL, NULL, 0, "Array<Int>"};
     struct {
         const ScoopTypeDescriptor *td;
         uint64_t gc_word;

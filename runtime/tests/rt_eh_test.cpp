@@ -53,27 +53,33 @@ int scoop_eh_personality(int version, unsigned int actions, unsigned long long e
 extern "C" void *__cxa_current_primary_exception();
 
 /* Matches the layout of the TypeDescriptor globals emitted by codegen
- * (eight 8-byte slots, runtime spec 2.2; slot 1 is the instance size,
- * slot 3 the GC scan descriptor). scoop_td_String is referenced by
+ * (nine 8-byte slots, runtime spec 2.2; slot 1 is the instance size,
+ * slot 3 the GC scan descriptor, slot 8 the type name). scoop_td_String is referenced by
  * rt.c's string helpers. Its size is the fixed part (16-byte header +
  * len); this test never scans a String, so the descriptor stays 0. */
 struct ScoopTypeDescriptorLayout {
-    unsigned long long slots[8];
+    unsigned long long slots[9];
 };
-extern "C" const ScoopTypeDescriptorLayout scoop_td_String = {{1, 24, 8, 0, 0, 0, 0, 0}};
+const char string_type_name[] = "String";
+extern "C" const ScoopTypeDescriptorLayout scoop_td_String = {
+    {1, 24, 8, 0, 0, 0, 0, 0, (unsigned long long)&string_type_name[0]}};
 
 namespace {
 
 /* Test exception type: instance size 24 = 16-byte object header + one
  * i64 payload slot. No references, so the scan descriptor is 0. */
-const ScoopTypeDescriptorLayout exception_td = {{1000, 24, 8, 0, 0, 0, 0, 0}};
+const char exception_type_name[] = "TestException";
+const ScoopTypeDescriptorLayout exception_td = {
+    {1000, 24, 8, 0, 0, 0, 0, 0, (unsigned long long)&exception_type_name[0]}};
 const size_t payload_offset = 16;
 
 /* M9 keep-alive fixture: exception whose payload is a reference
  * (scan descriptor: plain table, one reference at offset 16). */
 const unsigned long long ref_payload_scan[] = {1, 16};
+const char ref_exception_type_name[] = "RefException";
 const ScoopTypeDescriptorLayout ref_exception_td = {
-    {2000, 24, 8, (unsigned long long)&ref_payload_scan[0], 0, 0, 0, 0}};
+    {2000, 24, 8, (unsigned long long)&ref_payload_scan[0], 0, 0, 0, 0,
+     (unsigned long long)&ref_exception_type_name[0]}};
 
 [[noreturn]] void fail(const char *what) {
     std::fprintf(stderr, "rt_eh_test: %s\n", what);

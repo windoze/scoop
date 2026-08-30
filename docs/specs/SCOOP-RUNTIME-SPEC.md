@@ -35,6 +35,7 @@ Runtime 是编译产物的支撑层，职责包括：
 每个具体类型（含每个单态化实例，spec 3.2）有一份编译器生成的 `TypeDescriptor`，至少包含：
 
 - 类型标识（`is` / `as` 检查用）；
+- 稳定的 UTF-8 类型名（与 TypeDescriptor 同生命周期，用于未捕获异常等运行时诊断）；
 - 实例大小与对齐；
 - **引用字段位图/描述**（GC 扫描对象内部引用用）；
 - **enum 的引用扫描按 tag 分派**：enum 的 TypeDescriptor 携带 per-variant 的引用偏移表（LIR meta 的 `LayoutKind::Enum`，见 impl spec 2.4）；扫描 enum 值时先读 tag，再按对应变体的偏移表扫描。niche 表示的 enum（spec 7.4）整体就是一个引用，无表；

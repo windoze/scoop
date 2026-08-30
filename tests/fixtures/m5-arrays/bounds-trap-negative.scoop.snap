@@ -343,4 +343,4 @@ Module
   entry @scoop_main
 
 == trap ==
-scoop: uncaught exception
+scoop: uncaught exception: IndexOutOfBoundsException
