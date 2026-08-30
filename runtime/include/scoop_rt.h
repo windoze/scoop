@@ -71,6 +71,7 @@ struct ScoopTypeDescriptor {
     const void *const *vtable; /* function pointer array or null */
     const ScoopItableEntry *itables; /* entry array or null */
     uint64_t itable_count;
+    const char *name; /* stable NUL-terminated UTF-8 diagnostic name */
 };
 
 /* Runtime spec 2.1, M9 form (milestone9 DESIGN section 0): 16 bytes.

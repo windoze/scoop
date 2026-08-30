@@ -167,7 +167,6 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - try 的表达式形态（`val x = try {...}`）；
 - catch 遮蔽降级为警告（当前为错误；待警告级别诊断基础设施）；
 - finally 内的路径分析（finally 内 return/再抛异常的精细语义）；
-- 未捕获异常打印类型名（当前为通用消息；需要 TD 增加 name 字段，runtime spec 2.2 同步）；
 - 异常穿越 Scoop ABI FFI frame 的规则（维持 runtime spec 第 5 章的暂定“初版禁止”）。
 
 ### 来自 M9

@@ -7,7 +7,7 @@
 ## 0. 范围说明
 
 - **try 只做语句形态**（Kotlin 的 try 表达式 `val x = try {...}` 缓做，见第 6 章）；
-- **未捕获异常** = 进程终止（runtime 默认处理：打印类型名 + abort；spec 未规定默认行为，见 5.4）；
+- **未捕获异常** = 进程终止（runtime 默认处理：打印类型名 + abort，见 spec 11.7）；
 - **边界规则**（runtime spec 第 5 章已定）：异常不得穿越 C ABI frame（UB；M8 无检查手段，文档约定）；能否穿越 Scoop ABI FFI frame 维持"初版禁止"的暂定规则；
 - **数组越界的异常类型是 spec 缺口**：spec 11.7 未列出——M8 顺带修订 spec，新增 `IndexOutOfBoundsException`（见第 7 章文档同步项）；
 - 整数除零：当前是 LLVM `sdiv` 的 UB——M8 加除零检查并抛 `ArithmeticException`（spec 11.7 已列）。
@@ -114,12 +114,12 @@ class IndexOutOfBoundsException : Exception(Some("array index out of bounds"))
 - `void scoop_rt_rethrow(void)`：`__cxa_rethrow()`；
 - `const void *scoop_rt_begin_catch(...)` / `scoop_rt_end_catch(...)`（薄封装或 codegen 直调 `__cxa_*`——选一种并注释）；
 - `scoop_eh_personality`（C 实现，GCC/LLVM personality 协议）；
-- 进程启动注册 terminate 处理：未捕获异常打印 "uncaught exception: <type name>" 后 abort（type name 从异常对象 TD 读——TD 需带名：M6 的 TD 有 name 字段吗？没有——M8 顺带在 TD 加 name 字段或在 throwable 路径用 type_id 映射，见 5.2）。
+- 进程启动注册 terminate 处理：未捕获异常打印 `uncaught exception: <type name>` 后 abort；type name 从异常对象 TypeDescriptor 的 `name` 字段读取（该字段的 ABI 契约见 runtime spec 2.2）。
 
 ## 5. 临时决策（及退役里程碑）
 
 1. **catch 遮蔽是错误**（Kotlin 为警告）：诊断基础设施无警告级别，取错误；有警告机制后可降级。
-2. **未捕获 = 打印类型名 + abort**：spec 未规定；TD 是否加 name 字段在实现时定（加则 runtime spec 2.2 同步，见第 7 章）。
+2. **未捕获 = 打印类型名 + abort**：按 spec 11.7，采用 TypeDescriptor 的稳定 `name` 字段，并已同步 runtime spec 2.2。
 3. **finally 内再抛异常**：沿当前 unwind 自然传播（M8 不做路径分析）。
 4. **try 表达式形态缓做**（见第 6 章）。
 
@@ -132,7 +132,7 @@ class IndexOutOfBoundsException : Exception(Some("array index out of bounds"))
 ## 7. 文档同步项
 
 - **spec 11.7**：新增 `IndexOutOfBoundsException`（数组越界）；明确四个内建异常的抛出点（`!!`、越界、`as`、除零）；
-- **runtime spec 2.2**：若 TD 增加 name 字段（未捕获打印用），同步该节；
+- **runtime spec 2.2**：TypeDescriptor 增加稳定的 `name` 字段，供未捕获异常诊断使用；
 - **runtime spec 第 5 章**：M8 落地后把"抛出入口、unwind 机制（landing pad / personality function，具体方案由实现定）"细化为 `__cxa_throw` + `scoop_eh_personality` 的既定方案。
 
 ## 8. 测试计划
