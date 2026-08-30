@@ -22,10 +22,10 @@ use hir::{FunctionId, Type, TypeId};
 use crate::patterns::PatternCtx;
 use crate::{ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext};
 
-struct ValueBlock {
-    statements: Vec<hir::Statement>,
+pub(crate) struct ValueBlock {
+    pub(crate) statements: Vec<hir::Statement>,
     /// `None` means the block has no normally completing path.
-    value: Option<hir::Expr>,
+    pub(crate) value: Option<hir::Expr>,
 }
 
 struct ValueArm {
@@ -227,7 +227,7 @@ impl Lowerer {
     /// block's value. A final legacy control statement is interpreted as a
     /// value too, so nested `if` / `when` / `try` works even though their
     /// standalone parser forms remain statement nodes.
-    fn lower_value_block(
+    pub(crate) fn lower_value_block(
         &mut self,
         block: &ast::Block,
         expected: Option<TypeId>,
@@ -460,7 +460,9 @@ impl Lowerer {
                 // here.
                 if matches!(
                     lowered.kind,
-                    hir::ExprKind::Call { .. } | hir::ExprKind::MethodCall { .. }
+                    hir::ExprKind::Call { .. }
+                        | hir::ExprKind::MethodCall { .. }
+                        | hir::ExprKind::CallableCall { .. }
                 ) {
                     out.extend(sink);
                     hir::StatementKind::Expr(lowered)

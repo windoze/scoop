@@ -14,6 +14,8 @@ use scoop_ast::Span;
 
 pub type TypeId = Idx<Type>;
 pub type FunctionTypeId = Idx<FunctionType>;
+pub type LambdaId = Idx<Lambda>;
+pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionId = Idx<Function>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
@@ -205,6 +207,10 @@ pub struct Module {
     pub types: Arena<Type>,
     /// Canonical function signatures referenced by `Type::Function`.
     pub function_types: Arena<FunctionType>,
+    /// Source callable-value entities. Their identities are intentionally
+    /// separate from the generated invoke functions they own.
+    pub lambdas: Arena<Lambda>,
+    pub callable_references: Arena<CallableReference>,
     pub functions: Arena<Function>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
@@ -236,6 +242,31 @@ pub struct Module {
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+#[derive(Debug)]
+pub struct Lambda {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
+    /// Structurally present even for no-capture lambdas; later M11 capture
+    /// analysis fills this list rather than changing the entity shape.
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct CallableReference {
+    pub target: Callable,
+    pub function_type: FunctionTypeId,
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct Capture {
+    pub binding: LocalId,
+    pub ty: TypeId,
+    pub first_use_span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -594,6 +625,8 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     Local(LocalId),
+    Lambda(LambdaId),
+    CallableReference(CallableReferenceId),
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
@@ -640,6 +673,13 @@ pub enum ExprKind {
     ArrayClone(Box<Expr>),
     Call {
         callee: Callable,
+        args: Vec<Expr>,
+    },
+    /// Calling a managed function value. The callee expression is kept
+    /// distinct from direct/virtual/interface named call targets.
+    CallableCall {
+        callee: Box<Expr>,
+        function_type: FunctionTypeId,
         args: Vec<Expr>,
     },
     Binary {
@@ -1140,6 +1180,25 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         ExprKind::Local(local) => {
             out.push_str(&format!("{pad}Local {} : {ty}\n", locals[*local].name));
         }
+        ExprKind::Lambda(id) => {
+            let lambda = &module.lambdas[*id];
+            out.push_str(&format!(
+                "{pad}Lambda lambda{} invoke={} captures={} : {ty}\n",
+                id.into_raw(),
+                module.functions[lambda.function].name,
+                lambda.captures.len()
+            ));
+        }
+        ExprKind::CallableReference(id) => {
+            let reference = &module.callable_references[*id];
+            let (function, _) = callable_parts(module, reference.target);
+            out.push_str(&format!(
+                "{pad}CallableReference reference{} target={} captures={} : {ty}\n",
+                id.into_raw(),
+                module.functions[function].name,
+                reference.captures.len()
+            ));
+        }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
                 FieldRef::StructField { index, .. } => format!("field {index}"),
@@ -1157,6 +1216,20 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 format!("<{}>", args.join(", "))
             });
             out.push_str(&format!("{pad}Call {}{type_args} : {ty}\n", callee.name));
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
+        ExprKind::CallableCall {
+            callee,
+            function_type,
+            args,
+        } => {
+            out.push_str(&format!(
+                "{pad}CallableCall function_type{} : {ty}\n",
+                function_type.into_raw()
+            ));
+            dump_expr(module, locals, callee, indent + 1, out);
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }

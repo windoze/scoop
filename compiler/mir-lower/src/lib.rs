@@ -154,6 +154,10 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         option_variants: (0, 0),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
+        closure_classes: Arena::new(),
+        closure_invokes: Arena::new(),
+        lambda_closures: HashMap::new(),
+        reference_closures: HashMap::new(),
     }
     .run(module)
 }
@@ -202,6 +206,10 @@ struct Lowerer {
     option_variants: (u32, u32),
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,
+    closure_classes: Arena<mir::ClosureClass>,
+    closure_invokes: Arena<mir::ClosureInvokeFunction>,
+    lambda_closures: HashMap<hir::LambdaId, mir::ClosureClassId>,
+    reference_closures: HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
 }
 
 #[derive(Clone)]
@@ -614,8 +622,16 @@ impl Lowerer {
                     let id = self.declare_function(module, hir_id);
                     user_functions.push((hir_id, id));
                 }
-                // A free function outside `top_level` cannot happen
-                // (hir-lower lists them all).
+                // Lambda invoke bodies are free generated functions and
+                // deliberately stay outside the source top-level list.
+                None if module
+                    .lambdas
+                    .iter()
+                    .any(|(_, lambda)| lambda.function == hir_id) =>
+                {
+                    let id = self.declare_function(module, hir_id);
+                    user_functions.push((hir_id, id));
+                }
                 None => {}
             }
         }
@@ -637,6 +653,7 @@ impl Lowerer {
                 self.declare_interface_method(module, hir_id);
             }
         }
+        self.declare_closures(module);
         // Constructor functions: one per non-abstract class, declared
         // like ordinary functions so `ClassInit` call sites resolve.
         let mut ctor_functions = Vec::new();
@@ -775,6 +792,8 @@ impl Lowerer {
         mir::Module {
             functions: self.functions,
             function_types: self.shell.function_types,
+            closure_classes: self.closure_classes,
+            closure_invoke_functions: self.closure_invokes,
             top_level: self.top_level,
             strings: self.strings,
             structs: self.structs.defs,
@@ -1156,6 +1175,8 @@ impl Lowerer {
             prelude: Vec::new(),
             option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
+            lambda_closures: &self.lambda_closures,
+            reference_closures: &self.reference_closures,
         }
         .lower_function(function, body)
     }
@@ -1397,6 +1418,138 @@ impl Lowerer {
         self.top_level.push(id);
         self.function_map.insert(hir_id, id);
         id
+    }
+
+    fn lower_function_type_id(
+        &mut self,
+        module: &hir::Module,
+        id: hir::FunctionTypeId,
+    ) -> mir::FunctionTypeId {
+        let ty = module
+            .types
+            .iter()
+            .find_map(|(ty, value)| {
+                matches!(value, hir::Type::Function(found) if *found == id).then_some(ty)
+            })
+            .expect("every function signature is referenced by a canonical HIR type");
+        let lowered = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+            subst: None,
+        }
+        .lower(
+            ty,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+        let mir::Type::Function(id) = lowered else {
+            unreachable!("lowering a function type preserves its category")
+        };
+        id
+    }
+
+    /// Materialize the concrete closure classes before lowering any body, so
+    /// every creation expression resolves directly to a typed class id.
+    fn declare_closures(&mut self, module: &hir::Module) {
+        for (id, lambda) in module.lambdas.iter() {
+            let function_type = self.lower_function_type_id(module, lambda.function_type);
+            let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
+                function: self.function_map[&lambda.function],
+            });
+            let class = self.closure_classes.alloc(mir::ClosureClass {
+                name: format!("$Closure$lambda{}", id.into_raw()),
+                function_type,
+                invoke,
+                captures: Vec::new(),
+            });
+            self.lambda_closures.insert(id, class);
+        }
+        for (id, reference) in module.callable_references.iter() {
+            let function_type = self.lower_function_type_id(module, reference.function_type);
+            let target = match reference.target {
+                hir::Callable::Function(function) => self.function_map[&function],
+                hir::Callable::Generic(_) => {
+                    unreachable!(
+                        "generic callable references are introduced with local/generic references"
+                    )
+                }
+            };
+            let signature = self.shell.function_types[function_type].clone();
+            let closure_ty = mir::Type::Function(function_type);
+            let mut locals = Arena::new();
+            let closure = locals.alloc(mir::Local {
+                name: "$closure".to_string(),
+                ty: closure_ty.clone(),
+                mutable: false,
+            });
+            let mut params = vec![mir::Param {
+                name: "$closure".to_string(),
+                ty: closure_ty,
+                local: closure,
+            }];
+            let mut args = Vec::with_capacity(signature.parameter_types.len());
+            for (index, ty) in signature.parameter_types.iter().cloned().enumerate() {
+                let local = locals.alloc(mir::Local {
+                    name: format!("arg{index}"),
+                    ty: ty.clone(),
+                    mutable: false,
+                });
+                params.push(mir::Param {
+                    name: format!("arg{index}"),
+                    ty,
+                    local,
+                });
+                args.push(smir::Expr::Local(local));
+            }
+            let call = smir::Expr::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee: mir::Callee::User(target),
+                },
+                args,
+                return_ty: signature.return_type.clone(),
+            });
+            let statement = if signature.return_type == mir::Type::Unit {
+                smir::StatementKind::Expr(call)
+            } else {
+                smir::StatementKind::Return { value: Some(call) }
+            };
+            let mut statements = vec![smir::Statement {
+                kind: statement,
+                span: reference.span,
+            }];
+            if signature.return_type == mir::Type::Unit {
+                statements.push(smir::Statement {
+                    kind: smir::StatementKind::Return { value: None },
+                    span: reference.span,
+                });
+            }
+            let body = cfg::lower(
+                smir::Body { locals, statements },
+                signature.return_type.clone(),
+            );
+            let function = self.functions.alloc(mir::Function {
+                name: format!("$reference.{}", id.into_raw()),
+                symbol: format!("scoop.$reference.{}", id.into_raw()),
+                params,
+                return_ty: signature.return_type,
+                body,
+            });
+            self.top_level.push(function);
+            let invoke = self
+                .closure_invokes
+                .alloc(mir::ClosureInvokeFunction { function });
+            let class = self.closure_classes.alloc(mir::ClosureClass {
+                name: format!("$Closure$reference{}", id.into_raw()),
+                function_type,
+                invoke,
+                captures: Vec::new(),
+            });
+            self.reference_closures.insert(id, class);
+        }
     }
 
     /// Declare an interface method or a synthesized `Any` member: a
@@ -1653,6 +1806,8 @@ impl Lowerer {
             prelude: Vec::new(),
             option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
+            lambda_closures: &self.lambda_closures,
+            reference_closures: &self.reference_closures,
         };
         let mut params = Vec::new();
         let mut own = Vec::new();
@@ -1830,6 +1985,8 @@ impl Lowerer {
             prelude: Vec::new(),
             option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
+            lambda_closures: &self.lambda_closures,
+            reference_closures: &self.reference_closures,
         };
         let equality = lowerer.expand_equality(&Opd::Local(a), &Opd::Local(b), payload, &[], false);
         let body = smir::Body {
@@ -2410,6 +2567,8 @@ fn mangling_shell(
     mir::Module {
         functions,
         function_types: Arena::new(),
+        closure_classes: Arena::new(),
+        closure_invoke_functions: Arena::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: shell_structs,
@@ -2986,6 +3145,8 @@ struct BodyLowerer<'a> {
     /// Declaration indices of `Option::Some` / `Option::None`.
     option_variants: (u32, u32),
     coroutines: &'a mut CoroutineRegistry,
+    lambda_closures: &'a HashMap<hir::LambdaId, mir::ClosureClassId>,
+    reference_closures: &'a HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
 }
 
 /// A step from a compared operand down to the sub-value at an equality
@@ -3638,6 +3799,14 @@ impl BodyLowerer<'_> {
                     }
                 }
             }
+            hir::ExprKind::Lambda(id) => smir::Expr::ClosureAlloc {
+                class: self.lambda_closures[id],
+                captures: Vec::new(),
+            },
+            hir::ExprKind::CallableReference(id) => smir::Expr::ClosureAlloc {
+                class: self.reference_closures[id],
+                captures: Vec::new(),
+            },
             // The array nodes translate one-to-one (M5); the literal's
             // kind (Array vs MutableArray) is fixed by the producing
             // context — `lower_type(expr.ty)` records it where needed.
@@ -3732,6 +3901,35 @@ impl BodyLowerer<'_> {
                 self.lower_cast(operand, *optional, expr.ty, expr.span)
             }
             hir::ExprKind::Call { callee, args } => self.lower_call(*callee, args, expr.ty),
+            hir::ExprKind::CallableCall {
+                callee,
+                function_type,
+                args,
+            } => {
+                let mir::Type::Function(function_type) = self.lower_type({
+                    self.module
+                        .types
+                        .iter()
+                        .find_map(|(ty, value)| {
+                            matches!(value, hir::Type::Function(found) if found == function_type)
+                                .then_some(ty)
+                        })
+                        .expect("function type ids are referenced by canonical types")
+                }) else {
+                    unreachable!()
+                };
+                let mut call_args = Vec::with_capacity(args.len() + 1);
+                call_args.push(self.lower_expr(callee));
+                call_args.extend(args.iter().map(|arg| self.lower_expr(arg)));
+                smir::Expr::Call(smir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Closure { function_type },
+                        callee: mir::Callee::Closure(function_type),
+                    },
+                    args: call_args,
+                    return_ty: self.lower_type(expr.ty),
+                })
+            }
             hir::ExprKind::Binary { op, lhs, rhs } => self.lower_binary(*op, lhs, rhs, expr.span),
             hir::ExprKind::Unary { op, operand } => {
                 let operand = Box::new(self.lower_expr(operand));
@@ -5776,6 +5974,8 @@ mod tests {
             hir::Module {
                 types: self.types,
                 function_types: Arena::new(),
+                lambdas: Arena::new(),
+                callable_references: Arena::new(),
                 functions: self.functions,
                 generic_functions: self.generic_functions,
                 structs: self.structs,

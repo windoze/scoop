@@ -29,6 +29,8 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         tokens,
         pos: 0,
         diagnostics: Vec::new(),
+        next_lambda_id: 0,
+        next_callable_reference_id: 0,
     };
     let mut declarations = Vec::new();
     while !parser.at_eof() {
@@ -56,9 +58,23 @@ pub(crate) struct Parser {
     pub(crate) tokens: Vec<Token>,
     pub(crate) pos: usize,
     pub(crate) diagnostics: Vec<Diagnostic>,
+    pub(crate) next_lambda_id: u32,
+    pub(crate) next_callable_reference_id: u32,
 }
 
 impl Parser {
+    pub(crate) fn alloc_lambda_id(&mut self) -> scoop_ast::LambdaId {
+        let id = scoop_ast::LambdaId(self.next_lambda_id);
+        self.next_lambda_id += 1;
+        id
+    }
+
+    pub(crate) fn alloc_callable_reference_id(&mut self) -> scoop_ast::CallableReferenceId {
+        let id = scoop_ast::CallableReferenceId(self.next_callable_reference_id);
+        self.next_callable_reference_id += 1;
+        id
+    }
+
     pub(crate) fn peek(&self) -> &Token {
         &self.tokens[self.pos]
     }
@@ -305,6 +321,12 @@ impl Parser {
 
     pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {
         let open = self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
+        self.parse_block_after_open(open)
+    }
+
+    /// Parse block items after the opening brace has already been consumed.
+    /// Lambda parsing uses this after its optional parameter header.
+    pub(crate) fn parse_block_after_open(&mut self, open: Token) -> Result<Block, Diagnostic> {
         let body_depth = self.brace_depth();
         let mut statements = Vec::new();
         loop {

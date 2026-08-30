@@ -136,6 +136,9 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
         | mir::Expr::ArrayLiteral(elements)
         | mir::Expr::StructInit { args: elements, .. }
         | mir::Expr::ClassInit { args: elements, .. }
+        | mir::Expr::ClosureAlloc {
+            captures: elements, ..
+        }
         | mir::Expr::VariantConstruct {
             fields: elements, ..
         } => {

@@ -978,6 +978,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // M9 write barrier: mark the stored-to address's card.
                 self.card_mark(field_ptr)?;
             }
+            Instruction::FunctionAddress { out, symbol } => {
+                let function_value = self.llvm.get_function(symbol).ok_or_else(|| {
+                    CodegenError(format!(
+                        "function_address @{}: unknown function @{}",
+                        function.symbol, symbol
+                    ))
+                })?;
+                self.temps.insert(
+                    *out,
+                    function_value.as_global_value().as_pointer_value().into(),
+                );
+            }
             Instruction::Store { local, value: v } => {
                 let operand = self.value(*v)?;
                 builder

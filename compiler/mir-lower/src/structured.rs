@@ -83,6 +83,10 @@ pub(crate) enum Expr {
         class_id: mir::ClassId,
         args: Vec<Expr>,
     },
+    ClosureAlloc {
+        class: mir::ClosureClassId,
+        captures: Vec<Expr>,
+    },
     Local(mir::LocalId),
     Retype {
         operand: Box<Expr>,

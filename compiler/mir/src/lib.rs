@@ -14,6 +14,9 @@ use scoop_ast::Span;
 
 pub type FunctionId = Idx<Function>;
 pub type FunctionTypeId = Idx<FunctionType>;
+pub type ClosureClassId = Idx<ClosureClass>;
+pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
+pub type ClosureAdapterId = Idx<ClosureAdapter>;
 pub type MonomorphizedFunctionId = Idx<MonomorphizedFunction>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;
@@ -167,6 +170,29 @@ pub struct FunctionType {
 }
 
 #[derive(Debug)]
+pub struct ClosureClass {
+    pub name: String,
+    pub function_type: FunctionTypeId,
+    pub invoke: ClosureInvokeFunctionId,
+    pub captures: Vec<Field>,
+}
+
+#[derive(Debug)]
+pub struct ClosureInvokeFunction {
+    pub function: FunctionId,
+}
+
+/// Typed identity reserved for variance bridges. M11's variance gate fills
+/// this arena; keeping it distinct now prevents adapters from being confused
+/// with source closure classes.
+#[derive(Debug)]
+pub struct ClosureAdapter {
+    pub class: ClosureClassId,
+    pub source: FunctionTypeId,
+    pub target: FunctionTypeId,
+}
+
+#[derive(Debug)]
 pub struct StructDef {
     pub name: String,
     pub fields: Vec<Field>,
@@ -250,6 +276,8 @@ pub struct Local {
 pub struct Module {
     pub functions: Arena<Function>,
     pub function_types: Arena<FunctionType>,
+    pub closure_classes: Arena<ClosureClass>,
+    pub closure_invoke_functions: Arena<ClosureInvokeFunction>,
     /// User functions in declaration order (builtins have no MIR body).
     pub top_level: Vec<FunctionId>,
     pub strings: Arena<StringConst>,
@@ -280,6 +308,7 @@ pub struct MirMeta {
     pub coroutine_frames: Arena<CoroutineFrame>,
     /// Per-call-site continuation adapters and their typed resume state.
     pub coroutine_resume_points: Arena<CoroutineResumePoint>,
+    pub closure_adapters: Arena<ClosureAdapter>,
 }
 
 #[derive(Debug)]
@@ -506,6 +535,10 @@ pub enum Expr {
         class_id: ClassId,
         args: Vec<Expr>,
     },
+    ClosureAlloc {
+        class: ClosureClassId,
+        captures: Vec<Expr>,
+    },
     Local(LocalId),
     /// The managed exception pointer produced by the active `BeginCatch`.
     /// It is only valid in blocks dominated by that statement.
@@ -604,6 +637,11 @@ pub enum CallKind {
         interface: InterfaceId,
         slot: u32,
     },
+    /// Managed function-value invocation. Argument 0 is the closure ref;
+    /// LIR loads its code pointer and calls it with the exact signature.
+    Closure {
+        function_type: FunctionTypeId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -616,6 +654,9 @@ pub enum Callee {
     /// state-machine pass. The final MIR handed to LIR contains no such
     /// callee; `register` identifies the concrete protocol method shell.
     CoroutineSuspend { register: MonomorphizedFunctionId },
+    /// There is no statically selected function; the exact signature is the
+    /// complete typed call target carried through CFG construction.
+    Closure(FunctionTypeId),
     /// A runtime function (see `RuntimeFn::symbol`).
     Runtime(RuntimeFn),
 }
@@ -739,6 +780,17 @@ pub fn dump(module: &Module) -> String {
     }
     for (_, def) in module.interfaces.iter() {
         out.push_str(&format!("  interface {}\n", def.name));
+    }
+    for (id, def) in module.closure_classes.iter() {
+        let invoke = module.closure_invoke_functions[def.invoke].function;
+        out.push_str(&format!(
+            "  closure cc{} {} type=function_type{} invoke=@{} captures={}\n",
+            id.into_raw().into_u32(),
+            def.name,
+            def.function_type.into_raw().into_u32(),
+            module.functions[invoke].symbol,
+            def.captures.len()
+        ));
     }
     for &id in &module.top_level {
         let function = &module.functions[id];
@@ -1044,6 +1096,16 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
+        Expr::ClosureAlloc { class, captures } => {
+            out.push_str(&format!(
+                "{pad}ClosureAlloc cc{} {}\n",
+                class.into_raw().into_u32(),
+                module.closure_classes[*class].name
+            ));
+            for capture in captures {
+                dump_expr(module, locals, capture, indent + 1, out);
+            }
+        }
         Expr::StructInit { struct_id, args } => {
             out.push_str(&format!(
                 "{pad}StructInit {}\n",
@@ -1155,6 +1217,12 @@ fn dump_call(
             "@coroutine_suspend[register=@{}]",
             module.meta.instances[*register].symbol
         ),
+        Callee::Closure(function_type) => {
+            format!(
+                "<closure:function_type{}>",
+                function_type.into_raw().into_u32()
+            )
+        }
         Callee::Runtime(function) => format!("@{}", function.symbol()),
     };
     let kind = match &call.target.kind {
@@ -1162,6 +1230,12 @@ fn dump_call(
         CallKind::Virtual { slot } => format!("virtual[{slot}]"),
         CallKind::Interface { interface, slot } => {
             format!("interface {}[{slot}]", module.interfaces[*interface].name)
+        }
+        CallKind::Closure { function_type } => {
+            format!(
+                "closure[function_type{}]",
+                function_type.into_raw().into_u32()
+            )
         }
     };
     match destination {

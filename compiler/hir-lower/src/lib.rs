@@ -218,6 +218,8 @@ impl Owner {
 pub(crate) struct Lowerer {
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
+    pub(crate) lambdas: Arena<hir::Lambda>,
+    pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) structs: Arena<StructDecl>,
     pub(crate) enums: Arena<EnumDecl>,
     pub(crate) classes: Arena<ClassDecl>,
@@ -350,6 +352,8 @@ impl Lowerer {
         let mut lowerer = Lowerer {
             types,
             function_types: Arena::new(),
+            lambdas: Arena::new(),
+            callable_references: Arena::new(),
             structs: Arena::new(),
             enums: Arena::new(),
             classes: Arena::new(),
@@ -700,6 +704,8 @@ impl Lowerer {
         Ok(hir::Module {
             types: self.types,
             function_types: self.function_types,
+            lambdas: self.lambdas,
+            callable_references: self.callable_references,
             functions: self.functions,
             generic_functions: self.generic_functions,
             structs: self.structs,

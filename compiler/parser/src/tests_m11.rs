@@ -1,6 +1,6 @@
 //! M11 function type syntax.
 
-use scoop_ast::{Decl, Span, TypeRef, TypeRefKind};
+use scoop_ast::{Decl, Expr, Span, StatementKind, TypeRef, TypeRefKind};
 
 use crate::parse;
 
@@ -93,4 +93,88 @@ fn function_type_requires_a_return_type() {
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0].span, Some(Span::new(20, 21)));
     assert_eq!(diagnostics[0].message, "expected type, found `)`");
+}
+
+#[test]
+fn parses_lambdas_references_and_function_value_invocation() {
+    let file = parse(
+        "fun inc(value: Int): Int = value + 1\n\
+         fun main() {\n\
+           val inferred: (Int) -> Int = { value -> value + 1 }\n\
+           val explicit = { value: Int -> value + 2 }\n\
+           val zero = { -> 42 }\n\
+           val reference: (Int) -> Int = ::inc\n\
+           reference.invoke(1)\n\
+           ({ value: Int -> value })(2)\n\
+         }",
+    )
+    .expect("M11 function-value syntax should parse");
+    let Decl::Function(main) = &file.declarations[1] else {
+        panic!("expected main");
+    };
+    let scoop_ast::FunctionBody::Block(body) = &main.body else {
+        panic!("expected block body");
+    };
+    let StatementKind::ValDecl(first) = &body.statements[0].kind else {
+        panic!("expected first val");
+    };
+    let Expr::Lambda { parameters, .. } = &first.init else {
+        panic!("expected lambda");
+    };
+    assert_eq!(parameters.as_ref().expect("explicit header").len(), 1);
+    assert!(parameters.as_ref().unwrap()[0].ty.is_none());
+    let StatementKind::ValDecl(zero) = &body.statements[2].kind else {
+        panic!("expected zero val");
+    };
+    assert!(matches!(
+        zero.init,
+        Expr::Lambda {
+            parameters: Some(ref parameters),
+            ..
+        } if parameters.is_empty()
+    ));
+    let StatementKind::ValDecl(reference) = &body.statements[3].kind else {
+        panic!("expected reference val");
+    };
+    assert!(matches!(
+        reference.init,
+        Expr::CallableReference { receiver: None, .. }
+    ));
+    assert!(matches!(
+        body.statements[5].kind,
+        StatementKind::Expr(Expr::Invoke { .. })
+    ));
+}
+
+#[test]
+fn omitted_lambda_parameter_list_remains_distinct() {
+    let file = parse("fun main() { val operation: (Int) -> Int = { it + 1 } }")
+        .expect("omitted parameter header should parse");
+    let Decl::Function(main) = &file.declarations[0] else {
+        panic!("expected main");
+    };
+    let scoop_ast::FunctionBody::Block(body) = &main.body else {
+        panic!("expected block");
+    };
+    let StatementKind::ValDecl(decl) = &body.statements[0].kind else {
+        panic!("expected val");
+    };
+    assert!(matches!(
+        decl.init,
+        Expr::Lambda {
+            parameters: None,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn callable_reference_requires_a_name() {
+    let diagnostics = parse("fun main() { val operation = :: }")
+        .expect_err("a bare double colon must be rejected");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(
+        diagnostics[0].message,
+        "expected callable name after `::`, found `}`"
+    );
 }

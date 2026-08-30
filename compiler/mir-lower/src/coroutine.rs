@@ -1312,6 +1312,11 @@ fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir::Type {
     let function = match callee {
         mir::Callee::User(function) => function,
         mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
+        mir::Callee::Closure(function_type) => {
+            return lowerer.shell.function_types[function_type]
+                .return_type
+                .clone();
+        }
         mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => {
             unreachable!("a source suspend call resolves to a hidden-ABI function")
         }
@@ -1737,6 +1742,7 @@ fn suspend_effect(
     let function = match call.target.callee {
         mir::Callee::User(function) => function,
         mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
+        mir::Callee::Closure(_) => return None,
         mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => return None,
     };
     lowerer
@@ -1856,6 +1862,9 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::Expr::ArrayLiteral(elements)
         | mir::Expr::StructInit { args: elements, .. }
         | mir::Expr::ClassInit { args: elements, .. }
+        | mir::Expr::ClosureAlloc {
+            captures: elements, ..
+        }
         | mir::Expr::VariantConstruct {
             fields: elements, ..
         } => {

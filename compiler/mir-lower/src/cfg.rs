@@ -559,6 +559,13 @@ impl<'a> CfgLowerer<'a> {
                 class_id: *class_id,
                 args: args.iter().map(|arg| self.lower_expr(arg, span)).collect(),
             },
+            smir::Expr::ClosureAlloc { class, captures } => mir::Expr::ClosureAlloc {
+                class: *class,
+                captures: captures
+                    .iter()
+                    .map(|capture| self.lower_expr(capture, span))
+                    .collect(),
+            },
             smir::Expr::Local(local) => mir::Expr::Local(*local),
             smir::Expr::Retype { operand, ty } => mir::Expr::Retype {
                 operand: Box::new(self.lower_expr(operand, span)),

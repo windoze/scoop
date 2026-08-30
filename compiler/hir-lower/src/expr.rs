@@ -52,7 +52,9 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{ExprKind, FunctionKind, Type, TypeId};
 
-use crate::{Lowerer, Owner};
+use crate::patterns::PatternCtx;
+use crate::scope::Scopes;
+use crate::{ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext};
 
 struct InferredArguments {
     args: Vec<Option<hir::Expr>>,
@@ -123,11 +125,28 @@ impl Lowerer {
                 }
             },
             ast::Expr::Var(name) => self.lower_var(name, expected),
+            ast::Expr::Lambda {
+                is_suspend,
+                parameters,
+                body,
+                span,
+                ..
+            } => self.lower_lambda(*is_suspend, parameters.as_deref(), body, *span, expected),
+            ast::Expr::CallableReference {
+                receiver,
+                name,
+                span,
+                ..
+            } => self.lower_callable_reference(receiver.as_deref(), name, *span, expected, sink),
             ast::Expr::FieldAccess(access) if access.safe => {
                 self.lower_safe_field_access(access, sink)
             }
             ast::Expr::FieldAccess(access) => self.lower_field_access(access, sink, expected),
             ast::Expr::Call(call) => self.lower_call(call, sink, expected),
+            ast::Expr::Invoke { callee, args, span } => {
+                let callee = self.lower_expr(callee, sink, None)?;
+                self.lower_callable_call(callee, args, *span, sink)
+            }
             ast::Expr::Binary { op, lhs, rhs, span } => {
                 self.lower_binary(*op, lhs, rhs, *span, sink)
             }
@@ -231,6 +250,9 @@ impl Lowerer {
             }
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
+        if name.text == "invoke" && matches!(self.types[receiver.ty], Type::Function(_)) {
+            return self.lower_callable_call(receiver, args, span, sink);
+        }
         let array_conversion = match (&self.types[receiver.ty], name.text.as_str()) {
             (Type::MutableArray(element), "toArray") => Some((true, *element)),
             (Type::Array(element), "toMutableArray") => Some((false, *element)),
@@ -768,6 +790,16 @@ impl Lowerer {
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
+            if self.functions_by_name.contains_key(&name.text) {
+                self.error(
+                    name.span,
+                    format!(
+                        "function `{}` is not a value; use `::{}` to create a callable reference",
+                        name.text, name.text
+                    ),
+                );
+                return None;
+            }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
@@ -1062,6 +1094,17 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if let Some(local) = self.scopes.lookup(&call.callee.text) {
+            let ty = self.locals[local].ty;
+            if matches!(self.types[ty], Type::Function(_)) {
+                let callee = hir::Expr {
+                    kind: ExprKind::Local(local),
+                    ty,
+                    span: call.callee.span,
+                };
+                return self.lower_callable_call(callee, &call.args, call.span, sink);
+            }
+        }
         // `Array(m)` / `MutableArray(a)`: the conversion constructors
         // (spec 10.4) resolve before structs, variants and functions
         // (milestone5 DESIGN.md 2.2).
@@ -1079,6 +1122,484 @@ impl Lowerer {
             }
             Constructor::Unmatched => self.lower_function_call(call, sink),
         }
+    }
+
+    fn lower_callable_call(
+        &mut self,
+        callee: hir::Expr,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let Type::Function(function_type) = self.types[callee.ty] else {
+            let found = self.type_name(callee.ty);
+            self.error(
+                callee.span,
+                format!("value of type {found} is not callable"),
+            );
+            return None;
+        };
+        let signature = self.function_types[function_type].clone();
+        if signature.parameter_types.len() != args.len() {
+            self.error(
+                span,
+                format!(
+                    "function value takes exactly {} argument(s), but {} were supplied",
+                    signature.parameter_types.len(),
+                    args.len()
+                ),
+            );
+            return None;
+        }
+        if signature.is_suspend {
+            let context = *self
+                .suspension_contexts
+                .last()
+                .expect("the suspension context stack is initialized");
+            if let SuspensionContext::Forbidden(reason) = context {
+                let location = match reason {
+                    ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
+                    ForbiddenSuspendContext::Function => {
+                        format!("non-suspend function `{}`", self.current_fn_name)
+                    }
+                    ForbiddenSuspendContext::ConstructorDelegation => {
+                        "constructor delegation".to_string()
+                    }
+                };
+                self.error(
+                    span,
+                    format!("suspend function value cannot be called from {location}"),
+                );
+                return None;
+            }
+        }
+        let mut lowered = Vec::with_capacity(args.len());
+        for (arg, &parameter_ty) in args.iter().zip(&signature.parameter_types) {
+            let value = self.lower_expr(arg, sink, Some(parameter_ty))?;
+            if !self.is_subtype(value.ty, parameter_ty) {
+                let expected = self.type_name(parameter_ty);
+                let found = self.type_name(value.ty);
+                self.error(
+                    arg.span(),
+                    format!("function argument must be of type {expected}, found {found}"),
+                );
+                return None;
+            }
+            lowered.push(self.adapt_to(value, parameter_ty));
+        }
+        Some(hir::Expr {
+            kind: ExprKind::CallableCall {
+                callee: Box::new(callee),
+                function_type,
+                args: lowered,
+            },
+            ty: signature.return_type,
+            span,
+        })
+    }
+
+    fn lower_callable_reference(
+        &mut self,
+        receiver: Option<&ast::Expr>,
+        name: &ast::Ident,
+        span: Span,
+        expected: Option<TypeId>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        if let Some(receiver) = receiver {
+            // Evaluate it now so this remains a creation-time snapshot once
+            // bound references are enabled in the corresponding M11 gate.
+            let _ = self.lower_expr(receiver, sink, None)?;
+            self.error(
+                span,
+                "bound callable references are only available after the M11 bound-reference gate"
+                    .to_string(),
+            );
+            return None;
+        }
+        let mut candidates = self.top_level_candidate_layer(&name.text);
+        if candidates.is_empty() {
+            self.error(name.span, format!("unknown function `{}`", name.text));
+            return None;
+        }
+        candidates.retain(|function| self.functions[*function].type_params.is_empty());
+        let expected_signature = expected.and_then(|ty| match self.types[ty] {
+            Type::Function(id) => Some((ty, self.function_types[id].clone())),
+            _ => None,
+        });
+        if let Some((_, signature)) = &expected_signature {
+            candidates.retain(|function| {
+                let candidate = &self.signatures[function];
+                candidate.is_suspend == signature.is_suspend
+                    && candidate.params.len() == signature.parameter_types.len()
+                    && candidate
+                        .params
+                        .iter()
+                        .zip(&signature.parameter_types)
+                        .all(|(parameter, expected)| self.types_equal(parameter.ty, *expected))
+                    && self.types_equal(candidate.return_ty, signature.return_type)
+            });
+        }
+        let function = match candidates.as_slice() {
+            [function] => *function,
+            [] => {
+                self.error(
+                    span,
+                    format!(
+                        "no non-generic overload of `::{}` matches the expected function type",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+            _ => {
+                self.error(
+                    span,
+                    format!(
+                        "callable reference `::{}` is ambiguous; provide an expected function type",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+        };
+        let signature = self.signatures[&function].clone();
+        if signature.is_suspend {
+            self.error(
+                span,
+                "suspend callable references are introduced by the M11 suspend-integration gate"
+                    .to_string(),
+            );
+            return None;
+        }
+        let ty = expected_signature.map_or_else(
+            || {
+                self.intern_function_type(
+                    signature.is_suspend,
+                    signature
+                        .params
+                        .iter()
+                        .map(|parameter| parameter.ty)
+                        .collect(),
+                    signature.return_ty,
+                )
+            },
+            |(ty, _)| ty,
+        );
+        let Type::Function(function_type) = self.types[ty] else {
+            unreachable!("a callable reference has a function type")
+        };
+        let id = self.callable_references.alloc(hir::CallableReference {
+            target: hir::Callable::Function(function),
+            function_type,
+            captures: Vec::new(),
+            span,
+        });
+        Some(hir::Expr {
+            kind: ExprKind::CallableReference(id),
+            ty,
+            span,
+        })
+    }
+
+    fn top_level_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
+        let Some(ids) = self.functions_by_name.get(name) else {
+            return Vec::new();
+        };
+        let call_site_is_core = self.current_file < self.user_file_index;
+        let same_side: Vec<_> = ids
+            .iter()
+            .copied()
+            .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
+            .collect();
+        if same_side.is_empty() {
+            ids.iter()
+                .copied()
+                .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+                .collect()
+        } else {
+            same_side
+        }
+    }
+
+    fn lower_lambda(
+        &mut self,
+        is_suspend: bool,
+        parameters: Option<&[ast::LambdaParam]>,
+        body: &ast::Block,
+        span: Span,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        if is_suspend {
+            self.error(
+                span,
+                "suspend lambdas are introduced by the M11 suspend-integration gate".to_string(),
+            );
+            return None;
+        }
+        if block_contains_return(body) {
+            self.error(
+                span,
+                "a lambda cannot use `return`; use an anonymous function for local returns"
+                    .to_string(),
+            );
+            return None;
+        }
+        let expected_signature = expected.and_then(|ty| match self.types[ty] {
+            Type::Function(id) => Some((ty, self.function_types[id].clone())),
+            _ => None,
+        });
+        if let Some((_, signature)) = &expected_signature
+            && signature.is_suspend != is_suspend
+        {
+            self.error(
+                span,
+                "ordinary and suspend function types are incompatible".to_string(),
+            );
+            return None;
+        }
+        let source_parameters: Vec<Option<&ast::LambdaParam>> = match parameters {
+            Some(parameters) => parameters.iter().map(Some).collect(),
+            None => match &expected_signature {
+                Some((_, signature)) if signature.parameter_types.len() == 1 => vec![None],
+                Some((_, signature)) if signature.parameter_types.is_empty() => Vec::new(),
+                Some((_, signature)) => {
+                    self.error(
+                        span,
+                        format!(
+                            "lambda omits its parameter list, but the expected type has {} parameters",
+                            signature.parameter_types.len()
+                        ),
+                    );
+                    return None;
+                }
+                None => Vec::new(),
+            },
+        };
+        if let Some((_, signature)) = &expected_signature
+            && source_parameters.len() != signature.parameter_types.len()
+        {
+            self.error(
+                span,
+                format!(
+                    "lambda has {} parameter(s), but the expected function type has {}",
+                    source_parameters.len(),
+                    signature.parameter_types.len()
+                ),
+            );
+            return None;
+        }
+
+        let outer_locals = std::mem::take(&mut self.locals);
+        let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
+        let outer_return_ty = self.current_return_ty;
+        let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_owner = self.current_owner.take();
+        let outer_this = self.current_this.take();
+        let outer_smart_casts = std::mem::take(&mut self.smart_casts);
+        self.current_fn_name = format!("$lambda.{}", self.lambdas.len());
+        self.push_suspension_context(SuspensionContext::Forbidden(
+            ForbiddenSuspendContext::Function,
+        ));
+        self.scopes.push();
+
+        let lowered = (|| {
+            let mut abi_params = Vec::with_capacity(source_parameters.len());
+            let mut parameter_types = Vec::with_capacity(source_parameters.len());
+            let mut prefix = Vec::new();
+            for (index, parameter) in source_parameters.iter().enumerate() {
+                let expected_ty = expected_signature
+                    .as_ref()
+                    .map(|(_, signature)| signature.parameter_types[index]);
+                let explicit_ty = match parameter.and_then(|parameter| parameter.ty.as_ref()) {
+                    Some(ty) => Some(self.resolve_type_ref(ty)?),
+                    None => None,
+                };
+                let parameter_ty = match (explicit_ty, expected_ty) {
+                    (Some(explicit), Some(expected)) => {
+                        if !self.types_equal(explicit, expected) {
+                            let found = self.type_name(explicit);
+                            let expected = self.type_name(expected);
+                            let at = parameter
+                                .expect("an explicit type belongs to a parameter")
+                                .span;
+                            self.error(
+                                at,
+                                format!(
+                                    "lambda parameter type is {found}, but the expected type is {expected}"
+                                ),
+                            );
+                            return None;
+                        }
+                        explicit
+                    }
+                    (Some(explicit), None) => explicit,
+                    (None, Some(expected)) => expected,
+                    (None, None) => {
+                        let at = parameter.map_or(span, |parameter| parameter.span);
+                        self.error(
+                            at,
+                            "lambda parameter requires a type when there is no expected function type"
+                                .to_string(),
+                        );
+                        return None;
+                    }
+                };
+                parameter_types.push(parameter_ty);
+                let target = parameter.map(|parameter| &parameter.target);
+                let binding_name = match target {
+                    Some(ast::Pattern::Binding(name)) => Some(name.clone()),
+                    None => Some(ast::Ident {
+                        text: "it".to_string(),
+                        span,
+                    }),
+                    _ => None,
+                };
+                if let Some(name) = binding_name {
+                    let pattern = ast::Pattern::Binding(name.clone());
+                    let hir::Pattern::Binding { local } = self.lower_pattern(
+                        &pattern,
+                        parameter_ty,
+                        PatternCtx {
+                            mutable: false,
+                            in_when: false,
+                        },
+                    )?
+                    else {
+                        unreachable!("a binding parameter lowers to a binding")
+                    };
+                    abi_params.push(hir::Param {
+                        name: name.text,
+                        ty: parameter_ty,
+                        local,
+                    });
+                } else {
+                    let local = self.locals.alloc(hir::Local {
+                        name: format!("$arg.{index}"),
+                        ty: parameter_ty,
+                        mutable: false,
+                    });
+                    let pattern = self.lower_pattern(
+                        target.expect("non-binding source parameter has a pattern"),
+                        parameter_ty,
+                        PatternCtx {
+                            mutable: false,
+                            in_when: false,
+                        },
+                    )?;
+                    prefix.push(hir::Statement {
+                        kind: hir::StatementKind::ValDecl {
+                            pattern,
+                            init: hir::Expr {
+                                kind: ExprKind::Local(local),
+                                ty: parameter_ty,
+                                span,
+                            },
+                        },
+                        span,
+                    });
+                    abi_params.push(hir::Param {
+                        name: format!("$arg.{index}"),
+                        ty: parameter_ty,
+                        local,
+                    });
+                }
+            }
+
+            let expected_return = expected_signature
+                .as_ref()
+                .map(|(_, signature)| signature.return_type);
+            let mut value_block = self.lower_value_block(body, expected_return)?;
+            let return_ty = value_block
+                .value
+                .as_ref()
+                .map_or(expected_return.unwrap_or(self.unit), |value| value.ty);
+            if let Some(expected_return) = expected_return
+                && !self.types_equal(return_ty, expected_return)
+            {
+                let expected = self.type_name(expected_return);
+                let found = self.type_name(return_ty);
+                self.error(
+                    body.span,
+                    format!("lambda result must be of type {expected}, found {found}"),
+                );
+                return None;
+            }
+            let return_ty = expected_return.unwrap_or(return_ty);
+            self.current_return_ty = return_ty;
+            prefix.append(&mut value_block.statements);
+            if let Some(value) = value_block.value.take() {
+                let value = self.adapt_to(value, return_ty);
+                if self.types_equal(return_ty, self.unit) {
+                    if !matches!(value.kind, ExprKind::UnitLiteral) {
+                        prefix.push(hir::Statement {
+                            span: value.span,
+                            kind: hir::StatementKind::Expr(value),
+                        });
+                    }
+                    prefix.push(hir::Statement {
+                        span: body.span,
+                        kind: hir::StatementKind::Return { value: None },
+                    });
+                } else {
+                    prefix.push(hir::Statement {
+                        span: value.span,
+                        kind: hir::StatementKind::Return { value: Some(value) },
+                    });
+                }
+            }
+            let function_ty = self.intern_function_type(is_suspend, parameter_types, return_ty);
+            let Type::Function(function_type) = self.types[function_ty] else {
+                unreachable!()
+            };
+            let closure_local = self.locals.alloc(hir::Local {
+                name: "$closure".to_string(),
+                ty: function_ty,
+                mutable: false,
+            });
+            let mut params = Vec::with_capacity(abi_params.len() + 1);
+            params.push(hir::Param {
+                name: "$closure".to_string(),
+                ty: function_ty,
+                local: closure_local,
+            });
+            params.extend(abi_params);
+            let function = self.functions.alloc(hir::Function {
+                name: self.current_fn_name.clone(),
+                is_suspend,
+                type_params: Vec::new(),
+                params,
+                return_ty,
+                kind: hir::FunctionKind::User(hir::Body {
+                    locals: std::mem::take(&mut self.locals),
+                    statements: prefix,
+                }),
+                method: None,
+                span,
+            });
+            let id = self.lambdas.alloc(hir::Lambda {
+                function,
+                function_type,
+                captures: Vec::new(),
+                span,
+            });
+            Some(hir::Expr {
+                kind: ExprKind::Lambda(id),
+                ty: function_ty,
+                span,
+            })
+        })();
+
+        self.scopes.pop();
+        self.pop_suspension_context();
+        self.locals = outer_locals;
+        self.scopes = outer_scopes;
+        self.current_return_ty = outer_return_ty;
+        self.current_fn_name = outer_fn_name;
+        self.current_owner = outer_owner;
+        self.current_this = outer_this;
+        self.smart_casts = outer_smart_casts;
+        lowered
     }
 
     /// `Array(m)` / `MutableArray(a)`: the conversion between the two
@@ -2750,6 +3271,108 @@ fn collect_smart_cast_candidates<'a>(
             collect_smart_cast_candidates(rhs, true, out);
         }
         _ => {}
+    }
+}
+
+fn block_contains_return(block: &ast::Block) -> bool {
+    block.statements.iter().any(statement_contains_return)
+}
+
+fn statement_contains_return(statement: &ast::Statement) -> bool {
+    match &statement.kind {
+        ast::StatementKind::Return { .. } => true,
+        ast::StatementKind::Expr(expr) | ast::StatementKind::Throw(expr) => {
+            expr_contains_return(expr)
+        }
+        ast::StatementKind::ValDecl(decl) => expr_contains_return(&decl.init),
+        ast::StatementKind::Assign(assign) => expr_contains_return(&assign.value),
+        ast::StatementKind::If(if_) => {
+            expr_contains_return(&if_.cond)
+                || block_contains_return(&if_.then_block)
+                || if_.else_block.as_ref().is_some_and(block_contains_return)
+        }
+        ast::StatementKind::While(while_) => {
+            expr_contains_return(&while_.cond) || block_contains_return(&while_.body)
+        }
+        ast::StatementKind::Block(block) => block_contains_return(block),
+        ast::StatementKind::When(when) => {
+            expr_contains_return(&when.subject)
+                || when.arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(expr_contains_return)
+                        || block_contains_return(&arm.body)
+                })
+                || when.else_body.as_ref().is_some_and(block_contains_return)
+        }
+        ast::StatementKind::Try(try_) => {
+            block_contains_return(&try_.body)
+                || try_
+                    .catches
+                    .iter()
+                    .any(|catch| block_contains_return(&catch.body))
+                || try_
+                    .finally_body
+                    .as_ref()
+                    .is_some_and(block_contains_return)
+        }
+    }
+}
+
+fn expr_contains_return(expr: &ast::Expr) -> bool {
+    match expr {
+        // A nested callable owns its own return target.
+        ast::Expr::Lambda { .. } | ast::Expr::CallableReference { .. } => false,
+        ast::Expr::TupleLiteral { elements, .. } | ast::Expr::ArrayLiteral { elements, .. } => {
+            elements.iter().any(expr_contains_return)
+        }
+        ast::Expr::StructInit { args, .. } => args.iter().any(expr_contains_return),
+        ast::Expr::FieldAccess(access) => expr_contains_return(&access.receiver),
+        ast::Expr::Call(call) => call.args.iter().any(expr_contains_return),
+        ast::Expr::Invoke { callee, args, .. } => {
+            expr_contains_return(callee) || args.iter().any(expr_contains_return)
+        }
+        ast::Expr::Binary { lhs, rhs, .. } | ast::Expr::Elvis { lhs, rhs, .. } => {
+            expr_contains_return(lhs) || expr_contains_return(rhs)
+        }
+        ast::Expr::Unary { operand, .. }
+        | ast::Expr::NullAssert { operand, .. }
+        | ast::Expr::Is { operand, .. }
+        | ast::Expr::Cast { operand, .. } => expr_contains_return(operand),
+        ast::Expr::MethodCall { receiver, args, .. } => {
+            expr_contains_return(receiver) || args.iter().any(expr_contains_return)
+        }
+        ast::Expr::Index {
+            receiver, index, ..
+        } => expr_contains_return(receiver) || expr_contains_return(index),
+        ast::Expr::If(if_) => {
+            expr_contains_return(&if_.cond)
+                || block_contains_return(&if_.then_block)
+                || if_.else_block.as_ref().is_some_and(block_contains_return)
+        }
+        ast::Expr::When(when) => {
+            expr_contains_return(&when.subject)
+                || when.arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(expr_contains_return)
+                        || block_contains_return(&arm.body)
+                })
+                || when.else_body.as_ref().is_some_and(block_contains_return)
+        }
+        ast::Expr::Try(try_) => {
+            block_contains_return(&try_.body)
+                || try_
+                    .catches
+                    .iter()
+                    .any(|catch| block_contains_return(&catch.body))
+                || try_
+                    .finally_body
+                    .as_ref()
+                    .is_some_and(block_contains_return)
+        }
+        ast::Expr::StringLiteral { .. }
+        | ast::Expr::IntLiteral { .. }
+        | ast::Expr::BoolLiteral { .. }
+        | ast::Expr::UnitLiteral { .. }
+        | ast::Expr::Var(_)
+        | ast::Expr::This { .. } => false,
     }
 }
 
