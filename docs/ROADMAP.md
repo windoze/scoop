@@ -96,7 +96,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - ~~always-leak GC → M9 替换~~（已完成）；
 - parser 错误恢复（当前 fail-fast 于第一个错误）；
-- 单文件单 Cone 编译 → M13。
+- 单文件单 Cone 编译 → M14。
 
 ### 来自 M2
 
@@ -120,7 +120,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M4
 
-- core 与用户代码同单元编译 → M13 的 `.slib` 与 Cone 隔离；
+- core 与用户代码同单元编译 → M14 的 `.slib` 与 Cone 隔离；
 - 注解仅 `@Intrinsic` 且仅 sysroot → M11 扩展为完整 FFI 注解族；
 - 构造函数式变体的默认值只支持常量表达式（完整 spec 8.5"定义处解析、调用处求值"随函数默认参数一起做）；
 - `when` 的表达式形态（产生值）；
@@ -145,7 +145,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - interface 的属性与默认实现；
 - `equals` / `hashCode` / `toString` 的用户覆写——已改道为接口化设计（spec 11.11）：`equals` 走 operator fun、`ToString` / `Hash` opt-in 接口、vtable 前三槽拆除（→ M12）；
 - companion object、`object` 声明、`sealed`、委托（`by`）；
-- 可见性修饰符（`internal` 语义 → M13 前）；
+- 可见性修饰符（`internal` 语义 → M14 多 Cone 前）；
 - `?.` 后随方法调用（`a?.foo()`）；
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）；
