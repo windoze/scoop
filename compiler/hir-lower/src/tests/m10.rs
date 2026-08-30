@@ -25,6 +25,14 @@ fn validates_and_preserves_coroutine_core_contract() {
     assert_eq!(continuation.methods.len(), 2);
     assert_eq!(continuation.methods[0].name, "resume");
     assert_eq!(continuation.methods[1].name, "resumeWithException");
+    assert_eq!(
+        module.coroutine_core.continuation_resume,
+        function_id(&module, "Continuation.resume")
+    );
+    assert_eq!(
+        module.coroutine_core.continuation_resume_with_exception,
+        function_id(&module, "Continuation.resumeWithException")
+    );
 
     let task = module
         .interfaces
@@ -35,11 +43,13 @@ fn validates_and_preserves_coroutine_core_contract() {
     assert!(task.methods[0].is_suspend);
 
     let start = function_id(&module, "startCoroutine");
+    assert_eq!(module.coroutine_core.start_coroutine, start);
     assert!(matches!(
         &module.functions[start].kind,
         hir::FunctionKind::Intrinsic(name) if name == "coroutine_start"
     ));
     let suspend = function_id(&module, "suspendCoroutine");
+    assert_eq!(module.coroutine_core.suspend_coroutine, suspend);
     assert!(module.functions[suspend].is_suspend);
     assert!(matches!(
         &module.functions[suspend].kind,

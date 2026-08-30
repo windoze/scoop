@@ -195,12 +195,29 @@ pub struct Module {
     /// `T?`, spec 7.1). Guaranteed present: a core library without a
     /// suitable `Option` definition is a driver-level error.
     pub option_enum: EnumId,
+    /// Compiler-known coroutine protocol entities. HIR lowering validates
+    /// their exact declarations before constructing the module, so MIR never
+    /// falls back to textual lookup for protocol types or methods.
+    pub coroutine_core: CoroutineCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoroutineCore {
+    pub continuation: InterfaceId,
+    pub continuation_resume: FunctionId,
+    pub continuation_resume_with_exception: FunctionId,
+    pub suspend_task: InterfaceId,
+    pub suspend_task_run: FunctionId,
+    pub suspend_registration: InterfaceId,
+    pub suspend_registration_register: FunctionId,
+    pub start_coroutine: FunctionId,
+    pub suspend_coroutine: FunctionId,
 }
 
 impl Module {

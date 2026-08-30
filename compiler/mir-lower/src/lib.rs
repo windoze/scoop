@@ -4934,7 +4934,198 @@ mod tests {
                 .alloc(hir::ResolvedGenericFunction { generic, type_args })
         }
 
-        fn finish(self, entry: hir::FunctionId) -> hir::Module {
+        fn test_coroutine_core(&mut self) -> hir::CoroutineCore {
+            let t = self
+                .types
+                .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
+            let type_param = || hir::TypeParamDecl {
+                name: "T".to_string(),
+                variance: hir::Variance::Invariant,
+                span: SPAN,
+            };
+            let continuation = self.interfaces.alloc(hir::InterfaceDecl {
+                name: "Continuation".to_string(),
+                type_params: vec![type_param()],
+                methods: Vec::new(),
+                span: SPAN,
+            });
+            let continuation_ty = self
+                .types
+                .alloc(hir::Type::Interface(continuation, vec![t]));
+            let mut resume_locals = Arena::new();
+            let resume_value = resume_locals.alloc(local("value", t));
+            let continuation_resume = self.functions.alloc(hir::Function {
+                name: "Continuation.resume".to_string(),
+                is_suspend: false,
+                type_params: vec!["T".to_string()],
+                params: vec![param("value", t, resume_value)],
+                return_ty: self.unit,
+                kind: hir::FunctionKind::User(hir::Body {
+                    locals: resume_locals,
+                    statements: Vec::new(),
+                }),
+                method: Some(hir::Method {
+                    owner: continuation_ty,
+                    modifier: hir::MethodModifier::Abstract,
+                    owner_type_param_count: 1,
+                }),
+                span: SPAN,
+            });
+            let mut failure_locals = Arena::new();
+            let failure = failure_locals.alloc(local("exception", self.string));
+            let continuation_resume_with_exception = self.functions.alloc(hir::Function {
+                name: "Continuation.resumeWithException".to_string(),
+                is_suspend: false,
+                type_params: vec!["T".to_string()],
+                params: vec![param("exception", self.string, failure)],
+                return_ty: self.unit,
+                kind: hir::FunctionKind::User(hir::Body {
+                    locals: failure_locals,
+                    statements: Vec::new(),
+                }),
+                method: Some(hir::Method {
+                    owner: continuation_ty,
+                    modifier: hir::MethodModifier::Abstract,
+                    owner_type_param_count: 1,
+                }),
+                span: SPAN,
+            });
+            self.interfaces[continuation].methods = vec![
+                hir::MethodSig {
+                    name: "resume".to_string(),
+                    is_suspend: false,
+                    type_params: Vec::new(),
+                    params: vec![param("value", t, resume_value)],
+                    return_ty: self.unit,
+                    span: SPAN,
+                },
+                hir::MethodSig {
+                    name: "resumeWithException".to_string(),
+                    is_suspend: false,
+                    type_params: Vec::new(),
+                    params: vec![param("exception", self.string, failure)],
+                    return_ty: self.unit,
+                    span: SPAN,
+                },
+            ];
+
+            let suspend_task = self.interfaces.alloc(hir::InterfaceDecl {
+                name: "SuspendTask".to_string(),
+                type_params: vec![type_param()],
+                methods: vec![hir::MethodSig {
+                    name: "run".to_string(),
+                    is_suspend: true,
+                    type_params: Vec::new(),
+                    params: Vec::new(),
+                    return_ty: t,
+                    span: SPAN,
+                }],
+                span: SPAN,
+            });
+            let suspend_task_ty = self
+                .types
+                .alloc(hir::Type::Interface(suspend_task, vec![t]));
+            let suspend_task_run = self.functions.alloc(hir::Function {
+                name: "SuspendTask.run".to_string(),
+                is_suspend: true,
+                type_params: vec!["T".to_string()],
+                params: Vec::new(),
+                return_ty: t,
+                kind: hir::FunctionKind::User(hir::Body {
+                    locals: Arena::new(),
+                    statements: Vec::new(),
+                }),
+                method: Some(hir::Method {
+                    owner: suspend_task_ty,
+                    modifier: hir::MethodModifier::Abstract,
+                    owner_type_param_count: 1,
+                }),
+                span: SPAN,
+            });
+
+            let suspend_registration = self.interfaces.alloc(hir::InterfaceDecl {
+                name: "SuspendRegistration".to_string(),
+                type_params: vec![type_param()],
+                methods: vec![hir::MethodSig {
+                    name: "register".to_string(),
+                    is_suspend: false,
+                    type_params: Vec::new(),
+                    params: Vec::new(),
+                    return_ty: self.unit,
+                    span: SPAN,
+                }],
+                span: SPAN,
+            });
+            let suspend_registration_ty = self
+                .types
+                .alloc(hir::Type::Interface(suspend_registration, vec![t]));
+            let suspend_registration_register = self.functions.alloc(hir::Function {
+                name: "SuspendRegistration.register".to_string(),
+                is_suspend: false,
+                type_params: vec!["T".to_string()],
+                params: Vec::new(),
+                return_ty: self.unit,
+                kind: hir::FunctionKind::User(hir::Body {
+                    locals: Arena::new(),
+                    statements: Vec::new(),
+                }),
+                method: Some(hir::Method {
+                    owner: suspend_registration_ty,
+                    modifier: hir::MethodModifier::Abstract,
+                    owner_type_param_count: 1,
+                }),
+                span: SPAN,
+            });
+
+            for function in [
+                continuation_resume,
+                continuation_resume_with_exception,
+                suspend_task_run,
+                suspend_registration_register,
+            ] {
+                self.generic_functions
+                    .alloc(hir::GenericFunction { function });
+            }
+            let start_coroutine = self.functions.alloc(hir::Function {
+                name: "startCoroutine".to_string(),
+                is_suspend: false,
+                type_params: vec!["T".to_string()],
+                params: Vec::new(),
+                return_ty: self.unit,
+                kind: hir::FunctionKind::Intrinsic("coroutine_start".to_string()),
+                method: None,
+                span: SPAN,
+            });
+            let suspend_coroutine = self.functions.alloc(hir::Function {
+                name: "suspendCoroutine".to_string(),
+                is_suspend: true,
+                type_params: vec!["T".to_string()],
+                params: Vec::new(),
+                return_ty: t,
+                kind: hir::FunctionKind::Intrinsic("coroutine_suspend".to_string()),
+                method: None,
+                span: SPAN,
+            });
+            for function in [start_coroutine, suspend_coroutine] {
+                self.generic_functions
+                    .alloc(hir::GenericFunction { function });
+                self.top_level.push(function);
+            }
+            hir::CoroutineCore {
+                continuation,
+                continuation_resume,
+                continuation_resume_with_exception,
+                suspend_task,
+                suspend_task_run,
+                suspend_registration,
+                suspend_registration_register,
+                start_coroutine,
+                suspend_coroutine,
+            }
+        }
+
+        fn finish(mut self, entry: hir::FunctionId) -> hir::Module {
+            let coroutine_core = self.test_coroutine_core();
             hir::Module {
                 types: self.types,
                 functions: self.functions,
@@ -4949,6 +5140,7 @@ mod tests {
                 boolean: self.boolean,
                 string: self.string,
                 option_enum: self.option_enum,
+                coroutine_core,
                 entry,
                 instantiations: self.instantiations,
             }

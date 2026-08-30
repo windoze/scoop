@@ -596,7 +596,7 @@ impl Lowerer {
         // M10's coroutine protocol is compiler-known: MIR generation needs
         // these exact generic interfaces and intrinsic signatures rather than
         // guessing entities from names after HIR.
-        self.validate_coroutine_core(files);
+        let coroutine_core = self.validate_coroutine_core(files);
 
         // Pass 2.6: overload declarations must be distinguishable —
         // within one name (top-level) or one host (members) no two
@@ -693,6 +693,8 @@ impl Lowerer {
         let option_enum = self
             .option_enum
             .expect("a missing or invalid core `Option` is always diagnosed");
+        let coroutine_core = coroutine_core
+            .expect("a missing or invalid coroutine core protocol is always diagnosed");
         Ok(hir::Module {
             types: self.types,
             functions: self.functions,
@@ -707,6 +709,7 @@ impl Lowerer {
             boolean: self.boolean,
             string: self.string,
             option_enum,
+            coroutine_core,
             entry,
             instantiations: self.instantiations,
         })
@@ -1089,7 +1092,7 @@ impl Lowerer {
         intrinsic
     }
 
-    fn validate_coroutine_core(&mut self, files: &[ast::SourceFile]) {
+    fn validate_coroutine_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::CoroutineCore> {
         let continuation = self.require_core_interface("Continuation", files);
         let suspend_task = self.require_core_interface("SuspendTask", files);
         let suspend_registration = self.require_core_interface("SuspendRegistration", files);
@@ -1103,18 +1106,65 @@ impl Lowerer {
         if let (Some(id), Some(continuation)) = (suspend_registration, continuation) {
             self.validate_suspend_registration_contract(id, continuation);
         }
-        self.validate_illegal_state_exception(files);
+        let illegal_state_exception = self.validate_illegal_state_exception(files);
+        let start_coroutine = self.require_intrinsic("coroutine_start", files);
+        let suspend_coroutine = self.require_intrinsic("coroutine_suspend", files);
 
-        if let (Some(continuation), Some(suspend_task)) = (continuation, suspend_task) {
-            self.validate_coroutine_start(continuation, suspend_task, files);
-        } else {
-            self.require_intrinsic("coroutine_start", files);
+        if let (Some(id), Some(continuation), Some(suspend_task)) =
+            (start_coroutine, continuation, suspend_task)
+        {
+            self.validate_coroutine_start(id, continuation, suspend_task);
         }
-        if let Some(suspend_registration) = suspend_registration {
-            self.validate_coroutine_suspend(suspend_registration, files);
-        } else {
-            self.require_intrinsic("coroutine_suspend", files);
+        if let (Some(id), Some(suspend_registration)) = (suspend_coroutine, suspend_registration) {
+            self.validate_coroutine_suspend(id, suspend_registration);
         }
+
+        let continuation_methods = continuation
+            .and_then(|id| self.interface_methods.get(&id))
+            .and_then(|methods| match methods.as_slice() {
+                [resume, resume_with_exception] => Some((*resume, *resume_with_exception)),
+                _ => None,
+            });
+        let suspend_task_run = suspend_task
+            .and_then(|id| self.interface_methods.get(&id))
+            .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
+        let suspend_registration_register = suspend_registration
+            .and_then(|id| self.interface_methods.get(&id))
+            .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
+        illegal_state_exception?;
+        let (
+            Some(continuation),
+            Some((continuation_resume, continuation_resume_with_exception)),
+            Some(suspend_task),
+            Some(suspend_task_run),
+            Some(suspend_registration),
+            Some(suspend_registration_register),
+            Some(start_coroutine),
+            Some(suspend_coroutine),
+        ) = (
+            continuation,
+            continuation_methods,
+            suspend_task,
+            suspend_task_run,
+            suspend_registration,
+            suspend_registration_register,
+            start_coroutine,
+            suspend_coroutine,
+        )
+        else {
+            return None;
+        };
+        Some(hir::CoroutineCore {
+            continuation,
+            continuation_resume,
+            continuation_resume_with_exception,
+            suspend_task,
+            suspend_task_run,
+            suspend_registration,
+            suspend_registration_register,
+            start_coroutine,
+            suspend_coroutine,
+        })
     }
 
     fn require_core_interface(
@@ -1237,7 +1287,7 @@ impl Lowerer {
         }
     }
 
-    fn validate_illegal_state_exception(&mut self, files: &[ast::SourceFile]) {
+    fn validate_illegal_state_exception(&mut self, files: &[ast::SourceFile]) -> Option<ClassId> {
         let candidate = self
             .classes_by_name
             .get("IllegalStateException")
@@ -1249,7 +1299,7 @@ impl Lowerer {
                 files[0].span,
                 "scoop.core must define class `IllegalStateException`".to_string(),
             );
-            return;
+            return None;
         };
         self.current_file = self.class_files[&id];
         let throwable = self.throwable.map(|(id, _)| id);
@@ -1262,17 +1312,15 @@ impl Lowerer {
                     .to_string(),
             );
         }
+        Some(id)
     }
 
     fn validate_coroutine_start(
         &mut self,
+        id: FunctionId,
         continuation: InterfaceId,
         suspend_task: InterfaceId,
-        files: &[ast::SourceFile],
     ) {
-        let Some(id) = self.require_intrinsic("coroutine_start", files) else {
-            return;
-        };
         self.current_file = self.function_files[&id];
         let function = &self.functions[id];
         let sig = &self.signatures[&id];
@@ -1292,14 +1340,7 @@ impl Lowerer {
         }
     }
 
-    fn validate_coroutine_suspend(
-        &mut self,
-        suspend_registration: InterfaceId,
-        files: &[ast::SourceFile],
-    ) {
-        let Some(id) = self.require_intrinsic("coroutine_suspend", files) else {
-            return;
-        };
+    fn validate_coroutine_suspend(&mut self, id: FunctionId, suspend_registration: InterfaceId) {
         self.current_file = self.function_files[&id];
         let function = &self.functions[id];
         let sig = &self.signatures[&id];
