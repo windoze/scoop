@@ -63,22 +63,30 @@ try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。
 
 命名 `suspend` 函数/方法、完全类型化的 suspend 状态机变换、`Continuation` 与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3）。已完成 MIR CFG 化、先单态化后状态机变换、direct / virtual / interface 与型变 bridge 的 hidden ABI、真实挂起/同步完成/失败恢复、异常物化及跨挂起 `catch` / `finally`，并以强制 GC 验证嵌套 frame/adapter 链和递归扫描。高层协程构建器与调度器仍属标准库；M10 以 core 的 `SuspendTask` / `SuspendRegistration` 适配器打通无 lambda 前置依赖的端到端闭环。
 
-### M11 FFI 注解族
+### M11 函数类型、函数值与 closure（设计见 `docs/milestone11/DESIGN.md`）
+
+正式落地 ordinary / suspend function type、lambda、匿名函数、局部函数、callable reference 与捕获 closure（spec 8.1；impl spec 2.2–2.4）。MIR 固定“单态化 → closure conversion → coroutine transform”顺序；M11 采用类似 Java lambda 的保守 capture边界，但以 Scoop 显式声明的不可变性为准，不推导 effectively final：只允许捕获 `val`、参数、`this` 等不可重新绑定的 binding。captured value type按 concrete layout内联于closure，不隐式生成shared cell或boxing。closure/adapter都有独立TypeDescriptor与完整GC扫描描述。core 在 M10 的 `SuspendTask` / `SuspendRegistration` 协议上增加函数值形态适配重载。
+
+M11 同时补齐 M7 预留的局部函数候选层，并把 managed 函数值与 native `FunPtr` 明确分开：只有下一里程碑在 `FunPtr<F>` 期望位置处理合格的顶层 `::name`，lambda/closure 不自动变成 native callback。
+
+### M12 FFI 注解族（设计见 `docs/milestone12/DESIGN.md`）
 
 `@Extern` / `@NoGC` / `@Unsafe` / `@Safe` / `@CLayout` / `@CallingConvention` / `@Global` / `@ThreadLocal` / `@InteriorMutable`、`Ptr` / `FunPtr`（spec 第 13、14 章）。
 
-### M12 泛型上界约束与接口化（ToString / Hash / equals）
+M12 只实现普通、非挂起的 FFI：`@Extern` 与 `suspend` 互斥，挂起函数也不能转换为 `FunPtr`。两种情况都由 HIR 直接诊断；不生成 wrapper，也不向外暴露 M10 hidden continuation ABI。`FunPtr<F>` 复用 M11 的正式函数类型与 callable reference，但保持独立 native ABI。
+
+### M13 泛型上界约束与接口化（ToString / Hash / equals）
 
 - 泛型上界约束：`T : Interface` 与 `where` 子句（spec 2.1/3.2 的既有语法落地）、有界类型参数上的方法解析（bounded method resolution）；
 - `ToString` / `Hash` 接口落地（spec 11.11）：值类型派生实现，`print` / `println` 改造为 `fun <T : ToString> print(v: T)`（单态化静态分发，退役 M7 的 `Any.toString()` 分发形态）；
 - equals 的 operator fun 化（成员限定，spec 11.11）：class 的 `==` 走 `equals` 运算符，值类型的条件派生 `==`；vtable 前三槽（Any 方法）拆除；
-- 受益方：M13 字符串插值的 `add<T : ToString>`。
+- 受益方：M14 字符串插值的 `add<T : ToString>`。
 
-### M13 字符串插值
+### M14 字符串插值
 
-f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone13/DESIGN.md`）。低优先级语法糖；`add<T : ToString>` 由 M12 支撑。
+f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone14/DESIGN.md`）。低优先级语法糖；`add<T : ToString>` 由 M13 支撑。
 
-### M14 多 Cone 与 `.slib`
+### M15 多 Cone 与 `.slib`
 
 `Cone.toml`、依赖图、`.slib` 打包与 reader、三层 meta（impl spec 2.6）、re-export（`public import`）。
 
@@ -87,6 +95,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
 - 里程碑顺序可按实现中发现的依赖调整，但 M0 不推迟、M3 不晚于任何依赖 `Option` 的特性。
 - 2026-08-28 顺序调整：字符串插值由 M6 后移至 M12（低优先级语法糖）；引用类型层级提前为 M6，新增 M7 函数重载；原 M8–M12 顺延为 M8–M13。其后（同日）再调整：新增 M12"泛型上界约束与接口化"（ToString/Hash/equals，spec 11.11 已定稿），字符串插值顺延为 M13、多 Cone 顺延为 M14。
+- 2026-08-31 顺序调整：在 FFI 前新增 M11“函数类型、函数值与 closure”，先完成 lambda/callable reference/closure conversion，使 FFI 直接复用正式函数类型；原 M11–M14 顺延为 M12–M15。
 
 ## 4. 待补齐清单（backlog）
 
@@ -96,7 +105,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - ~~always-leak GC → M9 替换~~（已完成）；
 - ~~parser 错误恢复~~（已完成：lexer 收集多个可恢复词法错误；parser 按顶层声明、类型成员和块内语句同步，存在诊断时丢弃残缺 AST）；
-- 单文件单 Cone 编译 → M14。
+- 单文件单 Cone 编译 → M15。
 
 ### 来自 M2
 
@@ -120,8 +129,8 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M4
 
-- core 与用户代码同单元编译 → M14 的 `.slib` 与 Cone 隔离；
-- 注解仅 `@Intrinsic` 且仅 sysroot → M11 扩展为完整 FFI 注解族；
+- core 与用户代码同单元编译 → M15 的 `.slib` 与 Cone 隔离；
+- 注解仅 `@Intrinsic` 且仅 sysroot → M12 扩展为完整 FFI 注解族；
 - 构造函数式变体的默认值只支持常量表达式（完整 spec 8.5"定义处解析、调用处求值"随函数默认参数一起做）；
 - ~~`when` 的表达式形态（产生值）~~（已完成：模式绑定、守卫与穷尽检查沿用语句形态，正常分支尾值统一定型，支持嵌套控制表达式）；
 - 命名字段模式的子模式（`S { f1: 0, .. }` 字面量匹配——ast::FieldPattern 需扩展）；
@@ -144,11 +153,11 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 次构造函数、`init` 块、body 属性（非构造函数属性）、`super` 调用；这些声明自身拥有的初始化体固定为非挂起上下文（spec 8.2、9.1.1；M10 设计已锁定）；
 - interface 的属性与默认实现；
 - ~~泛型 interface 与声明点 `in` / `out` 变型~~（已完成：接口应用类型贯穿 AST/HIR/MIR，位置合法性与变型子类型关系在 HIR 检查；MIR 按具体实参生成独立接口 TypeDescriptor，并为引用/值 ABI 生成变型 itable bridge）；
-- `equals` / `hashCode` / `toString` 的用户覆写——已改道为接口化设计（spec 11.11）：`equals` 走 operator fun、`ToString` / `Hash` opt-in 接口、vtable 前三槽拆除（→ M12）；
+- `equals` / `hashCode` / `toString` 的用户覆写——已改道为接口化设计（spec 11.11）：`equals` 走 operator fun、`ToString` / `Hash` opt-in 接口、vtable 前三槽拆除（→ M13）；
 - companion object、`object` 声明、`sealed`、委托（`by`）；object/companion 的初始化与属性委托协议不得隐式挂起（spec 8.2、9.1.1）；
-- 顶层属性与 object/companion 的精确初始化时机、跨文件顺序及循环初始化诊断（spec 9.1.1 仅固定“每次初始化同步完成且不发布部分对象”，其余需实现前先回 spec 定稿）；
+- 顶层属性与 object/companion 的精确初始化时机、跨文件顺序及循环初始化诊断（M12 只设计 GC-free 常量初始化的显式 `@Global` / `@ThreadLocal` 存储与无 initializer 的 extern global；通用属性语义仍需按 spec 9.1.1 在实现前定稿）；
 - `const val`（仅顶层/object/companion，HIR 编译期常量求值与依赖环检查，不生成 runtime initializer；spec 9.1.2）；
-- 可见性修饰符（`internal` 语义 → M14 多 Cone 前）；
+- 可见性修饰符（`internal` 语义 → M15 多 Cone 前）；
 - `?.` 后随方法调用（`a?.foo()`）；
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）；
@@ -159,10 +168,10 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 ### 来自 M7
 
 - ~~两个泛型重载推导出相同类型实参时，单态化实例按符号错误合并~~（已修复：以 `GenericFunctionId + concrete type args` 为实体键，重载实例符号带定义 discriminator）；
-- 候选集分层的完整层级：局部函数层、显式 import / 星号 import 分层（随相应机制落地后插入；当前为"成员 → 调用点同侧顶层 → 对侧隐式导入"三层）；
+- 候选集分层的完整层级：局部函数层 → M11；显式 import / 星号 import 分层随 import 机制落地后插入（当前为“成员 → 调用点同侧顶层 → 对侧隐式导入”三层）；
 - 泛型候选的 MSC 比较改用 Kotlin 的 fresh-variable 约束系统（当前为"推断后类型实参参与比较"的简化，复杂多泛型场景随用例扩展）；
-- `write` 的 `@Intrinsic` 退役（→ M11 经 `@Extern` 由 core 普通 FFI 实现）；
-- `print` / `println` 的 `Any.toString()` 分发形态为过渡基线（→ M12 改造为 `fun <T : ToString> print(v: T)` 单态化分发，并拆除 vtable 前三槽）；
+- `write` 的 `@Intrinsic` 退役（→ M12 经 `@Extern` 由 core 普通 FFI 实现）；
+- `print` / `println` 的 `Any.toString()` 分发形态为过渡基线（→ M13 改造为 `fun <T : ToString> print(v: T)` 单态化分发，并拆除 vtable 前三槽）；
 - 歧义/无匹配诊断的候选明细展示（首版只报主消息）；
 - 默认参数/vararg 的决议规则、运算符重载（`operator fun`）、`context` 参数（spec 8.3）——随各自特性落地时补齐。
 
@@ -185,8 +194,12 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M10
 
-- suspend function type、函数引用与 lambda/closure；core 当前以 `SuspendTask` / `SuspendRegistration` 作为无 lambda 的最小协议，相关语法落地时增加 lambda 形态 builder；
+- suspend function type、函数引用与 lambda/closure → M11；core 当前以 `SuspendTask` / `SuspendRegistration` 作为无 lambda 的最小协议，M11 增加函数值形态适配 overload；
 - `launch` / `async`、dispatcher、事件循环、结构化并发与取消属于标准库设计，不进入编译器最小 core；
 - continuation 的跨线程恢复：当前单线程协议使用普通字段，需随 runtime 线程注册、STW 握手和调度器一起定义原子状态与线程切换规则；
-- suspend FFI ABI（→ M11 先确定 `@Extern` 与 suspend 的组合是禁止还是需要 wrapper；不得直接暴露 M10 hidden ABI）；
+- ~~suspend FFI ABI（→ M12 实现既定禁令）~~（已决策：现阶段不支持；`@Extern` 与 `suspend` 互斥，挂起函数不能转换为 `FunPtr`，不得生成 wrapper 或暴露 M10 hidden continuation ABI）；
 - frame elision、栈上 fast path、共享 adapter 代码等优化；当前优先保留完全类型化、可由 GC 扫描的显式 frame/adapter。
+
+### 来自 M11（设计预留）
+
+- 显式 mutable/reference/move capture 或 capture list：当前只允许按值捕获 `val`、参数、`this` 等不可重新绑定的 binding，不做 effectively-final 推导，不为外层词法局部 `var` 隐式 boxing。未来方案必须以源码可见的新语法明确 lifetime、identity、并发与 ABI 成本，不能直接放宽 M11 的 `var` 诊断。

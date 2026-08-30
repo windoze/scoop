@@ -20,12 +20,12 @@ sysroot/
 
 ### 1.2 M4 的编译模型（bootstrapping）
 
-完整的多 Cone 编译（`.slib`、依赖图）是 M14。M4 采用务实的过渡模型：
+完整的多 Cone 编译（`.slib`、依赖图）是 M15。M4 采用务实的过渡模型：
 
 - driver 定位 sysroot（环境变量 `SCOOP_SYSROOT`，缺省为仓库内 `sysroot/`）；
 - `scoop.core` 按 `Cone.toml` 读入全部 `src/*.scoop`，与用户源码**作为同一个编译单元**一起编译（同一作用域体系，core 的声明天然可见——这就是"默认导入"的临时实现）；
 - `Cone.toml` 用 `toml` crate 解析（成熟库，不自己造），M4 只要求 `[cone]` 的 `group`/`name`/`version` 字段存在且 `name` 与目录名一致；
-- 没有 `.slib`，没有跨 Cone 可见性检查——这些随 M14 落地，届时 core 改为预编译 `.slib` 形态，用户代码不再与 core 同单元编译。
+- 没有 `.slib`，没有跨 Cone 可见性检查——这些随 M15 落地，届时 core 改为预编译 `.slib` 形态，用户代码不再与 core 同单元编译。
 
 ### 1.3 注解语法与 intrinsic 登记表（最小落地）
 
@@ -33,7 +33,7 @@ sysroot/
 
 - parser 支持函数声明上的**单个注解**：仅 `@Intrinsic("name")`（其他注解一律 "annotations are not supported yet" 诊断）；
 - 编译器内置 **intrinsic 登记表**（impl spec 2.10）：M4 只有一个条目族 `rt_print` / `rt_println`（签名规则"恰好一个 String/Int/Boolean 参数"、MIR 映射到对应 runtime shim、展开阶段 = HIR 识别 + MIR 符号映射）。未知 name = 编译错误（spec 13.1 已有此规则）；
-- `@Intrinsic` 只允许出现在 sysroot Cone 中（用户代码使用报诊断）。M11 落地完整 FFI 注解族时放宽到 `@Extern` 等。
+- `@Intrinsic` 只允许出现在 sysroot Cone 中（用户代码使用报诊断）。M12 落地完整 FFI 注解族时放宽到 `@Extern` 等。
 
 core 中的定义随之变为：
 
@@ -128,8 +128,8 @@ M4 无新增 runtime 函数（print/println 的 shim 已有；enum 不需要 run
 
 ## 5. 临时决策（及退役里程碑）
 
-1. **core 与用户代码同单元编译**（无 .slib、无 Cone 隔离）：M14 落地真正的多 Cone 后退役；届时 `Option` 的"默认导入"由 import 机制表达。
-2. **注解只支持 `@Intrinsic`，且只在 sysroot**：M11（FFI 注解族）扩展。
+1. **core 与用户代码同单元编译**（无 .slib、无 Cone 隔离）：M15 落地真正的多 Cone 后退役；届时 `Option` 的"默认导入"由 import 机制表达。
+2. **注解只支持 `@Intrinsic`，且只在 sysroot**：M12（FFI 注解族）扩展。
 3. **`!!` 仍 trap**：M8。
 4. **构造函数式变体的默认值只支持常量表达式**：完整"定义处解析、调用处求值"（spec 8.5）随函数默认参数里程碑一起做。
 5. **when 只做语句**：表达式形态的 when（产生值）在需要时单独立项。

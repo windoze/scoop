@@ -41,7 +41,7 @@ fun main() {
 
 - **实体 id 体系初版**（AGENTS.md"全局唯一、类型化的实体 id"的落地起点）：
   - `hir::FunctionId`、`hir::TypeId` 等为 newtype arena 索引；M1 只有 `FunctionId`/`TypeId` 两种；
-  - 全局唯一性：id 由本 Cone 的全局 arena 分配（M14 多 Cone 时再引入 Cone 前缀，届时类型不变、构造逻辑收敛在一处）。
+  - 全局唯一性：id 由本 Cone 的全局 arena 分配（M15 多 Cone 时再引入 Cone 前缀，届时类型不变、构造逻辑收敛在一处）。
 - M1 的类型集：`Unit`、`String`。表达式的类型信息**结构上不可缺失**：`hir::Expr` 内嵌 `ty: TypeId`，不是 `Option`。
 - 名称解析：顶层函数符号表 + 内建 `print`/`println`；未知名、调用非函数、参数类型不匹配均为诊断。
 - 输出：HIR 函数列表（调用目标已解析为 `FunctionId`）+ 诊断。
@@ -69,7 +69,7 @@ M1 无泛型、无 suspend、无分派，MIR 接近直通，但按最终形态�
 
 ### 2.7 链接
 
-driver 用 `cc` crate 编译 runtime 的 C 源并缓存，随后调用系统链接器（`cc` 驱动）把 `.o` + runtime 链接为可执行文件。M14 之前不考虑跨 Cone 链接。
+driver 用 `cc` crate 编译 runtime 的 C 源并缓存，随后调用系统链接器（`cc` 驱动）把 `.o` + runtime 链接为可执行文件。M15 之前不考虑跨 Cone 链接。
 
 ## 3. runtime（M1 最小集）
 
@@ -98,9 +98,9 @@ driver 用 `cc` crate 编译 runtime 的 C 源并缓存，随后调用系统链�
 ## 5. 临时决策（及其退役里程碑）
 
 1. **always-leak GC**：M9 由 Immix 替换；分配入口签名不变。
-2. **内建 `print` / `println`（已退役）**：M7 已迁移为 core 中的普通重载；其依赖的 `write` / 数值转字符串原语暂保留 `@Intrinsic`，到 M11 FFI 落地后改由 `@Extern` 实现。
+2. **内建 `print` / `println`（已退役）**：M7 已迁移为 core 中的普通重载；其依赖的 `write` / 数值转字符串原语暂保留 `@Intrinsic`，到 M12 FFI 落地后改由 `@Extern` 实现。
 3. **不插 statepoint**：M9 打开；LIR 的 call 标注结构已为此预留。
-4. **单文件、单 Cone**：M14 引入 `Cone.toml` 与 `.slib`；M1 的实体 id arena 构造已把多 Cone 扩展点收敛在一处。
+4. **单文件、单 Cone**：M15 引入 `Cone.toml` 与 `.slib`；M1 的实体 id arena 构造已把多 Cone 扩展点收敛在一处。
 5. **name mangling 仅 `scoop.<fn>`**：M3 泛型落地时扩展参数编码，编码规则集中在 MIR 的一个模块内。
 
 ## 6. 明确不做

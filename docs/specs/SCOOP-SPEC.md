@@ -33,7 +33,7 @@ Scoop 是一门静态类型、编译到原生代码（LLVM 后端）的编程语
 
 - 声明：`class` / `interface` / `object` / `companion object` / `typealias` / 属性（`val` / `var`，含委托属性）/ 函数 / 扩展函数与扩展属性；
 - 类特性：主构造函数与次构造函数、`init` 块、继承（单继承 + 接口实现）、抽象类、可见性修饰符（`public` / `internal` / `private` / `protected`）；
-- 数据与函数：lambda、匿名函数、函数类型、默认参数、命名参数、可变参数（`vararg`）、中缀函数（`infix`）、运算符重载、尾递归（`tailrec`）；
+- 数据与函数：局部函数、lambda、匿名函数、函数类型、callable reference、默认参数、命名参数、可变参数（`vararg`）、中缀函数（`infix`）、运算符重载、尾递归（`tailrec`）；
 - 泛型：类型参数、`in` / `out` 型变、类型投影、上界约束、`where` 子句；
 - 控制流：`if` / `when` / `for` / `while` / `do-while`、区间与迭代、`break` / `continue` / `return`（含标签）、异常（`try` / `catch` / `finally` / `throw`）；
 - 空安全运算符：`?.` / `?:` / `!!`（语义见第 7 章）；
@@ -69,8 +69,8 @@ Scoop 是一门静态类型、编译到原生代码（LLVM 后端）的编程语
 
 Scoop 的类型分为两大类：
 
-- **引用类型（reference type）**：`class`、`interface`、`object`、函数类型、数组类型（第 10 章）等。具有 identity，分配于堆上，通过引用传递。
-- **值类型（value type）**：`struct`、`enum`、`tuple`。无 identity，immutable，按值传递（实现可自行优化为内联存储或装箱，语义上不可观察）。
+- **引用类型（reference type）**：`class`、`interface`、`object`、函数类型、数组类型（第 10 章）等。其值是指向堆对象的 managed **ref value**；对象具有 identity，复制 ref value 只复制引用而不复制对象。
+- **值类型（value type）**：`struct`、`enum`、`tuple`。无 identity，immutable，复制时复制完整值（实现可自行优化为内联或间接 ABI，语义上不可观察）。
 
 ### 3.1 顶层与底层类型
 
@@ -89,6 +89,22 @@ Scoop 的类型分为两大类：
 - 除类型上界外，类型参数还可以用 `value` / `ref` 约束限定为值类型或引用类型（见 13.9）。
 - **带类型参数的成员函数不参与虚分派**（类似 Rust 的 object safety）：单态化实例无法枚举，泛型成员函数不进入 vtable / itable。interface 可以声明泛型方法，但只能由具体 class / struct / enum 上同型的泛型方法实现；经 interface 静态类型调用它是编译错误。class 的泛型方法必须为 final（实现 interface 时写作 `final override`），值类型方法本来即为 final；因此所有合法调用都能静态确定实现并使用直接分派。
 - 泛型宿主上的泛型成员函数同时拥有两组类型参数：宿主类型实参由接收者静态类型确定，方法类型实参由整组调用实参推导；两组实参共同组成该方法的单态化身份，顺序固定为“宿主类型实参在前、方法类型实参在后”。方法类型参数不得与宿主类型参数重名。
+
+### 3.3 参数传递、receiver 与 `this`
+
+Scoop 的源码函数/方法调用一律是 **pass-by-value**：每个实参表达式求值一次，再以所得值初始化 callee 中不可重新绑定的形参 binding。这条规则不按 value type / reference type 分叉：
+
+- 实参为 value type 时，被复制的是完整值；callee 不获得调用方 binding/place 的别名。
+- 实参为 reference type 时，被复制的是 ref value（当前实现中是一个 managed pointer-sized value），不是其指向的对象。调用方与 callee 因此持有两份相等的引用值，指向同一具有 identity 的对象；重新绑定任一引用 binding 不影响另一份引用，但通过它们对 referent 所做的合法修改对另一方可见。这与 Java 的引用参数语义一致，不是 pass-by-reference。
+
+成员方法、计算属性 getter 及扩展函数的 receiver 使用同一规则。调用 `receiver.method(args...)` 时，receiver 只求值一次，并按值初始化隐含的、不可重新绑定的 `this: T` 参数；`this` 不是调用方 receiver binding 的别名。因此：
+
+- value-type `this` 是 receiver 完整值的 method-local copy；值类型字段不可写，`this` 自身也不能被重新绑定。
+- ref-type `this` 是 receiver ref value 的 method-local copy；它不能被重新绑定，但可以按 referent 类型的普通成员规则读写同一对象。
+- 方法返回的 closure 若引用 `this`，按 8.1.3 捕获的就是这个隐含参数的值：value-type `this` 复制完整值，ref-type `this` 复制引用值。两者都不保留调用方 receiver binding/place。
+- 经装箱值的 interface 分派调用值类型实现时，dispatch thunk 语义上用 box payload 的值初始化 value-type `this`；box identity 不会成为该 `this` 的 identity。
+
+实现可以在不可观察时消除复制，或按目标 ABI 把大型 value 间接传递，但 IR 语义仍必须是参数值而不是调用方 place。当 value receiver 直接或间接含 `@InteriorMutable` value、出现 `addressOf(this)`，或其他 unsafe 能力可能观察存储时，必须物化独立的 method-local copy；所得地址不得指向调用方 binding 或 box payload，且有效期不超过当前 method activation。
 
 ---
 
@@ -416,6 +432,7 @@ this is the second line and the number is ${n+1}"""
 - `f"..."`：单行插值字符串；
 - `f"""..."""`：多行插值字符串（保留换行，与 Kotlin raw string 规则一致，允许 `${...}`）；
 - `${expr}`：任意表达式；`$name` 不允许，必须带花括号（避免歧义，统一脱糖规则）。
+- `$` 后紧跟 identifier-start 时按非法 `$name` 诊断并提示 `${name}`；`${` 以外的其他 `$` 是普通字面字符。单行 f-string 中 `\$` 同样产生字面 `$`；raw multiline f-string 不处理反斜杠转义。
 - **只有 f-string 支持插值**。普通字符串（`"..."`、`"""..."""`）中 `$` 是普通字符，不触发任何插值或脱糖——这与 Kotlin 不同，迁移 Kotlin 代码时需注意。
 
 ### 6.2 脱糖
@@ -488,9 +505,69 @@ enum Option<T> {
 - 非 `Unit` 函数的块体必须在所有可达路径上返回值或以 `throw` 退出；无法静态证明时是编译错误。顺序语句从前向后分析，路径遇到 `return` / `throw` 后不再落空；`if` 必须有 `else` 且两支都不落空；穷尽的 `when` 必须每个可执行分支都不落空。循环在没有更强证明时按可能落空处理。
 - `try` 的正常路径及每个 `catch` 路径都不落空时，整个 `try` 不落空；如果 `finally` 自身在所有路径上 `return` 或 `throw`，则它覆盖先前待执行的返回、异常或正常继续路径，整个 `try` 不落空。否则 `finally` 不改变先前路径是否落空。
 
-### 8.1 局部函数与 lambda
+### 8.1 函数类型、函数值与 closure
 
-与 Kotlin 一致。lambda 可以捕获外层变量；捕获 `var` 时按引用捕获（与 Kotlin 语义一致）。lambda 参数支持解构模式（见 4.6）。
+#### 8.1.1 函数类型
+
+普通函数类型写作 `(P1, P2, ...) -> R`，挂起函数类型写作 `suspend (P1, P2, ...) -> R`。零参数函数必须写作 `() -> R`；参数名、缺省值与 `vararg` 不是函数类型身份的一部分。
+
+- 函数类型是**引用类型**。函数值可以携带捕获环境，具有 identity，由 GC 管理；它不是一个裸代码地址。
+- 函数类型的身份由挂起性、参数个数、每个参数类型和返回类型共同决定。普通与挂起函数类型之间不存在子类型关系或隐式转换。
+- 同为普通函数类型或同为挂起函数类型时，参数类型逆变、返回类型协变：若 `A2 <: A1` 且 `R1 <: R2`，则 `(A1) -> R1 <: (A2) -> R2`。多参数逐项应用同一规则。
+- 赋值、传参或 `as` 把函数值适配到不同但兼容的函数类型时，实现可以产生一个 forwarding adapter 函数值；因此适配后结果与来源不保证 `===`。对函数类型的 `is` / `as` 仍按上述结构化子类型关系判断，不能退化成只比较参数/返回类型完全相等。
+- 函数类型不保留形参名、缺省值或 `vararg` 调用约定。经函数值调用时只能按位置提供与类型元数相同的实参；声明中的 `vararg T` 在函数类型中表现为其实际参数类型 `Array<T>`。
+- 函数值以 `f(args...)` 调用；`f.invoke(args...)` 是同一操作的显式写法。若 `f` 是挂起函数类型，调用点必须处于 8.2 允许的挂起上下文。
+- 函数值不定义结构相等。可以用 `===` / `!==` 观察同一已保存函数值的引用 identity，但规范不保证对同一函数重复创建 callable reference 或无捕获 lambda 时得到相同 identity。
+
+Scoop 当前不提供 Kotlin 的 receiver function type（`A.(B) -> R`）；扩展函数的 callable reference 按 8.1.4 显式表示为普通函数类型。
+
+#### 8.1.2 lambda 与匿名函数
+
+lambda 写作 `{ parameters -> body }`，挂起 lambda 写作 `suspend { parameters -> body }`。匿名函数写作 `fun(parameters)[: R] { body }`，挂起匿名函数写作 `suspend fun(parameters)[: R] { body }`，其中方括号表示返回类型可省略并由 body 推导。四种形式都会产生函数值，也都可以捕获外层词法环境。
+
+- 有期望函数类型时，lambda 的参数类型可省略，由期望类型给出；无期望类型时，每个显式参数都必须写出类型。单参数 lambda 在期望元数为 1 且省略参数列表时隐式声明 `it`；无参数 lambda 使用 `{ body }`。
+- lambda 参数支持 4.6 的解构模式。解构失败不产生运行期分支：参数静态类型必须能按该模式解构，否则是编译错误。
+- lambda 的值是 body 最后一个表达式的值；期望返回 `Unit` 时最后一个表达式的值被丢弃。匿名函数使用普通函数的返回规则。
+- lambda 中的裸 `return` 是编译错误。Scoop 不提供 Kotlin inline lambda 的 non-local return；需要提前返回时应使用匿名函数，其 `return` 只返回该匿名函数。
+- `suspend` 必须显式写在 lambda 或匿名函数上；期望类型不会把普通 lambda 静默改为挂起 lambda。创建或保存挂起函数值本身不会挂起，只有调用其 body 时才检查挂起上下文。
+
+lambda 参与重载决议时，每个候选先提供自己的期望函数类型，再据此检查参数与 body。lambda 的返回表达式可以验证候选是否适用，但不作为“仅按 lambda 返回类型选择重载”的额外优先规则；若完成既有重载优先级比较后仍有多个候选，则调用有歧义。
+
+#### 8.1.3 捕获与局部函数
+
+- closure、匿名函数与局部函数只允许捕获外层 `val`、参数、接收者 `this` 及其他**不可重新绑定**的 binding；对外层 `var` 的读取或写入都是编译错误。Scoop 已有显式 `val`，因此本规则不额外引入 Java 式“effectively final”流分析：需要捕获时应先显式绑定为 `val`。
+- `this` 是 3.3 定义的隐含不可变参数，与显式参数使用同一条按值捕获规则：value-type `this` 复制完整值，ref-type `this` 复制 ref value。两者都不保留调用方 receiver binding/place；复制 ref value 不会复制其指向的对象。
+- 上述“外层 `var`”特指 callable body 中作为自由变量引用的外层**词法局部 binding**。顶层/object 属性按其 global/singleton storage 访问；class 可变属性则通过被捕获的 `this` 或其他显式引用对象访问，二者都不会把局部 `var` 隐式提升成 cell。
+- capture 一律按值发生在函数值创建时：引用类型复制引用，值类型复制完整值并直接内联保存于 closure environment，不为 captured value type 隐式生成 identity-bearing box、shared cell 或 `Any` 装箱。
+- captured `val` 本身不能重新绑定；若其值是带可变状态的引用对象，仍可按该对象公开的普通成员规则修改 referent。需要多个 closure 共享可变状态时，程序必须显式捕获这样的引用对象；编译器不把局部 `var` 隐式提升成引用对象。
+- capture 会把复制进 environment 的引用和值延长到 closure 不再可达；其中嵌套的 managed 引用由 GC 按字段类型递归扫描。
+- 没有捕获的实现允许复用静态单例；实现也可以把不逃逸的 closure 消除或栈上展开，但这些优化不得改变 identity 被观察时的结果。
+
+局部命名函数与普通函数使用相同的声明语法，并按上述规则捕获外层不可变 binding。局部函数名在其自身 body 及声明之后的词法作用域可见，因此允许直接递归；声明之前不可见，互相递归不能依赖后声明函数的前向可见性。局部函数可以直接调用，也可以通过 `::name` 取得函数值。
+
+局部 generic 函数的直接调用按 3.2 单态化。取得其 callable reference 时，所有类型参数必须能由期望函数类型唯一确定；否则是编译错误，不存在“仍然 generic 的函数值”。
+
+本版本不提供隐式 reference capture、`move` capture 或 capture list。以后增加新的 capture mode 时必须使用显式语法，并单独规定 lifetime、identity、并发和成本模型；不得静默放宽本节的 `var` 禁令。
+
+#### 8.1.4 callable reference
+
+以下表达式创建 managed 函数值：
+
+- `::name`：引用可见的顶层函数或局部函数；
+- `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；
+- `::extension`：创建未绑定扩展函数引用，其函数类型把扩展接收者作为第一个普通参数；`receiver::extension` 则创建绑定形式。
+
+若目标是 virtual / interface 成员，绑定引用在每次调用时仍按已保存接收者做动态分派，不能在创建时固定为当时的具体实现。重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一的非 generic 候选才能自行确定函数类型。
+
+`receiver::member` 的 receiver 是创建点的普通表达式；其中读取某个局部 `var` 会立即取得当前值，随后 closure 不可变地保存该 receiver。这是源码显式的创建时快照，不是 callable body 对该 `var` 的自由变量捕获。
+
+Scoop 当前不提供 `Type::member` 的未绑定成员引用或构造函数引用。函数声明名出现在普通值位置时不会隐式变成函数值，必须显式写 `::`；直接写 `name(args...)` 仍走命名调用与重载决议。
+
+#### 8.1.5 与 `FunPtr` 的边界
+
+managed 函数类型与 `FunPtr<F>`（13.10）是不同类别的值：前者是可捕获、可经 GC 移动的引用对象，后者是 GC-free 的原生代码指针值。二者没有一般性的子类型关系、转换或相同调用 ABI。
+
+唯一的互操作是 13.10 定义的**期望类型驱动转换**：在明确需要 `FunPtr<F>` 的位置，满足约束的顶层命名函数引用 `::name` 可以直接生成原生 callback 地址。该规则不先创建 managed closure，也不允许把任意 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
 
 ### 8.2 `suspend` 函数
 
@@ -504,6 +581,7 @@ enum Option<T> {
 - 调用点之前已经完成的实参和子表达式只求值一次；恢复后从调用点之后继续，源码从左到右求值顺序不变。跨挂起点仍存活的局部变量、参数及待执行的控制转移必须被保留。
 - `try` / `catch` / `finally` 的语义跨挂起点保持不变：恢复失败等价于在原挂起调用点 `throw`；仅仅挂起不会执行 `finally`；当计算随后正常返回、抛出或由 `finally` 覆盖退出时，`finally` 仍恰好执行一次。
 - `Continuation` 是单次完成协议：一个挂起点只能由 `resume` 或 `resumeWithException` 中的一个成功完成一次；编译器生成的 continuation 对重复完成抛出 `IllegalStateException`。本规范不定义协程取消；放弃且永不恢复一个 continuation 不会隐式执行 `finally`。
+- 现阶段不支持 suspend FFI：挂起函数不得带 `@Extern`，也不得转换为 `FunPtr`；M10 的 hidden continuation ABI 只用于编译器生成的 Scoop 托管调用，不是任何 FFI ABI。具体约束见 13.4、13.10 与 14.2。
 - 具体的协程构建器（`launch`、`async` 等）、调度器与取消策略属于标准库，不在最小核心库范围内。最小核心库只提供 11.9 的启动、挂起与恢复原语。
 
 ### 8.3 上下文参数（context parameters）
@@ -517,7 +595,7 @@ enum Option<T> {
 
 - Scoop 泛型是单态化的，类型信息在每个实例化处天然可用，不需要 `reified` 来保留类型实参；
 - 编译器自行决定内联策略，`inline` / `noinline` / `crossinline` 被接受但可忽略（允许作为提示，但不保证语义）；
-- 带这些关键字的 Kotlin 代码可以不经修改地通过编译。
+- 不依赖语义内联的 Kotlin 代码可以保留这些关键字而无需修改；依赖 inline lambda non-local return 的代码不兼容，必须按 8.1.2 改为匿名函数或重写控制流。
 
 ### 8.5 默认参数值
 
@@ -767,15 +845,25 @@ interface SuspendRegistration<out T> {
 
 fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>)
 
+fun <T> startCoroutine(
+    task: suspend () -> T,
+    completion: Continuation<T>
+)
+
 suspend fun <T> suspendCoroutine(
     registration: SuspendRegistration<T>
+): T
+
+suspend fun <T> suspendCoroutine(
+    registration: (Continuation<T>) -> Unit
 ): T
 ```
 
 - `startCoroutine` 是最小协程构建器：启动 `task.run()` 后立即返回 `Unit`。若 task 在启动调用内完成，则返回前调用 `completion.resume(value)` 或 `completion.resumeWithException(exception)`；若 task 挂起，则在最终完成时调用。completion 恰好收到一次完成通知。
 - `suspendCoroutine` 调用 `registration.register(continuation)`。registration 可以同步恢复 continuation，也可以保存它并在 `register` 返回后恢复；前者使 `suspendCoroutine` 在当前调用栈内继续，后者使其真正挂起。`register` 在尚未完成 continuation 时抛出的异常等价于 `suspendCoroutine` 在调用点抛出该异常。
 - `register` 已同步完成 continuation 后又抛出属于状态协议错误，`suspendCoroutine` 以 `IllegalStateException` 失败；该 continuation 随即失效，之后不能再次成功完成。
-- `SuspendTask` / `SuspendRegistration` 是不依赖 lambda 与函数引用的最小适配器。标准库可以在其上提供接受 `suspend` lambda 的重载、`launch`、`async`、dispatcher 等高层 API，但不得改变 8.2 的单次完成与异常语义。
+- `SuspendTask` / `SuspendRegistration` 是不依赖 lambda 与函数引用的最小协议。函数类型 overload 由 core 中的普通 Scoop 适配器包装为这两个 interface 后调用同一底层原语，不另建 continuation 状态机；两种入口具有完全相同的同步完成、真实挂起、异常与单次完成语义。
+- `launch`、`async`、dispatcher 等高层 API 可以在这些原语上由标准库提供，但不得改变 8.2 的单次完成与异常语义。
 - core 原语不提供队列、线程切换或事件循环；调度器与取消不属于核心库。
 
 ### 11.10 数组
@@ -955,6 +1043,7 @@ annotation class CallingConvention(val name: String)
 ```
 
 - `@Extern` 用于 function：指明该函数是位于 `lib` 所指库中的 FFI function，符号名由 `name` 指定，`abi` 指定 ABI（见 13.8）。函数体必须省略。缺省参数的解析规则由实现定义。
+- `@Extern` 与 `suspend` **互斥**：无论 `abi` 取值为何，`@Extern suspend fun` 都是编译错误。编译器不为这种声明生成 continuation 参数、`CoroutineStep` 返回值或同步/挂起 wrapper；M10 的 hidden continuation ABI 不得作为外部符号 ABI 暴露。
 - `@Extern` 也可用于**全局变量**（`val` / `var`），访问库中的全局符号；全局 `var` 的约束不变（仍须带 `@Global` / `@ThreadLocal` 且 GC-free，见 13.6），注解可以组合。
 - **FFI-safe 类型约束**：extern 函数的签名（参数与返回值）与 extern 变量的类型必须是 GC-free 的；出现 ref type 是编译错误。按值传递的 struct 应带 `@CLayout` 以获得确定的布局。
 - 不支持 C varargs（`printf` 式可变参数）；需要时用 wrapper 函数绕行。
@@ -990,6 +1079,7 @@ annotation class InteriorMutable
 
 - 用于 struct：标明该 struct value 内部的值可能会被改变，不能保证 immutability。常用场景：struct 带有 atomic 字段，或 FFI 会修改传给它的 struct 参数。
 - 带有此注解的 struct 及其 value 只能在 unsafe context 中使用（见 13.3）。
+- 该注解不为 value 引入 identity，也不改变按值复制边界：两个 copy 仍是两份独立存储。值类型成员方法仍按 3.3 取得独立的 `this` copy，不得因 ABI 指针传递而把调用方存储暴露给方法。
 
 ### 13.8 FFI ABI
 
@@ -1064,7 +1154,7 @@ fun <T : value> addressOf(v: T): Ptr<T>
 
 - `load` / `store` / `cast` 是编译器 intrinsic，且都是 unsafe function（见 13.3）。按 13.1 的规则 `@Intrinsic` 通常不得与其他注解共存；此处是单独说明的例外：这些 intrinsic 允许与 `@NoGC` / `@Unsafe` 组合。
 - `plus` / `minus` 的 `offset` 以**元素个数**计（步进 `offset * sizeOf<T>()` 字节），与 C 的指针算术一致；带 `offset` 的 `load` / `store` 以其定义。
-- `addressOf` 是 intrinsic，且带 **lvalue 约束**：参数必须是局部变量或全局变量，取的是该变量实际存储的地址；对临时值、字面量、计算结果等非 lvalue 表达式调用是编译错误。
+- `addressOf` 是 intrinsic，且带 **lvalue 约束**：实参必须是参数、局部变量、全局变量，或值类型成员方法的 `this`，取的是该 place 实际存储的地址；对临时值、字面量、计算结果等非 lvalue 表达式调用是编译错误。对 `this` 取址时指向 3.3 规定的方法局部副本，不是调用方的 value 或 box payload。
 - `Ptr<T>` 自身是值类型，因此满足 `value` 约束，可以出现在要求 `T : value` 的位置（包括 `Ptr<Ptr<T>>`）。
 - **null 与可空指针**：`_rawPointer == 0u` 表示 null 指针；FFI 边界上的可空指针用 `Option<Ptr<T>>` 表示，布局由 niche 优化保证（见 7.4）。
 - **`void*` 与 opaque 类型**：`void*` 及 C 的 opaque handle（不完全类型指针）统一用 `Ptr<Unit>` 表示。
@@ -1085,16 +1175,18 @@ fun <T : value> alignOf(): UInt
 
 #### `FunPtr<F>`
 
-`FunPtr<F>` 声明一个 FFI 可用的 callback 指针，`F` 是函数类型：
+`FunPtr<F>` 声明一个 FFI 可用的 callback 指针，`F` 是 8.1 定义的**普通、非挂起且完全具体化**的函数类型：
 
 ```
 struct FunPtr<F>(val _rawPointer: UInt = 0u)
 ```
 
-- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充；非 null 的 `FunPtr` 只能由编译器在函数名转换时生成（见下）。
-- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望 `FunPtr<F>` 的位置直接使用**函数名**，由编译器完成转换。
+- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充；非 null 的 `FunPtr` 只能由编译器在 callable reference 转换时生成（见下）。
+- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望 `FunPtr<F>` 的位置使用顶层函数引用 `::name`，由编译器完成上下文转换。该转换要求声明签名与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。
+- `F` 的每个参数与返回类型必须满足对应 extern ABI 的 FFI-safe 约束；`Unit` 只允许作为返回类型。函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
 - 可空函数指针用 `Option<FunPtr<F>>` 表示（niche 优化见 7.4）。
-- 被转换的函数必须带 `@NoGC` 注解且**不能是泛型函数**，否则是编译错误（FFI 回调不得与 GC 交互；泛型函数没有单一的具体符号）。
+- 被转换的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能转换。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
+- `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。初版 callback 契约仅允许原生方在发起 extern 调用的同一已注册线程上同步调用；保存后异步、跨线程或在 Scoop 程序退出后调用需要 14.3 的 GC-aware 注册协议，不能由 `FunPtr` 隐式获得。
 
 ```
 // C 侧：int compare_int(int a, int b, int (*cmp)(int, int))
@@ -1107,7 +1199,7 @@ fun cmp(a: Int, b: Int) = if (a > b) { 1 } else { 0 }
 
 @Unsafe
 fun caller() {
-    compareInt(10, 10, cmp)
+    compareInt(10, 10, ::cmp)
 }
 ```
 
@@ -1149,6 +1241,8 @@ Scoop ABI FFI 的 caller side（Scoop 托管代码一侧）必须生成 ordinary
 - callee 不标记为 `gc-leaf-function`；
 - machine callconv 初版使用 LLVM 默认 callconv `0`；
 - 调用点本身**不要求 unsafe context**（`abi = "scoop"` 的 extern 函数不是 unsafe function，见 13.4）。
+
+这里的 Scoop ABI 仍是普通、单次进入并在返回前完成的 FFI 调用约定，不是 8.2 所述挂起函数的 hidden continuation ABI。`abi = "scoop"` 不放宽 `@Extern` 与 `suspend` 的互斥规则，也不提供自动 continuation / callback wrapper。
 
 注意：以上是**用 LLVM 实现时**需要的策略（LLVM GC / statepoint 体系的术语），描述的是参考实现的代码生成要求，不是语言语义本身。
 

@@ -28,7 +28,7 @@ struct GcHandle<T>(val raw: UInt)
 
 - `UInt64`/`UInt` 类型本里程碑一并落地（spec 11.2 已有定义；当前只有 Int——加一个 `UInt`（= `UInt64`）基本类型即可，其余定宽类型进 backlog）；
 - 泛型 struct 的类型实参直接保存在 HIR `Type::Struct` 中；字段与宿主方法可引用类型形参，构造函数按实参/expected type 推断，MIR 只保留按具体类型实参单态化后的实例；
-- 四个函数 M9 走 `@Intrinsic`（spec 的 `@Unsafe` 形态等 M11 的 FFI 注解族，见 5.2）；T 实际只接受引用类型（spec 14.1 的 `T : ref` 约束在 M12 上界落地前按"引用类型才合法"诊断实现）；
+- 四个函数 M9 走 `@Intrinsic`（spec 的 `@Unsafe` 形态等 M12 的 FFI 注解族，见 5.2）；T 实际只接受引用类型（spec 14.1 的 `T : ref` kind bound 在 M12 落地前按“引用类型才合法”诊断实现）；
 - 测试钩子：`scoop_rt_gc_collect()`（强制回收）与 `scoop_rt_gc_stats()`（分配/存活计数），经 `@Intrinsic("rt_gc_collect")`/`@Intrinsic("rt_gc_stats")` 暴露给 core，供 fixture 断言回收行为（见 5.3）。
 
 ## 2. runtime（C，新增 `runtime/src/gc.c`）
@@ -89,7 +89,7 @@ struct GcHandle<T>(val raw: UInt)
 ## 5. 临时决策（及退役里程碑）
 
 1. **单代、不移动、无 evacuation**：分代（nursery/晋升/remembered set 消费卡片表）、Immix 的 defrag evacuation、并行/并发回收协调 → 全部进 backlog（届时卡片表与 statepoint 通道已就位）。
-2. **`pin` 等四函数走 `@Intrinsic`**：M11 转 spec 14.1 的 `@Unsafe` 普通函数/FFI 形态；`gcCollect`/`gcStats` 是测试专用 intrinsic，不进 spec（标注为内部设施）。
+2. **`pin` 等四函数走 `@Intrinsic`**：M12 转 spec 14.1 的 `@Unsafe` 普通函数/FFI 形态；`gcCollect`/`gcStats` 是测试专用 intrinsic，不进 spec（标注为内部设施）。
 3. **回收触发阈值**：v1 固定值；自适应阈值随后续。
 4. **保守栈根是 v1 过渡方案**：精确消费 stackmap 在移动式回收前完成；当前不绑定单一 CPU 架构。
 5. **statepoint GC strategy 用 `statepoint-example`**：这是我们自己的 GC 策略注册名（LLVM 内置名，M0 已验证）；若后续需要自定义策略名（`scoop`）需向 LLVM 注册，当前不需要。

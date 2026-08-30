@@ -41,7 +41,11 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 此外归属 HIR 的语义工作：
 
 - 字符串插值脱糖（spec 6.2）、`?.` / `?:` 脱糖（spec 7.3）、`for` 脱糖（spec 11.8）等；
+- 把普通/挂起函数类型正规化为全局唯一的类型化 `FunctionTypeId`，完整保留挂起性、参数与返回类型；每个 lambda、匿名函数、局部函数及 callable reference 都有独立的类型化实体 id。HIR 完成双向类型检查、局部函数可见性、重载目标选择与捕获分析；capture 列表只允许不可重新绑定的 binding，对外层词法局部 `var` 的任何引用直接诊断。captured value type保持 concrete layout并内联进入 closure environment，不生成 hidden box/shared cell，也不把 closure 擦除为 `Any`、裸函数符号或无类型代码指针；
+- 所有成员方法/计算属性 getter 的 `this` 及扩展函数的 extension receiver，在 HIR 中都是隐含的、不可重新绑定的按值参数（spec 3.3），不得用指向调用方 binding 的 place 表示其语义。value receiver 复制完整值，ref receiver 复制 ref value；后者的 HIR 类型仍是完整 ref type，不降级成 raw pointer。捕获 `this` 时捕获的就是该参数值；对 value-type `this` 执行 `addressOf(this)` 则对该 method activation 内物化的私有副本取址；
+- 函数值调用解析为独立的 callable-value call target；命名调用、managed callable reference 与 `FunPtr` 期望类型转换是三个不同的决议入口。只有 spec 13.10 允许的顶层 `@NoGC` 普通函数引用能直接解析为 `FunPtr` 地址，普通函数值之间的型变转换则保留为显式 typed coercion；
 - 在 callable 签名、调用目标与 override / interface 实现关系中保留 `suspend` 标志；以显式、可嵌套的上下文状态检查挂起调用只出现在挂起函数或已登记的协程构建器中，不能把“当前无函数”当作默认允许。进入顶层属性、object/companion、实例属性、delegate、`init`、构造函数/构造委托及普通属性访问器等声明自身拥有的初始化/访问体时，必须压入带原因的 forbidden context；离开后恢复调用者上下文，所以 suspend caller 的显式构造实参仍可挂起。MIR 不为这些初始化入口或属性访问器生成 frame / continuation ABI；
+- 完成 FFI 注解的目标与共存检查：`@Extern` 与 `suspend` 互斥，无论 `abi` 取值为何都在 HIR 报编译错误；callable reference 向 `FunPtr` 转换时同样拒绝挂起函数及一切 managed closure 形态。该检查必须发生在单态化、closure 转换、协程变换及 extern 符号发射之前；
 - `const val` 在 HIR 做常量表达式求值与依赖环检查；其值进入可供下游 Cone 使用的 HIR meta，不生成 runtime initializer。普通/挂起 call、构造、分配及普通属性读取均不能进入 const expression IR；
 - 对非 `Unit` 块体执行组合式控制流分析，证明所有可达路径均以有值 `return` 或 `throw` 结束；`finally` 的必退出路径覆盖 try/catch 的待执行结果（spec 第 8 章）；
 - 默认参数值的调用处实例化（spec 8.5）；`getCurrentSourceLocation` 在缺省参数中的常量化（spec 11.12）；
@@ -54,10 +58,13 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 
 - 为每一个（generic 定义 + 已确定 type param 组合）生成特定的单态化实例体，并为 function/type 做 name mangling；
 - 为每个 call 标注 virtual / interface / direct call 类型；
+- 方法/扩展调用必须先以 receiver value 初始化完整类型的隐含 receiver 参数；MIR 不得让方法体持有调用方 binding place。该规则对 value/ref receiver 相同，只是参数值的类型与 layout 不同。后续可以做 copy elision，但若 value receiver 的 `@InteriorMutable`、`addressOf(this)` 或其他 unsafe 操作可观察存储，则必须保留独立的 method-local storage；
 - 为每个具体类型建立 vtable / itable（见 2.9）。本 Cone 的类型实现上游接口或继承上游类时，表结构、槽位布局与 TypeDescriptor 符号取自上游的 MIR meta；
 - 把结构化 HIR 降为类型化 CFG：调用从嵌套表达式中按源码求值顺序正规化出来，控制边与异常 unwind 边显式化，`try` / `catch` / `finally` 的 cleanup 路径在 MIR 固定。LIR 只负责把这些边映射为目标相关的 landingpad 结构；
-- **先单态化、后协程变换**：对每个具体 suspend function，把 CFG 在挂起调用后切分为恢复状态，计算跨挂起点活跃的值并生成堆上 frame；每个挂起点生成与其结果类型精确匹配的 `Continuation<T>` 实际类型。frame、continuation adapter 与内部完成结果均有独立的类型化 id、TypeDescriptor 与递归引用扫描描述，不允许用 FQN 或 `Any` 作为实体/结果回退；
-- suspend callable 的内部 ABI 是 `(source args..., Continuation<R>) -> CoroutineStep<R>`，其中编译器内部值 enum `CoroutineStep<R>` 只有 `Completed(R)` / `Suspended` 两个变体。立即完成走 `Completed`；返回 `Suspended` 后只能由传入的 continuation 恢复。变换完成后 MIR output 不再含源码级 suspend callable 或 suspend call；
+- **单态化 → closure 转换 → 协程变换**：先得到所有 concrete callable 与 concrete function type；再把 lambda、匿名函数和 callable reference 转为显式 closure 类、invoke body与按值 capture字段，把函数类型型变转为 typed adapter closure；局部函数的 direct call可以使用带显式不可变 capture参数的 lifted function，取得 callable reference时才物化closure。每种 synthetic closure/adapter都有独立实体 id、TypeDescriptor与递归引用扫描描述；captured value type直接使用其 concrete layout，不得用 FQN、`Any`、identity-bearing box、opaque environment或统一函数指针回退；
+- closure 的首字段语义上是由编译器控制的 invoke entry，其余字段按确定顺序保存 capture。普通 closure invoke 使用 `(closure, source args...) -> R` 的 managed ABI；绑定 virtual/interface reference 的 invoke body 必须在调用时执行动态分派。已知不逃逸或立即调用的 closure 可以在后续优化中消除，但 MIR 的未优化基线必须先有完整、可扫描的结构；
+- 对 closure 转换后的每个 concrete suspend callable，把 CFG 在挂起调用后切分为恢复状态，计算跨挂起点活跃的值并生成堆上 frame；每个挂起点生成与其结果类型精确匹配的 `Continuation<T>` 实际类型。frame、continuation adapter 与内部完成结果均有独立的类型化 id、TypeDescriptor 与递归引用扫描描述，不允许用 FQN 或 `Any` 作为实体/结果回退；
+- suspend callable 的内部 ABI 是 `(source args..., Continuation<R>) -> CoroutineStep<R>`，其中编译器内部值 enum `CoroutineStep<R>` 只有 `Completed(R)` / `Suspended` 两个变体。立即完成走 `Completed`；返回 `Suspended` 后只能由传入的 continuation 恢复。该 ABI 只用于编译器生成的 Scoop 托管调用，不用于 extern 声明或 `FunPtr`，MIR 不生成 FFI wrapper。变换完成后 MIR output 不再含源码级 suspend callable 或 suspend call；
 - 恢复失败在对应恢复状态入口重新注入为 `throw`，沿原调用点的 unwind / cleanup 边传播。挂起不是作用域退出，不能触发 `finally`；跨挂起的 pending return / exception / cleanup 动作必须作为有判别的 frame 字段保存，不能依赖未初始化槽或原生栈状态；
 - 把 `when` 模式匹配降级为 decision tree / 跳转序列；
 - 输出 MIR type/function list，其中不再包含任何 generic 和 suspend（诊断信息除外）。
@@ -82,7 +89,7 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 - 将 LIR output 机械翻译成目标 IR（本阶段为 LLVM IR），然后用 LLVM 编译成 `.o`；
 - 生成每个具体类型的 `TypeDescriptor`（runtime spec 2.2：类型标识、实例大小、递归引用扫描描述、父类型表、`equals`/`hashCode`/`toString` 分发入口）；
 - 展开登记表中归属 codegen 的 `@Intrinsic`（见 2.10）；
-- extern 声明的符号发射与 calling convention 属性（spec 13.4）、`addressOf` 的 lvalue 语义（spec 13.10）。
+- 普通（非 suspend）extern 声明的符号发射与 calling convention 属性（spec 13.4）、`addressOf` 的 lvalue 语义（spec 13.10）；codegen 依赖 HIR 已排除 suspend extern，不识别或发射 hidden continuation FFI ABI。
 
 codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 的 LIR（布局经 LIR meta、符号经 MIR meta），对上游函数/TypeDescriptor 的引用一律发射为外部符号，链接期解析。两个链接层规则：
 
@@ -109,7 +116,7 @@ codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 
 
 - MIR 为每个具体类型建立 **vtable**（类层次分派）与 **itable**（接口分派）；标注 call kind 时，virtual / interface call 的 target 指向对应 table entry，direct call 指向具体函数符号。
 - 表的内容由 MIR 定义，由 codegen 以数据形式发射，并从 `TypeDescriptor` 引用：TypeDescriptor 内嵌 vtable 指针与 itable 数组（见 runtime spec 2.2）。`Any` 的 `equals` / `hashCode` / `toString` 即 vtable 的固定前三个槽位。
-- **装箱值类型的 this 调整**：值类型装箱后对象为 header + payload，而值类型成员函数以 payload 为 `this`；vtable / itable 中对应装箱值类型的表项指向 MIR 生成的 **adjust thunk**（`this` 加 header 偏移后 tail-call 真正的成员函数）。
+- **装箱值类型的 this 调整**：值类型装箱后对象为 header + payload。vtable / itable 中对应装箱值类型的表项指向 MIR 生成的 **adjust thunk**；thunk 语义上从 payload 读取值，并用它初始化真正成员函数的按值 `this`。只有在不可观察的情况下，codegen 才可把它优化成对 payload 地址做 header 偏移后直接传递；需要取址或存在 interior mutability 时必须先复制到私有临时存储。
 - **跨 Cone 的槽位识别**：初版 itable 采用（接口 TypeDescriptor 指针 → 方法表）的键值查找，调用点按接口 TypeDescriptor 地址查找，不需要跨 Cone 的全局槽位编号；槽位编号等优化留待后续。
 - **泛型成员函数不参与虚分派**：带自身类型参数的成员函数不进入 vtable / itable（单态化实例无法枚举）；interface 可保留这类方法的声明与实现约束，但分派表布局必须跳过它，经 interface 静态类型调用由 HIR 拒绝。class 上的泛型成员必须为 final，值类型成员本来即为 final，因此合法调用一律标为 direct。泛型宿主的参数与方法自身参数使用同一类型参数编号空间，前缀为宿主参数、后缀为方法参数；`ResolvedGenericFunction` 与 MIR 单态化键携带同序的完整实参向量。把 interface 签名代入某个实现宿主时，必须在替换 interface 参数后把方法参数重基化到实现宿主参数前缀之后，避免两组 `TypeParamId` 碰撞。
 - **结构化表达式降级**：AST 在表达式位置直接表示 `if` / `when` / `try`。HIR lower 先确定所有正常分支的共同结果类型，再分配一个类型完备的隐藏结果 local，在每个可正常结束的分支尾写入该 local，并把原有 HIR 结构化语句追加到表达式的 desugaring sink；表达式本身成为该 local 的读取。结果为 `Unit` 时无需结果 local，但仍须保留分支尾表达式的求值。HIR 保留这些结构化控制语句；MIR lower 在内部完成结构化控制降级后，统一输出基本块 CFG，不新增内嵌 CFG 的表达式节点；LIR 只接收该 CFG。
