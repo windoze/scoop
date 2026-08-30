@@ -655,7 +655,7 @@ fn return_type_mismatch_is_an_error() {
 }
 
 #[test]
-fn non_unit_function_must_end_with_return() {
+fn non_unit_function_must_not_fall_through() {
     for body in [
         vec![],
         vec![stmt(call("println", vec![str_lit("x")]))],
@@ -669,8 +669,29 @@ fn non_unit_function_must_end_with_return() {
         assert_eq!(errors.len(), 1);
         assert_eq!(
             errors[0].message,
-            "non-Unit function `f` must end with a return statement"
+            "non-Unit function `f` may complete without returning a value"
         );
+    }
+}
+
+#[test]
+fn exhaustive_if_and_early_exit_satisfy_non_unit_return_rule() {
+    for body in [
+        vec![if_stmt(
+            bool_lit(true),
+            vec![ret(Some(int_lit(1)))],
+            Some(vec![ret(Some(int_lit(2)))]),
+        )],
+        vec![
+            ret(Some(int_lit(1))),
+            stmt(call("println", vec![str_lit("unreachable")])),
+        ],
+    ] {
+        let file = file(vec![
+            fun_sig("f", vec![], vec![], Some(ty_named("Int")), body),
+            fun("main", vec![]),
+        ]);
+        lower_user(file).expect("all reachable paths return a value");
     }
 }
 

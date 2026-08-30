@@ -275,11 +275,10 @@ fn trailing_throw_satisfies_the_return_rule() {
     lower_user_with_exceptions(file).expect("a trailing `throw` must satisfy the return rule");
 }
 
-/// Only a *trailing* `throw` qualifies — M8 does no reachability
-/// analysis, so a `throw` followed by more statements still trips the
-/// M3 return rule.
+/// A `throw` makes the rest of its sequential block unreachable, so
+/// following statements do not make the function fall through.
 #[test]
-fn non_trailing_throw_does_not_satisfy_the_return_rule() {
+fn non_trailing_throw_satisfies_the_return_rule() {
     let file = file(vec![
         custom_error(),
         fun_sig(
@@ -294,17 +293,12 @@ fn non_trailing_throw_does_not_satisfy_the_return_rule() {
         ),
         fun("main", vec![stmt(call("println", vec![int_lit(0)]))]),
     ]);
-    let errors = lower_user_with_exceptions(file)
-        .expect_err("a non-trailing `throw` must not satisfy the return rule");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "non-Unit function `f` must end with a return statement"
-    );
+    lower_user_with_exceptions(file).expect("statements after `throw` are unreachable");
 }
 
-/// A trailing `try` satisfies the return rule when its try body and
-/// every catch body do (a `finally` does not affect the rule).
+/// A `try` satisfies the return rule when its try body and every catch
+/// body do, while a normally completing `finally` preserves those
+/// path results.
 #[test]
 fn trailing_try_satisfies_the_return_rule() {
     let file = file(vec![
@@ -365,9 +359,70 @@ fn falling_through_try_does_not_satisfy_the_return_rule() {
         assert_eq!(errors.len(), 1, "{errors:?}");
         assert_eq!(
             errors[0].message,
-            "non-Unit function `g` must end with a return statement"
+            "non-Unit function `g` may complete without returning a value"
         );
     }
+}
+
+/// A finally that cannot complete normally overrides every pending
+/// normal, return, or exceptional path.
+#[test]
+fn exiting_finally_satisfies_the_return_rule() {
+    for finally_body in [
+        vec![ret(Some(int_lit(7)))],
+        vec![throw_stmt(call("MyError", vec![int_lit(8)]))],
+        vec![if_stmt(
+            bool_lit(true),
+            vec![ret(Some(int_lit(9)))],
+            Some(vec![ret(Some(int_lit(10)))]),
+        )],
+    ] {
+        let file = file(vec![
+            custom_error(),
+            fun_sig(
+                "f",
+                vec![],
+                vec![],
+                Some(ty_named("Int")),
+                vec![try_stmt(
+                    vec![stmt(call("println", vec![str_lit("body")]))],
+                    vec![],
+                    Some(finally_body),
+                )],
+            ),
+            fun("main", vec![]),
+        ]);
+        lower_user_with_exceptions(file).expect("an exiting finally overrides every path");
+    }
+}
+
+#[test]
+fn partially_exiting_finally_does_not_hide_fallthrough() {
+    let file = file(vec![
+        fun_sig(
+            "f",
+            vec![],
+            vec![],
+            Some(ty_named("Int")),
+            vec![try_stmt(
+                vec![stmt(call("println", vec![str_lit("body")]))],
+                vec![],
+                Some(vec![if_stmt(
+                    bool_lit(true),
+                    vec![ret(Some(int_lit(1)))],
+                    None,
+                )]),
+            )],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user_with_exceptions(file)
+        .expect_err("a partially exiting finally still has a fallthrough path");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "non-Unit function `f` may complete without returning a value"
+    );
 }
 
 // --- negative: catch ---

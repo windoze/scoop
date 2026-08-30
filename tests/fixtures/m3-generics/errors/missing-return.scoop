@@ -1,8 +1,9 @@
-fun f(): Int {
-    val x = 1
-    println(x)
+fun f(flag: Boolean): Int {
+    if (flag) {
+        return 1
+    }
 }
 
 fun main() {
-    println(f())
+    println(f(true))
 }

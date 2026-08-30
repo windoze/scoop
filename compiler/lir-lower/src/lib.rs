@@ -1024,14 +1024,15 @@ fn lower_function<'a>(
     };
     lowerer.lower_statements(&function.body.statements);
     if !lowerer.current_sealed {
-        // Unit functions fall off the end with a bare return; non-Unit
-        // functions always end in `return` (hir-lower enforces it,
-        // DESIGN 1).
-        assert!(
-            returns_void,
-            "hir-lower requires non-Unit functions to end with `return`"
-        );
-        lowerer.seal(lir::Terminator::Return { value: None });
+        if returns_void {
+            lowerer.seal(lir::Terminator::Return { value: None });
+        } else {
+            // HIR proves that a non-Unit body cannot fall through.
+            // Structured lowering may still create a predecessor-free
+            // merge block (notably for an exhaustive `when` decision
+            // tree), so close that dead block explicitly.
+            lowerer.seal(lir::Terminator::Unreachable);
+        }
     }
     lir::Function {
         symbol: function.symbol.clone(),
@@ -1376,6 +1377,9 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_statements(&mut self, statements: &'a [mir::Statement]) {
         for statement in statements {
+            if self.current_sealed {
+                break;
+            }
             self.lower_statement(statement);
         }
     }
