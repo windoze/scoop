@@ -23,6 +23,9 @@ pub type LocalId = Idx<Local>;
 pub type BlockId = Idx<BasicBlock>;
 pub type CoroutineFunctionId = Idx<CoroutineFunction>;
 pub type CoroutineStepId = Idx<CoroutineStep>;
+pub type CoroutineSlotId = Idx<CoroutineSlot>;
+pub type CoroutineFrameId = Idx<CoroutineFrame>;
+pub type CoroutineResumePointId = Idx<CoroutineResumePoint>;
 
 /// Mangled symbol of the program entry point (called by the C runtime).
 pub const ENTRY_SYMBOL: &str = "scoop_main";
@@ -245,6 +248,12 @@ pub struct MirMeta {
     pub coroutine_functions: Arena<CoroutineFunction>,
     /// Concrete `CoroutineStep<R>` internal enums, deduplicated by `R`.
     pub coroutine_steps: Arena<CoroutineStep>,
+    /// Tagged frame slots, deduplicated by their carried value type.
+    pub coroutine_slots: Arena<CoroutineSlot>,
+    /// Heap frame generated for each suspend callable that can really suspend.
+    pub coroutine_frames: Arena<CoroutineFrame>,
+    /// Per-call-site continuation adapters and their typed resume state.
+    pub coroutine_resume_points: Arena<CoroutineResumePoint>,
 }
 
 #[derive(Debug)]
@@ -252,12 +261,45 @@ pub struct CoroutineFunction {
     pub function: FunctionId,
     pub source_return: Type,
     pub step: CoroutineStepId,
+    pub lowering: CoroutineLowering,
+}
+
+#[derive(Debug)]
+pub enum CoroutineLowering {
+    Immediate,
+    StateMachine {
+        frame: CoroutineFrameId,
+        driver: FunctionId,
+        resume_points: Vec<CoroutineResumePointId>,
+    },
 }
 
 #[derive(Debug)]
 pub struct CoroutineStep {
     pub enum_id: EnumId,
     pub result: Type,
+}
+
+#[derive(Debug)]
+pub struct CoroutineSlot {
+    pub enum_id: EnumId,
+    pub value: Type,
+}
+
+#[derive(Debug)]
+pub struct CoroutineFrame {
+    pub class: ClassId,
+    pub owner: CoroutineFunctionId,
+}
+
+#[derive(Debug)]
+pub struct CoroutineResumePoint {
+    pub frame: CoroutineFrameId,
+    pub state: u32,
+    pub result: Type,
+    pub adapter: ClassId,
+    pub resume: FunctionId,
+    pub resume_with_exception: FunctionId,
 }
 
 /// Provenance of one concrete generic function emitted into the MIR
@@ -544,6 +586,10 @@ pub enum Callee {
     User(FunctionId),
     /// A monomorphized generic function defined in this Cone.
     Monomorphized(MonomorphizedFunctionId),
+    /// Typed marker used only between CFG construction and the coroutine
+    /// state-machine pass. The final MIR handed to LIR contains no such
+    /// callee; `register` identifies the concrete protocol method shell.
+    CoroutineSuspend { register: MonomorphizedFunctionId },
     /// A runtime function (see `RuntimeFn::symbol`).
     Runtime(RuntimeFn),
 }
@@ -714,13 +760,59 @@ pub fn dump(module: &Module) -> String {
             type_name(module, &step.result)
         ));
     }
-    for (id, coroutine) in module.meta.coroutine_functions.iter() {
+    for (id, slot) in module.meta.coroutine_slots.iter() {
         out.push_str(&format!(
-            "  coroutine_fn cf{} @{} source_return={} step=cs{}\n",
+            "  coroutine_slot cl{} {} value={}\n",
+            id.into_raw().into_u32(),
+            module.enums[slot.enum_id].name,
+            type_name(module, &slot.value)
+        ));
+    }
+    for (id, frame) in module.meta.coroutine_frames.iter() {
+        out.push_str(&format!(
+            "  coroutine_frame cr{} {} owner=cf{}\n",
+            id.into_raw().into_u32(),
+            module.classes[frame.class].name,
+            frame.owner.into_raw().into_u32()
+        ));
+    }
+    for (id, point) in module.meta.coroutine_resume_points.iter() {
+        out.push_str(&format!(
+            "  coroutine_resume cp{} state={} result={} frame=cr{} adapter={} resume=@{} failure=@{}\n",
+            id.into_raw().into_u32(),
+            point.state,
+            type_name(module, &point.result),
+            point.frame.into_raw().into_u32(),
+            module.classes[point.adapter].name,
+            module.functions[point.resume].symbol,
+            module.functions[point.resume_with_exception].symbol
+        ));
+    }
+    for (id, coroutine) in module.meta.coroutine_functions.iter() {
+        let lowering = match &coroutine.lowering {
+            CoroutineLowering::Immediate => " immediate".to_string(),
+            CoroutineLowering::StateMachine {
+                frame,
+                driver,
+                resume_points,
+            } => format!(
+                " frame=cr{} driver=@{} resumes=[{}]",
+                frame.into_raw().into_u32(),
+                module.functions[*driver].symbol,
+                resume_points
+                    .iter()
+                    .map(|id| format!("cp{}", id.into_raw().into_u32()))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+        };
+        out.push_str(&format!(
+            "  coroutine_fn cf{} @{} source_return={} step=cs{}{}\n",
             id.into_raw().into_u32(),
             module.functions[coroutine.function].symbol,
             type_name(module, &coroutine.source_return),
-            coroutine.step.into_raw().into_u32()
+            coroutine.step.into_raw().into_u32(),
+            lowering
         ));
     }
     for (_, instance) in module.meta.instances.iter() {
@@ -1016,6 +1108,10 @@ fn dump_call(
     let callee = match &call.target.callee {
         Callee::User(id) => format!("@{}", module.functions[*id].symbol),
         Callee::Monomorphized(id) => format!("@{}", module.meta.instances[*id].symbol),
+        Callee::CoroutineSuspend { register } => format!(
+            "@coroutine_suspend[register=@{}]",
+            module.meta.instances[*register].symbol
+        ),
         Callee::Runtime(function) => format!("@{}", function.symbol()),
     };
     let kind = match &call.target.kind {

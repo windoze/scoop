@@ -1,5 +1,7 @@
+suspend fun immediateValue(): Int = 41
+
 class ImmediateTask() : SuspendTask<Int> {
-    final override suspend fun run(): Int = 42
+    final override suspend fun run(): Int = immediateValue() + 1
 }
 
 class RecordingCompletion() : Continuation<Int> {

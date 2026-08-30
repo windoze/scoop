@@ -1,0 +1,32 @@
+class ImmediateRegistration(val value: Int) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        continuation.resume(value)
+    }
+}
+
+class SynchronousTask() : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        val registration: SuspendRegistration<Int> = ImmediateRegistration(40)
+        val value = suspendCoroutine(registration)
+        return value + 2
+    }
+}
+
+class RecordingCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun launch(task: SuspendTask<Int>, completion: Continuation<Int>) {
+    startCoroutine(task, completion)
+}
+
+fun main() {
+    launch(SynchronousTask(), RecordingCompletion())
+    println("returned")
+}

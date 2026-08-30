@@ -2422,10 +2422,20 @@ fn emit_function<'ctx>(
     }
 
     // All blocks up front so terminators can reference them in any order.
-    let mut blocks = Vec::with_capacity(function.blocks.len());
-    for (_, block) in function.blocks.iter() {
-        blocks.push(context.append_basic_block(llvm_function, &block.name));
+    let mut blocks = vec![None; function.blocks.len()];
+    let entry_index = arena_index(function.entry);
+    blocks[entry_index] =
+        Some(context.append_basic_block(llvm_function, &function.blocks[function.entry].name));
+    for (id, block) in function.blocks.iter() {
+        let index = arena_index(id);
+        if index != entry_index {
+            blocks[index] = Some(context.append_basic_block(llvm_function, &block.name));
+        }
     }
+    let blocks: Vec<_> = blocks
+        .into_iter()
+        .map(|block| block.expect("every LIR block is created"))
+        .collect();
 
     let param_offset = u32::from(uses_return_slot(module_ctx.enums, &function.return_ty));
     let return_slot = (param_offset != 0).then(|| {

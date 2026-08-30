@@ -124,6 +124,7 @@ use scoop_hir as hir;
 use scoop_mir as mir;
 
 mod cfg;
+mod coroutine;
 mod structured;
 
 use structured as smir;
@@ -215,6 +216,11 @@ struct CoroutineRegistry {
     functions: Arena<mir::CoroutineFunction>,
     steps: Arena<mir::CoroutineStep>,
     steps_by_result: Vec<(mir::Type, mir::CoroutineStepId)>,
+    slots: Arena<mir::CoroutineSlot>,
+    slots_by_value: Vec<(mir::Type, mir::CoroutineSlotId)>,
+    frames: Arena<mir::CoroutineFrame>,
+    resume_points: Arena<mir::CoroutineResumePoint>,
+    continuation_shells: Vec<(mir::Type, mir::FunctionId, mir::FunctionId)>,
 }
 
 impl CoroutineRegistry {
@@ -261,6 +267,126 @@ impl CoroutineRegistry {
         });
         self.steps_by_result.push((result.clone(), id));
         (id, mir::Type::Enum(enum_id, Vec::new()))
+    }
+
+    fn slot_for(
+        &mut self,
+        value: &mir::Type,
+        enums: &mut EnumRegistry,
+        shell: &mut mir::Module,
+    ) -> (mir::CoroutineSlotId, mir::Type) {
+        if let Some((_, id)) = self.slots_by_value.iter().find(|(found, _)| found == value) {
+            let slot = &self.slots[*id];
+            return (*id, mir::Type::Enum(slot.enum_id, Vec::new()));
+        }
+        let name = format!("CoroutineSlot${}", mir::encode_type(shell, value));
+        let variants = vec![
+            mir::VariantDef {
+                name: "Empty".to_string(),
+                fields: Vec::new(),
+            },
+            mir::VariantDef {
+                name: "Value".to_string(),
+                fields: vec![mir::Field {
+                    name: "value".to_string(),
+                    ty: value.clone(),
+                }],
+            },
+        ];
+        let enum_id = enums.defs.alloc(mir::EnumDef {
+            name: name.clone(),
+            variants,
+        });
+        let shell_id = shell.enums.alloc(mir::EnumDef {
+            name,
+            variants: Vec::new(),
+        });
+        assert_eq!(enum_id, shell_id, "the mangling shell mirrors enum ids");
+        let id = self.slots.alloc(mir::CoroutineSlot {
+            enum_id,
+            value: value.clone(),
+        });
+        self.slots_by_value.push((value.clone(), id));
+        (id, mir::Type::Enum(enum_id, Vec::new()))
+    }
+
+    fn continuation_shells(
+        &mut self,
+        result: &mir::Type,
+        continuation: mir::InterfaceId,
+        throwable: mir::Type,
+        functions: &mut Arena<mir::Function>,
+        shell: &mir::Module,
+    ) -> (mir::FunctionId, mir::FunctionId) {
+        if let Some((_, resume, failure)) = self
+            .continuation_shells
+            .iter()
+            .find(|(found, _, _)| found == result)
+        {
+            return (*resume, *failure);
+        }
+        let encoded = mir::encode_type(shell, result);
+        let mut resume_locals = Arena::new();
+        let receiver = resume_locals.alloc(mir::Local {
+            name: "this".to_string(),
+            ty: mir::Type::Interface(continuation),
+            mutable: false,
+        });
+        let value = resume_locals.alloc(mir::Local {
+            name: "value".to_string(),
+            ty: result.clone(),
+            mutable: false,
+        });
+        let resume = functions.alloc(mir::Function {
+            name: format!("Continuation.resume${encoded}"),
+            symbol: format!("scoop.Continuation.resume${encoded}"),
+            params: vec![
+                mir::Param {
+                    name: "this".to_string(),
+                    ty: mir::Type::Interface(continuation),
+                    local: receiver,
+                },
+                mir::Param {
+                    name: "value".to_string(),
+                    ty: result.clone(),
+                    local: value,
+                },
+            ],
+            return_ty: mir::Type::Unit,
+            body: mir::Body::unreachable(resume_locals),
+        });
+        let mut failure_locals = Arena::new();
+        let receiver = failure_locals.alloc(mir::Local {
+            name: "this".to_string(),
+            ty: mir::Type::Interface(continuation),
+            mutable: false,
+        });
+        let exception = failure_locals.alloc(mir::Local {
+            name: "exception".to_string(),
+            ty: throwable.clone(),
+            mutable: false,
+        });
+        let failure = functions.alloc(mir::Function {
+            name: format!("Continuation.resumeWithException${encoded}"),
+            symbol: format!("scoop.Continuation.resumeWithException${encoded}"),
+            params: vec![
+                mir::Param {
+                    name: "this".to_string(),
+                    ty: mir::Type::Interface(continuation),
+                    local: receiver,
+                },
+                mir::Param {
+                    name: "exception".to_string(),
+                    ty: throwable,
+                    local: exception,
+                },
+            ],
+            return_ty: mir::Type::Unit,
+            body: mir::Body::unreachable(failure_locals),
+        });
+        self.continuation_shells
+            .push((result.clone(), resume, failure));
+        (resume, failure)
     }
 }
 
@@ -472,6 +598,7 @@ impl Lowerer {
         }
 
         self.transform_suspend_abis(module);
+        coroutine::transform(&mut self, module);
 
         // The entry point is a non-generic user function, hence always
         // in the map.
@@ -489,6 +616,9 @@ impl Lowerer {
                 instances: self.instances.meta,
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,
+                coroutine_slots: self.coroutines.slots,
+                coroutine_frames: self.coroutines.frames,
+                coroutine_resume_points: self.coroutines.resume_points,
                 ..mir::MirMeta::default()
             },
         }
@@ -536,6 +666,7 @@ impl Lowerer {
                 function: source.function,
                 source_return: source.source_return,
                 step,
+                lowering: mir::CoroutineLowering::Immediate,
             });
         }
     }
@@ -3503,6 +3634,9 @@ impl BodyLowerer<'_> {
         if function == self.module.coroutine_core.start_coroutine {
             return self.lower_coroutine_start(callable, args);
         }
+        if function == self.module.coroutine_core.suspend_coroutine {
+            return self.lower_coroutine_suspend(callable, args);
+        }
         // `@Intrinsic` primitive functions (scoop.core, M7 DESIGN
         // section 2): handled up front — generic intrinsics (the M9
         // GC facilities) take this path too, before the generic-callee
@@ -3629,6 +3763,50 @@ impl BodyLowerer<'_> {
             else_body: None,
         });
         smir::Expr::UnitLiteral
+    }
+
+    fn lower_coroutine_suspend(
+        &mut self,
+        callable: hir::Callable,
+        args: &[hir::Expr],
+    ) -> smir::Expr {
+        let [registration] = args else {
+            unreachable!("hir-lower validates suspendCoroutine's one parameter")
+        };
+        let [result_hir] = self.module.callable_type_args(callable) else {
+            unreachable!("suspendCoroutine has exactly one resolved type argument")
+        };
+        let result = self.lower_type(*result_hir);
+        let registration_interface = self.interfaces.get_or_create(
+            self.module,
+            self.shell,
+            self.module.coroutine_core.suspend_registration,
+            vec![result.clone()],
+        );
+        let register_generic = generic_of(
+            self.module,
+            self.module.coroutine_core.suspend_registration_register,
+        )
+        .expect("SuspendRegistration<T>.register has a generic owner");
+        let register = self.instances.get_or_create_generic(
+            self.module,
+            self.functions,
+            self.top_level,
+            self.shell,
+            register_generic,
+            vec![result.clone()],
+        );
+        smir::Expr::Call(smir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Interface {
+                    interface: registration_interface,
+                    slot: 0,
+                },
+                callee: mir::Callee::CoroutineSuspend { register },
+            },
+            args: vec![self.lower_expr(registration)],
+            return_ty: result,
+        })
     }
 
     /// An `@Intrinsic` call: the intrinsic name maps directly onto the
@@ -5168,10 +5346,19 @@ mod tests {
                 .alloc(hir::ResolvedGenericFunction { generic, type_args })
         }
 
-        fn test_coroutine_core(&mut self) -> hir::CoroutineCore {
-            let throwable = self.exception("Throwable");
-            let illegal_state_exception = self.exception("IllegalStateException");
-            let throwable_ty = self.class_ty(throwable);
+        fn test_coroutine_core(&mut self, include_exceptions: bool) -> hir::CoroutineCore {
+            let (throwable, illegal_state_exception, throwable_ty) = if include_exceptions {
+                let throwable = self.exception("Throwable");
+                let illegal_state_exception = self.exception("IllegalStateException");
+                let throwable_ty = self.class_ty(throwable);
+                (throwable, illegal_state_exception, throwable_ty)
+            } else {
+                // Most MIR unit tests exercise isolated language constructs and
+                // intentionally omit the core classes from their expected module.
+                // These ids are protocol-only in those tests and are never resolved.
+                let unused = la_arena::Idx::from_raw(u32::MAX.into());
+                (unused, unused, self.string)
+            };
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
@@ -5363,8 +5550,20 @@ mod tests {
             }
         }
 
-        fn finish(mut self, entry: hir::FunctionId) -> hir::Module {
-            let coroutine_core = self.test_coroutine_core();
+        fn finish(self, entry: hir::FunctionId) -> hir::Module {
+            self.finish_with_coroutine_core(entry, false)
+        }
+
+        fn finish_coroutines(self, entry: hir::FunctionId) -> hir::Module {
+            self.finish_with_coroutine_core(entry, true)
+        }
+
+        fn finish_with_coroutine_core(
+            mut self,
+            entry: hir::FunctionId,
+            include_exceptions: bool,
+        ) -> hir::Module {
+            let coroutine_core = self.test_coroutine_core(include_exceptions);
             hir::Module {
                 types: self.types,
                 functions: self.functions,
@@ -5521,7 +5720,7 @@ mod tests {
             },
         );
 
-        let module = lower(&h.finish(main));
+        let module = lower(&h.finish_coroutines(main));
         let (_, coroutine) = module
             .meta
             .coroutine_functions
@@ -5559,6 +5758,93 @@ mod tests {
     }
 
     #[test]
+    fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
+        let mut h = Harness::new();
+        let leaf = h.user_fn_full(
+            "leaf",
+            Vec::new(),
+            Vec::new(),
+            h.int,
+            hir::Body {
+                locals: Arena::new(),
+                statements: vec![stmt(hir::StatementKind::Return {
+                    value: Some(int_lit(&h, 41)),
+                })],
+            },
+        );
+        h.functions[leaf].is_suspend = true;
+        let mut locals = Arena::new();
+        let value = locals.alloc(local("value", h.int));
+        let caller = h.user_fn_full(
+            "caller",
+            Vec::new(),
+            Vec::new(),
+            h.int,
+            hir::Body {
+                locals,
+                statements: vec![
+                    val_decl(value, call_typed(leaf, Vec::new(), h.int)),
+                    stmt(hir::StatementKind::Return {
+                        value: Some(binary(
+                            hir::BinOp::Add,
+                            local_ref(value, h.int),
+                            int_lit(&h, 1),
+                            h.int,
+                        )),
+                    }),
+                ],
+            },
+        );
+        h.functions[caller].is_suspend = true;
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        );
+
+        let module = lower(&h.finish_coroutines(main));
+        let (_, caller) = module
+            .meta
+            .coroutine_functions
+            .iter()
+            .find(|(_, coroutine)| module.functions[coroutine.function].name == "caller")
+            .expect("caller coroutine metadata");
+        let mir::CoroutineLowering::StateMachine {
+            frame,
+            driver,
+            resume_points,
+        } = &caller.lowering
+        else {
+            panic!("a suspend call requires a state machine")
+        };
+        assert_eq!(resume_points.len(), 1);
+        let frame = &module.meta.coroutine_frames[*frame];
+        let fields = &module.classes[frame.class].fields;
+        assert_eq!(fields[0].name, "state");
+        assert_eq!(fields[1].name, "completion");
+        assert_eq!(
+            fields
+                .iter()
+                .filter(|field| field.name == "local$value")
+                .count(),
+            1
+        );
+        assert!(
+            module.functions[*driver]
+                .body
+                .blocks
+                .iter()
+                .any(|(_, block)| block.name == "coroutine.resume.1")
+        );
+        let point = &module.meta.coroutine_resume_points[resume_points[0]];
+        assert_eq!(point.result, mir::Type::Int);
+        assert_eq!(point.state, 1);
+        assert_eq!(module.classes[point.adapter].interfaces.len(), 1);
+    }
+
+    #[test]
     fn start_coroutine_resumes_only_an_immediately_completed_task() {
         let mut h = Harness::new();
         let main = h.user_fn(
@@ -5568,7 +5854,7 @@ mod tests {
                 statements: Vec::new(),
             },
         );
-        let mut hir_module = h.finish(main);
+        let mut hir_module = h.finish_coroutines(main);
         let result = hir_module.int;
         let task_ty = hir_module.types.alloc(hir::Type::Interface(
             hir_module.coroutine_core.suspend_task,

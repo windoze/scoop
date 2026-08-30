@@ -1899,7 +1899,9 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Callee::Monomorphized(instance) => {
                         self.module.meta.instances[instance].function
                     }
-                    mir::Callee::Runtime(_) => unreachable!("matched a local callee above"),
+                    mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => {
+                        unreachable!("matched a local callee above")
+                    }
                 };
                 let callee = &self.module.functions[id];
                 let param_types: Vec<mir::Type> =
@@ -1941,6 +1943,9 @@ impl<'a> FunctionLowerer<'a> {
                         self.finish_indirect(table, slot, args, returns_unit, result_ty)
                     }
                 }
+            }
+            mir::Callee::CoroutineSuspend { .. } => {
+                unreachable!("coroutine state-machine lowering removes suspend markers")
             }
             mir::Callee::Runtime(mir::RuntimeFn::Trap) => {
                 // The trap call (from `!!`) only appears as a
