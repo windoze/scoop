@@ -8,7 +8,7 @@
 
 - 数组在 spec 中是 `class`（引用类型），但 class/方法体系在 M6 落地。当前两种数组仍是**编译器内建类型**（core 库声明待补齐，见 5.1）；类型标注 `Array<Int>` / `MutableArray<Int>` 直接用 M4 已有的 `Name<T>` 语法。
 - spec 10.4 的两组显式互转均已实现：构造函数形式 `Array(m)` / `MutableArray(a)`，以及 `m.toArray()` / `a.toMutableArray()` 方法形式；四者都降为同一个 `ArrayClone`，执行独立的 memcpy 快照。
-- spec 10.5 的 `Iterable<T>` / `for` 依赖接口与方法，不在 M5；迭代用 `while` + 下标 + `size`（`for` 与区间的归属在 M12 前的某个里程碑单独立项，见第 6 章）。
+- spec 10.5 的 `Iterable<T>` / `for` 依赖接口与方法，不在 M5；迭代用 `while` + 下标 + `size`（`for` 与区间待后续里程碑单独立项，见第 6 章）。
 - 越界检查：M5 初版为 trap；M8 已改接 `IndexOutOfBoundsException`。
 
 ## 1. 语言子集
