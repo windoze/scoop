@@ -319,6 +319,13 @@ pub enum CallableReferenceTarget {
         receiver: Box<Expr>,
         callee: Callable,
     },
+    /// A bound extension reference. Unlike a member reference its invoke
+    /// wrapper always direct-calls the extension body, prepending the saved
+    /// receiver to the ordinary source arguments.
+    BoundExtension {
+        receiver: Box<Expr>,
+        callee: Callable,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -1317,6 +1324,9 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 CallableReferenceTarget::Named(callable) => (*callable, None),
                 CallableReferenceTarget::Local { callee, .. } => (*callee, None),
                 CallableReferenceTarget::BoundMember { receiver, callee } => {
+                    (*callee, Some(receiver.as_ref()))
+                }
+                CallableReferenceTarget::BoundExtension { receiver, callee } => {
                     (*callee, Some(receiver.as_ref()))
                 }
             };

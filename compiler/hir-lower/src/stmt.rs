@@ -21,9 +21,7 @@ use hir::{FunctionId, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
-use crate::{
-    CaptureContext, FnParam, FnSig, ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext,
-};
+use crate::{CaptureContext, FnParam, FnSig, ForbiddenSuspendContext, Lowerer, SuspensionContext};
 
 pub(crate) struct ValueBlock {
     pub(crate) statements: Vec<hir::Statement>,
@@ -363,9 +361,14 @@ impl Lowerer {
         // scope; the body block nests inside it, so body locals may
         // shadow parameters.
         self.push_scope();
-        let mut params = Vec::with_capacity(sig.params.len() + 1);
-        if let Some(owner) = owner {
-            let host_ty = self.owner_ty(owner);
+        let extension_receiver = self.extension_receivers.get(&id).copied();
+        let mut params = Vec::with_capacity(
+            sig.params.len() + usize::from(owner.is_some() || extension_receiver.is_some()),
+        );
+        if let Some(host_ty) = owner
+            .map(|owner| self.owner_ty(owner))
+            .or(extension_receiver)
+        {
             let local = self.alloc_local("this".to_string(), host_ty, false);
             self.scopes.declare("this".to_string(), local);
             self.current_this = Some((local, host_ty));
@@ -1580,8 +1583,8 @@ impl Lowerer {
                 }
                 return None;
             }
-            match self.current_owner {
-                Some(Owner::Class(class_id)) => {
+            match self.current_this_ty().map(|ty| self.types[ty].clone()) {
+                Some(Type::Class(class_id)) => {
                     if let Some((_, _, _, mutable)) = self.find_class_field(class_id, &name.text) {
                         if !mutable {
                             self.error(
@@ -1592,14 +1595,14 @@ impl Lowerer {
                         }
                         let receiver = self
                             .lower_current_this(name.span)
-                            .expect("a member callable body always has a lexical `this`");
+                            .expect("a receiver callable body always has a lexical `this`");
                         let mut sink = Vec::new();
                         let kind = self.assign_class_field(assign, receiver, name, &mut sink)?;
                         out.extend(sink);
                         return Some(kind);
                     }
                 }
-                Some(Owner::Struct(struct_id))
+                Some(Type::Struct(struct_id, _))
                     if self.structs[struct_id]
                         .fields
                         .iter()

@@ -1,0 +1,5 @@
+fun Int.bump(): Int = this + 1
+
+fun main() {
+    println("wrong".bump())
+}

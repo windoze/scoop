@@ -210,7 +210,7 @@ impl Parser {
         Ok((value, close.span.end))
     }
 
-    /// `(open|final|abstract|override)* fun <T, ...>? <name>(<param>, ...)?: <ret>? <body>?`
+    /// `(open|final|abstract|override)* fun <T, ...>? (<receiver>.)?<name>(<param>, ...)?: <ret>? <body>?`
     /// — the type parameter list sits between `fun` and the name (a `<`
     /// right after `fun` is unambiguous here), parameters carry mandatory
     /// type annotations, and the return type defaults to `Unit` when
@@ -227,6 +227,25 @@ impl Parser {
     ) -> Result<FunctionDecl, Diagnostic> {
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
         let type_params = self.parse_type_params()?;
+        let receiver_start = self.pos;
+        let receiver_ty = match self.parse_type_ref() {
+            Ok(ty) if matches!(self.peek().kind, TokenKind::Dot) => {
+                self.bump();
+                Some(ty)
+            }
+            _ => {
+                self.pos = receiver_start;
+                None
+            }
+        };
+        if let Some(receiver) = &receiver_ty
+            && context != FunctionContext::TopLevel
+        {
+            return Err(Diagnostic::at(
+                receiver.span,
+                "extension functions may only be declared at top level",
+            ));
+        }
         let name = self.expect_ident("function name")?;
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut params = Vec::new();
@@ -319,6 +338,7 @@ impl Parser {
             is_suspend: modifiers.is_suspend,
             is_override: modifiers.is_override,
             modifier,
+            receiver_ty,
             name,
             type_params,
             params,

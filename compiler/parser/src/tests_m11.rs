@@ -12,6 +12,55 @@ fn function_type(ty: &TypeRef) -> &scoop_ast::FunctionTypeRef {
 }
 
 #[test]
+fn parses_top_level_extension_receivers() {
+    let file = parse(
+        "fun String.decorate(suffix: String): String = this\n\
+         fun <T> Option<T>.keep(): Option<T> = this\n\
+         fun main() {}",
+    )
+    .expect("extension receivers should parse");
+    let Decl::Function(decorate) = &file.declarations[0] else {
+        panic!("expected decorate");
+    };
+    assert!(matches!(
+        decorate.receiver_ty.as_ref().map(|ty| &ty.kind),
+        Some(TypeRefKind::Named(name)) if name.text == "String"
+    ));
+    let Decl::Function(keep) = &file.declarations[1] else {
+        panic!("expected keep");
+    };
+    assert!(matches!(
+        keep.receiver_ty.as_ref().map(|ty| &ty.kind),
+        Some(TypeRefKind::Generic(name, args)) if name.text == "Option" && args.len() == 1
+    ));
+    assert!(
+        file.declarations
+            .iter()
+            .all(|declaration| match declaration {
+                Decl::Function(function) if function.name.text == "main" =>
+                    function.receiver_ty.is_none(),
+                _ => true,
+            })
+    );
+}
+
+#[test]
+fn rejects_non_top_level_extension_declarations() {
+    let diagnostics = parse(
+        "class Host {\n\
+             fun Int.invalid(): Int = this\n\
+         }\n\
+         fun main() {}",
+    )
+    .expect_err("member extensions are outside the language subset");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(
+        diagnostics[0].message,
+        "extension functions may only be declared at top level"
+    );
+}
+
+#[test]
 fn parses_ordinary_and_suspend_function_types() {
     let file = parse(
         "fun use(op: (Int, String) -> Boolean, task: suspend () -> Int): (Int) -> String = op\n\

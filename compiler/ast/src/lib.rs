@@ -269,6 +269,9 @@ pub struct FunctionDecl {
     /// Effective member modality. It is `Final` for top-level
     /// functions, where member modality is not applicable.
     pub modifier: MethodModifier,
+    /// Receiver type of a top-level extension function (`fun T.name(...)`).
+    /// `None` for ordinary top-level functions, members, and local functions.
+    pub receiver_ty: Option<TypeRef>,
     pub name: Ident,
     /// Generic type parameters (`fun <T> f(...)`); empty for
     /// non-generic functions.
@@ -892,8 +895,13 @@ pub fn dump(file: &SourceFile) -> String {
                     if f.is_override { "override " } else { "" },
                     if f.is_suspend { "suspend " } else { "" }
                 );
+                let receiver = f
+                    .receiver_ty
+                    .as_ref()
+                    .map(|ty| format!("{}.", dump_type_ref(ty)))
+                    .unwrap_or_default();
                 out.push_str(&format!(
-                    "  {flags}fun {}{}({}){}\n",
+                    "  {flags}fun {receiver}{}{}({}){}\n",
                     f.name.text,
                     type_params,
                     params.join(", "),

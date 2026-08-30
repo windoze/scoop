@@ -292,6 +292,13 @@ pub(crate) struct Lowerer {
     /// order (M7). Struct and enum names live in separate namespaces:
     /// a struct and a function may share a name.
     pub(crate) functions_by_name: HashMap<String, Vec<FunctionId>>,
+    /// Top-level extension namespace. Extension declarations do not enter the
+    /// ordinary function layer: they are considered only with an explicit or
+    /// lexical receiver, except for `::name` callable references.
+    pub(crate) extensions_by_name: HashMap<String, Vec<FunctionId>>,
+    /// Resolved extension receiver type for each extension function. The HIR
+    /// body represents it structurally as the first immutable `this` param.
+    pub(crate) extension_receivers: HashMap<FunctionId, TypeId>,
     /// The file each top-level function was declared in, for the
     /// layering of overload resolution (user file → core implicit
     /// imports, milestone7 DESIGN.md 1.2).
@@ -454,6 +461,8 @@ impl Lowerer {
             // Filled by `synthesize_any_members` below.
             any_methods: [hir::FunctionId::from_raw(0.into()); 3],
             functions_by_name: HashMap::new(),
+            extensions_by_name: HashMap::new(),
+            extension_receivers: HashMap::new(),
             function_files: HashMap::new(),
             user_file_index: 0,
             structs_by_name: HashMap::new(),
@@ -1149,7 +1158,12 @@ impl Lowerer {
             span: decl.span,
         });
         self.top_level.push(id);
-        self.functions_by_name
+        let namespace = if decl.receiver_ty.is_some() {
+            &mut self.extensions_by_name
+        } else {
+            &mut self.functions_by_name
+        };
+        namespace
             .entry(decl.name.text.clone())
             .or_default()
             .push(id);
@@ -1633,7 +1647,16 @@ impl Lowerer {
         let (Some(a_sig), Some(b_sig)) = (self.signatures.get(&a), self.signatures.get(&b)) else {
             return false;
         };
-        a_sig.params.len() == b_sig.params.len()
+        let receivers_match = match (
+            self.extension_receivers.get(&a),
+            self.extension_receivers.get(&b),
+        ) {
+            (Some(&a), Some(&b)) => self.types_equal(a, b),
+            (None, None) => true,
+            _ => false,
+        };
+        receivers_match
+            && a_sig.params.len() == b_sig.params.len()
             && a_sig
                 .params
                 .iter()
@@ -1898,6 +1921,12 @@ impl Lowerer {
             self.register_generic(id);
         }
         self.type_params_in_scope = type_params.clone();
+
+        if let Some(receiver) = &decl.receiver_ty
+            && let Some(receiver_ty) = self.resolve_type_ref(receiver)
+        {
+            self.extension_receivers.insert(id, receiver_ty);
+        }
 
         let mut params = Vec::with_capacity(decl.params.len());
         for param in &decl.params {

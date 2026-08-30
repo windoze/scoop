@@ -56,7 +56,7 @@ use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
 use crate::stmt::statements_can_fall_through;
 use crate::{
-    AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer, Owner,
+    AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,
     PendingCapture, ReturnInference, SuspensionContext,
 };
 
@@ -64,6 +64,13 @@ struct InferredArguments {
     args: Vec<Option<hir::Expr>>,
     bindings: Vec<Option<TypeId>>,
     sinks: Vec<Vec<hir::Statement>>,
+}
+
+#[derive(Clone, Copy)]
+enum ReferenceExtensionMode {
+    Exclude,
+    IncludeUnbound,
+    Bound(TypeId),
 }
 
 impl InferredArguments {
@@ -263,13 +270,19 @@ impl Lowerer {
                 span,
             });
         }
-        if self.current_owner.is_some() {
+        if self.available_capture("this").is_some() {
             return self.lower_capture(&ast::Ident {
                 text: "this".to_string(),
                 span,
             });
         }
         None
+    }
+
+    pub(crate) fn current_this_ty(&self) -> Option<TypeId> {
+        self.current_this
+            .map(|(_, ty)| ty)
+            .or_else(|| self.available_capture("this").map(|capture| capture.ty))
     }
 
     /// Lower an expression, recording a diagnostic and returning `None`
@@ -479,12 +492,16 @@ impl Lowerer {
         }
         let mut candidates = self.methods_by_name(receiver.ty, &name.text);
         if candidates.is_empty() {
-            let found = self.type_name(receiver.ty);
-            self.error(
-                name.span,
-                format!("type `{found}` has no method `{}`", name.text),
-            );
-            return None;
+            let extensions = self.extension_candidate_layer(&name.text);
+            if extensions.is_empty() {
+                let found = self.type_name(receiver.ty);
+                self.error(
+                    name.span,
+                    format!("type `{found}` has no method `{}`", name.text),
+                );
+                return None;
+            }
+            return self.finish_extension_call(&extensions, &name.text, receiver, args, span, sink);
         }
         if matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
@@ -508,6 +525,28 @@ impl Lowerer {
             return self.finish_method_call(candidates[0], receiver, args, span, sink);
         }
         self.finish_overloaded_method_call(candidates, &name.text, receiver, args, span, sink)
+    }
+
+    fn finish_extension_call(
+        &mut self,
+        candidates: &[hir::FunctionId],
+        name: &str,
+        receiver: hir::Expr,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let resolved =
+            self.resolve_extension_overload(name, candidates, receiver, args, span, sink)?;
+        self.check_suspend_call(resolved.callee, span);
+        Some(hir::Expr {
+            kind: ExprKind::Call {
+                callee: resolved.callee,
+                args: resolved.args,
+            },
+            ty: resolved.return_ty,
+            span,
+        })
     }
 
     /// `m.toArray()` / `a.toMutableArray()` (spec 10.4). Arrays remain
@@ -587,9 +626,9 @@ impl Lowerer {
     /// `lower_method_call`: a bare receiver name that would resolve
     /// to `this.name` is a property access, not an enum path).
     fn host_has_property(&self, name: &str) -> bool {
-        match self.current_owner {
-            Some(Owner::Class(class_id)) => self.find_class_field(class_id, name).is_some(),
-            Some(Owner::Struct(struct_id)) => self.structs[struct_id]
+        match self.current_this_ty().map(|ty| self.types[ty].clone()) {
+            Some(Type::Class(class_id)) => self.find_class_field(class_id, name).is_some(),
+            Some(Type::Struct(struct_id, _)) => self.structs[struct_id]
                 .fields
                 .iter()
                 .any(|field| field.name == name),
@@ -1004,6 +1043,7 @@ impl Lowerer {
             }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
                 || self.functions_by_name.contains_key(&name.text)
+                || self.extensions_by_name.contains_key(&name.text)
             {
                 self.error(
                     name.span,
@@ -1052,10 +1092,10 @@ impl Lowerer {
     /// of the host type (`this.x`; class properties include the base
     /// chain). Methods are not values in M6, so only fields resolve.
     fn bare_member_fallback(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
-        let owner = self.current_owner?;
+        let receiver_ty = self.current_this_ty()?;
         let receiver = self.lower_current_this(name.span)?;
-        let (field, ty) = match owner {
-            Owner::Class(class_id) => {
+        let (field, ty) = match self.types[receiver_ty].clone() {
+            Type::Class(class_id) => {
                 let (declaring, index, ty, _) = self.find_class_field(class_id, &name.text)?;
                 (
                     hir::FieldRef::ClassField {
@@ -1065,7 +1105,7 @@ impl Lowerer {
                     ty,
                 )
             }
-            Owner::Struct(struct_id) => {
+            Type::Struct(struct_id, type_args) => {
                 let index = self.structs[struct_id]
                     .fields
                     .iter()
@@ -1075,12 +1115,12 @@ impl Lowerer {
                         struct_id,
                         index: index as u32,
                     },
-                    self.structs[struct_id].fields[index].ty,
+                    self.instantiate_ty(self.structs[struct_id].fields[index].ty, &type_args),
                 )
             }
             // Interfaces have no properties; enum payloads are only
             // reachable through patterns.
-            Owner::Interface(_) | Owner::Enum(_) => return None,
+            _ => return None,
         };
         Some(hir::Expr {
             kind: ExprKind::FieldAccess {
@@ -1435,7 +1475,7 @@ impl Lowerer {
         if !local_candidates.is_empty() {
             return self.lower_local_callable_reference(local_candidates, name, span, expected);
         }
-        let candidates = self.top_level_candidate_layer(&name.text);
+        let candidates = self.named_reference_candidate_layer(&name.text);
         if candidates.is_empty() {
             if self.is_declared_type_name(&name.text) {
                 self.error(
@@ -1458,6 +1498,7 @@ impl Lowerer {
             expected_signature.as_ref(),
             &display,
             span,
+            ReferenceExtensionMode::IncludeUnbound,
         )?;
         let function = self.callable_function_id(callee);
         let signature = self.signatures[&function].clone();
@@ -1513,15 +1554,18 @@ impl Lowerer {
         // once at reference creation, including when it reads a mutable local.
         let receiver = self.lower_expr(receiver, sink, None)?;
         let mut candidates = self.methods_by_name(receiver.ty, &name.text);
-        if candidates.is_empty() {
-            let found = self.type_name(receiver.ty);
-            self.error(
-                name.span,
-                format!("type `{found}` has no method `{}`", name.text),
-            );
-            return None;
-        }
-        if matches!(self.types[receiver.ty], Type::Interface(..)) {
+        let is_extension = candidates.is_empty();
+        if is_extension {
+            candidates = self.extension_candidate_layer(&name.text);
+            if candidates.is_empty() {
+                let found = self.type_name(receiver.ty);
+                self.error(
+                    name.span,
+                    format!("type `{found}` has no method `{}`", name.text),
+                );
+                return None;
+            }
+        } else if matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
             candidates.retain(|&function| {
                 let sig = &self.signatures[&function];
@@ -1539,7 +1583,11 @@ impl Lowerer {
                 return None;
             }
         }
-        let owner_type_args = self.receiver_type_args(receiver.ty);
+        let owner_type_args = if is_extension {
+            Vec::new()
+        } else {
+            self.receiver_type_args(receiver.ty)
+        };
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
         let (callee, ty) = self.resolve_reference_candidates(
@@ -1548,6 +1596,11 @@ impl Lowerer {
             expected_signature.as_ref(),
             &display,
             span,
+            if is_extension {
+                ReferenceExtensionMode::Bound(receiver.ty)
+            } else {
+                ReferenceExtensionMode::Exclude
+            },
         )?;
         let function = self.callable_function_id(callee);
         if self.functions[function].is_suspend {
@@ -1561,11 +1614,19 @@ impl Lowerer {
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
-        let id = self.callable_references.alloc(hir::CallableReference {
-            target: hir::CallableReferenceTarget::BoundMember {
+        let target = if is_extension {
+            hir::CallableReferenceTarget::BoundExtension {
                 receiver: Box::new(receiver),
                 callee,
-            },
+            }
+        } else {
+            hir::CallableReferenceTarget::BoundMember {
+                receiver: Box::new(receiver),
+                callee,
+            }
+        };
+        let id = self.callable_references.alloc(hir::CallableReference {
+            target,
             function_type,
             captures: Vec::new(),
             span,
@@ -1612,6 +1673,7 @@ impl Lowerer {
         expected: Option<&(TypeId, hir::FunctionType)>,
         display: &str,
         span: Span,
+        extension_mode: ReferenceExtensionMode,
     ) -> Option<(hir::Callable, TypeId)> {
         let mut applicable = Vec::new();
         for &function in candidates {
@@ -1623,18 +1685,38 @@ impl Lowerer {
             for (binding, &ty) in bindings.iter_mut().zip(owner_type_args) {
                 *binding = Some(ty);
             }
+            let extension_receiver = self.extension_receivers.get(&function).copied();
+            let bound_extension_receiver = match extension_mode {
+                ReferenceExtensionMode::Exclude if extension_receiver.is_some() => continue,
+                ReferenceExtensionMode::Bound(_) if extension_receiver.is_none() => continue,
+                ReferenceExtensionMode::Bound(receiver) => Some(receiver),
+                ReferenceExtensionMode::Exclude | ReferenceExtensionMode::IncludeUnbound => None,
+            };
+            if let (Some(declared), Some(actual)) = (extension_receiver, bound_extension_receiver)
+                && !self.try_bind(declared, actual, &mut bindings)
+            {
+                continue;
+            }
+            let mut reference_params: Vec<_> =
+                sig.params.iter().map(|parameter| parameter.ty).collect();
+            if matches!(extension_mode, ReferenceExtensionMode::IncludeUnbound)
+                && let Some(receiver) = extension_receiver
+            {
+                reference_params.insert(0, receiver);
+            }
             match expected {
                 Some((_, expected)) => {
                     if sig.is_suspend != expected.is_suspend
-                        || sig.params.len() != expected.parameter_types.len()
+                        || reference_params.len() != expected.parameter_types.len()
                     {
                         continue;
                     }
-                    let parameters_match = sig.params.iter().zip(&expected.parameter_types).all(
-                        |(parameter, &expected)| {
-                            self.try_bind(parameter.ty, expected, &mut bindings)
-                        },
-                    );
+                    let parameters_match = reference_params
+                        .iter()
+                        .zip(&expected.parameter_types)
+                        .all(|(&parameter, &expected)| {
+                            self.try_bind(parameter, expected, &mut bindings)
+                        });
                     if !parameters_match
                         || !self.try_bind(sig.return_ty, expected.return_type, &mut bindings)
                         || bindings.iter().any(Option::is_none)
@@ -1649,12 +1731,17 @@ impl Lowerer {
                 }
             }
             let type_args: Vec<_> = bindings.into_iter().flatten().collect();
-            let parameter_types: Vec<_> = sig
-                .params
+            let parameter_types: Vec<_> = reference_params
                 .iter()
-                .map(|parameter| self.instantiate_ty(parameter.ty, &type_args))
+                .map(|&parameter| self.instantiate_ty(parameter, &type_args))
                 .collect();
             let return_type = self.instantiate_ty(sig.return_ty, &type_args);
+            if let (Some(declared), Some(actual)) = (extension_receiver, bound_extension_receiver) {
+                let declared = self.instantiate_ty(declared, &type_args);
+                if !self.is_subtype(actual, declared) {
+                    continue;
+                }
+            }
             if let Some((_, expected)) = expected {
                 let exact = parameter_types
                     .iter()
@@ -1907,7 +1994,15 @@ impl Lowerer {
     }
 
     fn top_level_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
-        let Some(ids) = self.functions_by_name.get(name) else {
+        self.candidate_layer(self.functions_by_name.get(name))
+    }
+
+    fn extension_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
+        self.candidate_layer(self.extensions_by_name.get(name))
+    }
+
+    fn candidate_layer(&self, ids: Option<&Vec<hir::FunctionId>>) -> Vec<hir::FunctionId> {
+        let Some(ids) = ids else {
             return Vec::new();
         };
         let call_site_is_core = self.current_file < self.user_file_index;
@@ -1924,6 +2019,42 @@ impl Lowerer {
         } else {
             same_side
         }
+    }
+
+    /// The top-level callable-reference layer includes ordinary and extension
+    /// declarations. Package/core precedence is applied to the combined set,
+    /// then declaration order is restored by the globally unique function id.
+    fn named_reference_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
+        let mut ids = Vec::new();
+        ids.extend(
+            self.functions_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
+        ids.extend(
+            self.extensions_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
+        let call_site_is_core = self.current_file < self.user_file_index;
+        let same_side: Vec<_> = ids
+            .iter()
+            .copied()
+            .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
+            .collect();
+        let mut selected = if same_side.is_empty() {
+            ids.into_iter()
+                .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+                .collect::<Vec<_>>()
+        } else {
+            same_side
+        };
+        selected.sort_by_key(|id| id.into_raw().into_u32());
+        selected
     }
 
     fn lower_lambda(
@@ -2668,13 +2799,10 @@ impl Lowerer {
         }
 
         // Layer 2: members of the current host.
-        let members: Vec<hir::FunctionId> = match self.current_owner {
-            Some(owner) => {
-                let host_ty = self.owner_ty(owner);
-                self.methods_by_name(host_ty, &name)
-            }
-            None => Vec::new(),
-        };
+        let members: Vec<hir::FunctionId> = self
+            .current_this_ty()
+            .map(|host_ty| self.methods_by_name(host_ty, &name))
+            .unwrap_or_default();
         if !members.is_empty() {
             let receiver = self
                 .lower_current_this(call.callee.span)
@@ -2687,33 +2815,31 @@ impl Lowerer {
             );
         }
 
+        // An extension body has a lexical `this` just like a member body.
+        // If no real member wins, another visible extension may use it as
+        // the implicit receiver before ordinary top-level functions.
+        if self.current_this_ty().is_some() {
+            let extensions = self.extension_candidate_layer(&name);
+            if !extensions.is_empty() {
+                let receiver = self
+                    .lower_current_this(call.callee.span)
+                    .expect("a lexical receiver has a `this` value");
+                return self.finish_extension_call(
+                    &extensions,
+                    &name,
+                    receiver,
+                    &call.args,
+                    call.span,
+                    sink,
+                );
+            }
+        }
+
         // Layers 2 and 3, relative to the call site's file: the
         // declarations on the call site's own side of the core/user
         // boundary come first, the other side is the implicitly
         // imported layer.
-        let candidates: Vec<hir::FunctionId> = match self.functions_by_name.get(&name) {
-            Some(ids) => {
-                let call_site_is_core = self.current_file < self.user_file_index;
-                let same_side: Vec<hir::FunctionId> = ids
-                    .iter()
-                    .copied()
-                    .filter(|id| {
-                        (self.function_files[id] < self.user_file_index) == call_site_is_core
-                    })
-                    .collect();
-                if same_side.is_empty() {
-                    ids.iter()
-                        .copied()
-                        .filter(|id| {
-                            (self.function_files[id] < self.user_file_index) != call_site_is_core
-                        })
-                        .collect()
-                } else {
-                    same_side
-                }
-            }
-            None => Vec::new(),
-        };
+        let candidates = self.top_level_candidate_layer(&name);
         if candidates.is_empty() {
             self.error(
                 call.callee.span,

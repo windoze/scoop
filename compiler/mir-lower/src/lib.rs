@@ -1593,11 +1593,17 @@ impl Lowerer {
                 hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
                     (*callee, Some(receiver.as_ref()))
                 }
+                hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
+                    (*callee, Some(receiver.as_ref()))
+                }
             };
             let target = self.lower_reference_callee(module, callable);
-            let call_kind = receiver.map_or(mir::CallKind::Direct, |receiver| {
-                self.bound_reference_call_kind(module, receiver.ty, callable)
-            });
+            let call_kind = match &reference.target {
+                hir::CallableReferenceTarget::BoundMember { receiver, .. } => {
+                    self.bound_reference_call_kind(module, receiver.ty, callable)
+                }
+                _ => mir::CallKind::Direct,
+            };
             let signature = self.shell.function_types[function_type].clone();
             let types = Types {
                 module,
@@ -2684,7 +2690,22 @@ impl Lowerer {
 /// symbol. Same-named *overloads* share this name; their symbols are
 /// distinguished by the parameter encoding (`Lowerer::declare_symbol`).
 fn fn_name(function: &hir::Function) -> String {
-    function.name.clone()
+    // Extension receivers are structurally the first immutable HIR parameter
+    // named `this`, while real members also carry `Method` metadata. Source
+    // syntax cannot declare an ordinary parameter named `this`, so this is an
+    // unambiguous discriminator. Keep extension symbols in a private namespace:
+    // `fun f(x: Int)` and `fun Int.f()` otherwise have the same ABI parameter
+    // shape and would collide despite belonging to different source layers.
+    if function.method.is_none()
+        && function
+            .params
+            .first()
+            .is_some_and(|parameter| parameter.name == "this")
+    {
+        format!("$extension.{}", function.name)
+    } else {
+        function.name.clone()
+    }
 }
 
 /// The names shared by more than one plainly-mangled function (M7
@@ -4155,12 +4176,15 @@ impl BodyLowerer<'_> {
                         + usize::from(matches!(
                             &reference.target,
                             hir::CallableReferenceTarget::BoundMember { .. }
+                                | hir::CallableReferenceTarget::BoundExtension { .. }
                         )),
                 );
-                if let hir::CallableReferenceTarget::BoundMember { receiver, .. } =
-                    &reference.target
-                {
-                    captures.push(self.lower_expr(receiver));
+                match &reference.target {
+                    hir::CallableReferenceTarget::BoundMember { receiver, .. }
+                    | hir::CallableReferenceTarget::BoundExtension { receiver, .. } => {
+                        captures.push(self.lower_expr(receiver));
+                    }
+                    _ => {}
                 }
                 captures.extend(
                     reference

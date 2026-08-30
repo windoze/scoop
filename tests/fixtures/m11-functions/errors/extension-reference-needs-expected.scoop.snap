@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/extension-reference-needs-expected.scoop:4:21: error: cannot determine callable reference `::keep` without an expected function type; no unique non-generic candidate exists

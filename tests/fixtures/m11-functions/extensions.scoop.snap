@@ -1,0 +1,1567 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  fun Int.bump(delta: Int): Int
+    =
+      Binary Add
+        This
+        Var delta
+  fun T.keep<T>(): T
+    =
+      This
+  fun String.decorate(suffix: String): String
+    =
+      Binary Add
+        This
+        Var suffix
+  fun String.suffixer(): (String) -> String
+    return
+      Lambda 0 suspend=false
+        param suffix: _
+        Binary Add
+          This
+          Var suffix
+  fun T.echo<T>(value: T): T
+    =
+      Var value
+  fun Any.kind(): String
+    =
+      StringLiteral "any"
+  fun String.kind(): String
+    =
+      StringLiteral "string"
+  fun collide(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun Int.collide(): Int
+    =
+      Binary Add
+        This
+        IntLiteral 2
+  class Named(val value: String)
+    fun label
+  fun Named.label(): String
+    =
+      StringLiteral "extension"
+  class MutableName(var value: String)
+  fun MutableName.rename(next: String): String
+    assign value
+      Var next
+    return
+      Var value
+  struct Offset
+    field amount: Int
+  fun Offset.apply(value: Int): Int
+    =
+      Binary Add
+        Var value
+        Var amount
+  class ReceiverFactory(var calls: Int)
+    fun make
+  class ThrowingExtension()
+  fun ThrowingExtension.run(value: Int): Int
+    if
+      Binary Eq
+        Var value
+        IntLiteral 0
+      throw
+        Call ArithmeticException
+    return
+      Var value
+  fun main()
+    Call println
+      MethodCall bump
+        IntLiteral 40
+        IntLiteral 2
+    Call println
+      MethodCall keep
+        StringLiteral "generic"
+    Call println
+      MethodCall kind
+        StringLiteral "specific"
+    Call println
+      Call collide
+        IntLiteral 39
+    Call println
+      MethodCall collide
+        IntLiteral 40
+    val named
+      Call Named
+        StringLiteral "kept"
+    Call println
+      MethodCall label
+        Var named
+    val member
+      CallableReference 0 label
+        Var named
+    Call println
+      Call member
+    val mutable
+      Call MutableName
+        StringLiteral "old"
+    Call println
+      MethodCall rename
+        Var mutable
+        StringLiteral "new"
+    Call println
+      MethodCall apply
+        Call Offset
+          IntLiteral 2
+        IntLiteral 40
+    val unbound: (String, String) -> String
+      CallableReference 1 decorate
+    val bound
+      CallableReference 2 decorate
+        StringLiteral "bound"
+    val genericUnbound: (String, String) -> String
+      CallableReference 3 echo
+    val genericBound: (String) -> String
+      CallableReference 4 echo
+        StringLiteral "receiver"
+    val capturedReceiver
+      MethodCall suffixer
+        StringLiteral "capture"
+    val factory
+      Call ReceiverFactory
+        IntLiteral 0
+    val once
+      CallableReference 5 decorate
+        MethodCall make
+          Var factory
+    Call println
+      FieldAccess calls
+        Var factory
+    var offset
+      Call Offset
+        IntLiteral 2
+    val snapshot
+      CallableReference 6 apply
+        Var offset
+    assign offset
+      Call Offset
+        IntLiteral 100
+    val throwing
+      CallableReference 7 run
+        Call ThrowingExtension
+    Call gcCollect
+    Call println
+      Call unbound
+        StringLiteral "unbound"
+        StringLiteral "-ok"
+    Call println
+      Call bound
+        StringLiteral "-ok"
+    Call println
+      Call genericUnbound
+        StringLiteral "ignored"
+        StringLiteral "generic-unbound"
+    Call println
+      Call genericBound
+        StringLiteral "generic-bound"
+    Call println
+      Call capturedReceiver
+        StringLiteral "-this"
+    Call println
+      Call once
+        StringLiteral "-only"
+    Call println
+      Call snapshot
+        IntLiteral 40
+    Call println
+      MethodCall apply
+        Var offset
+        IntLiteral 40
+    try
+      Call println
+        Call throwing
+          IntLiteral 0
+    catch exception: ArithmeticException
+      Call println
+        StringLiteral "caught"
+
+== hir ==
+Module
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  struct Offset
+    field amount: Int
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  class Named(value: String)
+  class MutableName(value: String)
+  class ReceiverFactory(calls: Int)
+  class ThrowingExtension()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun bump(this: Int, delta: Int): Int
+    return
+      Binary Add : Int
+        Local this : Int
+        Local delta : Int
+  fun keep<T>(this: T0): T0
+    return
+      Local this : T0
+  fun decorate(this: String, suffix: String): String
+    return
+      Binary Add : String
+        Local this : String
+        Local suffix : String
+  fun suffixer(this: String): (String) -> String
+    return
+      Lambda lambda0 invoke=$lambda.0 captures=1 : (String) -> String
+        capture this binding18 : String
+  fun echo<T>(this: T0, value: T0): T0
+    return
+      Local value : T0
+  fun kind(this: Any): String
+    return
+      StringLiteral "any" : String
+  fun kind(this: String): String
+    return
+      StringLiteral "string" : String
+  fun collide(value: Int): Int
+    return
+      Binary Add : Int
+        Local value : Int
+        IntLiteral 1 : Int
+  fun collide(this: Int): Int
+    return
+      Binary Add : Int
+        Local this : Int
+        IntLiteral 2 : Int
+  fun label(this: Named): String
+    return
+      StringLiteral "extension" : String
+  fun rename(this: MutableName, next: String): String
+    assign .field
+      Local this : MutableName
+      Local next : String
+    return
+      FieldAccess class field 0 : String
+        Local this : MutableName
+  fun apply(this: Offset, value: Int): Int
+    return
+      Binary Add : Int
+        Local value : Int
+        FieldAccess field 0 : Int
+          Local this : Offset
+  fun run(this: ThrowingExtension, value: Int): Int
+    if
+      Binary Eq : Boolean
+        Local value : Int
+        IntLiteral 0 : Int
+      throw
+        ClassInit ArithmeticException : ArithmeticException
+    return
+      Local value : Int
+  fun main(): Unit
+    Call println : Unit
+      Box : Any
+        Call bump : Int
+          IntLiteral 40 : Int
+          IntLiteral 2 : Int
+    Call println : Unit
+      Call keep<String> : Any
+        StringLiteral "generic" : String
+    Call println : Unit
+      Call kind : Any
+        StringLiteral "specific" : String
+    Call println : Unit
+      Box : Any
+        Call collide : Int
+          IntLiteral 39 : Int
+    Call println : Unit
+      Box : Any
+        Call collide : Int
+          IntLiteral 40 : Int
+    val local0
+      ClassInit Named : Named
+        StringLiteral "kept" : String
+    Call println : Unit
+      MethodCall Named.label : Any
+        Local named : Named
+    val local1
+      CallableReference reference0 target=Named.label captures=0 : () -> String
+        Local named : Named
+    Call println : Unit
+      CallableCall function_type1 : Any
+        Local member : () -> String
+    val local2
+      ClassInit MutableName : MutableName
+        StringLiteral "old" : String
+    Call println : Unit
+      Call rename : Any
+        Local mutable : MutableName
+        StringLiteral "new" : String
+    Call println : Unit
+      Box : Any
+        Call apply : Int
+          StructInit Offset : Offset
+            IntLiteral 2 : Int
+          IntLiteral 40 : Int
+    val local3
+      CallableReference reference1 target=decorate captures=0 : (String, String) -> String
+    val local4
+      CallableReference reference2 target=decorate captures=0 : (String) -> String
+        StringLiteral "bound" : String
+    val local5
+      CallableReference reference3 target=echo captures=0 : (String, String) -> String
+    val local6
+      CallableReference reference4 target=echo captures=0 : (String) -> String
+        StringLiteral "receiver" : String
+    val local7
+      Call suffixer : (String) -> String
+        StringLiteral "capture" : String
+    val local8
+      ClassInit ReceiverFactory : ReceiverFactory
+        IntLiteral 0 : Int
+    val local9
+      CallableReference reference5 target=decorate captures=0 : (String) -> String
+        MethodCall ReceiverFactory.make : String
+          Local factory : ReceiverFactory
+    Call println : Unit
+      Box : Any
+        FieldAccess class field 0 : Int
+          Local factory : ReceiverFactory
+    val local10
+      StructInit Offset : Offset
+        IntLiteral 2 : Int
+    val local11
+      CallableReference reference6 target=apply captures=0 : (Int) -> Int
+        Local offset : Offset
+    assign offset
+      StructInit Offset : Offset
+        IntLiteral 100 : Int
+    val local12
+      CallableReference reference7 target=run captures=0 : (Int) -> Int
+        ClassInit ThrowingExtension : ThrowingExtension
+    Call gcCollect : Unit
+    Call println : Unit
+      CallableCall function_type2 : Any
+        Local unbound : (String, String) -> String
+        StringLiteral "unbound" : String
+        StringLiteral "-ok" : String
+    Call println : Unit
+      CallableCall function_type0 : Any
+        Local bound : (String) -> String
+        StringLiteral "-ok" : String
+    Call println : Unit
+      CallableCall function_type2 : Any
+        Local genericUnbound : (String, String) -> String
+        StringLiteral "ignored" : String
+        StringLiteral "generic-unbound" : String
+    Call println : Unit
+      CallableCall function_type0 : Any
+        Local genericBound : (String) -> String
+        StringLiteral "generic-bound" : String
+    Call println : Unit
+      CallableCall function_type0 : Any
+        Local capturedReceiver : (String) -> String
+        StringLiteral "-this" : String
+    Call println : Unit
+      CallableCall function_type0 : Any
+        Local once : (String) -> String
+        StringLiteral "-only" : String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          Local snapshot : (Int) -> Int
+          IntLiteral 40 : Int
+    Call println : Unit
+      Box : Any
+        Call apply : Int
+          Local offset : Offset
+          IntLiteral 40 : Int
+    try
+      Call println : Unit
+        Box : Any
+          CallableCall function_type3 : Int
+            Local throwing : (Int) -> Int
+            IntLiteral 0 : Int
+    catch exception: ArithmeticException
+      Call println : Unit
+        StringLiteral "caught" : Any
+  entry main
+  instance keep<String>
+  instance echo<String>
+
+== mir ==
+Module
+  struct Offset (amount: Int)
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class Named vtable=3 itables=0
+  class MutableName vtable=3 itables=0
+  class ReceiverFactory vtable=3 itables=0
+  class ThrowingExtension vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.0 captures=1
+  closure cc1 $Closure$reference0 type=function_type1 invoke=@scoop.$reference.0 captures=1
+  closure cc2 $Closure$reference1 type=function_type2 invoke=@scoop.$reference.1 captures=0
+  closure cc3 $Closure$reference2 type=function_type0 invoke=@scoop.$reference.2 captures=1
+  closure cc4 $Closure$reference3 type=function_type2 invoke=@scoop.$reference.3 captures=0
+  closure cc5 $Closure$reference4 type=function_type0 invoke=@scoop.$reference.4 captures=1
+  closure cc6 $Closure$reference5 type=function_type0 invoke=@scoop.$reference.5 captures=1
+  closure cc7 $Closure$reference6 type=function_type3 invoke=@scoop.$reference.6 captures=1
+  closure cc8 $Closure$reference7 type=function_type3 invoke=@scoop.$reference.7 captures=1
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
+  fun $extension.bump @scoop.$extension.bump(this: Int, delta: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local this
+          Local delta
+  fun $extension.decorate @scoop.$extension.decorate(this: String, suffix: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_string_concat direct
+        Local this
+        Local suffix
+      return
+        Local $call.1
+  fun $extension.suffixer @scoop.$extension.suffixer(this: String) -> (String) -> String
+    bb0 entry
+      return
+        ClosureAlloc cc0 $Closure$lambda0
+          Local this
+  fun $extension.kind @scoop.$extension.kind.Any(this: Any) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.1
+  fun $extension.kind @scoop.$extension.kind.S(this: String) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.2
+  fun collide @scoop.collide(value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          IntLiteral 1
+  fun $extension.collide @scoop.$extension.collide(this: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local this
+          IntLiteral 2
+  fun $extension.label @scoop.$extension.label(this: Named) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.3
+  fun $extension.rename @scoop.$extension.rename(this: MutableName, next: String) -> String
+    bb0 entry
+      field_set 0
+        Local this
+        Local next
+      return
+        FieldAccess 0
+          Local this
+  fun $extension.apply @scoop.$extension.apply(this: Offset, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          FieldAccess 0
+            Local this
+  fun $extension.run @scoop.$extension.run(this: ThrowingExtension, value: Int) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Binary IntEq
+          Local value
+          IntLiteral 0
+    bb1 if.then.1
+      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
+      throw
+        Local $call.1
+    bb2 if.merge.2
+      return
+        Local value
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      call $call.1: Int = @scoop.$extension.bump direct
+        IntLiteral 40
+        IntLiteral 2
+      call @scoop.println direct
+        Box
+          Local $call.1
+      call $call.2: Any = @scoop.$extension.keep$S direct
+        StringConst @scoop.str.4
+      call @scoop.println direct
+        Local $call.2
+      call $call.3: Any = @scoop.$extension.kind.S direct
+        StringConst @scoop.str.5
+      call @scoop.println direct
+        Local $call.3
+      call $call.4: Int = @scoop.collide direct
+        IntLiteral 39
+      call @scoop.println direct
+        Box
+          Local $call.4
+      call $call.5: Int = @scoop.$extension.collide direct
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.5
+      call named: Named = @scoop.ctor.Named direct
+        StringConst @scoop.str.6
+      call $call.6: Any = @scoop.Named.label direct
+        Local named
+      call @scoop.println direct
+        Local $call.6
+      val member: () -> String
+        ClosureAlloc cc1 $Closure$reference0
+          Local named
+      call $call.7: Any = <closure:function_type1> closure[function_type1]
+        Local member
+      call @scoop.println direct
+        Local $call.7
+      call mutable: MutableName = @scoop.ctor.MutableName direct
+        StringConst @scoop.str.7
+      call $call.8: Any = @scoop.$extension.rename direct
+        Local mutable
+        StringConst @scoop.str.8
+      call @scoop.println direct
+        Local $call.8
+      call $call.9: Int = @scoop.$extension.apply direct
+        StructInit Offset
+          IntLiteral 2
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.9
+      val unbound: (String, String) -> String
+        ClosureAlloc cc2 $Closure$reference1
+      val bound: (String) -> String
+        ClosureAlloc cc3 $Closure$reference2
+          StringConst @scoop.str.9
+      val genericUnbound: (String, String) -> String
+        ClosureAlloc cc4 $Closure$reference3
+      val genericBound: (String) -> String
+        ClosureAlloc cc5 $Closure$reference4
+          StringConst @scoop.str.10
+      call capturedReceiver: (String) -> String = @scoop.$extension.suffixer direct
+        StringConst @scoop.str.11
+      call factory: ReceiverFactory = @scoop.ctor.ReceiverFactory direct
+        IntLiteral 0
+      call $call.10: String = @scoop.ReceiverFactory.make direct
+        Local factory
+      val once: (String) -> String
+        ClosureAlloc cc6 $Closure$reference5
+          Local $call.10
+      call @scoop.println direct
+        Box
+          FieldAccess 0
+            Local factory
+      var offset: Offset
+        StructInit Offset
+          IntLiteral 2
+      val snapshot: (Int) -> Int
+        ClosureAlloc cc7 $Closure$reference6
+          Local offset
+      assign offset
+        StructInit Offset
+          IntLiteral 100
+      call $call.11: ThrowingExtension = @scoop.ctor.ThrowingExtension direct
+      val throwing: (Int) -> Int
+        ClosureAlloc cc8 $Closure$reference7
+          Local $call.11
+      call @scoop_rt_gc_collect direct
+      call $call.12: Any = <closure:function_type2> closure[function_type2]
+        Local unbound
+        StringConst @scoop.str.12
+        StringConst @scoop.str.13
+      call @scoop.println direct
+        Local $call.12
+      call $call.13: Any = <closure:function_type0> closure[function_type0]
+        Local bound
+        StringConst @scoop.str.14
+      call @scoop.println direct
+        Local $call.13
+      call $call.14: Any = <closure:function_type2> closure[function_type2]
+        Local genericUnbound
+        StringConst @scoop.str.15
+        StringConst @scoop.str.16
+      call @scoop.println direct
+        Local $call.14
+      call $call.15: Any = <closure:function_type0> closure[function_type0]
+        Local genericBound
+        StringConst @scoop.str.17
+      call @scoop.println direct
+        Local $call.15
+      call $call.16: Any = <closure:function_type0> closure[function_type0]
+        Local capturedReceiver
+        StringConst @scoop.str.18
+      call @scoop.println direct
+        Local $call.16
+      call $call.17: Any = <closure:function_type0> closure[function_type0]
+        Local once
+        StringConst @scoop.str.19
+      call @scoop.println direct
+        Local $call.17
+      call $call.18: Int = <closure:function_type3> closure[function_type3]
+        Local snapshot
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.18
+      call $call.19: Int = @scoop.$extension.apply direct
+        Local offset
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.19
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb10 bb11
+        IsInstance ArithmeticException
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      call $call.20: Int = <closure:function_type3> closure[function_type3]
+        Local throwing
+        IntLiteral 0
+      call @scoop.println direct
+        Box
+          Local $call.20
+      goto bb9
+    bb9 scope.9
+      goto bb7
+    bb10 try.catch.10
+      val exception: ArithmeticException
+        Retype ArithmeticException
+          CaughtException
+      goto bb12
+    bb11 try.next.11
+      rethrow unwind bb5
+    bb12 scope.12 unwind bb3
+      call @scoop.println direct
+        StringConst @scoop.str.20
+      goto bb13
+    bb13 scope.13
+      end_catch
+      goto bb7
+  fun Named.label @scoop.Named.label(this: Named) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_string_concat direct
+        StringConst @scoop.str.21
+        FieldAccess 0
+          Local this
+      return
+        Local $call.1
+  fun ReceiverFactory.make @scoop.ReceiverFactory.make(this: ReceiverFactory) -> String
+    bb0 entry
+      field_set 0
+        Local this
+        Binary IntAdd
+          FieldAccess 0
+            Local this
+          IntLiteral 1
+      return
+        StringConst @scoop.str.22
+  fun $lambda.0 @scoop.$lambda.0($closure: (String) -> String, suffix: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_string_concat direct
+        ClosureCapture cc0 0
+          Local $closure
+        Local suffix
+      return
+        Local $call.1
+  fun $reference.0 @scoop.$reference.0($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.Named.label direct
+        ClosureCapture cc1 0
+          Local $closure
+      return
+        Local $call.1
+  fun $reference.1 @scoop.$reference.1($closure: (String, String) -> String, arg0: String, arg1: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$extension.decorate direct
+        Local arg0
+        Local arg1
+      return
+        Local $call.1
+  fun $reference.2 @scoop.$reference.2($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$extension.decorate direct
+        ClosureCapture cc3 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $extension.echo @scoop.$extension.echo$S(this: String, value: String) -> String
+    bb0 entry
+      return
+        Local value
+  fun $reference.3 @scoop.$reference.3($closure: (String, String) -> String, arg0: String, arg1: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$extension.echo$S direct
+        Local arg0
+        Local arg1
+      return
+        Local $call.1
+  fun $reference.4 @scoop.$reference.4($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$extension.echo$S direct
+        ClosureCapture cc5 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.5 @scoop.$reference.5($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$extension.decorate direct
+        ClosureCapture cc6 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.6 @scoop.$reference.6($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.$extension.apply direct
+        ClosureCapture cc7 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.7 @scoop.$reference.7($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.$extension.run direct
+        ClosureCapture cc8 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.23
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.24
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.25
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.26
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.27
+  fun ctor.Named @scoop.ctor.Named(value: String) -> Named
+    bb0 entry
+      return
+        ClassInit Named
+          Local value
+  fun ctor.MutableName @scoop.ctor.MutableName(value: String) -> MutableName
+    bb0 entry
+      return
+        ClassInit MutableName
+          Local value
+  fun ctor.ReceiverFactory @scoop.ctor.ReceiverFactory(calls: Int) -> ReceiverFactory
+    bb0 entry
+      return
+        ClassInit ReceiverFactory
+          Local calls
+  fun ctor.ThrowingExtension @scoop.ctor.ThrowingExtension() -> ThrowingExtension
+    bb0 entry
+      return
+        ClassInit ThrowingExtension
+  fun $extension.keep @scoop.$extension.keep$S(this: String) -> String
+    bb0 entry
+      return
+        Local this
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  instance @scoop.$extension.echo$S <- $extension.echo
+  instance @scoop.$extension.keep$S <- $extension.keep
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "any"
+  str @scoop.str.2 "string"
+  str @scoop.str.3 "extension"
+  str @scoop.str.4 "generic"
+  str @scoop.str.5 "specific"
+  str @scoop.str.6 "kept"
+  str @scoop.str.7 "old"
+  str @scoop.str.8 "new"
+  str @scoop.str.9 "bound"
+  str @scoop.str.10 "receiver"
+  str @scoop.str.11 "capture"
+  str @scoop.str.12 "unbound"
+  str @scoop.str.13 "-ok"
+  str @scoop.str.14 "-ok"
+  str @scoop.str.15 "ignored"
+  str @scoop.str.16 "generic-unbound"
+  str @scoop.str.17 "generic-bound"
+  str @scoop.str.18 "-this"
+  str @scoop.str.19 "-only"
+  str @scoop.str.20 "caught"
+  str @scoop.str.21 "member-"
+  str @scoop.str.22 "once"
+  str @scoop.str.23 "unwrap on None"
+  str @scoop.str.24 "invalid cast"
+  str @scoop.str.25 "arithmetic error"
+  str @scoop.str.26 "array index out of bounds"
+  str @scoop.str.27 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "any"
+  global @scoop.str.2 = "string"
+  global @scoop.str.3 = "extension"
+  global @scoop.str.4 = "generic"
+  global @scoop.str.5 = "specific"
+  global @scoop.str.6 = "kept"
+  global @scoop.str.7 = "old"
+  global @scoop.str.8 = "new"
+  global @scoop.str.9 = "bound"
+  global @scoop.str.10 = "receiver"
+  global @scoop.str.11 = "capture"
+  global @scoop.str.12 = "unbound"
+  global @scoop.str.13 = "-ok"
+  global @scoop.str.14 = "-ok"
+  global @scoop.str.15 = "ignored"
+  global @scoop.str.16 = "generic-unbound"
+  global @scoop.str.17 = "generic-bound"
+  global @scoop.str.18 = "-this"
+  global @scoop.str.19 = "-only"
+  global @scoop.str.20 = "caught"
+  global @scoop.str.21 = "member-"
+  global @scoop.str.22 = "once"
+  global @scoop.str.23 = "unwrap on None"
+  global @scoop.str.24 = "invalid cast"
+  global @scoop.str.25 = "arithmetic error"
+  global @scoop.str.26 = "array index out of bounds"
+  global @scoop.str.27 = "illegal state"
+  global @scoop_td_$Closure$lambda0 = c""
+  global @scoop_td_box$I = c""
+  global @scoop_td_$Closure$reference0 = c""
+  global @scoop_td_$Closure$reference1 = c""
+  global @scoop_td_$Closure$reference2 = c""
+  global @scoop_td_$Closure$reference3 = c""
+  global @scoop_td_$Closure$reference4 = c""
+  global @scoop_td_$Closure$reference5 = c""
+  global @scoop_td_$Closure$reference6 = c""
+  global @scoop_td_$Closure$reference7 = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
+  global @scoop_td_Named = c""
+  global @scoop_td_MutableName = c""
+  global @scoop_td_ReceiverFactory = c""
+  global @scoop_td_ThrowingExtension = c""
+  enum Option$S niche(payload_variant=0)
+  fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.$extension.bump(i64, i64) -> i64
+  block entry
+    t0 = Add param0, param1 : i64
+    ret t0
+  fun @scoop.$extension.decorate(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop_rt_string_concat(param0, param1) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.$extension.suffixer(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global28, 32) : ptr
+    t1 = function_address @scoop.$lambda.0 : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.$extension.kind.Any(ptr) -> ptr
+  block entry
+    ret global1
+  fun @scoop.$extension.kind.S(ptr) -> ptr
+  block entry
+    ret global2
+  fun @scoop.collide(i64) -> i64
+  block entry
+    t0 = Add param0, 1 : i64
+    ret t0
+  fun @scoop.$extension.collide(i64) -> i64
+  block entry
+    t0 = Add param0, 2 : i64
+    ret t0
+  fun @scoop.$extension.label(ptr) -> ptr
+  block entry
+    ret global3
+  fun @scoop.$extension.rename(ptr, ptr) -> ptr
+  block entry
+    heap_store param0 +16 param1
+    t0 = heap_load param0 +16 : ptr
+    ret t0
+  fun @scoop.$extension.apply({i64}, i64) -> i64
+  block entry
+    t0 = extract param0, 0 : i64
+    t1 = Add param1, t0 : i64
+    ret t1
+  fun @scoop.$extension.run(ptr, i64) -> i64
+    local %0 $call.1: ptr
+  block entry
+    t0 = Eq param1, 0 : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    t1 = call @scoop.ctor.ArithmeticException() : ptr
+    store t1 -> local0
+    throw local0
+    unreachable
+  block if.merge.2
+    ret param1
+  fun @scoop_main() -> void
+    local %0 named: ptr
+    local %1 member: ptr
+    local %2 mutable: ptr
+    local %3 unbound: ptr
+    local %4 bound: ptr
+    local %5 genericUnbound: ptr
+    local %6 genericBound: ptr
+    local %7 capturedReceiver: ptr
+    local %8 factory: ptr
+    local %9 once: ptr
+    local %10 offset: {i64}
+    local %11 snapshot: ptr
+    local %12 throwing: ptr
+    local %13 exception: ptr
+    local %14 $call.1: i64
+    local %15 $call.2: ptr
+    local %16 $call.3: ptr
+    local %17 $call.4: i64
+    local %18 $call.5: i64
+    local %19 $call.6: ptr
+    local %20 $call.7: ptr
+    local %21 $call.8: ptr
+    local %22 $call.9: i64
+    local %23 $call.10: ptr
+    local %24 $call.11: ptr
+    local %25 $call.12: ptr
+    local %26 $call.13: ptr
+    local %27 $call.14: ptr
+    local %28 $call.15: ptr
+    local %29 $call.16: ptr
+    local %30 $call.17: ptr
+    local %31 $call.18: i64
+    local %32 $call.19: i64
+    local %33 $call.20: i64
+    local %34 $sc.1: exception_record
+    local %35 $sc.2: ptr
+    local %36 $sc.3: ptr
+  block entry
+    t0 = call @scoop.$extension.bump(40, 2) : i64
+    store t0 -> local14
+    t1 = call @scoop_rt_box(global29, local14, 8) : ptr
+    call @scoop.println(t1)
+    t2 = aggregate () : {}
+    t3 = call @scoop.$extension.keep$S(global4) : ptr
+    store t3 -> local15
+    call @scoop.println(local15)
+    t4 = aggregate () : {}
+    t5 = call @scoop.$extension.kind.S(global5) : ptr
+    store t5 -> local16
+    call @scoop.println(local16)
+    t6 = aggregate () : {}
+    t7 = call @scoop.collide(39) : i64
+    store t7 -> local17
+    t8 = call @scoop_rt_box(global29, local17, 8) : ptr
+    call @scoop.println(t8)
+    t9 = aggregate () : {}
+    t10 = call @scoop.$extension.collide(40) : i64
+    store t10 -> local18
+    t11 = call @scoop_rt_box(global29, local18, 8) : ptr
+    call @scoop.println(t11)
+    t12 = aggregate () : {}
+    t13 = call @scoop.ctor.Named(global6) : ptr
+    store t13 -> local0
+    t14 = call @scoop.Named.label(local0) : ptr
+    store t14 -> local19
+    call @scoop.println(local19)
+    t15 = aggregate () : {}
+    t16 = call @scoop_rt_alloc(global30, 32) : ptr
+    t17 = function_address @scoop.$reference.0 : ptr
+    heap_store t16 +16 t17
+    heap_store t16 +24 local0
+    store t16 -> local1
+    t18 = call_indirect local1[2](local1) : ptr
+    store t18 -> local20
+    call @scoop.println(local20)
+    t19 = aggregate () : {}
+    t20 = call @scoop.ctor.MutableName(global7) : ptr
+    store t20 -> local2
+    t21 = call @scoop.$extension.rename(local2, global8) : ptr
+    store t21 -> local21
+    call @scoop.println(local21)
+    t22 = aggregate () : {}
+    t23 = aggregate (2) : {i64}
+    t24 = call @scoop.$extension.apply(t23, 40) : i64
+    store t24 -> local22
+    t25 = call @scoop_rt_box(global29, local22, 8) : ptr
+    call @scoop.println(t25)
+    t26 = aggregate () : {}
+    t27 = call @scoop_rt_alloc(global31, 24) : ptr
+    t28 = function_address @scoop.$reference.1 : ptr
+    heap_store t27 +16 t28
+    store t27 -> local3
+    t29 = call @scoop_rt_alloc(global32, 32) : ptr
+    t30 = function_address @scoop.$reference.2 : ptr
+    heap_store t29 +16 t30
+    heap_store t29 +24 global9
+    store t29 -> local4
+    t31 = call @scoop_rt_alloc(global33, 24) : ptr
+    t32 = function_address @scoop.$reference.3 : ptr
+    heap_store t31 +16 t32
+    store t31 -> local5
+    t33 = call @scoop_rt_alloc(global34, 32) : ptr
+    t34 = function_address @scoop.$reference.4 : ptr
+    heap_store t33 +16 t34
+    heap_store t33 +24 global10
+    store t33 -> local6
+    t35 = call @scoop.$extension.suffixer(global11) : ptr
+    store t35 -> local7
+    t36 = call @scoop.ctor.ReceiverFactory(0) : ptr
+    store t36 -> local8
+    t37 = call @scoop.ReceiverFactory.make(local8) : ptr
+    store t37 -> local23
+    t38 = call @scoop_rt_alloc(global35, 32) : ptr
+    t39 = function_address @scoop.$reference.5 : ptr
+    heap_store t38 +16 t39
+    heap_store t38 +24 local23
+    store t38 -> local9
+    t40 = heap_load local8 +16 : i64
+    t41 = call @scoop_rt_box(global29, t40, 8) : ptr
+    call @scoop.println(t41)
+    t42 = aggregate () : {}
+    t43 = aggregate (2) : {i64}
+    store t43 -> local10
+    t44 = call @scoop_rt_alloc(global36, 32) : ptr
+    t45 = function_address @scoop.$reference.6 : ptr
+    heap_store t44 +16 t45
+    heap_store t44 +24 local10
+    store t44 -> local11
+    t46 = aggregate (100) : {i64}
+    store t46 -> local10
+    t47 = call @scoop.ctor.ThrowingExtension() : ptr
+    store t47 -> local24
+    t48 = call @scoop_rt_alloc(global37, 32) : ptr
+    t49 = function_address @scoop.$reference.7 : ptr
+    heap_store t48 +16 t49
+    heap_store t48 +24 local24
+    store t48 -> local12
+    call @scoop_rt_gc_collect()
+    t50 = aggregate () : {}
+    t51 = call_indirect local3[2](local3, global12, global13) : ptr
+    store t51 -> local25
+    call @scoop.println(local25)
+    t52 = aggregate () : {}
+    t53 = call_indirect local4[2](local4, global14) : ptr
+    store t53 -> local26
+    call @scoop.println(local26)
+    t54 = aggregate () : {}
+    t55 = call_indirect local5[2](local5, global15, global16) : ptr
+    store t55 -> local27
+    call @scoop.println(local27)
+    t56 = aggregate () : {}
+    t57 = call_indirect local6[2](local6, global17) : ptr
+    store t57 -> local28
+    call @scoop.println(local28)
+    t58 = aggregate () : {}
+    t59 = call_indirect local7[2](local7, global18) : ptr
+    store t59 -> local29
+    call @scoop.println(local29)
+    t60 = aggregate () : {}
+    t61 = call_indirect local9[2](local9, global19) : ptr
+    store t61 -> local30
+    call @scoop.println(local30)
+    t62 = aggregate () : {}
+    t63 = call_indirect local11[2](local11, 40) : i64
+    store t63 -> local31
+    t64 = call @scoop_rt_box(global29, local31, 8) : ptr
+    call @scoop.println(t64)
+    t65 = aggregate () : {}
+    t66 = call @scoop.$extension.apply(local10, 40) : i64
+    store t66 -> local32
+    t67 = call @scoop_rt_box(global29, local32, 8) : ptr
+    call @scoop.println(t67)
+    t68 = aggregate () : {}
+    br @try.body.8
+  block try.unwind.1
+    (t69, t70) = landingpad : (exception_record, ptr)
+    store t69 -> local34
+    store t70 -> local35
+    br @try.dispatch.2
+  block try.dispatch.2
+    t71 = begin_catch local35 : ptr
+    store t71 -> local36
+    t72 = call @scoop_rt_is_instance(local36, global38) : i1
+    cbr t72 then @try.catch.10 else @try.next.11
+  block try.handler_pad.3
+    (t73, t74) = cleanup_pad : (exception_record, ptr)
+    store t73 -> local34
+    store t74 -> local35
+    br @try.handler_cleanup.4
+  block try.handler_cleanup.4
+    end_catch
+    resume local34
+  block try.exit_pad.5
+    (t75, t76) = cleanup_pad : (exception_record, ptr)
+    store t75 -> local34
+    store t76 -> local35
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local34
+  block try.end.7
+    ret
+  block try.body.8
+    invoke_indirect local12[2](local12, 0) normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block scope.9
+    br @try.end.7
+  block try.catch.10
+    store local36 -> local13
+    br @scope.12
+  block try.next.11
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
+    br @rethrow.normal.3
+  block scope.12
+    invoke @scoop.println(global20) normal @invoke.normal.4 unwind @try.handler_pad.3
+    br @invoke.normal.4
+  block scope.13
+    end_catch
+    br @try.end.7
+  block invoke.normal.1
+    store t77 -> local33
+    t78 = call @scoop_rt_box(global29, local33, 8) : ptr
+    invoke @scoop.println(t78) normal @invoke.normal.2 unwind @try.unwind.1
+    br @invoke.normal.2
+  block invoke.normal.2
+    t79 = aggregate () : {}
+    br @scope.9
+  block rethrow.normal.3
+    unreachable
+  block invoke.normal.4
+    t80 = aggregate () : {}
+    br @scope.13
+  fun @scoop.Named.label(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : ptr
+    t1 = call @scoop_rt_string_concat(global21, t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.ReceiverFactory.make(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = Add t0, 1 : i64
+    heap_store param0 +16 t1
+    ret global22
+  fun @scoop.$lambda.0(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop_rt_string_concat(t0, param1) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.0(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.Named.label(t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.1(ptr, ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.$extension.decorate(param1, param2) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.2(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.$extension.decorate(t0, param1) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.$extension.echo$S(ptr, ptr) -> ptr
+  block entry
+    ret param1
+  fun @scoop.$reference.3(ptr, ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.$extension.echo$S(param1, param2) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.4(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.$extension.echo$S(t0, param1) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.5(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.$extension.decorate(t0, param1) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.6(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : {i64}
+    t1 = call @scoop.$extension.apply(t0, param1) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.7(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.$extension.run(t0, param1) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global39, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global40, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global41, 24) : ptr
+    t1 = enum_wrap e0 v0 (global23) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global42, 24) : ptr
+    t1 = enum_wrap e0 v0 (global24) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global38, 24) : ptr
+    t1 = enum_wrap e0 v0 (global25) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global43, 24) : ptr
+    t1 = enum_wrap e0 v0 (global26) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global44, 24) : ptr
+    t1 = enum_wrap e0 v0 (global27) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.Named(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global45, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.MutableName(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global46, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.ReceiverFactory(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global47, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.ThrowingExtension() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global48, 16) : ptr
+    ret t0
+  fun @scoop.$extension.keep$S(ptr) -> ptr
+  block entry
+    ret param0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td Named @scoop_td_Named size=24 vtable=3 itables=0
+  td MutableName @scoop_td_MutableName size=24 vtable=3 itables=0
+  td ReceiverFactory @scoop_td_ReceiverFactory size=24 vtable=3 itables=0
+  td ThrowingExtension @scoop_td_ThrowingExtension size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=0 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=0 itables=0
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=0 itables=0
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=32 vtable=0 itables=0
+  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=0 itables=0
+  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=0 itables=0
+  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=0 itables=0
+  td $Closure$reference6 @scoop_td_$Closure$reference6 size=32 vtable=0 itables=0
+  td $Closure$reference7 @scoop_td_$Closure$reference7 size=32 vtable=0 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Offset size=8 align=8 refs=[]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout Named size=24 align=8 refs=[16]
+  layout MutableName size=24 align=8 refs=[16]
+  layout ReceiverFactory size=24 align=8 refs=[]
+  layout ThrowingExtension size=16 align=8 refs=[]
+  layout box$I size=24 align=8 refs=[]
+  layout $Closure$lambda0 size=32 align=8 refs=[24]
+  layout $Closure$reference0 size=32 align=8 refs=[24]
+  layout $Closure$reference1 size=24 align=8 refs=[]
+  layout $Closure$reference2 size=32 align=8 refs=[24]
+  layout $Closure$reference3 size=24 align=8 refs=[]
+  layout $Closure$reference4 size=32 align=8 refs=[24]
+  layout $Closure$reference5 size=32 align=8 refs=[24]
+  layout $Closure$reference6 size=32 align=8 refs=[]
+  layout $Closure$reference7 size=32 align=8 refs=[24]
+  entry @scoop_main
+
+== run ==
+42
+generic
+string
+40
+42
+member-kept
+member-kept
+new
+42
+1
+unbound-ok
+bound-ok
+generic-unbound
+generic-bound
+capture-this
+once-only
+42
+140
+caught

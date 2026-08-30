@@ -1,0 +1,9 @@
+class Host {
+    fun choose(value: Int): Int = value
+}
+
+fun Host.choose(value: String): String = value
+
+fun main() {
+    println(Host().choose("extension"))
+}
