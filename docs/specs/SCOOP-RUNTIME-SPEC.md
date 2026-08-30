@@ -37,8 +37,8 @@ Runtime 是编译产物的支撑层，职责包括：
 - 类型标识（`is` / `as` 检查用）；
 - 稳定的 UTF-8 类型名（与 TypeDescriptor 同生命周期，用于未捕获异常等运行时诊断）；
 - 实例大小与对齐；
-- **引用字段位图/描述**（GC 扫描对象内部引用用）；
-- **enum 的引用扫描按 tag 分派**：enum 的 TypeDescriptor 携带 per-variant 的引用偏移表（LIR meta 的 `LayoutKind::Enum`，见 impl spec 2.4）；扫描 enum 值时先读 tag，再按对应变体的偏移表扫描。niche 表示的 enum（spec 7.4）整体就是一个引用，无表；
+- **递归引用扫描描述**（GC 扫描对象内部引用用）：普通节点记录相对当前值起点的引用字节偏移；sequence 节点把多个扫描作用于同一起点；tagged-enum 节点记录 tag 的相对偏移及每个变体的子扫描；array 节点记录元素 stride 与单个内联元素的子扫描。扫描描述可任意组合，因此 struct / tuple / class / 装箱 payload 中嵌套的 tagged enum，以及含引用的聚合数组元素，均不会被压平成无条件引用偏移；
+- **enum 的引用扫描按 tag 分派**：扫描 tagged enum 值时先按节点记录的偏移读 tag，再执行对应变体的递归子扫描。niche 表示的 enum（spec 7.4）整体就是一个引用，使用普通引用节点；没有出站引用的节点可用空指针表示。LIR meta 的 `RefScan` / `LayoutKind::Enum` 提供该信息（见 impl spec 2.4）；
 - 父类型信息（接口、父类）；
 - 虚分派结构：内嵌 **vtable 指针**与 **itable 数组**（itable 以接口 TypeDescriptor 指针为键）。`Any` 的 `equals` / `hashCode` / `toString` 是 vtable 的固定前三个槽位；装箱值类型的表项指向 this 调整 thunk（impl spec 2.9）。
 
@@ -49,7 +49,7 @@ Runtime 是编译产物的支撑层，职责包括：
 ### 2.4 `String` / `Array` 布局
 
 - `String`：对象头 + 长度 + 内联字节数据（UTF-8，spec 11.4）。
-- `Array<T>` / `MutableArray<T>`：对象头 + `size` + 内联元素区；`T` 为值类型时元素不装箱且连续布局（满足 pack/align 约束，spec 10.1）。
+- `Array<T>` / `MutableArray<T>`：对象头 + `size` + 内联元素区；`T` 为值类型时元素不装箱且连续布局（满足 pack/align 约束，spec 10.1）。数组 TypeDescriptor 的扫描描述以元素 stride 重复执行 `T` 的递归子扫描，因此 `T` 可以是含引用或 tagged enum 的 struct / tuple。
 
 ### 2.5 `Option` 的 niche 表示
 

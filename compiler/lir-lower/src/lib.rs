@@ -30,8 +30,9 @@
 //! The MIR enum operations map onto `EnumWrap` / `EnumTag` /
 //! `EnumField`, which codegen translates mechanically per the
 //! representation. Enum layouts in the
-//! meta keep per-variant reference offsets — scanning an enum value
-//! depends on its tag (runtime spec 2.2).
+//! meta keep recursive per-variant scan programs — scanning an enum
+//! value depends on its tag and composes when the enum is nested in an
+//! aggregate (runtime spec 2.2).
 //!
 //! M5: arrays (docs/milestone5/DESIGN.md 2.4). Both array kinds map
 //! onto `LirType::Array` — a pointer to `{ td, gc_word, i64 size,
@@ -41,8 +42,9 @@
 //! call are codegen's job). Every array type appearing in the module
 //! gets a meta layout (after the tuple layouts) whose size / align are
 //! element-level — the element stride and alignment of the region
-//! after header + size — plus `element_is_ref`, which tells the M9 GC
-//! whether to scan the whole element region as references.
+//! after header + size — plus a recursive scan program for one inline
+//! element. This preserves references inside structs, tuples, and
+//! tagged enums without boxing.
 //!
 //! M6: reference types and dispatch (docs/milestone6/DESIGN.md 2.4).
 //! `Class` / `Interface` / `Any` map onto `Ptr`. A `Virtual` call
@@ -400,14 +402,12 @@ fn layouts(
         layouts.push(enum_layout(module, enums, id, def));
     }
     for (_, def) in module.classes.iter() {
-        let (size, align, refs) = class_layout(module, enums, def);
+        let (size, align, scan) = class_layout(module, enums, def);
         layouts.push(lir::Layout {
             name: def.name.clone(),
             size,
             align,
-            kind: lir::LayoutKind::Plain {
-                ref_field_offsets: refs,
-            },
+            kind: lir::LayoutKind::Plain { scan },
         });
     }
     // Tuples first, then arrays (M5): the M4 layout order is kept.
@@ -444,7 +444,7 @@ fn string_layout() -> lir::Layout {
         size: 24,
         align: 8,
         kind: lir::LayoutKind::Plain {
-            ref_field_offsets: Vec::new(),
+            scan: lir::RefScan::None,
         },
     }
 }
@@ -455,16 +455,14 @@ fn scalar_layout(name: &str, size: u64, align: u64) -> lir::Layout {
         size,
         align,
         kind: lir::LayoutKind::Plain {
-            ref_field_offsets: Vec::new(),
+            scan: lir::RefScan::None,
         },
     }
 }
 
 /// Layout of an aggregate value (struct / tuple / Unit): fields in
-/// declaration order at their natural alignment. `ref_field_offsets`
-/// lists the byte offset of every reference, including references
-/// nested inside aggregate fields — the M9 GC scans exactly these
-/// offsets.
+/// declaration order at their natural alignment. The recursive scan
+/// program preserves references nested in aggregates and tagged enums.
 fn aggregate_layout(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
@@ -473,25 +471,17 @@ fn aggregate_layout(
 ) -> lir::Layout {
     let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
     let (offsets, size, align) = aggregate_shape(module, &enum_shape, fields);
-    let mut refs = Vec::new();
-    for (field, offset) in fields.iter().zip(offsets) {
-        collect_ref_offsets(module, enums, field, offset, &mut refs);
-    }
+    let scan = scan_fields(module, enums, fields, &offsets, 0);
     lir::Layout {
         name,
         size,
         align,
-        kind: lir::LayoutKind::Plain {
-            ref_field_offsets: refs,
-        },
+        kind: lir::LayoutKind::Plain { scan },
     }
 }
 
-/// Layout of an enum value: niche form is a bare pointer (the value
-/// *is* the reference, hence the payload variant's `refs=[0]`);
-/// tagged form records, per variant, the absolute byte offsets of the
-/// variant's references inside the value — the payload sits behind
-/// the 8-byte tag, so payload offsets shift by 8.
+/// Layout of an enum value: niche form is a bare pointer; tagged form
+/// records one recursive scan program per variant.
 fn enum_layout(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
@@ -508,10 +498,10 @@ fn enum_layout(
                     .variants
                     .iter()
                     .map(|variant| lir::VariantLayout {
-                        ref_field_offsets: if variant.fields.is_empty() {
-                            Vec::new()
+                        scan: if variant.fields.is_empty() {
+                            lir::RefScan::None
                         } else {
-                            vec![0]
+                            lir::RefScan::References(vec![0])
                         },
                     })
                     .collect(),
@@ -519,6 +509,7 @@ fn enum_layout(
         },
         lir::EnumRepr::Tagged { .. } => {
             let (size, align) = repr_shape(&enums[enum_def_id(id)].repr);
+            let payload_offset = enum_payload_offset(&enums[enum_def_id(id)].repr);
             let enum_shape = |eid: mir::EnumId| repr_shape(&enums[enum_def_id(eid)].repr);
             let variants = def
                 .variants
@@ -530,13 +521,8 @@ fn enum_layout(
                         .map(|field| field.ty.clone())
                         .collect();
                     let (offsets, _, _) = aggregate_shape(module, &enum_shape, &field_types);
-                    let mut refs = Vec::new();
-                    for (field, offset) in field_types.iter().zip(offsets) {
-                        // The payload sits behind the 8-byte tag.
-                        collect_ref_offsets(module, enums, field, 8 + offset, &mut refs);
-                    }
                     lir::VariantLayout {
-                        ref_field_offsets: refs,
+                        scan: scan_fields(module, enums, &field_types, &offsets, payload_offset),
                     }
                 })
                 .collect();
@@ -555,8 +541,7 @@ fn enum_layout(
 /// / `align` here are element-level information: the element stride
 /// (element size rounded up to its alignment) and alignment of the
 /// element region that follows the 16-byte header (M9) + 8-byte size
-/// field. `element_is_ref` tells the M9 GC whether the whole element
-/// region is scanned as references.
+/// field. `element_scan` recursively describes one inline element.
 fn array_layout(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
@@ -570,7 +555,7 @@ fn array_layout(
         size: size.next_multiple_of(align),
         align,
         kind: lir::LayoutKind::Array {
-            element_is_ref: element_is_ref(enums, element),
+            element_scan: ref_scan(module, enums, element, 0),
         },
     }
 }
@@ -586,13 +571,11 @@ fn class_layout(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
     def: &mir::ClassDef,
-) -> (u64, u64, Vec<u64>) {
+) -> (u64, u64, lir::RefScan) {
     let (offsets, size, align) = class_shape(module, enums, def);
-    let mut refs = Vec::new();
-    for (field, offset) in def.fields.iter().zip(offsets) {
-        collect_ref_offsets(module, enums, &field.ty, offset, &mut refs);
-    }
-    (size, align, refs)
+    let fields: Vec<mir::Type> = def.fields.iter().map(|field| field.ty.clone()).collect();
+    let scan = scan_fields(module, enums, &fields, &offsets, 0);
+    (size, align, scan)
 }
 
 /// Natural object layout for one flattened class: the header occupies
@@ -661,7 +644,7 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
             symbol: td_symbol(&def.name),
             size: 0,
             align: 0,
-            ref_offsets: Vec::new(),
+            scan: lir::RefScan::None,
             parent: None,
             vtable: Vec::new(),
             itables: Vec::new(),
@@ -669,13 +652,13 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
     }
     for id in class_order(module) {
         let def = &module.classes[id];
-        let (size, align, refs) = class_layout(module, enums, def);
+        let (size, align, scan) = class_layout(module, enums, def);
         tds.push(lir::TypeDescriptor {
             name: def.name.clone(),
             symbol: td_symbol(&def.name),
             size,
             align,
-            ref_offsets: refs,
+            scan,
             parent: def
                 .base_class
                 .map(|base| td_symbol(&module.classes[base].name)),
@@ -699,32 +682,6 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
         });
     }
     tds
-}
-
-/// Whether an array element is a reference: elements mapping to `Ptr`
-/// (String, classes, interfaces, `Any`, and arrays themselves) and
-/// niche-form enums (a bare pointer) are; scalars and inline
-/// aggregates are not. Tagged enum elements keep their references per
-/// variant — the flat flag cannot express them, so they count as
-/// non-reference here (the boundary recorded in M4, DESIGN 6).
-fn element_is_ref(enums: &Arena<lir::EnumDef>, element: &mir::Type) -> bool {
-    match element {
-        mir::Type::String
-        | mir::Type::Class(_)
-        | mir::Type::Interface(_)
-        | mir::Type::Any
-        | mir::Type::Array(_)
-        | mir::Type::MutableArray(_) => true,
-        mir::Type::Enum(id, _) => {
-            matches!(enums[enum_def_id(*id)].repr, lir::EnumRepr::Niche { .. })
-        }
-        mir::Type::Unit
-        | mir::Type::Int
-        | mir::Type::UInt
-        | mir::Type::Boolean
-        | mir::Type::Struct(_)
-        | mir::Type::Tuple(_) => false,
-    }
 }
 
 /// Field offsets plus total size and alignment of an aggregate with
@@ -786,54 +743,119 @@ fn size_align(
     }
 }
 
-/// Byte offsets (relative to `base`) of every reference inside a value
-/// of type `ty`, recursing into aggregate fields.
-fn collect_ref_offsets(
+/// Payload byte offset of a tagged enum value.
+fn enum_payload_offset(repr: &lir::EnumRepr) -> u64 {
+    match repr {
+        lir::EnumRepr::Niche { .. } => 0,
+        lir::EnumRepr::Tagged { payload_align, .. } => 8u64.max(*payload_align),
+    }
+}
+
+/// Normalize a list of scans: remove empty parts, flatten sequences,
+/// and merge plain reference lists. Tagged branches remain explicit.
+fn sequence(parts: impl IntoIterator<Item = lir::RefScan>) -> lir::RefScan {
+    let mut refs = Vec::new();
+    let mut conditional = Vec::new();
+    for part in parts {
+        match part {
+            lir::RefScan::None => {}
+            lir::RefScan::References(offsets) => refs.extend(offsets),
+            lir::RefScan::Sequence(parts) => {
+                for nested in parts {
+                    match nested {
+                        lir::RefScan::None => {}
+                        lir::RefScan::References(offsets) => refs.extend(offsets),
+                        other => conditional.push(other),
+                    }
+                }
+            }
+            other => conditional.push(other),
+        }
+    }
+    if !refs.is_empty() {
+        conditional.insert(0, lir::RefScan::References(refs));
+    }
+    match conditional.len() {
+        0 => lir::RefScan::None,
+        1 => conditional.pop().expect("one scan part"),
+        _ => lir::RefScan::Sequence(conditional),
+    }
+}
+
+/// Scan program for `fields` laid out at `offsets`, shifted by `base`.
+fn scan_fields(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    fields: &[mir::Type],
+    offsets: &[u64],
+    base: u64,
+) -> lir::RefScan {
+    sequence(
+        fields
+            .iter()
+            .zip(offsets)
+            .map(|(field, offset)| ref_scan(module, enums, field, base + offset)),
+    )
+}
+
+/// Recursive scan program for one inline value at `base`.
+fn ref_scan(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
     ty: &mir::Type,
     base: u64,
-    offsets: &mut Vec<u64>,
-) {
-    let fields: Vec<mir::Type> = match ty {
+) -> lir::RefScan {
+    match ty {
         mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-            // A reference: the value itself is the pointer (for
-            // classes / interfaces / Any the pointee's references are
-            // the class layout's business).
-            offsets.push(base);
-            return;
+            lir::RefScan::References(vec![base])
         }
-        // An array value is itself a reference to the array object
-        // (the elements' references are the array layout's business).
-        mir::Type::Array(_) | mir::Type::MutableArray(_) => {
-            offsets.push(base);
-            return;
+        mir::Type::Array(_) | mir::Type::MutableArray(_) => lir::RefScan::References(vec![base]),
+        mir::Type::Struct(id) => {
+            let fields: Vec<mir::Type> = module.structs[*id]
+                .fields
+                .iter()
+                .map(|field| field.ty.clone())
+                .collect();
+            let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+            let (offsets, _, _) = aggregate_shape(module, &enum_shape, &fields);
+            scan_fields(module, enums, &fields, &offsets, base)
         }
-        mir::Type::Struct(id) => module.structs[*id]
-            .fields
-            .iter()
-            .map(|field| field.ty.clone())
-            .collect(),
-        mir::Type::Tuple(elements) => elements.clone(),
+        mir::Type::Tuple(fields) => {
+            let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+            let (offsets, _, _) = aggregate_shape(module, &enum_shape, fields);
+            scan_fields(module, enums, fields, &offsets, base)
+        }
         mir::Type::Enum(id, _) => match &enums[enum_def_id(*id)].repr {
-            // Niche form: the value itself is the reference (or null).
-            lir::EnumRepr::Niche { .. } => {
-                offsets.push(base);
-                return;
+            lir::EnumRepr::Niche { .. } => lir::RefScan::References(vec![base]),
+            repr @ lir::EnumRepr::Tagged { .. } => {
+                let payload_base = base + enum_payload_offset(repr);
+                let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+                let variants: Vec<lir::RefScan> = module.enums[*id]
+                    .variants
+                    .iter()
+                    .map(|variant| {
+                        let fields: Vec<mir::Type> = variant
+                            .fields
+                            .iter()
+                            .map(|field| field.ty.clone())
+                            .collect();
+                        let (offsets, _, _) = aggregate_shape(module, &enum_shape, &fields);
+                        scan_fields(module, enums, &fields, &offsets, payload_base)
+                    })
+                    .collect();
+                if variants.iter().all(|scan| *scan == lir::RefScan::None) {
+                    lir::RefScan::None
+                } else {
+                    lir::RefScan::TaggedEnum {
+                        tag_offset: base,
+                        variants,
+                    }
+                }
             }
-            // Tagged form: the reference offsets depend on the tag and
-            // live in the enum's own `LayoutKind::Enum` entry; a flat
-            // per-aggregate offset list cannot express them (runtime
-            // spec 2.2, M9).
-            lir::EnumRepr::Tagged { .. } => return,
         },
-        // Scalars contain no references.
-        mir::Type::Unit | mir::Type::Int | mir::Type::UInt | mir::Type::Boolean => return,
-    };
-    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-    let (field_offsets, _, _) = aggregate_shape(module, &enum_shape, &fields);
-    for (field, offset) in fields.iter().zip(field_offsets) {
-        collect_ref_offsets(module, enums, field, base + offset, offsets);
+        mir::Type::Unit | mir::Type::Int | mir::Type::UInt | mir::Type::Boolean => {
+            lir::RefScan::None
+        }
     }
 }
 
@@ -1951,7 +1973,12 @@ impl<'a> FunctionLowerer<'a> {
                     .collect();
                 let out_ty = self.value_type(ty);
                 let out = self.new_temp(out_ty);
-                self.push(lir::Instruction::ArrayAlloc { out, elements });
+                let element_scan = ref_scan(self.module, self.enums, &element_ty, 0);
+                self.push(lir::Instruction::ArrayAlloc {
+                    out,
+                    elements,
+                    element_scan,
+                });
                 lir::Value::Temp(out)
             }
             mir::Expr::ArrayGet { array, index } => {
@@ -2734,10 +2761,14 @@ mod tests {
 
     /// The reference-field offsets of a plain (non-enum) layout.
     fn plain_refs(layout: &lir::Layout) -> &[u64] {
-        let lir::LayoutKind::Plain { ref_field_offsets } = &layout.kind else {
+        let lir::LayoutKind::Plain { scan } = &layout.kind else {
             panic!("expected a plain layout")
         };
-        ref_field_offsets
+        match scan {
+            lir::RefScan::None => &[],
+            lir::RefScan::References(offsets) => offsets,
+            other => panic!("expected a flat plain scan, found {other:?}"),
+        }
     }
 
     fn local(name: &str, ty: mir::Type) -> mir::Local {
@@ -3409,7 +3440,7 @@ Module
             .find(|td| td.name == "C")
             .expect("a TypeDescriptor per class");
         assert_eq!(c_td.size, 24);
-        assert!(c_td.ref_offsets.is_empty());
+        assert_eq!(c_td.scan, lir::RefScan::None);
     }
 
     #[test]
@@ -3841,10 +3872,10 @@ Module
     }
 
     #[test]
-    fn tagged_enum_layout_records_per_variant_ref_offsets() {
+    fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
         let mut b = Builder::new();
         // enum Msg { Text(String), Pair(Boolean, String), Empty }
-        b.enums.alloc(mir::EnumDef {
+        let msg = b.enums.alloc(mir::EnumDef {
             name: "Msg".to_string(),
             variants: vec![
                 mir::VariantDef {
@@ -3880,7 +3911,36 @@ Module
             "S",
             &[("o", mir::Type::Enum(option_s, vec![mir::Type::String]))],
         );
-        let main = b.main(Arena::new(), Vec::new());
+        let msg_ty = mir::Type::Enum(msg, Vec::new());
+        // Nested { flag: Boolean @0, msg: Msg @8 }. The conditional
+        // scan must retain the enum's tag rather than flattening all
+        // variant payload offsets into unconditional references.
+        let nested = b.strukt(
+            "Nested",
+            &[("flag", mir::Type::Boolean), ("msg", msg_ty.clone())],
+        );
+        // Holder { head: String @16, nested: Nested @24 } combines an
+        // unconditional reference with the nested enum scan.
+        b.class(
+            "Holder",
+            None,
+            &[
+                ("head", mir::Type::String),
+                ("nested", mir::Type::Struct(nested)),
+            ],
+            any_slots(),
+            vec![],
+        );
+        let mut locals = Arena::new();
+        locals.alloc(local(
+            "messages",
+            mir::Type::Array(Box::new(msg_ty.clone())),
+        ));
+        locals.alloc(local(
+            "nestedValues",
+            mir::Type::Array(Box::new(mir::Type::Struct(nested))),
+        ));
+        let main = b.main(locals, Vec::new());
         let module = lower(&b.finish(main));
 
         let by_name = |name: &str| {
@@ -3903,9 +3963,9 @@ Module
         // Text: the String at payload offset 0, absolute offset 8
         // (behind the 8-byte tag); Pair: the String at payload offset
         // 8, absolute 16; Empty: no references.
-        assert_eq!(variants[0].ref_field_offsets, [8]);
-        assert_eq!(variants[1].ref_field_offsets, [16]);
-        assert!(variants[2].ref_field_offsets.is_empty());
+        assert_eq!(variants[0].scan, lir::RefScan::References(vec![8]));
+        assert_eq!(variants[1].scan, lir::RefScan::References(vec![16]));
+        assert_eq!(variants[2].scan, lir::RefScan::None);
 
         // The niche layout: the payload variant is the reference
         // itself; the unit variant has none.
@@ -3914,14 +3974,81 @@ Module
         let lir::LayoutKind::Enum { variants } = &option_layout.kind else {
             panic!("an enum layout keeps per-variant offsets")
         };
-        assert_eq!(variants[0].ref_field_offsets, [0]);
-        assert!(variants[1].ref_field_offsets.is_empty());
+        assert_eq!(variants[0].scan, lir::RefScan::References(vec![0]));
+        assert_eq!(variants[1].scan, lir::RefScan::None);
 
         // S { o: Option<String> }: the niche value at offset 0 is the
         // struct's reference field.
         let s_layout = by_name("S");
         assert_eq!((s_layout.size, s_layout.align), (8, 8));
         assert_eq!(plain_refs(s_layout), [0]);
+
+        let nested_layout = by_name("Nested");
+        assert_eq!((nested_layout.size, nested_layout.align), (32, 8));
+        assert_eq!(
+            nested_layout.kind,
+            lir::LayoutKind::Plain {
+                scan: lir::RefScan::TaggedEnum {
+                    tag_offset: 8,
+                    variants: vec![
+                        lir::RefScan::References(vec![16]),
+                        lir::RefScan::References(vec![24]),
+                        lir::RefScan::None,
+                    ],
+                },
+            }
+        );
+
+        let holder_td = module
+            .meta
+            .type_descriptors
+            .iter()
+            .find(|td| td.name == "Holder")
+            .expect("Holder TypeDescriptor");
+        assert_eq!((holder_td.size, holder_td.align), (56, 8));
+        assert_eq!(
+            holder_td.scan,
+            lir::RefScan::Sequence(vec![
+                lir::RefScan::References(vec![16]),
+                lir::RefScan::TaggedEnum {
+                    tag_offset: 32,
+                    variants: vec![
+                        lir::RefScan::References(vec![40]),
+                        lir::RefScan::References(vec![48]),
+                        lir::RefScan::None,
+                    ],
+                },
+            ])
+        );
+
+        let array_scan = |name: &str| {
+            let lir::LayoutKind::Array { element_scan } = &by_name(name).kind else {
+                panic!("expected array layout for {name}")
+            };
+            element_scan.clone()
+        };
+        assert_eq!(
+            array_scan("Array<Msg>"),
+            lir::RefScan::TaggedEnum {
+                tag_offset: 0,
+                variants: vec![
+                    lir::RefScan::References(vec![8]),
+                    lir::RefScan::References(vec![16]),
+                    lir::RefScan::None,
+                ],
+            }
+        );
+        assert_eq!(
+            array_scan("Array<Nested>"),
+            lir::RefScan::TaggedEnum {
+                tag_offset: 8,
+                variants: vec![
+                    lir::RefScan::References(vec![16]),
+                    lir::RefScan::References(vec![24]),
+                    lir::RefScan::None,
+                ],
+            }
+        );
     }
 
     #[test]
@@ -4125,24 +4252,33 @@ Module
                 .iter()
                 .find(|l| l.name == name)
                 .unwrap_or_else(|| panic!("missing layout for {name}"));
-            let lir::LayoutKind::Array { element_is_ref } = layout.kind else {
+            let lir::LayoutKind::Array { element_scan } = &layout.kind else {
                 panic!("expected an array layout for {name}")
             };
-            (layout.size, layout.align, element_is_ref)
+            (layout.size, layout.align, element_scan.clone())
         };
         // size / align are element-level: the element stride and
         // alignment of the region after header + size.
-        assert_eq!(array_layout("Array<Int>"), (8, 8, false));
+        assert_eq!(array_layout("Array<Int>"), (8, 8, lir::RefScan::None));
         // String elements are references.
-        assert_eq!(array_layout("Array<String>"), (8, 8, true));
+        assert_eq!(
+            array_layout("Array<String>"),
+            (8, 8, lir::RefScan::References(vec![0]))
+        );
         // Option<String> uses the niche representation — a bare
         // pointer, hence a reference element.
-        assert_eq!(array_layout("Array<Option$S<String>>"), (8, 8, true));
+        assert_eq!(
+            array_layout("Array<Option$S<String>>"),
+            (8, 8, lir::RefScan::References(vec![0]))
+        );
         // A value-type element is inline: the Point stride.
-        assert_eq!(array_layout("Array<Point>"), (16, 8, false));
+        assert_eq!(array_layout("Array<Point>"), (16, 8, lir::RefScan::None));
         // An array element is itself a reference; the nested element
         // type gets its own layout too.
-        assert_eq!(array_layout("Array<Array<Int>>"), (8, 8, true));
+        assert_eq!(
+            array_layout("Array<Array<Int>>"),
+            (8, 8, lir::RefScan::References(vec![0]))
+        );
     }
 
     #[test]
@@ -4385,7 +4521,7 @@ Module
         assert_eq!(base_td.symbol, "scoop_td_Base");
         // 16-byte header + Int @16 → size 24.
         assert_eq!((base_td.size, base_td.align), (24, 8));
-        assert!(base_td.ref_offsets.is_empty());
+        assert_eq!(base_td.scan, lir::RefScan::None);
         assert!(base_td.parent.is_none());
         assert_eq!(
             base_td.vtable,
@@ -4405,7 +4541,7 @@ Module
         // header 16 + Int @16 + String @24 → size 32; the String is
         // the one reference.
         assert_eq!((derived_td.size, derived_td.align), (32, 8));
-        assert_eq!(derived_td.ref_offsets, [24]);
+        assert_eq!(derived_td.scan, lir::RefScan::References(vec![24]));
         assert_eq!(
             derived_td.vtable,
             [
@@ -4474,8 +4610,8 @@ Module
                 .find(|td| td.name == name)
                 .unwrap_or_else(|| panic!("missing TypeDescriptor for {name}"))
         };
-        assert_eq!(td("C").ref_offsets, [24, 40]);
-        assert_eq!(td("box$S").ref_offsets, [24]);
+        assert_eq!(td("C").scan, lir::RefScan::References(vec![24, 40]));
+        assert_eq!(td("box$S").scan, lir::RefScan::References(vec![24]));
         assert!(td("C").parent.is_none());
         assert!(td("box$S").parent.is_none());
     }

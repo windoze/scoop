@@ -95,9 +95,11 @@ typedef struct {
 } ScoopBig64; /* size 64 */
 static const ScoopTypeDescriptor big64_td = {2001, 64, 8, NULL, NULL, NULL, NULL, 0, "Big64"};
 
-/* Array with reference elements (scan descriptor SCOOP_REFS_ARRAY);
- * `size` in the TD is the element size (pointer). */
-static const uint64_t ref_array_scan[] = {SCOOP_REFS_ARRAY};
+/* Array with reference elements (recursive SCOOP_REFS_ARRAY scan);
+ * `size` in the TD is the element stride (pointer). */
+static const uint64_t ref_element_scan[] = {1, 0};
+static const uint64_t ref_array_scan[] = {
+    SCOOP_REFS_ARRAY, 8, (uint64_t)(uintptr_t)ref_element_scan};
 static const ScoopTypeDescriptor ref_array_td = {
     2100, 8, 8, ref_array_scan, NULL, NULL, NULL, 0, "Array<String>"};
 
@@ -110,10 +112,36 @@ typedef struct {
 } ScoopBoxedEnum; /* size 32 */
 static const uint64_t enum_a_refs[] = {1, 24}; /* variant A: one ref */
 static const uint64_t enum_b_refs[] = {0}; /* variant B: no refs */
-static const uint64_t enum_scan[] = {SCOOP_REFS_ENUM, 2, (uint64_t)(uintptr_t)enum_a_refs,
+static const uint64_t enum_scan[] = {SCOOP_REFS_ENUM, 16, 2,
+                                     (uint64_t)(uintptr_t)enum_a_refs,
                                      (uint64_t)(uintptr_t)enum_b_refs};
 static const ScoopTypeDescriptor enum_td = {
     2002, 32, 8, enum_scan, NULL, NULL, NULL, 0, "E"};
+
+/* Array<Nested>, where each inline element is
+ * { tagged enum E, tail: String }. The sequence combines the
+ * unconditional tail reference with a tag-selected payload scan;
+ * the array wrapper repeats that recursive element scan by stride. */
+typedef struct {
+    uint64_t tag;
+    uint64_t payload;
+    const ScoopString *tail;
+} ScoopNestedElement; /* size 24 */
+static const uint64_t nested_a_scan[] = {1, 8};
+static const uint64_t nested_b_scan[] = {0};
+static const uint64_t nested_enum_scan[] = {
+    SCOOP_REFS_ENUM, 0, 2, (uint64_t)(uintptr_t)nested_a_scan,
+    (uint64_t)(uintptr_t)nested_b_scan};
+static const uint64_t nested_tail_scan[] = {1, 16};
+static const uint64_t nested_element_scan[] = {
+    SCOOP_REFS_SEQUENCE, 2, (uint64_t)(uintptr_t)nested_tail_scan,
+    (uint64_t)(uintptr_t)nested_enum_scan};
+static const uint64_t nested_array_scan[] = {
+    SCOOP_REFS_ARRAY, sizeof(ScoopNestedElement),
+    (uint64_t)(uintptr_t)nested_element_scan};
+static const ScoopTypeDescriptor nested_array_td = {
+    2101, sizeof(ScoopNestedElement), 8, nested_array_scan,
+    NULL, NULL, NULL, 0, "Array<Nested>"};
 
 static ScoopNode *new_node(int64_t value, ScoopNode *next) {
     ScoopNode *node = scoop_rt_alloc(&node_td, sizeof(ScoopNode));
@@ -168,6 +196,21 @@ static ScoopBoxedEnum *make_boxed_enum_b(void) {
     e->tag = 1;
     e->payload = 0xDEADBEEF0; /* aligned non-heap word: must not be chased */
     return e;
+}
+
+static ScoopArray *make_nested_array(void) {
+    ScoopArray *array = scoop_rt_alloc(
+        &nested_array_td,
+        sizeof(ScoopArray) + 2 * sizeof(ScoopNestedElement));
+    array->size = 2;
+    ScoopNestedElement *elements = (ScoopNestedElement *)array->elements;
+    elements[0].tag = 0;
+    elements[0].payload = (uint64_t)(uintptr_t)scoop_rt_int_to_string(1004);
+    elements[0].tail = scoop_rt_int_to_string(1005);
+    elements[1].tag = 1;
+    elements[1].payload = UINT64_C(0xDEADBEEF0);
+    elements[1].tail = scoop_rt_int_to_string(1006);
+    return array;
 }
 
 /* Overwrite the dead stack region below the current frame so the
@@ -393,6 +436,18 @@ void scoop_main(void) {
     const ScoopString *const *elements = (const ScoopString *const *)ref_array->elements;
     scoop_rt_println_boolean(elements[0]->len == 4 && elements[0]->data[0] == '1' &&
                              elements[1]->len == 4);
+
+    /* Recursive array element scan: the active enum payload and both
+     * unconditional tail references survive; the inactive variant's
+     * aligned non-heap payload is ignored. */
+    ScoopArray *nested_array = make_nested_array();
+    clobber_stack();
+    scoop_rt_gc_collect();
+    const ScoopNestedElement *nested = (const ScoopNestedElement *)nested_array->elements;
+    const ScoopString *nested_payload = (const ScoopString *)(uintptr_t)nested[0].payload;
+    scoop_rt_println_boolean(nested_payload->len == 4 && nested_payload->data[3] == '4' &&
+                             nested[0].tail->data[3] == '5' && nested[1].tail->data[3] == '6' &&
+                             nested[1].tag == 1);
 
     /* Enum scan descriptor: variant A keeps its payload reference;
      * variant B's payload word is not chased. */

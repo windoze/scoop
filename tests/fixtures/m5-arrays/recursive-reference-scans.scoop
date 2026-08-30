@@ -1,0 +1,30 @@
+enum Payload {
+    Text(String),
+    Number(Int),
+    Empty
+}
+
+struct Item(val payload: Payload, val tail: String)
+
+fun makeItems(): Array<Item> {
+    val payload = "en" + "um"
+    val firstTail = "ta" + "il"
+    val secondTail = "em" + "pty"
+    return [
+        Item(Payload.Text(payload), firstTail),
+        Item(Payload.Empty, secondTail)
+    ]
+}
+
+fun main() {
+    val items = makeItems()
+    gcCollect()
+
+    when (items[0].payload) {
+        Text(value) -> println(value)
+        Number(value) -> println(value)
+        Empty -> println("missing")
+    }
+    println(items[0].tail)
+    println(items[1].tail)
+}

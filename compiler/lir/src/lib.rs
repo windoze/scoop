@@ -99,7 +99,9 @@ pub struct TypeDescriptor {
     /// built-ins).
     pub size: u64,
     pub align: u64,
-    pub ref_offsets: Vec<u64>,
+    /// Recursive GC scan program for the object payload. Unlike a flat
+    /// offset list, this preserves tagged enums nested in aggregates.
+    pub scan: RefScan,
     /// Symbol of the parent TypeDescriptor (classes: base class;
     /// boxed value types / interfaces: none).
     pub parent: Option<String>,
@@ -122,25 +124,64 @@ pub struct Layout {
     pub kind: LayoutKind,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LayoutKind {
     Plain {
-        /// Byte offsets of reference fields (for the GC bitmap, M9).
-        ref_field_offsets: Vec<u64>,
+        scan: RefScan,
     },
-    /// Array layouts: the GC scans `size` elements inline when the
-    /// element type is a reference (elements start after header +
-    /// size, spec 10.1).
-    Array { element_is_ref: bool },
-    /// Enum layouts keep per-variant reference offsets: scanning an
-    /// enum value depends on its tag (runtime spec 2.2, see
-    /// docs/milestone4/DESIGN.md section 7).
-    Enum { variants: Vec<VariantLayout> },
+    /// Array layouts carry the scan program for one inline element;
+    /// codegen wraps it in the runtime array descriptor.
+    Array {
+        element_scan: RefScan,
+    },
+    /// Enum layouts keep one scan program per variant. Their offsets
+    /// are relative to the enum value and therefore compose when the
+    /// enum is nested in another aggregate.
+    Enum {
+        variants: Vec<VariantLayout>,
+    },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct VariantLayout {
-    pub ref_field_offsets: Vec<u64>,
+    pub scan: RefScan,
+}
+
+/// Recursive, layout-complete description of references in an inline
+/// value. Every offset is relative to the base supplied by the caller.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RefScan {
+    None,
+    References(Vec<u64>),
+    Sequence(Vec<RefScan>),
+    TaggedEnum {
+        tag_offset: u64,
+        variants: Vec<RefScan>,
+    },
+}
+
+impl RefScan {
+    pub fn dump(&self) -> String {
+        match self {
+            Self::None => "none".to_string(),
+            Self::References(offsets) => format!("refs{offsets:?}"),
+            Self::Sequence(parts) => format!(
+                "seq({})",
+                parts.iter().map(Self::dump).collect::<Vec<_>>().join(", ")
+            ),
+            Self::TaggedEnum {
+                tag_offset,
+                variants,
+            } => format!(
+                "enum@{tag_offset}[{}]",
+                variants
+                    .iter()
+                    .map(Self::dump)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -349,7 +390,12 @@ pub enum Instruction {
     /// Array operations. The element layout is the `Array(...)` type
     /// of the array operand (or of `out` for `ArrayAlloc`).
     /// Allocate an array object and store the elements in order.
-    ArrayAlloc { out: TempId, elements: Vec<Value> },
+    ArrayAlloc {
+        out: TempId,
+        elements: Vec<Value>,
+        /// Scan program for one element, relative to its first byte.
+        element_scan: RefScan,
+    },
     /// `array.size` (result `I64`).
     ArrayLen { out: TempId, operand: Value },
     /// Bounds-checked element read (traps out of range).
@@ -533,24 +579,68 @@ pub fn dump(module: &Module) -> String {
     }
     for layout in &module.meta.layouts {
         match &layout.kind {
-            LayoutKind::Plain { ref_field_offsets } => out.push_str(&format!(
-                "  layout {} size={} align={} refs={:?}\n",
-                layout.name, layout.size, layout.align, ref_field_offsets
-            )),
-            LayoutKind::Array { element_is_ref } => out.push_str(&format!(
-                "  layout {} size={} align={} array(element_is_ref={})\n",
-                layout.name, layout.size, layout.align, element_is_ref
-            )),
-            LayoutKind::Enum { variants } => out.push_str(&format!(
-                "  layout {} size={} align={} enum-refs={:?}\n",
-                layout.name,
-                layout.size,
-                layout.align,
-                variants
+            LayoutKind::Plain { scan } => match scan {
+                RefScan::None => out.push_str(&format!(
+                    "  layout {} size={} align={} refs=[]\n",
+                    layout.name, layout.size, layout.align
+                )),
+                RefScan::References(offsets) => out.push_str(&format!(
+                    "  layout {} size={} align={} refs={offsets:?}\n",
+                    layout.name, layout.size, layout.align
+                )),
+                _ => out.push_str(&format!(
+                    "  layout {} size={} align={} scan={}\n",
+                    layout.name,
+                    layout.size,
+                    layout.align,
+                    scan.dump()
+                )),
+            },
+            LayoutKind::Array { element_scan } => match element_scan {
+                RefScan::None => out.push_str(&format!(
+                    "  layout {} size={} align={} array(element_is_ref=false)\n",
+                    layout.name, layout.size, layout.align
+                )),
+                RefScan::References(offsets) if offsets == &[0] => out.push_str(&format!(
+                    "  layout {} size={} align={} array(element_is_ref=true)\n",
+                    layout.name, layout.size, layout.align
+                )),
+                _ => out.push_str(&format!(
+                    "  layout {} size={} align={} array(scan={})\n",
+                    layout.name,
+                    layout.size,
+                    layout.align,
+                    element_scan.dump()
+                )),
+            },
+            LayoutKind::Enum { variants } => {
+                let simple_offsets = variants
                     .iter()
-                    .map(|v| v.ref_field_offsets.clone())
-                    .collect::<Vec<_>>()
-            )),
+                    .map(|variant| match &variant.scan {
+                        RefScan::None => Some(Vec::new()),
+                        RefScan::References(offsets) => Some(offsets.clone()),
+                        _ => None,
+                    })
+                    .collect::<Option<Vec<_>>>();
+                if let Some(offsets) = simple_offsets {
+                    out.push_str(&format!(
+                        "  layout {} size={} align={} enum-refs={offsets:?}\n",
+                        layout.name, layout.size, layout.align
+                    ));
+                } else {
+                    out.push_str(&format!(
+                        "  layout {} size={} align={} enum-scan=[{}]\n",
+                        layout.name,
+                        layout.size,
+                        layout.align,
+                        variants
+                            .iter()
+                            .map(|variant| variant.scan.dump())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+            }
         }
     }
     out.push_str(&format!("  entry @{}\n", module.entry_symbol));
@@ -731,12 +821,22 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
         Instruction::Throw { exception } => {
             buf.push_str(&format!("    throw {}\n", value_name(*exception)))
         }
-        Instruction::ArrayAlloc { out, elements } => {
+        Instruction::ArrayAlloc {
+            out,
+            elements,
+            element_scan,
+        } => {
             let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
+            let scan = match element_scan {
+                RefScan::None => String::new(),
+                RefScan::References(offsets) if offsets == &[0] => String::new(),
+                _ => format!(" scan={}", element_scan.dump()),
+            };
             buf.push_str(&format!(
-                "    t{} = array_alloc ({}) : {}\n",
+                "    t{} = array_alloc ({}){} : {}\n",
                 out.into_raw(),
                 elements.join(", "),
+                scan,
                 function.temps[*out].ty.dump()
             ))
         }

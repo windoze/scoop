@@ -43,9 +43,19 @@ use inkwell::values::{BasicValueEnum, GlobalValue, IntValue, PointerValue, Value
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    BinOp, EnumDef, EnumRepr, Function, Global, GlobalInit, Instruction, LirType, Module, TempId,
-    Terminator, UnOp, Value,
+    BinOp, EnumDef, EnumRepr, Function, Global, GlobalInit, Instruction, LirType, Module, RefScan,
+    TempId, Terminator, UnOp, Value,
 };
+
+const SCAN_ARRAY: u64 = u64::MAX;
+const SCAN_ENUM: u64 = u64::MAX - 1;
+const SCAN_SEQUENCE: u64 = u64::MAX - 2;
+
+#[derive(Clone, PartialEq, Eq)]
+struct ArrayDescriptor {
+    element: LirType,
+    element_scan: RefScan,
+}
 
 /// Error produced while translating LIR or emitting the object file.
 #[derive(Debug)]
@@ -200,26 +210,32 @@ fn emit_llvm_module<'ctx>(
         false,
     ));
 
-    // One array TypeDescriptor per distinct element type (runtime spec
+    // One array TypeDescriptor per distinct (element layout, scan)
     // 2.2): same struct as String's TD, size/align of the *element*
     // layout, type_ids from 100 (1 is String). `size` here is the
     // element size, which is also what `scoop_rt_array_clone` needs.
-    // The scan descriptor (M9, runtime/include/scoop_rt.h) is the
-    // SCOOP_REFS_ARRAY sentinel for reference-element arrays — the GC
-    // scans the `count` pointer slots at object offset 24 — and null
-    // for arrays without outgoing references.
-    let array_elements = array_element_types(module);
-    let mut array_tds: Vec<GlobalValue> = Vec::with_capacity(array_elements.len());
-    for (index, element) in array_elements.iter().enumerate() {
-        let element_ty = basic_ty(context, &module.enums, element)?;
-        let ref_offsets: BasicValueEnum = if element_is_ref(&module.enums, element) {
-            let sentinel = i64_ty.const_array(&[i64_ty.const_int(u64::MAX, false)]);
-            private_const_global(
-                &llvm,
-                &format!("scoop_td_array.{index}.refs"),
-                sentinel.into(),
-            )
-            .into()
+    // The array wrapper stores the stride and a recursive scan program
+    // for one inline element, so aggregates and tagged enums are
+    // traced without boxing.
+    let array_descriptors = array_descriptors(module);
+    let mut array_tds: Vec<GlobalValue> = Vec::with_capacity(array_descriptors.len());
+    for (index, descriptor) in array_descriptors.iter().enumerate() {
+        let element_ty = basic_ty(context, &module.enums, &descriptor.element)?;
+        let stride = target_data.get_abi_size(&element_ty);
+        let element_scan = emit_ref_scan(
+            context,
+            &llvm,
+            &format!("scoop_td_array.{index}.element"),
+            &descriptor.element_scan,
+        );
+        let ref_offsets: BasicValueEnum = if let Some(element_scan) = element_scan {
+            let words = i64_ty.const_array(&[
+                i64_ty.const_int(SCAN_ARRAY, false),
+                i64_ty.const_int(stride, false),
+                element_scan.const_to_int(i64_ty),
+            ]);
+            private_const_global(&llvm, &format!("scoop_td_array.{index}.refs"), words.into())
+                .into()
         } else {
             ptr_ty.const_null().into()
         };
@@ -227,7 +243,7 @@ fn emit_llvm_module<'ctx>(
             context,
             &llvm,
             &format!("scoop_td_array.{index}.name"),
-            &format!("Array<{}>", element.dump()),
+            &format!("Array<{}>", descriptor.element.dump()),
         );
         let array_td = llvm.add_global(td_ty, None, &format!("scoop_td_array.{index}"));
         array_td.set_constant(true);
@@ -235,9 +251,7 @@ fn emit_llvm_module<'ctx>(
             &context.const_struct(
                 &[
                     i64_ty.const_int(100 + index as u64, false).into(),
-                    i64_ty
-                        .const_int(target_data.get_abi_size(&element_ty), false)
-                        .into(),
+                    i64_ty.const_int(stride, false).into(),
                     i64_ty
                         .const_int(target_data.get_abi_alignment(&element_ty) as u64, false)
                         .into(),
@@ -255,10 +269,8 @@ fn emit_llvm_module<'ctx>(
     }
 
     // Shared "array index out of bounds" message (only when the module
-    // uses arrays at all); the bounds-check trap blocks reference it.
-    let bounds_message = if array_elements.is_empty() {
-        None
-    } else {
+    // performs a checked array access); trap blocks reference it.
+    let bounds_message = if module_uses_bounds_checks(module) {
         let bytes = b"array index out of bounds";
         let ty = i8_ty.array_type(bytes.len() as u32 + 1);
         let global = llvm.add_global(ty, None, "scoop.trap.bounds");
@@ -266,6 +278,8 @@ fn emit_llvm_module<'ctx>(
         global.set_linkage(inkwell::module::Linkage::Private);
         global.set_initializer(&context.const_string(bytes, true));
         Some(global)
+    } else {
+        None
     };
 
     // Globals. Indexed by GlobalId (arena iteration is in index order).
@@ -337,7 +351,7 @@ fn emit_llvm_module<'ctx>(
         enums: &module.enums,
         globals_arena: &module.globals,
         globals: &globals,
-        array_elements: &array_elements,
+        array_descriptors: &array_descriptors,
         array_tds: &array_tds,
         target_data: &target_data,
         bounds_message,
@@ -440,66 +454,52 @@ fn array_element(ty: &LirType) -> Result<&LirType, CodegenError> {
     }
 }
 
-/// Whether an array element is a reference for the GC scan (runtime
-/// spec 2.2's M9 contract): pointer-like elements (String, classes,
-/// arrays, niche-form enums) are; scalars, aggregates, and tagged
-/// enums are not. This mirrors lir-lower's `element_is_ref` on the
-/// mapped LIR types (including its M4 boundary for tagged enums).
-fn element_is_ref(enums: &Arena<EnumDef>, element: &LirType) -> bool {
-    match element {
-        LirType::Ptr | LirType::Array(_) => true,
-        LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Niche { .. }),
-        LirType::Void
-        | LirType::I1
-        | LirType::I64
-        | LirType::ExceptionRecord
-        | LirType::Aggregate(_) => false,
-    }
-}
-
-/// Every distinct array element type used in the module, in first-seen
-/// order; each gets its own array TypeDescriptor (`scoop_td_array.<n>`).
-fn array_element_types(module: &Module) -> Vec<LirType> {
-    fn collect(ty: &LirType, out: &mut Vec<LirType>) {
-        match ty {
-            LirType::Array(element) => {
-                if !out.contains(element.as_ref()) {
-                    out.push((**element).clone());
-                }
-                collect(element, out);
-            }
-            LirType::Aggregate(elements) => {
-                for element in elements {
-                    collect(element, out);
-                }
-            }
-            _ => {}
-        }
-    }
-
+/// Every distinct array allocation descriptor in first-use order.
+/// Array operations other than allocation use the object's own TD;
+/// therefore only `ArrayAlloc` needs to select a generated TD.
+fn array_descriptors(module: &Module) -> Vec<ArrayDescriptor> {
     let mut out = Vec::new();
     for function in &module.functions {
-        collect(&function.return_ty, &mut out);
-        for ty in &function.params {
-            collect(ty, &mut out);
-        }
-        for (_, local) in function.locals.iter() {
-            collect(&local.ty, &mut out);
-        }
-        for (_, temp) in function.temps.iter() {
-            collect(&temp.ty, &mut out);
-        }
-    }
-    for (_, def) in module.enums.iter() {
-        if let EnumRepr::Tagged { variants, .. } = &def.repr {
-            for fields in variants {
-                for ty in fields {
-                    collect(ty, &mut out);
+        for (_, block) in function.blocks.iter() {
+            for instruction in &block.instructions {
+                if let Instruction::ArrayAlloc {
+                    out: temp,
+                    element_scan,
+                    ..
+                } = instruction
+                {
+                    let element = array_element(&function.temps[*temp].ty)
+                        .expect("ArrayAlloc output is an array")
+                        .clone();
+                    let descriptor = ArrayDescriptor {
+                        element,
+                        element_scan: element_scan.clone(),
+                    };
+                    if !out.contains(&descriptor) {
+                        out.push(descriptor);
+                    }
                 }
             }
         }
     }
     out
+}
+
+/// Whether any function needs the shared array-bounds trap message.
+/// Array parameters can be indexed without any array being allocated
+/// in this module, so this is intentionally independent of generated
+/// array TypeDescriptors.
+fn module_uses_bounds_checks(module: &Module) -> bool {
+    module.functions.iter().any(|function| {
+        function.blocks.iter().any(|(_, block)| {
+            block.instructions.iter().any(|instruction| {
+                matches!(
+                    instruction,
+                    Instruction::ArrayGet { .. } | Instruction::ArraySet { .. }
+                )
+            })
+        })
+    })
 }
 
 /// The (opaque) pointer type shared by all `LirType::Ptr` values.
@@ -510,6 +510,75 @@ fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
 /// First `type_id` assigned to `LirMeta::type_descriptors` entries
 /// (runtime spec 2.2): 1 is String, 100+ are the array TDs.
 const FIRST_TD_TYPE_ID: u64 = 1000;
+
+/// Emit one recursive GC scan program. Child pointers are stored as
+/// u64 constants because the C runtime descriptor is a word stream.
+/// `None` has no global and is represented by a null pointer.
+fn emit_ref_scan<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    name: &str,
+    scan: &RefScan,
+) -> Option<PointerValue<'ctx>> {
+    let i64_ty = context.i64_type();
+    let pointer_word = |pointer: Option<PointerValue<'ctx>>| {
+        pointer.map_or_else(|| i64_ty.const_zero(), |value| value.const_to_int(i64_ty))
+    };
+    let words = match scan {
+        RefScan::None => return None,
+        RefScan::References(offsets) if offsets.is_empty() => return None,
+        RefScan::References(offsets) => {
+            let mut words = Vec::with_capacity(offsets.len() + 1);
+            words.push(i64_ty.const_int(offsets.len() as u64, false));
+            words.extend(
+                offsets
+                    .iter()
+                    .map(|offset| i64_ty.const_int(*offset, false)),
+            );
+            words
+        }
+        RefScan::Sequence(parts) => {
+            let children: Vec<_> = parts
+                .iter()
+                .enumerate()
+                .filter_map(|(index, part)| {
+                    emit_ref_scan(context, llvm, &format!("{name}.part.{index}"), part)
+                })
+                .collect();
+            if children.is_empty() {
+                return None;
+            }
+            let mut words = Vec::with_capacity(children.len() + 2);
+            words.push(i64_ty.const_int(SCAN_SEQUENCE, false));
+            words.push(i64_ty.const_int(children.len() as u64, false));
+            words.extend(children.into_iter().map(|child| pointer_word(Some(child))));
+            words
+        }
+        RefScan::TaggedEnum {
+            tag_offset,
+            variants,
+        } => {
+            let children: Vec<_> = variants
+                .iter()
+                .enumerate()
+                .map(|(index, variant)| {
+                    emit_ref_scan(context, llvm, &format!("{name}.variant.{index}"), variant)
+                })
+                .collect();
+            if children.iter().all(Option::is_none) {
+                return None;
+            }
+            let mut words = Vec::with_capacity(children.len() + 3);
+            words.push(i64_ty.const_int(SCAN_ENUM, false));
+            words.push(i64_ty.const_int(*tag_offset, false));
+            words.push(i64_ty.const_int(children.len() as u64, false));
+            words.extend(children.into_iter().map(pointer_word));
+            words
+        }
+    };
+    let array = i64_ty.const_array(&words);
+    Some(private_const_global(llvm, name, array.into()))
+}
 
 /// Emit one `ScoopTypeDescriptor` global per `LirMeta::type_descriptors`
 /// entry (runtime spec 2.2; milestone6 DESIGN 2.5). Emission order
@@ -527,23 +596,9 @@ fn emit_type_descriptors<'ctx>(
     // ScoopItableEntry: { ptr interface, ptr slots }.
     let entry_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
     for (index, td) in module.meta.type_descriptors.iter().enumerate() {
-        // The GC scan descriptor (runtime spec 2.2's M9 form,
-        // runtime/include/scoop_rt.h): a count-prefixed plain table
-        // `[N, off0, .., offN-1]` of object-relative byte offsets, or
-        // null when the type has no outgoing references.
-        let ref_offsets: BasicValueEnum = if td.ref_offsets.is_empty() {
-            ptr.const_null().into()
-        } else {
-            let mut offsets: Vec<IntValue> = Vec::with_capacity(td.ref_offsets.len() + 1);
-            offsets.push(i64_ty.const_int(td.ref_offsets.len() as u64, false));
-            offsets.extend(
-                td.ref_offsets
-                    .iter()
-                    .map(|offset| i64_ty.const_int(*offset, false)),
-            );
-            let array = i64_ty.const_array(&offsets);
-            private_const_global(llvm, &format!("{}.refs", td.symbol), array.into()).into()
-        };
+        let ref_offsets: BasicValueEnum =
+            emit_ref_scan(context, llvm, &format!("{}.refs", td.symbol), &td.scan)
+                .map_or_else(|| ptr.const_null().into(), Into::into);
         let parent: BasicValueEnum = match &td.parent {
             Some(symbol) => llvm
                 .get_global(symbol)
@@ -707,9 +762,9 @@ struct FnEmitter<'a, 'ctx> {
     enums: &'a Arena<EnumDef>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
-    /// Distinct array element types and their TypeDescriptor globals
-    /// (indexed in parallel; see `array_element_types`).
-    array_elements: &'a [LirType],
+    /// Distinct array allocation descriptors and their TypeDescriptor
+    /// globals (indexed in parallel).
+    array_descriptors: &'a [ArrayDescriptor],
     array_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
     allocas: Vec<PointerValue<'ctx>>,
@@ -1324,7 +1379,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         CodegenError(format!("throw @{symbol}: {e}", symbol = function.symbol))
                     })?;
             }
-            Instruction::ArrayAlloc { out, elements } => {
+            Instruction::ArrayAlloc {
+                out,
+                elements,
+                element_scan,
+            } => {
                 // `{ ptr td, i64 gc_word, i64 size, [n x elem] }`
                 // (runtime spec 2.5; the 16-byte header is M9):
                 // allocate 24 + n * stride bytes, store the size at
@@ -1332,7 +1391,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let element = array_element(&function.temps[*out].ty)?;
                 let element_ty = basic_ty(context, self.enums, element)?;
                 let stride = self.target_data.get_abi_size(&element_ty);
-                let td = self.array_td(element)?.as_pointer_value();
+                let td = self.array_td(element, element_scan)?.as_pointer_value();
                 let total = 24 + elements.len() as u64 * stride;
                 let alloc = self.runtime_fn(
                     "scoop_rt_alloc",
@@ -1758,12 +1817,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(())
     }
 
-    /// The array TypeDescriptor global for an element type (emitted in
-    /// `emit_object`; every array type in the module is collected there).
-    fn array_td(&self, element: &LirType) -> Result<GlobalValue<'ctx>, CodegenError> {
-        self.array_elements
+    /// The array TypeDescriptor global for one allocation's element
+    /// layout and scan program.
+    fn array_td(
+        &self,
+        element: &LirType,
+        element_scan: &RefScan,
+    ) -> Result<GlobalValue<'ctx>, CodegenError> {
+        self.array_descriptors
             .iter()
-            .position(|candidate| candidate == element)
+            .position(|candidate| {
+                candidate.element == *element && candidate.element_scan == *element_scan
+            })
             .map(|index| self.array_tds[index])
             .ok_or_else(|| {
                 CodegenError(format!(
@@ -2124,7 +2189,7 @@ struct ModuleCtx<'a, 'ctx> {
     enums: &'a Arena<EnumDef>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
-    array_elements: &'a [LirType],
+    array_descriptors: &'a [ArrayDescriptor],
     array_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
     bounds_message: Option<GlobalValue<'ctx>>,
@@ -2269,7 +2334,7 @@ fn emit_function<'ctx>(
         enums: module_ctx.enums,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,
-        array_elements: module_ctx.array_elements,
+        array_descriptors: module_ctx.array_descriptors,
         array_tds: module_ctx.array_tds,
         target_data: module_ctx.target_data,
         allocas: Vec::with_capacity(function.locals.len()),
@@ -2604,7 +2669,7 @@ mod tests {
                     size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
-                        ref_field_offsets: vec![],
+                        scan: RefScan::None,
                     },
                 }],
                 type_descriptors: vec![],
@@ -2899,7 +2964,7 @@ mod tests {
                         size: 24,
                         align: 8,
                         kind: LayoutKind::Plain {
-                            ref_field_offsets: vec![],
+                            scan: RefScan::None,
                         },
                     },
                     Layout {
@@ -2909,13 +2974,13 @@ mod tests {
                         kind: LayoutKind::Enum {
                             variants: vec![
                                 VariantLayout {
-                                    ref_field_offsets: vec![],
+                                    scan: RefScan::None,
                                 },
                                 VariantLayout {
-                                    ref_field_offsets: vec![],
+                                    scan: RefScan::None,
                                 },
                                 VariantLayout {
-                                    ref_field_offsets: vec![8],
+                                    scan: RefScan::References(vec![8]),
                                 },
                             ],
                         },
@@ -2927,10 +2992,10 @@ mod tests {
                         kind: LayoutKind::Enum {
                             variants: vec![
                                 VariantLayout {
-                                    ref_field_offsets: vec![],
+                                    scan: RefScan::None,
                                 },
                                 VariantLayout {
-                                    ref_field_offsets: vec![0],
+                                    scan: RefScan::References(vec![0]),
                                 },
                             ],
                         },
@@ -2997,6 +3062,7 @@ mod tests {
                 Instruction::ArrayAlloc {
                     out: t0,
                     elements: vec![Value::IntConst(1), Value::IntConst(2), Value::IntConst(3)],
+                    element_scan: RefScan::None,
                 },
                 Instruction::Store {
                     local: numbers,
@@ -3027,6 +3093,7 @@ mod tests {
                 Instruction::ArrayAlloc {
                     out: t5,
                     elements: vec![Value::Temp(t4), Value::Temp(t4)],
+                    element_scan: RefScan::None,
                 },
                 Instruction::ArrayGet {
                     out: t6,
@@ -3093,7 +3160,7 @@ mod tests {
                         size: 24,
                         align: 8,
                         kind: LayoutKind::Plain {
-                            ref_field_offsets: vec![],
+                            scan: RefScan::None,
                         },
                     },
                     Layout {
@@ -3101,7 +3168,7 @@ mod tests {
                         size: 8,
                         align: 8,
                         kind: LayoutKind::Array {
-                            element_is_ref: false,
+                            element_scan: RefScan::None,
                         },
                     },
                     Layout {
@@ -3109,7 +3176,7 @@ mod tests {
                         size: 16,
                         align: 8,
                         kind: LayoutKind::Array {
-                            element_is_ref: false,
+                            element_scan: RefScan::None,
                         },
                     },
                 ],
@@ -3214,7 +3281,7 @@ mod tests {
                     size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
-                        ref_field_offsets: vec![],
+                        scan: RefScan::None,
                     },
                 }],
                 type_descriptors: vec![
@@ -3224,7 +3291,7 @@ mod tests {
                         symbol: "scoop_td_Describable".to_string(),
                         size: 0,
                         align: 8,
-                        ref_offsets: vec![],
+                        scan: RefScan::None,
                         parent: None,
                         vtable: vec![],
                         itables: vec![],
@@ -3235,7 +3302,7 @@ mod tests {
                         symbol: "scoop_td_Shape".to_string(),
                         size: 24,
                         align: 8,
-                        ref_offsets: vec![16],
+                        scan: RefScan::References(vec![16]),
                         parent: None,
                         vtable: any_slots()
                             .into_iter()
@@ -3249,7 +3316,7 @@ mod tests {
                         symbol: "scoop_td_Point".to_string(),
                         size: 32,
                         align: 8,
-                        ref_offsets: vec![16],
+                        scan: RefScan::References(vec![16]),
                         parent: Some("scoop_td_Shape".to_string()),
                         vtable: any_slots()
                             .into_iter()
@@ -3435,7 +3502,7 @@ mod tests {
                     size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
-                        ref_field_offsets: vec![],
+                        scan: RefScan::None,
                     },
                 }],
                 type_descriptors: vec![TypeDescriptor {
@@ -3443,7 +3510,7 @@ mod tests {
                     symbol: "scoop_td_Point".to_string(),
                     size: 32,
                     align: 8,
-                    ref_offsets: vec![24],
+                    scan: RefScan::References(vec![24]),
                     parent: None,
                     vtable: vec![
                         "scoop_rt_any_equals".to_string(),
@@ -3619,7 +3686,7 @@ mod tests {
                     size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
-                        ref_field_offsets: vec![],
+                        scan: RefScan::None,
                     },
                 }],
                 type_descriptors: vec![],
@@ -3751,7 +3818,7 @@ mod tests {
                     size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
-                        ref_field_offsets: vec![],
+                        scan: RefScan::None,
                     },
                 }],
                 type_descriptors: vec![],
@@ -3857,11 +3924,41 @@ mod tests {
         );
 
         // A reference-element array's TD carries the SCOOP_REFS_ARRAY
-        // sentinel (u64::MAX, printed -1) instead of a plain table.
+        // sentinel (u64::MAX, printed -1), its stride, and a pointer
+        // to the recursive scan for one inline element.
+        let mut temps = Arena::default();
+        let array = temps.alloc(Temp {
+            ty: LirType::Array(Box::new(LirType::Ptr)),
+        });
+        let nested_array = temps.alloc(Temp {
+            ty: LirType::Array(Box::new(LirType::Aggregate(vec![
+                LirType::I64,
+                LirType::Ptr,
+                LirType::Ptr,
+            ]))),
+        });
+        let nested_element_scan = RefScan::Sequence(vec![
+            RefScan::References(vec![16]),
+            RefScan::TaggedEnum {
+                tag_offset: 0,
+                variants: vec![RefScan::References(vec![8]), RefScan::None, RefScan::None],
+            },
+        ]);
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
             name: "entry".to_string(),
-            instructions: vec![],
+            instructions: vec![
+                Instruction::ArrayAlloc {
+                    out: array,
+                    elements: vec![],
+                    element_scan: RefScan::References(vec![0]),
+                },
+                Instruction::ArrayAlloc {
+                    out: nested_array,
+                    elements: vec![],
+                    element_scan: nested_element_scan,
+                },
+            ],
             terminator: Terminator::Return { value: None },
         });
         let module = Module {
@@ -3869,10 +3966,10 @@ mod tests {
             enums: Arena::default(),
             functions: vec![Function {
                 symbol: "scoop_main".to_string(),
-                params: vec![LirType::Array(Box::new(LirType::Ptr))],
+                params: vec![],
                 return_ty: LirType::Void,
                 locals: Arena::default(),
-                temps: Arena::default(),
+                temps,
                 blocks,
                 entry,
             }],
@@ -3883,16 +3980,59 @@ mod tests {
                     size: 24,
                     align: 8,
                     kind: LayoutKind::Plain {
-                        ref_field_offsets: vec![],
+                        scan: RefScan::None,
                     },
                 }],
-                type_descriptors: vec![],
+                type_descriptors: vec![TypeDescriptor {
+                    name: "Holder".to_string(),
+                    symbol: "scoop_td_Holder".to_string(),
+                    size: 56,
+                    align: 8,
+                    scan: RefScan::Sequence(vec![
+                        RefScan::References(vec![16]),
+                        RefScan::TaggedEnum {
+                            tag_offset: 32,
+                            variants: vec![
+                                RefScan::References(vec![40]),
+                                RefScan::References(vec![48]),
+                                RefScan::None,
+                            ],
+                        },
+                    ]),
+                    parent: None,
+                    vtable: vec![],
+                    itables: vec![],
+                }],
             },
         };
         let ir = ir_of(&module);
         assert!(
-            ir.contains("@scoop_td_array.0.refs = private constant [1 x i64] [i64 -1]"),
+            ir.contains(
+                "@scoop_td_array.0.element = private constant [2 x i64] [i64 1, i64 0]"
+            ) && ir.contains(
+                "@scoop_td_array.0.refs = private constant [3 x i64] [i64 -1, i64 8, i64 ptrtoint (ptr @scoop_td_array.0.element to i64)]"
+            ),
             "reference-element array TD must carry SCOOP_REFS_ARRAY:\n{ir}"
+        );
+        assert!(
+            ir.contains(
+                "@scoop_td_array.1.element.part.1 = private constant [6 x i64] [i64 -2, i64 0, i64 3"
+            ) && ir.contains(
+                "@scoop_td_array.1.element = private constant [4 x i64] [i64 -3, i64 2"
+            ) && ir.contains(
+                "@scoop_td_array.1.refs = private constant [3 x i64] [i64 -1, i64 24, i64 ptrtoint (ptr @scoop_td_array.1.element to i64)]"
+            ),
+            "aggregate array TD must wrap the recursive element scan:\n{ir}"
+        );
+        assert!(
+            ir.contains(
+                "@scoop_td_Holder.refs.part.1 = private constant [6 x i64] [i64 -2, i64 32, i64 3"
+            ),
+            "nested tagged enum scan must retain the tag and variants:\n{ir}"
+        );
+        assert!(
+            ir.contains("@scoop_td_Holder.refs = private constant [4 x i64] [i64 -3, i64 2"),
+            "aggregate scan must compose plain and conditional scans:\n{ir}"
         );
     }
 }

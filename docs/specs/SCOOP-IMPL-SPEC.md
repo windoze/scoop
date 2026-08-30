@@ -56,19 +56,19 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 
 接收**本 Cone** 的 MIR output，以及**上游 Cone 的 LIR meta**（见下），负责：
 
-- 为每个 type 生成布局信息（struct/enum/tuple 布局、`@CLayout` 的 pack/align、`Option` 的 niche 编码——spec 7.4）。需要上游布局的场景：本 Cone 的类继承上游类（继承字段的偏移）、跨 Cone 嵌套的值类型（上游 struct/enum/tuple 嵌入本地类型、作为数组元素、按值传参的 ABI）；
+- 为每个 type 生成布局信息（struct/enum/tuple 布局、`@CLayout` 的 pack/align、`Option` 的 niche 编码——spec 7.4），并生成布局完备的递归引用扫描描述：普通引用偏移、同起点 sequence、按 tag 分派的 enum 子扫描、数组元素子扫描。需要上游布局的场景：本 Cone 的类继承上游类（继承字段的偏移）、跨 Cone 嵌套的值类型（上游 struct/enum/tuple 嵌入本地类型、作为数组元素、按值传参的 ABI）；
 - statepoint 的落地形态（M9 定稿）：LIR 保持 statepoint 无关的指令形态，由 codegen 给每个 function 设置 GC strategy（`statepoint-example`）并执行 `rewrite-statepoints-for-gc` pass，同时在函数入口与循环回边插入 safepoint poll（详见 codegen 的实现与注释；statepoint 的"插入职责在 LIR"是早期表述，以此为准）；
 - try / catch / finally 降级为 landingpad + personality function；`throw` 接到 runtime 入口；
 - 输出 LIR type/function list，不再包含任何 Scoop 特有的内容，可以机械翻译成目标 IR 或其他格式。
 
-**LIR meta**：每个 Cone 的 LIR 同时输出各导出类型的布局信息，随 `.slib` 导出（见 2.6）。布局只在定义它的 Cone 计算一次，下游直接消费、不重算，保证全程序布局一致。
+**LIR meta**：每个 Cone 的 LIR 同时输出各导出类型的布局与递归引用扫描描述，随 `.slib` 导出（见 2.6）。布局及扫描描述只在定义它的 Cone 计算一次，下游直接消费、不重算，保证全程序一致；结构上不能用可缺失字段把 tagged enum 或聚合元素的扫描责任推迟给 codegen。
 
 ### 2.5 codegen
 
 只接收**本 Cone** 的 LIR output，负责：
 
 - 将 LIR output 机械翻译成目标 IR（本阶段为 LLVM IR），然后用 LLVM 编译成 `.o`；
-- 生成每个具体类型的 `TypeDescriptor`（runtime spec 2.2：类型标识、实例大小、引用字段位图、父类型表、`equals`/`hashCode`/`toString` 分发入口）；
+- 生成每个具体类型的 `TypeDescriptor`（runtime spec 2.2：类型标识、实例大小、递归引用扫描描述、父类型表、`equals`/`hashCode`/`toString` 分发入口）；
 - 展开登记表中归属 codegen 的 `@Intrinsic`（见 2.10）；
 - extern 声明的符号发射与 calling convention 属性（spec 13.4）、`addressOf` 的 lvalue 语义（spec 13.10）。
 
