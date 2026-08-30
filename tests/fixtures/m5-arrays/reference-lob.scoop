@@ -1,0 +1,42 @@
+open class Base
+
+class Left : Base()
+
+class Right : Base()
+
+interface Named {
+    fun name(): String
+}
+
+class Cat : Named {
+    override fun name(): String = "cat"
+}
+
+class Dog : Named {
+    override fun name(): String = "dog"
+}
+
+struct Tag(val text: String) : Named {
+    override fun name(): String = text
+}
+
+fun baseCount(values: Array<Base>): Int = values.size
+
+fun secondName(values: Array<Named>): String = values[1].name()
+
+fun anyCount(values: Array<Any>): Int = values.size
+
+fun main() {
+    val bases = [Left(), Right()]
+    println(baseCount(bases))
+
+    val named = [Cat(), Dog()]
+    println(secondName(named))
+
+    val unrelated = [Left(), "text"]
+    println(anyCount(unrelated))
+
+    val tag: Named = Tag("tag")
+    val explicitlyBoxed: Array<Named> = [tag, Tag("boxed") as Named]
+    println(secondName(explicitlyBoxed))
+}

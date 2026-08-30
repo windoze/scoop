@@ -542,11 +542,13 @@ impl Lowerer {
 
     /// `[e1, ...]` (spec 10.2/10.3, milestone5 DESIGN.md 2.2). With an
     /// expected `Array<U>` / `MutableArray<U>` the literal takes that
-    /// kind and every element must be exactly `U` (an empty literal is
-    /// only legal in this case); without an array expectation every
-    /// element must have exactly the same type and the result is
-    /// `Array<T>`. (An expected type of any other shape is ignored:
-    /// the context's own check reports the mismatch.)
+    /// kind and every element must be a subtype of `U`, except that a
+    /// value element may not cross into a reference type by implicit
+    /// boxing (an empty literal is only legal in this case). Without an
+    /// array expectation, value elements require exact equality while
+    /// an all-reference literal infers their least upper bound. (An
+    /// expected type of any other shape is ignored: the context's own
+    /// check reports the mismatch.)
     fn lower_array_literal(
         &mut self,
         elements: &[ast::Expr],
@@ -562,7 +564,10 @@ impl Lowerer {
             let mut lowered = Vec::with_capacity(elements.len());
             for element in elements {
                 let element = self.lower_expr(element, sink, Some(element_ty))?;
-                if !self.is_subtype(element.ty, element_ty) {
+                let would_auto_box = self.is_value_ty(element.ty)
+                    && self.is_ref_ty(element_ty)
+                    && !self.types_equal(element.ty, element_ty);
+                if !self.is_subtype(element.ty, element_ty) || would_auto_box {
                     let expected = self.type_name(element_ty);
                     let found = self.type_name(element.ty);
                     self.error(
@@ -591,8 +596,11 @@ impl Lowerer {
             lowered.push(self.lower_expr(element, sink, None)?);
         }
         let first_ty = lowered[0].ty;
-        for element in &lowered[1..] {
-            if !self.types_equal(first_ty, element.ty) {
+        if lowered.iter().any(|element| self.is_value_ty(element.ty)) {
+            for element in &lowered[1..] {
+                if self.types_equal(first_ty, element.ty) {
+                    continue;
+                }
                 let first = self.type_name(first_ty);
                 let found = self.type_name(element.ty);
                 self.error(
@@ -604,7 +612,17 @@ impl Lowerer {
                 return None;
             }
         }
-        let ty = self.intern_type(Type::Array(first_ty));
+        let element_ty = if self.is_ref_ty(first_ty) {
+            let element_types: Vec<TypeId> = lowered.iter().map(|element| element.ty).collect();
+            self.reference_lob(&element_types)
+        } else {
+            first_ty
+        };
+        let lowered = lowered
+            .into_iter()
+            .map(|element| self.adapt_to(element, element_ty))
+            .collect();
+        let ty = self.intern_type(Type::Array(element_ty));
         Some(hir::Expr {
             kind: ExprKind::ArrayLiteral(lowered),
             ty,

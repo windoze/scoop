@@ -493,6 +493,45 @@ impl Lowerer {
         !self.is_value_ty(ty)
     }
 
+    /// The least representable upper bound of a non-empty set of
+    /// reference types (spec 10.3). The current type system has no
+    /// intersection types: if several incomparable minimal common
+    /// supertypes remain, `Any` is the only representable result.
+    pub(crate) fn reference_lob(&self, element_types: &[TypeId]) -> TypeId {
+        debug_assert!(!element_types.is_empty());
+        debug_assert!(element_types.iter().all(|&ty| self.is_ref_ty(ty)));
+
+        let mut common_supertypes = Vec::new();
+        for (candidate, _) in self.types.iter() {
+            if !self.is_ref_ty(candidate)
+                || !element_types
+                    .iter()
+                    .all(|&element| self.is_subtype(element, candidate))
+                || common_supertypes
+                    .iter()
+                    .any(|&existing| self.types_equal(existing, candidate))
+            {
+                continue;
+            }
+            common_supertypes.push(candidate);
+        }
+
+        let minimal: Vec<TypeId> = common_supertypes
+            .iter()
+            .copied()
+            .filter(|&candidate| {
+                !common_supertypes.iter().copied().any(|other| {
+                    !self.types_equal(other, candidate) && self.is_subtype(other, candidate)
+                })
+            })
+            .collect();
+        if minimal.len() == 1 {
+            minimal[0]
+        } else {
+            self.any
+        }
+    }
+
     /// Adapt an expression to a target type it is a subtype of (callers
     /// check `is_subtype` first and diagnose otherwise): a value type
     /// crossing into a reference target is boxed (`ExprKind::Box`,

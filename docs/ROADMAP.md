@@ -136,7 +136,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - `for` 循环与区间 `IntRange` 等（spec 11.8；含 `..` 区间运算符与 rest 的共存验证）；
 - `String` 下标/切片；
 - 数组 `==` 语义（spec 缺口，需先回 spec 第 10 章补充）；
-- 数组字面量混合引用类型的 LOB 推导（spec 10.3 完整规则）；
+- ~~数组字面量混合引用类型的 LOB 推导~~（已完成：唯一可表达最小上界；多个互不可比较的最小共同上界退化为 `Any`；数组元素位禁止值类型 auto-box）；
 - ~~数组越界 trap → 异常~~（M8 已完成）。
 
 ### 来自 M6
