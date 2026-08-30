@@ -178,131 +178,165 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
-    val a: Box$I<Int>
-      VariantConstruct Box$I<Int> v0
-        IntLiteral 1
-    val b: Box$S<String>
-      VariantConstruct Box$S<String> v0
-        StringConst @scoop.str.1
-    val $when.1: Box$I<Int>
-      Local a
-    if
-      Binary IntEq
-        EnumTag
-          Local $when.1
-        IntLiteral 0
+    bb0 entry
+      val a: Box$I<Int>
+        VariantConstruct Box$I<Int> v0
+          IntLiteral 1
+      val b: Box$S<String>
+        VariantConstruct Box$S<String> v0
+          StringConst @scoop.str.1
+      val $when.1: Box$I<Int>
+        Local a
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb1 if.then.1
       val v: Int
         EnumField v0 f0
           Local $when.1
       Call @scoop.println direct
         Box
           Local v
-    else
-      if
+      goto bb3
+    bb2 if.else.2
+      branch bb4 bb5
         Binary IntEq
           EnumTag
             Local $when.1
           IntLiteral 1
-        Call @scoop.println direct
-          StringConst @scoop.str.2
-    val $when.2: Box$S<String>
-      Local b
-    if
-      Binary IntEq
-        EnumTag
-          Local $when.2
-        IntLiteral 0
+    bb3 if.merge.3
+      val $when.2: Box$S<String>
+        Local b
+      branch bb6 bb7
+        Binary IntEq
+          EnumTag
+            Local $when.2
+          IntLiteral 0
+    bb4 if.then.4
+      Call @scoop.println direct
+        StringConst @scoop.str.2
+      goto bb5
+    bb5 if.merge.5
+      goto bb3
+    bb6 if.then.6
       val v: String
         EnumField v0 f0
           Local $when.2
       Call @scoop.println direct
         Retype Any
           Local v
-    else
-      if
+      goto bb8
+    bb7 if.else.7
+      branch bb9 bb10
         Binary IntEq
           EnumTag
             Local $when.2
           IntLiteral 1
-        Call @scoop.println direct
-          StringConst @scoop.str.3
-    val c: Box$I<Int>
-      VariantConstruct Box$I<Int> v1
-    val $when.3: Box$I<Int>
-      Local c
-    if
-      Binary IntEq
-        EnumTag
-          Local $when.3
-        IntLiteral 0
+    bb8 if.merge.8
+      val c: Box$I<Int>
+        VariantConstruct Box$I<Int> v1
+      val $when.3: Box$I<Int>
+        Local c
+      branch bb11 bb12
+        Binary IntEq
+          EnumTag
+            Local $when.3
+          IntLiteral 0
+    bb9 if.then.9
+      Call @scoop.println direct
+        StringConst @scoop.str.3
+      goto bb10
+    bb10 if.merge.10
+      goto bb8
+    bb11 if.then.11
       val v: Int
         EnumField v0 f0
           Local $when.3
       Call @scoop.println direct
         Box
           Local v
-    else
-      if
+      goto bb13
+    bb12 if.else.12
+      branch bb14 bb15
         Binary IntEq
           EnumTag
             Local $when.3
           IntLiteral 1
-        Call @scoop.println direct
-          StringConst @scoop.str.4
+    bb13 if.merge.13
+      return
+    bb14 if.then.14
+      Call @scoop.println direct
+        StringConst @scoop.str.4
+      goto bb15
+    bb15 if.merge.15
+      goto bb13
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.7
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.8
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.8
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
   str @scoop.str.0 "\n"
   str @scoop.str.1 "s"
   str @scoop.str.2 "empty"
@@ -385,12 +419,12 @@ Module
     cbr t8 then @if.then.4 else @if.merge.5
   block if.merge.3
     store local1 -> local7
-    t10 = enum_tag e2 local7 : i64
-    t11 = Eq t10, 0 : i1
-    cbr t11 then @if.then.6 else @if.else.7
+    t9 = enum_tag e2 local7 : i64
+    t10 = Eq t9, 0 : i1
+    cbr t10 then @if.then.6 else @if.else.7
   block if.then.4
     call @scoop.println(global2)
-    t9 = aggregate () : {}
+    t11 = aggregate () : {}
     br @if.merge.5
   block if.merge.5
     br @if.merge.3
@@ -405,15 +439,15 @@ Module
     t15 = Eq t14, 1 : i1
     cbr t15 then @if.then.9 else @if.merge.10
   block if.merge.8
-    t17 = enum_wrap e1 v1 () : enum1
-    store t17 -> local4
+    t16 = enum_wrap e1 v1 () : enum1
+    store t16 -> local4
     store local4 -> local8
-    t18 = enum_tag e1 local8 : i64
-    t19 = Eq t18, 0 : i1
-    cbr t19 then @if.then.11 else @if.else.12
+    t17 = enum_tag e1 local8 : i64
+    t18 = Eq t17, 0 : i1
+    cbr t18 then @if.then.11 else @if.else.12
   block if.then.9
     call @scoop.println(global3)
-    t16 = aggregate () : {}
+    t19 = aggregate () : {}
     br @if.merge.10
   block if.merge.10
     br @if.merge.8

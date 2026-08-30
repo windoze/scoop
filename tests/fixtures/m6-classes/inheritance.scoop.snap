@@ -164,118 +164,138 @@ Module
   class Impl vtable=4 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
-    val c: Circle
-      Call @scoop.ctor.Circle direct
-        IntLiteral 5
-    Call @scoop.println direct
-      Box
-        Call @scoop.Circle.kind direct
+    bb0 entry
+      val c: Circle
+        Call @scoop.ctor.Circle direct
+          IntLiteral 5
+      Call @scoop.println direct
+        Box
+          Call @scoop.Circle.kind direct
+            Local c
+      Call @scoop.println direct
+        Call @scoop.Shape.label direct
           Local c
-    Call @scoop.println direct
-      Call @scoop.Shape.label direct
-        Local c
-    Call @scoop.println direct
-      Box
-        FieldAccess 1
+      Call @scoop.println direct
+        Box
+          FieldAccess 1
+            Local c
+      val s: Shape
+        Retype Shape
           Local c
-    val s: Shape
-      Retype Shape
-        Local c
-    Call @scoop.println direct
-      Box
-        Call @scoop.Shape.kind virtual[3]
-          Local s
-    val i: Impl
-      Call @scoop.ctor.Impl direct
-        IntLiteral 7
-    Call @scoop.println direct
-      Box
-        Call @scoop.Impl.id direct
-          Local i
+      Call @scoop.println direct
+        Box
+          Call @scoop.Shape.kind virtual[3]
+            Local s
+      val i: Impl
+        Call @scoop.ctor.Impl direct
+          IntLiteral 7
+      Call @scoop.println direct
+        Box
+          Call @scoop.Impl.id direct
+            Local i
+      return
   fun Shape.kind @scoop.Shape.kind(this: Shape) -> Int
-    return
-      IntLiteral 0
+    bb0 entry
+      return
+        IntLiteral 0
   fun Shape.label @scoop.Shape.label(this: Shape) -> String
-    return
-      FieldAccess 0
-        Local this
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun Circle.kind @scoop.Circle.kind(this: Circle) -> Int
-    return
-      IntLiteral 1
+    bb0 entry
+      return
+        IntLiteral 1
   fun Base.id @scoop.Base.id(this: Base) -> Int
-    Call @scoop_rt_trap direct
-      StringConst @scoop.str.1
+    bb0 entry
+      trap @scoop.str.1
   fun Impl.id @scoop.Impl.id(this: Impl) -> Int
-    return
-      FieldAccess 0
-        Local this
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.2
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.Shape @scoop.ctor.Shape(name: String) -> Shape
-    return
-      ClassInit Shape
-        Local name
+    bb0 entry
+      return
+        ClassInit Shape
+          Local name
   fun ctor.Circle @scoop.ctor.Circle(r: Int) -> Circle
-    return
-      ClassInit Circle
-        StringConst @scoop.str.6
-        Local r
+    bb0 entry
+      return
+        ClassInit Circle
+          StringConst @scoop.str.6
+          Local r
   fun ctor.Impl @scoop.ctor.Impl(v: Int) -> Impl
-    return
-      ClassInit Impl
-        Local v
+    bb0 entry
+      return
+        ClassInit Impl
+          Local v
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
   str @scoop.str.0 "\n"
   str @scoop.str.1 "call to abstract method `Base.id`"
   str @scoop.str.2 "unwrap on None"

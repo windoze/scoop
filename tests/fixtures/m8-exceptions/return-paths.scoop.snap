@@ -261,150 +261,252 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun afterReturn @scoop.afterReturn() -> Int
-    return
-      IntLiteral 1
-    Call @scoop.println direct
-      StringConst @scoop.str.1
+    bb0 entry
+      return
+        IntLiteral 1
   fun fromIf @scoop.fromIf(flag: Boolean) -> Int
-    if
-      Local flag
+    bb0 entry
+      branch bb1 bb2
+        Local flag
+    bb1 if.then.1
       return
         IntLiteral 10
-    else
+    bb2 if.else.2
       return
         IntLiteral 11
+    bb3 if.merge.3
+      unreachable
   fun fromWhen @scoop.fromWhen(choice: Choice) -> Int
-    val $when.1: Choice
-      Local choice
-    if
-      Binary IntEq
-        EnumTag
-          Local $when.1
-        IntLiteral 0
+    bb0 entry
+      val $when.1: Choice
+        Local choice
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb1 if.then.1
       return
         IntLiteral 20
-    else
-      if
+    bb2 if.else.2
+      branch bb4 bb5
         Binary IntEq
           EnumTag
             Local $when.1
           IntLiteral 1
-        return
-          IntLiteral 21
-  fun fromFinally @scoop.fromFinally() -> Int
-    try
+    bb3 if.merge.3
+      unreachable
+    bb4 if.then.4
       return
+        IntLiteral 21
+    bb5 if.merge.5
+      goto bb3
+  fun fromFinally @scoop.fromFinally() -> Int
+    bb0 entry
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb8
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      val $return.1: Int
         IntLiteral 30
-    finally
+      goto bb7
+    bb7 scope.7
       return
         IntLiteral 31
-  fun exceptionReplacedByFinally @scoop.exceptionReplacedByFinally() -> Int
-    try
-      throw
-        Call @scoop.ctor.UnwrapException direct
-    finally
+    bb8 scope.8 unwind bb3
+      val $return.2: Int
+        IntLiteral 31
+      end_catch
       return
+        Local $return.2
+  fun exceptionReplacedByFinally @scoop.exceptionReplacedByFinally() -> Int
+    bb0 entry
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb7
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      throw unwind bb1
+        Call @scoop.ctor.UnwrapException direct
+    bb7 scope.7 unwind bb3
+      val $return.1: Int
         IntLiteral 40
+      end_catch
+      return
+        Local $return.1
   fun branchingFinally @scoop.branchingFinally(flag: Boolean) -> Int
-    try
+    bb0 entry
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb11
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
       Call @scoop.println direct
         StringConst @scoop.str.2
-    finally
-      if
+      goto bb7
+    bb7 scope.7
+      branch bb8 bb9
         Local flag
-        return
-          IntLiteral 50
-      else
-        return
-          IntLiteral 51
+    bb8 if.then.8
+      return
+        IntLiteral 50
+    bb9 if.else.9
+      return
+        IntLiteral 51
+    bb10 if.merge.10
+      goto bb5
+    bb11 scope.11 unwind bb3
+      branch bb12 bb13
+        Local flag
+    bb12 if.then.12 unwind bb3
+      val $return.1: Int
+        IntLiteral 50
+      end_catch
+      return
+        Local $return.1
+    bb13 if.else.13 unwind bb3
+      val $return.2: Int
+        IntLiteral 51
+      end_catch
+      return
+        Local $return.2
+    bb14 if.merge.14 unwind bb3
+      rethrow unwind bb3
   fun main @scoop_main() -> Unit
-    Call @scoop.println direct
-      Box
-        Call @scoop.afterReturn direct
-    Call @scoop.println direct
-      Box
-        Call @scoop.fromIf direct
-          BoolLiteral true
-    Call @scoop.println direct
-      Box
-        Call @scoop.fromIf direct
-          BoolLiteral false
-    Call @scoop.println direct
-      Box
-        Call @scoop.fromWhen direct
-          VariantConstruct Choice v0
-    Call @scoop.println direct
-      Box
-        Call @scoop.fromWhen direct
-          VariantConstruct Choice v1
-    Call @scoop.println direct
-      Box
-        Call @scoop.fromFinally direct
-    Call @scoop.println direct
-      Box
-        Call @scoop.exceptionReplacedByFinally direct
-    Call @scoop.println direct
-      Box
-        Call @scoop.branchingFinally direct
-          BoolLiteral true
-    Call @scoop.println direct
-      Box
-        Call @scoop.branchingFinally direct
-          BoolLiteral false
+    bb0 entry
+      Call @scoop.println direct
+        Box
+          Call @scoop.afterReturn direct
+      Call @scoop.println direct
+        Box
+          Call @scoop.fromIf direct
+            BoolLiteral true
+      Call @scoop.println direct
+        Box
+          Call @scoop.fromIf direct
+            BoolLiteral false
+      Call @scoop.println direct
+        Box
+          Call @scoop.fromWhen direct
+            VariantConstruct Choice v0
+      Call @scoop.println direct
+        Box
+          Call @scoop.fromWhen direct
+            VariantConstruct Choice v1
+      Call @scoop.println direct
+        Box
+          Call @scoop.fromFinally direct
+      Call @scoop.println direct
+        Box
+          Call @scoop.exceptionReplacedByFinally direct
+      Call @scoop.println direct
+        Box
+          Call @scoop.branchingFinally direct
+            BoolLiteral true
+      Call @scoop.println direct
+        Box
+          Call @scoop.branchingFinally direct
+            BoolLiteral false
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
   str @scoop.str.0 "\n"
   str @scoop.str.1 "unreachable"
   str @scoop.str.2 "body"
@@ -482,102 +584,134 @@ Module
   block if.merge.5
     br @if.merge.3
   fun @scoop.fromFinally() -> i64
-    local %0 $sc.1: exception_record
-    local %1 $sc.2: ptr
+    local %0 $return.1: i64
+    local %1 $return.2: i64
+    local %2 $sc.1: exception_record
+    local %3 $sc.2: ptr
+    local %4 $sc.3: ptr
   block entry
-    ret 31
+    br @try.body.6
   block try.unwind.1
     (t0, t1) = landingpad : (exception_record, ptr)
-    store t0 -> local0
-    store t1 -> local1
+    store t0 -> local2
+    store t1 -> local3
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local1 : ptr
-    end_catch
-    ret 31
+    t2 = begin_catch local3 : ptr
+    store t2 -> local4
+    br @scope.8
   block try.exit_pad.3
     (t3, t4) = cleanup_pad : (exception_record, ptr)
-    store t3 -> local0
-    store t4 -> local1
+    store t3 -> local2
+    store t4 -> local3
     br @try.exit_cleanup.4
   block try.exit_cleanup.4
     end_catch
-    resume local0
+    resume local2
   block try.end.5
     unreachable
+  block try.body.6
+    store 30 -> local0
+    br @scope.7
+  block scope.7
+    ret 31
+  block scope.8
+    store 31 -> local1
+    end_catch
+    ret local1
   fun @scoop.exceptionReplacedByFinally() -> i64
-    local %0 $sc.1: exception_record
-    local %1 $sc.2: ptr
+    local %0 $return.1: i64
+    local %1 $sc.1: exception_record
+    local %2 $sc.2: ptr
+    local %3 $sc.3: ptr
   block entry
-    invoke @scoop.ctor.UnwrapException() normal @invoke.normal.6 unwind @try.unwind.1
-    br @invoke.normal.6
+    br @try.body.6
   block try.unwind.1
-    (t1, t2) = landingpad : (exception_record, ptr)
-    store t1 -> local0
-    store t2 -> local1
+    (t0, t1) = landingpad : (exception_record, ptr)
+    store t0 -> local1
+    store t1 -> local2
     br @try.dispatch.2
   block try.dispatch.2
-    t3 = begin_catch local1 : ptr
-    end_catch
-    ret 40
+    t2 = begin_catch local2 : ptr
+    store t2 -> local3
+    br @scope.7
   block try.exit_pad.3
-    (t4, t5) = cleanup_pad : (exception_record, ptr)
-    store t4 -> local0
-    store t5 -> local1
+    (t3, t4) = cleanup_pad : (exception_record, ptr)
+    store t3 -> local1
+    store t4 -> local2
     br @try.exit_cleanup.4
   block try.exit_cleanup.4
     end_catch
-    resume local0
+    resume local1
   block try.end.5
     unreachable
-  block invoke.normal.6
-    invoke @scoop_rt_throw(t0) normal @throw.normal.7 unwind @try.unwind.1
-    br @throw.normal.7
-  block throw.normal.7
+  block try.body.6
+    invoke @scoop.ctor.UnwrapException() normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block scope.7
+    store 40 -> local0
+    end_catch
+    ret local0
+  block invoke.normal.1
+    invoke @scoop_rt_throw(t5) normal @throw.normal.2 unwind @try.unwind.1
+    br @throw.normal.2
+  block throw.normal.2
     unreachable
   fun @scoop.branchingFinally(i1) -> i64
-    local %0 $sc.1: exception_record
-    local %1 $sc.2: ptr
+    local %0 $return.1: i64
+    local %1 $return.2: i64
+    local %2 $sc.1: exception_record
+    local %3 $sc.2: ptr
+    local %4 $sc.3: ptr
   block entry
-    invoke @scoop.println(global2) normal @invoke.normal.6 unwind @try.unwind.1
-    br @invoke.normal.6
+    br @try.body.6
   block try.unwind.1
-    (t1, t2) = landingpad : (exception_record, ptr)
-    store t1 -> local0
-    store t2 -> local1
+    (t0, t1) = landingpad : (exception_record, ptr)
+    store t0 -> local2
+    store t1 -> local3
     br @try.dispatch.2
   block try.dispatch.2
-    t3 = begin_catch local1 : ptr
-    cbr param0 then @if.then.10 else @if.else.11
+    t2 = begin_catch local3 : ptr
+    store t2 -> local4
+    br @scope.11
   block try.exit_pad.3
-    (t4, t5) = cleanup_pad : (exception_record, ptr)
-    store t4 -> local0
-    store t5 -> local1
+    (t3, t4) = cleanup_pad : (exception_record, ptr)
+    store t3 -> local2
+    store t4 -> local3
     br @try.exit_cleanup.4
   block try.exit_cleanup.4
     end_catch
-    resume local0
+    resume local2
   block try.end.5
     unreachable
-  block invoke.normal.6
-    t0 = aggregate () : {}
-    cbr param0 then @if.then.7 else @if.else.8
-  block if.then.7
+  block try.body.6
+    invoke @scoop.println(global2) normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block scope.7
+    cbr param0 then @if.then.8 else @if.else.9
+  block if.then.8
     ret 50
-  block if.else.8
+  block if.else.9
     ret 51
-  block if.merge.9
+  block if.merge.10
     br @try.end.5
-  block if.then.10
+  block scope.11
+    cbr param0 then @if.then.12 else @if.else.13
+  block if.then.12
+    store 50 -> local0
     end_catch
-    ret 50
-  block if.else.11
+    ret local0
+  block if.else.13
+    store 51 -> local1
     end_catch
-    ret 51
-  block if.merge.12
-    invoke @scoop_rt_rethrow() normal @rethrow.normal.13 unwind @try.exit_pad.3
-    br @rethrow.normal.13
-  block rethrow.normal.13
+    ret local1
+  block if.merge.14
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.3
+    br @rethrow.normal.2
+  block invoke.normal.1
+    t5 = aggregate () : {}
+    br @scope.7
+  block rethrow.normal.2
     unreachable
   fun @scoop_main() -> void
   block entry

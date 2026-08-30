@@ -122,58 +122,106 @@ Module
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun recover @scoop.recover() -> String
-    try
-      throw
-        Call @scoop.ctor.UnwrapException direct
-    catch e: UnwrapException
-      assign $result.0
-        StringConst @scoop.str.1
-    finally
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        IsInstance UnwrapException
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
       Call @scoop.println direct
         StringConst @scoop.str.2
-    return
-      Local $result.0
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+        Local $result.0
+    bb8 try.body.8 unwind bb1
+      throw unwind bb1
+        Call @scoop.ctor.UnwrapException direct
+    bb9 try.catch.9
+      val e: UnwrapException
+        Retype UnwrapException
+          CaughtException
+      goto bb11
+    bb10 try.next.10 unwind bb5
+      Call @scoop.println direct
+        StringConst @scoop.str.2
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      assign $result.0
+        StringConst @scoop.str.1
+      goto bb12
+    bb12 scope.12
+      end_catch
+      Call @scoop.println direct
+        StringConst @scoop.str.2
+      goto bb7
   fun main @scoop_main() -> Unit
-    Call @scoop.println direct
-      Call @scoop.recover direct
+    bb0 entry
+      Call @scoop.println direct
+        Call @scoop.recover direct
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   str @scoop.str.0 "\n"
   str @scoop.str.1 "caught"
   str @scoop.str.2 "finally"
@@ -222,58 +270,66 @@ Module
     local %1 $result.0: ptr
     local %2 $sc.1: exception_record
     local %3 $sc.2: ptr
+    local %4 $sc.3: ptr
   block entry
-    invoke @scoop.ctor.UnwrapException() normal @invoke.normal.8 unwind @try.unwind.1
-    br @invoke.normal.8
+    br @try.body.8
   block try.unwind.1
-    (t1, t2) = landingpad : (exception_record, ptr)
-    store t1 -> local2
-    store t2 -> local3
+    (t0, t1) = landingpad : (exception_record, ptr)
+    store t0 -> local2
+    store t1 -> local3
     br @try.dispatch.2
   block try.dispatch.2
-    t3 = begin_catch local3 : ptr
-    t4 = call @scoop_rt_is_instance(t3, global7) : i1
-    cbr t4 then @try.catch.10 else @try.next.11
+    t2 = begin_catch local3 : ptr
+    store t2 -> local4
+    t3 = call @scoop_rt_is_instance(local4, global7) : i1
+    cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
-    (t7, t8) = cleanup_pad : (exception_record, ptr)
-    store t7 -> local2
-    store t8 -> local3
+    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    store t4 -> local2
+    store t5 -> local3
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
     call @scoop.println(global2)
-    t9 = aggregate () : {}
+    t6 = aggregate () : {}
     resume local2
   block try.exit_pad.5
-    (t10, t11) = cleanup_pad : (exception_record, ptr)
-    store t10 -> local2
-    store t11 -> local3
+    (t7, t8) = cleanup_pad : (exception_record, ptr)
+    store t7 -> local2
+    store t8 -> local3
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
     resume local2
   block try.end.7
     ret local1
-  block invoke.normal.8
-    invoke @scoop_rt_throw(t0) normal @throw.normal.9 unwind @try.unwind.1
-    br @throw.normal.9
-  block throw.normal.9
-    unreachable
-  block try.catch.10
-    store t3 -> local0
+  block try.body.8
+    invoke @scoop.ctor.UnwrapException() normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block try.catch.9
+    store local4 -> local0
+    br @scope.11
+  block try.next.10
+    invoke @scoop.println(global2) normal @invoke.normal.3 unwind @try.exit_pad.5
+    br @invoke.normal.3
+  block scope.11
     store global1 -> local1
+    br @scope.12
+  block scope.12
     end_catch
     call @scoop.println(global2)
-    t5 = aggregate () : {}
+    t11 = aggregate () : {}
     br @try.end.7
-  block try.next.11
-    invoke @scoop.println(global2) normal @invoke.normal.12 unwind @try.exit_pad.5
-    br @invoke.normal.12
-  block invoke.normal.12
-    t6 = aggregate () : {}
-    invoke @scoop_rt_rethrow() normal @rethrow.normal.13 unwind @try.exit_pad.5
-    br @rethrow.normal.13
-  block rethrow.normal.13
+  block invoke.normal.1
+    invoke @scoop_rt_throw(t9) normal @throw.normal.2 unwind @try.unwind.1
+    br @throw.normal.2
+  block throw.normal.2
+    unreachable
+  block invoke.normal.3
+    t10 = aggregate () : {}
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.4 unwind @try.exit_pad.5
+    br @rethrow.normal.4
+  block rethrow.normal.4
     unreachable
   fun @scoop_main() -> void
   block entry

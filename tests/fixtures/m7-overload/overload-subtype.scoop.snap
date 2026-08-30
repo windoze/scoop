@@ -146,75 +146,92 @@ Module
   class Shape vtable=3 itables=0
   class Circle vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun tag @scoop.tag.Shape(s: Shape) -> String
-    return
-      StringConst @scoop.str.1
+    bb0 entry
+      return
+        StringConst @scoop.str.1
   fun tag @scoop.tag.I(i: Int) -> String
-    return
-      StringConst @scoop.str.2
+    bb0 entry
+      return
+        StringConst @scoop.str.2
   fun pick @scoop.pick.I(v: Int) -> String
-    return
-      StringConst @scoop.str.3
+    bb0 entry
+      return
+        StringConst @scoop.str.3
   fun pick @scoop.pick.Any(v: Any) -> String
-    return
-      StringConst @scoop.str.4
+    bb0 entry
+      return
+        StringConst @scoop.str.4
   fun main @scoop_main() -> Unit
-    Call @scoop.println direct
-      Call @scoop.tag.Shape direct
-        Call @scoop.ctor.Circle direct
-          IntLiteral 1
-    Call @scoop.println direct
-      Call @scoop.tag.I direct
-        IntLiteral 7
-    Call @scoop.println direct
-      Call @scoop.pick.I direct
-        IntLiteral 5
+    bb0 entry
+      Call @scoop.println direct
+        Call @scoop.tag.Shape direct
+          Call @scoop.ctor.Circle direct
+            IntLiteral 1
+      Call @scoop.println direct
+        Call @scoop.tag.I direct
+          IntLiteral 7
+      Call @scoop.println direct
+        Call @scoop.pick.I direct
+          IntLiteral 5
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.7
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.8
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.8
   fun ctor.Shape @scoop.ctor.Shape(name: String) -> Shape
-    return
-      ClassInit Shape
-        Local name
+    bb0 entry
+      return
+        ClassInit Shape
+          Local name
   fun ctor.Circle @scoop.ctor.Circle(r: Int) -> Circle
-    return
-      ClassInit Circle
-        StringConst @scoop.str.9
-        Local r
+    bb0 entry
+      return
+        ClassInit Circle
+          StringConst @scoop.str.9
+          Local r
   str @scoop.str.0 "\n"
   str @scoop.str.1 "shape"
   str @scoop.str.2 "int"

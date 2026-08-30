@@ -167,111 +167,129 @@ Module
   class box$Holder$I vtable=3 itables=1
   interface Readable
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
-    val pair: Pair$Box$I_Box$S
-      StructInit Pair$Box$I_Box$S
-        StructInit Box$I
-          IntLiteral 7
-        StructInit Box$S
-          StringConst @scoop.str.1
-    Call @scoop.println direct
-      Box
-        Call @scoop.Box.get$I direct
-          FieldAccess 0
+    bb0 entry
+      val pair: Pair$Box$I_Box$S
+        StructInit Pair$Box$I_Box$S
+          StructInit Box$I
+            IntLiteral 7
+          StructInit Box$S
+            StringConst @scoop.str.1
+      Call @scoop.println direct
+        Box
+          Call @scoop.Box.get$I direct
+            FieldAccess 0
+              Local pair
+      Call @scoop.println direct
+        Call @scoop.Box.get$S direct
+          FieldAccess 1
             Local pair
-    Call @scoop.println direct
-      Call @scoop.Box.get$S direct
-        FieldAccess 1
-          Local pair
-    val readable: Readable
-      Box
-        StructInit Holder$I
-          IntLiteral 9
-    Call @scoop.println direct
-      Call @scoop.Readable.read interface Readable[0]
-        Local readable
+      val readable: Readable
+        Box
+          StructInit Holder$I
+            IntLiteral 9
+      Call @scoop.println direct
+        Call @scoop.Readable.read interface Readable[0]
+          Local readable
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.2
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun Box.get @scoop.Box.get$I(this: Box$I) -> Int
-    return
-      FieldAccess 0
-        Local this
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun Box.get @scoop.Box.get$S(this: Box$S) -> String
-    return
-      FieldAccess 0
-        Local this
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
-  fun eq.Holder$I @scoop.eq.Holder$I(this: Any, other: Any) -> Boolean
-    val $a: Holder$I
-      Unbox
-        Local this
-    val $b: Holder$I
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        FieldAccess 0
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
           Local $a
-        FieldAccess 0
           Local $b
-  fun Holder.read @scoop.Holder.read$I(this: Holder$I) -> String
-    return
-      StringConst @scoop.str.6
-  fun thunk.Holder$I.Readable.read @scoop.thunk.Holder$I.Readable.read(this: Any) -> String
-    return
-      Call @scoop.Holder.read$I direct
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
+  fun eq.Holder$I @scoop.eq.Holder$I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Holder$I
         Unbox
           Local this
+      val $b: Holder$I
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          FieldAccess 0
+            Local $a
+          FieldAccess 0
+            Local $b
+  fun Holder.read @scoop.Holder.read$I(this: Holder$I) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.6
+  fun thunk.Holder$I.Readable.read @scoop.thunk.Holder$I.Readable.read(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop.Holder.read$I direct
+          Unbox
+            Local this
   instance @scoop.Box.get$I <- Box.get
   instance @scoop.Box.get$S <- Box.get
   instance @scoop.Holder.read$I <- Holder.read

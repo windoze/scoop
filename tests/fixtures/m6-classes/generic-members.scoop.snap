@@ -193,136 +193,159 @@ Module
   interface Identity
   interface Exchange$I
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun read @scoop.read(value: Exchange$I) -> Int
-    return
-      Call @scoop.Exchange.current$I interface Exchange$I[0]
-        Local value
+    bb0 entry
+      return
+        Call @scoop.Exchange.current$I interface Exchange$I[0]
+          Local value
   fun main @scoop_main() -> Unit
-    val box: Box$I
-      StructInit Box$I
-        IntLiteral 7
-    Call @scoop.println direct
-      Call @scoop.Box.exchange$I_S direct
-        Local box
-        IntLiteral 7
-        VariantConstruct Option$S<String> v1
-        StringConst @scoop.str.1
-    Call @scoop.println direct
-      Box
-        Call @scoop.read direct
-          Box
-            Local box
-    Call @scoop.println direct
-      Call @scoop.Tool.id$S direct
-        Call @scoop.ctor.Tool direct
-        StringConst @scoop.str.2
-    val overloads: Overloads
-      Call @scoop.ctor.Overloads direct
-    Call @scoop.println direct
-      Box
-        Call @scoop.Overloads.id direct
+    bb0 entry
+      val box: Box$I
+        StructInit Box$I
+          IntLiteral 7
+      Call @scoop.println direct
+        Call @scoop.Box.exchange$I_S direct
+          Local box
+          IntLiteral 7
+          VariantConstruct Option$S<String> v1
+          StringConst @scoop.str.1
+      Call @scoop.println direct
+        Box
+          Call @scoop.read direct
+            Box
+              Local box
+      Call @scoop.println direct
+        Call @scoop.Tool.id$S direct
+          Call @scoop.ctor.Tool direct
+          StringConst @scoop.str.2
+      val overloads: Overloads
+        Call @scoop.ctor.Overloads direct
+      Call @scoop.println direct
+        Box
+          Call @scoop.Overloads.id direct
+            Local overloads
+            IntLiteral 1
+      Call @scoop.println direct
+        Call @scoop.Overloads.id$S direct
           Local overloads
-          IntLiteral 1
-    Call @scoop.println direct
-      Call @scoop.Overloads.id$S direct
-        Local overloads
-        StringConst @scoop.str.3
+          StringConst @scoop.str.3
+      return
   fun Overloads.id @scoop.Overloads.id(this: Overloads, value: Int) -> Int
-    return
-      IntLiteral 100
+    bb0 entry
+      return
+        IntLiteral 100
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.7
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
   fun ctor.Tool @scoop.ctor.Tool() -> Tool
-    return
-      ClassInit Tool
+    bb0 entry
+      return
+        ClassInit Tool
   fun ctor.Overloads @scoop.ctor.Overloads() -> Overloads
-    return
-      ClassInit Overloads
+    bb0 entry
+      return
+        ClassInit Overloads
   fun Exchange.current @scoop.Exchange.current$I(this: Exchange$I) -> Int
-    Call @scoop_rt_trap direct
-      StringConst @scoop.str.8
+    bb0 entry
+      trap @scoop.str.8
   fun Box.exchange @scoop.Box.exchange$I_S(this: Box$I, owner: Int, missing: Option$S<String>, value: String) -> String
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun Tool.id @scoop.Tool.id$S(this: Tool, value: String) -> String
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun Overloads.id @scoop.Overloads.id$S(this: Overloads, value: String) -> String
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
-  fun eq.Box$I @scoop.eq.Box$I(this: Any, other: Any) -> Boolean
-    val $a: Box$I
-      Unbox
-        Local this
-    val $b: Box$I
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        FieldAccess 0
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
           Local $a
-        FieldAccess 0
           Local $b
-  fun Box.current @scoop.Box.current$I(this: Box$I) -> Int
-    return
-      FieldAccess 0
-        Local this
-  fun thunk.Box$I.Exchange$I.current @scoop.thunk.Box$I.Exchange$I.current(this: Any) -> Int
-    return
-      Call @scoop.Box.current$I direct
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
+  fun eq.Box$I @scoop.eq.Box$I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Box$I
         Unbox
           Local this
+      val $b: Box$I
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          FieldAccess 0
+            Local $a
+          FieldAccess 0
+            Local $b
+  fun Box.current @scoop.Box.current$I(this: Box$I) -> Int
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
+  fun thunk.Box$I.Exchange$I.current @scoop.thunk.Box$I.Exchange$I.current(this: Any) -> Int
+    bb0 entry
+      return
+        Call @scoop.Box.current$I direct
+          Unbox
+            Local this
   instance @scoop.Exchange.current$I <- Exchange.current
   instance @scoop.Box.exchange$I_S <- Box.exchange
   instance @scoop.Tool.id$S <- Tool.id

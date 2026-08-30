@@ -143,104 +143,123 @@ Module
   class box$I vtable=3 itables=0
   class box$B vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
-    Call @scoop.println direct
-      Box
-        Call @scoop.identity$I direct
-          IntLiteral 42
-    Call @scoop.println direct
-      Call @scoop.identity$S direct
-        StringConst @scoop.str.1
-    Call @scoop.println direct
-      Box
-        Call @scoop.identity$B direct
-          BoolLiteral true
-    Call @scoop.println direct
-      Box
-        Call @scoop.first$I_S direct
-          IntLiteral 1
-          StringConst @scoop.str.2
+    bb0 entry
+      Call @scoop.println direct
+        Box
+          Call @scoop.identity$I direct
+            IntLiteral 42
+      Call @scoop.println direct
+        Call @scoop.identity$S direct
+          StringConst @scoop.str.1
+      Call @scoop.println direct
+        Box
+          Call @scoop.identity$B direct
+            BoolLiteral true
+      Call @scoop.println direct
+        Box
+          Call @scoop.first$I_S direct
+            IntLiteral 1
+            StringConst @scoop.str.2
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun identity @scoop.identity$I(x: Int) -> Int
-    return
-      Local x
+    bb0 entry
+      return
+        Local x
   fun identity @scoop.identity$S(x: String) -> String
-    return
-      Local x
+    bb0 entry
+      return
+        Local x
   fun identity @scoop.identity$B(x: Boolean) -> Boolean
-    return
-      Local x
+    bb0 entry
+      return
+        Local x
   fun first @scoop.first$I_S(a: Int, b: String) -> Int
-    return
-      Local a
+    bb0 entry
+      return
+        Local a
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
-        Unbox
-          Local this
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
   fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
-    val $a: Boolean
-      Unbox
-        Local this
-    val $b: Boolean
-      Unbox
-        Local other
-    return
-      Binary BoolEq
-        Local $a
-        Local $b
-  fun tostring.B @scoop.tostring.B(this: Any) -> String
-    return
-      Call @scoop_rt_bool_to_string direct
+    bb0 entry
+      val $a: Boolean
         Unbox
           Local this
+      val $b: Boolean
+        Unbox
+          Local other
+      return
+        Binary BoolEq
+          Local $a
+          Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_bool_to_string direct
+          Unbox
+            Local this
   instance @scoop.identity$I <- identity
   instance @scoop.identity$S <- identity
   instance @scoop.identity$B <- identity

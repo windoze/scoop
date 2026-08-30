@@ -144,107 +144,134 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
-    val a: Option$I<Int>
-      VariantConstruct Option$I<Int> v0
-        IntLiteral 10
-    val $when.1: Option$I<Int>
-      Local a
-    if
-      Binary IntEq
-        EnumTag
-          Local $when.1
-        IntLiteral 0
+    bb0 entry
+      val a: Option$I<Int>
+        VariantConstruct Option$I<Int> v0
+          IntLiteral 10
+      val $when.1: Option$I<Int>
+        Local a
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb1 if.then.1
       val v: Int
         EnumField v0 f0
           Local $when.1
       Call @scoop.println direct
         Box
           Local v
-    else
-      if
+      goto bb3
+    bb2 if.else.2
+      branch bb4 bb5
         Binary IntEq
           EnumTag
             Local $when.1
           IntLiteral 1
-        Call @scoop.println direct
-          StringConst @scoop.str.1
-    val b: Option$I<Int>
-      VariantConstruct Option$I<Int> v1
-    val $when.2: Option$I<Int>
-      Local b
-    if
-      Binary IntEq
-        EnumTag
-          Local $when.2
-        IntLiteral 0
+    bb3 if.merge.3
+      val b: Option$I<Int>
+        VariantConstruct Option$I<Int> v1
+      val $when.2: Option$I<Int>
+        Local b
+      branch bb6 bb7
+        Binary IntEq
+          EnumTag
+            Local $when.2
+          IntLiteral 0
+    bb4 if.then.4
+      Call @scoop.println direct
+        StringConst @scoop.str.1
+      goto bb5
+    bb5 if.merge.5
+      goto bb3
+    bb6 if.then.6
       val v: Int
         EnumField v0 f0
           Local $when.2
       Call @scoop.println direct
         Box
           Local v
-    else
-      if
+      goto bb8
+    bb7 if.else.7
+      branch bb9 bb10
         Binary IntEq
           EnumTag
             Local $when.2
           IntLiteral 1
-        Call @scoop.println direct
-          StringConst @scoop.str.2
+    bb8 if.merge.8
+      return
+    bb9 if.then.9
+      Call @scoop.println direct
+        StringConst @scoop.str.2
+      goto bb10
+    bb10 if.merge.10
+      goto bb8
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
   str @scoop.str.0 "\n"
   str @scoop.str.1 "none"
   str @scoop.str.2 "none"
@@ -316,15 +343,15 @@ Module
     t7 = Eq t6, 1 : i1
     cbr t7 then @if.then.4 else @if.merge.5
   block if.merge.3
-    t9 = enum_wrap e1 v1 () : enum1
-    store t9 -> local2
+    t8 = enum_wrap e1 v1 () : enum1
+    store t8 -> local2
     store local2 -> local5
-    t10 = enum_tag e1 local5 : i64
-    t11 = Eq t10, 0 : i1
-    cbr t11 then @if.then.6 else @if.else.7
+    t9 = enum_tag e1 local5 : i64
+    t10 = Eq t9, 0 : i1
+    cbr t10 then @if.then.6 else @if.else.7
   block if.then.4
     call @scoop.println(global1)
-    t8 = aggregate () : {}
+    t11 = aggregate () : {}
     br @if.merge.5
   block if.merge.5
     br @if.merge.3

@@ -3,10 +3,11 @@
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.3 and
 //! `docs/milestone2/DESIGN.md` section 2.3.
 //!
-//! M2 notes: structural equality on aggregates is already expanded by
-//! mir-lower into primitive comparisons and runtime calls, so MIR
-//! `BinOp` only contains primitive operations. Control flow stays
-//! structured (if/while); basic blocks appear only in LIR.
+//! Structural equality on aggregates is already expanded by mir-lower
+//! into primitive comparisons and runtime calls, so MIR `BinOp` only
+//! contains primitive operations. Since M10 every emitted function body
+//! is a CFG; the structured forms below are construction-only input used
+//! inside mir-lower and never occur in [`Module`].
 
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
@@ -19,6 +20,7 @@ pub type EnumId = Idx<EnumDef>;
 pub type ClassId = Idx<ClassDef>;
 pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
+pub type BlockId = Idx<BasicBlock>;
 
 /// Mangled symbol of the program entry point (called by the C runtime).
 pub const ENTRY_SYMBOL: &str = "scoop_main";
@@ -276,7 +278,38 @@ pub struct Param {
 #[derive(Debug)]
 pub struct Body {
     pub locals: Arena<Local>,
+    pub blocks: Arena<BasicBlock>,
+    pub entry: BlockId,
+}
+
+impl Body {
+    /// A valid body for signature-only function shells. It contains one
+    /// unreachable entry block so downstream code never handles a missing
+    /// entry or an empty block arena.
+    pub fn unreachable(locals: Arena<Local>) -> Self {
+        let mut blocks = Arena::new();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            statements: Vec::new(),
+            terminator: Terminator::Unreachable,
+            unwind: None,
+        });
+        Self {
+            locals,
+            blocks,
+            entry,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BasicBlock {
+    pub name: String,
     pub statements: Vec<Statement>,
+    pub terminator: Terminator,
+    /// Explicit exceptional successor for every potentially throwing user,
+    /// virtual, or interface call evaluated in this block.
+    pub unwind: Option<BlockId>,
 }
 
 #[derive(Debug)]
@@ -286,25 +319,103 @@ pub struct Statement {
 }
 
 #[derive(Debug)]
-pub struct Try {
-    pub body: Vec<Statement>,
-    pub catches: Vec<CatchClause>,
-    pub finally_body: Option<Vec<Statement>>,
+pub enum StatementKind {
+    Expr(Expr),
+    ValDecl {
+        local: LocalId,
+        init: Expr,
+    },
+    Assign {
+        local: LocalId,
+        value: Expr,
+    },
+    ArraySet {
+        array: Expr,
+        index: Expr,
+        value: Expr,
+    },
+    FieldSet {
+        object: Expr,
+        index: u32,
+        value: Expr,
+    },
+    Eh(EhStatement),
 }
 
 #[derive(Debug)]
-pub struct CatchClause {
-    pub local: LocalId,
-    pub ty: Box<Type>,
-    pub body: Vec<Statement>,
+pub enum EhStatement {
+    /// Capture the active native exception into function-local EH slots.
+    LandingPad {
+        cleanup: bool,
+    },
+    /// Begin the catch represented by the captured exception.
+    BeginCatch,
+    EndCatch,
+}
+
+#[derive(Debug)]
+pub enum Terminator {
+    Goto(BlockId),
+    Branch {
+        cond: Expr,
+        then_block: BlockId,
+        else_block: BlockId,
+    },
+    Return {
+        value: Option<Expr>,
+    },
+    /// Throw a managed exception. `unwind` is the same edge recorded on
+    /// the owning block and is repeated here because this terminator itself
+    /// initiates unwinding rather than containing a call expression.
+    Throw {
+        exception: Expr,
+        unwind: Option<BlockId>,
+    },
+    /// Rethrow the currently active native catch.
+    Rethrow {
+        unwind: Option<BlockId>,
+    },
+    /// Continue native unwinding with the exception record captured by the
+    /// nearest landing/cleanup pad.
+    Resume,
+    Trap {
+        message: StringConstId,
+    },
+    Unreachable,
+}
+
+/// Construction-only tree body emitted by the first half of mir-lower.
+#[derive(Debug)]
+pub struct StructuredBody {
+    pub locals: Arena<Local>,
+    pub statements: Vec<StructuredStatement>,
+}
+
+#[derive(Debug)]
+pub struct StructuredStatement {
+    pub kind: StructuredStatementKind,
     pub span: Span,
 }
 
 #[derive(Debug)]
-pub enum StatementKind {
+pub struct StructuredTry {
+    pub body: Vec<StructuredStatement>,
+    pub catches: Vec<StructuredCatchClause>,
+    pub finally_body: Option<Vec<StructuredStatement>>,
+}
+
+#[derive(Debug)]
+pub struct StructuredCatchClause {
+    pub local: LocalId,
+    pub ty: Box<Type>,
+    pub body: Vec<StructuredStatement>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub enum StructuredStatementKind {
     Expr(Expr),
     Return {
-        /// Absent in `Unit` functions (bare `return`).
         value: Option<Expr>,
     },
     ValDecl {
@@ -315,36 +426,30 @@ pub enum StatementKind {
         local: LocalId,
         value: Expr,
     },
-    /// `array[index] = value` (only `MutableArray`).
     ArraySet {
         array: Expr,
         index: Expr,
         value: Expr,
     },
-    /// `obj.field = value`: heap field store (class `var` property;
-    /// `index` is the flattened field index — base fields first).
     FieldSet {
         object: Expr,
         index: u32,
         value: Expr,
     },
-    /// `try { } catch ... finally { }`; catches are ordered.
-    Try(Try),
-    /// `throw expr` (throws the evaluated exception object).
+    Try(StructuredTry),
     Throw(Expr),
     If {
         cond: Expr,
-        then_body: Vec<Statement>,
-        /// The else branch genuinely may not exist.
-        else_body: Option<Vec<Statement>>,
+        then_body: Vec<StructuredStatement>,
+        else_body: Option<Vec<StructuredStatement>>,
     },
     While {
         cond: Expr,
-        body: Vec<Statement>,
+        body: Vec<StructuredStatement>,
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     StringConst(StringConstId),
     IntLiteral(i64),
@@ -362,6 +467,9 @@ pub enum Expr {
         args: Vec<Expr>,
     },
     Local(LocalId),
+    /// The managed exception pointer produced by the active `BeginCatch`.
+    /// It is only valid in blocks dominated by that statement.
+    CaughtException,
     /// Zero-cost reference retyping (for example an `Any` local narrowed by
     /// a class smart cast). The explicit result type keeps downstream field
     /// and dispatch reconstruction independent of the local's declared type.
@@ -431,20 +539,20 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Call {
     pub target: CallTarget,
     pub args: Vec<Expr>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallTarget {
     pub kind: CallKind,
     /// Fully resolved callee.
     pub callee: Callee,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CallKind {
     Direct,
     /// vtable slot (load `td` from the receiver, load `vtable[slot]`).
@@ -603,13 +711,32 @@ pub fn dump(module: &Module) -> String {
             params.join(", "),
             type_name(module, &function.return_ty)
         ));
-        dump_statements(
-            module,
-            &function.body.locals,
-            &function.body.statements,
-            2,
-            &mut out,
-        );
+        for (block_id, block) in function.body.blocks.iter() {
+            let unwind = block
+                .unwind
+                .map(|target| format!(" unwind bb{}", block_number(target)))
+                .unwrap_or_default();
+            out.push_str(&format!(
+                "    bb{} {}{}\n",
+                block_number(block_id),
+                block.name,
+                unwind
+            ));
+            dump_statements(
+                module,
+                &function.body.locals,
+                &block.statements,
+                3,
+                &mut out,
+            );
+            dump_terminator(
+                module,
+                &function.body.locals,
+                &block.terminator,
+                3,
+                &mut out,
+            );
+        }
     }
     for (_, instance) in module.meta.instances.iter() {
         out.push_str(&format!(
@@ -665,12 +792,6 @@ fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
-            StatementKind::Return { value } => {
-                out.push_str(&format!("{pad}return\n"));
-                if let Some(value) = value {
-                    dump_expr(module, locals, value, indent + 1, out);
-                }
-            }
             StatementKind::ValDecl { local, init } => {
                 let local = &locals[*local];
                 let keyword = if local.mutable { "var" } else { "val" };
@@ -680,26 +801,6 @@ fn dump_statements(
                     type_name(module, &local.ty)
                 ));
                 dump_expr(module, locals, init, indent + 1, out);
-            }
-            StatementKind::Try(try_) => {
-                out.push_str(&format!("{pad}try\n"));
-                dump_statements(module, locals, &try_.body, indent + 1, out);
-                for catch in &try_.catches {
-                    out.push_str(&format!(
-                        "{pad}catch {}: {}\n",
-                        locals[catch.local].name,
-                        type_name(module, &catch.ty)
-                    ));
-                    dump_statements(module, locals, &catch.body, indent + 1, out);
-                }
-                if let Some(finally_body) = &try_.finally_body {
-                    out.push_str(&format!("{pad}finally\n"));
-                    dump_statements(module, locals, finally_body, indent + 1, out);
-                }
-            }
-            StatementKind::Throw(expr) => {
-                out.push_str(&format!("{pad}throw\n"));
-                dump_expr(module, locals, expr, indent + 1, out);
             }
             StatementKind::FieldSet {
                 object,
@@ -724,25 +825,69 @@ fn dump_statements(
                 out.push_str(&format!("{pad}assign {}\n", locals[*local].name));
                 dump_expr(module, locals, value, indent + 1, out);
             }
-            StatementKind::If {
-                cond,
-                then_body,
-                else_body,
-            } => {
-                out.push_str(&format!("{pad}if\n"));
-                dump_expr(module, locals, cond, indent + 1, out);
-                dump_statements(module, locals, then_body, indent + 1, out);
-                if let Some(else_body) = else_body {
-                    out.push_str(&format!("{pad}else\n"));
-                    dump_statements(module, locals, else_body, indent + 1, out);
+            StatementKind::Eh(eh) => match eh {
+                EhStatement::LandingPad { cleanup } => {
+                    out.push_str(&format!("{pad}landing_pad cleanup={cleanup}\n"));
                 }
-            }
-            StatementKind::While { cond, body } => {
-                out.push_str(&format!("{pad}while\n"));
-                dump_expr(module, locals, cond, indent + 1, out);
-                dump_statements(module, locals, body, indent + 1, out);
+                EhStatement::BeginCatch => out.push_str(&format!("{pad}begin_catch\n")),
+                EhStatement::EndCatch => out.push_str(&format!("{pad}end_catch\n")),
+            },
+        }
+    }
+}
+
+fn block_number(id: BlockId) -> u32 {
+    id.into_raw().into_u32()
+}
+
+fn dump_terminator(
+    module: &Module,
+    locals: &Arena<Local>,
+    terminator: &Terminator,
+    indent: usize,
+    out: &mut String,
+) {
+    let pad = "  ".repeat(indent);
+    match terminator {
+        Terminator::Goto(target) => {
+            out.push_str(&format!("{pad}goto bb{}\n", block_number(*target)));
+        }
+        Terminator::Branch {
+            cond,
+            then_block,
+            else_block,
+        } => {
+            out.push_str(&format!(
+                "{pad}branch bb{} bb{}\n",
+                block_number(*then_block),
+                block_number(*else_block)
+            ));
+            dump_expr(module, locals, cond, indent + 1, out);
+        }
+        Terminator::Return { value } => {
+            out.push_str(&format!("{pad}return\n"));
+            if let Some(value) = value {
+                dump_expr(module, locals, value, indent + 1, out);
             }
         }
+        Terminator::Throw { exception, unwind } => {
+            let edge = unwind
+                .map(|target| format!(" unwind bb{}", block_number(target)))
+                .unwrap_or_default();
+            out.push_str(&format!("{pad}throw{edge}\n"));
+            dump_expr(module, locals, exception, indent + 1, out);
+        }
+        Terminator::Rethrow { unwind } => {
+            let edge = unwind
+                .map(|target| format!(" unwind bb{}", block_number(target)))
+                .unwrap_or_default();
+            out.push_str(&format!("{pad}rethrow{edge}\n"));
+        }
+        Terminator::Resume => out.push_str(&format!("{pad}resume\n")),
+        Terminator::Trap { message } => {
+            out.push_str(&format!("{pad}trap @{}\n", module.strings[*message].symbol));
+        }
+        Terminator::Unreachable => out.push_str(&format!("{pad}unreachable\n")),
     }
 }
 
@@ -783,6 +928,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             }
         }
         Expr::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        Expr::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
         Expr::Retype { operand, ty } => {
             out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));
             dump_expr(module, locals, operand, indent + 1, out);

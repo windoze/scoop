@@ -180,121 +180,134 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
-    val t: (Int, Int, Int, Int)
-      TupleLiteral
-        IntLiteral 1
-        IntLiteral 2
-        IntLiteral 3
-        IntLiteral 4
-    val $bind.1: (Int, Int, Int, Int)
-      Local t
-    val x: Int
-      FieldAccess 0
-        Local $bind.1
-    val y: Int
-      FieldAccess 3
-        Local $bind.1
-    Call @scoop.println direct
-      Box
-        Binary IntAdd
-          Local x
-          Local y
-    val s: S
-      StructInit S
-        IntLiteral 1
-        IntLiteral 2
-        IntLiteral 3
-    val $bind.2: S
-      Local s
-    val f1: Int
-      FieldAccess 0
-        Local $bind.2
-    Call @scoop.println direct
-      Box
-        Local f1
-    val $bind.3: (Int, S)
-      TupleLiteral
-        IntLiteral 9
+    bb0 entry
+      val t: (Int, Int, Int, Int)
+        TupleLiteral
+          IntLiteral 1
+          IntLiteral 2
+          IntLiteral 3
+          IntLiteral 4
+      val $bind.1: (Int, Int, Int, Int)
+        Local t
+      val x: Int
+        FieldAccess 0
+          Local $bind.1
+      val y: Int
+        FieldAccess 3
+          Local $bind.1
+      Call @scoop.println direct
+        Box
+          Binary IntAdd
+            Local x
+            Local y
+      val s: S
+        StructInit S
+          IntLiteral 1
+          IntLiteral 2
+          IntLiteral 3
+      val $bind.2: S
         Local s
-    val n: Int
-      FieldAccess 0
-        Local $bind.3
-    val f2: Int
-      FieldAccess 1
-        FieldAccess 1
+      val f1: Int
+        FieldAccess 0
+          Local $bind.2
+      Call @scoop.println direct
+        Box
+          Local f1
+      val $bind.3: (Int, S)
+        TupleLiteral
+          IntLiteral 9
+          Local s
+      val n: Int
+        FieldAccess 0
           Local $bind.3
-    Call @scoop.println direct
-      Box
-        Binary IntAdd
-          Local n
-          Local f2
-    val $bind.4: S
-      Local s
-    val a: Int
-      FieldAccess 0
-        Local $bind.4
-    val c: Int
-      FieldAccess 2
-        Local $bind.4
-    Call @scoop.println direct
-      Box
-        Binary IntAdd
-          Local a
-          Local c
+      val f2: Int
+        FieldAccess 1
+          FieldAccess 1
+            Local $bind.3
+      Call @scoop.println direct
+        Box
+          Binary IntAdd
+            Local n
+            Local f2
+      val $bind.4: S
+        Local s
+      val a: Int
+        FieldAccess 0
+          Local $bind.4
+      val c: Int
+        FieldAccess 2
+          Local $bind.4
+      Call @scoop.println direct
+        Box
+          Binary IntAdd
+            Local a
+            Local c
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.1
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.1
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.2
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
   str @scoop.str.0 "\n"
   str @scoop.str.1 "unwrap on None"
   str @scoop.str.2 "invalid cast"

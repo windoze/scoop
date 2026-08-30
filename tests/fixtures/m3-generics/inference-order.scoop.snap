@@ -242,131 +242,153 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun pick @scoop.pick.EOption$I_IX_I(maybe: Option$I<Int>, value: Int) -> Int
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun pick @scoop.pick.EOption$S_SX_S(maybe: Option$S<String>, value: String) -> String
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun main @scoop_main() -> Unit
-    Call @scoop.println direct
-      Box
-        Call @scoop.choose$I direct
+    bb0 entry
+      Call @scoop.println direct
+        Box
+          Call @scoop.choose$I direct
+            VariantConstruct Option$I<Int> v1
+            IntLiteral 7
+      val pair: Pair$I
+        StructInit Pair$I
           VariantConstruct Option$I<Int> v1
-          IntLiteral 7
-    val pair: Pair$I
-      StructInit Pair$I
-        VariantConstruct Option$I<Int> v1
-        IntLiteral 8
-    Call @scoop.println direct
-      Box
-        FieldAccess 1
-          Local pair
-    val duo: Duo$I<Int>
-      VariantConstruct Duo$I<Int> v0
-        VariantConstruct Option$I<Int> v1
-        IntLiteral 9
-    val $when.1: Duo$I<Int>
-      Local duo
-    if
-      Binary IntEq
-        EnumTag
-          Local $when.1
-        IntLiteral 0
+          IntLiteral 8
+      Call @scoop.println direct
+        Box
+          FieldAccess 1
+            Local pair
+      val duo: Duo$I<Int>
+        VariantConstruct Duo$I<Int> v0
+          VariantConstruct Option$I<Int> v1
+          IntLiteral 9
+      val $when.1: Duo$I<Int>
+        Local duo
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb1 if.then.1
       val value: Int
         EnumField v0 f1
           Local $when.1
       Call @scoop.println direct
         Box
           Local value
-    Call @scoop.println direct
-      Box
-        Call @scoop.pick.EOption$I_IX_I direct
-          VariantConstruct Option$I<Int> v1
-          IntLiteral 10
-    Call @scoop.println direct
-      Box
-        Call @scoop.nested$I direct
-          VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
+      goto bb2
+    bb2 if.merge.2
+      Call @scoop.println direct
+        Box
+          Call @scoop.pick.EOption$I_IX_I direct
             VariantConstruct Option$I<Int> v1
-          IntLiteral 11
-    Call @scoop.println direct
-      Box
-        Call @scoop.arrayValue$I direct
-          ArrayLiteral
-          IntLiteral 12
-    Call @scoop.println direct
-      Box
-        Call @scoop.tupleValue$I direct
-          TupleLiteral
-            VariantConstruct Option$I<Int> v1
-            IntLiteral 13
-          IntLiteral 14
+            IntLiteral 10
+      Call @scoop.println direct
+        Box
+          Call @scoop.nested$I direct
+            VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
+              VariantConstruct Option$I<Int> v1
+            IntLiteral 11
+      Call @scoop.println direct
+        Box
+          Call @scoop.arrayValue$I direct
+            ArrayLiteral
+            IntLiteral 12
+      Call @scoop.println direct
+        Box
+          Call @scoop.tupleValue$I direct
+            TupleLiteral
+              VariantConstruct Option$I<Int> v1
+              IntLiteral 13
+            IntLiteral 14
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.1
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.1
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.2
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun choose @scoop.choose$I(maybe: Option$I<Int>, value: Int) -> Int
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun nested @scoop.nested$I(maybe: Option$EOption$I_IX<Option$I<Int>>, value: Int) -> Int
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun arrayValue @scoop.arrayValue$I(values: Array<Int>, value: Int) -> Int
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun tupleValue @scoop.tupleValue$I(pair: (Option$I<Int>, Int), value: Int) -> Int
-    return
-      Local value
+    bb0 entry
+      return
+        Local value
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
   instance @scoop.choose$I <- choose
   instance @scoop.nested$I <- nested
   instance @scoop.arrayValue$I <- arrayValue

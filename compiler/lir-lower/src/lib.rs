@@ -993,11 +993,16 @@ fn lower_function<'a>(
     };
 
     let mut blocks = Arena::new();
-    let entry = blocks.alloc(lir::BasicBlock {
-        name: "entry".to_string(),
-        instructions: Vec::new(),
-        terminator: lir::Terminator::Return { value: None }, // placeholder, see FunctionLowerer
-    });
+    let mut block_map = HashMap::new();
+    for (mir_id, block) in function.body.blocks.iter() {
+        let lir_id = blocks.alloc(lir::BasicBlock {
+            name: block.name.clone(),
+            instructions: Vec::new(),
+            terminator: lir::Terminator::Unreachable,
+        });
+        block_map.insert(mir_id, lir_id);
+    }
+    let entry = block_map[&function.body.entry];
     let mut lowerer = FunctionLowerer {
         module,
         mir_locals: &function.body.locals,
@@ -1012,27 +1017,26 @@ fn lower_function<'a>(
         temps: Arena::new(),
         blocks,
         current: entry,
+        block_map,
+        current_unwind: None,
         block_count: 0,
         hidden_count: 0,
         mir_return_ty: function.return_ty.clone(),
         returns_void,
         trap_blocks: HashMap::new(),
         current_sealed: false,
-        try_stack: Vec::new(),
         exception_slots: None,
-        return_cleanups: Vec::new(),
+        caught_exception: None,
     };
-    lowerer.lower_statements(&function.body.statements);
-    if !lowerer.current_sealed {
-        if returns_void {
-            lowerer.seal(lir::Terminator::Return { value: None });
-        } else {
-            // HIR proves that a non-Unit body cannot fall through.
-            // Structured lowering may still create a predecessor-free
-            // merge block (notably for an exhaustive `when` decision
-            // tree), so close that dead block explicitly.
-            lowerer.seal(lir::Terminator::Unreachable);
+    for (mir_id, block) in function.body.blocks.iter() {
+        let lir_id = lowerer.block_map[&mir_id];
+        lowerer.enter(lir_id);
+        lowerer.current_unwind = block.unwind.map(|target| lowerer.block_map[&target]);
+        lowerer.lower_statements(&block.statements);
+        if !lowerer.current_sealed {
+            lowerer.lower_terminator(&block.terminator);
         }
+        assert!(lowerer.current_sealed, "every MIR block has a terminator");
     }
     lir::Function {
         symbol: function.symbol.clone(),
@@ -1086,35 +1090,6 @@ fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
     }
 }
 
-#[derive(Clone)]
-enum ReturnCleanup<'a> {
-    /// Run a finally body. `owner_unwind` is removed from the active
-    /// try stack while the copy is lowered, so it cannot catch an
-    /// exception thrown by its own finally.
-    Finally {
-        owner_unwind: lir::BlockId,
-        body: &'a [mir::Statement],
-    },
-    /// Balance the catch started by a `LandingPad`. Removing its
-    /// cleanup pad from `try_stack` ensures later outer finally bodies
-    /// cannot end the same catch twice if they throw.
-    EndCatch { cleanup_pad: lir::BlockId },
-}
-
-/// An LLVM unwind destination plus the ordinary block that consumes
-/// the exception record captured there. Cleanup chains branch to the
-/// continuation directly after saving a replacement exception in the
-/// shared EH locals; fresh invokes target `pad`.
-#[derive(Clone, Copy)]
-struct UnwindTarget {
-    pad: lir::BlockId,
-    continuation: lir::BlockId,
-    /// Whether the continuation chain eventually reaches a catch
-    /// dispatch in this function. Such pads need a catch-all clause;
-    /// chains ending in `resume` use cleanup-only pads.
-    handles_in_function: bool,
-}
-
 /// Per-function lowering state: locals, temps, and the basic blocks
 /// built so far. Invariant: the `current` block is always unsealed
 /// (its terminator is a placeholder); a block is sealed exactly when
@@ -1142,6 +1117,8 @@ struct FunctionLowerer<'a> {
     temps: Arena<lir::Temp>,
     blocks: Arena<lir::BasicBlock>,
     current: lir::BlockId,
+    block_map: HashMap<mir::BlockId, lir::BlockId>,
+    current_unwind: Option<lir::BlockId>,
     /// Counters for unique block / hidden-local names.
     block_count: usize,
     hidden_count: usize,
@@ -1153,19 +1130,11 @@ struct FunctionLowerer<'a> {
     trap_blocks: HashMap<String, lir::BlockId>,
     /// Whether the current block was already sealed.
     current_sealed: bool,
-    /// The unwind blocks of the enclosing trys, innermost last (M8):
-    /// a call that may throw inside a try body is invoked to the
-    /// innermost landing pad. Empty outside try bodies — calls stay
-    /// plain there.
-    try_stack: Vec<UnwindTarget>,
     /// Function-local spill slots shared by all landing pads. They
     /// avoid phi nodes when an inner catch cleanup forwards the same
     /// exception to an enclosing try's dispatch block.
     exception_slots: Option<(lir::LocalId, lir::LocalId)>,
-    /// Structured cleanups for `return`, innermost last (M8): finally
-    /// copies and active catches are interleaved in lexical order, so
-    /// nested handlers execute `end_catch; finally` from inside out.
-    return_cleanups: Vec<ReturnCleanup<'a>>,
+    caught_exception: Option<lir::LocalId>,
 }
 
 impl<'a> FunctionLowerer<'a> {
@@ -1181,6 +1150,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Seal the current block with its terminator.
     fn seal(&mut self, terminator: lir::Terminator) {
         self.blocks[self.current].terminator = terminator;
+        self.current_sealed = true;
     }
 
     /// Make `block` the current (unsealed) block.
@@ -1255,6 +1225,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Expr::IntLiteral(_) => mir::Type::Int,
             mir::Expr::BoolLiteral(_) => mir::Type::Boolean,
             mir::Expr::UnitLiteral => mir::Type::Unit,
+            mir::Expr::CaughtException => mir::Type::Any,
             mir::Expr::TupleLiteral(elements) => {
                 mir::Type::Tuple(elements.iter().map(|e| self.expr_ty(e)).collect())
             }
@@ -1454,13 +1425,74 @@ impl<'a> FunctionLowerer<'a> {
                     value,
                 });
             }
-            mir::StatementKind::Return { value } => {
-                let mut value = match (self.returns_void, value) {
+            mir::StatementKind::Eh(eh) => self.lower_eh_statement(eh),
+        }
+    }
+
+    fn lower_eh_statement(&mut self, statement: &mir::EhStatement) {
+        match statement {
+            mir::EhStatement::LandingPad { cleanup } => {
+                let (record_slot, raw_slot) = self.exception_slots();
+                let record = self.new_temp(lir::LirType::ExceptionRecord);
+                let raw = self.new_temp(lir::LirType::Ptr);
+                if *cleanup {
+                    self.push(lir::Instruction::CleanupPad { record, raw });
+                } else {
+                    self.push(lir::Instruction::LandingPad { record, raw });
+                }
+                self.push(lir::Instruction::Store {
+                    local: record_slot,
+                    value: lir::Value::Temp(record),
+                });
+                self.push(lir::Instruction::Store {
+                    local: raw_slot,
+                    value: lir::Value::Temp(raw),
+                });
+            }
+            mir::EhStatement::BeginCatch => {
+                let (_, raw_slot) = self.exception_slots();
+                let exception = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::BeginCatch {
+                    out: exception,
+                    raw: lir::Value::Local(raw_slot),
+                });
+                let slot = match self.caught_exception {
+                    Some(slot) => slot,
+                    None => {
+                        let slot = self.new_hidden_local(lir::LirType::Ptr);
+                        self.caught_exception = Some(slot);
+                        slot
+                    }
+                };
+                self.push(lir::Instruction::Store {
+                    local: slot,
+                    value: lir::Value::Temp(exception),
+                });
+            }
+            mir::EhStatement::EndCatch => self.push(lir::Instruction::EndCatch),
+        }
+    }
+
+    fn lower_terminator(&mut self, terminator: &mir::Terminator) {
+        match terminator {
+            mir::Terminator::Goto(target) => {
+                self.seal(lir::Terminator::Br(self.block_map[target]));
+            }
+            mir::Terminator::Branch {
+                cond,
+                then_block,
+                else_block,
+            } => {
+                let cond = self.lower_expr(cond, &mir::Type::Boolean);
+                self.seal(lir::Terminator::CondBr {
+                    cond,
+                    then_block: self.block_map[then_block],
+                    else_block: self.block_map[else_block],
+                });
+            }
+            mir::Terminator::Return { value } => {
+                let value = match (self.returns_void, value) {
                     (true, None) => None,
-                    // hir-lower emits bare `return` in Unit functions,
-                    // so this is defensive: evaluate the Unit value for
-                    // its instructions, but the void function does not
-                    // return it.
                     (true, Some(value)) => {
                         self.lower_expr(value, &mir::Type::Unit);
                         None
@@ -1469,431 +1501,66 @@ impl<'a> FunctionLowerer<'a> {
                         let ty = self.mir_return_ty.clone();
                         Some(self.lower_expr(value, &ty))
                     }
-                    // hir-lower: non-Unit functions return a value.
-                    (false, None) => unreachable!("non-Unit `return` without a value"),
+                    (false, None) => unreachable!("non-Unit return without a value"),
                 };
-                if !self.return_cleanups.is_empty() {
-                    // `return` inside a try/finally or an active catch
-                    // (M8, DESIGN 3.4): the value is already evaluated
-                    // above; now every cleanup runs innermost first.
-                    // A `Local` value is stashed first — a finally may
-                    // assign to that local, but the returned value must
-                    // be the one evaluated here.
-                    if let Some(lir::Value::Local(_)) = value {
-                        let return_ty = self.mir_return_ty.clone();
-                        let ty = self.value_type(&return_ty);
-                        let stash = self.new_hidden_local(ty);
-                        self.push(lir::Instruction::Store {
-                            local: stash,
-                            value: value.expect("a value is being stashed"),
-                        });
-                        value = Some(lir::Value::Local(stash));
-                    }
-                    self.emit_return_cleanups();
-                    // A `return` inside a finally copy wins: the block
-                    // is sealed and this return is dropped.
-                    if self.current_sealed {
-                        return;
-                    }
-                }
                 self.seal(lir::Terminator::Return { value });
-                self.current_sealed = true;
             }
-            mir::StatementKind::If {
-                cond,
-                then_body,
-                else_body,
-            } => {
-                let cond = self.lower_expr(cond, &mir::Type::Boolean);
-                let then_block = self.new_block("if.then");
-                let else_block = else_body.as_ref().map(|_| self.new_block("if.else"));
-                let merge_block = self.new_block("if.merge");
-                self.seal(lir::Terminator::CondBr {
-                    cond,
-                    then_block,
-                    else_block: else_block.unwrap_or(merge_block),
-                });
-                self.enter(then_block);
-                self.lower_statements(then_body);
-                // A branch ending in `return` / a trap is sealed
-                // already.
-                if !self.current_sealed {
-                    self.seal(lir::Terminator::Br(merge_block));
-                }
-                if let (Some(else_body), Some(else_block)) = (else_body, else_block) {
-                    self.enter(else_block);
-                    self.lower_statements(else_body);
-                    if !self.current_sealed {
-                        self.seal(lir::Terminator::Br(merge_block));
-                    }
-                }
-                self.enter(merge_block);
-            }
-            mir::StatementKind::While { cond, body } => {
-                let cond_block = self.new_block("while.cond");
-                self.seal(lir::Terminator::Br(cond_block));
-                self.enter(cond_block);
-                let cond = self.lower_expr(cond, &mir::Type::Boolean);
-                let body_block = self.new_block("while.body");
-                let exit_block = self.new_block("while.exit");
-                self.seal(lir::Terminator::CondBr {
-                    cond,
-                    then_block: body_block,
-                    else_block: exit_block,
-                });
-                self.enter(body_block);
-                self.lower_statements(body);
-                if !self.current_sealed {
-                    self.seal(lir::Terminator::Br(cond_block));
-                }
-                self.enter(exit_block);
-            }
-            mir::StatementKind::Try(try_) => self.lower_try(try_),
-            // `throw` (M8, DESIGN 3.4): outside a try this is the
-            // `Throw` instruction — codegen calls the runtime throw
-            // entry and the block ends `unreachable`. Inside a try the
-            // throw must reach this function's own landing pad (a
-            // plain call would unwind straight past it), so it is
-            // invoked to the innermost pad; the runtime entry never
-            // returns, so the normal successor is unreachable.
-            mir::StatementKind::Throw(expr) => {
-                let ty = self.expr_ty(expr);
-                let value = self.lower_expr(expr, &ty);
-                match self.try_stack.last() {
-                    Some(target) => {
-                        let unwind = target.pad;
-                        let normal = self.new_block("throw.normal");
-                        self.push(lir::Instruction::Invoke {
-                            out: None,
-                            symbol: THROW_SYMBOL.to_string(),
-                            args: vec![value],
-                            normal,
-                            unwind,
-                        });
-                        self.seal(lir::Terminator::Br(normal));
-                        self.enter(normal);
-                        // The runtime throw entry never returns, so the
-                        // normal successor is dead.
-                        self.seal(lir::Terminator::Unreachable);
-                        self.current_sealed = true;
-                    }
-                    None => {
-                        self.push(lir::Instruction::Throw { exception: value });
-                        self.seal(lir::Terminator::Unreachable);
-                        self.current_sealed = true;
-                    }
+            mir::Terminator::Throw { exception, unwind } => {
+                let ty = self.expr_ty(exception);
+                let value = self.lower_expr(exception, &ty);
+                if let Some(unwind) = unwind {
+                    let normal = self.new_block("throw.normal");
+                    self.push(lir::Instruction::Invoke {
+                        out: None,
+                        symbol: THROW_SYMBOL.to_string(),
+                        args: vec![value],
+                        normal,
+                        unwind: self.block_map[unwind],
+                    });
+                    self.seal(lir::Terminator::Br(normal));
+                    self.enter(normal);
+                    self.seal(lir::Terminator::Unreachable);
+                } else {
+                    self.push(lir::Instruction::Throw { exception: value });
+                    self.seal(lir::Terminator::Unreachable);
                 }
             }
-        }
-    }
-
-    /// `try` / `catch` / `finally` (M8, DESIGN 3.4). While the body is
-    /// lowered its unwind block tops `try_stack`, so every potentially
-    /// throwing operation in the body becomes an `Invoke` /
-    /// `InvokeIndirect` to it (see `finish_call`); nested trys push
-    /// their own pad. The pad captures the ABI record/raw pointer;
-    /// dispatch begins the catch and matches clauses in declaration
-    /// order with the `scoop_rt_is_instance` chain (the same shape as
-    /// `when`). An exception no catch matches is rethrown.
-    ///
-    /// `finally` runs on every path, inlined per exit site: once
-    /// after normal completion of the body, once after each catch
-    /// body, and once before the rethrow; a `return` out of the body
-    /// or a catch is covered by the `Return` arm through
-    /// `return_cleanups`. Catch bodies and their finally copies unwind
-    /// through handler/exit pads that end the active catch; a catch
-    /// body exit also runs finally before forwarding, while a throw
-    /// from finally and a rethrow use an exit chain that cannot re-run it.
-    fn lower_try(&mut self, try_: &'a mir::Try) {
-        let enclosing = self.try_stack.last().copied();
-        let (record_slot, raw_slot) = self.exception_slots();
-        let unwind = self.new_block("try.unwind");
-        let dispatch = self.new_block("try.dispatch");
-        let handler_target = if try_.catches.is_empty() {
-            None
-        } else {
-            let pad = self.new_block("try.handler_pad");
-            let continuation = self.new_block("try.handler_cleanup");
-            Some(UnwindTarget {
-                pad,
-                continuation,
-                handles_in_function: enclosing.is_some_and(|target| target.handles_in_function),
-            })
-        };
-        let exit_target = UnwindTarget {
-            pad: self.new_block("try.exit_pad"),
-            continuation: self.new_block("try.exit_cleanup"),
-            handles_in_function: enclosing.is_some_and(|target| target.handles_in_function),
-        };
-        let end = self.new_block("try.end");
-        let own_target = UnwindTarget {
-            pad: unwind,
-            continuation: dispatch,
-            handles_in_function: true,
-        };
-
-        self.try_stack.push(own_target);
-        if let Some(finally) = &try_.finally_body {
-            self.return_cleanups.push(ReturnCleanup::Finally {
-                owner_unwind: unwind,
-                body: finally,
-            });
-        }
-        self.lower_statements(&try_.body);
-        self.try_stack.pop();
-        let finally = try_.finally_body.as_deref();
-        if finally.is_some() {
-            self.return_cleanups.pop();
-        }
-
-        let mut end_reachable = false;
-        // Normal path: inline finally once, then continue after the
-        // try.
-        if !self.current_sealed {
-            if let Some(finally) = finally {
-                self.lower_statements(finally);
-            }
-            if !self.current_sealed {
-                self.seal(lir::Terminator::Br(end));
-                end_reachable = true;
-            }
-        }
-
-        // Exception path: capture into function-local EH slots, then
-        // begin the catch in an ordinary block. Inner cleanup chains
-        // can branch to the same dispatch after replacing those slots.
-        self.enter(unwind);
-        let record = self.new_temp(lir::LirType::ExceptionRecord);
-        let raw = self.new_temp(lir::LirType::Ptr);
-        self.push(lir::Instruction::LandingPad { record, raw });
-        self.push(lir::Instruction::Store {
-            local: record_slot,
-            value: lir::Value::Temp(record),
-        });
-        self.push(lir::Instruction::Store {
-            local: raw_slot,
-            value: lir::Value::Temp(raw),
-        });
-        self.seal(lir::Terminator::Br(dispatch));
-
-        self.enter(dispatch);
-        let exception = self.new_temp(lir::LirType::Ptr);
-        self.push(lir::Instruction::BeginCatch {
-            out: exception,
-            raw: lir::Value::Local(raw_slot),
-        });
-        let exception = lir::Value::Temp(exception);
-        for catch in &try_.catches {
-            let handler_target = handler_target.expect("a catch has a handler cleanup");
-            let catch_block = self.new_block("try.catch");
-            let next = self.new_block("try.next");
-            let cond = self.new_temp(lir::LirType::I1);
-            let catch_td = self.td_ref(&catch.ty);
-            self.push(lir::Instruction::Call {
-                out: Some(cond),
-                symbol: mir::RuntimeFn::IsInstance.symbol().to_string(),
-                args: vec![exception, catch_td],
-            });
-            self.seal(lir::Terminator::CondBr {
-                cond: lir::Value::Temp(cond),
-                then_block: catch_block,
-                else_block: next,
-            });
-            self.enter(catch_block);
-            self.push(lir::Instruction::Store {
-                local: self.local_slot(catch.local),
-                value: exception,
-            });
-            // Calls/throws in the catch body unwind through a cleanup
-            // that ends this catch, runs finally, then resumes.
-            self.try_stack.push(handler_target);
-            let cleanup_base = self.return_cleanups.len();
-            // Return cleanup order is LIFO: end the catch first, then
-            // run its finally with only the enclosing try active.
-            if let Some(finally) = finally {
-                self.return_cleanups.push(ReturnCleanup::Finally {
-                    owner_unwind: unwind,
-                    body: finally,
+            mir::Terminator::Rethrow { unwind } => match unwind {
+                Some(unwind) => {
+                    let normal = self.new_block("rethrow.normal");
+                    self.push(lir::Instruction::Invoke {
+                        out: None,
+                        symbol: RETHROW_SYMBOL.to_string(),
+                        args: Vec::new(),
+                        normal,
+                        unwind: self.block_map[unwind],
+                    });
+                    self.seal(lir::Terminator::Br(normal));
+                    self.enter(normal);
+                    self.seal(lir::Terminator::Unreachable);
+                }
+                None => {
+                    self.push(lir::Instruction::Call {
+                        out: None,
+                        symbol: RETHROW_SYMBOL.to_string(),
+                        args: Vec::new(),
+                    });
+                    self.seal(lir::Terminator::Unreachable);
+                }
+            },
+            mir::Terminator::Resume => {
+                let (record, _) = self.exception_slots();
+                self.seal(lir::Terminator::Resume {
+                    exception: lir::Value::Local(record),
                 });
             }
-            self.return_cleanups.push(ReturnCleanup::EndCatch {
-                cleanup_pad: handler_target.pad,
-            });
-            self.lower_statements(&catch.body);
-            self.return_cleanups.truncate(cleanup_base);
-            self.try_stack.pop();
-            if !self.current_sealed {
-                self.push(lir::Instruction::EndCatch);
-                if let Some(finally) = finally {
-                    self.lower_statements(finally);
-                }
-                if !self.current_sealed {
-                    self.seal(lir::Terminator::Br(end));
-                    end_reachable = true;
-                }
+            mir::Terminator::Trap { message } => {
+                let message = self.module.strings[*message].value.clone();
+                let trap = self.trap_block(&message);
+                self.seal(lir::Terminator::Br(trap));
             }
-            self.enter(next);
+            mir::Terminator::Unreachable => self.seal(lir::Terminator::Unreachable),
         }
-        // No catch matched: finally, then rethrow the active
-        // exception. A return or a new exception from the finally must
-        // still end the catch begun by LandingPad.
-        self.try_stack.push(exit_target);
-        let cleanup_base = self.return_cleanups.len();
-        self.return_cleanups.push(ReturnCleanup::EndCatch {
-            cleanup_pad: exit_target.pad,
-        });
-        if let Some(finally) = finally {
-            self.lower_statements(finally);
-        }
-        self.return_cleanups.truncate(cleanup_base);
-        if !self.current_sealed {
-            let normal = self.new_block("rethrow.normal");
-            self.push(lir::Instruction::Invoke {
-                out: None,
-                symbol: RETHROW_SYMBOL.to_string(),
-                args: Vec::new(),
-                normal,
-                unwind: exit_target.pad,
-            });
-            self.seal(lir::Terminator::Br(normal));
-            self.enter(normal);
-            self.seal(lir::Terminator::Unreachable);
-            self.current_sealed = true;
-        }
-        self.try_stack.pop();
-
-        // A catch-body exception first lands in a pad that captures the
-        // replacement record, then its ordinary continuation ends the
-        // old catch and runs finally. The captured exception is passed
-        // to the enclosing continuation without changing identity.
-        if let Some(handler_target) = handler_target {
-            self.enter(handler_target.pad);
-            let handler_record = self.new_temp(lir::LirType::ExceptionRecord);
-            let handler_raw = self.new_temp(lir::LirType::Ptr);
-            if handler_target.handles_in_function {
-                self.push(lir::Instruction::LandingPad {
-                    record: handler_record,
-                    raw: handler_raw,
-                });
-            } else {
-                self.push(lir::Instruction::CleanupPad {
-                    record: handler_record,
-                    raw: handler_raw,
-                });
-            }
-            self.push(lir::Instruction::Store {
-                local: record_slot,
-                value: lir::Value::Temp(handler_record),
-            });
-            self.push(lir::Instruction::Store {
-                local: raw_slot,
-                value: lir::Value::Temp(handler_raw),
-            });
-            self.seal(lir::Terminator::Br(handler_target.continuation));
-
-            self.enter(handler_target.continuation);
-            self.push(lir::Instruction::EndCatch);
-            if let Some(finally) = finally {
-                self.lower_statements(finally);
-            }
-            if !self.current_sealed {
-                match enclosing {
-                    Some(target) => self.seal(lir::Terminator::Br(target.continuation)),
-                    None => self.seal(lir::Terminator::Resume {
-                        exception: lir::Value::Local(record_slot),
-                    }),
-                }
-            }
-        }
-
-        // No-match rethrow and exceptions from a no-match finally have
-        // already run (or are replacing) that finally: capture the
-        // record, end the active catch, then continue the enclosing
-        // cleanup/dispatch chain.
-        self.enter(exit_target.pad);
-        let exit_record = self.new_temp(lir::LirType::ExceptionRecord);
-        let exit_raw = self.new_temp(lir::LirType::Ptr);
-        if exit_target.handles_in_function {
-            self.push(lir::Instruction::LandingPad {
-                record: exit_record,
-                raw: exit_raw,
-            });
-        } else {
-            self.push(lir::Instruction::CleanupPad {
-                record: exit_record,
-                raw: exit_raw,
-            });
-        }
-        self.push(lir::Instruction::Store {
-            local: record_slot,
-            value: lir::Value::Temp(exit_record),
-        });
-        self.push(lir::Instruction::Store {
-            local: raw_slot,
-            value: lir::Value::Temp(exit_raw),
-        });
-        self.seal(lir::Terminator::Br(exit_target.continuation));
-
-        self.enter(exit_target.continuation);
-        self.push(lir::Instruction::EndCatch);
-        match enclosing {
-            Some(target) => self.seal(lir::Terminator::Br(target.continuation)),
-            None => self.seal(lir::Terminator::Resume {
-                exception: lir::Value::Local(record_slot),
-            }),
-        }
-
-        self.enter(end);
-        if !end_reachable {
-            // Every path through the try leaves the function (all
-            // branches return or throw), so the merge block is dead.
-            // Seal it: without this the function-end fallback would
-            // append a bare `return` on a path that must not exist.
-            self.seal(lir::Terminator::Unreachable);
-            self.current_sealed = true;
-        }
-    }
-
-    /// Emit every pending return cleanup, innermost first. Finally
-    /// bodies are duplicated per exit site because a shared block
-    /// cannot carry the per-site return value without a phi. While a
-    /// cleanup is lowered the stack contains only the remaining outer
-    /// actions, so a `return` inside a finally does not recurse into
-    /// that same copy. EndCatch actions also remove their cleanup pad
-    /// from `try_stack`, preserving the lexical nesting of handlers.
-    fn emit_return_cleanups(&mut self) {
-        let all = std::mem::take(&mut self.return_cleanups);
-        let saved_try_stack = self.try_stack.clone();
-        let mut remaining = all.clone();
-        while let Some(cleanup) = remaining.pop() {
-            if self.current_sealed {
-                break;
-            }
-            self.return_cleanups = remaining.clone();
-            match cleanup {
-                ReturnCleanup::Finally { owner_unwind, body } => {
-                    if let Some(pos) = self
-                        .try_stack
-                        .iter()
-                        .rposition(|target| target.pad == owner_unwind)
-                    {
-                        self.try_stack.truncate(pos);
-                    }
-                    self.lower_statements(body);
-                }
-                ReturnCleanup::EndCatch { cleanup_pad } => {
-                    self.push(lir::Instruction::EndCatch);
-                    let active = self.try_stack.pop();
-                    assert_eq!(
-                        active.map(|target| target.pad),
-                        Some(cleanup_pad),
-                        "active catch cleanup nesting"
-                    );
-                }
-            }
-        }
-        self.return_cleanups = all;
-        self.try_stack = saved_try_stack;
     }
 
     /// Lower an expression of MIR type `ty`, appending its
@@ -1908,6 +1575,10 @@ impl<'a> FunctionLowerer<'a> {
             mir::Expr::IntLiteral(value) => lir::Value::IntConst(*value),
             mir::Expr::BoolLiteral(value) => lir::Value::BoolConst(*value),
             mir::Expr::UnitLiteral => self.unit_value(),
+            mir::Expr::CaughtException => lir::Value::Local(
+                self.caught_exception
+                    .expect("CaughtException must be dominated by BeginCatch"),
+            ),
             mir::Expr::TupleLiteral(elements) => {
                 let mir::Type::Tuple(element_types) = ty else {
                     unreachable!("a tuple literal has a tuple type")
@@ -2465,8 +2136,7 @@ impl<'a> FunctionLowerer<'a> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        if let Some(target) = self.try_stack.last() {
-            let unwind = target.pad;
+        if let Some(unwind) = self.current_unwind {
             let normal = self.new_block("invoke.normal");
             let out = if returns_unit {
                 None
@@ -2518,8 +2188,7 @@ impl<'a> FunctionLowerer<'a> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        if let Some(target) = self.try_stack.last() {
-            let unwind = target.pad;
+        if let Some(unwind) = self.current_unwind {
             let normal = self.new_block("invoke.normal");
             let out = if returns_unit {
                 None
@@ -2698,10 +2367,7 @@ mod tests {
                 symbol: symbol.to_string(),
                 params,
                 return_ty,
-                body: mir::Body {
-                    locals: Arena::new(),
-                    statements: Vec::new(),
-                },
+                body: mir::Body::unreachable(Arena::new()),
             })
         }
 
@@ -2731,12 +2397,47 @@ mod tests {
             locals: Arena<mir::Local>,
             statements: Vec<mir::Statement>,
         ) -> mir::FunctionId {
+            let mut blocks = Arena::new();
+            let terminator = if return_ty == mir::Type::Unit {
+                mir::Terminator::Return { value: None }
+            } else {
+                mir::Terminator::Unreachable
+            };
+            let entry = blocks.alloc(mir::BasicBlock {
+                name: "entry".to_string(),
+                statements,
+                terminator,
+                unwind: None,
+            });
             let id = self.functions.alloc(mir::Function {
                 name: name.to_string(),
                 symbol: symbol.to_string(),
                 params,
                 return_ty,
-                body: mir::Body { locals, statements },
+                body: mir::Body {
+                    locals,
+                    blocks,
+                    entry,
+                },
+            });
+            self.top_level.push(id);
+            id
+        }
+
+        fn user_fn_body(
+            &mut self,
+            name: &str,
+            symbol: &str,
+            params: Vec<mir::Param>,
+            return_ty: mir::Type,
+            body: mir::Body,
+        ) -> mir::FunctionId {
+            let id = self.functions.alloc(mir::Function {
+                name: name.to_string(),
+                symbol: symbol.to_string(),
+                params,
+                return_ty,
+                body,
             });
             self.top_level.push(id);
             id
@@ -2919,19 +2620,59 @@ Module
         let mut b = Builder::new();
         let ok = b.string("ok");
         let ng = b.string("ng");
-        let main = b.main(
-            Arena::new(),
-            vec![stmt(mir::StatementKind::If {
+        let mut blocks = Arena::new();
+        let entry = cfg_block(&mut blocks, "entry");
+        let then_block = cfg_block(&mut blocks, "if.then.1");
+        let else_block = cfg_block(&mut blocks, "if.else.2");
+        let merge = cfg_block(&mut blocks, "if.merge.3");
+        set_cfg_block(
+            &mut blocks,
+            entry,
+            Vec::new(),
+            mir::Terminator::Branch {
                 cond: mir::Expr::BoolLiteral(true),
-                then_body: vec![expr_stmt(runtime_call(
-                    mir::RuntimeFn::Write,
-                    vec![mir::Expr::StringConst(ok)],
-                ))],
-                else_body: Some(vec![expr_stmt(runtime_call(
-                    mir::RuntimeFn::Write,
-                    vec![mir::Expr::StringConst(ng)],
-                ))]),
-            })],
+                then_block,
+                else_block,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            then_block,
+            vec![expr_stmt(runtime_call(
+                mir::RuntimeFn::Write,
+                vec![mir::Expr::StringConst(ok)],
+            ))],
+            mir::Terminator::Goto(merge),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            else_block,
+            vec![expr_stmt(runtime_call(
+                mir::RuntimeFn::Write,
+                vec![mir::Expr::StringConst(ng)],
+            ))],
+            mir::Terminator::Goto(merge),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            merge,
+            Vec::new(),
+            mir::Terminator::Return { value: None },
+            None,
+        );
+        let main = b.user_fn_body(
+            "main",
+            mir::ENTRY_SYMBOL,
+            Vec::new(),
+            mir::Type::Unit,
+            mir::Body {
+                locals: Arena::new(),
+                blocks,
+                entry,
+            },
         );
         let module = lower(&b.finish(main));
 
@@ -2966,26 +2707,64 @@ Module
         let mut b = Builder::new();
         let mut locals = Arena::new();
         let n = locals.alloc(var("n", mir::Type::Int));
-        let main = b.main(
-            locals,
-            vec![
-                val_decl(n, mir::Expr::IntLiteral(0)),
-                stmt(mir::StatementKind::While {
-                    cond: binary(
-                        mir::BinOp::IntLt,
-                        mir::Expr::Local(n),
-                        mir::Expr::IntLiteral(3),
-                    ),
-                    body: vec![assign(
-                        n,
-                        binary(
-                            mir::BinOp::IntAdd,
-                            mir::Expr::Local(n),
-                            mir::Expr::IntLiteral(1),
-                        ),
-                    )],
-                }),
-            ],
+        let mut blocks = Arena::new();
+        let entry = cfg_block(&mut blocks, "entry");
+        let cond = cfg_block(&mut blocks, "while.cond.1");
+        let body = cfg_block(&mut blocks, "while.body.2");
+        let exit = cfg_block(&mut blocks, "while.exit.3");
+        set_cfg_block(
+            &mut blocks,
+            entry,
+            vec![val_decl(n, mir::Expr::IntLiteral(0))],
+            mir::Terminator::Goto(cond),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            cond,
+            Vec::new(),
+            mir::Terminator::Branch {
+                cond: binary(
+                    mir::BinOp::IntLt,
+                    mir::Expr::Local(n),
+                    mir::Expr::IntLiteral(3),
+                ),
+                then_block: body,
+                else_block: exit,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            body,
+            vec![assign(
+                n,
+                binary(
+                    mir::BinOp::IntAdd,
+                    mir::Expr::Local(n),
+                    mir::Expr::IntLiteral(1),
+                ),
+            )],
+            mir::Terminator::Goto(cond),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            exit,
+            Vec::new(),
+            mir::Terminator::Return { value: None },
+            None,
+        );
+        let main = b.user_fn_body(
+            "main",
+            mir::ENTRY_SYMBOL,
+            Vec::new(),
+            mir::Type::Unit,
+            mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
         );
         let module = lower(&b.finish(main));
 
@@ -3533,8 +3312,189 @@ Module
         }
     }
 
-    fn return_stmt(value: mir::Expr) -> mir::Statement {
-        stmt(mir::StatementKind::Return { value: Some(value) })
+    fn body_with_terminator(
+        locals: Arena<mir::Local>,
+        statements: Vec<mir::Statement>,
+        terminator: mir::Terminator,
+    ) -> mir::Body {
+        let mut blocks = Arena::new();
+        let entry = blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements,
+            terminator,
+            unwind: None,
+        });
+        mir::Body {
+            locals,
+            blocks,
+            entry,
+        }
+    }
+
+    fn returning_body(locals: Arena<mir::Local>, value: mir::Expr) -> mir::Body {
+        body_with_terminator(
+            locals,
+            Vec::new(),
+            mir::Terminator::Return { value: Some(value) },
+        )
+    }
+
+    fn cfg_block(blocks: &mut Arena<mir::BasicBlock>, name: &str) -> mir::BlockId {
+        blocks.alloc(mir::BasicBlock {
+            name: name.to_string(),
+            statements: Vec::new(),
+            terminator: mir::Terminator::Unreachable,
+            unwind: None,
+        })
+    }
+
+    fn set_cfg_block(
+        blocks: &mut Arena<mir::BasicBlock>,
+        block: mir::BlockId,
+        statements: Vec<mir::Statement>,
+        terminator: mir::Terminator,
+        unwind: Option<mir::BlockId>,
+    ) {
+        blocks[block].statements = statements;
+        blocks[block].terminator = terminator;
+        blocks[block].unwind = unwind;
+    }
+
+    fn cfg_block_named(body: &mir::Body, name: &str) -> mir::BlockId {
+        body.blocks
+            .iter()
+            .find_map(|(id, block)| (block.name == name).then_some(id))
+            .unwrap_or_else(|| panic!("missing MIR block `{name}`"))
+    }
+
+    fn single_catch_body(
+        locals: Arena<mir::Local>,
+        catch_local: mir::LocalId,
+        catch_ty: mir::Type,
+        body_statements: Vec<mir::Statement>,
+        body_terminator: Option<mir::Terminator>,
+        catch_statements: Vec<mir::Statement>,
+    ) -> mir::Body {
+        let mut blocks = Arena::new();
+        let entry = cfg_block(&mut blocks, "entry");
+        let unwind = cfg_block(&mut blocks, "try.unwind.1");
+        let dispatch = cfg_block(&mut blocks, "try.dispatch.2");
+        let handler_pad = cfg_block(&mut blocks, "try.handler_pad.3");
+        let handler_cleanup = cfg_block(&mut blocks, "try.handler_cleanup.4");
+        let exit_pad = cfg_block(&mut blocks, "try.exit_pad.5");
+        let exit_cleanup = cfg_block(&mut blocks, "try.exit_cleanup.6");
+        let end = cfg_block(&mut blocks, "try.end.7");
+        let try_body = cfg_block(&mut blocks, "try.body.8");
+        let catch = cfg_block(&mut blocks, "try.catch.9");
+        let next = cfg_block(&mut blocks, "try.next.10");
+
+        set_cfg_block(
+            &mut blocks,
+            entry,
+            Vec::new(),
+            mir::Terminator::Goto(try_body),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            unwind,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: false,
+            }))],
+            mir::Terminator::Goto(dispatch),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            dispatch,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::BeginCatch))],
+            mir::Terminator::Branch {
+                cond: mir::Expr::IsInstance {
+                    operand: Box::new(mir::Expr::CaughtException),
+                    check_ty: Box::new(catch_ty.clone()),
+                },
+                then_block: catch,
+                else_block: next,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            handler_pad,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: true,
+            }))],
+            mir::Terminator::Goto(handler_cleanup),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            handler_cleanup,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch))],
+            mir::Terminator::Resume,
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            exit_pad,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: true,
+            }))],
+            mir::Terminator::Goto(exit_cleanup),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            exit_cleanup,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch))],
+            mir::Terminator::Resume,
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            end,
+            Vec::new(),
+            mir::Terminator::Return { value: None },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            try_body,
+            body_statements,
+            body_terminator.unwrap_or(mir::Terminator::Goto(end)),
+            Some(unwind),
+        );
+        let mut catch_body = vec![val_decl(
+            catch_local,
+            mir::Expr::Retype {
+                operand: Box::new(mir::Expr::CaughtException),
+                ty: Box::new(catch_ty),
+            },
+        )];
+        catch_body.extend(catch_statements);
+        catch_body.push(stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch)));
+        set_cfg_block(
+            &mut blocks,
+            catch,
+            catch_body,
+            mir::Terminator::Goto(end),
+            Some(handler_pad),
+        );
+        set_cfg_block(
+            &mut blocks,
+            next,
+            Vec::new(),
+            mir::Terminator::Rethrow {
+                unwind: Some(exit_pad),
+            },
+            None,
+        );
+
+        mir::Body {
+            locals,
+            blocks,
+            entry,
+        }
     }
 
     #[test]
@@ -3544,17 +3504,15 @@ Module
         let mut locals = Arena::new();
         let x = locals.alloc(local("x", mir::Type::Int));
         let y = locals.alloc(local("y", mir::Type::Int));
-        let add = b.user_fn_full(
+        let add = b.user_fn_body(
             "add",
             "scoop.add",
             vec![param("x", mir::Type::Int, x), param("y", mir::Type::Int, y)],
             mir::Type::Int,
-            locals,
-            vec![return_stmt(binary(
-                mir::BinOp::IntAdd,
-                mir::Expr::Local(x),
-                mir::Expr::Local(y),
-            ))],
+            returning_body(
+                locals,
+                binary(mir::BinOp::IntAdd, mir::Expr::Local(x), mir::Expr::Local(y)),
+            ),
         );
         // main: val r = add(40, 2)
         let mut main_locals = Arena::new();
@@ -3609,16 +3567,18 @@ Module
         let mut b = Builder::new();
         let mut locals = Arena::new();
         let this = locals.alloc(local("this", mir::Type::Any));
-        b.user_fn_full(
+        b.user_fn_body(
             "tostring.I",
             "scoop.tostring.I",
             vec![param("this", mir::Type::Any, this)],
             mir::Type::String,
-            locals,
-            vec![return_stmt(runtime_call(
-                mir::RuntimeFn::IntToString,
-                vec![mir::Expr::Unbox(Box::new(mir::Expr::Local(this)))],
-            ))],
+            returning_body(
+                locals,
+                runtime_call(
+                    mir::RuntimeFn::IntToString,
+                    vec![mir::Expr::Unbox(Box::new(mir::Expr::Local(this)))],
+                ),
+            ),
         );
         let main = b.main(Arena::new(), vec![]);
         let module = lower(&b.finish(main));
@@ -3647,20 +3607,49 @@ Module
         let mut b = Builder::new();
         let mut locals = Arena::new();
         let x = locals.alloc(local("x", mir::Type::Int));
-        let f = b.user_fn_full(
+        let mut blocks = Arena::new();
+        let entry = cfg_block(&mut blocks, "entry");
+        let then_block = cfg_block(&mut blocks, "if.then.1");
+        let merge = cfg_block(&mut blocks, "if.merge.2");
+        set_cfg_block(
+            &mut blocks,
+            entry,
+            Vec::new(),
+            mir::Terminator::Branch {
+                cond: mir::Expr::BoolLiteral(true),
+                then_block,
+                else_block: merge,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            then_block,
+            Vec::new(),
+            mir::Terminator::Return {
+                value: Some(mir::Expr::Local(x)),
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            merge,
+            Vec::new(),
+            mir::Terminator::Return {
+                value: Some(mir::Expr::IntLiteral(0)),
+            },
+            None,
+        );
+        let f = b.user_fn_body(
             "f",
             "scoop.f",
             vec![param("x", mir::Type::Int, x)],
             mir::Type::Int,
-            locals,
-            vec![
-                stmt(mir::StatementKind::If {
-                    cond: mir::Expr::BoolLiteral(true),
-                    then_body: vec![return_stmt(mir::Expr::Local(x))],
-                    else_body: None,
-                }),
-                return_stmt(mir::Expr::IntLiteral(0)),
-            ],
+            mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
         );
         let _ = f;
         let main = b.main(Arena::new(), vec![]);
@@ -4070,42 +4059,104 @@ Module
         let o = locals.alloc(local("o", option_ty.clone()));
         let uw1 = locals.alloc(local("$uw.1", mir::Type::Int));
         let uw2 = locals.alloc(local("$uw.2", mir::Type::Int));
-        let unwrap = |result: mir::LocalId| {
-            stmt(mir::StatementKind::If {
-                cond: binary(
-                    mir::BinOp::IntEq,
-                    mir::Expr::EnumTag(Box::new(mir::Expr::Local(o))),
-                    mir::Expr::IntLiteral(0),
-                ),
-                then_body: vec![val_decl(
-                    result,
-                    mir::Expr::EnumField {
-                        operand: Box::new(mir::Expr::Local(o)),
-                        variant: 0,
-                        index: 0,
-                    },
-                )],
-                else_body: Some(vec![expr_stmt(runtime_call(
-                    mir::RuntimeFn::Trap,
-                    vec![mir::Expr::StringConst(message)],
-                ))]),
-            })
+        let cond = || {
+            binary(
+                mir::BinOp::IntEq,
+                mir::Expr::EnumTag(Box::new(mir::Expr::Local(o))),
+                mir::Expr::IntLiteral(0),
+            )
         };
-        let f = b.user_fn_full(
-            "f",
-            "scoop.f",
-            vec![param("o", option_ty, o)],
-            mir::Type::Int,
-            locals,
-            vec![
-                unwrap(uw1),
-                unwrap(uw2),
-                return_stmt(binary(
+        let init = |result| {
+            val_decl(
+                result,
+                mir::Expr::EnumField {
+                    operand: Box::new(mir::Expr::Local(o)),
+                    variant: 0,
+                    index: 0,
+                },
+            )
+        };
+        let mut blocks = Arena::new();
+        let entry = cfg_block(&mut blocks, "entry");
+        let then1 = cfg_block(&mut blocks, "if.then.1");
+        let else1 = cfg_block(&mut blocks, "if.else.2");
+        let merge1 = cfg_block(&mut blocks, "if.merge.3");
+        let then2 = cfg_block(&mut blocks, "if.then.5");
+        let else2 = cfg_block(&mut blocks, "if.else.6");
+        let merge2 = cfg_block(&mut blocks, "if.merge.7");
+        set_cfg_block(
+            &mut blocks,
+            entry,
+            Vec::new(),
+            mir::Terminator::Branch {
+                cond: cond(),
+                then_block: then1,
+                else_block: else1,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            then1,
+            vec![init(uw1)],
+            mir::Terminator::Goto(merge1),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            else1,
+            Vec::new(),
+            mir::Terminator::Trap { message },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            merge1,
+            Vec::new(),
+            mir::Terminator::Branch {
+                cond: cond(),
+                then_block: then2,
+                else_block: else2,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            then2,
+            vec![init(uw2)],
+            mir::Terminator::Goto(merge2),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            else2,
+            Vec::new(),
+            mir::Terminator::Trap { message },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            merge2,
+            Vec::new(),
+            mir::Terminator::Return {
+                value: Some(binary(
                     mir::BinOp::IntAdd,
                     mir::Expr::Local(uw1),
                     mir::Expr::Local(uw2),
                 )),
-            ],
+            },
+            None,
+        );
+        let f = b.user_fn_body(
+            "f",
+            "scoop.f",
+            vec![param("o", option_ty, o)],
+            mir::Type::Int,
+            mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
         );
         let _ = f;
         let main = b.main(Arena::new(), Vec::new());
@@ -4129,23 +4180,23 @@ Module
     store t2 -> local0
     br @if.merge.3
   block if.else.2
-    br @unwrap.trap.4
+    br @unwrap.trap.1
   block if.merge.3
     t3 = enum_tag e0 param0 : i64
     t4 = Eq t3, 0 : i1
     cbr t4 then @if.then.5 else @if.else.6
-  block unwrap.trap.4
-    call @scoop_rt_trap(global1)
-    unreachable
   block if.then.5
     t5 = enum_field e0 v0 f0 param0 : i64
     store t5 -> local1
     br @if.merge.7
   block if.else.6
-    br @unwrap.trap.4
+    br @unwrap.trap.1
   block if.merge.7
     t6 = Add local0, local1 : i64
     ret t6
+  block unwrap.trap.1
+    call @scoop_rt_trap(global1)
+    unreachable
   fun @scoop_main() -> void
   block entry
     ret
@@ -4333,13 +4384,12 @@ Module
         // `C.m(this: C): Int { return 1 }`.
         let mut method_locals = Arena::new();
         let this = method_locals.alloc(local("this", mir::Type::Class(c)));
-        let m = b.user_fn_full(
+        let m = b.user_fn_body(
             "C.m",
             "scoop.C.m",
             vec![param("this", mir::Type::Class(c), this)],
             mir::Type::Int,
-            method_locals,
-            vec![return_stmt(mir::Expr::IntLiteral(1))],
+            returning_body(method_locals, mir::Expr::IntLiteral(1)),
         );
         // main: `val p: C; val r = p.m()` (a virtual call at slot 3).
         let mut locals = Arena::new();
@@ -4853,7 +4903,7 @@ Module
         let mut ctor_locals = Arena::new();
         let x = ctor_locals.alloc(local("x", mir::Type::Int));
         let s = ctor_locals.alloc(local("s", mir::Type::String));
-        let ctor = b.user_fn_full(
+        let ctor = b.user_fn_body(
             "ctor.Point",
             "scoop.ctor.Point",
             vec![
@@ -4861,11 +4911,13 @@ Module
                 param("s", mir::Type::String, s),
             ],
             mir::Type::Class(point),
-            ctor_locals,
-            vec![return_stmt(mir::Expr::ClassInit {
-                class_id: point,
-                args: vec![mir::Expr::Local(x), mir::Expr::Local(s)],
-            })],
+            returning_body(
+                ctor_locals,
+                mir::Expr::ClassInit {
+                    class_id: point,
+                    args: vec![mir::Expr::Local(x), mir::Expr::Local(s)],
+                },
+            ),
         );
         let mut locals = Arena::new();
         let p = locals.alloc(local("p", mir::Type::Class(point)));
@@ -5008,18 +5060,19 @@ Module
         let my_error = my_error(&mut b);
         let mut locals = Arena::new();
         let e = locals.alloc(local("e", mir::Type::Class(my_error)));
-        let main = b.main(
-            locals,
-            vec![stmt(mir::StatementKind::Try(mir::Try {
-                body: vec![expr_stmt(user_call(helper))],
-                catches: vec![mir::CatchClause {
-                    local: e,
-                    ty: Box::new(mir::Type::Class(my_error)),
-                    body: vec![expr_stmt(user_call(handled))],
-                    span: SPAN,
-                }],
-                finally_body: None,
-            }))],
+        let main = b.user_fn_body(
+            "main",
+            mir::ENTRY_SYMBOL,
+            Vec::new(),
+            mir::Type::Unit,
+            single_catch_body(
+                locals,
+                e,
+                mir::Type::Class(my_error),
+                vec![expr_stmt(user_call(helper))],
+                None,
+                vec![expr_stmt(user_call(handled))],
+            ),
         );
         let module = lower(&b.finish(main));
 
@@ -5036,51 +5089,55 @@ Module
     local %0 e: ptr
     local %1 $sc.1: exception_record
     local %2 $sc.2: ptr
+    local %3 $sc.3: ptr
   block entry
-    invoke @scoop.helper() normal @invoke.normal.8 unwind @try.unwind.1
-    br @invoke.normal.8
+    br @try.body.8
   block try.unwind.1
-    (t1, t2) = landingpad : (exception_record, ptr)
-    store t1 -> local1
-    store t2 -> local2
+    (t0, t1) = landingpad : (exception_record, ptr)
+    store t0 -> local1
+    store t1 -> local2
     br @try.dispatch.2
   block try.dispatch.2
-    t3 = begin_catch local2 : ptr
-    t4 = call @scoop_rt_is_instance(t3, global0) : i1
-    cbr t4 then @try.catch.9 else @try.next.10
+    t2 = begin_catch local2 : ptr
+    store t2 -> local3
+    t3 = call @scoop_rt_is_instance(local3, global0) : i1
+    cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
-    (t6, t7) = cleanup_pad : (exception_record, ptr)
-    store t6 -> local1
-    store t7 -> local2
+    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    store t4 -> local1
+    store t5 -> local2
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
     resume local1
   block try.exit_pad.5
-    (t8, t9) = cleanup_pad : (exception_record, ptr)
-    store t8 -> local1
-    store t9 -> local2
+    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    store t6 -> local1
+    store t7 -> local2
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
     resume local1
   block try.end.7
     ret
-  block invoke.normal.8
-    t0 = aggregate () : {}
-    br @try.end.7
+  block try.body.8
+    invoke @scoop.helper() normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
   block try.catch.9
-    store t3 -> local0
-    invoke @scoop.handled() normal @invoke.normal.11 unwind @try.handler_pad.3
-    br @invoke.normal.11
+    store local3 -> local0
+    invoke @scoop.handled() normal @invoke.normal.2 unwind @try.handler_pad.3
+    br @invoke.normal.2
   block try.next.10
-    invoke @scoop_rt_rethrow() normal @rethrow.normal.12 unwind @try.exit_pad.5
-    br @rethrow.normal.12
-  block invoke.normal.11
-    t5 = aggregate () : {}
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
+    br @rethrow.normal.3
+  block invoke.normal.1
+    t8 = aggregate () : {}
+    br @try.end.7
+  block invoke.normal.2
+    t9 = aggregate () : {}
     end_catch
     br @try.end.7
-  block rethrow.normal.12
+  block rethrow.normal.3
     unreachable
   td MyError @scoop_td_MyError size=16 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
@@ -5098,19 +5155,54 @@ Module
         let my_error = my_error(&mut b);
         let mut locals = Arena::new();
         let e = locals.alloc(local("e", mir::Type::Class(my_error)));
-        let main = b.main(
+        let mut body = single_catch_body(
             locals,
-            vec![stmt(mir::StatementKind::Try(mir::Try {
-                body: vec![expr_stmt(user_call(helper))],
-                catches: vec![mir::CatchClause {
-                    local: e,
-                    ty: Box::new(mir::Type::Class(my_error)),
-                    body: vec![expr_stmt(user_call(handled))],
-                    span: SPAN,
-                }],
-                finally_body: Some(vec![expr_stmt(user_call(cleanup))]),
-            }))],
+            e,
+            mir::Type::Class(my_error),
+            vec![expr_stmt(user_call(helper))],
+            None,
+            vec![expr_stmt(user_call(handled))],
         );
+        let try_body = cfg_block_named(&body, "try.body.8");
+        let catch = cfg_block_named(&body, "try.catch.9");
+        let next = cfg_block_named(&body, "try.next.10");
+        let handler_cleanup = cfg_block_named(&body, "try.handler_cleanup.4");
+        let exit_pad = cfg_block_named(&body, "try.exit_pad.5");
+        let end = cfg_block_named(&body, "try.end.7");
+        let normal_finally = cfg_block(&mut body.blocks, "scope.normal_finally");
+        let catch_finally = cfg_block(&mut body.blocks, "scope.catch_finally");
+        body.blocks[try_body].terminator = mir::Terminator::Goto(normal_finally);
+        set_cfg_block(
+            &mut body.blocks,
+            normal_finally,
+            vec![expr_stmt(user_call(cleanup))],
+            mir::Terminator::Goto(end),
+            None,
+        );
+        assert!(matches!(
+            body.blocks[catch]
+                .statements
+                .pop()
+                .map(|statement| statement.kind),
+            Some(mir::StatementKind::Eh(mir::EhStatement::EndCatch))
+        ));
+        body.blocks[catch].terminator = mir::Terminator::Goto(catch_finally);
+        set_cfg_block(
+            &mut body.blocks,
+            catch_finally,
+            vec![
+                stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
+                expr_stmt(user_call(cleanup)),
+            ],
+            mir::Terminator::Goto(end),
+            None,
+        );
+        body.blocks[next].statements = vec![expr_stmt(user_call(cleanup))];
+        body.blocks[next].unwind = Some(exit_pad);
+        body.blocks[handler_cleanup]
+            .statements
+            .push(expr_stmt(user_call(cleanup)));
+        let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
         let module = lower(&b.finish(main));
         let dump = lir::dump(&module);
 
@@ -5141,17 +5233,99 @@ Module
     fn return_inside_try_runs_finally_before_returning() {
         // fun f(): Int { try { return 1 } finally { cleanup() } }
         let (mut b, _, _, cleanup) = try_shell(true);
-        let f = b.user_fn_full(
+        let mut locals = Arena::new();
+        let result = locals.alloc(local("$return.1", mir::Type::Int));
+        let mut blocks = Arena::new();
+        let entry = cfg_block(&mut blocks, "entry");
+        let unwind = cfg_block(&mut blocks, "try.unwind.1");
+        let dispatch = cfg_block(&mut blocks, "try.dispatch.2");
+        let exit_pad = cfg_block(&mut blocks, "try.exit_pad.3");
+        let exit_cleanup = cfg_block(&mut blocks, "try.exit_cleanup.4");
+        let end = cfg_block(&mut blocks, "try.end.5");
+        let try_body = cfg_block(&mut blocks, "try.body.6");
+        let return_finally = cfg_block(&mut blocks, "scope.7");
+        let rethrow_finally = cfg_block(&mut blocks, "scope.8");
+        set_cfg_block(
+            &mut blocks,
+            entry,
+            Vec::new(),
+            mir::Terminator::Goto(try_body),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            unwind,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: false,
+            }))],
+            mir::Terminator::Goto(dispatch),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            dispatch,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::BeginCatch))],
+            mir::Terminator::Goto(rethrow_finally),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            exit_pad,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: true,
+            }))],
+            mir::Terminator::Goto(exit_cleanup),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            exit_cleanup,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch))],
+            mir::Terminator::Resume,
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            end,
+            Vec::new(),
+            mir::Terminator::Unreachable,
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            try_body,
+            vec![val_decl(result, mir::Expr::IntLiteral(1))],
+            mir::Terminator::Goto(return_finally),
+            Some(unwind),
+        );
+        set_cfg_block(
+            &mut blocks,
+            return_finally,
+            vec![expr_stmt(user_call(cleanup))],
+            mir::Terminator::Return {
+                value: Some(mir::Expr::Local(result)),
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            rethrow_finally,
+            vec![expr_stmt(user_call(cleanup))],
+            mir::Terminator::Rethrow {
+                unwind: Some(exit_pad),
+            },
+            Some(exit_pad),
+        );
+        let f = b.user_fn_body(
             "f",
             "scoop.f",
             Vec::new(),
             mir::Type::Int,
-            Arena::new(),
-            vec![stmt(mir::StatementKind::Try(mir::Try {
-                body: vec![return_stmt(mir::Expr::IntLiteral(1))],
-                catches: Vec::new(),
-                finally_body: Some(vec![expr_stmt(user_call(cleanup))]),
-            }))],
+            mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
         );
         let _ = f;
         let main = b.main(Arena::new(), vec![]);
@@ -5172,36 +5346,46 @@ Module
   block entry
     ret
   fun @scoop.f() -> i64
-    local %0 $sc.1: exception_record
-    local %1 $sc.2: ptr
+    local %0 $return.1: i64
+    local %1 $sc.1: exception_record
+    local %2 $sc.2: ptr
+    local %3 $sc.3: ptr
   block entry
-    call @scoop.cleanup()
-    t0 = aggregate () : {}
-    ret 1
+    br @try.body.6
   block try.unwind.1
-    (t1, t2) = landingpad : (exception_record, ptr)
-    store t1 -> local0
-    store t2 -> local1
+    (t0, t1) = landingpad : (exception_record, ptr)
+    store t0 -> local1
+    store t1 -> local2
     br @try.dispatch.2
   block try.dispatch.2
-    t3 = begin_catch local1 : ptr
-    invoke @scoop.cleanup() normal @invoke.normal.6 unwind @try.exit_pad.3
-    br @invoke.normal.6
+    t2 = begin_catch local2 : ptr
+    store t2 -> local3
+    br @scope.8
   block try.exit_pad.3
-    (t5, t6) = cleanup_pad : (exception_record, ptr)
-    store t5 -> local0
-    store t6 -> local1
+    (t3, t4) = cleanup_pad : (exception_record, ptr)
+    store t3 -> local1
+    store t4 -> local2
     br @try.exit_cleanup.4
   block try.exit_cleanup.4
     end_catch
-    resume local0
+    resume local1
   block try.end.5
     unreachable
-  block invoke.normal.6
-    t4 = aggregate () : {}
-    invoke @scoop_rt_rethrow() normal @rethrow.normal.7 unwind @try.exit_pad.3
-    br @rethrow.normal.7
-  block rethrow.normal.7
+  block try.body.6
+    store 1 -> local0
+    br @scope.7
+  block scope.7
+    call @scoop.cleanup()
+    t5 = aggregate () : {}
+    ret local0
+  block scope.8
+    invoke @scoop.cleanup() normal @invoke.normal.1 unwind @try.exit_pad.3
+    br @invoke.normal.1
+  block invoke.normal.1
+    t6 = aggregate () : {}
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.3
+    br @rethrow.normal.2
+  block rethrow.normal.2
     unreachable
   fun @scoop_main() -> void
   block entry
@@ -5221,28 +5405,38 @@ Module
         let mut b = Builder::new();
         let my_error = my_error(&mut b);
         let mut ctor_locals = Arena::new();
-        let make = b.user_fn_full(
+        let make = b.user_fn_body(
             "makeError",
             "scoop.makeError",
             Vec::new(),
             mir::Type::Class(my_error),
-            std::mem::take(&mut ctor_locals),
-            vec![return_stmt(mir::Expr::ClassInit {
-                class_id: my_error,
-                args: Vec::new(),
-            })],
-        );
-        let main = b.main(
-            Arena::new(),
-            vec![stmt(mir::StatementKind::Throw(mir::Expr::Call(
-                mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(make),
-                    },
+            returning_body(
+                std::mem::take(&mut ctor_locals),
+                mir::Expr::ClassInit {
+                    class_id: my_error,
                     args: Vec::new(),
                 },
-            )))],
+            ),
+        );
+        let main = b.user_fn_body(
+            "main",
+            mir::ENTRY_SYMBOL,
+            Vec::new(),
+            mir::Type::Unit,
+            body_with_terminator(
+                Arena::new(),
+                Vec::new(),
+                mir::Terminator::Throw {
+                    exception: mir::Expr::Call(mir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::User(make),
+                        },
+                        args: Vec::new(),
+                    }),
+                    unwind: None,
+                },
+            ),
         );
         let module = lower(&b.finish(main));
 
@@ -5279,19 +5473,26 @@ Module
         let my_error = my_error(&mut b);
         let mut locals = Arena::new();
         let e = locals.alloc(local("e", mir::Type::Class(my_error)));
-        let main = b.main(
+        let body = single_catch_body(
             locals,
-            vec![stmt(mir::StatementKind::Try(mir::Try {
-                body: vec![stmt(mir::StatementKind::Throw(mir::Expr::Local(e)))],
-                catches: vec![mir::CatchClause {
-                    local: e,
-                    ty: Box::new(mir::Type::Class(my_error)),
-                    body: Vec::new(),
-                    span: SPAN,
-                }],
-                finally_body: None,
-            }))],
+            e,
+            mir::Type::Class(my_error),
+            Vec::new(),
+            None,
+            Vec::new(),
         );
+        let try_body = body
+            .blocks
+            .iter()
+            .find_map(|(id, block)| (block.name == "try.body.8").then_some(id))
+            .expect("try body block");
+        let unwind = body.blocks[try_body].unwind;
+        let mut body = body;
+        body.blocks[try_body].terminator = mir::Terminator::Throw {
+            exception: mir::Expr::Local(e),
+            unwind,
+        };
+        let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
         let module = lower(&b.finish(main));
 
         let function = module
@@ -5299,9 +5500,15 @@ Module
             .iter()
             .find(|f| f.symbol == mir::ENTRY_SYMBOL)
             .expect("the entry function");
-        // The entry block ends with the invoke; its unwind target is
-        // the block that starts with the landingpad.
-        let entry = &function.blocks[function.entry];
+        // The explicit MIR entry jumps into the try body. That block
+        // ends with the invoke; its unwind target starts with the
+        // landingpad.
+        let entry = function
+            .blocks
+            .iter()
+            .map(|(_, block)| block)
+            .find(|block| block.name == "try.body.8")
+            .expect("the try body");
         let lir::Instruction::Invoke {
             symbol,
             normal,
@@ -5342,28 +5549,125 @@ Module
         let mut locals = Arena::new();
         let e1_local = locals.alloc(local("e1", mir::Type::Class(e1)));
         let e2_local = locals.alloc(local("e2", mir::Type::Class(e2)));
-        let main = b.main(
+        let mut body = single_catch_body(
             locals,
-            vec![stmt(mir::StatementKind::Try(mir::Try {
-                body: vec![stmt(mir::StatementKind::Try(mir::Try {
-                    body: vec![expr_stmt(user_call(a))],
-                    catches: vec![mir::CatchClause {
-                        local: e1_local,
-                        ty: Box::new(mir::Type::Class(e1)),
-                        body: vec![expr_stmt(user_call(bb))],
-                        span: SPAN,
-                    }],
-                    finally_body: None,
-                }))],
-                catches: vec![mir::CatchClause {
-                    local: e2_local,
-                    ty: Box::new(mir::Type::Class(e2)),
-                    body: vec![expr_stmt(user_call(c))],
-                    span: SPAN,
-                }],
-                finally_body: None,
-            }))],
+            e2_local,
+            mir::Type::Class(e2),
+            Vec::new(),
+            None,
+            vec![expr_stmt(user_call(c))],
         );
+        let outer_body = cfg_block_named(&body, "try.body.8");
+        let outer_unwind = cfg_block_named(&body, "try.unwind.1");
+        let outer_dispatch = cfg_block_named(&body, "try.dispatch.2");
+        let outer_end = cfg_block_named(&body, "try.end.7");
+        let inner_unwind = cfg_block(&mut body.blocks, "try.unwind.inner");
+        let inner_dispatch = cfg_block(&mut body.blocks, "try.dispatch.inner");
+        let inner_handler_pad = cfg_block(&mut body.blocks, "try.handler_pad.inner");
+        let inner_handler_cleanup = cfg_block(&mut body.blocks, "try.handler_cleanup.inner");
+        let inner_exit_pad = cfg_block(&mut body.blocks, "try.exit_pad.inner");
+        let inner_exit_cleanup = cfg_block(&mut body.blocks, "try.exit_cleanup.inner");
+        let inner_end = cfg_block(&mut body.blocks, "try.end.inner");
+        let inner_body = cfg_block(&mut body.blocks, "try.body.inner");
+        let inner_catch = cfg_block(&mut body.blocks, "try.catch.inner");
+        let inner_next = cfg_block(&mut body.blocks, "try.next.inner");
+        body.blocks[outer_body].terminator = mir::Terminator::Goto(inner_body);
+        set_cfg_block(
+            &mut body.blocks,
+            inner_unwind,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: false,
+            }))],
+            mir::Terminator::Goto(inner_dispatch),
+            None,
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_dispatch,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::BeginCatch))],
+            mir::Terminator::Branch {
+                cond: mir::Expr::IsInstance {
+                    operand: Box::new(mir::Expr::CaughtException),
+                    check_ty: Box::new(mir::Type::Class(e1)),
+                },
+                then_block: inner_catch,
+                else_block: inner_next,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_handler_pad,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: false,
+            }))],
+            mir::Terminator::Goto(inner_handler_cleanup),
+            None,
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_handler_cleanup,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch))],
+            mir::Terminator::Goto(outer_dispatch),
+            Some(outer_unwind),
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_exit_pad,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                cleanup: false,
+            }))],
+            mir::Terminator::Goto(inner_exit_cleanup),
+            None,
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_exit_cleanup,
+            vec![stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch))],
+            mir::Terminator::Goto(outer_dispatch),
+            Some(outer_unwind),
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_end,
+            Vec::new(),
+            mir::Terminator::Goto(outer_end),
+            Some(outer_unwind),
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_body,
+            vec![expr_stmt(user_call(a))],
+            mir::Terminator::Goto(inner_end),
+            Some(inner_unwind),
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_catch,
+            vec![
+                val_decl(
+                    e1_local,
+                    mir::Expr::Retype {
+                        operand: Box::new(mir::Expr::CaughtException),
+                        ty: Box::new(mir::Type::Class(e1)),
+                    },
+                ),
+                expr_stmt(user_call(bb)),
+                stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
+            ],
+            mir::Terminator::Goto(inner_end),
+            Some(inner_handler_pad),
+        );
+        set_cfg_block(
+            &mut body.blocks,
+            inner_next,
+            Vec::new(),
+            mir::Terminator::Rethrow {
+                unwind: Some(inner_exit_pad),
+            },
+            None,
+        );
+        let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
         let module = lower(&b.finish(main));
 
         let function = module

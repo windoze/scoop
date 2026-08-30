@@ -178,168 +178,198 @@ Module
   class box$B vtable=3 itables=0
   interface Describable
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
-    val d: Doc
-      Call @scoop.ctor.Doc direct
-        StringConst @scoop.str.1
-    Call @scoop.println direct
-      Call @scoop.Doc.describe direct
-        Local d
-    val i: Describable
-      Retype Describable
-        Local d
-    Call @scoop.println direct
-      Call @scoop.Describable.describe interface Describable[0]
-        Local i
-    val t: Tag
-      StructInit Tag
-        IntLiteral 1
-    val ti: Describable
-      Box
-        Local t
-    Call @scoop.println direct
-      Call @scoop.Describable.describe interface Describable[0]
-        Local ti
-    val a: Any
-      Box
-        Local t
-    Call @scoop.println direct
-      Box
-        IsInstance Tag
-          Local a
-    val $cast.1: Any
-      Local a
-    if
-      IsInstance Describable
-        Local $cast.1
+    bb0 entry
+      val d: Doc
+        Call @scoop.ctor.Doc direct
+          StringConst @scoop.str.1
+      Call @scoop.println direct
+        Call @scoop.Doc.describe direct
+          Local d
+      val i: Describable
+        Retype Describable
+          Local d
+      Call @scoop.println direct
+        Call @scoop.Describable.describe interface Describable[0]
+          Local i
+      val t: Tag
+        StructInit Tag
+          IntLiteral 1
+      val ti: Describable
+        Box
+          Local t
+      Call @scoop.println direct
+        Call @scoop.Describable.describe interface Describable[0]
+          Local ti
+      val a: Any
+        Box
+          Local t
+      Call @scoop.println direct
+        Box
+          IsInstance Tag
+            Local a
+      val $cast.1: Any
+        Local a
+      branch bb1 bb2
+        IsInstance Describable
+          Local $cast.1
+    bb1 if.then.1
       assign $cast.2
         VariantConstruct Option$Describable<Describable> v0
           Local $cast.1
-    else
+      goto bb3
+    bb2 if.else.2
       assign $cast.2
         VariantConstruct Option$Describable<Describable> v1
-    val $cast.3: Any
-      Local a
-    if
-      IsInstance Describable
-        Local $cast.3
+      goto bb3
+    bb3 if.merge.3
+      val $cast.3: Any
+        Local a
+      branch bb4 bb5
+        IsInstance Describable
+          Local $cast.3
+    bb4 if.then.4
       assign $cast.4
         VariantConstruct Option$Describable<Describable> v0
           Local $cast.3
-    else
+      goto bb6
+    bb5 if.else.5
       assign $cast.4
         VariantConstruct Option$Describable<Describable> v1
-    val $cast.5: Any
-      Local a
-    if
-      IsInstance Describable
-        Local $cast.5
+      goto bb6
+    bb6 if.merge.6
+      val $cast.5: Any
+        Local a
+      branch bb7 bb8
+        IsInstance Describable
+          Local $cast.5
+    bb7 if.then.7
       assign $cast.6
         VariantConstruct Option$Describable<Describable> v0
           Local $cast.5
-    else
+      goto bb9
+    bb8 if.else.8
       assign $cast.6
         VariantConstruct Option$Describable<Describable> v1
-    Call @scoop.println direct
-      Box
-        Binary Or
-          Binary IntNe
-            EnumTag
-              Local $cast.2
-            EnumTag
-              VariantConstruct Option$Describable<Describable> v1
-          Binary And
-            Binary IntEq
-              EnumTag
-                Local $cast.4
-              IntLiteral 0
+      goto bb9
+    bb9 if.merge.9
+      Call @scoop.println direct
+        Box
+          Binary Or
             Binary IntNe
-              EnumField v0 f0
-                Local $cast.6
-              EnumField v0 f0
+              EnumTag
+                Local $cast.2
+              EnumTag
                 VariantConstruct Option$Describable<Describable> v1
+            Binary And
+              Binary IntEq
+                EnumTag
+                  Local $cast.4
+                IntLiteral 0
+              Binary IntNe
+                EnumField v0 f0
+                  Local $cast.6
+                EnumField v0 f0
+                  VariantConstruct Option$Describable<Describable> v1
+      return
   fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
-    return
-      FieldAccess 0
-        Local this
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun Tag.describe @scoop.Tag.describe(this: Tag) -> String
-    return
-      StringConst @scoop.str.2
+    bb0 entry
+      return
+        StringConst @scoop.str.2
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun ctor.Doc @scoop.ctor.Doc(title: String) -> Doc
-    return
-      ClassInit Doc
-        Local title
+    bb0 entry
+      return
+        ClassInit Doc
+          Local title
   fun eq.Tag @scoop.eq.Tag(this: Any, other: Any) -> Boolean
-    val $a: Tag
-      Unbox
-        Local this
-    val $b: Tag
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        FieldAccess 0
-          Local $a
-        FieldAccess 0
-          Local $b
+    bb0 entry
+      val $a: Tag
+        Unbox
+          Local this
+      val $b: Tag
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          FieldAccess 0
+            Local $a
+          FieldAccess 0
+            Local $b
   fun thunk.Tag.Describable.describe @scoop.thunk.Tag.Describable.describe(this: Any) -> String
-    return
-      Call @scoop.Tag.describe direct
-        Unbox
-          Local this
+    bb0 entry
+      return
+        Call @scoop.Tag.describe direct
+          Unbox
+            Local this
   fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
-    val $a: Boolean
-      Unbox
-        Local this
-    val $b: Boolean
-      Unbox
-        Local other
-    return
-      Binary BoolEq
-        Local $a
-        Local $b
-  fun tostring.B @scoop.tostring.B(this: Any) -> String
-    return
-      Call @scoop_rt_bool_to_string direct
+    bb0 entry
+      val $a: Boolean
         Unbox
           Local this
+      val $b: Boolean
+        Unbox
+          Local other
+      return
+        Binary BoolEq
+          Local $a
+          Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_bool_to_string direct
+          Unbox
+            Local this
   str @scoop.str.0 "\n"
   str @scoop.str.1 "report"
   str @scoop.str.2 "tag"
@@ -470,27 +500,27 @@ Module
     t28 = enum_tag e1 t27 : i64
     t29 = Ne t26, t28 : i1
     store t29 -> local11
-    cbr t29 then @sc.merge.11 else @sc.rhs.10
-  block sc.rhs.10
+    cbr t29 then @sc.merge.2 else @sc.rhs.1
+  block sc.rhs.1
     t30 = enum_tag e1 local8 : i64
     t31 = Eq t30, 0 : i1
     store t31 -> local12
-    cbr t31 then @sc.rhs.12 else @sc.merge.13
-  block sc.merge.11
+    cbr t31 then @sc.rhs.3 else @sc.merge.4
+  block sc.merge.2
     t36 = call @scoop_rt_box(global9, local11, 1) : ptr
     call @scoop.println(t36)
     t37 = aggregate () : {}
     ret
-  block sc.rhs.12
+  block sc.rhs.3
     t32 = enum_field e1 v0 f0 local10 : i64
     t33 = enum_wrap e1 v1 () : enum1
     t34 = enum_field e1 v0 f0 t33 : i64
     t35 = Ne t32, t34 : i1
     store t35 -> local12
-    br @sc.merge.13
-  block sc.merge.13
+    br @sc.merge.4
+  block sc.merge.4
     store local12 -> local11
-    br @sc.merge.11
+    br @sc.merge.2
   fun @scoop.Doc.describe(ptr) -> ptr
   block entry
     t0 = heap_load param0 +16 : ptr

@@ -152,24 +152,29 @@ Module
   class box$I vtable=3 itables=0
   class box$B vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
-    val a: Any
-      Box
-        StructInit S
-          IntLiteral 9
-    if
-      IsInstance S
-        Local a
+    bb0 entry
+      val a: Any
+        Box
+          StructInit S
+            IntLiteral 9
+      branch bb1 bb2
+        IsInstance S
+          Local a
+    bb1 if.then.1
       val $ub.1: S
         Unbox
           Local a
@@ -177,141 +182,171 @@ Module
         Box
           FieldAccess 0
             Local $ub.1
-    if
-      IsInstance Int
-        Local a
+      goto bb2
+    bb2 if.merge.2
+      branch bb3 bb4
+        IsInstance Int
+          Local a
+    bb3 if.then.3
       Call @scoop.println direct
         StringConst @scoop.str.1
-    else
+      goto bb5
+    bb4 if.else.4
       Call @scoop.println direct
         StringConst @scoop.str.2
-    val $cast.2: Any
-      Local a
-    if
-      IsInstance S
-        Local $cast.2
+      goto bb5
+    bb5 if.merge.5
+      val $cast.2: Any
+        Local a
+      branch bb6 bb7
+        IsInstance S
+          Local $cast.2
+    bb6 if.then.6
       assign $cast.3
         VariantConstruct Option$S<S> v0
           Unbox
             Local $cast.2
-    else
+      goto bb8
+    bb7 if.else.7
       assign $cast.3
         VariantConstruct Option$S<S> v1
-    val $cast.4: Any
-      Local a
-    if
-      IsInstance S
-        Local $cast.4
+      goto bb8
+    bb8 if.merge.8
+      val $cast.4: Any
+        Local a
+      branch bb9 bb10
+        IsInstance S
+          Local $cast.4
+    bb9 if.then.9
       assign $cast.5
         VariantConstruct Option$S<S> v0
           Unbox
             Local $cast.4
-    else
+      goto bb11
+    bb10 if.else.10
       assign $cast.5
         VariantConstruct Option$S<S> v1
-    val $cast.6: Any
-      Local a
-    if
-      IsInstance S
-        Local $cast.6
+      goto bb11
+    bb11 if.merge.11
+      val $cast.6: Any
+        Local a
+      branch bb12 bb13
+        IsInstance S
+          Local $cast.6
+    bb12 if.then.12
       assign $cast.7
         VariantConstruct Option$S<S> v0
           Unbox
             Local $cast.6
-    else
+      goto bb14
+    bb13 if.else.13
       assign $cast.7
         VariantConstruct Option$S<S> v1
-    Call @scoop.println direct
-      Box
-        Binary Or
-          Binary IntNe
-            EnumTag
-              Local $cast.3
-            EnumTag
-              VariantConstruct Option$S<S> v1
-          Binary And
-            Binary IntEq
+      goto bb14
+    bb14 if.merge.14
+      Call @scoop.println direct
+        Box
+          Binary Or
+            Binary IntNe
               EnumTag
-                Local $cast.5
-              IntLiteral 0
-            Unary BoolNot
-              Call @scoop_rt_string_eq direct
-                EnumField v0 f0
-                  Local $cast.7
-                EnumField v0 f0
-                  VariantConstruct Option$S<S> v1
+                Local $cast.3
+              EnumTag
+                VariantConstruct Option$S<S> v1
+            Binary And
+              Binary IntEq
+                EnumTag
+                  Local $cast.5
+                IntLiteral 0
+              Unary BoolNot
+                Call @scoop_rt_string_eq direct
+                  EnumField v0 f0
+                    Local $cast.7
+                  EnumField v0 f0
+                    VariantConstruct Option$S<S> v1
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
-    val $a: S
-      Unbox
-        Local this
-    val $b: S
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        FieldAccess 0
-          Local $a
-        FieldAccess 0
-          Local $b
+    bb0 entry
+      val $a: S
+        Unbox
+          Local this
+      val $b: S
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          FieldAccess 0
+            Local $a
+          FieldAccess 0
+            Local $b
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
-        Unbox
-          Local this
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
   fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
-    val $a: Boolean
-      Unbox
-        Local this
-    val $b: Boolean
-      Unbox
-        Local other
-    return
-      Binary BoolEq
-        Local $a
-        Local $b
-  fun tostring.B @scoop.tostring.B(this: Any) -> String
-    return
-      Call @scoop_rt_bool_to_string direct
+    bb0 entry
+      val $a: Boolean
         Unbox
           Local this
+      val $b: Boolean
+        Unbox
+          Local other
+      return
+        Binary BoolEq
+          Local $a
+          Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_bool_to_string direct
+          Unbox
+            Local this
   str @scoop.str.0 "\n"
   str @scoop.str.1 "int"
   str @scoop.str.2 "not int"
@@ -439,28 +474,28 @@ Module
     t24 = enum_tag e0 t23 : i64
     t25 = Ne t22, t24 : i1
     store t25 -> local8
-    cbr t25 then @sc.merge.16 else @sc.rhs.15
-  block sc.rhs.15
+    cbr t25 then @sc.merge.2 else @sc.rhs.1
+  block sc.rhs.1
     t26 = enum_tag e0 local5 : i64
     t27 = Eq t26, 0 : i1
     store t27 -> local9
-    cbr t27 then @sc.rhs.17 else @sc.merge.18
-  block sc.merge.16
+    cbr t27 then @sc.rhs.3 else @sc.merge.4
+  block sc.merge.2
     t33 = call @scoop_rt_box(global9, local8, 1) : ptr
     call @scoop.println(t33)
     t34 = aggregate () : {}
     ret
-  block sc.rhs.17
+  block sc.rhs.3
     t28 = enum_field e0 v0 f0 local7 : ptr
     t29 = enum_wrap e0 v1 () : enum0
     t30 = enum_field e0 v0 f0 t29 : ptr
     t31 = call @scoop_rt_string_eq(t28, t30) : i1
     t32 = Not t31 : i1
     store t32 -> local9
-    br @sc.merge.18
-  block sc.merge.18
+    br @sc.merge.4
+  block sc.merge.4
     store local9 -> local8
-    br @sc.merge.16
+    br @sc.merge.2
   fun @scoop.ctor.Throwable() -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global10, 16) : ptr

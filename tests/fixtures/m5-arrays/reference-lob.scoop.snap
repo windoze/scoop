@@ -223,168 +223,196 @@ Module
   class box$Tag vtable=3 itables=1
   interface Named
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    return
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
-        Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+    bb0 entry
+      Call @scoop_rt_print direct
+        Call @scoop.Any.toString virtual[2]
+          Local message
+      Call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun baseCount @scoop.baseCount(values: Array<Base>) -> Int
-    return
-      ArrayLen
-        Local values
+    bb0 entry
+      return
+        ArrayLen
+          Local values
   fun secondName @scoop.secondName(values: Array<Named>) -> String
-    val $arr.1: Array<Named>
-      Local values
-    val $idx.2: Int
-      IntLiteral 1
-    if
-      Binary Or
-        Binary IntLt
-          Local $idx.2
-          IntLiteral 0
-        Binary IntGe
-          Local $idx.2
-          ArrayLen
-            Local $arr.1
+    bb0 entry
+      val $arr.1: Array<Named>
+        Local values
+      val $idx.2: Int
+        IntLiteral 1
+      branch bb1 bb2
+        Binary Or
+          Binary IntLt
+            Local $idx.2
+            IntLiteral 0
+          Binary IntGe
+            Local $idx.2
+            ArrayLen
+              Local $arr.1
+    bb1 if.then.1
       throw
         Call @scoop.ctor.IndexOutOfBoundsException direct
-    return
-      Call @scoop.Named.name interface Named[0]
-        ArrayGet
-          Local $arr.1
-          Local $idx.2
+    bb2 if.merge.2
+      return
+        Call @scoop.Named.name interface Named[0]
+          ArrayGet
+            Local $arr.1
+            Local $idx.2
   fun anyCount @scoop.anyCount(values: Array<Any>) -> Int
-    return
-      ArrayLen
-        Local values
+    bb0 entry
+      return
+        ArrayLen
+          Local values
   fun main @scoop_main() -> Unit
-    val bases: Array<Base>
-      ArrayLiteral
-        Call @scoop.ctor.Left direct
-        Call @scoop.ctor.Right direct
-    Call @scoop.println direct
-      Box
-        Call @scoop.baseCount direct
-          Local bases
-    val named: Array<Named>
-      ArrayLiteral
-        Call @scoop.ctor.Cat direct
-        Call @scoop.ctor.Dog direct
-    Call @scoop.println direct
-      Call @scoop.secondName direct
-        Local named
-    val unrelated: Array<Any>
-      ArrayLiteral
-        Call @scoop.ctor.Left direct
-        StringConst @scoop.str.1
-    Call @scoop.println direct
-      Box
-        Call @scoop.anyCount direct
-          Local unrelated
-    val tag: Named
-      Box
-        StructInit Tag
-          StringConst @scoop.str.2
-    val explicitlyBoxed: Array<Named>
-      ArrayLiteral
-        Local tag
+    bb0 entry
+      val bases: Array<Base>
+        ArrayLiteral
+          Call @scoop.ctor.Left direct
+          Call @scoop.ctor.Right direct
+      Call @scoop.println direct
+        Box
+          Call @scoop.baseCount direct
+            Local bases
+      val named: Array<Named>
+        ArrayLiteral
+          Call @scoop.ctor.Cat direct
+          Call @scoop.ctor.Dog direct
+      Call @scoop.println direct
+        Call @scoop.secondName direct
+          Local named
+      val unrelated: Array<Any>
+        ArrayLiteral
+          Call @scoop.ctor.Left direct
+          StringConst @scoop.str.1
+      Call @scoop.println direct
+        Box
+          Call @scoop.anyCount direct
+            Local unrelated
+      val tag: Named
         Box
           StructInit Tag
-            StringConst @scoop.str.3
-    Call @scoop.println direct
-      Call @scoop.secondName direct
-        Local explicitlyBoxed
+            StringConst @scoop.str.2
+      val explicitlyBoxed: Array<Named>
+        ArrayLiteral
+          Local tag
+          Box
+            StructInit Tag
+              StringConst @scoop.str.3
+      Call @scoop.println direct
+        Call @scoop.secondName direct
+          Local explicitlyBoxed
+      return
   fun Cat.name @scoop.Cat.name(this: Cat) -> String
-    return
-      StringConst @scoop.str.4
+    bb0 entry
+      return
+        StringConst @scoop.str.4
   fun Dog.name @scoop.Dog.name(this: Dog) -> String
-    return
-      StringConst @scoop.str.5
+    bb0 entry
+      return
+        StringConst @scoop.str.5
   fun Tag.name @scoop.Tag.name(this: Tag) -> String
-    return
-      FieldAccess 0
-        Local this
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.7
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.8
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.8
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.9
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.9
   fun ctor.Base @scoop.ctor.Base() -> Base
-    return
-      ClassInit Base
+    bb0 entry
+      return
+        ClassInit Base
   fun ctor.Left @scoop.ctor.Left() -> Left
-    return
-      ClassInit Left
+    bb0 entry
+      return
+        ClassInit Left
   fun ctor.Right @scoop.ctor.Right() -> Right
-    return
-      ClassInit Right
+    bb0 entry
+      return
+        ClassInit Right
   fun ctor.Cat @scoop.ctor.Cat() -> Cat
-    return
-      ClassInit Cat
+    bb0 entry
+      return
+        ClassInit Cat
   fun ctor.Dog @scoop.ctor.Dog() -> Dog
-    return
-      ClassInit Dog
+    bb0 entry
+      return
+        ClassInit Dog
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
-  fun eq.Tag @scoop.eq.Tag(this: Any, other: Any) -> Boolean
-    val $a: Tag
-      Unbox
-        Local this
-    val $b: Tag
-      Unbox
-        Local other
-    return
-      Call @scoop_rt_string_eq direct
-        FieldAccess 0
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
           Local $a
-        FieldAccess 0
           Local $b
-  fun thunk.Tag.Named.name @scoop.thunk.Tag.Named.name(this: Any) -> String
-    return
-      Call @scoop.Tag.name direct
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop_rt_int_to_string direct
+          Unbox
+            Local this
+  fun eq.Tag @scoop.eq.Tag(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Tag
         Unbox
           Local this
+      val $b: Tag
+        Unbox
+          Local other
+      return
+        Call @scoop_rt_string_eq direct
+          FieldAccess 0
+            Local $a
+          FieldAccess 0
+            Local $b
+  fun thunk.Tag.Named.name @scoop.thunk.Tag.Named.name(this: Any) -> String
+    bb0 entry
+      return
+        Call @scoop.Tag.name direct
+          Unbox
+            Local this
   str @scoop.str.0 "\n"
   str @scoop.str.1 "text"
   str @scoop.str.2 "tag"
@@ -456,23 +484,23 @@ Module
     t0 = Lt local1, 0 : i1
     store t0 -> local2
     cbr t0 then @sc.merge.2 else @sc.rhs.1
+  block if.then.1
+    t3 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    throw t3
+    unreachable
+  block if.merge.2
+    t4 = array_get local0 local1 : ptr
+    t5 = heap_load t4 +0 : ptr
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr
+    t7 = call_indirect t6[0](t4) : ptr
+    ret t7
   block sc.rhs.1
     t1 = array_len local0 : i64
     t2 = Ge local1, t1 : i1
     store t2 -> local2
     br @sc.merge.2
   block sc.merge.2
-    cbr local2 then @if.then.3 else @if.merge.4
-  block if.then.3
-    t3 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
-    throw t3
-    unreachable
-  block if.merge.4
-    t4 = array_get local0 local1 : ptr
-    t5 = heap_load t4 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr
-    t7 = call_indirect t6[0](t4) : ptr
-    ret t7
+    cbr local2 then @if.then.1 else @if.merge.2
   fun @scoop.anyCount([ptr]) -> i64
   block entry
     t0 = array_len param0 : i64
