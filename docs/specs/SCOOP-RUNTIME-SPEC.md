@@ -1,6 +1,6 @@
 # Scoop Runtime 规范
 
-版本：0.1（草案）
+版本：0.2（草案）
 
 配套文档：`SCOOP-SPEC.md`（语言规范）。本文引用其章节号。
 
@@ -137,6 +137,7 @@ TLAB 的有无、尺寸与 slow path 细节随 GC 方案确定；契约只要求
 - 抛出入口 `scoop_rt_throw(obj)`（M8 起）：从对象头的 TypeDescriptor 读 `size`，调 `__cxa_allocate_exception(size)` 分配 ABI 异常缓冲并把对象内容拷贝进去，再对该缓冲调 `__cxa_throw(buffer, NULL, destructor)`（throw-by-value：catch 侧取得的是缓冲指针，拷贝即异常对象本尊）。`__cxa_throw` 会把异常头写到抛出指针紧前方，因此用户对象绝不可原地抛出。ABI 缓冲作为外部对象根登记；其 destructor 在异常生命周期结束时移除该根，原对象无需 pin。
 - 栈展开机制为 landing pad + personality function（`scoop_eh_personality`，M8 最小实现委托 `__gxx_personality_v0`）。landing pad 先捕获 ABI record/raw pointer，再由普通 dispatch 块调 `__cxa_begin_catch` 取得异常对象；每条正常离开 handler 的路径必须调一次 `__cxa_end_catch`。handler 内的新异常及 `__cxa_rethrow` 先进入 cleanup chain：保存替代异常、结束当前 catch，再转交同函数外层 handler/cleanup；没有同函数外层时以 `resume` 继续传播，保证 begin/end 严格配对且重抛保持异常身份。
 - 内置异常的抛出点：除零（`ArithmeticException`）、`as` 失败（`ClassCastException`）、`!!` 失败（`UnwrapException`）、数组越界等（spec 10.5、11.7）。
+- M10 的 suspend handler 不允许把 `__cxa_begin_catch` 建立的原生 EH 状态跨挂起点保存。选中 catch 或进入可能挂起的 finally 前，生成代码调用 `scoop_rt_materialize_exception(caught)`：按 caught 的 TypeDescriptor 分配 managed 对象，保留新对象已初始化的 `td` / `gc_word`，只复制对象头之后的 payload。复制期间 ABI 缓冲仍登记为外部根。随后立即 `__cxa_end_catch`，catch local / pending exception 改指向 managed 副本。恢复失败时重新从该 managed 对象抛出，因此在源码语义上仍等价于异常发生在原挂起调用点。
 - **边界规则**：异常不得穿越 C ABI frame（行为未定义）；能否穿越 Scoop ABI FFI frame 取决于实现（FFI 函数无 landing pad，穿越意味着跳过外部语言代码——初版建议禁止，行为定为终止进程）。
 
 ## 6. 核心类型的运行时后备
@@ -157,7 +158,12 @@ TLAB 的有无、尺寸与 slow path 细节随 GC 方案确定；契约只要求
 
 ## 8. 协程
 
-`suspend` 的状态机变换由编译器完成（spec 8.2），`Continuation` 是普通对象；runtime 无需专门的协程设施。调度器属于标准库。
+`suspend` 的状态机变换、`CoroutineStep<T>`、frame 与各挂起点的 `Continuation<T>` adapter 全部由编译器生成（spec 8.2、11.9；impl spec 2.3）。这些实体都是普通 managed 对象/值：
+
+- frame 与 continuation adapter 必须有普通 TypeDescriptor 和完备的递归引用扫描描述；frame 链由 GC 自然保活，不登记额外的 runtime root；
+- continuation 的完成状态与 frame 的当前恢复状态存于 managed 对象字段。M10 的最小实现是单线程协议，检查与转换无需 runtime 原子操作；跨线程恢复要等线程注册/握手与调度器落地后再定义；
+- runtime 只提供第 5 章所述的 ABI 异常物化辅助，不参与状态分派、恢复、队列或线程切换；
+- 调度器、事件循环与取消属于标准库。永不恢复的 continuation 只会按普通不可达对象被 GC 回收，runtime 不替它执行 cleanup / `finally`。
 
 ---
 

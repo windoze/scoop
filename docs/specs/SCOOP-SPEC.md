@@ -1,6 +1,6 @@
 # Scoop 语言规范
 
-版本：0.3（草案）
+版本：0.4（草案）
 
 ## 1. 概述
 
@@ -494,9 +494,17 @@ enum Option<T> {
 
 ### 8.2 `suspend` 函数
 
-- `suspend` 修饰的函数是协程挂起函数，只能在 `suspend` 函数或协程构建器内调用。
-- 挂起函数的类型标记：`suspend (A) -> R` 与普通函数类型不兼容（与 Kotlin 一致）。
-- 本规范只定义 `suspend` 的语言语义；具体的协程构建器（`launch`、`async` 等）与调度器属于标准库，不在最小核心库范围内。最小核心库仅提供挂起/恢复所需的原语（见 11.9）。
+- `suspend` 修饰的函数是协程挂起函数，只能在另一个 `suspend` 函数或编译器认可的协程构建器内调用。`main` 本身必须是普通函数；从普通代码启动挂起计算使用 11.9 的 `startCoroutine` 或标准库构建器。
+- 下列**声明自身拥有的运行期初始化上下文**都是非挂起上下文，不得包含挂起调用：顶层 `val` / `var` 的 initializer 与 delegate 表达式；`object` / `companion object` 的属性 initializer、delegate 表达式、`init` 块及基类/接口委托初始化；class 的属性 initializer、delegate 表达式、`init` 块、主/次构造函数体及构造委托；struct/enum 变体及构造函数的缺省表达式。全局初始化入口必须在进入 `main` 前同步完成；单例或实例初始化必须在对象可用前同步完成；它们都不能返回 `Suspended`、发布部分初始化对象或保存“尚未完成的初始化”。
+- **求值归属按词法位置确定，而不是按最外层构造语法确定**：在 suspend 函数中显式写出的调用实参仍处于调用者的挂起上下文，因此 `C(awaitValue())` 合法——`awaitValue()` 先完成，随后普通构造过程同步执行；构造函数定义处的缺省表达式和构造体内部则仍为非挂起上下文。把 suspend lambda / `SuspendTask` 对象保存进字段也不等于执行它，其函数体在以后实际调用时按自身的挂起性检查。
+- 属性没有隐式挂起能力：普通 getter / setter、计算属性，以及委托属性的 `getValue` / `setValue` 协议必须是非挂起 callable；即使属性读取发生在 suspend 函数中，也不能通过普通属性访问暗中挂起。未来若引入 suspend property，必须另行定义语法、类型与调用规则。
+- `const val` 的约束更强：它没有运行期初始化过程，只允许 9.1.2 定义的编译期常量表达式，因此不允许任何普通或挂起函数调用。
+- 挂起性是 callable 签名的一部分：override / interface 实现的挂起性必须与被覆写声明完全一致；`suspend (A) -> R` 与普通函数类型 `(A) -> R` 不兼容。挂起性不作为同名声明的重载区分项，参数列表相同而只相差 `suspend` 的两个函数是重复声明。
+- 调用挂起函数可能在当前调用栈内立即产生 `R`，也可能保存当前计算并返回到协程启动者，随后经 `Continuation` 恢复。无论采用哪条路径，源码都只观察到一次普通的 `R` 结果或一次在该调用点抛出的异常；挂起本身不是返回、异常或 `finally` 的退出原因。
+- 调用点之前已经完成的实参和子表达式只求值一次；恢复后从调用点之后继续，源码从左到右求值顺序不变。跨挂起点仍存活的局部变量、参数及待执行的控制转移必须被保留。
+- `try` / `catch` / `finally` 的语义跨挂起点保持不变：恢复失败等价于在原挂起调用点 `throw`；仅仅挂起不会执行 `finally`；当计算随后正常返回、抛出或由 `finally` 覆盖退出时，`finally` 仍恰好执行一次。
+- `Continuation` 是单次完成协议：一个挂起点只能由 `resume` 或 `resumeWithException` 中的一个成功完成一次；编译器生成的 continuation 对重复完成抛出 `IllegalStateException`。本规范不定义协程取消；放弃且永不恢复一个 continuation 不会隐式执行 `finally`。
+- 具体的协程构建器（`launch`、`async` 等）、调度器与取消策略属于标准库，不在最小核心库范围内。最小核心库只提供 11.9 的启动、挂起与恢复原语。
 
 ### 8.3 上下文参数（context parameters）
 
@@ -521,7 +529,7 @@ enum Option<T> {
   - 可见性按定义处检查：缺省表达式可以引用定义方的 `private` / `internal` 符号，即使代码在调用处生成；这些符号必须随 `.slib` 以可链接的形式导出（见 12.5），缺省表达式的代码体也因此进入 `.slib` metadata（与导出泛型同理）。
   - 修改一个 Cone 导出函数的缺省值会改变其 `.slib` metadata，下游 Cone 随之重编译（见 12.5）。
   - `suspend` 函数的缺省表达式可以包含挂起调用：调用 `suspend` 函数本来就要求调用处具备挂起上下文，因此无额外限制。
-  - 构造函数的默认参数遵循同样的规则。
+  - 普通函数与构造函数的缺省表达式不能包含挂起调用。构造函数默认参数仍遵循本节其他“定义处解析、调用处求值”的规则，但构造协议本身是同步的；suspend caller 显式写出的构造实参不受此限制（见 8.2）。
   - 典型应用：`getCurrentSourceLocation()` 作为缺省参数实现廉价的诊断/tracing（见 11.12）。
 
 ---
@@ -536,6 +544,20 @@ enum Option<T> {
 - `abstract fun` 隐含 `open` 且没有函数体，只能声明在 `abstract class` 或 interface 中。覆写类或 interface 方法必须写 `override`；与 Kotlin 一致，`override fun` 默认继续保持 `open`，可用 `final override fun` 终止后续覆写，也可用 `open override fun` 显式强调继续开放。
 - final 方法不得被覆写。静态接收者上已知的 final 方法调用使用直接分派；open / abstract 类方法调用使用 vtable 分派，interface 方法调用使用 itable 分派。final override 仍替换继承来的 vtable 槽，以保证经基类引用调用时到达该实现。
 - `sealed`：`sealed class` / `sealed interface` 保留（引用类型的受限继承）；值类型的等价物直接使用 `enum`。
+
+#### 9.1.1 对象与属性初始化
+
+- 顶层属性在程序进入 `main` 前初始化完成；`object` / `companion object` 的初始化时机可以晚于程序启动，但触发初始化的访问必须等到属性 initializer、delegate 表达式、`init` 块及继承/委托初始化全部同步完成后才能取得该单例。初始化的精确顺序与循环初始化诊断另行规定，不影响 8.2 的“初始化过程不可挂起”规则。
+- class 实例只在基类构造、构造委托、属性 initializer、delegate 表达式、`init` 块及构造函数体全部同步完成后才构造成功。struct 与 enum 值的构造同样同步完成。
+- 初始化期间可以调用普通函数，也可以构造一个尚未执行的 suspend task；不能直接等待挂起结果。`startCoroutine` 是同步返回的普通 builder，因此类型系统不把调用它本身视为初始化器挂起；它启动的计算不是该属性或对象尚未完成的初始化步骤。
+- 普通属性访问始终同步。需要异步/挂起地取得一个值时必须显式暴露 `suspend fun`，不能藏在 getter 或属性委托协议中。
+
+#### 9.1.2 `const val`
+
+- `const val` 只允许声明在顶层、`object` 或 `companion object` 中；其类型必须是 `Boolean`、基本数值类型、`Char` 或 `String`。
+- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用，以及由它们组成且可在编译期确定结果的内建一元/二元运算。const 依赖图存在循环是编译错误。
+- 函数/方法调用、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
+- 导出的 `const val` 的类型和值属于 `.slib` HIR metadata，下游 Cone 在编译期直接消费；值变化会使下游编译缓存失效。是否同时保留可寻址存储属于 ABI/`addressOf` 设计，不改变其“无 runtime initializer”的语义。
 
 ### 9.2 委托
 
@@ -687,7 +709,8 @@ class StringBuilder {
   - `UnwrapException`：`!!` 失败时抛出（见 7.3）；
   - `ClassCastException`：`as` 失败时抛出；
   - `ArithmeticException`：整数除零等算术错误；
-  - `IndexOutOfBoundsException`：数组下标越界（见 10.5）。
+  - `IndexOutOfBoundsException`：数组下标越界（见 10.5）；
+  - `IllegalStateException`：运行期状态协议被破坏；核心实现至少用它报告 continuation 的重复完成。
 - `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。多个 `catch` 按声明顺序匹配；前一个 `catch` 的类型是后一个的父类型（含相等）时，后者不可达，是编译错误。
 - `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止（默认行为：打印异常类型名后 abort）。
 
@@ -726,12 +749,34 @@ while (true) {
 
 ### 11.9 协程原语
 
-支撑 `suspend` 语义的最小集合：
+支撑 `suspend` 语义的最小 core 形态如下：
 
-- `interface Continuation<in T>`：恢复挂起计算的接口（成功/失败结果的表示由实现定义）；
-- `suspendCoroutine` 级别的底层挂起原语（具体形态由实现定义）。
+```
+interface Continuation<in T> {
+    fun resume(value: T)
+    fun resumeWithException(exception: Throwable)
+}
 
-协程构建器与调度器不属于核心库。
+interface SuspendTask<out T> {
+    suspend fun run(): T
+}
+
+interface SuspendRegistration<out T> {
+    fun register(continuation: Continuation<T>)
+}
+
+fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>)
+
+suspend fun <T> suspendCoroutine(
+    registration: SuspendRegistration<T>
+): T
+```
+
+- `startCoroutine` 是最小协程构建器：启动 `task.run()` 后立即返回 `Unit`。若 task 在启动调用内完成，则返回前调用 `completion.resume(value)` 或 `completion.resumeWithException(exception)`；若 task 挂起，则在最终完成时调用。completion 恰好收到一次完成通知。
+- `suspendCoroutine` 调用 `registration.register(continuation)`。registration 可以同步恢复 continuation，也可以保存它并在 `register` 返回后恢复；前者使 `suspendCoroutine` 在当前调用栈内继续，后者使其真正挂起。`register` 在尚未完成 continuation 时抛出的异常等价于 `suspendCoroutine` 在调用点抛出该异常。
+- `register` 已同步完成 continuation 后又抛出属于状态协议错误，`suspendCoroutine` 以 `IllegalStateException` 失败；该 continuation 随即失效，之后不能再次成功完成。
+- `SuspendTask` / `SuspendRegistration` 是不依赖 lambda 与函数引用的最小适配器。标准库可以在其上提供接受 `suspend` lambda 的重载、`launch`、`async`、dispatcher 等高层 API，但不得改变 8.2 的单次完成与异常语义。
+- core 原语不提供队列、线程切换或事件循环；调度器与取消不属于核心库。
 
 ### 11.10 数组
 
