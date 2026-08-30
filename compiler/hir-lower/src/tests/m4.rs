@@ -926,6 +926,7 @@ fn unsupported_annotation_is_an_error() {
             value: None,
             span: sp(),
         }],
+        is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
         name: ident("pure_fn"),

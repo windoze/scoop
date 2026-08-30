@@ -4297,6 +4297,7 @@ mod tests {
             // `@Intrinsic("rt_bool_to_string") fun boolToString(...)`.
             let write = functions.alloc(hir::Function {
                 name: "write".to_string(),
+                is_suspend: false,
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: unit,
@@ -4306,6 +4307,7 @@ mod tests {
             });
             let int_to_string = functions.alloc(hir::Function {
                 name: "intToString".to_string(),
+                is_suspend: false,
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: string,
@@ -4315,6 +4317,7 @@ mod tests {
             });
             let bool_to_string = functions.alloc(hir::Function {
                 name: "boolToString".to_string(),
+                is_suspend: false,
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: string,
@@ -4587,6 +4590,7 @@ mod tests {
                     .iter()
                     .map(|name| hir::MethodSig {
                         name: name.to_string(),
+                        is_suspend: false,
                         type_params: Vec::new(),
                         params: Vec::new(),
                         return_ty: unit,
@@ -4649,6 +4653,7 @@ mod tests {
         ) -> hir::FunctionId {
             self.functions.alloc(hir::Function {
                 name: name.to_string(),
+                is_suspend: false,
                 type_params: Vec::new(),
                 params,
                 return_ty,
@@ -4736,6 +4741,7 @@ mod tests {
                 let generic = !type_params.is_empty();
                 let id = self.functions.alloc(hir::Function {
                     name: name.to_string(),
+                    is_suspend: false,
                     type_params,
                     params: params
                         .into_iter()
@@ -4834,6 +4840,7 @@ mod tests {
             let generic = !type_params.is_empty();
             let id = self.functions.alloc(hir::Function {
                 name: name.to_string(),
+                is_suspend: false,
                 type_params,
                 params,
                 return_ty,
@@ -5815,6 +5822,7 @@ Module
                     let v = locals.alloc(local("v", *ty));
                     hir::MethodSig {
                         name: name.to_string(),
+                        is_suspend: false,
                         type_params: Vec::new(),
                         params: vec![param("v", *ty, v)],
                         return_ty: unit,

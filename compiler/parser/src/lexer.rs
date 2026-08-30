@@ -7,7 +7,7 @@
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M9 subset. Reserved words are dedicated variants;
+/// Token kinds of the M10 subset. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word). Words that only matter in specific
 /// positions (`open`, `abstract`, `override`, `super`, `object`,
@@ -16,6 +16,7 @@ use scoop_ast::{Diagnostic, Span};
 /// by text where they are meaningful.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
+    Suspend,
     Fun,
     Struct,
     Enum,
@@ -86,6 +87,7 @@ impl Token {
     /// `end of file`.
     pub fn describe(&self) -> String {
         match &self.kind {
+            TokenKind::Suspend => "`suspend`".to_string(),
             TokenKind::Fun => "`fun`".to_string(),
             TokenKind::Struct => "`struct`".to_string(),
             TokenKind::Enum => "`enum`".to_string(),
@@ -488,6 +490,7 @@ impl<'a> Lexer<'a> {
             ));
         }
         let kind = match text {
+            "suspend" => TokenKind::Suspend,
             "fun" => TokenKind::Fun,
             "struct" => TokenKind::Struct,
             "enum" => TokenKind::Enum,

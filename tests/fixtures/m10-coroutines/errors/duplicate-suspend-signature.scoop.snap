@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m10-coroutines/errors/duplicate-suspend-signature.scoop:2:13: error: function `same` is already declared with the same signature

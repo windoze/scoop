@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m10-coroutines/errors/non-suspend-call.scoop:4:5: error: suspend function `wait` cannot be called from non-suspend function `main`

@@ -322,6 +322,9 @@ pub struct TypeParamDecl {
 #[derive(Debug)]
 pub struct MethodSig {
     pub name: String,
+    /// Suspend is part of the callable contract and must match exactly
+    /// across interface implementation and overriding relationships.
+    pub is_suspend: bool,
     /// Type parameters declared by this method (the owning interface's
     /// parameters are stored on `InterfaceDecl`). An empty list means the
     /// method occupies an itable slot; generic methods are static-only.
@@ -351,6 +354,8 @@ pub struct Field {
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
+    /// Whether calls use the coroutine ABI rather than the ordinary ABI.
+    pub is_suspend: bool,
     /// Generic type parameter names; empty for non-generic functions. For
     /// methods this is one combined namespace: owner parameters first,
     /// method-declared parameters second (`Method::owner_type_param_count`
@@ -782,7 +787,8 @@ pub fn dump(module: &Module) -> String {
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
             out.push_str(&format!(
-                "    fun {}{}({}): {}\n",
+                "    {}fun {}{}({}): {}\n",
+                if method.is_suspend { "suspend " } else { "" },
                 method.name,
                 method_type_params,
                 params.join(", "),
@@ -809,12 +815,13 @@ pub fn dump(module: &Module) -> String {
             params.join(", "),
             type_name(module, function.return_ty)
         );
+        let suspend = if function.is_suspend { "suspend " } else { "" };
         match &function.kind {
             FunctionKind::Intrinsic(name) => {
-                out.push_str(&format!("  fun {signature} <intrinsic {name}>\n"));
+                out.push_str(&format!("  {suspend}fun {signature} <intrinsic {name}>\n"));
             }
             FunctionKind::User(body) => {
-                out.push_str(&format!("  fun {signature}\n"));
+                out.push_str(&format!("  {suspend}fun {signature}\n"));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
             }
         }

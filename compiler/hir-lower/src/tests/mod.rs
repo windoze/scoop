@@ -7,6 +7,7 @@
 //! intrinsic), mirroring the driver's sysroot convention — core files
 //! first, the user file last.
 
+mod m10;
 mod m2;
 mod m3;
 mod m4;
@@ -479,6 +480,19 @@ pub(crate) fn fun(name: &str, statements: Vec<Statement>) -> Decl {
     fun_sig(name, vec![], vec![], None, statements)
 }
 
+pub(crate) fn suspend_fun(name: &str, statements: Vec<Statement>) -> Decl {
+    let Decl::Function(mut function) = fun(name, statements) else {
+        unreachable!("fun always builds a function declaration")
+    };
+    function.is_suspend = true;
+    Decl::Function(function)
+}
+
+pub(crate) fn with_suspend(mut method: FunctionDecl) -> FunctionDecl {
+    method.is_suspend = true;
+    method
+}
+
 /// A block-bodied function with a full signature.
 pub(crate) fn fun_sig(
     name: &str,
@@ -489,6 +503,7 @@ pub(crate) fn fun_sig(
 ) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
+        is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
         name: ident(name),
@@ -517,6 +532,7 @@ pub(crate) fn fun_expr(
 ) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
+        is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
         name: ident(name),
@@ -560,6 +576,7 @@ pub(crate) fn intrinsic_generic_fun(
             value: Some(intrinsic.to_string()),
             span: sp(),
         }],
+        is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
         name: ident(name),
@@ -661,6 +678,7 @@ pub(crate) fn method_full(
 ) -> FunctionDecl {
     FunctionDecl {
         annotations: Vec::new(),
+        is_suspend: false,
         is_override,
         modifier: if is_abstract {
             ast::MethodModifier::Abstract

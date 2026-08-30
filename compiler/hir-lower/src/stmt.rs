@@ -20,7 +20,7 @@ use ast::Span;
 use hir::{FunctionId, Type, TypeId};
 
 use crate::patterns::PatternCtx;
-use crate::{Lowerer, Owner};
+use crate::{ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext};
 
 struct ValueBlock {
     statements: Vec<hir::Statement>,
@@ -54,6 +54,11 @@ impl Lowerer {
         self.type_params_in_scope = sig.type_params.clone();
         self.current_return_ty = sig.return_ty;
         self.current_fn_name = decl.name.text.clone();
+        self.push_suspension_context(if decl.is_suspend {
+            SuspensionContext::SuspendFunction
+        } else {
+            SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
+        });
 
         self.current_owner = owner;
         self.current_this = None;
@@ -157,6 +162,7 @@ impl Lowerer {
         self.type_params_in_scope.clear();
         self.current_this = None;
         self.current_owner = None;
+        self.pop_suspension_context();
 
         hir::Body {
             locals: std::mem::take(&mut self.locals),

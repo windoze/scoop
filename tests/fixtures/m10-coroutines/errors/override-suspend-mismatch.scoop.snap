@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m10-coroutines/errors/override-suspend-mismatch.scoop:6:18: error: `run` must have the same `suspend` modifier as `Task.run`
+m10-coroutines/errors/override-suspend-mismatch.scoop:5:1: error: class `TaskImpl` does not implement interface method `Task.run`

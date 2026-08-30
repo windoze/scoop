@@ -236,6 +236,8 @@ pub struct FieldDecl {
 pub struct FunctionDecl {
     /// M4: at most `@Intrinsic("name")`, sysroot only (DESIGN.md 1.3).
     pub annotations: Vec<Annotation>,
+    /// Whether this callable uses the coroutine calling convention.
+    pub is_suspend: bool,
     /// `override` (required when overriding, forbidden otherwise).
     pub is_override: bool,
     /// Effective member modality. It is `Final` for top-level
@@ -716,7 +718,8 @@ pub fn dump(file: &SourceFile) -> String {
                     ifaces
                 ));
                 for method in &c.methods {
-                    out.push_str(&format!("    fun {}\n", method.name.text));
+                    let suspend = if method.is_suspend { "suspend " } else { "" };
+                    out.push_str(&format!("    {suspend}fun {}\n", method.name.text));
                 }
             }
             Decl::Interface(i) => {
@@ -739,7 +742,8 @@ pub fn dump(file: &SourceFile) -> String {
                 };
                 out.push_str(&format!("  interface {}{}\n", i.name.text, params));
                 for method in &i.methods {
-                    out.push_str(&format!("    fun {}\n", method.name.text));
+                    let suspend = if method.is_suspend { "suspend " } else { "" };
+                    out.push_str(&format!("    {suspend}fun {}\n", method.name.text));
                 }
             }
             Decl::Struct(s) => {
@@ -767,7 +771,8 @@ pub fn dump(file: &SourceFile) -> String {
                     ));
                 }
                 for method in &s.methods {
-                    out.push_str(&format!("    fun {}\n", method.name.text));
+                    let suspend = if method.is_suspend { "suspend " } else { "" };
+                    out.push_str(&format!("    {suspend}fun {}\n", method.name.text));
                 }
             }
             Decl::Function(f) => {
@@ -805,9 +810,10 @@ pub fn dump(file: &SourceFile) -> String {
                     (MethodModifier::Abstract, _) => "abstract ",
                 };
                 let flags = format!(
-                    "{}{}",
+                    "{}{}{}",
                     modifier,
-                    if f.is_override { "override " } else { "" }
+                    if f.is_override { "override " } else { "" },
+                    if f.is_suspend { "suspend " } else { "" }
                 );
                 out.push_str(&format!(
                     "  {flags}fun {}{}({}){}\n",

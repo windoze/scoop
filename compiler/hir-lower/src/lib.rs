@@ -137,6 +137,7 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> 
 /// before any body, so calls resolve regardless of declaration order.
 #[derive(Clone)]
 pub(crate) struct FnSig {
+    pub(crate) is_suspend: bool,
     /// Number of owner parameters at the front of `type_params`.
     pub(crate) owner_type_param_count: usize,
     pub(crate) type_params: Vec<String>,
@@ -172,6 +173,22 @@ pub(crate) enum Owner {
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+}
+
+/// Lexical permission to invoke a suspend callable. Keeping an explicit,
+/// non-empty stack prevents declaration-owned initialization code from
+/// accidentally inheriting permission from a surrounding suspend body.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SuspensionContext {
+    Forbidden(ForbiddenSuspendContext),
+    SuspendFunction,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ForbiddenSuspendContext {
+    TopLevel,
+    Function,
+    ConstructorDelegation,
 }
 
 impl Owner {
@@ -286,6 +303,8 @@ pub(crate) struct Lowerer {
     pub(crate) current_return_ty: TypeId,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
+    /// Explicit suspension-permission stack; it is never empty.
+    pub(crate) suspension_contexts: Vec<SuspensionContext>,
     /// `this` of the member function whose body is being lowered:
     /// its local and the host type. `None` in top-level functions.
     pub(crate) current_this: Option<(hir::LocalId, TypeId)>,
@@ -364,6 +383,9 @@ impl Lowerer {
             type_params_in_scope: Vec::new(),
             current_return_ty: unit,
             current_fn_name: String::new(),
+            suspension_contexts: vec![SuspensionContext::Forbidden(
+                ForbiddenSuspendContext::TopLevel,
+            )],
             current_this: None,
             current_owner: None,
             smart_casts: HashMap::new(),
@@ -427,6 +449,7 @@ impl Lowerer {
             }
             let id = self.functions.alloc(Function {
                 name: format!("Any.{short}"),
+                is_suspend: false,
                 type_params: Vec::new(),
                 params: fn_params,
                 return_ty,
@@ -444,6 +467,7 @@ impl Lowerer {
             self.signatures.insert(
                 id,
                 FnSig {
+                    is_suspend: false,
                     owner_type_param_count: 0,
                     type_params: Vec::new(),
                     params: sig_params,
@@ -631,6 +655,12 @@ impl Lowerer {
                     self.error(
                         self.functions[id].span,
                         "`main` must not be generic".to_string(),
+                    );
+                }
+                if self.functions[id].is_suspend {
+                    self.error(
+                        self.functions[id].span,
+                        "`main` must not be suspend".to_string(),
                     );
                 }
                 Some(id)
@@ -941,6 +971,7 @@ impl Lowerer {
         let owner_type_param_count = self.owner_type_param_names(owner).len() as u32;
         let id = self.functions.alloc(Function {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
+            is_suspend: decl.is_suspend,
             // Filled in pass 2.5 (signature) and pass 3 (body and
             // parameter locals).
             type_params: Vec::new(),
@@ -989,6 +1020,7 @@ impl Lowerer {
         };
         let id = self.functions.alloc(Function {
             name: decl.name.text.clone(),
+            is_suspend: decl.is_suspend,
             // Filled in pass 2.5 (signature) and pass 3 (parameter
             // locals); a resolution failure is diagnosed, so these
             // never reach the output.
@@ -1447,6 +1479,7 @@ impl Lowerer {
         self.signatures.insert(
             id,
             FnSig {
+                is_suspend: decl.is_suspend,
                 owner_type_param_count: 0,
                 type_params,
                 params,
@@ -1585,6 +1618,53 @@ impl Lowerer {
             .option_enum
             .expect("Option types only exist after core validation");
         self.intern_type(Type::Enum(id, vec![inner]))
+    }
+
+    pub(crate) fn push_suspension_context(&mut self, context: SuspensionContext) {
+        self.suspension_contexts.push(context);
+    }
+
+    pub(crate) fn pop_suspension_context(&mut self) {
+        assert!(
+            self.suspension_contexts.len() > 1,
+            "the root suspension context must remain present"
+        );
+        self.suspension_contexts.pop();
+    }
+
+    /// Diagnose a suspend call made from a declaration body whose ABI has
+    /// no continuation. The resolved callable, including a generic
+    /// instantiation, always leads back to exactly one function entity.
+    pub(crate) fn check_suspend_call(&mut self, callable: hir::Callable, span: Span) {
+        let function = match callable {
+            hir::Callable::Function(function) => function,
+            hir::Callable::Generic(instantiation) => {
+                let generic = self.instantiations[instantiation].generic;
+                self.generic_functions[generic].function
+            }
+        };
+        if !self.functions[function].is_suspend {
+            return;
+        }
+        let context = *self
+            .suspension_contexts
+            .last()
+            .expect("the suspension context stack is initialized non-empty");
+        let SuspensionContext::Forbidden(reason) = context else {
+            return;
+        };
+        let callee = self.functions[function].name.clone();
+        let location = match reason {
+            ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
+            ForbiddenSuspendContext::Function => {
+                format!("non-suspend function `{}`", self.current_fn_name)
+            }
+            ForbiddenSuspendContext::ConstructorDelegation => "constructor delegation".to_string(),
+        };
+        self.error(
+            span,
+            format!("suspend function `{callee}` cannot be called from {location}"),
+        );
     }
 
     pub(crate) fn error(&mut self, span: Span, message: String) {
