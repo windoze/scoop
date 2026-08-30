@@ -1774,6 +1774,7 @@ impl Lowerer {
         }
         if matches!(decl.body, ast::FunctionBody::None)
             && !matches!(self.functions[id].kind, FunctionKind::Intrinsic(_))
+            && decl.annotations.is_empty()
         {
             self.error(
                 decl.name.span,

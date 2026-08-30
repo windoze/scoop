@@ -949,15 +949,16 @@ fn unknown_intrinsic_is_an_error() {
 
 #[test]
 fn intrinsic_in_user_file_is_an_error() {
-    let user = file(vec![
-        intrinsic_fun(
-            "wipe",
-            "rt_write",
-            vec![("message", ty_named("String"))],
-            None,
-        ),
-        fun("main", vec![]),
-    ]);
+    let Decl::Function(mut wipe) = intrinsic_fun(
+        "wipe",
+        "rt_write",
+        vec![("message", ty_named("String"))],
+        None,
+    ) else {
+        unreachable!()
+    };
+    wipe.body = FunctionBody::None;
+    let user = file(vec![Decl::Function(wipe), fun("main", vec![])]);
     let errors = lower(&[core_file(), user]).expect_err("user `@Intrinsic` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(

@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m10-coroutines/errors/user-coroutine-intrinsic.scoop:1:1: error: `@Intrinsic` is only allowed in the core library
