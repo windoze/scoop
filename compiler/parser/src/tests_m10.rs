@@ -82,3 +82,63 @@ fn suspend_is_reserved_and_duplicate_member_modifier_is_rejected() {
         "duplicate `suspend` modifier on member function"
     );
 }
+
+#[test]
+fn rejects_duplicate_top_level_suspend_modifier() {
+    let diagnostics = parse("suspend suspend fun work() {}\nfun main() {}")
+        .expect_err("duplicate top-level suspend must fail");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].span, Some(Span::new(8, 15)));
+    assert_eq!(
+        diagnostics[0].message,
+        "duplicate `suspend` modifier on top-level function"
+    );
+}
+
+#[test]
+fn rejects_suspend_on_non_function_declarations() {
+    let diagnostics =
+        parse("suspend class Work\nfun main() {}").expect_err("suspend is not a class modifier");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].span, Some(Span::new(0, 7)));
+    assert_eq!(
+        diagnostics[0].message,
+        "`suspend` modifier is only allowed on function declarations"
+    );
+}
+
+#[test]
+fn rejects_suspend_on_non_function_members() {
+    let diagnostics = parse("class Owner { final suspend class Nested }\nfun main() {}")
+        .expect_err("suspend is not a nested-class modifier");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].span, Some(Span::new(20, 27)));
+    assert_eq!(
+        diagnostics[0].message,
+        "`suspend` modifier is only allowed on function declarations"
+    );
+}
+
+#[test]
+fn rejects_suspend_function_types_with_a_dedicated_diagnostic() {
+    let diagnostics = parse("fun use(task: suspend (Int) -> Int) {}\nfun main() {}")
+        .expect_err("M10 has no suspend function types");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].span, Some(Span::new(14, 21)));
+    assert_eq!(
+        diagnostics[0].message,
+        "suspend function types are not supported in M10"
+    );
+}
+
+#[test]
+fn rejects_suspend_lambdas_with_a_dedicated_diagnostic() {
+    let diagnostics = parse("fun main() {\n    val task = suspend { Unit }\n}")
+        .expect_err("M10 has no suspend lambdas");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].span, Some(Span::new(28, 35)));
+    assert_eq!(
+        diagnostics[0].message,
+        "suspend lambdas are not supported in M10"
+    );
+}

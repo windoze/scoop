@@ -29,6 +29,7 @@ pub(crate) enum FunctionContext {
 #[derive(Debug, Default)]
 pub(crate) struct Modifiers {
     pub is_suspend: bool,
+    pub suspend_span: Option<Span>,
     pub is_override: bool,
     pub method_modifier: Option<MethodModifier>,
     pub method_modifier_span: Option<Span>,
@@ -73,8 +74,21 @@ impl Parser {
         match &self.peek().kind {
             TokenKind::Suspend => {
                 let suspend = self.bump();
+                if matches!(self.peek().kind, TokenKind::Suspend) {
+                    return Err(Diagnostic::at(
+                        self.peek().span,
+                        "duplicate `suspend` modifier on top-level function",
+                    ));
+                }
+                if !matches!(self.peek().kind, TokenKind::Fun) {
+                    return Err(Diagnostic::at(
+                        suspend.span,
+                        "`suspend` modifier is only allowed on function declarations",
+                    ));
+                }
                 let modifiers = Modifiers {
                     is_suspend: true,
+                    suspend_span: Some(suspend.span),
                     start: Some(suspend.span.start),
                     ..Modifiers::default()
                 };
@@ -108,7 +122,14 @@ impl Parser {
                 if matches!(self.peek().kind, TokenKind::Suspend) {
                     let suspend = self.bump();
                     modifiers.is_suspend = true;
+                    modifiers.suspend_span = Some(suspend.span);
                     modifiers.start = Some(suspend.span.start);
+                    if matches!(self.peek().kind, TokenKind::Suspend) {
+                        return Err(Diagnostic::at(
+                            self.peek().span,
+                            "duplicate `suspend` modifier on top-level function",
+                        ));
+                    }
                 }
                 if !matches!(self.peek().kind, TokenKind::Fun) {
                     return Err(Diagnostic::at(
@@ -581,6 +602,7 @@ impl Parser {
                 }
                 modifiers.is_suspend = true;
                 let keyword = self.bump();
+                modifiers.suspend_span = Some(keyword.span);
                 modifiers.start = modifiers.start.or(Some(keyword.span.start));
                 continue;
             }
@@ -642,6 +664,14 @@ impl Parser {
             return Err(Diagnostic::at(
                 modifiers.method_modifier_span.expect("explicit modality"),
                 format!("`{modifier}` modifier is not allowed on interface methods"),
+            ));
+        }
+        if modifiers.is_suspend && !matches!(self.peek().kind, TokenKind::Fun) {
+            return Err(Diagnostic::at(
+                modifiers
+                    .suspend_span
+                    .expect("suspend modifier has a source span"),
+                "`suspend` modifier is only allowed on function declarations",
             ));
         }
         self.parse_function(Vec::new(), modifiers, context)

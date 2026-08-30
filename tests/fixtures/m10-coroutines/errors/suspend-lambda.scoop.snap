@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m10-coroutines/errors/suspend-lambda.scoop:2:16: error: suspend lambdas are not supported in M10
