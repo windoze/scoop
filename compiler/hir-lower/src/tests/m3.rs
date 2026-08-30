@@ -179,6 +179,30 @@ Module
     assert_eq!(hir::dump(&module), expected);
 }
 
+#[test]
+fn generic_inference_is_independent_of_argument_order() {
+    let file = file(vec![
+        fun_expr(
+            "choose",
+            vec!["T"],
+            vec![
+                ("maybe", ty_nullable(ty_named("T"))),
+                ("value", ty_named("T")),
+            ],
+            Some(ty_named("T")),
+            var("value"),
+        ),
+        fun(
+            "main",
+            vec![val("x", call("choose", vec![none(), int_lit(7)]))],
+        ),
+    ]);
+    let module = lower_user(file).expect("a later argument must type an earlier None");
+    let dump = hir::dump(&module);
+    assert!(dump.contains("Call choose<Int> : Int"));
+    assert!(dump.contains("VariantConstruct Option.None<Int> : Option<Int>"));
+}
+
 /// Multiple type parameters bind independently; tuple return types
 /// substitute recursively.
 #[test]

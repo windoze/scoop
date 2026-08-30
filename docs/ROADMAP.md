@@ -111,7 +111,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - ~~`!!` 失败 trap → `UnwrapException`~~（M8 已完成）；
 - `while` 条件中禁用 `?.`/`?:`（诊断拒绝；待 `break` 或循环重组方案，需先回 spec 讨论）；
-- `f(None, 1)` 式"先 None 后绑定"的推断（M3 的实参顺序限制）；
+- ~~`f(None, 1)` 式"先 None 后绑定"的推断~~（已完成：函数重载、泛型 enum/struct 构造统一按整组实参固定点推导，延迟上下文实参且保持源码求值顺序）；
 - 显式类型实参 `f<Int>(x)`（`<` 消歧方案待定）；
 - `value` / `ref` 类型约束（spec 13.9）；
 - ~~非 Unit 函数返回的分支穷尽分析~~（已完成：按顺序块、`if`、穷尽 `when`、`try/catch/finally` 组合分析可落空路径）；

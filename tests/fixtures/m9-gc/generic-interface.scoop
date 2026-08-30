@@ -46,6 +46,8 @@ fun boxResult(producer: Producer<Int>): Producer<Any> = producer
 
 fun consumeInt(consumer: Consumer<Any>): Consumer<Int> = consumer
 
+fun <T> readOr(producer: Producer<T>, fallback: T): T = producer.get()
+
 fun main() {
     val producer: Producer<Animal> = widen(DogProducer())
     println(producer.get().name)
@@ -55,4 +57,5 @@ fun main() {
     println(boxResult(IntValue(8)).get())
     println(boxResult(Value(10)).get())
     consumeInt(AnyConsumer()).put(9)
+    println(readOr(IntProducer(), 6))
 }

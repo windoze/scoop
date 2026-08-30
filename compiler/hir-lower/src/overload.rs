@@ -76,14 +76,24 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
-        // The arguments are shared by every candidate, so they are
-        // lowered once — without an expected-type hint, which only a
-        // single known candidate could provide.
-        let mut lowered = Vec::with_capacity(arg_exprs.len());
-        for arg in arg_exprs {
-            lowered.push(self.lower_expr(arg, sink, None)?);
+        // Context-independent arguments are shared by every candidate and
+        // lowered once. `None`, empty arrays and context-dependent generic
+        // constructors are postponed until inference provides a candidate
+        // parameter type. Per-argument sinks preserve source evaluation
+        // order even when later arguments are typed first.
+        let mut lowered: Vec<Option<hir::Expr>> = (0..arg_exprs.len()).map(|_| None).collect();
+        let mut arg_sinks: Vec<Vec<hir::Statement>> =
+            (0..arg_exprs.len()).map(|_| Vec::new()).collect();
+        for (index, arg) in arg_exprs.iter().enumerate() {
+            if self.expr_requires_expected_type(arg) {
+                continue;
+            }
+            lowered[index] = Some(self.lower_expr(arg, &mut arg_sinks[index], None)?);
         }
-        let arg_tys: Vec<TypeId> = lowered.iter().map(|arg| arg.ty).collect();
+        let arg_tys: Vec<Option<TypeId>> = lowered
+            .iter()
+            .map(|arg| arg.as_ref().map(|arg| arg.ty))
+            .collect();
 
         let prepared: Vec<Candidate> = candidates
             .iter()
@@ -128,10 +138,15 @@ impl Lowerer {
             let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) else {
                 continue;
             };
-            let matches = candidate.params.iter().zip(&arg_tys).all(|(&param, &arg)| {
-                let expected = self.substitute_call_level(param, &type_args);
-                self.is_subtype(arg, expected)
-            });
+            let matches = candidate.params.iter().zip(&arg_tys).zip(arg_exprs).all(
+                |((&param, arg), arg_expr)| {
+                    let expected = self.substitute_call_level(param, &type_args);
+                    match arg {
+                        Some(arg) => self.is_subtype(*arg, expected),
+                        None => self.contextual_expr_accepts(arg_expr, expected),
+                    }
+                },
+            );
             if matches {
                 applicable.push((index, type_args));
             }
@@ -139,7 +154,14 @@ impl Lowerer {
 
         let (winner, type_args) = match applicable.len() {
             0 => {
-                self.no_applicable_diagnostic(name, &prepared, &arg_tys, arg_exprs.len(), span);
+                self.no_applicable_diagnostic(
+                    name,
+                    &prepared,
+                    &arg_tys,
+                    arg_exprs,
+                    arg_exprs.len(),
+                    span,
+                );
                 return None;
             }
             1 => applicable.pop().expect("one applicable candidate"),
@@ -149,9 +171,29 @@ impl Lowerer {
         let candidate = &prepared[winner];
         let function = candidate.function;
         let mut args = Vec::with_capacity(lowered.len());
-        for (&param, arg) in candidate.params.iter().zip(lowered) {
+        for (index, &param) in candidate.params.iter().enumerate() {
             let expected = self.substitute_call_level(param, &type_args);
+            let arg = match lowered[index].take() {
+                Some(arg) => arg,
+                None => {
+                    self.lower_expr(&arg_exprs[index], &mut arg_sinks[index], Some(expected))?
+                }
+            };
+            if !self.is_subtype(arg.ty, expected) {
+                self.no_applicable_diagnostic(
+                    name,
+                    &prepared,
+                    &arg_tys,
+                    arg_exprs,
+                    arg_exprs.len(),
+                    span,
+                );
+                return None;
+            }
             args.push(self.adapt_to(arg, expected));
+        }
+        for mut arg_sink in arg_sinks {
+            sink.append(&mut arg_sink);
         }
         let return_ty = self.substitute_call_level(candidate.return_ty, &type_args);
         // M9: the GC intrinsics constrain their type argument to
@@ -251,7 +293,8 @@ impl Lowerer {
         &mut self,
         name: &str,
         prepared: &[Candidate],
-        arg_tys: &[TypeId],
+        arg_tys: &[Option<TypeId>],
+        arg_exprs: &[ast::Expr],
         supplied: usize,
         span: Span,
     ) {
@@ -274,7 +317,14 @@ impl Lowerer {
             );
             return;
         }
-        let found: Vec<String> = arg_tys.iter().map(|&ty| self.type_name(ty)).collect();
+        let found: Vec<String> = arg_tys
+            .iter()
+            .zip(arg_exprs)
+            .map(|(ty, expr)| match ty {
+                Some(ty) => self.type_name(*ty),
+                None => contextual_expr_name(expr),
+            })
+            .collect();
         self.error(
             span,
             format!(
@@ -303,7 +353,9 @@ impl Lowerer {
         match self.types[ty].clone() {
             Type::Param(_) => true,
             Type::Array(element) | Type::MutableArray(element) => self.mentions_type_param(element),
-            Type::Enum(_, args) => args.iter().any(|&arg| self.mentions_type_param(arg)),
+            Type::Enum(_, args) | Type::Struct(_, args) | Type::Interface(_, args) => {
+                args.iter().any(|&arg| self.mentions_type_param(arg))
+            }
             Type::Tuple(elements) => elements
                 .iter()
                 .any(|&element| self.mentions_type_param(element)),
@@ -318,13 +370,16 @@ impl Lowerer {
     fn try_infer_type_args(
         &self,
         candidate: &Candidate,
-        arg_tys: &[TypeId],
+        arg_tys: &[Option<TypeId>],
     ) -> Option<Vec<TypeId>> {
         if candidate.type_param_count == 0 {
             return Some(Vec::new());
         }
         let mut bindings = vec![None; candidate.type_param_count];
-        for (&param, &arg) in candidate.params.iter().zip(arg_tys) {
+        for (&param, arg) in candidate.params.iter().zip(arg_tys) {
+            let Some(arg) = *arg else {
+                continue;
+            };
             if !self.try_bind(param, arg, &mut bindings) {
                 return None;
             }
@@ -362,6 +417,14 @@ impl Lowerer {
                     .zip(arg_args.iter())
                     .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
             }
+            (Type::Interface(param_id, param_args), Type::Interface(arg_id, arg_args))
+                if param_id == arg_id && param_args.len() == arg_args.len() =>
+            {
+                param_args
+                    .iter()
+                    .zip(arg_args.iter())
+                    .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
+            }
             (Type::Array(param), Type::Array(arg))
             | (Type::MutableArray(param), Type::MutableArray(arg)) => {
                 self.try_bind(param, arg, bindings)
@@ -372,5 +435,13 @@ impl Lowerer {
                 .all(|(param, arg)| self.try_bind(*param, arg, bindings)),
             _ => true,
         }
+    }
+}
+
+fn contextual_expr_name(expr: &ast::Expr) -> String {
+    match expr {
+        ast::Expr::Var(name) if name.text == "None" => "None".to_string(),
+        ast::Expr::ArrayLiteral { elements, .. } if elements.is_empty() => "[]".to_string(),
+        _ => "context-dependent expression".to_string(),
     }
 }

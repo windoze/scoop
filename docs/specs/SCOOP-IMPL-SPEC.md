@@ -34,6 +34,8 @@ lexer 对坏字符及可恢复的字面量错误继续扫描；parser 分别以�
 
 HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类型实参（含对上游 Cone generic HIR 的实例化请求），输出完整的实例化需求清单，但**不生成实例体**——实例体由 MIR 生成（见 2.3）。
 
+调用与值构造的泛型推导对整组实参执行固定点约束求解，不得按从左到右的一次遍历决定成败。依赖期望类型的实参可延迟到其他实参完成绑定后再检查；为每个实参产生的 desugaring 语句必须分开缓存并最终按源码实参顺序拼接，类型检查顺序不得改变运行期求值顺序。
+
 泛型 interface 的 HIR 类型必须同时携带 interface id 与完整类型实参；实现列表同样保存已解析的 interface 应用而非裸 id。HIR 按声明点 `in` / `out` 计算子类型关系并递归校验类型参数的使用位置。MIR 为每个实际使用的具体 interface 应用建立独立的单态化 interface 实体、TypeDescriptor 与 itable 身份；不得把不同类型实参的应用擦除到同一个 interface id。
 
 此外归属 HIR 的语义工作：
