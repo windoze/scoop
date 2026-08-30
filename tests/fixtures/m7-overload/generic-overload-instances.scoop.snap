@@ -130,30 +130,34 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      Call @scoop.println direct
+      call $call.1: Int = @scoop.choose$I.g4 direct
+        IntLiteral 11
+        IntLiteral 0
+      call @scoop.println direct
         Box
-          Call @scoop.choose$I.g4 direct
-            IntLiteral 11
-            IntLiteral 0
-      Call @scoop.println direct
+          Local $call.1
+      call $call.2: Int = @scoop.choose$I.g5 direct
+        IntLiteral 22
+        StringConst @scoop.str.1
+      call @scoop.println direct
         Box
-          Call @scoop.choose$I.g5 direct
-            IntLiteral 22
-            StringConst @scoop.str.1
+          Local $call.2
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
@@ -210,10 +214,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   instance @scoop.choose$I.g4 <- choose
   instance @scoop.choose$I.g5 <- choose
   str @scoop.str.0 "\n"
@@ -241,31 +246,39 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
+    local %0 $call.1: i64
+    local %1 $call.2: i64
   block entry
     t0 = call @scoop.choose$I.g4(11, 0) : i64
-    t1 = call @scoop_rt_box(global6, t0, 8) : ptr
+    store t0 -> local0
+    t1 = call @scoop_rt_box(global6, local0, 8) : ptr
     call @scoop.println(t1)
     t2 = aggregate () : {}
     t3 = call @scoop.choose$I.g5(22, global1) : i64
-    t4 = call @scoop_rt_box(global6, t3, 8) : ptr
+    store t3 -> local1
+    t4 = call @scoop_rt_box(global6, local1, 8) : ptr
     call @scoop.println(t4)
     t5 = aggregate () : {}
     ret
@@ -319,10 +332,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0

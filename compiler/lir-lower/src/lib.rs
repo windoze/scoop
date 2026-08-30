@@ -6,11 +6,10 @@
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.4 and
 //! `docs/milestone4/DESIGN.md` section 3.4.
 //!
-//! M2: structured MIR control flow becomes basic blocks with
-//! terminators, and `&&` / `||` are expanded here into short-circuit
-//! branches. Every MIR local gets a stack slot (stores on declaration
-//! and assignment, implicit loads on use); SSA construction is left to
-//! LLVM's mem2reg. Struct / tuple / Unit values are LLVM literal
+//! Every MIR function arrives as an explicit CFG; LIR maps its blocks,
+//! normal and unwind edges mechanically. Every MIR local gets a stack
+//! slot (stores on declaration and assignment, implicit loads on use);
+//! SSA construction is left to LLVM's mem2reg. Struct / tuple / Unit values are LLVM literal
 //! structs, and the type layouts — including reference-field offsets,
 //! which the M9 GC depends on — are computed into the LIR meta. This
 //! stage never fails: all errors were already reported by hir-lower.
@@ -936,10 +935,6 @@ fn binary_op(op: mir::BinOp) -> (lir::BinOp, lir::LirType, mir::Type) {
         mir::BinOp::IntNe => (lir::BinOp::Ne, I1, Int),
         mir::BinOp::BoolEq => (lir::BinOp::Eq, I1, Boolean),
         mir::BinOp::BoolNe => (lir::BinOp::Ne, I1, Boolean),
-        // Handled by the caller as short-circuit branches.
-        mir::BinOp::And | mir::BinOp::Or => {
-            unreachable!("`&&` / `||` are lowered by short-circuit expansion")
-        }
     }
 }
 
@@ -1275,40 +1270,6 @@ impl<'a> FunctionLowerer<'a> {
                     .clone(),
                 _ => unreachable!("enum field access on a non-enum"),
             },
-            mir::Expr::Call(call) => match call.target.callee {
-                mir::Callee::User(id) => self.module.functions[id].return_ty.clone(),
-                mir::Callee::Monomorphized(id) => {
-                    let function = self.module.meta.instances[id].function;
-                    self.module.functions[function].return_ty.clone()
-                }
-                mir::Callee::Runtime(function) => match function {
-                    mir::RuntimeFn::StringConcat => mir::Type::String,
-                    mir::RuntimeFn::StringEq => mir::Type::Boolean,
-                    mir::RuntimeFn::Box | mir::RuntimeFn::ITableLookup => mir::Type::Any,
-                    mir::RuntimeFn::IsInstance | mir::RuntimeFn::AnyEquals => mir::Type::Boolean,
-                    mir::RuntimeFn::AnyHashCode => mir::Type::Int,
-                    mir::RuntimeFn::AnyToString => mir::Type::String,
-                    mir::RuntimeFn::IntToString | mir::RuntimeFn::BoolToString => {
-                        mir::Type::String
-                    }
-                    mir::RuntimeFn::Write
-                    // The trap is noreturn; its statement is typed Unit.
-                    | mir::RuntimeFn::Trap => mir::Type::Unit,
-                    // The test-only GC hooks have fixed types.
-                    mir::RuntimeFn::GcCollect => mir::Type::Unit,
-                    mir::RuntimeFn::GcStats => mir::Type::UInt,
-                    // mir-lower routes the handle intrinsics through
-                    // context-typed positions only (the wrapping
-                    // StructInit's argument, a typed hidden local), so
-                    // their type is never reconstructed here.
-                    mir::RuntimeFn::Pin
-                    | mir::RuntimeFn::Unpin
-                    | mir::RuntimeFn::GetHandle
-                    | mir::RuntimeFn::ReleaseHandle => {
-                        unreachable!("{function:?} results are typed by the mir-lower context")
-                    }
-                },
-            },
             // A `Box` result is a reference (`Any` or an interface;
             // both are `Ptr` at this level).
             mir::Expr::Box(_) => mir::Type::Any,
@@ -1336,9 +1297,7 @@ impl<'a> FunctionLowerer<'a> {
                 | mir::BinOp::IntEq
                 | mir::BinOp::IntNe
                 | mir::BinOp::BoolEq
-                | mir::BinOp::BoolNe
-                | mir::BinOp::And
-                | mir::BinOp::Or => mir::Type::Boolean,
+                | mir::BinOp::BoolNe => mir::Type::Boolean,
             },
             mir::Expr::Unary { op, .. } => match op {
                 mir::UnOp::IntNeg => mir::Type::Int,
@@ -1362,6 +1321,19 @@ impl<'a> FunctionLowerer<'a> {
                 let ty = self.expr_ty(expr);
                 self.lower_expr(expr, &ty);
             }
+            mir::StatementKind::Call(effect) => match effect {
+                mir::CallEffect::Unit(call) => {
+                    self.lower_call(call, &mir::Type::Unit);
+                }
+                mir::CallEffect::Value { destination, call } => {
+                    let ty = self.mir_locals[*destination].ty.clone();
+                    let value = self.lower_call(call, &ty);
+                    self.push(lir::Instruction::Store {
+                        local: self.local_slot(*destination),
+                        value,
+                    });
+                }
+            },
             // Initialization and assignment are both stores into the
             // local's stack slot.
             mir::StatementKind::ValDecl { local, init } => {
@@ -1817,24 +1789,19 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 lir::Value::Temp(out)
             }
-            mir::Expr::Call(call) => self.lower_call(call, ty),
-            mir::Expr::Binary { op, lhs, rhs } => match op {
-                mir::BinOp::And => self.lower_short_circuit(lhs, rhs, true),
-                mir::BinOp::Or => self.lower_short_circuit(lhs, rhs, false),
-                _ => {
-                    let (lir_op, ty, operand_ty) = binary_op(*op);
-                    let lhs = self.lower_expr(lhs, &operand_ty);
-                    let rhs = self.lower_expr(rhs, &operand_ty);
-                    let out = self.new_temp(ty);
-                    self.push(lir::Instruction::BinOp {
-                        out,
-                        op: lir_op,
-                        lhs,
-                        rhs,
-                    });
-                    lir::Value::Temp(out)
-                }
-            },
+            mir::Expr::Binary { op, lhs, rhs } => {
+                let (lir_op, ty, operand_ty) = binary_op(*op);
+                let lhs = self.lower_expr(lhs, &operand_ty);
+                let rhs = self.lower_expr(rhs, &operand_ty);
+                let out = self.new_temp(ty);
+                self.push(lir::Instruction::BinOp {
+                    out,
+                    op: lir_op,
+                    lhs,
+                    rhs,
+                });
+                lir::Value::Temp(out)
+            }
             mir::Expr::Unary { op, operand } => {
                 let (lir_op, ty, operand_ty) = match op {
                     mir::UnOp::IntNeg => (lir::UnOp::Neg, lir::LirType::I64, mir::Type::Int),
@@ -1922,47 +1889,6 @@ impl<'a> FunctionLowerer<'a> {
             elements: Vec::new(),
         });
         lir::Value::Temp(out)
-    }
-
-    /// Lower `lhs && rhs` / `lhs || rhs` into basic blocks (DESIGN
-    /// 2.4). The result flows through a hidden stack slot because LIR
-    /// has no phi nodes; `rhs` is evaluated only in its own block, so
-    /// side effects in `rhs` happen exactly when the short-circuit
-    /// semantics demand it.
-    fn lower_short_circuit(
-        &mut self,
-        lhs: &mir::Expr,
-        rhs: &mir::Expr,
-        is_and: bool,
-    ) -> lir::Value {
-        let result = self.new_hidden_local(lir::LirType::I1);
-        let lhs = self.lower_expr(lhs, &mir::Type::Boolean);
-        self.push(lir::Instruction::Store {
-            local: result,
-            value: lhs,
-        });
-        let rhs_block = self.new_block("sc.rhs");
-        let merge_block = self.new_block("sc.merge");
-        // `&&`: rhs decides only when lhs is true; `||`: when false.
-        let (then_block, else_block) = if is_and {
-            (rhs_block, merge_block)
-        } else {
-            (merge_block, rhs_block)
-        };
-        self.seal(lir::Terminator::CondBr {
-            cond: lhs,
-            then_block,
-            else_block,
-        });
-        self.enter(rhs_block);
-        let rhs = self.lower_expr(rhs, &mir::Type::Boolean);
-        self.push(lir::Instruction::Store {
-            local: result,
-            value: rhs,
-        });
-        self.seal(lir::Terminator::Br(merge_block));
-        self.enter(merge_block);
-        lir::Value::Local(result)
     }
 
     fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
@@ -2518,24 +2444,35 @@ mod tests {
         }
     }
 
-    fn runtime_call(function: mir::RuntimeFn, args: Vec<mir::Expr>) -> mir::Expr {
-        mir::Expr::Call(mir::Call {
+    fn runtime_call(function: mir::RuntimeFn, args: Vec<mir::Expr>) -> mir::Call {
+        mir::Call {
             target: mir::CallTarget {
                 kind: mir::CallKind::Direct,
                 callee: mir::Callee::Runtime(function),
             },
             args,
-        })
+        }
     }
 
-    fn user_call(function: mir::FunctionId) -> mir::Expr {
-        mir::Expr::Call(mir::Call {
+    fn user_call(function: mir::FunctionId) -> mir::Call {
+        mir::Call {
             target: mir::CallTarget {
                 kind: mir::CallKind::Direct,
                 callee: mir::Callee::User(function),
             },
             args: Vec::new(),
-        })
+        }
+    }
+
+    fn call_stmt(call: mir::Call) -> mir::Statement {
+        stmt(mir::StatementKind::Call(mir::CallEffect::Unit(call)))
+    }
+
+    fn call_value(destination: mir::LocalId, call: mir::Call) -> mir::Statement {
+        stmt(mir::StatementKind::Call(mir::CallEffect::Value {
+            destination,
+            call,
+        }))
     }
 
     /// `main` writes `"hello, world"` (core's `write` primitive, M7)
@@ -2548,7 +2485,7 @@ mod tests {
             "helper",
             "scoop.helper",
             Arena::new(),
-            vec![expr_stmt(runtime_call(
+            vec![call_stmt(runtime_call(
                 mir::RuntimeFn::Write,
                 vec![mir::Expr::StringConst(bang)],
             ))],
@@ -2556,11 +2493,11 @@ mod tests {
         let main = b.main(
             Arena::new(),
             vec![
-                expr_stmt(runtime_call(
+                call_stmt(runtime_call(
                     mir::RuntimeFn::Write,
                     vec![mir::Expr::StringConst(hello)],
                 )),
-                expr_stmt(user_call(helper)),
+                call_stmt(user_call(helper)),
             ],
         );
         b.finish(main)
@@ -2639,7 +2576,7 @@ Module
         set_cfg_block(
             &mut blocks,
             then_block,
-            vec![expr_stmt(runtime_call(
+            vec![call_stmt(runtime_call(
                 mir::RuntimeFn::Write,
                 vec![mir::Expr::StringConst(ok)],
             ))],
@@ -2649,7 +2586,7 @@ Module
         set_cfg_block(
             &mut blocks,
             else_block,
-            vec![expr_stmt(runtime_call(
+            vec![call_stmt(runtime_call(
                 mir::RuntimeFn::Write,
                 vec![mir::Expr::StringConst(ng)],
             ))],
@@ -2808,13 +2745,59 @@ Module
             )
         };
         let mut locals = Arena::new();
+        let lhs = locals.alloc(local("$call.1", mir::Type::Boolean));
+        let rhs = locals.alloc(local("$call.2", mir::Type::Boolean));
         let result = locals.alloc(local("b", mir::Type::Boolean));
-        let main = b.main(
-            locals,
-            vec![val_decl(
-                result,
-                binary(mir::BinOp::And, string_eq(s0, s1), string_eq(s2, s3)),
-            )],
+        let mut blocks = Arena::new();
+        let entry = cfg_block(&mut blocks, "entry");
+        let rhs_block = cfg_block(&mut blocks, "logic.rhs.1");
+        let short_block = cfg_block(&mut blocks, "logic.short.2");
+        let merge = cfg_block(&mut blocks, "logic.merge.3");
+        set_cfg_block(
+            &mut blocks,
+            entry,
+            vec![call_value(lhs, string_eq(s0, s1))],
+            mir::Terminator::Branch {
+                cond: mir::Expr::Local(lhs),
+                then_block: rhs_block,
+                else_block: short_block,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            rhs_block,
+            vec![
+                call_value(rhs, string_eq(s2, s3)),
+                assign(result, mir::Expr::Local(rhs)),
+            ],
+            mir::Terminator::Goto(merge),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            short_block,
+            vec![assign(result, mir::Expr::BoolLiteral(false))],
+            mir::Terminator::Goto(merge),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            merge,
+            Vec::new(),
+            mir::Terminator::Return { value: None },
+            None,
+        );
+        let main = b.user_fn_body(
+            "main",
+            mir::ENTRY_SYMBOL,
+            Vec::new(),
+            mir::Type::Unit,
+            mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
         );
         let module = lower(&b.finish(main));
 
@@ -2825,18 +2808,22 @@ Module
   global @scoop.str.2 = \"c\"
   global @scoop.str.3 = \"d\"
   fun @scoop_main() -> void
-    local %0 b: i1
-    local %1 $sc.1: i1
+    local %0 $call.1: i1
+    local %1 $call.2: i1
+    local %2 b: i1
   block entry
     t0 = call @scoop_rt_string_eq(global0, global1) : i1
-    store t0 -> local1
-    cbr t0 then @sc.rhs.1 else @sc.merge.2
-  block sc.rhs.1
+    store t0 -> local0
+    cbr local0 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
     t1 = call @scoop_rt_string_eq(global2, global3) : i1
     store t1 -> local1
-    br @sc.merge.2
-  block sc.merge.2
-    store local1 -> local0
+    store local1 -> local2
+    br @logic.merge.3
+  block logic.short.2
+    store false -> local2
+    br @logic.merge.3
+  block logic.merge.3
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
@@ -2854,16 +2841,56 @@ Module
         let x = locals.alloc(local("x", mir::Type::Boolean));
         let y = locals.alloc(local("y", mir::Type::Boolean));
         let result = locals.alloc(local("b", mir::Type::Boolean));
-        let main = b.main(
-            locals,
+        let mut blocks = Arena::new();
+        let entry = cfg_block(&mut blocks, "entry");
+        let rhs = cfg_block(&mut blocks, "logic.rhs.1");
+        let short = cfg_block(&mut blocks, "logic.short.2");
+        let merge = cfg_block(&mut blocks, "logic.merge.3");
+        set_cfg_block(
+            &mut blocks,
+            entry,
             vec![
                 val_decl(x, mir::Expr::BoolLiteral(true)),
                 val_decl(y, mir::Expr::BoolLiteral(false)),
-                val_decl(
-                    result,
-                    binary(mir::BinOp::Or, mir::Expr::Local(x), mir::Expr::Local(y)),
-                ),
             ],
+            mir::Terminator::Branch {
+                cond: mir::Expr::Local(x),
+                then_block: short,
+                else_block: rhs,
+            },
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            rhs,
+            vec![assign(result, mir::Expr::Local(y))],
+            mir::Terminator::Goto(merge),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            short,
+            vec![assign(result, mir::Expr::BoolLiteral(true))],
+            mir::Terminator::Goto(merge),
+            None,
+        );
+        set_cfg_block(
+            &mut blocks,
+            merge,
+            Vec::new(),
+            mir::Terminator::Return { value: None },
+            None,
+        );
+        let main = b.user_fn_body(
+            "main",
+            mir::ENTRY_SYMBOL,
+            Vec::new(),
+            mir::Type::Unit,
+            mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
         );
         let module = lower(&b.finish(main));
 
@@ -2873,17 +2900,17 @@ Module
     local %0 x: i1
     local %1 y: i1
     local %2 b: i1
-    local %3 $sc.1: i1
   block entry
     store true -> local0
     store false -> local1
-    store local0 -> local3
-    cbr local0 then @sc.merge.2 else @sc.rhs.1
-  block sc.rhs.1
-    store local1 -> local3
-    br @sc.merge.2
-  block sc.merge.2
-    store local3 -> local2
+    cbr local0 then @logic.short.2 else @logic.rhs.1
+  block logic.rhs.1
+    store local1 -> local2
+    br @logic.merge.3
+  block logic.short.2
+    store true -> local2
+    br @logic.merge.3
+  block logic.merge.3
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
@@ -2907,32 +2934,32 @@ Module
         let main = b.main(
             locals,
             vec![
-                val_decl(
+                call_value(
                     s,
                     runtime_call(
                         mir::RuntimeFn::StringConcat,
                         vec![mir::Expr::StringConst(s0), mir::Expr::StringConst(s1)],
                     ),
                 ),
-                val_decl(
+                call_value(
                     e,
                     runtime_call(
                         mir::RuntimeFn::StringEq,
                         vec![mir::Expr::StringConst(s0), mir::Expr::StringConst(s1)],
                     ),
                 ),
-                val_decl(
+                call_value(
                     i,
                     runtime_call(mir::RuntimeFn::IntToString, vec![mir::Expr::IntLiteral(42)]),
                 ),
-                val_decl(
+                call_value(
                     o,
                     runtime_call(
                         mir::RuntimeFn::BoolToString,
                         vec![mir::Expr::BoolLiteral(true)],
                     ),
                 ),
-                expr_stmt(user_call(helper)),
+                call_stmt(user_call(helper)),
             ],
         );
         let module = lower(&b.finish(main));
@@ -3519,15 +3546,15 @@ Module
         let r = main_locals.alloc(local("r", mir::Type::Int));
         let main = b.main(
             main_locals,
-            vec![val_decl(
+            vec![call_value(
                 r,
-                mir::Expr::Call(mir::Call {
+                mir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Direct,
                         callee: mir::Callee::User(add),
                     },
                     args: vec![mir::Expr::IntLiteral(40), mir::Expr::IntLiteral(2)],
-                }),
+                },
             )],
         );
         let module = lower(&b.finish(main));
@@ -3567,17 +3594,24 @@ Module
         let mut b = Builder::new();
         let mut locals = Arena::new();
         let this = locals.alloc(local("this", mir::Type::Any));
+        let result = locals.alloc(local("$call.1", mir::Type::String));
         b.user_fn_body(
             "tostring.I",
             "scoop.tostring.I",
             vec![param("this", mir::Type::Any, this)],
             mir::Type::String,
-            returning_body(
+            body_with_terminator(
                 locals,
-                runtime_call(
-                    mir::RuntimeFn::IntToString,
-                    vec![mir::Expr::Unbox(Box::new(mir::Expr::Local(this)))],
-                ),
+                vec![call_value(
+                    result,
+                    runtime_call(
+                        mir::RuntimeFn::IntToString,
+                        vec![mir::Expr::Unbox(Box::new(mir::Expr::Local(this)))],
+                    ),
+                )],
+                mir::Terminator::Return {
+                    value: Some(mir::Expr::Local(result)),
+                },
             ),
         );
         let main = b.main(Arena::new(), vec![]);
@@ -3586,10 +3620,12 @@ Module
         let expected = "\
 Module
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop_main() -> void
   block entry
     ret
@@ -4397,15 +4433,15 @@ Module
         let r = locals.alloc(local("r", mir::Type::Int));
         let main = b.main(
             locals,
-            vec![val_decl(
+            vec![call_value(
                 r,
-                mir::Expr::Call(mir::Call {
+                mir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Virtual { slot: 3 },
                         callee: mir::Callee::User(m),
                     },
                     args: vec![mir::Expr::Local(p)],
-                }),
+                },
             )],
         );
         let module = lower(&b.finish(main));
@@ -4456,9 +4492,9 @@ Module
         let r = locals.alloc(local("r", mir::Type::Int));
         let main = b.main(
             locals,
-            vec![val_decl(
+            vec![call_value(
                 r,
-                mir::Expr::Call(mir::Call {
+                mir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Interface {
                             interface: iface,
@@ -4467,7 +4503,7 @@ Module
                         callee: mir::Callee::User(label),
                     },
                     args: vec![mir::Expr::Local(i)],
-                }),
+                },
             )],
         );
         let module = lower(&b.finish(main));
@@ -4753,9 +4789,11 @@ Module
         let gc_handle = b.strukt("GcHandle$S", &[("raw", mir::Type::UInt)]);
         let mut locals = Arena::new();
         let v = locals.alloc(local("v", mir::Type::String));
+        let raw_pin = locals.alloc(local("$call.1", mir::Type::UInt));
         let h = locals.alloc(local("h", mir::Type::Struct(pin_handle)));
         let gc1 = locals.alloc(local("$gc.1", mir::Type::String));
         let p = locals.alloc(local("p", mir::Type::String));
+        let raw_handle = locals.alloc(local("$call.2", mir::Type::UInt));
         let gh = locals.alloc(local("gh", mir::Type::Struct(gc_handle)));
         let gc2 = locals.alloc(local("$gc.2", mir::Type::String));
         let p2 = locals.alloc(local("p2", mir::Type::String));
@@ -4763,14 +4801,18 @@ Module
         let main = b.main(
             locals,
             vec![
+                call_value(
+                    raw_pin,
+                    runtime_call(mir::RuntimeFn::Pin, vec![mir::Expr::Local(v)]),
+                ),
                 val_decl(
                     h,
                     mir::Expr::StructInit {
                         struct_id: pin_handle,
-                        args: vec![runtime_call(mir::RuntimeFn::Pin, vec![mir::Expr::Local(v)])],
+                        args: vec![mir::Expr::Local(raw_pin)],
                     },
                 ),
-                val_decl(
+                call_value(
                     gc1,
                     runtime_call(
                         mir::RuntimeFn::Unpin,
@@ -4781,17 +4823,18 @@ Module
                     ),
                 ),
                 val_decl(p, mir::Expr::Local(gc1)),
+                call_value(
+                    raw_handle,
+                    runtime_call(mir::RuntimeFn::GetHandle, vec![mir::Expr::Local(v)]),
+                ),
                 val_decl(
                     gh,
                     mir::Expr::StructInit {
                         struct_id: gc_handle,
-                        args: vec![runtime_call(
-                            mir::RuntimeFn::GetHandle,
-                            vec![mir::Expr::Local(v)],
-                        )],
+                        args: vec![mir::Expr::Local(raw_handle)],
                     },
                 ),
-                val_decl(
+                call_value(
                     gc2,
                     runtime_call(
                         mir::RuntimeFn::ReleaseHandle,
@@ -4802,8 +4845,8 @@ Module
                     ),
                 ),
                 val_decl(p2, mir::Expr::Local(gc2)),
-                expr_stmt(runtime_call(mir::RuntimeFn::GcCollect, vec![])),
-                val_decl(n, runtime_call(mir::RuntimeFn::GcStats, vec![])),
+                call_stmt(runtime_call(mir::RuntimeFn::GcCollect, vec![])),
+                call_value(n, runtime_call(mir::RuntimeFn::GcStats, vec![])),
             ],
         );
         let module = lower(&b.finish(main));
@@ -4812,32 +4855,36 @@ Module
 Module
   fun @scoop_main() -> void
     local %0 v: ptr
-    local %1 h: {i64}
-    local %2 $gc.1: ptr
-    local %3 p: ptr
-    local %4 gh: {i64}
-    local %5 $gc.2: ptr
-    local %6 p2: ptr
-    local %7 n: i64
+    local %1 $call.1: i64
+    local %2 h: {i64}
+    local %3 $gc.1: ptr
+    local %4 p: ptr
+    local %5 $call.2: i64
+    local %6 gh: {i64}
+    local %7 $gc.2: ptr
+    local %8 p2: ptr
+    local %9 n: i64
   block entry
     t0 = call @scoop_rt_pin(local0) : i64
-    t1 = aggregate (t0) : {i64}
-    store t1 -> local1
-    t2 = extract local1, 0 : i64
+    store t0 -> local1
+    t1 = aggregate (local1) : {i64}
+    store t1 -> local2
+    t2 = extract local2, 0 : i64
     t3 = call @scoop_rt_unpin(t2) : ptr
-    store t3 -> local2
-    store local2 -> local3
+    store t3 -> local3
+    store local3 -> local4
     t4 = call @scoop_rt_get_handle(local0) : i64
-    t5 = aggregate (t4) : {i64}
-    store t5 -> local4
-    t6 = extract local4, 0 : i64
+    store t4 -> local5
+    t5 = aggregate (local5) : {i64}
+    store t5 -> local6
+    t6 = extract local6, 0 : i64
     t7 = call @scoop_rt_release_handle(t6) : ptr
-    store t7 -> local5
-    store local5 -> local6
+    store t7 -> local7
+    store local7 -> local8
     call @scoop_rt_gc_collect()
     t8 = aggregate () : {}
     t9 = call @scoop_rt_gc_stats() : i64
-    store t9 -> local7
+    store t9 -> local9
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
@@ -4923,15 +4970,15 @@ Module
         let p = locals.alloc(local("p", mir::Type::Class(point)));
         let main = b.main(
             locals,
-            vec![val_decl(
+            vec![call_value(
                 p,
-                mir::Expr::Call(mir::Call {
+                mir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Direct,
                         callee: mir::Callee::User(ctor),
                     },
                     args: vec![mir::Expr::IntLiteral(1), mir::Expr::StringConst(str_x)],
-                }),
+                },
             )],
         );
         let module = lower(&b.finish(main));
@@ -5020,7 +5067,7 @@ Module
             vec![param("this", mir::Type::Any, this)],
             mir::Type::Int,
             locals,
-            vec![expr_stmt(runtime_call(
+            vec![call_stmt(runtime_call(
                 mir::RuntimeFn::Trap,
                 vec![mir::Expr::StringConst(message)],
             ))],
@@ -5069,9 +5116,9 @@ Module
                 locals,
                 e,
                 mir::Type::Class(my_error),
-                vec![expr_stmt(user_call(helper))],
+                vec![call_stmt(user_call(helper))],
                 None,
-                vec![expr_stmt(user_call(handled))],
+                vec![call_stmt(user_call(handled))],
             ),
         );
         let module = lower(&b.finish(main));
@@ -5159,9 +5206,9 @@ Module
             locals,
             e,
             mir::Type::Class(my_error),
-            vec![expr_stmt(user_call(helper))],
+            vec![call_stmt(user_call(helper))],
             None,
-            vec![expr_stmt(user_call(handled))],
+            vec![call_stmt(user_call(handled))],
         );
         let try_body = cfg_block_named(&body, "try.body.8");
         let catch = cfg_block_named(&body, "try.catch.9");
@@ -5175,7 +5222,7 @@ Module
         set_cfg_block(
             &mut body.blocks,
             normal_finally,
-            vec![expr_stmt(user_call(cleanup))],
+            vec![call_stmt(user_call(cleanup))],
             mir::Terminator::Goto(end),
             None,
         );
@@ -5192,16 +5239,16 @@ Module
             catch_finally,
             vec![
                 stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
-                expr_stmt(user_call(cleanup)),
+                call_stmt(user_call(cleanup)),
             ],
             mir::Terminator::Goto(end),
             None,
         );
-        body.blocks[next].statements = vec![expr_stmt(user_call(cleanup))];
+        body.blocks[next].statements = vec![call_stmt(user_call(cleanup))];
         body.blocks[next].unwind = Some(exit_pad);
         body.blocks[handler_cleanup]
             .statements
-            .push(expr_stmt(user_call(cleanup)));
+            .push(call_stmt(user_call(cleanup)));
         let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
         let module = lower(&b.finish(main));
         let dump = lir::dump(&module);
@@ -5301,7 +5348,7 @@ Module
         set_cfg_block(
             &mut blocks,
             return_finally,
-            vec![expr_stmt(user_call(cleanup))],
+            vec![call_stmt(user_call(cleanup))],
             mir::Terminator::Return {
                 value: Some(mir::Expr::Local(result)),
             },
@@ -5310,7 +5357,7 @@ Module
         set_cfg_block(
             &mut blocks,
             rethrow_finally,
-            vec![expr_stmt(user_call(cleanup))],
+            vec![call_stmt(user_call(cleanup))],
             mir::Terminator::Rethrow {
                 unwind: Some(exit_pad),
             },
@@ -5418,22 +5465,27 @@ Module
                 },
             ),
         );
+        let mut main_locals = Arena::new();
+        let exception = main_locals.alloc(local("$call.1", mir::Type::Class(my_error)));
         let main = b.user_fn_body(
             "main",
             mir::ENTRY_SYMBOL,
             Vec::new(),
             mir::Type::Unit,
             body_with_terminator(
-                Arena::new(),
-                Vec::new(),
-                mir::Terminator::Throw {
-                    exception: mir::Expr::Call(mir::Call {
+                main_locals,
+                vec![call_value(
+                    exception,
+                    mir::Call {
                         target: mir::CallTarget {
                             kind: mir::CallKind::Direct,
                             callee: mir::Callee::User(make),
                         },
                         args: Vec::new(),
-                    }),
+                    },
+                )],
+                mir::Terminator::Throw {
+                    exception: mir::Expr::Local(exception),
                     unwind: None,
                 },
             ),
@@ -5450,9 +5502,11 @@ Module
     t0 = call @scoop_rt_alloc(global0, 16) : ptr
     ret t0
   fun @scoop_main() -> void
+    local %0 $call.1: ptr
   block entry
     t0 = call @scoop.makeError() : ptr
-    throw t0
+    store t0 -> local0
+    throw local0
     unreachable
   td MyError @scoop_td_MyError size=16 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
@@ -5555,7 +5609,7 @@ Module
             mir::Type::Class(e2),
             Vec::new(),
             None,
-            vec![expr_stmt(user_call(c))],
+            vec![call_stmt(user_call(c))],
         );
         let outer_body = cfg_block_named(&body, "try.body.8");
         let outer_unwind = cfg_block_named(&body, "try.unwind.1");
@@ -5637,7 +5691,7 @@ Module
         set_cfg_block(
             &mut body.blocks,
             inner_body,
-            vec![expr_stmt(user_call(a))],
+            vec![call_stmt(user_call(a))],
             mir::Terminator::Goto(inner_end),
             Some(inner_unwind),
         );
@@ -5652,7 +5706,7 @@ Module
                         ty: Box::new(mir::Type::Class(e1)),
                     },
                 ),
-                expr_stmt(user_call(bb)),
+                call_stmt(user_call(bb)),
                 stmt(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
             ],
             mir::Terminator::Goto(inner_end),

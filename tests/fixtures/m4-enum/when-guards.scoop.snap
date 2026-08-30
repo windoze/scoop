@@ -204,16 +204,18 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -255,7 +257,7 @@ Module
             Local $when.2
           IntLiteral 0
     bb4 if.then.4
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.1
       goto bb6
     bb5 if.else.5
@@ -270,7 +272,7 @@ Module
       val n: Int
         EnumField v0 f0
           Local $when.1
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           Local n
       goto bb9
@@ -289,7 +291,7 @@ Module
       val b: Int
         EnumField v1 f1
           Local $when.1
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           Binary IntAdd
             Local a
@@ -304,7 +306,7 @@ Module
     bb12 if.merge.12
       goto bb9
     bb13 if.then.13
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.2
       goto bb14
     bb14 if.merge.14
@@ -313,7 +315,7 @@ Module
       val n: Int
         EnumField v0 f0
           Local $when.1
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           Local n
       goto bb17
@@ -332,7 +334,7 @@ Module
       val b: Int
         EnumField v1 f1
           Local $when.1
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           Binary IntAdd
             Local a
@@ -347,7 +349,7 @@ Module
     bb20 if.merge.20
       goto bb17
     bb21 if.then.21
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.3
       goto bb22
     bb22 if.merge.22
@@ -356,7 +358,7 @@ Module
       val n: Int
         EnumField v0 f0
           Local $when.2
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           Local n
       goto bb25
@@ -385,27 +387,27 @@ Module
           Local a
           IntLiteral 10
     bb27 if.else.27
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.6
       goto bb28
     bb28 if.merge.28
       goto bb25
     bb29 if.then.29
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.4
       goto bb31
     bb30 if.else.30
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.5
       goto bb31
     bb31 if.merge.31
       goto bb28
     bb32 if.then.32
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.7
       goto bb34
     bb33 if.else.33
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.8
       goto bb34
     bb34 if.merge.34
@@ -457,10 +459,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "big"
   str @scoop.str.2 "empty"
@@ -501,19 +504,23 @@ Module
   enum Option$S niche(payload_variant=0)
   enum E tagged size=16 align=8 variants=(i64) (i64, i64) ()
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -727,10 +734,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0

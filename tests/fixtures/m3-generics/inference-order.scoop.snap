@@ -243,16 +243,18 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun pick @scoop.pick.EOption$I_IX_I(maybe: Option$I<Int>, value: Int) -> Int
@@ -265,16 +267,17 @@ Module
         Local value
   fun main @scoop_main() -> Unit
     bb0 entry
-      Call @scoop.println direct
+      call $call.1: Int = @scoop.choose$I direct
+        VariantConstruct Option$I<Int> v1
+        IntLiteral 7
+      call @scoop.println direct
         Box
-          Call @scoop.choose$I direct
-            VariantConstruct Option$I<Int> v1
-            IntLiteral 7
+          Local $call.1
       val pair: Pair$I
         StructInit Pair$I
           VariantConstruct Option$I<Int> v1
           IntLiteral 8
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           FieldAccess 1
             Local pair
@@ -293,34 +296,38 @@ Module
       val value: Int
         EnumField v0 f1
           Local $when.1
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           Local value
       goto bb2
     bb2 if.merge.2
-      Call @scoop.println direct
+      call $call.2: Int = @scoop.pick.EOption$I_IX_I direct
+        VariantConstruct Option$I<Int> v1
+        IntLiteral 10
+      call @scoop.println direct
         Box
-          Call @scoop.pick.EOption$I_IX_I direct
-            VariantConstruct Option$I<Int> v1
-            IntLiteral 10
-      Call @scoop.println direct
+          Local $call.2
+      call $call.3: Int = @scoop.nested$I direct
+        VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
+          VariantConstruct Option$I<Int> v1
+        IntLiteral 11
+      call @scoop.println direct
         Box
-          Call @scoop.nested$I direct
-            VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
-              VariantConstruct Option$I<Int> v1
-            IntLiteral 11
-      Call @scoop.println direct
+          Local $call.3
+      call $call.4: Int = @scoop.arrayValue$I direct
+        ArrayLiteral
+        IntLiteral 12
+      call @scoop.println direct
         Box
-          Call @scoop.arrayValue$I direct
-            ArrayLiteral
-            IntLiteral 12
-      Call @scoop.println direct
+          Local $call.4
+      call $call.5: Int = @scoop.tupleValue$I direct
+        TupleLiteral
+          VariantConstruct Option$I<Int> v1
+          IntLiteral 13
+        IntLiteral 14
+      call @scoop.println direct
         Box
-          Call @scoop.tupleValue$I direct
-            TupleLiteral
-              VariantConstruct Option$I<Int> v1
-              IntLiteral 13
-            IntLiteral 14
+          Local $call.5
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
@@ -385,10 +392,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   instance @scoop.choose$I <- choose
   instance @scoop.nested$I <- nested
   instance @scoop.arrayValue$I <- arrayValue
@@ -419,19 +427,23 @@ Module
   enum Duo$I tagged size=24 align=8 variants=(enum1, i64)
   enum Option$EOption$I_IX tagged size=16 align=8 variants=(enum1) ()
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -447,10 +459,16 @@ Module
     local %1 duo: enum2
     local %2 value: i64
     local %3 $when.1: enum2
+    local %4 $call.1: i64
+    local %5 $call.2: i64
+    local %6 $call.3: i64
+    local %7 $call.4: i64
+    local %8 $call.5: i64
   block entry
     t0 = enum_wrap e1 v1 () : enum1
     t1 = call @scoop.choose$I(t0, 7) : i64
-    t2 = call @scoop_rt_box(global5, t1, 8) : ptr
+    store t1 -> local4
+    t2 = call @scoop_rt_box(global5, local4, 8) : ptr
     call @scoop.println(t2)
     t3 = aggregate () : {}
     t4 = enum_wrap e1 v1 () : enum1
@@ -477,24 +495,28 @@ Module
   block if.merge.2
     t16 = enum_wrap e1 v1 () : enum1
     t17 = call @scoop.pick.EOption$I_IX_I(t16, 10) : i64
-    t18 = call @scoop_rt_box(global5, t17, 8) : ptr
+    store t17 -> local5
+    t18 = call @scoop_rt_box(global5, local5, 8) : ptr
     call @scoop.println(t18)
     t19 = aggregate () : {}
     t20 = enum_wrap e1 v1 () : enum1
     t21 = enum_wrap e3 v0 (t20) : enum3
     t22 = call @scoop.nested$I(t21, 11) : i64
-    t23 = call @scoop_rt_box(global5, t22, 8) : ptr
+    store t22 -> local6
+    t23 = call @scoop_rt_box(global5, local6, 8) : ptr
     call @scoop.println(t23)
     t24 = aggregate () : {}
     t25 = array_alloc () : [i64]
     t26 = call @scoop.arrayValue$I(t25, 12) : i64
-    t27 = call @scoop_rt_box(global5, t26, 8) : ptr
+    store t26 -> local7
+    t27 = call @scoop_rt_box(global5, local7, 8) : ptr
     call @scoop.println(t27)
     t28 = aggregate () : {}
     t29 = enum_wrap e1 v1 () : enum1
     t30 = aggregate (t29, 13) : {enum1, i64}
     t31 = call @scoop.tupleValue$I(t30, 14) : i64
-    t32 = call @scoop_rt_box(global5, t31, 8) : ptr
+    store t31 -> local8
+    t32 = call @scoop_rt_box(global5, local8, 8) : ptr
     call @scoop.println(t32)
     t33 = aggregate () : {}
     ret
@@ -554,10 +576,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0

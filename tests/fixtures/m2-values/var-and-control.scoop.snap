@@ -161,16 +161,18 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -199,13 +201,14 @@ Module
           Local $div.2
           IntLiteral 0
     bb3 while.exit.3
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           Local sum
       return
     bb4 if.then.4
+      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
       throw
-        Call @scoop.ctor.ArithmeticException direct
+        Local $call.1
     bb5 if.merge.5
       branch bb6 bb7
         Binary IntEq
@@ -276,10 +279,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "unwrap on None"
   str @scoop.str.2 "invalid cast"
@@ -303,19 +307,23 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -325,6 +333,7 @@ Module
     local %1 sum: i64
     local %2 $div.1: i64
     local %3 $div.2: i64
+    local %4 $call.1: ptr
   block entry
     store 0 -> local0
     store 0 -> local1
@@ -346,7 +355,8 @@ Module
     ret
   block if.then.4
     t5 = call @scoop.ctor.ArithmeticException() : ptr
-    throw t5
+    store t5 -> local4
+    throw local4
     unreachable
   block if.merge.5
     t6 = SDiv local2, local3 : i64
@@ -407,10 +417,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0

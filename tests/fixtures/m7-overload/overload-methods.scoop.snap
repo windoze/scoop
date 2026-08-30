@@ -129,32 +129,35 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      val a: A
-        Call @scoop.ctor.B direct
-      Call @scoop.println direct
+      call a: A = @scoop.ctor.B direct
+      call $call.1: Int = @scoop.A.s.I virtual[3]
+        Local a
+        IntLiteral 1
+      call @scoop.println direct
         Box
-          Call @scoop.A.s.I virtual[3]
-            Local a
-            IntLiteral 1
-      Call @scoop.println direct
+          Local $call.1
+      call $call.2: Int = @scoop.A.s.S direct
+        Local a
+        StringConst @scoop.str.1
+      call @scoop.println direct
         Box
-          Call @scoop.A.s.S direct
-            Local a
-            StringConst @scoop.str.1
+          Local $call.2
       return
   fun A.s @scoop.A.s.I(this: A, v: Int) -> Int
     bb0 entry
@@ -223,10 +226,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "x"
   str @scoop.str.2 "unwrap on None"
@@ -254,36 +258,44 @@ Module
   global @scoop_td_B = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
     local %0 a: ptr
+    local %1 $call.1: i64
+    local %2 $call.2: i64
   block entry
     t0 = call @scoop.ctor.B() : ptr
     store t0 -> local0
     t1 = heap_load local0 +0 : ptr
     t2 = heap_load t1 +40 : ptr
     t3 = call_indirect t2[3](local0, 1) : i64
-    t4 = call @scoop_rt_box(global6, t3, 8) : ptr
+    store t3 -> local1
+    t4 = call @scoop_rt_box(global6, local1, 8) : ptr
     call @scoop.println(t4)
     t5 = aggregate () : {}
     t6 = call @scoop.A.s.S(local0, global1) : i64
-    t7 = call @scoop_rt_box(global6, t6, 8) : ptr
+    store t6 -> local2
+    t7 = call @scoop_rt_box(global6, local2, 8) : ptr
     call @scoop.println(t7)
     t8 = aggregate () : {}
     ret
@@ -348,10 +360,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td A @scoop_td_A size=16 vtable=4 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0

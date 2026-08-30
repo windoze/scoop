@@ -138,16 +138,18 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun boom @scoop.boom() -> Int
@@ -167,8 +169,9 @@ Module
           Local $opt.1
       goto bb3
     bb2 if.else.2
+      call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
-        Call @scoop.ctor.UnwrapException direct
+        Local $call.1
     bb3 if.merge.3
       return
         Local $uw.2
@@ -188,7 +191,7 @@ Module
       goto bb4
     bb4 try.handler_cleanup.4
       end_catch
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.4
       resume
     bb5 try.exit_pad.5
@@ -200,12 +203,12 @@ Module
     bb7 try.end.7
       return
     bb8 try.body.8 unwind bb1
-      Call @scoop.boom direct
-      Call @scoop.println direct
+      call $call.1: Int = @scoop.boom direct
+      call @scoop.println direct
         StringConst @scoop.str.1
       goto bb9
     bb9 scope.9
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.4
       goto bb7
     bb10 try.catch.10
@@ -218,12 +221,12 @@ Module
         IsInstance Exception
           CaughtException
     bb12 scope.12 unwind bb3
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.2
       goto bb13
     bb13 scope.13
       end_catch
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.4
       goto bb7
     bb14 try.catch.14
@@ -232,16 +235,16 @@ Module
           CaughtException
       goto bb16
     bb15 try.next.15 unwind bb5
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.4
       rethrow unwind bb5
     bb16 scope.16 unwind bb3
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.3
       goto bb17
     bb17 scope.17
       end_catch
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.4
       goto bb7
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
@@ -308,19 +311,23 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$I tagged size=8 align=8 variants=(i64) ()
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -329,6 +336,7 @@ Module
     local %0 x: enum1
     local %1 $opt.1: enum1
     local %2 $uw.2: i64
+    local %3 $call.1: ptr
   block entry
     t0 = enum_wrap e1 v1 () : enum1
     store t0 -> local0
@@ -342,46 +350,48 @@ Module
     br @if.merge.3
   block if.else.2
     t4 = call @scoop.ctor.UnwrapException() : ptr
-    throw t4
+    store t4 -> local3
+    throw local3
     unreachable
   block if.merge.3
     ret local2
   fun @scoop_main() -> void
     local %0 e: ptr
     local %1 e: ptr
-    local %2 $sc.1: exception_record
-    local %3 $sc.2: ptr
-    local %4 $sc.3: ptr
+    local %2 $call.1: i64
+    local %3 $sc.1: exception_record
+    local %4 $sc.2: ptr
+    local %5 $sc.3: ptr
   block entry
     br @try.body.8
   block try.unwind.1
     (t0, t1) = landingpad : (exception_record, ptr)
-    store t0 -> local2
-    store t1 -> local3
+    store t0 -> local3
+    store t1 -> local4
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local3 : ptr
-    store t2 -> local4
-    t3 = call @scoop_rt_is_instance(local4, global9) : i1
+    t2 = begin_catch local4 : ptr
+    store t2 -> local5
+    t3 = call @scoop_rt_is_instance(local5, global9) : i1
     cbr t3 then @try.catch.10 else @try.next.11
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr)
-    store t4 -> local2
-    store t5 -> local3
+    store t4 -> local3
+    store t5 -> local4
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
     call @scoop.println(global4)
     t6 = aggregate () : {}
-    resume local2
+    resume local3
   block try.exit_pad.5
     (t7, t8) = cleanup_pad : (exception_record, ptr)
-    store t7 -> local2
-    store t8 -> local3
+    store t7 -> local3
+    store t8 -> local4
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
-    resume local2
+    resume local3
   block try.end.7
     ret
   block try.body.8
@@ -392,10 +402,10 @@ Module
     t11 = aggregate () : {}
     br @try.end.7
   block try.catch.10
-    store local4 -> local0
+    store local5 -> local0
     br @scope.12
   block try.next.11
-    t12 = call @scoop_rt_is_instance(local4, global10) : i1
+    t12 = call @scoop_rt_is_instance(local5, global10) : i1
     cbr t12 then @try.catch.14 else @try.next.15
   block scope.12
     invoke @scoop.println(global2) normal @invoke.normal.3 unwind @try.handler_pad.3
@@ -406,7 +416,7 @@ Module
     t14 = aggregate () : {}
     br @try.end.7
   block try.catch.14
-    store local4 -> local1
+    store local5 -> local1
     br @scope.16
   block try.next.15
     invoke @scoop.println(global4) normal @invoke.normal.4 unwind @try.exit_pad.5
@@ -420,6 +430,7 @@ Module
     t17 = aggregate () : {}
     br @try.end.7
   block invoke.normal.1
+    store t9 -> local2
     invoke @scoop.println(global1) normal @invoke.normal.2 unwind @try.unwind.1
     br @invoke.normal.2
   block invoke.normal.2

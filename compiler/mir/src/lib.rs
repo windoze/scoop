@@ -6,8 +6,8 @@
 //! Structural equality on aggregates is already expanded by mir-lower
 //! into primitive comparisons and runtime calls, so MIR `BinOp` only
 //! contains primitive operations. Since M10 every emitted function body
-//! is a CFG; the structured forms below are construction-only input used
-//! inside mir-lower and never occur in [`Module`].
+//! is a CFG and calls are explicit effect statements; [`Expr`] cannot
+//! contain a call.
 
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
@@ -321,6 +321,7 @@ pub struct Statement {
 #[derive(Debug)]
 pub enum StatementKind {
     Expr(Expr),
+    Call(CallEffect),
     ValDecl {
         local: LocalId,
         init: Expr,
@@ -340,6 +341,15 @@ pub enum StatementKind {
         value: Expr,
     },
     Eh(EhStatement),
+}
+
+#[derive(Debug)]
+pub enum CallEffect {
+    /// A call whose source result type is `Unit`.
+    Unit(Call),
+    /// A value-producing call. The destination local carries the complete,
+    /// non-optional result type.
+    Value { destination: LocalId, call: Call },
 }
 
 #[derive(Debug)]
@@ -384,71 +394,6 @@ pub enum Terminator {
     Unreachable,
 }
 
-/// Construction-only tree body emitted by the first half of mir-lower.
-#[derive(Debug)]
-pub struct StructuredBody {
-    pub locals: Arena<Local>,
-    pub statements: Vec<StructuredStatement>,
-}
-
-#[derive(Debug)]
-pub struct StructuredStatement {
-    pub kind: StructuredStatementKind,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub struct StructuredTry {
-    pub body: Vec<StructuredStatement>,
-    pub catches: Vec<StructuredCatchClause>,
-    pub finally_body: Option<Vec<StructuredStatement>>,
-}
-
-#[derive(Debug)]
-pub struct StructuredCatchClause {
-    pub local: LocalId,
-    pub ty: Box<Type>,
-    pub body: Vec<StructuredStatement>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
-pub enum StructuredStatementKind {
-    Expr(Expr),
-    Return {
-        value: Option<Expr>,
-    },
-    ValDecl {
-        local: LocalId,
-        init: Expr,
-    },
-    Assign {
-        local: LocalId,
-        value: Expr,
-    },
-    ArraySet {
-        array: Expr,
-        index: Expr,
-        value: Expr,
-    },
-    FieldSet {
-        object: Expr,
-        index: u32,
-        value: Expr,
-    },
-    Try(StructuredTry),
-    Throw(Expr),
-    If {
-        cond: Expr,
-        then_body: Vec<StructuredStatement>,
-        else_body: Option<Vec<StructuredStatement>>,
-    },
-    While {
-        cond: Expr,
-        body: Vec<StructuredStatement>,
-    },
-}
-
 #[derive(Debug, Clone)]
 pub enum Expr {
     StringConst(StringConstId),
@@ -483,7 +428,6 @@ pub enum Expr {
         receiver: Box<Expr>,
         index: u32,
     },
-    Call(Call),
     /// Box a value type into `Any` / an interface (spec 4.4.4).
     Box(Box<Expr>),
     /// Unbox a reference back to a value type.
@@ -653,9 +597,6 @@ pub enum BinOp {
     IntNe,
     BoolEq,
     BoolNe,
-    /// Short-circuit boolean operators; LIR lowers them to branches.
-    And,
-    Or,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -792,6 +733,12 @@ fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
+            StatementKind::Call(effect) => match effect {
+                CallEffect::Unit(call) => dump_call(module, locals, call, None, indent, out),
+                CallEffect::Value { destination, call } => {
+                    dump_call(module, locals, call, Some(*destination), indent, out)
+                }
+            },
             StatementKind::ValDecl { local, init } => {
                 let local = &locals[*local];
                 let keyword = if local.mutable { "var" } else { "val" };
@@ -937,26 +884,6 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}FieldAccess {index}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
         }
-        Expr::Call(call) => {
-            let callee = match &call.target.callee {
-                Callee::User(id) => format!("@{}", module.functions[*id].symbol),
-                Callee::Monomorphized(id) => {
-                    format!("@{}", module.meta.instances[*id].symbol)
-                }
-                Callee::Runtime(function) => format!("@{}", function.symbol()),
-            };
-            let kind = match &call.target.kind {
-                CallKind::Direct => "direct".to_string(),
-                CallKind::Virtual { slot } => format!("virtual[{slot}]"),
-                CallKind::Interface { interface, slot } => {
-                    format!("interface {}[{slot}]", module.interfaces[*interface].name)
-                }
-            };
-            out.push_str(&format!("{pad}Call {callee} {kind}\n"));
-            for arg in &call.args {
-                dump_expr(module, locals, arg, indent + 1, out);
-            }
-        }
         Expr::Box(operand) => {
             out.push_str(&format!("{pad}Box\n"));
             dump_expr(module, locals, operand, indent + 1, out);
@@ -1030,5 +957,39 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}EnumField v{variant} f{index}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
+    }
+}
+
+fn dump_call(
+    module: &Module,
+    locals: &Arena<Local>,
+    call: &Call,
+    destination: Option<LocalId>,
+    indent: usize,
+    out: &mut String,
+) {
+    let pad = "  ".repeat(indent);
+    let callee = match &call.target.callee {
+        Callee::User(id) => format!("@{}", module.functions[*id].symbol),
+        Callee::Monomorphized(id) => format!("@{}", module.meta.instances[*id].symbol),
+        Callee::Runtime(function) => format!("@{}", function.symbol()),
+    };
+    let kind = match &call.target.kind {
+        CallKind::Direct => "direct".to_string(),
+        CallKind::Virtual { slot } => format!("virtual[{slot}]"),
+        CallKind::Interface { interface, slot } => {
+            format!("interface {}[{slot}]", module.interfaces[*interface].name)
+        }
+    };
+    match destination {
+        Some(local) => out.push_str(&format!(
+            "{pad}call {}: {} = {callee} {kind}\n",
+            locals[local].name,
+            type_name(module, &locals[local].ty)
+        )),
+        None => out.push_str(&format!("{pad}call {callee} {kind}\n")),
+    }
+    for arg in &call.args {
+        dump_expr(module, locals, arg, indent + 1, out);
     }
 }

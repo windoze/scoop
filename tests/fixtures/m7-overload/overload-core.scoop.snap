@@ -113,16 +113,18 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun write @scoop.write(v: Int) -> String
@@ -131,10 +133,11 @@ Module
         StringConst @scoop.str.1
   fun main @scoop_main() -> Unit
     bb0 entry
-      Call @scoop.println direct
-        Call @scoop.write direct
-          IntLiteral 1
-      Call @scoop.println direct
+      call $call.1: Any = @scoop.write direct
+        IntLiteral 1
+      call @scoop.println direct
+        Local $call.1
+      call @scoop.println direct
         StringConst @scoop.str.2
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
@@ -196,19 +199,23 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -217,9 +224,11 @@ Module
   block entry
     ret global1
   fun @scoop_main() -> void
+    local %0 $call.1: ptr
   block entry
     t0 = call @scoop.write(1) : ptr
-    call @scoop.println(t0)
+    store t0 -> local0
+    call @scoop.println(local0)
     t1 = aggregate () : {}
     call @scoop.println(global2)
     t2 = aggregate () : {}

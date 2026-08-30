@@ -194,54 +194,62 @@ Module
   interface Exchange$I
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun read @scoop.read(value: Exchange$I) -> Int
     bb0 entry
+      call $call.1: Int = @scoop.Exchange.current$I interface Exchange$I[0]
+        Local value
       return
-        Call @scoop.Exchange.current$I interface Exchange$I[0]
-          Local value
+        Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       val box: Box$I
         StructInit Box$I
           IntLiteral 7
-      Call @scoop.println direct
-        Call @scoop.Box.exchange$I_S direct
+      call $call.1: Any = @scoop.Box.exchange$I_S direct
+        Local box
+        IntLiteral 7
+        VariantConstruct Option$S<String> v1
+        StringConst @scoop.str.1
+      call @scoop.println direct
+        Local $call.1
+      call $call.2: Int = @scoop.read direct
+        Box
           Local box
-          IntLiteral 7
-          VariantConstruct Option$S<String> v1
-          StringConst @scoop.str.1
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
-          Call @scoop.read direct
-            Box
-              Local box
-      Call @scoop.println direct
-        Call @scoop.Tool.id$S direct
-          Call @scoop.ctor.Tool direct
-          StringConst @scoop.str.2
-      val overloads: Overloads
-        Call @scoop.ctor.Overloads direct
-      Call @scoop.println direct
+          Local $call.2
+      call $call.3: Tool = @scoop.ctor.Tool direct
+      call $call.4: Any = @scoop.Tool.id$S direct
+        Local $call.3
+        StringConst @scoop.str.2
+      call @scoop.println direct
+        Local $call.4
+      call overloads: Overloads = @scoop.ctor.Overloads direct
+      call $call.5: Int = @scoop.Overloads.id direct
+        Local overloads
+        IntLiteral 1
+      call @scoop.println direct
         Box
-          Call @scoop.Overloads.id direct
-            Local overloads
-            IntLiteral 1
-      Call @scoop.println direct
-        Call @scoop.Overloads.id$S direct
-          Local overloads
-          StringConst @scoop.str.3
+          Local $call.5
+      call $call.6: Any = @scoop.Overloads.id$S direct
+        Local overloads
+        StringConst @scoop.str.3
+      call @scoop.println direct
+        Local $call.6
       return
   fun Overloads.id @scoop.Overloads.id(this: Overloads, value: Int) -> Int
     bb0 entry
@@ -317,10 +325,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   fun eq.Box$I @scoop.eq.Box$I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Box$I
@@ -342,10 +351,11 @@ Module
           Local this
   fun thunk.Box$I.Exchange$I.current @scoop.thunk.Box$I.Exchange$I.current(this: Any) -> Int
     bb0 entry
+      call $call.1: Int = @scoop.Box.current$I direct
+        Unbox
+          Local this
       return
-        Call @scoop.Box.current$I direct
-          Unbox
-            Local this
+        Local $call.1
   instance @scoop.Exchange.current$I <- Exchange.current
   instance @scoop.Box.exchange$I_S <- Box.exchange
   instance @scoop.Tool.id$S <- Tool.id
@@ -387,56 +397,74 @@ Module
   global @scoop.cstr.0 = c"call to abstract method `Exchange.current`"
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.read(ptr) -> i64
+    local %0 $call.1: i64
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = call @scoop_rt_itable_lookup(t0, global9) : ptr
     t2 = call_indirect t1[0](param0) : i64
-    ret t2
+    store t2 -> local0
+    ret local0
   fun @scoop_main() -> void
     local %0 box: {i64}
     local %1 overloads: ptr
+    local %2 $call.1: ptr
+    local %3 $call.2: i64
+    local %4 $call.3: ptr
+    local %5 $call.4: ptr
+    local %6 $call.5: i64
+    local %7 $call.6: ptr
   block entry
     t0 = aggregate (7) : {i64}
     store t0 -> local0
     t1 = enum_wrap e0 v1 () : enum0
     t2 = call @scoop.Box.exchange$I_S(local0, 7, t1, global1) : ptr
-    call @scoop.println(t2)
+    store t2 -> local2
+    call @scoop.println(local2)
     t3 = aggregate () : {}
     t4 = call @scoop_rt_box(global10, local0, 8) : ptr
     t5 = call @scoop.read(t4) : i64
-    t6 = call @scoop_rt_box(global11, t5, 8) : ptr
+    store t5 -> local3
+    t6 = call @scoop_rt_box(global11, local3, 8) : ptr
     call @scoop.println(t6)
     t7 = aggregate () : {}
     t8 = call @scoop.ctor.Tool() : ptr
-    t9 = call @scoop.Tool.id$S(t8, global2) : ptr
-    call @scoop.println(t9)
+    store t8 -> local4
+    t9 = call @scoop.Tool.id$S(local4, global2) : ptr
+    store t9 -> local5
+    call @scoop.println(local5)
     t10 = aggregate () : {}
     t11 = call @scoop.ctor.Overloads() : ptr
     store t11 -> local1
     t12 = call @scoop.Overloads.id(local1, 1) : i64
-    t13 = call @scoop_rt_box(global11, t12, 8) : ptr
+    store t12 -> local6
+    t13 = call @scoop_rt_box(global11, local6, 8) : ptr
     call @scoop.println(t13)
     t14 = aggregate () : {}
     t15 = call @scoop.Overloads.id$S(local1, global3) : ptr
-    call @scoop.println(t15)
+    store t15 -> local7
+    call @scoop.println(local7)
     t16 = aggregate () : {}
     ret
   fun @scoop.Overloads.id(ptr, i64) -> i64
@@ -509,10 +537,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop.eq.Box$I(ptr, ptr) -> i1
     local %0 $a: {i64}
     local %1 $b: {i64}
@@ -530,10 +560,12 @@ Module
     t0 = extract param0, 0 : i64
     ret t0
   fun @scoop.thunk.Box$I.Exchange$I.current(ptr) -> i64
+    local %0 $call.1: i64
   block entry
     t0 = heap_load param0 +16 : {i64}
     t1 = call @scoop.Box.current$I(t0) : i64
-    ret t1
+    store t1 -> local0
+    ret local0
   td Identity @scoop_td_Identity size=0 vtable=0 itables=0
   td Exchange$I @scoop_td_Exchange$I size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0

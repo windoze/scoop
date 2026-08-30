@@ -172,16 +172,18 @@ Module
   class box$B vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -198,51 +200,71 @@ Module
           TupleLiteral
             IntLiteral 1
             StringConst @scoop.str.4
-      Call @scoop.println direct
+      call $call.1: Boolean = @scoop_rt_string_eq direct
+        FieldAccess 0
+          Local a
+        FieldAccess 0
+          Local b
+      branch bb1 bb2
+        Local $call.1
+    bb1 logic.rhs.1
+      branch bb4 bb5
+        Binary IntEq
+          FieldAccess 0
+            FieldAccess 1
+              Local a
+          FieldAccess 0
+            FieldAccess 1
+              Local b
+    bb2 logic.short.2
+      assign $logic.2
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      call @scoop.println direct
         Box
-          Binary And
-            Call @scoop_rt_string_eq direct
-              FieldAccess 0
-                Local a
-              FieldAccess 0
-                Local b
-            Binary And
-              Binary IntEq
-                FieldAccess 0
-                  FieldAccess 1
-                    Local a
-                FieldAccess 0
-                  FieldAccess 1
-                    Local b
-              Call @scoop_rt_string_eq direct
-                FieldAccess 1
-                  FieldAccess 1
-                    Local a
-                FieldAccess 1
-                  FieldAccess 1
-                    Local b
-      Call @scoop.println direct
+          Local $logic.2
+      call @scoop.println direct
         FieldAccess 1
           FieldAccess 1
             Local a
       var count: Int
         IntLiteral 0
-      goto bb1
-    bb1 while.cond.1
-      branch bb2 bb3
+      goto bb7
+    bb4 logic.rhs.4
+      call $call.4: Boolean = @scoop_rt_string_eq direct
+        FieldAccess 1
+          FieldAccess 1
+            Local a
+        FieldAccess 1
+          FieldAccess 1
+            Local b
+      assign $logic.3
+        Local $call.4
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.3
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      assign $logic.2
+        Local $logic.3
+      goto bb3
+    bb7 while.cond.7
+      branch bb8 bb9
         Binary IntLt
           Local count
           IntLiteral 2
-    bb2 while.body.2
-      Call @scoop.println direct
+    bb8 while.body.8
+      call @scoop.println direct
         FieldAccess 0
           Local a
       assign count
         Binary IntAdd
           Local count
           IntLiteral 1
-      goto bb1
-    bb3 while.exit.3
+      goto bb7
+    bb9 while.exit.9
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
@@ -291,10 +313,11 @@ Module
           Local $b
   fun tostring.B @scoop.tostring.B(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_bool_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "p"
   str @scoop.str.2 "one"
@@ -326,19 +349,23 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -347,8 +374,10 @@ Module
     local %0 a: {ptr, {i64, ptr}}
     local %1 b: {ptr, {i64, ptr}}
     local %2 count: i64
-    local %3 $sc.1: i1
-    local %4 $sc.2: i1
+    local %3 $call.1: i1
+    local %4 $logic.2: i1
+    local %5 $logic.3: i1
+    local %6 $call.4: i1
   block entry
     t0 = aggregate (1, global2) : {i64, ptr}
     t1 = aggregate (global1, t0) : {ptr, {i64, ptr}}
@@ -360,48 +389,54 @@ Module
     t5 = extract local1, 0 : ptr
     t6 = call @scoop_rt_string_eq(t4, t5) : i1
     store t6 -> local3
-    cbr t6 then @sc.rhs.1 else @sc.merge.2
-  block while.cond.1
-    t22 = Lt local2, 2 : i1
-    cbr t22 then @while.body.2 else @while.exit.3
-  block while.body.2
-    t23 = extract local0, 0 : ptr
-    call @scoop.println(t23)
-    t24 = aggregate () : {}
-    t25 = Add local2, 1 : i64
-    store t25 -> local2
-    br @while.cond.1
-  block while.exit.3
-    ret
-  block sc.rhs.1
+    cbr local3 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
     t7 = extract local0, 1 : {i64, ptr}
     t8 = extract t7, 0 : i64
     t9 = extract local1, 1 : {i64, ptr}
     t10 = extract t9, 0 : i64
     t11 = Eq t8, t10 : i1
-    store t11 -> local4
-    cbr t11 then @sc.rhs.3 else @sc.merge.4
-  block sc.merge.2
-    t17 = call @scoop_rt_box(global9, local3, 1) : ptr
-    call @scoop.println(t17)
-    t18 = aggregate () : {}
-    t19 = extract local0, 1 : {i64, ptr}
-    t20 = extract t19, 1 : ptr
-    call @scoop.println(t20)
-    t21 = aggregate () : {}
-    store 0 -> local2
-    br @while.cond.1
-  block sc.rhs.3
-    t12 = extract local0, 1 : {i64, ptr}
-    t13 = extract t12, 1 : ptr
-    t14 = extract local1, 1 : {i64, ptr}
+    cbr t11 then @logic.rhs.4 else @logic.short.5
+  block logic.short.2
+    store false -> local4
+    br @logic.merge.3
+  block logic.merge.3
+    t12 = call @scoop_rt_box(global9, local4, 1) : ptr
+    call @scoop.println(t12)
+    t13 = aggregate () : {}
+    t14 = extract local0, 1 : {i64, ptr}
     t15 = extract t14, 1 : ptr
-    t16 = call @scoop_rt_string_eq(t13, t15) : i1
-    store t16 -> local4
-    br @sc.merge.4
-  block sc.merge.4
-    store local4 -> local3
-    br @sc.merge.2
+    call @scoop.println(t15)
+    t16 = aggregate () : {}
+    store 0 -> local2
+    br @while.cond.7
+  block logic.rhs.4
+    t17 = extract local0, 1 : {i64, ptr}
+    t18 = extract t17, 1 : ptr
+    t19 = extract local1, 1 : {i64, ptr}
+    t20 = extract t19, 1 : ptr
+    t21 = call @scoop_rt_string_eq(t18, t20) : i1
+    store t21 -> local6
+    store local6 -> local5
+    br @logic.merge.6
+  block logic.short.5
+    store false -> local5
+    br @logic.merge.6
+  block logic.merge.6
+    store local5 -> local4
+    br @logic.merge.3
+  block while.cond.7
+    t22 = Lt local2, 2 : i1
+    cbr t22 then @while.body.8 else @while.exit.9
+  block while.body.8
+    t23 = extract local0, 0 : ptr
+    call @scoop.println(t23)
+    t24 = aggregate () : {}
+    t25 = Add local2, 1 : i64
+    store t25 -> local2
+    br @while.cond.7
+  block while.exit.9
+    ret
   fun @scoop.ctor.Throwable() -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global10, 16) : ptr
@@ -446,10 +481,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.B(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i1
     t1 = call @scoop_rt_bool_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$B @scoop_td_box$B size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0

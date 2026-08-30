@@ -163,48 +163,54 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      val base: Base
-        Call @scoop.ctor.Leaf direct
-      Call @scoop.println direct
+      call base: Base = @scoop.ctor.Leaf direct
+      call $call.1: Int = @scoop.Base.dynamic virtual[3]
+        Local base
+      call @scoop.println direct
         Box
-          Call @scoop.Base.dynamic virtual[3]
-            Local base
-      Call @scoop.println direct
+          Local $call.1
+      call $call.2: Int = @scoop.Base.fixed direct
+        Local base
+      call @scoop.println direct
         Box
-          Call @scoop.Base.fixed direct
-            Local base
-      Call @scoop.println direct
+          Local $call.2
+      call $call.3: Int = @scoop.Base.closedLater virtual[4]
+        Local base
+      call @scoop.println direct
         Box
-          Call @scoop.Base.closedLater virtual[4]
-            Local base
-      val leaf: Leaf
-        Call @scoop.ctor.Leaf direct
-      Call @scoop.println direct
+          Local $call.3
+      call leaf: Leaf = @scoop.ctor.Leaf direct
+      call $call.4: Int = @scoop.Leaf.dynamic direct
+        Local leaf
+      call @scoop.println direct
         Box
-          Call @scoop.Leaf.dynamic direct
-            Local leaf
-      Call @scoop.println direct
+          Local $call.4
+      call $call.5: Int = @scoop.Base.fixed direct
+        Local leaf
+      call @scoop.println direct
         Box
-          Call @scoop.Base.fixed direct
-            Local leaf
-      Call @scoop.println direct
+          Local $call.5
+      call $call.6: Int = @scoop.Middle.closedLater direct
+        Local leaf
+      call @scoop.println direct
         Box
-          Call @scoop.Middle.closedLater direct
-            Local leaf
+          Local $call.6
       return
   fun Base.dynamic @scoop.Base.dynamic(this: Base) -> Int
     bb0 entry
@@ -289,10 +295,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "unwrap on None"
   str @scoop.str.2 "invalid cast"
@@ -319,19 +326,23 @@ Module
   global @scoop_td_Leaf = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -339,37 +350,49 @@ Module
   fun @scoop_main() -> void
     local %0 base: ptr
     local %1 leaf: ptr
+    local %2 $call.1: i64
+    local %3 $call.2: i64
+    local %4 $call.3: i64
+    local %5 $call.4: i64
+    local %6 $call.5: i64
+    local %7 $call.6: i64
   block entry
     t0 = call @scoop.ctor.Leaf() : ptr
     store t0 -> local0
     t1 = heap_load local0 +0 : ptr
     t2 = heap_load t1 +40 : ptr
     t3 = call_indirect t2[3](local0) : i64
-    t4 = call @scoop_rt_box(global5, t3, 8) : ptr
+    store t3 -> local2
+    t4 = call @scoop_rt_box(global5, local2, 8) : ptr
     call @scoop.println(t4)
     t5 = aggregate () : {}
     t6 = call @scoop.Base.fixed(local0) : i64
-    t7 = call @scoop_rt_box(global5, t6, 8) : ptr
+    store t6 -> local3
+    t7 = call @scoop_rt_box(global5, local3, 8) : ptr
     call @scoop.println(t7)
     t8 = aggregate () : {}
     t9 = heap_load local0 +0 : ptr
     t10 = heap_load t9 +40 : ptr
     t11 = call_indirect t10[4](local0) : i64
-    t12 = call @scoop_rt_box(global5, t11, 8) : ptr
+    store t11 -> local4
+    t12 = call @scoop_rt_box(global5, local4, 8) : ptr
     call @scoop.println(t12)
     t13 = aggregate () : {}
     t14 = call @scoop.ctor.Leaf() : ptr
     store t14 -> local1
     t15 = call @scoop.Leaf.dynamic(local1) : i64
-    t16 = call @scoop_rt_box(global5, t15, 8) : ptr
+    store t15 -> local5
+    t16 = call @scoop_rt_box(global5, local5, 8) : ptr
     call @scoop.println(t16)
     t17 = aggregate () : {}
     t18 = call @scoop.Base.fixed(local1) : i64
-    t19 = call @scoop_rt_box(global5, t18, 8) : ptr
+    store t18 -> local6
+    t19 = call @scoop_rt_box(global5, local6, 8) : ptr
     call @scoop.println(t19)
     t20 = aggregate () : {}
     t21 = call @scoop.Middle.closedLater(local1) : i64
-    t22 = call @scoop_rt_box(global5, t21, 8) : ptr
+    store t21 -> local7
+    t22 = call @scoop_rt_box(global5, local7, 8) : ptr
     call @scoop.println(t22)
     t23 = aggregate () : {}
     ret
@@ -447,10 +470,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Base @scoop_td_Base size=16 vtable=5 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0

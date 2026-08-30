@@ -143,16 +143,18 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -163,15 +165,17 @@ Module
       val s: Box$S<String>
         VariantConstruct Box$S<String> v0
           StringConst @scoop.str.1
-      Call @scoop.println direct
+      call $call.1: Int = @scoop.Box.echo$I direct
+        Local i
+        IntLiteral 2
+      call @scoop.println direct
         Box
-          Call @scoop.Box.echo$I direct
-            Local i
-            IntLiteral 2
-      Call @scoop.println direct
-        Call @scoop.Box.echo$S direct
-          Local s
-          StringConst @scoop.str.2
+          Local $call.1
+      call $call.2: Any = @scoop.Box.echo$S direct
+        Local s
+        StringConst @scoop.str.2
+      call @scoop.println direct
+        Local $call.2
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
@@ -228,10 +232,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   instance @scoop.Box.echo$I <- Box.echo
   instance @scoop.Box.echo$S <- Box.echo
   str @scoop.str.0 "\n"
@@ -263,19 +268,23 @@ Module
   enum Box$I tagged size=8 align=8 variants=(i64) ()
   enum Box$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -283,17 +292,21 @@ Module
   fun @scoop_main() -> void
     local %0 i: enum1
     local %1 s: enum2
+    local %2 $call.1: i64
+    local %3 $call.2: ptr
   block entry
     t0 = enum_wrap e1 v0 (1) : enum1
     store t0 -> local0
     t1 = enum_wrap e2 v0 (global1) : enum2
     store t1 -> local1
     t2 = call @scoop.Box.echo$I(local0, 2) : i64
-    t3 = call @scoop_rt_box(global7, t2, 8) : ptr
+    store t2 -> local2
+    t3 = call @scoop_rt_box(global7, local2, 8) : ptr
     call @scoop.println(t3)
     t4 = aggregate () : {}
     t5 = call @scoop.Box.echo$S(local1, global2) : ptr
-    call @scoop.println(t5)
+    store t5 -> local3
+    call @scoop.println(local3)
     t6 = aggregate () : {}
     ret
   fun @scoop.ctor.Throwable() -> ptr
@@ -346,10 +359,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0

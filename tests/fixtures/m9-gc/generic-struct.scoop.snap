@@ -168,16 +168,18 @@ Module
   interface Readable
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -188,22 +190,25 @@ Module
             IntLiteral 7
           StructInit Box$S
             StringConst @scoop.str.1
-      Call @scoop.println direct
+      call $call.1: Int = @scoop.Box.get$I direct
+        FieldAccess 0
+          Local pair
+      call @scoop.println direct
         Box
-          Call @scoop.Box.get$I direct
-            FieldAccess 0
-              Local pair
-      Call @scoop.println direct
-        Call @scoop.Box.get$S direct
-          FieldAccess 1
-            Local pair
+          Local $call.1
+      call $call.2: Any = @scoop.Box.get$S direct
+        FieldAccess 1
+          Local pair
+      call @scoop.println direct
+        Local $call.2
       val readable: Readable
         Box
           StructInit Holder$I
             IntLiteral 9
-      Call @scoop.println direct
-        Call @scoop.Readable.read interface Readable[0]
-          Local readable
+      call $call.3: Any = @scoop.Readable.read interface Readable[0]
+        Local readable
+      call @scoop.println direct
+        Local $call.3
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
@@ -262,10 +267,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   fun eq.Holder$I @scoop.eq.Holder$I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Holder$I
@@ -286,10 +292,11 @@ Module
         StringConst @scoop.str.6
   fun thunk.Holder$I.Readable.read @scoop.thunk.Holder$I.Readable.read(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop.Holder.read$I direct
+        Unbox
+          Local this
       return
-        Call @scoop.Holder.read$I direct
-          Unbox
-            Local this
+        Local $call.1
   instance @scoop.Box.get$I <- Box.get
   instance @scoop.Box.get$S <- Box.get
   instance @scoop.Holder.read$I <- Holder.read
@@ -322,19 +329,23 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -342,6 +353,9 @@ Module
   fun @scoop_main() -> void
     local %0 pair: {{i64}, {ptr}}
     local %1 readable: ptr
+    local %2 $call.1: i64
+    local %3 $call.2: ptr
+    local %4 $call.3: ptr
   block entry
     t0 = aggregate (7) : {i64}
     t1 = aggregate (global1) : {ptr}
@@ -349,12 +363,14 @@ Module
     store t2 -> local0
     t3 = extract local0, 0 : {i64}
     t4 = call @scoop.Box.get$I(t3) : i64
-    t5 = call @scoop_rt_box(global7, t4, 8) : ptr
+    store t4 -> local2
+    t5 = call @scoop_rt_box(global7, local2, 8) : ptr
     call @scoop.println(t5)
     t6 = aggregate () : {}
     t7 = extract local0, 1 : {ptr}
     t8 = call @scoop.Box.get$S(t7) : ptr
-    call @scoop.println(t8)
+    store t8 -> local3
+    call @scoop.println(local3)
     t9 = aggregate () : {}
     t10 = aggregate (9) : {i64}
     t11 = call @scoop_rt_box(global8, t10, 8) : ptr
@@ -362,7 +378,8 @@ Module
     t12 = heap_load local1 +0 : ptr
     t13 = call @scoop_rt_itable_lookup(t12, global9) : ptr
     t14 = call_indirect t13[0](local1) : ptr
-    call @scoop.println(t14)
+    store t14 -> local4
+    call @scoop.println(local4)
     t15 = aggregate () : {}
     ret
   fun @scoop.ctor.Throwable() -> ptr
@@ -417,10 +434,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop.eq.Holder$I(ptr, ptr) -> i1
     local %0 $a: {i64}
     local %1 $b: {i64}
@@ -437,10 +456,12 @@ Module
   block entry
     ret global6
   fun @scoop.thunk.Holder$I.Readable.read(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : {i64}
     t1 = call @scoop.Holder.read$I(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Readable @scoop_td_Readable size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0

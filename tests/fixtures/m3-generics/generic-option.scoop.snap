@@ -182,42 +182,48 @@ Module
   class box$B vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      Call @scoop.println direct
+      call $call.1: Int = @scoop.unwrapOr$I direct
+        VariantConstruct Option$I<Int> v0
+          IntLiteral 7
+        IntLiteral 0
+      call @scoop.println direct
         Box
-          Call @scoop.unwrapOr$I direct
-            VariantConstruct Option$I<Int> v0
-              IntLiteral 7
-            IntLiteral 0
+          Local $call.1
       val e: Option$I<Int>
         VariantConstruct Option$I<Int> v1
-      Call @scoop.println direct
+      call $call.2: Int = @scoop.unwrapOr$I direct
+        Local e
+        IntLiteral 9
+      call @scoop.println direct
         Box
-          Call @scoop.unwrapOr$I direct
-            Local e
-            IntLiteral 9
-      Call @scoop.println direct
+          Local $call.2
+      call $call.3: Boolean = @scoop.isPresent$S direct
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.1
+      call @scoop.println direct
         Box
-          Call @scoop.isPresent$S direct
-            VariantConstruct Option$S<String> v0
-              StringConst @scoop.str.1
-      Call @scoop.println direct
+          Local $call.3
+      call $call.4: Boolean = @scoop.isPresent$I direct
+        Local e
+      call @scoop.println direct
         Box
-          Call @scoop.isPresent$I direct
-            Local e
+          Local $call.4
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
@@ -276,51 +282,88 @@ Module
   fun isPresent @scoop.isPresent$S(o: Option$S<String>) -> Boolean
     bb0 entry
       branch bb1 bb2
-        Binary And
-          Binary IntEq
-            EnumTag
-              Local o
-            EnumTag
-              VariantConstruct Option$S<String> v1
-          Binary Or
-            Binary IntNe
-              EnumTag
-                Local o
-              IntLiteral 0
-            Call @scoop_rt_string_eq direct
-              EnumField v0 f0
-                Local o
-              EnumField v0 f0
-                VariantConstruct Option$S<String> v1
-    bb1 if.then.1
+        Binary IntEq
+          EnumTag
+            Local o
+          EnumTag
+            VariantConstruct Option$S<String> v1
+    bb1 logic.rhs.1
+      branch bb5 bb4
+        Binary IntNe
+          EnumTag
+            Local o
+          IntLiteral 0
+    bb2 logic.short.2
+      assign $logic.1
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb7 bb8
+        Local $logic.1
+    bb4 logic.rhs.4
+      call $call.3: Boolean = @scoop_rt_string_eq direct
+        EnumField v0 f0
+          Local o
+        EnumField v0 f0
+          VariantConstruct Option$S<String> v1
+      assign $logic.2
+        Local $call.3
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      assign $logic.1
+        Local $logic.2
+      goto bb3
+    bb7 if.then.7
       return
         BoolLiteral false
-    bb2 if.merge.2
+    bb8 if.merge.8
       return
         BoolLiteral true
   fun isPresent @scoop.isPresent$I(o: Option$I<Int>) -> Boolean
     bb0 entry
       branch bb1 bb2
-        Binary And
-          Binary IntEq
-            EnumTag
-              Local o
-            EnumTag
-              VariantConstruct Option$I<Int> v1
-          Binary Or
-            Binary IntNe
-              EnumTag
-                Local o
-              IntLiteral 0
-            Binary IntEq
-              EnumField v0 f0
-                Local o
-              EnumField v0 f0
-                VariantConstruct Option$I<Int> v1
-    bb1 if.then.1
+        Binary IntEq
+          EnumTag
+            Local o
+          EnumTag
+            VariantConstruct Option$I<Int> v1
+    bb1 logic.rhs.1
+      branch bb5 bb4
+        Binary IntNe
+          EnumTag
+            Local o
+          IntLiteral 0
+    bb2 logic.short.2
+      assign $logic.1
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb7 bb8
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Binary IntEq
+          EnumField v0 f0
+            Local o
+          EnumField v0 f0
+            VariantConstruct Option$I<Int> v1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      assign $logic.1
+        Local $logic.2
+      goto bb3
+    bb7 if.then.7
       return
         BoolLiteral false
-    bb2 if.merge.2
+    bb8 if.merge.8
       return
         BoolLiteral true
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
@@ -337,10 +380,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Boolean
@@ -355,10 +399,11 @@ Module
           Local $b
   fun tostring.B @scoop.tostring.B(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_bool_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   instance @scoop.unwrapOr$I <- unwrapOr
   instance @scoop.isPresent$S <- isPresent
   instance @scoop.isPresent$I <- isPresent
@@ -389,44 +434,56 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$I tagged size=8 align=8 variants=(i64) ()
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
     local %0 e: enum1
+    local %1 $call.1: i64
+    local %2 $call.2: i64
+    local %3 $call.3: i1
+    local %4 $call.4: i1
   block entry
     t0 = enum_wrap e1 v0 (7) : enum1
     t1 = call @scoop.unwrapOr$I(t0, 0) : i64
-    t2 = call @scoop_rt_box(global6, t1, 8) : ptr
+    store t1 -> local1
+    t2 = call @scoop_rt_box(global6, local1, 8) : ptr
     call @scoop.println(t2)
     t3 = aggregate () : {}
     t4 = enum_wrap e1 v1 () : enum1
     store t4 -> local0
     t5 = call @scoop.unwrapOr$I(local0, 9) : i64
-    t6 = call @scoop_rt_box(global6, t5, 8) : ptr
+    store t5 -> local2
+    t6 = call @scoop_rt_box(global6, local2, 8) : ptr
     call @scoop.println(t6)
     t7 = aggregate () : {}
     t8 = enum_wrap e0 v0 (global1) : enum0
     t9 = call @scoop.isPresent$S(t8) : i1
-    t10 = call @scoop_rt_box(global7, t9, 1) : ptr
+    store t9 -> local3
+    t10 = call @scoop_rt_box(global7, local3, 1) : ptr
     call @scoop.println(t10)
     t11 = aggregate () : {}
     t12 = call @scoop.isPresent$I(local0) : i1
-    t13 = call @scoop_rt_box(global7, t12, 1) : ptr
+    store t12 -> local4
+    t13 = call @scoop_rt_box(global7, local4, 1) : ptr
     call @scoop.println(t13)
     t14 = aggregate () : {}
     ret
@@ -481,67 +538,77 @@ Module
   block if.merge.3
     ret local1
   fun @scoop.isPresent$S(enum0) -> i1
-    local %0 $sc.1: i1
-    local %1 $sc.2: i1
+    local %0 $logic.1: i1
+    local %1 $logic.2: i1
+    local %2 $call.3: i1
   block entry
     t0 = enum_tag e0 param0 : i64
     t1 = enum_wrap e0 v1 () : enum0
     t2 = enum_tag e0 t1 : i64
     t3 = Eq t0, t2 : i1
-    store t3 -> local0
-    cbr t3 then @sc.rhs.1 else @sc.merge.2
-  block if.then.1
-    ret false
-  block if.merge.2
-    ret true
-  block sc.rhs.1
+    cbr t3 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
     t4 = enum_tag e0 param0 : i64
     t5 = Ne t4, 0 : i1
-    store t5 -> local1
-    cbr t5 then @sc.merge.4 else @sc.rhs.3
-  block sc.merge.2
-    cbr local0 then @if.then.1 else @if.merge.2
-  block sc.rhs.3
+    cbr t5 then @logic.short.5 else @logic.rhs.4
+  block logic.short.2
+    store false -> local0
+    br @logic.merge.3
+  block logic.merge.3
+    cbr local0 then @if.then.7 else @if.merge.8
+  block logic.rhs.4
     t6 = enum_field e0 v0 f0 param0 : ptr
     t7 = enum_wrap e0 v1 () : enum0
     t8 = enum_field e0 v0 f0 t7 : ptr
     t9 = call @scoop_rt_string_eq(t6, t8) : i1
-    store t9 -> local1
-    br @sc.merge.4
-  block sc.merge.4
+    store t9 -> local2
+    store local2 -> local1
+    br @logic.merge.6
+  block logic.short.5
+    store true -> local1
+    br @logic.merge.6
+  block logic.merge.6
     store local1 -> local0
-    br @sc.merge.2
+    br @logic.merge.3
+  block if.then.7
+    ret false
+  block if.merge.8
+    ret true
   fun @scoop.isPresent$I(enum1) -> i1
-    local %0 $sc.1: i1
-    local %1 $sc.2: i1
+    local %0 $logic.1: i1
+    local %1 $logic.2: i1
   block entry
     t0 = enum_tag e1 param0 : i64
     t1 = enum_wrap e1 v1 () : enum1
     t2 = enum_tag e1 t1 : i64
     t3 = Eq t0, t2 : i1
-    store t3 -> local0
-    cbr t3 then @sc.rhs.1 else @sc.merge.2
-  block if.then.1
-    ret false
-  block if.merge.2
-    ret true
-  block sc.rhs.1
+    cbr t3 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
     t4 = enum_tag e1 param0 : i64
     t5 = Ne t4, 0 : i1
-    store t5 -> local1
-    cbr t5 then @sc.merge.4 else @sc.rhs.3
-  block sc.merge.2
-    cbr local0 then @if.then.1 else @if.merge.2
-  block sc.rhs.3
+    cbr t5 then @logic.short.5 else @logic.rhs.4
+  block logic.short.2
+    store false -> local0
+    br @logic.merge.3
+  block logic.merge.3
+    cbr local0 then @if.then.7 else @if.merge.8
+  block logic.rhs.4
     t6 = enum_field e1 v0 f0 param0 : i64
     t7 = enum_wrap e1 v1 () : enum1
     t8 = enum_field e1 v0 f0 t7 : i64
     t9 = Eq t6, t8 : i1
     store t9 -> local1
-    br @sc.merge.4
-  block sc.merge.4
+    br @logic.merge.6
+  block logic.short.5
+    store true -> local1
+    br @logic.merge.6
+  block logic.merge.6
     store local1 -> local0
-    br @sc.merge.2
+    br @logic.merge.3
+  block if.then.7
+    ret false
+  block if.merge.8
+    ret true
   fun @scoop.eq.I(ptr, ptr) -> i1
     local %0 $a: i64
     local %1 $b: i64
@@ -553,10 +620,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop.eq.B(ptr, ptr) -> i1
     local %0 $a: i1
     local %1 $b: i1
@@ -568,10 +637,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.B(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i1
     t1 = call @scoop_rt_bool_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td box$B @scoop_td_box$B size=24 vtable=3 itables=0

@@ -179,45 +179,49 @@ Module
   interface Describable
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      val d: Doc
-        Call @scoop.ctor.Doc direct
-          StringConst @scoop.str.1
-      Call @scoop.println direct
-        Call @scoop.Doc.describe direct
-          Local d
+      call d: Doc = @scoop.ctor.Doc direct
+        StringConst @scoop.str.1
+      call $call.1: Any = @scoop.Doc.describe direct
+        Local d
+      call @scoop.println direct
+        Local $call.1
       val i: Describable
         Retype Describable
           Local d
-      Call @scoop.println direct
-        Call @scoop.Describable.describe interface Describable[0]
-          Local i
+      call $call.2: Any = @scoop.Describable.describe interface Describable[0]
+        Local i
+      call @scoop.println direct
+        Local $call.2
       val t: Tag
         StructInit Tag
           IntLiteral 1
       val ti: Describable
         Box
           Local t
-      Call @scoop.println direct
-        Call @scoop.Describable.describe interface Describable[0]
-          Local ti
+      call $call.3: Any = @scoop.Describable.describe interface Describable[0]
+        Local ti
+      call @scoop.println direct
+        Local $call.3
       val a: Any
         Box
           Local t
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           IsInstance Tag
             Local a
@@ -266,25 +270,43 @@ Module
         VariantConstruct Option$Describable<Describable> v1
       goto bb9
     bb9 if.merge.9
-      Call @scoop.println direct
+      branch bb11 bb10
+        Binary IntNe
+          EnumTag
+            Local $cast.2
+          EnumTag
+            VariantConstruct Option$Describable<Describable> v1
+    bb10 logic.rhs.10
+      branch bb13 bb14
+        Binary IntEq
+          EnumTag
+            Local $cast.4
+          IntLiteral 0
+    bb11 logic.short.11
+      assign $logic.4
+        BoolLiteral true
+      goto bb12
+    bb12 logic.merge.12
+      call @scoop.println direct
         Box
-          Binary Or
-            Binary IntNe
-              EnumTag
-                Local $cast.2
-              EnumTag
-                VariantConstruct Option$Describable<Describable> v1
-            Binary And
-              Binary IntEq
-                EnumTag
-                  Local $cast.4
-                IntLiteral 0
-              Binary IntNe
-                EnumField v0 f0
-                  Local $cast.6
-                EnumField v0 f0
-                  VariantConstruct Option$Describable<Describable> v1
+          Local $logic.4
       return
+    bb13 logic.rhs.13
+      assign $logic.5
+        Binary IntNe
+          EnumField v0 f0
+            Local $cast.6
+          EnumField v0 f0
+            VariantConstruct Option$Describable<Describable> v1
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.5
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      assign $logic.4
+        Local $logic.5
+      goto bb12
   fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
     bb0 entry
       return
@@ -348,10 +370,11 @@ Module
             Local $b
   fun thunk.Tag.Describable.describe @scoop.thunk.Tag.Describable.describe(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop.Tag.describe direct
+        Unbox
+          Local this
       return
-        Call @scoop.Tag.describe direct
-          Unbox
-            Local this
+        Local $call.1
   fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Boolean
@@ -366,10 +389,11 @@ Module
           Local $b
   fun tostring.B @scoop.tostring.B(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_bool_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "report"
   str @scoop.str.2 "tag"
@@ -401,19 +425,23 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$Describable niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -430,19 +458,24 @@ Module
     local %8 $cast.4: enum1
     local %9 $cast.5: ptr
     local %10 $cast.6: enum1
-    local %11 $sc.1: i1
-    local %12 $sc.2: i1
+    local %11 $call.1: ptr
+    local %12 $call.2: ptr
+    local %13 $call.3: ptr
+    local %14 $logic.4: i1
+    local %15 $logic.5: i1
   block entry
     t0 = call @scoop.ctor.Doc(global1) : ptr
     store t0 -> local0
     t1 = call @scoop.Doc.describe(local0) : ptr
-    call @scoop.println(t1)
+    store t1 -> local11
+    call @scoop.println(local11)
     t2 = aggregate () : {}
     store local0 -> local1
     t3 = heap_load local1 +0 : ptr
     t4 = call @scoop_rt_itable_lookup(t3, global7) : ptr
     t5 = call_indirect t4[0](local1) : ptr
-    call @scoop.println(t5)
+    store t5 -> local12
+    call @scoop.println(local12)
     t6 = aggregate () : {}
     t7 = aggregate (1) : {i64}
     store t7 -> local2
@@ -451,7 +484,8 @@ Module
     t9 = heap_load local3 +0 : ptr
     t10 = call @scoop_rt_itable_lookup(t9, global7) : ptr
     t11 = call_indirect t10[0](local3) : ptr
-    call @scoop.println(t11)
+    store t11 -> local13
+    call @scoop.println(local13)
     t12 = aggregate () : {}
     t13 = call @scoop_rt_box(global8, local2, 8) : ptr
     store t13 -> local4
@@ -499,28 +533,32 @@ Module
     t27 = enum_wrap e1 v1 () : enum1
     t28 = enum_tag e1 t27 : i64
     t29 = Ne t26, t28 : i1
-    store t29 -> local11
-    cbr t29 then @sc.merge.2 else @sc.rhs.1
-  block sc.rhs.1
+    cbr t29 then @logic.short.11 else @logic.rhs.10
+  block logic.rhs.10
     t30 = enum_tag e1 local8 : i64
     t31 = Eq t30, 0 : i1
-    store t31 -> local12
-    cbr t31 then @sc.rhs.3 else @sc.merge.4
-  block sc.merge.2
-    t36 = call @scoop_rt_box(global9, local11, 1) : ptr
-    call @scoop.println(t36)
-    t37 = aggregate () : {}
+    cbr t31 then @logic.rhs.13 else @logic.short.14
+  block logic.short.11
+    store true -> local14
+    br @logic.merge.12
+  block logic.merge.12
+    t32 = call @scoop_rt_box(global9, local14, 1) : ptr
+    call @scoop.println(t32)
+    t33 = aggregate () : {}
     ret
-  block sc.rhs.3
-    t32 = enum_field e1 v0 f0 local10 : i64
-    t33 = enum_wrap e1 v1 () : enum1
-    t34 = enum_field e1 v0 f0 t33 : i64
-    t35 = Ne t32, t34 : i1
-    store t35 -> local12
-    br @sc.merge.4
-  block sc.merge.4
-    store local12 -> local11
-    br @sc.merge.2
+  block logic.rhs.13
+    t34 = enum_field e1 v0 f0 local10 : i64
+    t35 = enum_wrap e1 v1 () : enum1
+    t36 = enum_field e1 v0 f0 t35 : i64
+    t37 = Ne t34, t36 : i1
+    store t37 -> local15
+    br @logic.merge.15
+  block logic.short.14
+    store false -> local15
+    br @logic.merge.15
+  block logic.merge.15
+    store local15 -> local14
+    br @logic.merge.12
   fun @scoop.Doc.describe(ptr) -> ptr
   block entry
     t0 = heap_load param0 +16 : ptr
@@ -579,10 +617,12 @@ Module
     t4 = Eq t2, t3 : i1
     ret t4
   fun @scoop.thunk.Tag.Describable.describe(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : {i64}
     t1 = call @scoop.Tag.describe(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop.eq.B(ptr, ptr) -> i1
     local %0 $a: i1
     local %1 $b: i1
@@ -594,10 +634,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.B(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i1
     t1 = call @scoop_rt_bool_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Doc @scoop_td_Doc size=24 vtable=3 itables=1

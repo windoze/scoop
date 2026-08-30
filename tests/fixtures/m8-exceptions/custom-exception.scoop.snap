@@ -128,23 +128,26 @@ Module
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
-      Call @scoop_rt_print direct
-        Call @scoop.Any.toString virtual[2]
-          Local message
-      Call @scoop_rt_print direct
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
   fun fail @scoop.fail() -> Int
     bb0 entry
+      call $call.1: MyError = @scoop.ctor.MyError direct
+        IntLiteral 42
       throw
-        Call @scoop.ctor.MyError direct
-          IntLiteral 42
+        Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       goto bb8
@@ -161,7 +164,7 @@ Module
       goto bb4
     bb4 try.handler_cleanup.4
       end_catch
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.1
       resume
     bb5 try.exit_pad.5
@@ -173,10 +176,10 @@ Module
     bb7 try.end.7
       return
     bb8 try.body.8 unwind bb1
-      Call @scoop.fail direct
+      call $call.1: Int = @scoop.fail direct
       goto bb9
     bb9 scope.9
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.1
       goto bb7
     bb10 try.catch.10
@@ -185,18 +188,18 @@ Module
           CaughtException
       goto bb12
     bb11 try.next.11 unwind bb5
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.1
       rethrow unwind bb5
     bb12 scope.12 unwind bb3
-      Call @scoop.println direct
+      call @scoop.println direct
         Box
           FieldAccess 1
             Local e
       goto bb13
     bb13 scope.13
       end_catch
-      Call @scoop.println direct
+      call @scoop.println direct
         StringConst @scoop.str.1
       goto bb7
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
@@ -253,10 +256,11 @@ Module
           Local $b
   fun tostring.I @scoop.tostring.I(this: Any) -> String
     bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
       return
-        Call @scoop_rt_int_to_string direct
-          Unbox
-            Local this
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "done"
   str @scoop.str.2 "unwrap on None"
@@ -285,63 +289,70 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.fail() -> i64
+    local %0 $call.1: ptr
   block entry
     t0 = call @scoop.ctor.MyError(42) : ptr
-    throw t0
+    store t0 -> local0
+    throw local0
     unreachable
   fun @scoop_main() -> void
     local %0 e: ptr
-    local %1 $sc.1: exception_record
-    local %2 $sc.2: ptr
-    local %3 $sc.3: ptr
+    local %1 $call.1: i64
+    local %2 $sc.1: exception_record
+    local %3 $sc.2: ptr
+    local %4 $sc.3: ptr
   block entry
     br @try.body.8
   block try.unwind.1
     (t0, t1) = landingpad : (exception_record, ptr)
-    store t0 -> local1
-    store t1 -> local2
+    store t0 -> local2
+    store t1 -> local3
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local2 : ptr
-    store t2 -> local3
-    t3 = call @scoop_rt_is_instance(local3, global7) : i1
+    t2 = begin_catch local3 : ptr
+    store t2 -> local4
+    t3 = call @scoop_rt_is_instance(local4, global7) : i1
     cbr t3 then @try.catch.10 else @try.next.11
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr)
-    store t4 -> local1
-    store t5 -> local2
+    store t4 -> local2
+    store t5 -> local3
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
     call @scoop.println(global1)
     t6 = aggregate () : {}
-    resume local1
+    resume local2
   block try.exit_pad.5
     (t7, t8) = cleanup_pad : (exception_record, ptr)
-    store t7 -> local1
-    store t8 -> local2
+    store t7 -> local2
+    store t8 -> local3
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
-    resume local1
+    resume local2
   block try.end.7
     ret
   block try.body.8
@@ -352,7 +363,7 @@ Module
     t10 = aggregate () : {}
     br @try.end.7
   block try.catch.10
-    store local3 -> local0
+    store local4 -> local0
     br @scope.12
   block try.next.11
     invoke @scoop.println(global1) normal @invoke.normal.2 unwind @try.exit_pad.5
@@ -368,6 +379,7 @@ Module
     t15 = aggregate () : {}
     br @try.end.7
   block invoke.normal.1
+    store t9 -> local1
     br @scope.9
   block invoke.normal.2
     t11 = aggregate () : {}
@@ -429,10 +441,12 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
