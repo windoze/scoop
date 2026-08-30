@@ -46,47 +46,34 @@ SourceFile
   class ArithmeticException() : Exception(<1 args>)
   class IndexOutOfBoundsException() : Exception(<1 args>)
 SourceFile
+  class State(var first: Boolean, var second: Boolean, var count: Int)
   fun main()
-    val a
-      ArrayLiteral
-        IntLiteral 1
-        IntLiteral 2
-        IntLiteral 3
+    val state
+      Call State
+        BoolLiteral true
+        BoolLiteral false
+        IntLiteral 7
     Call println
-      Binary Add
-        Index
-          Var a
-          IntLiteral 0
-        FieldAccess size
-          Var a
-    val m: MutableArray<Int>
-      ArrayLiteral
-        IntLiteral 4
-        IntLiteral 5
-    assign []
-      Var m
-      IntLiteral 0
-      IntLiteral 40
+      FieldAccess first
+        Var state
     Call println
-      Index
-        Var m
-        IntLiteral 0
-    val b
-      Call Array
-        Var m
-    assign []
-      Var m
-      IntLiteral 0
-      IntLiteral 99
+      FieldAccess second
+        Var state
     Call println
-      Index
-        Var b
-        IntLiteral 0
-    val e: Array<Int>
-      ArrayLiteral
+      FieldAccess count
+        Var state
+    assign .second
+      Var state
+      BoolLiteral true
+    assign .count
+      Var state
+      IntLiteral 9
     Call println
-      FieldAccess size
-        Var e
+      FieldAccess second
+        Var state
+    Call println
+      FieldAccess count
+        Var state
 
 == hir ==
 Module
@@ -103,6 +90,7 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class State(first: Boolean, second: Boolean, count: Int)
   fun pin<T>(): PinHandle <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle <intrinsic rt_get_handle>
@@ -123,49 +111,36 @@ Module
       StringLiteral "\n" : String
   fun main(): Unit
     val local0
-      ArrayLiteral : Array<Int>
-        IntLiteral 1 : Int
-        IntLiteral 2 : Int
-        IntLiteral 3 : Int
+      ClassInit State : State
+        BoolLiteral true : Boolean
+        BoolLiteral false : Boolean
+        IntLiteral 7 : Int
     Call println : Unit
       Box : Any
-        Binary Add : Int
-          Index : Int
-            Local a : Array<Int>
-            IntLiteral 0 : Int
-          ArrayLen : Int
-            Local a : Array<Int>
-    val local1
-      ArrayLiteral : MutableArray<Int>
-        IntLiteral 4 : Int
-        IntLiteral 5 : Int
-    assign []
-      Local m : MutableArray<Int>
-      IntLiteral 0 : Int
-      IntLiteral 40 : Int
+        FieldAccess class field 0 : Boolean
+          Local state : State
     Call println : Unit
       Box : Any
-        Index : Int
-          Local m : MutableArray<Int>
-          IntLiteral 0 : Int
-    val local2
-      ArrayClone : Array<Int>
-        Local m : MutableArray<Int>
-    assign []
-      Local m : MutableArray<Int>
-      IntLiteral 0 : Int
-      IntLiteral 99 : Int
+        FieldAccess class field 1 : Boolean
+          Local state : State
     Call println : Unit
       Box : Any
-        Index : Int
-          Local b : Array<Int>
-          IntLiteral 0 : Int
-    val local3
-      ArrayLiteral : Array<Int>
+        FieldAccess class field 2 : Int
+          Local state : State
+    assign .field
+      Local state : State
+      BoolLiteral true : Boolean
+    assign .field
+      Local state : State
+      IntLiteral 9 : Int
     Call println : Unit
       Box : Any
-        ArrayLen : Int
-          Local e : Array<Int>
+        FieldAccess class field 1 : Boolean
+          Local state : State
+    Call println : Unit
+      Box : Any
+        FieldAccess class field 2 : Int
+          Local state : State
   entry main
 
 == mir ==
@@ -181,6 +156,8 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
+  class State vtable=3 itables=0
+  class box$B vtable=3 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     Call @scoop_rt_print direct
@@ -194,125 +171,37 @@ Module
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
   fun main @scoop_main() -> Unit
-    val a: Array<Int>
-      ArrayLiteral
-        IntLiteral 1
-        IntLiteral 2
-        IntLiteral 3
-    val $arr.1: Array<Int>
-      Local a
-    val $idx.2: Int
-      IntLiteral 0
-    if
-      Binary Or
-        Binary IntLt
-          Local $idx.2
-          IntLiteral 0
-        Binary IntGe
-          Local $idx.2
-          ArrayLen
-            Local $arr.1
-      throw
-        Call @scoop.ctor.IndexOutOfBoundsException direct
+    val state: State
+      Call @scoop.ctor.State direct
+        BoolLiteral true
+        BoolLiteral false
+        IntLiteral 7
     Call @scoop.println direct
       Box
-        Binary IntAdd
-          ArrayGet
-            Local $arr.1
-            Local $idx.2
-          ArrayLen
-            Local a
-    val m: MutableArray<Int>
-      ArrayLiteral
-        IntLiteral 4
-        IntLiteral 5
-    val $arr.3: MutableArray<Int>
-      Local m
-    val $idx.4: Int
-      IntLiteral 0
-    if
-      Binary Or
-        Binary IntLt
-          Local $idx.4
-          IntLiteral 0
-        Binary IntGe
-          Local $idx.4
-          ArrayLen
-            Local $arr.3
-      throw
-        Call @scoop.ctor.IndexOutOfBoundsException direct
-    array_set
-      Local $arr.3
-      Local $idx.4
-      IntLiteral 40
-    val $arr.5: MutableArray<Int>
-      Local m
-    val $idx.6: Int
-      IntLiteral 0
-    if
-      Binary Or
-        Binary IntLt
-          Local $idx.6
-          IntLiteral 0
-        Binary IntGe
-          Local $idx.6
-          ArrayLen
-            Local $arr.5
-      throw
-        Call @scoop.ctor.IndexOutOfBoundsException direct
+        FieldAccess 0
+          Local state
     Call @scoop.println direct
       Box
-        ArrayGet
-          Local $arr.5
-          Local $idx.6
-    val b: Array<Int>
-      ArrayClone
-        Local m
-    val $arr.7: MutableArray<Int>
-      Local m
-    val $idx.8: Int
-      IntLiteral 0
-    if
-      Binary Or
-        Binary IntLt
-          Local $idx.8
-          IntLiteral 0
-        Binary IntGe
-          Local $idx.8
-          ArrayLen
-            Local $arr.7
-      throw
-        Call @scoop.ctor.IndexOutOfBoundsException direct
-    array_set
-      Local $arr.7
-      Local $idx.8
-      IntLiteral 99
-    val $arr.9: Array<Int>
-      Local b
-    val $idx.10: Int
-      IntLiteral 0
-    if
-      Binary Or
-        Binary IntLt
-          Local $idx.10
-          IntLiteral 0
-        Binary IntGe
-          Local $idx.10
-          ArrayLen
-            Local $arr.9
-      throw
-        Call @scoop.ctor.IndexOutOfBoundsException direct
+        FieldAccess 1
+          Local state
     Call @scoop.println direct
       Box
-        ArrayGet
-          Local $arr.9
-          Local $idx.10
-    val e: Array<Int>
-      ArrayLiteral
+        FieldAccess 2
+          Local state
+    field_set 1
+      Local state
+      BoolLiteral true
+    field_set 2
+      Local state
+      IntLiteral 9
     Call @scoop.println direct
       Box
-        ArrayLen
-          Local e
+        FieldAccess 1
+          Local state
+    Call @scoop.println direct
+      Box
+        FieldAccess 2
+          Local state
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     return
       ClassInit Throwable
@@ -340,6 +229,28 @@ Module
       ClassInit IndexOutOfBoundsException
         VariantConstruct Option$S<String> v0
           StringConst @scoop.str.4
+  fun ctor.State @scoop.ctor.State(first: Boolean, second: Boolean, count: Int) -> State
+    return
+      ClassInit State
+        Local first
+        Local second
+        Local count
+  fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
+    val $a: Boolean
+      Unbox
+        Local this
+    val $b: Boolean
+      Unbox
+        Local other
+    return
+      Binary BoolEq
+        Local $a
+        Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    return
+      Call @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
     val $a: Int
       Unbox
@@ -370,6 +281,7 @@ Module
   global @scoop.str.2 = "invalid cast"
   global @scoop.str.3 = "arithmetic error"
   global @scoop.str.4 = "array index out of bounds"
+  global @scoop_td_box$B = c""
   global @scoop_td_box$I = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
@@ -377,6 +289,7 @@ Module
   global @scoop_td_ClassCastException = c""
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_State = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
   block entry
@@ -397,173 +310,88 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 a: [i64]
-    local %1 m: [i64]
-    local %2 b: [i64]
-    local %3 e: [i64]
-    local %4 $arr.1: [i64]
-    local %5 $idx.2: i64
-    local %6 $arr.3: [i64]
-    local %7 $idx.4: i64
-    local %8 $arr.5: [i64]
-    local %9 $idx.6: i64
-    local %10 $arr.7: [i64]
-    local %11 $idx.8: i64
-    local %12 $arr.9: [i64]
-    local %13 $idx.10: i64
-    local %14 $sc.1: i1
-    local %15 $sc.2: i1
-    local %16 $sc.3: i1
-    local %17 $sc.4: i1
-    local %18 $sc.5: i1
+    local %0 state: ptr
   block entry
-    t0 = array_alloc (1, 2, 3) : [i64]
+    t0 = call @scoop.ctor.State(true, false, 7) : ptr
     store t0 -> local0
-    store local0 -> local4
-    store 0 -> local5
-    t1 = Lt local5, 0 : i1
-    store t1 -> local14
-    cbr t1 then @sc.merge.2 else @sc.rhs.1
-  block sc.rhs.1
-    t2 = array_len local4 : i64
-    t3 = Ge local5, t2 : i1
-    store t3 -> local14
-    br @sc.merge.2
-  block sc.merge.2
-    cbr local14 then @if.then.3 else @if.merge.4
-  block if.then.3
-    t4 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
-    throw t4
-    unreachable
-  block if.merge.4
-    t5 = array_get local4 local5 : i64
-    t6 = array_len local0 : i64
-    t7 = Add t5, t6 : i64
-    t8 = call @scoop_rt_box(global5, t7, 8) : ptr
+    t1 = heap_load local0 +16 : i1
+    t2 = call @scoop_rt_box(global5, t1, 1) : ptr
+    call @scoop.println(t2)
+    t3 = aggregate () : {}
+    t4 = heap_load local0 +17 : i1
+    t5 = call @scoop_rt_box(global5, t4, 1) : ptr
+    call @scoop.println(t5)
+    t6 = aggregate () : {}
+    t7 = heap_load local0 +24 : i64
+    t8 = call @scoop_rt_box(global6, t7, 8) : ptr
     call @scoop.println(t8)
     t9 = aggregate () : {}
-    t10 = array_alloc (4, 5) : [i64]
-    store t10 -> local1
-    store local1 -> local6
-    store 0 -> local7
-    t11 = Lt local7, 0 : i1
-    store t11 -> local15
-    cbr t11 then @sc.merge.6 else @sc.rhs.5
-  block sc.rhs.5
-    t12 = array_len local6 : i64
-    t13 = Ge local7, t12 : i1
-    store t13 -> local15
-    br @sc.merge.6
-  block sc.merge.6
-    cbr local15 then @if.then.7 else @if.merge.8
-  block if.then.7
-    t14 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
-    throw t14
-    unreachable
-  block if.merge.8
-    array_set local6 local7 40
-    store local1 -> local8
-    store 0 -> local9
-    t15 = Lt local9, 0 : i1
-    store t15 -> local16
-    cbr t15 then @sc.merge.10 else @sc.rhs.9
-  block sc.rhs.9
-    t16 = array_len local8 : i64
-    t17 = Ge local9, t16 : i1
-    store t17 -> local16
-    br @sc.merge.10
-  block sc.merge.10
-    cbr local16 then @if.then.11 else @if.merge.12
-  block if.then.11
-    t18 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
-    throw t18
-    unreachable
-  block if.merge.12
-    t19 = array_get local8 local9 : i64
-    t20 = call @scoop_rt_box(global5, t19, 8) : ptr
-    call @scoop.println(t20)
-    t21 = aggregate () : {}
-    t22 = array_clone local1 : [i64]
-    store t22 -> local2
-    store local1 -> local10
-    store 0 -> local11
-    t23 = Lt local11, 0 : i1
-    store t23 -> local17
-    cbr t23 then @sc.merge.14 else @sc.rhs.13
-  block sc.rhs.13
-    t24 = array_len local10 : i64
-    t25 = Ge local11, t24 : i1
-    store t25 -> local17
-    br @sc.merge.14
-  block sc.merge.14
-    cbr local17 then @if.then.15 else @if.merge.16
-  block if.then.15
-    t26 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
-    throw t26
-    unreachable
-  block if.merge.16
-    array_set local10 local11 99
-    store local2 -> local12
-    store 0 -> local13
-    t27 = Lt local13, 0 : i1
-    store t27 -> local18
-    cbr t27 then @sc.merge.18 else @sc.rhs.17
-  block sc.rhs.17
-    t28 = array_len local12 : i64
-    t29 = Ge local13, t28 : i1
-    store t29 -> local18
-    br @sc.merge.18
-  block sc.merge.18
-    cbr local18 then @if.then.19 else @if.merge.20
-  block if.then.19
-    t30 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
-    throw t30
-    unreachable
-  block if.merge.20
-    t31 = array_get local12 local13 : i64
-    t32 = call @scoop_rt_box(global5, t31, 8) : ptr
-    call @scoop.println(t32)
-    t33 = aggregate () : {}
-    t34 = array_alloc () : [i64]
-    store t34 -> local3
-    t35 = array_len local3 : i64
-    t36 = call @scoop_rt_box(global5, t35, 8) : ptr
-    call @scoop.println(t36)
-    t37 = aggregate () : {}
+    heap_store local0 +17 true
+    heap_store local0 +24 9
+    t10 = heap_load local0 +17 : i1
+    t11 = call @scoop_rt_box(global5, t10, 1) : ptr
+    call @scoop.println(t11)
+    t12 = aggregate () : {}
+    t13 = heap_load local0 +24 : i64
+    t14 = call @scoop_rt_box(global6, t13, 8) : ptr
+    call @scoop.println(t14)
+    t15 = aggregate () : {}
     ret
   fun @scoop.ctor.Throwable() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global6, 16) : ptr
+    t0 = call @scoop_rt_alloc(global7, 16) : ptr
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global7, 24) : ptr
+    t0 = call @scoop_rt_alloc(global8, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global8, 24) : ptr
+    t0 = call @scoop_rt_alloc(global9, 24) : ptr
     t1 = enum_wrap e0 v0 (global1) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global9, 24) : ptr
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global10, 24) : ptr
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
+  fun @scoop.ctor.State(i1, i1, i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 32) : ptr
+    heap_store t0 +16 param0
+    heap_store t0 +17 param1
+    heap_store t0 +24 param2
+    ret t0
+  fun @scoop.eq.B(ptr, ptr) -> i1
+    local %0 $a: i1
+    local %1 $b: i1
+  block entry
+    t0 = heap_load param0 +16 : i1
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i1
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.B(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +16 : i1
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    ret t1
   fun @scoop.eq.I(ptr, ptr) -> i1
     local %0 $a: i64
     local %1 $b: i64
@@ -580,6 +408,8 @@ Module
     t1 = call @scoop_rt_int_to_string(t0) : ptr
     ret t1
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td State @scoop_td_State size=32 vtable=3 itables=0
+  td box$B @scoop_td_box$B size=24 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
   td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
@@ -598,13 +428,14 @@ Module
   layout ClassCastException size=24 align=8 refs=[16]
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout State size=32 align=8 refs=[]
+  layout box$B size=24 align=8 refs=[]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Int> size=8 align=8 array(element_is_ref=false)
-  layout MutableArray<Int> size=8 align=8 array(element_is_ref=false)
   entry @scoop_main
 
 == run ==
-4
-40
-40
-0
+true
+false
+7
+true
+9

@@ -149,7 +149,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - `?.` 后随方法调用（`a?.foo()`）；
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）；
-- class 字段按 8 字节槽索引的约定与连续 sub-8 字段（如两个相邻 `Boolean`）的布局协调（lir-lower/codegen 约定需要随布局一般化复审）；
+- ~~class 字段按 8 字节槽索引的约定与连续 sub-8 字段布局冲突~~（已修复：LIR `HeapLoad` / `HeapStore` 携带自然布局的字节偏移，连续 `Boolean` 不再被错误扩为槽）；
 - 泛型成员函数（静态调用；spec 3.2 虚分派排除规则已生效）；
 - `Any` 的 core 库形态（spec 11.1；当前编译器内建）。
 

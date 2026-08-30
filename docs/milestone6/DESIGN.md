@@ -1,6 +1,6 @@
 # M6 设计：引用类型层级
 
-版本：0.1（草案）
+版本：0.2（实现校准）
 
 对应 `docs/ROADMAP.md` 的 M6（2026-08-28 顺序调整后）。目标：class / 继承 / interface / 方法、vtable / itable 分派、装箱（spec 3、4.4、9.1；impl spec 2.9；runtime spec 2.2）。
 
@@ -91,7 +91,7 @@ fun main() {
 
 ### 2.4 LIR
 
-- 指令/类型基本够用（Ptr 世界）：间接调用指令 `CallIndirect { out, table, slot, args }`（vtable/itable 分派）；`LoadField { out, object, index }` / `StoreField`（堆对象字段，区别于值语义的 ExtractValue——也可复用 GEP 类指令，实现时统一）；
+- 指令/类型基本够用（Ptr 世界）：间接调用指令 `CallIndirect { out, table, slot, args }`（vtable/itable 分派）；`HeapLoad { out, object, offset }` / `HeapStore { object, offset, value }` 使用布局确定的**字节偏移**访问堆对象，区别于值语义、按字段序号工作的 `ExtractValue`。class 字段按自然对齐连续布局，不能把字段序号解释为 8 字节槽（连续 `Boolean` 等 sub-8 字段必须保持 1 字节布局）；
 - **布局 meta**：class 布局（header + 字段，ref_offsets 供 GC）；装箱布局（header + payload）。
 
 ### 2.5 codegen
@@ -111,7 +111,7 @@ fun main() {
 
 ## 4. 测试计划
 
-- **独立 fixture**：class 构造/字段读写/var 属性赋值；方法与 this；单继承与 override；abstract class；interface 实现与 itable 分派；值类型实现 interface + 装箱后分派；`is`/`as`/`as?`/`===`；smart cast；
+- **独立 fixture**：class 构造/字段读写/var 属性赋值（含连续 `Boolean` 后接 `Int` 的自然布局）；方法与 this；单继承与 override；abstract class；interface 实现与 itable 分派；值类型实现 interface + 装箱后分派；`is`/`as`/`as?`/`===`；smart cast；
 - **组合 fixture**：interface 数组（`Array<Describable>`——数组元素是引用，验证元素布局）；泛型函数接受 `T: 无约束`……（无 bound，用具体类型）；装箱值进数组再 `as?` 取回；enum 实现 interface；
 - **negative fixture**：对 final class 继承；覆写 final 方法；缺/多 `override`；在 final class 或值类型中声明 open / abstract 方法；abstract 类实例化；未实现接口方法；对值类型 `===`；对值类型字段赋值；接口方法的类型不匹配实现；`as` 到无关系类型（诊断）；
 - **trap fixture**：`as` 失败（EXPECT-TRAP）；
