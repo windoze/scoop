@@ -371,6 +371,15 @@ fn basic_ty<'ctx>(
         LirType::I1 => context.bool_type().into(),
         LirType::I64 => context.i64_type().into(),
         LirType::Ptr => context.ptr_type(AddressSpace::default()).into(),
+        LirType::ExceptionRecord => context
+            .struct_type(
+                &[
+                    context.ptr_type(AddressSpace::default()).into(),
+                    context.i32_type().into(),
+                ],
+                false,
+            )
+            .into(),
         // An array value is a pointer to the array object.
         LirType::Array(_) => context.ptr_type(AddressSpace::default()).into(),
         LirType::Aggregate(elements) => {
@@ -440,7 +449,11 @@ fn element_is_ref(enums: &Arena<EnumDef>, element: &LirType) -> bool {
     match element {
         LirType::Ptr | LirType::Array(_) => true,
         LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Niche { .. }),
-        LirType::Void | LirType::I1 | LirType::I64 | LirType::Aggregate(_) => false,
+        LirType::Void
+        | LirType::I1
+        | LirType::I64
+        | LirType::ExceptionRecord
+        | LirType::Aggregate(_) => false,
     }
 }
 
@@ -1191,15 +1204,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                 }
             }
-            Instruction::LandingPad { out } => {
-                // Catch-all landing pad (M8, runtime spec 5): the
-                // `{ ptr, i32 }` exception struct with a single null
-                // catch clause matches every exception; the exception
-                // pointer (field 0) goes through `__cxa_begin_catch`,
-                // which returns the thrown object pointer. Catch type
-                // filtering is done by ordinary instructions afterwards
-                // (lir-lower emits the `__cxa_end_catch` call where the
-                // catch handling ends).
+            Instruction::LandingPad { record, raw } => {
+                // Catch-all landing pad (M8, runtime spec 5). Keep the
+                // `{ ptr, i32 }` record and its raw exception pointer
+                // separate from BeginCatch: cleanup chains can forward
+                // the same exception to an enclosing dispatch block.
                 let personality =
                     self.llvm_function
                         .get_personality_function()
@@ -1212,9 +1221,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let exception_ty = context
                     .struct_type(&[ptr_ty(context).into(), context.i32_type().into()], false);
                 let catch_all: BasicValueEnum = ptr_ty(context).const_null().into();
-                let name = format!("t{}", out.into_raw().into_u32());
                 let landing_pad = builder
-                    .build_landing_pad(exception_ty, personality, &[catch_all], false, "lp")
+                    .build_landing_pad(
+                        exception_ty,
+                        personality,
+                        &[catch_all],
+                        false,
+                        &format!("t{}", record.into_raw().into_u32()),
+                    )
                     .map_err(|e| {
                         CodegenError(format!(
                             "landingpad @{symbol}: {e}",
@@ -1229,12 +1243,59 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol
                         ))
                     })?;
+                self.temps.insert(*record, landing_pad);
+                self.temps.insert(*raw, exception_ptr);
+            }
+            Instruction::CleanupPad { record, raw } => {
+                // Cleanup-only landing pad for leaving an active catch
+                // because of a new exception or a rethrow. It does not
+                // call begin_catch; lir-lower either forwards the
+                // captured record through ordinary continuation blocks
+                // or resumes it after EndCatch balances the handler.
+                let personality =
+                    self.llvm_function
+                        .get_personality_function()
+                        .ok_or_else(|| {
+                            CodegenError(format!(
+                                "cleanup pad @{symbol}: function has no personality function",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                let exception_ty =
+                    basic_ty(context, self.enums, &LirType::ExceptionRecord)?.into_struct_type();
+                let landing_pad = builder
+                    .build_landing_pad(
+                        exception_ty,
+                        personality,
+                        &[],
+                        true,
+                        &format!("t{}", record.into_raw().into_u32()),
+                    )
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "cleanup pad @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                let exception_ptr = builder
+                    .build_extract_value(landing_pad.into_struct_value(), 0, "exception_ptr")
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "cleanup pad @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.temps.insert(*record, landing_pad);
+                self.temps.insert(*raw, exception_ptr);
+            }
+            Instruction::BeginCatch { out, raw } => {
                 let begin_catch = self.runtime_fn(
                     "__cxa_begin_catch",
                     ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
                 );
+                let name = format!("t{}", out.into_raw().into_u32());
                 let object = builder
-                    .build_call(begin_catch, &[exception_ptr.into()], &name)
+                    .build_call(begin_catch, &[self.value(*raw)?.into()], &name)
                     .map_err(|e| {
                         CodegenError(format!(
                             "begin_catch @{symbol}: {e}",
@@ -1245,6 +1306,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .basic()
                     .ok_or_else(|| CodegenError("__cxa_begin_catch returned void".to_string()))?;
                 self.temps.insert(*out, object);
+            }
+            Instruction::EndCatch => {
+                let end_catch =
+                    self.runtime_fn("__cxa_end_catch", context.void_type().fn_type(&[], false));
+                builder
+                    .build_call(end_catch, &[], "")
+                    .map_err(|e| CodegenError(format!("end_catch @{}: {e}", function.symbol)))?;
             }
             Instruction::Throw { exception } => {
                 // `void scoop_rt_throw(ptr)` (noreturn; runtime spec 5).
@@ -2096,7 +2164,7 @@ fn loop_headers(function: &Function) -> Vec<bool> {
                 successors[from].push(arena_index(*then_block));
                 successors[from].push(arena_index(*else_block));
             }
-            Terminator::Return { .. } | Terminator::Unreachable => {}
+            Terminator::Return { .. } | Terminator::Resume { .. } | Terminator::Unreachable => {}
         }
         // Invoke / InvokeIndirect are terminator-like: the block's own
         // terminator restates the normal successor (counted above), so
@@ -2174,10 +2242,12 @@ fn emit_function<'ctx>(
     // same variadic prototype LLVM uses for `__gxx_personality_v0`.
     // Setting it also makes LLVM emit the unwind table entry.
     let has_landing_pad = function.blocks.iter().any(|(_, block)| {
-        block
-            .instructions
-            .iter()
-            .any(|instruction| matches!(instruction, Instruction::LandingPad { .. }))
+        block.instructions.iter().any(|instruction| {
+            matches!(
+                instruction,
+                Instruction::LandingPad { .. } | Instruction::CleanupPad { .. }
+            )
+        })
     });
     if has_landing_pad {
         let personality = llvm
@@ -2244,7 +2314,7 @@ fn emit_function<'ctx>(
         if headers[arena_index(block_id)]
             && !matches!(
                 block.instructions.first(),
-                Some(Instruction::LandingPad { .. })
+                Some(Instruction::LandingPad { .. } | Instruction::CleanupPad { .. })
             )
         {
             emitter.safepoint_poll()?;
@@ -2267,9 +2337,13 @@ fn emit_function<'ctx>(
                     function.symbol, block.name
                 )));
             }
-            if matches!(instruction, Instruction::LandingPad { .. }) && index != 0 {
+            if matches!(
+                instruction,
+                Instruction::LandingPad { .. } | Instruction::CleanupPad { .. }
+            ) && index != 0
+            {
                 return Err(CodegenError(format!(
-                    "landingpad @{}: must be the first instruction of block {}",
+                    "landing pad @{}: must be the first instruction of block {}",
                     function.symbol, block.name
                 )));
             }
@@ -2328,6 +2402,12 @@ fn emit_function<'ctx>(
                             .map(|v| v as &dyn inkwell::values::BasicValue),
                     )
                     .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+            }
+            Terminator::Resume { exception } => {
+                let exception = emitter.value(*exception)?;
+                builder
+                    .build_resume(exception)
+                    .map_err(|e| CodegenError(format!("resume @{}: {e}", function.symbol)))?;
             }
             Terminator::Unreachable => {
                 builder
@@ -3405,8 +3485,8 @@ mod tests {
     }
 
     /// An M8-shaped module (runtime spec 5): Invoke / InvokeIndirect
-    /// sharing one catch-all landing pad (LandingPad + the lir-lower
-    /// emitted `__cxa_end_catch` call) and a Throw function.
+    /// sharing one catch-all landing pad, plus the cleanup-pad /
+    /// EndCatch / Resume shape used for exceptional handler exits.
     fn exceptions_module() -> Module {
         // fun @scoop.thrower(e: ptr) -> void: the rethrow shape — Throw
         // as the last instruction; the Unreachable terminator emits the
@@ -3434,13 +3514,22 @@ mod tests {
         //   normal: t1 = invoke @scoop.may_throw() normal @done unwind @lpad
         //   done:   t2 = t0 + t1; ret t2
         //   lpad:   t3 = landingpad : ptr
-        //           call @__cxa_end_catch(t3)   (emitted by lir-lower)
+        //           end_catch
         //           ret 0
+        //   cleanup: t4 = cleanup_pad; end_catch; resume t4
         let mut temps = Arena::default();
         let t0 = temps.alloc(Temp { ty: LirType::I64 });
         let t1 = temps.alloc(Temp { ty: LirType::I64 });
         let t2 = temps.alloc(Temp { ty: LirType::I64 });
-        let t3 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t3 = temps.alloc(Temp {
+            ty: LirType::ExceptionRecord,
+        });
+        let t4 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t5 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t6 = temps.alloc(Temp {
+            ty: LirType::ExceptionRecord,
+        });
+        let t7 = temps.alloc(Temp { ty: LirType::Ptr });
         let mut blocks = Arena::default();
         let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
             blocks.alloc(BasicBlock {
@@ -3453,6 +3542,7 @@ mod tests {
         let normal = placeholder(&mut blocks, "normal");
         let done = placeholder(&mut blocks, "done");
         let lpad = placeholder(&mut blocks, "lpad");
+        let cleanup = placeholder(&mut blocks, "cleanup");
         blocks[entry] = BasicBlock {
             name: "entry".to_string(),
             instructions: vec![Instruction::InvokeIndirect {
@@ -3491,15 +3581,31 @@ mod tests {
         blocks[lpad] = BasicBlock {
             name: "lpad".to_string(),
             instructions: vec![
-                Instruction::LandingPad { out: t3 },
-                Instruction::Call {
-                    out: None,
-                    symbol: "__cxa_end_catch".to_string(),
-                    args: vec![Value::Temp(t3)],
+                Instruction::LandingPad {
+                    record: t3,
+                    raw: t4,
                 },
+                Instruction::BeginCatch {
+                    out: t5,
+                    raw: Value::Temp(t4),
+                },
+                Instruction::EndCatch,
             ],
             terminator: Terminator::Return {
                 value: Some(Value::IntConst(0)),
+            },
+        };
+        blocks[cleanup] = BasicBlock {
+            name: "cleanup".to_string(),
+            instructions: vec![
+                Instruction::CleanupPad {
+                    record: t6,
+                    raw: t7,
+                },
+                Instruction::EndCatch,
+            ],
+            terminator: Terminator::Resume {
+                exception: Value::Temp(t6),
             },
         };
         let eh_test = Function {
@@ -3534,6 +3640,10 @@ mod tests {
     #[test]
     fn emits_m8_exceptions() {
         let module = exceptions_module();
+        let ir = ir_of(&module);
+        assert!(ir.contains("@__cxa_begin_catch"));
+        assert!(ir.contains("@__cxa_end_catch"));
+        assert!(ir.contains("resume { ptr, i32 }"));
         let output =
             std::env::temp_dir().join(format!("scoop_codegen_m8_test_{}.o", std::process::id()));
         // `emit_object` verifies the LLVM module before writing, so a

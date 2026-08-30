@@ -233,42 +233,89 @@ Module
     throw t0
     unreachable
   fun @scoop.outer() -> i64
+    local %0 $sc.1: exception_record
+    local %1 $sc.2: ptr
   block entry
-    invoke @scoop.inner() normal @invoke.normal.3 unwind @try.unwind.1
-    br @invoke.normal.3
+    invoke @scoop.inner() normal @invoke.normal.6 unwind @try.unwind.1
+    br @invoke.normal.6
   block try.unwind.1
-    t2 = landingpad : ptr
-    call @scoop.println(global1)
-    t3 = aggregate () : {}
-    call @scoop_rt_rethrow()
+    (t2, t3) = landingpad : (exception_record, ptr)
+    store t2 -> local0
+    store t3 -> local1
+    br @try.dispatch.2
+  block try.dispatch.2
+    t4 = begin_catch local1 : ptr
+    invoke @scoop.println(global1) normal @invoke.normal.7 unwind @try.exit_pad.3
+    br @invoke.normal.7
+  block try.exit_pad.3
+    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    store t6 -> local0
+    store t7 -> local1
+    br @try.exit_cleanup.4
+  block try.exit_cleanup.4
+    end_catch
+    resume local0
+  block try.end.5
     unreachable
-  block try.end.2
-    unreachable
-  block invoke.normal.3
+  block invoke.normal.6
     t0 = aggregate () : {}
     call @scoop.println(global1)
     t1 = aggregate () : {}
     ret 0
+  block invoke.normal.7
+    t5 = aggregate () : {}
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.8 unwind @try.exit_pad.3
+    br @rethrow.normal.8
+  block rethrow.normal.8
+    unreachable
   fun @scoop_main() -> void
     local %0 e: ptr
+    local %1 $sc.1: exception_record
+    local %2 $sc.2: ptr
   block entry
-    invoke @scoop.outer() normal @invoke.normal.3 unwind @try.unwind.1
-    br @invoke.normal.3
+    invoke @scoop.outer() normal @invoke.normal.8 unwind @try.unwind.1
+    br @invoke.normal.8
   block try.unwind.1
-    t1 = landingpad : ptr
-    t2 = call @scoop_rt_is_instance(t1, global7) : i1
-    cbr t2 then @try.catch.4 else @try.next.5
-  block try.end.2
+    (t1, t2) = landingpad : (exception_record, ptr)
+    store t1 -> local1
+    store t2 -> local2
+    br @try.dispatch.2
+  block try.dispatch.2
+    t3 = begin_catch local2 : ptr
+    t4 = call @scoop_rt_is_instance(t3, global7) : i1
+    cbr t4 then @try.catch.9 else @try.next.10
+  block try.handler_pad.3
+    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    store t6 -> local1
+    store t7 -> local2
+    br @try.handler_cleanup.4
+  block try.handler_cleanup.4
+    end_catch
+    resume local1
+  block try.exit_pad.5
+    (t8, t9) = cleanup_pad : (exception_record, ptr)
+    store t8 -> local1
+    store t9 -> local2
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local1
+  block try.end.7
     ret
-  block invoke.normal.3
-    br @try.end.2
-  block try.catch.4
-    store t1 -> local0
-    call @scoop.println(global2)
-    t3 = aggregate () : {}
-    br @try.end.2
-  block try.next.5
-    call @scoop_rt_rethrow()
+  block invoke.normal.8
+    br @try.end.7
+  block try.catch.9
+    store t3 -> local0
+    invoke @scoop.println(global2) normal @invoke.normal.11 unwind @try.handler_pad.3
+    br @invoke.normal.11
+  block try.next.10
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.12 unwind @try.exit_pad.5
+    br @rethrow.normal.12
+  block invoke.normal.11
+    t5 = aggregate () : {}
+    end_catch
+    br @try.end.7
+  block rethrow.normal.12
     unreachable
   fun @scoop.ctor.Throwable() -> ptr
   block entry

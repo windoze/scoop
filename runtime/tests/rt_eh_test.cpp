@@ -13,8 +13,8 @@
  * M9: layouts carry the 16-byte object header ({ td, gc_word }), and
  * the last block verifies exception keep-alive under the GC
  * (milestone9 DESIGN 3.4): a reference payload of an in-flight
- * exception survives collections (the original is pinned and the ABI
- * buffer is registered as an external global root).
+ * exception survives collections, and the ABI buffer's external root
+ * is removed when the exception lifetime ends.
  *
  * Provides scoop_main; the runtime's own main() runs it after
  * scoop_rt_init_eh.
@@ -43,6 +43,7 @@ void scoop_rt_throw(const void *obj);
 void scoop_rt_rethrow(void);
 void scoop_rt_gc_collect(void);
 unsigned long long scoop_rt_gc_stats(void);
+unsigned long long scoop_rt_gc_debug_root_count(void);
 int scoop_eh_personality(int version, unsigned int actions, unsigned long long exception_class,
                          void *exception, void *context);
 }
@@ -51,6 +52,7 @@ int scoop_eh_personality(int version, unsigned int actions, unsigned long long e
  * handled (the handler's __cxa_begin_catch put it on the caught
  * stack). */
 extern "C" void *__cxa_current_primary_exception();
+extern "C" void __cxa_decrement_exception_refcount(void *);
 
 /* Matches the layout of the TypeDescriptor globals emitted by codegen
  * (nine 8-byte slots, runtime spec 2.2; slot 1 is the instance size,
@@ -127,6 +129,7 @@ void clobber_stack() {
 } // namespace
 
 extern "C" void scoop_main(void) {
+    const unsigned long long roots_before = scoop_rt_gc_debug_root_count();
     void *original = scoop_rt_alloc(&exception_td, 24);
     if (original == nullptr) {
         fail("out of memory");
@@ -141,6 +144,9 @@ extern "C" void scoop_main(void) {
         scoop_rt_throw(original);
     } catch (...) {
         caught = __cxa_current_primary_exception();
+        if (scoop_rt_gc_debug_root_count() != roots_before + 1) {
+            fail("scoop_rt_throw: ABI buffer was not registered as an external root");
+        }
     }
     if (caught == nullptr || caught == original) {
         fail("scoop_rt_throw: handler must observe the buffer copy, not the original");
@@ -155,6 +161,11 @@ extern "C" void scoop_main(void) {
     }
     if (!scoop_rt_is_instance(caught, &exception_td)) {
         fail("scoop_rt_throw: is-instance failed on the copy");
+    }
+    __cxa_decrement_exception_refcount(const_cast<void *>(caught));
+    caught = nullptr;
+    if (scoop_rt_gc_debug_root_count() != roots_before) {
+        fail("scoop_rt_throw: caught exception root was not removed");
     }
     std::puts("caught");
 
@@ -172,6 +183,13 @@ extern "C" void scoop_main(void) {
     if (header_td(recaught) != &exception_td || payload(recaught) != 42) {
         fail("scoop_rt_rethrow: buffer content changed");
     }
+    __cxa_decrement_exception_refcount(const_cast<void *>(inner));
+    __cxa_decrement_exception_refcount(const_cast<void *>(recaught));
+    inner = nullptr;
+    recaught = nullptr;
+    if (scoop_rt_gc_debug_root_count() != roots_before) {
+        fail("scoop_rt_rethrow: rethrown exception root was not removed");
+    }
     std::puts("rethrown");
 
     // The personality function must be linked in; generated functions
@@ -184,8 +202,7 @@ extern "C" void scoop_main(void) {
 
     // M9 (DESIGN 3.4): a reference payload of an in-flight exception
     // survives collections. The string is referenced only from the
-    // exception payload; the throw pins the original and registers the
-    // ABI buffer as an external global root.
+    // exception payload; the ABI buffer is an external object root.
     void *ref_ex = scoop_rt_alloc(&ref_exception_td, 24);
     void *kept = make_string("zombie", 6);
     *reinterpret_cast<void **>(static_cast<char *>(ref_ex) + payload_offset) = kept;
@@ -208,10 +225,14 @@ extern "C" void scoop_main(void) {
         if (kept_len != 6 || std::memcmp(payload_data + 24, "zombie", 6) != 0) {
             fail("gc: in-flight exception payload string was collected");
         }
-        // Collect only while the exception is in flight: after the
-        // handler exits, the C++ ABI frees the buffer while the v1
-        // root registration stays (known conservative approximation,
-        // DESIGN 3.4/6) — tracing it then would be a use-after-free.
+        __cxa_decrement_exception_refcount(const_cast<void *>(in_flight));
     }
+    if (scoop_rt_gc_debug_root_count() != roots_before) {
+        fail("gc: completed exception left an external root behind");
+    }
+    // Regression: collecting after the ABI frees the exception buffer
+    // must not trace a stale external root.
+    scoop_rt_gc_collect();
+    scoop_rt_gc_collect();
     std::puts("kept");
 }

@@ -42,7 +42,7 @@ struct GcHandle<T>(val raw: UInt64)
 
 ### 2.2 回收（标记-区域，单代，不移动）
 
-- **根**：(a) 栈根——statepoint stackmap 精确扫描（见 3.2）；(b) 全局根——runtime 侧注册的全局引用（v1 主要是 thrown-exceptions 列表，见 3.4）；(c) handle 表（GcHandle）；(d) pinned 对象（header pin 位）。
+- **根**：(a) 栈根——statepoint stackmap 精确扫描（见 3.2）；(b) runtime 侧注册的全局引用与在途 ABI 异常缓冲（见 3.4）；(c) handle 表（GcHandle）；(d) pinned 对象（header pin 位）。
 - **标记**：从根出发按 TD 精确扫描——Plain 布局用 `ref_offsets`、enum 按 tag 选 per-variant 表（runtime spec 2.2 的 M4 契约）、数组按 `element_is_ref` 扫整个元素区。mark 位写在 `gc_word`（block/line 侧表亦可，v1 用对象头）。
 - **区域回收**：逐 block 检查——无存活对象的 block 归还 OS；有存活但含空闲 line 的 block 把空闲 line 入 free-line list。**不移动对象**（v1 不做 evacuation）。
 - **终结行为**：always-leak 的语义改变是用户可观察的——fixture 不依赖泄漏语义（M1–M8 全部通过即可验证）。
@@ -76,7 +76,7 @@ struct GcHandle<T>(val raw: UInt64)
 
 ### 3.4 异常对象在 GC 下的保活（M8 遗留）
 
-`scoop_rt_throw` 的 ABI 缓冲拷贝不受 GC 管理，但其内容（异常对象拷贝及其引用）必须保活：v1 简化为 **`scoop_rt_throw` 在拷贝完成后对原对象 pin**（对象头 pin 位），并把拷贝缓冲登记到 runtime 的 thrown-exceptions 列表（全局根）；列表项在每次回收末尾尝试清除（无人引用的缓冲由 C++ ABI 自行释放——v1 只做根登记不做主动释放，注释注明这是已知的保守近似，见第 6 章）。
+`scoop_rt_throw` 的 ABI 缓冲拷贝不受 GC 管理，但其内容（异常对象拷贝及其引用）必须保活：拷贝完成后把缓冲登记为外部对象根；传给 `__cxa_throw` 的 destructor 在 ABI 异常生命周期结束时移除该根。缓冲本身由 C++ ABI 释放，原对象无需 pin。生成代码以 `begin_catch` / `end_catch` 和 cleanup landing pad 的结构化配对保证 destructor 可在最后一个 handler 结束后及时执行。
 
 ## 4. 测试计划
 
@@ -99,4 +99,3 @@ struct GcHandle<T>(val raw: UInt64)
 - 并行/并发回收与 STW 协调（线程注册/握手）；
 - x86_64 栈扫描汇编；
 - `scoop.std` 的 GC 调优 API；
-- 异常缓冲的精确释放（v1 为保守近似，见 3.4）。
