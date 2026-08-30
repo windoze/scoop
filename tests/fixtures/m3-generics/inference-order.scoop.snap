@@ -1,0 +1,572 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+SourceFile
+  struct Pair<T>
+    field maybe: T?
+    field value: T
+  enum Duo<T>
+    Both(T?, T)
+  fun choose<T>(maybe: T?, value: T): T
+    =
+      Var value
+  fun nested<T>(maybe: T??, value: T): T
+    =
+      Var value
+  fun arrayValue<T>(values: Array<T>, value: T): T
+    =
+      Var value
+  fun tupleValue<T>(pair: (T?, T), value: T): T
+    =
+      Var value
+  fun pick(maybe: Int?, value: Int): Int
+    =
+      Var value
+  fun pick(maybe: String?, value: String): String
+    =
+      Var value
+  fun main()
+    Call println
+      Call choose
+        Var None
+        IntLiteral 7
+    val pair
+      Call Pair
+        Var None
+        IntLiteral 8
+    Call println
+      FieldAccess value
+        Var pair
+    val duo
+      MethodCall Both
+        Var Duo
+        Var None
+        IntLiteral 9
+    when
+      Var duo
+      arm Both(_, value)
+        Call println
+          Var value
+    Call println
+      Call pick
+        Var None
+        IntLiteral 10
+    Call println
+      Call nested
+        Call Some
+          Var None
+        IntLiteral 11
+    Call println
+      Call arrayValue
+        ArrayLiteral
+        IntLiteral 12
+    Call println
+      Call tupleValue
+        TupleLiteral
+          Var None
+          IntLiteral 13
+        IntLiteral 14
+
+== hir ==
+Module
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  struct Pair<T>
+    field maybe: Option<T0>
+    field value: T0
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  enum Duo<T>
+    Both(_1: Option<T0>, _2: T0)
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun choose<T>(maybe: Option<T0>, value: T0): T0
+    return
+      Local value : T0
+  fun nested<T>(maybe: Option<Option<T0>>, value: T0): T0
+    return
+      Local value : T0
+  fun arrayValue<T>(values: Array<T0>, value: T0): T0
+    return
+      Local value : T0
+  fun tupleValue<T>(pair: (Option<T0>, T0), value: T0): T0
+    return
+      Local value : T0
+  fun pick(maybe: Option<Int>, value: Int): Int
+    return
+      Local value : Int
+  fun pick(maybe: Option<String>, value: String): String
+    return
+      Local value : String
+  fun main(): Unit
+    Call println : Unit
+      Box : Any
+        Call choose<Int> : Int
+          VariantConstruct Option.None<Int> : Option<Int>
+          IntLiteral 7 : Int
+    val local0
+      StructInit Pair : Pair<Int>
+        VariantConstruct Option.None<Int> : Option<Int>
+        IntLiteral 8 : Int
+    Call println : Unit
+      Box : Any
+        FieldAccess field 1 : Int
+          Local pair : Pair<Int>
+    val local1
+      VariantConstruct Duo.Both<Int> : Duo<Int>
+        VariantConstruct Option.None<Int> : Option<Int>
+        IntLiteral 9 : Int
+    when
+      Local duo : Duo<Int>
+      arm variant0(0: _, 1: local2)
+        Call println : Unit
+          Box : Any
+            Local value : Int
+    Call println : Unit
+      Box : Any
+        Call pick : Int
+          VariantConstruct Option.None<Int> : Option<Int>
+          IntLiteral 10 : Int
+    Call println : Unit
+      Box : Any
+        Call nested<Int> : Int
+          VariantConstruct Option.Some<Option<Int>> : Option<Option<Int>>
+            VariantConstruct Option.None<Int> : Option<Int>
+          IntLiteral 11 : Int
+    Call println : Unit
+      Box : Any
+        Call arrayValue<Int> : Int
+          ArrayLiteral : Array<Int>
+          IntLiteral 12 : Int
+    Call println : Unit
+      Box : Any
+        Call tupleValue<Int> : Int
+          TupleLiteral : (Option<Int>, Int)
+            VariantConstruct Option.None<Int> : Option<Int>
+            IntLiteral 13 : Int
+          IntLiteral 14 : Int
+  entry main
+  instance choose<Int>
+  instance nested<Int>
+  instance arrayValue<Int>
+  instance tupleValue<Int>
+
+== mir ==
+Module
+  struct Pair$I (maybe: Option$I<Int>, value: Int)
+  enum Option$S
+    Some(_1: String)
+    None()
+  enum Option$I
+    Some(_1: Int)
+    None()
+  enum Duo$I
+    Both(_1: Option$I<Int>, _2: Int)
+  enum Option$EOption$I_IX
+    Some(_1: Option$I<Int>)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  fun print @scoop.print(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString virtual[2]
+        Local message
+    return
+  fun println @scoop.println(message: Any) -> Unit
+    Call @scoop_rt_print direct
+      Call @scoop.Any.toString virtual[2]
+        Local message
+    Call @scoop_rt_print direct
+      StringConst @scoop.str.0
+  fun pick @scoop.pick.EOption$I_IX_I(maybe: Option$I<Int>, value: Int) -> Int
+    return
+      Local value
+  fun pick @scoop.pick.EOption$S_SX_S(maybe: Option$S<String>, value: String) -> String
+    return
+      Local value
+  fun main @scoop_main() -> Unit
+    Call @scoop.println direct
+      Box
+        Call @scoop.choose$I direct
+          VariantConstruct Option$I<Int> v1
+          IntLiteral 7
+    val pair: Pair$I
+      StructInit Pair$I
+        VariantConstruct Option$I<Int> v1
+        IntLiteral 8
+    Call @scoop.println direct
+      Box
+        FieldAccess 1
+          Local pair
+    val duo: Duo$I<Int>
+      VariantConstruct Duo$I<Int> v0
+        VariantConstruct Option$I<Int> v1
+        IntLiteral 9
+    val $when.1: Duo$I<Int>
+      Local duo
+    if
+      Binary IntEq
+        EnumTag
+          Local $when.1
+        IntLiteral 0
+      val value: Int
+        EnumField v0 f1
+          Local $when.1
+      Call @scoop.println direct
+        Box
+          Local value
+    Call @scoop.println direct
+      Box
+        Call @scoop.pick.EOption$I_IX_I direct
+          VariantConstruct Option$I<Int> v1
+          IntLiteral 10
+    Call @scoop.println direct
+      Box
+        Call @scoop.nested$I direct
+          VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
+            VariantConstruct Option$I<Int> v1
+          IntLiteral 11
+    Call @scoop.println direct
+      Box
+        Call @scoop.arrayValue$I direct
+          ArrayLiteral
+          IntLiteral 12
+    Call @scoop.println direct
+      Box
+        Call @scoop.tupleValue$I direct
+          TupleLiteral
+            VariantConstruct Option$I<Int> v1
+            IntLiteral 13
+          IntLiteral 14
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    return
+      ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    return
+      ClassInit Exception
+        Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    return
+      ClassInit UnwrapException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.1
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    return
+      ClassInit ClassCastException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.2
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    return
+      ClassInit ArithmeticException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.3
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    return
+      ClassInit IndexOutOfBoundsException
+        VariantConstruct Option$S<String> v0
+          StringConst @scoop.str.4
+  fun choose @scoop.choose$I(maybe: Option$I<Int>, value: Int) -> Int
+    return
+      Local value
+  fun nested @scoop.nested$I(maybe: Option$EOption$I_IX<Option$I<Int>>, value: Int) -> Int
+    return
+      Local value
+  fun arrayValue @scoop.arrayValue$I(values: Array<Int>, value: Int) -> Int
+    return
+      Local value
+  fun tupleValue @scoop.tupleValue$I(pair: (Option$I<Int>, Int), value: Int) -> Int
+    return
+      Local value
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    val $a: Int
+      Unbox
+        Local this
+    val $b: Int
+      Unbox
+        Local other
+    return
+      Binary IntEq
+        Local $a
+        Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    return
+      Call @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+  instance @scoop.choose$I <- choose
+  instance @scoop.nested$I <- nested
+  instance @scoop.arrayValue$I <- arrayValue
+  instance @scoop.tupleValue$I <- tupleValue
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "unwrap on None"
+  str @scoop.str.2 "invalid cast"
+  str @scoop.str.3 "arithmetic error"
+  str @scoop.str.4 "array index out of bounds"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "unwrap on None"
+  global @scoop.str.2 = "invalid cast"
+  global @scoop.str.3 = "arithmetic error"
+  global @scoop.str.4 = "array index out of bounds"
+  global @scoop_td_box$I = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  enum Option$S niche(payload_variant=0)
+  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  enum Duo$I tagged size=24 align=8 variants=(enum1, i64)
+  enum Option$EOption$I_IX tagged size=16 align=8 variants=(enum1) ()
+  fun @scoop.print(ptr) -> void
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    call @scoop_rt_print(t2)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.pick.EOption$I_IX_I(enum1, i64) -> i64
+  block entry
+    ret param1
+  fun @scoop.pick.EOption$S_SX_S(enum0, ptr) -> ptr
+  block entry
+    ret param1
+  fun @scoop_main() -> void
+    local %0 pair: {enum1, i64}
+    local %1 duo: enum2
+    local %2 value: i64
+    local %3 $when.1: enum2
+  block entry
+    t0 = enum_wrap e1 v1 () : enum1
+    t1 = call @scoop.choose$I(t0, 7) : i64
+    t2 = call @scoop_rt_box(global5, t1, 8) : ptr
+    call @scoop.println(t2)
+    t3 = aggregate () : {}
+    t4 = enum_wrap e1 v1 () : enum1
+    t5 = aggregate (t4, 8) : {enum1, i64}
+    store t5 -> local0
+    t6 = extract local0, 1 : i64
+    t7 = call @scoop_rt_box(global5, t6, 8) : ptr
+    call @scoop.println(t7)
+    t8 = aggregate () : {}
+    t9 = enum_wrap e1 v1 () : enum1
+    t10 = enum_wrap e2 v0 (t9, 9) : enum2
+    store t10 -> local1
+    store local1 -> local3
+    t11 = enum_tag e2 local3 : i64
+    t12 = Eq t11, 0 : i1
+    cbr t12 then @if.then.1 else @if.merge.2
+  block if.then.1
+    t13 = enum_field e2 v0 f1 local3 : i64
+    store t13 -> local2
+    t14 = call @scoop_rt_box(global5, local2, 8) : ptr
+    call @scoop.println(t14)
+    t15 = aggregate () : {}
+    br @if.merge.2
+  block if.merge.2
+    t16 = enum_wrap e1 v1 () : enum1
+    t17 = call @scoop.pick.EOption$I_IX_I(t16, 10) : i64
+    t18 = call @scoop_rt_box(global5, t17, 8) : ptr
+    call @scoop.println(t18)
+    t19 = aggregate () : {}
+    t20 = enum_wrap e1 v1 () : enum1
+    t21 = enum_wrap e3 v0 (t20) : enum3
+    t22 = call @scoop.nested$I(t21, 11) : i64
+    t23 = call @scoop_rt_box(global5, t22, 8) : ptr
+    call @scoop.println(t23)
+    t24 = aggregate () : {}
+    t25 = array_alloc () : [i64]
+    t26 = call @scoop.arrayValue$I(t25, 12) : i64
+    t27 = call @scoop_rt_box(global5, t26, 8) : ptr
+    call @scoop.println(t27)
+    t28 = aggregate () : {}
+    t29 = enum_wrap e1 v1 () : enum1
+    t30 = aggregate (t29, 13) : {enum1, i64}
+    t31 = call @scoop.tupleValue$I(t30, 14) : i64
+    t32 = call @scoop_rt_box(global5, t31, 8) : ptr
+    call @scoop.println(t32)
+    t33 = aggregate () : {}
+    ret
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global6, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global7, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global8, 24) : ptr
+    t1 = enum_wrap e0 v0 (global1) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global9, 24) : ptr
+    t1 = enum_wrap e0 v0 (global2) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr
+    t1 = enum_wrap e0 v0 (global3) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.choose$I(enum1, i64) -> i64
+  block entry
+    ret param1
+  fun @scoop.nested$I(enum3, i64) -> i64
+  block entry
+    ret param1
+  fun @scoop.arrayValue$I([i64], i64) -> i64
+  block entry
+    ret param1
+  fun @scoop.tupleValue$I({enum1, i64}, i64) -> i64
+  block entry
+    ret param1
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    ret t1
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Pair$I size=24 align=8 refs=[]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$I size=16 align=8 enum-refs=[[], []]
+  layout Duo$I size=32 align=8 enum-refs=[[]]
+  layout Option$EOption$I_IX size=24 align=8 enum-refs=[[], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout box$I size=24 align=8 refs=[]
+  layout (Option$I<Int>, Int) size=24 align=8 refs=[]
+  layout Array<Int> size=8 align=8 array(element_is_ref=false)
+  entry @scoop_main
+
+== run ==
+7
+8
+9
+10
+11
+12
+14

@@ -54,6 +54,23 @@ use hir::{ExprKind, FunctionKind, Type, TypeId};
 
 use crate::{Lowerer, Owner};
 
+struct InferredArguments {
+    args: Vec<Option<hir::Expr>>,
+    bindings: Vec<Option<TypeId>>,
+    sinks: Vec<Vec<hir::Statement>>,
+}
+
+impl InferredArguments {
+    fn finish(self, sink: &mut Vec<hir::Statement>) -> Vec<hir::Expr> {
+        let mut args = Vec::with_capacity(self.args.len());
+        for (arg, mut arg_sink) in self.args.into_iter().zip(self.sinks) {
+            sink.append(&mut arg_sink);
+            args.push(arg.expect("complete type bindings type every deferred argument"));
+        }
+        args
+    }
+}
+
 impl Lowerer {
     /// Lower an expression, recording a diagnostic and returning `None`
     /// on error. See the module docs for the `sink` / `expected`
@@ -86,7 +103,7 @@ impl Lowerer {
                 span: *span,
             }),
             ast::Expr::TupleLiteral { elements, span } => {
-                self.lower_tuple_literal(elements, *span, sink)
+                self.lower_tuple_literal(elements, *span, sink, expected)
             }
             // `Name(args...)` where the parser already knows `Name` is
             // a type (struct or enum variant path).
@@ -520,6 +537,7 @@ impl Lowerer {
         elements: &[ast::Expr],
         span: Span,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         // The parser never produces an empty tuple literal (`()` is a
         // `UnitLiteral`); reject it here so every AST shape is handled.
@@ -530,9 +548,14 @@ impl Lowerer {
             );
             return None;
         }
+        let expected_elements = expected.and_then(|ty| match &self.types[ty] {
+            Type::Tuple(expected) if expected.len() == elements.len() => Some(expected.clone()),
+            _ => None,
+        });
         let mut lowered = Vec::with_capacity(elements.len());
-        for element in elements {
-            lowered.push(self.lower_expr(element, sink, None)?);
+        for (index, element) in elements.iter().enumerate() {
+            let hint = expected_elements.as_ref().map(|expected| expected[index]);
+            lowered.push(self.lower_expr(element, sink, hint)?);
         }
         let ty = self.intern_type(Type::Tuple(
             lowered.iter().map(|element| element.ty).collect(),
@@ -1108,30 +1131,7 @@ impl Lowerer {
             );
             return None;
         }
-
-        let mut bindings = vec![None; type_params.len()];
-        if let Some(expected) = expected {
-            if let Type::Enum(id, expected_args) = self.types[expected].clone() {
-                if id == enum_id && expected_args.len() == type_params.len() {
-                    for (binding, arg) in bindings.iter_mut().zip(expected_args) {
-                        *binding = Some(arg);
-                    }
-                }
-            }
-        }
-        let mut lowered = Vec::with_capacity(total);
-        for (arg_expr, (_, field_ty)) in args.iter().zip(&fields) {
-            let hint = self.try_substitute(*field_ty, &bindings);
-            let arg = self.lower_expr(arg_expr, sink, hint)?;
-            if !self.bind_type_args(*field_ty, arg.ty, &mut bindings, &type_params, arg.span) {
-                return None; // conflict diagnostic already recorded
-            }
-            lowered.push(arg);
-        }
-
-        // Arity first: missing trailing fields must have
-        // constructor-style defaults (checked before inference so a
-        // short call reports arity, not an unbound type argument).
+        // Missing trailing fields must have constructor-style defaults.
         for index in supplied..total {
             if self.enums[enum_id].variants[variant as usize].defaults[index].is_none() {
                 self.error(
@@ -1145,8 +1145,22 @@ impl Lowerer {
             }
         }
 
-        let mut type_args = Vec::with_capacity(bindings.len());
-        for (binding, param_name) in bindings.into_iter().zip(&type_params) {
+        let mut bindings = vec![None; type_params.len()];
+        if let Some(expected) = expected {
+            if let Type::Enum(id, expected_args) = self.types[expected].clone() {
+                if id == enum_id && expected_args.len() == type_params.len() {
+                    for (binding, arg) in bindings.iter_mut().zip(expected_args) {
+                        *binding = Some(arg);
+                    }
+                }
+            }
+        }
+        let field_tys: Vec<TypeId> = fields.iter().map(|(_, ty)| *ty).collect();
+        let inferred =
+            self.lower_inference_args(args, &field_tys[..supplied], bindings, &type_params)?;
+
+        let mut type_args = Vec::with_capacity(inferred.bindings.len());
+        for (binding, param_name) in inferred.bindings.iter().copied().zip(&type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
@@ -1160,6 +1174,7 @@ impl Lowerer {
                 }
             }
         }
+        let mut lowered = inferred.finish(sink);
 
         // Argument types must match the instantiated field types.
         for ((field_name, field_ty), arg) in fields.iter().zip(&lowered) {
@@ -1326,23 +1341,20 @@ impl Lowerer {
             return None;
         }
 
-        // Type-argument inference (DESIGN.md 2.2): walk the arguments
-        // left to right, binding each type parameter by matching the
-        // parameter type against the argument type. An argument whose
-        // parameter type is already fully known gets it as the
-        // expected-type hint (this types `None` in argument position).
-        let mut bindings: Vec<Option<TypeId>> = vec![None; sig.type_params.len()];
-        let mut args = Vec::with_capacity(call.args.len());
-        for (param, arg_expr) in sig.params.iter().zip(&call.args) {
-            let hint = self.try_substitute(param.ty, &bindings);
-            let arg = self.lower_expr(arg_expr, sink, hint)?;
-            if !self.bind_type_args(param.ty, arg.ty, &mut bindings, &sig.type_params, arg.span) {
-                return None; // conflict diagnostic already recorded
-            }
-            args.push(arg);
-        }
-        let mut type_args = Vec::with_capacity(bindings.len());
-        for (binding, param_name) in bindings.into_iter().zip(&sig.type_params) {
+        // Infer to a fixed point: context-independent arguments may bind
+        // parameters needed to type earlier `None` / empty-array arguments.
+        // Each argument owns a temporary desugaring sink; the sinks are
+        // concatenated in source order after inference, preserving runtime
+        // evaluation order even when typing happens in a different order.
+        let param_tys: Vec<TypeId> = sig.params.iter().map(|param| param.ty).collect();
+        let inferred = self.lower_inference_args(
+            &call.args,
+            &param_tys,
+            vec![None; sig.type_params.len()],
+            &sig.type_params,
+        )?;
+        let mut type_args = Vec::with_capacity(inferred.bindings.len());
+        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
@@ -1354,6 +1366,7 @@ impl Lowerer {
                 }
             }
         }
+        let args = inferred.finish(sink);
 
         // M9: the GC intrinsics constrain their type argument to
         // reference types (spec 14.1's `T : ref` before M12 bounds).
@@ -1401,6 +1414,342 @@ impl Lowerer {
             ty,
             span: call.span,
         })
+    }
+
+    /// Lower generic-call/constructor arguments to a fixed point. An
+    /// expression that intrinsically needs an expected type is postponed
+    /// while its parameter still contains an unbound type variable; other
+    /// arguments can then add bindings independently of their source order.
+    fn lower_inference_args(
+        &mut self,
+        arg_exprs: &[ast::Expr],
+        param_tys: &[TypeId],
+        mut bindings: Vec<Option<TypeId>>,
+        type_params: &[String],
+    ) -> Option<InferredArguments> {
+        let mut args: Vec<Option<hir::Expr>> = (0..arg_exprs.len()).map(|_| None).collect();
+        let mut sinks: Vec<Vec<hir::Statement>> =
+            (0..arg_exprs.len()).map(|_| Vec::new()).collect();
+        loop {
+            let mut progress = false;
+            for index in 0..arg_exprs.len() {
+                if args[index].is_some() {
+                    continue;
+                }
+                let hint = self.try_substitute(param_tys[index], &bindings);
+                if hint.is_none() && self.expr_requires_expected_type(&arg_exprs[index]) {
+                    continue;
+                }
+                let arg = self.lower_expr(&arg_exprs[index], &mut sinks[index], hint)?;
+                if !self.bind_type_args(
+                    param_tys[index],
+                    arg.ty,
+                    &mut bindings,
+                    type_params,
+                    arg.span,
+                ) {
+                    return None;
+                }
+                args[index] = Some(arg);
+                progress = true;
+            }
+            if args.iter().all(Option::is_some) {
+                break;
+            }
+            if !progress {
+                // No later constraint could type the first deferred
+                // expression. Lower it without a hint to retain the
+                // focused diagnostic (`cannot infer the type of None`,
+                // empty-array element type, and so on).
+                let index = args
+                    .iter()
+                    .position(Option::is_none)
+                    .expect("an unresolved argument remains");
+                let arg = self.lower_expr(&arg_exprs[index], &mut sinks[index], None)?;
+                if !self.bind_type_args(
+                    param_tys[index],
+                    arg.ty,
+                    &mut bindings,
+                    type_params,
+                    arg.span,
+                ) {
+                    return None;
+                }
+                args[index] = Some(arg);
+            }
+        }
+        Some(InferredArguments {
+            args,
+            bindings,
+            sinks,
+        })
+    }
+
+    /// Expressions whose type cannot be synthesized without context. Calls
+    /// to generic constructors are contextual only when their own
+    /// context-independent arguments cannot bind every constructor variable;
+    /// this lets nested calls perform their own fixed-point inference.
+    pub(crate) fn expr_requires_expected_type(&self, expr: &ast::Expr) -> bool {
+        match expr {
+            ast::Expr::Var(name) => {
+                name.text == "None"
+                    && self.scopes.lookup(&name.text).is_none()
+                    && !self.host_has_property(&name.text)
+            }
+            ast::Expr::FieldAccess(access) => self.unit_variant_from_field(access).is_some(),
+            ast::Expr::TupleLiteral { elements, .. } | ast::Expr::ArrayLiteral { elements, .. } => {
+                elements.is_empty()
+                    || elements
+                        .iter()
+                        .any(|element| self.expr_requires_expected_type(element))
+            }
+            ast::Expr::Call(call) => self.constructor_requires_expected(&call.callee, &call.args),
+            ast::Expr::StructInit { name, args, .. } => {
+                self.constructor_requires_expected(name, args)
+            }
+            ast::Expr::MethodCall {
+                receiver,
+                name,
+                args,
+                ..
+            } => self.qualified_variant_requires_expected(receiver, name, args),
+            _ => false,
+        }
+    }
+
+    /// Quiet applicability check for an expression postponed by overload
+    /// resolution. It validates the expected-type-dependent shape only;
+    /// the selected candidate later performs ordinary lowering and emits
+    /// precise diagnostics for all other details.
+    pub(crate) fn contextual_expr_accepts(&mut self, expr: &ast::Expr, expected: TypeId) -> bool {
+        match expr {
+            ast::Expr::Var(name) if name.text == "None" => {
+                matches!(
+                    self.types[expected],
+                    Type::Enum(id, ref args)
+                        if Some(id) == self.option_enum && args.len() == 1
+                )
+            }
+            ast::Expr::FieldAccess(access) => {
+                let Some((enum_id, _)) = self.unit_variant_from_field(access) else {
+                    return true;
+                };
+                matches!(self.types[expected], Type::Enum(id, _) if id == enum_id)
+            }
+            ast::Expr::TupleLiteral { elements, .. } => {
+                let Type::Tuple(expected_elements) = self.types[expected].clone() else {
+                    return false;
+                };
+                elements.len() == expected_elements.len()
+                    && elements.iter().zip(expected_elements).all(|(element, ty)| {
+                        !self.expr_requires_expected_type(element)
+                            || self.contextual_expr_accepts(element, ty)
+                    })
+            }
+            ast::Expr::ArrayLiteral { elements, .. } => {
+                let element_ty = match self.types[expected] {
+                    Type::Array(element) | Type::MutableArray(element) => element,
+                    _ => return false,
+                };
+                elements.iter().all(|element| {
+                    !self.expr_requires_expected_type(element)
+                        || self.contextual_expr_accepts(element, element_ty)
+                })
+            }
+            ast::Expr::Call(call) => {
+                self.contextual_constructor_accepts(&call.callee.text, &call.args, expected)
+            }
+            ast::Expr::StructInit { name, args, .. } => {
+                self.contextual_constructor_accepts(&name.text, args, expected)
+            }
+            ast::Expr::MethodCall {
+                receiver,
+                name,
+                args,
+                ..
+            } => {
+                let ast::Expr::Var(enum_name) = receiver.as_ref() else {
+                    return true;
+                };
+                self.contextual_constructor_accepts(
+                    &format!("{}.{}", enum_name.text, name.text),
+                    args,
+                    expected,
+                )
+            }
+            _ => true,
+        }
+    }
+
+    fn contextual_constructor_accepts(
+        &mut self,
+        name: &str,
+        args: &[ast::Expr],
+        expected: TypeId,
+    ) -> bool {
+        let variant = if let Some((enum_name, variant_name)) = name.split_once('.') {
+            let Some(enum_id) = self.enums_by_name.get(enum_name).copied() else {
+                return true;
+            };
+            self.find_variant(enum_id, variant_name)
+                .map(|variant| (enum_id, variant))
+        } else {
+            self.option_variant(name)
+        };
+        let (fields, type_args) = if let Some((enum_id, variant)) = variant {
+            let Type::Enum(expected_id, type_args) = self.types[expected].clone() else {
+                return false;
+            };
+            if expected_id != enum_id {
+                return false;
+            }
+            (
+                self.enums[enum_id].variants[variant as usize]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect::<Vec<_>>(),
+                type_args,
+            )
+        } else if let Some(&(struct_id, _)) = self.structs_by_name.get(name) {
+            let Type::Struct(expected_id, type_args) = self.types[expected].clone() else {
+                return false;
+            };
+            if expected_id != struct_id {
+                return false;
+            }
+            (
+                self.structs[struct_id]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect::<Vec<_>>(),
+                type_args,
+            )
+        } else {
+            return true;
+        };
+        args.iter().zip(fields).all(|(arg, field)| {
+            if !self.expr_requires_expected_type(arg) {
+                return true;
+            }
+            let expected = if type_args.is_empty() {
+                field
+            } else {
+                self.instantiate_ty(field, &type_args)
+            };
+            self.contextual_expr_accepts(arg, expected)
+        })
+    }
+
+    fn constructor_requires_expected(&self, name: &ast::Ident, args: &[ast::Expr]) -> bool {
+        let Some((type_param_count, fields)) = self.constructor_inference_shape(&name.text) else {
+            return false;
+        };
+        if type_param_count == 0 {
+            return false;
+        }
+        let mut bound = vec![false; type_param_count];
+        for (arg, field) in args.iter().zip(fields) {
+            if !self.expr_requires_expected_type(arg) {
+                self.mark_type_params(field, &mut bound);
+            }
+        }
+        bound.iter().any(|bound| !bound)
+    }
+
+    fn qualified_variant_requires_expected(
+        &self,
+        receiver: &ast::Expr,
+        name: &ast::Ident,
+        args: &[ast::Expr],
+    ) -> bool {
+        let ast::Expr::Var(enum_name) = receiver else {
+            return false;
+        };
+        if self.scopes.lookup(&enum_name.text).is_some() || self.host_has_property(&enum_name.text)
+        {
+            return false;
+        }
+        let qualified = format!("{}.{}", enum_name.text, name.text);
+        self.constructor_requires_expected(
+            &ast::Ident {
+                text: qualified,
+                span: Span::new(enum_name.span.start, name.span.end),
+            },
+            args,
+        )
+    }
+
+    /// Generic constructor parameter count and field templates, without
+    /// producing diagnostics. `None` means the name is a function/class or
+    /// does not denote a constructor.
+    fn constructor_inference_shape(&self, name: &str) -> Option<(usize, Vec<TypeId>)> {
+        let variant = if let Some((enum_name, variant_name)) = name.split_once('.') {
+            let enum_id = self.enums_by_name.get(enum_name).copied()?;
+            self.find_variant(enum_id, variant_name)
+                .map(|variant| (enum_id, variant))
+        } else {
+            self.option_variant(name)
+        };
+        if let Some((enum_id, variant)) = variant {
+            return Some((
+                self.enums[enum_id].type_params.len(),
+                self.enums[enum_id].variants[variant as usize]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect(),
+            ));
+        }
+        self.structs_by_name.get(name).map(|(struct_id, _)| {
+            (
+                self.structs[*struct_id].type_params.len(),
+                self.structs[*struct_id]
+                    .fields
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect(),
+            )
+        })
+    }
+
+    fn mark_type_params(&self, ty: TypeId, bound: &mut [bool]) {
+        match &self.types[ty] {
+            Type::Param(index) => bound[index.into_raw() as usize] = true,
+            Type::Array(element) | Type::MutableArray(element) => {
+                self.mark_type_params(*element, bound);
+            }
+            Type::Struct(_, args)
+            | Type::Enum(_, args)
+            | Type::Interface(_, args)
+            | Type::Tuple(args) => {
+                for arg in args {
+                    self.mark_type_params(*arg, bound);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn unit_variant_from_field(&self, access: &ast::FieldAccess) -> Option<(hir::EnumId, u32)> {
+        let ast::Expr::Var(enum_name) = access.receiver.as_ref() else {
+            return None;
+        };
+        if self.scopes.lookup(&enum_name.text).is_some() || self.host_has_property(&enum_name.text)
+        {
+            return None;
+        }
+        let enum_id = self.enums_by_name.get(&enum_name.text).copied()?;
+        let ast::FieldSelector::Name(variant_name) = &access.selector else {
+            return None;
+        };
+        let variant = self.find_variant(enum_id, &variant_name.text)?;
+        (!self.enums[enum_id].type_params.is_empty()
+            && self.enums[enum_id].variants[variant as usize]
+                .fields
+                .is_empty())
+        .then_some((enum_id, variant))
     }
 
     /// The M9 form of spec 14.1's `T : ref` bound (milestone9 DESIGN.md
@@ -1503,6 +1852,15 @@ impl Lowerer {
                 }
                 ok
             }
+            (Type::Interface(param_id, param_args), Type::Interface(arg_id, arg_args))
+                if param_id == arg_id && param_args.len() == arg_args.len() =>
+            {
+                let mut ok = true;
+                for (param, arg) in param_args.iter().zip(arg_args.iter()) {
+                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                }
+                ok
+            }
             (Type::Array(param_element), Type::Array(arg_element))
             | (Type::MutableArray(param_element), Type::MutableArray(arg_element)) => {
                 self.bind_type_args(param_element, arg_element, bindings, type_params, span)
@@ -1566,18 +1924,11 @@ impl Lowerer {
             }
         }
 
-        let mut lowered = Vec::with_capacity(args.len());
-        for (arg_expr, (_, field_ty)) in args.iter().zip(&fields) {
-            let hint = self.try_substitute(*field_ty, &bindings);
-            let arg = self.lower_expr(arg_expr, sink, hint)?;
-            if !self.bind_type_args(*field_ty, arg.ty, &mut bindings, &type_params, arg.span) {
-                return None;
-            }
-            lowered.push(arg);
-        }
+        let field_tys: Vec<TypeId> = fields.iter().map(|(_, ty)| *ty).collect();
+        let inferred = self.lower_inference_args(args, &field_tys, bindings, &type_params)?;
 
-        let mut type_args = Vec::with_capacity(bindings.len());
-        for (binding, param_name) in bindings.into_iter().zip(&type_params) {
+        let mut type_args = Vec::with_capacity(inferred.bindings.len());
+        for (binding, param_name) in inferred.bindings.iter().copied().zip(&type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
@@ -1589,6 +1940,7 @@ impl Lowerer {
                 }
             }
         }
+        let lowered = inferred.finish(sink);
 
         let mut adapted = Vec::with_capacity(lowered.len());
         for ((field_name, field_ty), arg) in fields.iter().zip(lowered) {

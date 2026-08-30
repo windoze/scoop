@@ -1,0 +1,34 @@
+struct Pair<T>(val maybe: T?, val value: T)
+
+enum Duo<T> {
+    Both(T?, T)
+}
+
+fun <T> choose(maybe: T?, value: T): T = value
+
+fun <T> nested(maybe: T??, value: T): T = value
+
+fun <T> arrayValue(values: Array<T>, value: T): T = value
+
+fun <T> tupleValue(pair: (T?, T), value: T): T = value
+
+fun pick(maybe: Int?, value: Int): Int = value
+
+fun pick(maybe: String?, value: String): String = value
+
+fun main() {
+    println(choose(None, 7))
+
+    val pair = Pair(None, 8)
+    println(pair.value)
+
+    val duo = Duo.Both(None, 9)
+    when (duo) {
+        Both(_, value) -> println(value)
+    }
+
+    println(pick(None, 10))
+    println(nested(Some(None), 11))
+    println(arrayValue([], 12))
+    println(tupleValue((None, 13), 14))
+}
