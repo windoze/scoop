@@ -232,6 +232,7 @@ pub(crate) struct AvailableCapture {
     pub(crate) declaration_depth: usize,
 }
 
+#[derive(Clone)]
 pub(crate) struct PendingCapture {
     pub(crate) binding: hir::BindingId,
     pub(crate) name: String,
@@ -241,18 +242,20 @@ pub(crate) struct PendingCapture {
     pub(crate) declaration_depth: usize,
 }
 
+#[derive(Clone)]
 pub(crate) struct CaptureContext {
     pub(crate) available: HashMap<String, AvailableCapture>,
     pub(crate) captures: Vec<PendingCapture>,
     pub(crate) by_binding: HashMap<hir::BindingId, usize>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct ReturnInference {
     pub(crate) value_types: Vec<TypeId>,
     pub(crate) saw_bare: bool,
 }
 
+#[derive(Clone)]
 pub(crate) struct Lowerer {
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,

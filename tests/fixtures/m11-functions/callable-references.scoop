@@ -1,0 +1,98 @@
+fun increment(value: Int): Int = value + 1
+
+fun <T> identity(value: T): T = value
+
+fun describe(value: Int): String = "int"
+fun describe(value: String): String = value
+
+open class BaseMapper {
+    open fun map(value: Int): Int = value
+}
+
+class TimesTwo : BaseMapper() {
+    override fun map(value: Int): Int = value + value
+}
+
+class PlusHundred : BaseMapper() {
+    override fun map(value: Int): Int = value + 100
+}
+
+class MapperFactory(var calls: Int) {
+    fun make(): BaseMapper {
+        calls = calls + 1
+        return TimesTwo()
+    }
+}
+
+interface TextMapper {
+    fun map(value: String): String
+}
+
+class PrefixMapper(val prefix: String) : TextMapper {
+    final override fun map(value: String): String = prefix + value
+}
+
+struct ValueMapper(val offset: Int) {
+    fun map(value: Int): Int = value + offset
+}
+
+class GenericMapper {
+    fun <T> choose(value: T): T = value
+}
+
+class OverloadedMapper {
+    fun choose(value: Int): Int = 100
+    fun <T> choose(value: T): T = value
+}
+
+class ThrowingMapper {
+    fun map(value: Int): Int {
+        if (value == 0) {
+            throw ArithmeticException()
+        }
+        return value
+    }
+}
+
+fun main() {
+    val inferred = ::increment
+    val generic: (Int) -> Int = ::identity
+    val overloaded: (String) -> String = ::describe
+
+    val factory = MapperFactory(0)
+    val once = factory.make()::map
+    println(factory.calls)
+
+    var selected: BaseMapper = TimesTwo()
+    val virtual = selected::map
+    selected = PlusHundred()
+
+    val mapper: TextMapper = PrefixMapper("kept-")
+    val interfaceReference = mapper::map
+
+    var valueMapper = ValueMapper(2)
+    val valueReference = valueMapper::map
+    valueMapper = ValueMapper(100)
+
+    val genericMember: (String) -> String = GenericMapper()::choose
+    val concreteWins: (Int) -> Int = OverloadedMapper()::choose
+    val throwing = ThrowingMapper()::map
+
+    gcCollect()
+    println(inferred(41))
+    println(generic(42))
+    println(overloaded("string"))
+    println(once(21))
+    println(virtual(21))
+    println(selected.map(21))
+    println(interfaceReference("alive"))
+    println(valueReference(40))
+    println(valueMapper.map(40))
+    println(genericMember("generic"))
+    println(concreteWins(1))
+    try {
+        println(throwing(0))
+    } catch (exception: ArithmeticException) {
+        println("caught")
+    }
+}

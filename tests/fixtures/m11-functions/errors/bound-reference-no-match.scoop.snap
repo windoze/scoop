@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/bound-reference-no-match.scoop:6:41: error: no overload of bound callable reference `receiver::choose` matches the expected function type

@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/lambda-overload-ambiguous.scoop:5:13: error: call to `select` is ambiguous

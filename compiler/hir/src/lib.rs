@@ -221,7 +221,7 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module {
     pub types: Arena<Type>,
     /// Canonical function signatures referenced by `Type::Function`.
@@ -265,7 +265,7 @@ pub struct Module {
     pub instantiations: Arena<ResolvedGenericFunction>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Lambda {
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
@@ -275,7 +275,7 @@ pub struct Lambda {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnonymousFunction {
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
@@ -286,7 +286,7 @@ pub struct AnonymousFunction {
 /// A block-local named function. `function` is its lifted body; direct calls
 /// pass `captures` as hidden parameters, while taking `::name` materializes a
 /// closure over the same body.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LocalFunction {
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
@@ -297,7 +297,7 @@ pub struct LocalFunction {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallableReference {
     pub target: CallableReferenceTarget,
     pub function_type: FunctionTypeId,
@@ -305,16 +305,23 @@ pub struct CallableReference {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum CallableReferenceTarget {
     Named(Callable),
     Local {
         local_function: LocalFunctionId,
         callee: Callable,
     },
+    /// A member reference whose receiver expression is evaluated when the
+    /// closure is created. The receiver's static type remains attached to the
+    /// expression so MIR can preserve direct / virtual / interface dispatch.
+    BoundMember {
+        receiver: Box<Expr>,
+        callee: Callable,
+    },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Capture {
     pub binding: BindingId,
     pub name: String,
@@ -376,7 +383,7 @@ pub enum Callable {
     Generic(ResolvedGenericFunctionId),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
     pub type_params: Vec<String>,
@@ -385,7 +392,7 @@ pub struct StructDecl {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
     pub type_params: Vec<String>,
@@ -422,7 +429,7 @@ pub struct Method {
     pub owner_type_param_count: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ClassDecl {
     pub modifier: ClassModifier,
     pub name: String,
@@ -434,7 +441,7 @@ pub struct ClassDecl {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InterfaceDecl {
     pub name: String,
     pub type_params: Vec<TypeParamDecl>,
@@ -457,7 +464,7 @@ pub struct TypeParamDecl {
 }
 
 /// An interface method signature (M6: no body, no properties).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MethodSig {
     pub name: String,
     /// Suspend is part of the callable contract and must match exactly
@@ -472,7 +479,7 @@ pub struct MethodSig {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variant {
     pub name: String,
     /// Fields in declaration order; unit variants have none. Named and
@@ -483,13 +490,13 @@ pub struct Variant {
     pub defaults: Vec<Option<Expr>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Field {
     pub name: String,
     pub ty: TypeId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
@@ -508,7 +515,7 @@ pub struct Function {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Param {
     pub name: String,
     pub ty: TypeId,
@@ -516,7 +523,7 @@ pub struct Param {
     pub local: LocalId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
     /// A `@Intrinsic("name")` function (spec 13.1); the name is
@@ -524,13 +531,13 @@ pub enum FunctionKind {
     Intrinsic(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Body {
     pub locals: Arena<Local>,
     pub statements: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Local {
     pub binding: BindingId,
     pub name: String,
@@ -538,13 +545,13 @@ pub struct Local {
     pub mutable: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Statement {
     pub kind: StatementKind,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
     /// Compile-time declaration marker. The lifted body lives in
@@ -580,14 +587,14 @@ pub enum StatementKind {
     Throw(Expr),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Try {
     pub body: Vec<Statement>,
     pub catches: Vec<CatchClause>,
     pub finally_body: Option<Vec<Statement>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CatchClause {
     pub local: LocalId,
     pub ty: TypeId,
@@ -595,7 +602,7 @@ pub struct CatchClause {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AssignTarget {
     Local(LocalId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
@@ -610,14 +617,14 @@ pub enum AssignTarget {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct When {
     pub subject: Expr,
     pub arms: Vec<WhenArm>,
     pub else_body: Option<Vec<Statement>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WhenArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
@@ -629,7 +636,7 @@ pub struct WhenArm {
 /// are declaration indices, bindings are locals. Named and positional
 /// forms are both normalized to `(field index, subpattern)` pairs in
 /// declaration order.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Pattern {
     Binding {
         local: LocalId,
@@ -651,14 +658,14 @@ pub enum Pattern {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
     pub ty: TypeId,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExprKind {
     StringLiteral(String),
     IntLiteral(i64),
@@ -1306,9 +1313,12 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         ExprKind::CallableReference(id) => {
             let reference = &module.callable_references[*id];
-            let callable = match reference.target {
-                CallableReferenceTarget::Named(callable) => callable,
-                CallableReferenceTarget::Local { callee, .. } => callee,
+            let (callable, receiver) = match &reference.target {
+                CallableReferenceTarget::Named(callable) => (*callable, None),
+                CallableReferenceTarget::Local { callee, .. } => (*callee, None),
+                CallableReferenceTarget::BoundMember { receiver, callee } => {
+                    (*callee, Some(receiver.as_ref()))
+                }
             };
             let (function, _) = callable_parts(module, callable);
             out.push_str(&format!(
@@ -1317,6 +1327,9 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 module.functions[function].name,
                 reference.captures.len()
             ));
+            if let Some(receiver) = receiver {
+                dump_expr(module, locals, receiver, indent + 1, out);
+            }
         }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {

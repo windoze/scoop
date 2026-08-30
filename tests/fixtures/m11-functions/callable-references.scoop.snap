@@ -1,0 +1,1436 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  fun increment(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun describe(value: Int): String
+    =
+      StringLiteral "int"
+  fun describe(value: String): String
+    =
+      Var value
+  open class BaseMapper()
+    fun map
+  class TimesTwo() : BaseMapper(<0 args>)
+    fun map
+  class PlusHundred() : BaseMapper(<0 args>)
+    fun map
+  class MapperFactory(var calls: Int)
+    fun make
+  interface TextMapper
+    fun map
+  class PrefixMapper(val prefix: String), TextMapper
+    fun map
+  struct ValueMapper
+    field offset: Int
+    fun map
+  class GenericMapper()
+    fun choose
+  class OverloadedMapper()
+    fun choose
+    fun choose
+  class ThrowingMapper()
+    fun map
+  fun main()
+    val inferred
+      CallableReference 0 increment
+    val generic: (Int) -> Int
+      CallableReference 1 identity
+    val overloaded: (String) -> String
+      CallableReference 2 describe
+    val factory
+      Call MapperFactory
+        IntLiteral 0
+    val once
+      CallableReference 3 map
+        MethodCall make
+          Var factory
+    Call println
+      FieldAccess calls
+        Var factory
+    var selected: BaseMapper
+      Call TimesTwo
+    val virtual
+      CallableReference 4 map
+        Var selected
+    assign selected
+      Call PlusHundred
+    val mapper: TextMapper
+      Call PrefixMapper
+        StringLiteral "kept-"
+    val interfaceReference
+      CallableReference 5 map
+        Var mapper
+    var valueMapper
+      Call ValueMapper
+        IntLiteral 2
+    val valueReference
+      CallableReference 6 map
+        Var valueMapper
+    assign valueMapper
+      Call ValueMapper
+        IntLiteral 100
+    val genericMember: (String) -> String
+      CallableReference 7 choose
+        Call GenericMapper
+    val concreteWins: (Int) -> Int
+      CallableReference 8 choose
+        Call OverloadedMapper
+    val throwing
+      CallableReference 9 map
+        Call ThrowingMapper
+    Call gcCollect
+    Call println
+      Call inferred
+        IntLiteral 41
+    Call println
+      Call generic
+        IntLiteral 42
+    Call println
+      Call overloaded
+        StringLiteral "string"
+    Call println
+      Call once
+        IntLiteral 21
+    Call println
+      Call virtual
+        IntLiteral 21
+    Call println
+      MethodCall map
+        Var selected
+        IntLiteral 21
+    Call println
+      Call interfaceReference
+        StringLiteral "alive"
+    Call println
+      Call valueReference
+        IntLiteral 40
+    Call println
+      MethodCall map
+        Var valueMapper
+        IntLiteral 40
+    Call println
+      Call genericMember
+        StringLiteral "generic"
+    Call println
+      Call concreteWins
+        IntLiteral 1
+    try
+      Call println
+        Call throwing
+          IntLiteral 0
+    catch exception: ArithmeticException
+      Call println
+        StringLiteral "caught"
+
+== hir ==
+Module
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  struct ValueMapper
+    field offset: Int
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  open class BaseMapper()
+  class TimesTwo()
+  class PlusHundred()
+  class MapperFactory(calls: Int)
+  class PrefixMapper(prefix: String) : TextMapper
+  class GenericMapper()
+  class OverloadedMapper()
+  class ThrowingMapper()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  interface TextMapper
+    fun map(value: String): String
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun increment(value: Int): Int
+    return
+      Binary Add : Int
+        Local value : Int
+        IntLiteral 1 : Int
+  fun identity<T>(value: T0): T0
+    return
+      Local value : T0
+  fun describe(value: Int): String
+    return
+      StringLiteral "int" : String
+  fun describe(value: String): String
+    return
+      Local value : String
+  fun main(): Unit
+    val local0
+      CallableReference reference0 target=increment captures=0 : (Int) -> Int
+    val local1
+      CallableReference reference1 target=identity captures=0 : (Int) -> Int
+    val local2
+      CallableReference reference2 target=describe captures=0 : (String) -> String
+    val local3
+      ClassInit MapperFactory : MapperFactory
+        IntLiteral 0 : Int
+    val local4
+      CallableReference reference3 target=BaseMapper.map captures=0 : (Int) -> Int
+        MethodCall MapperFactory.make : BaseMapper
+          Local factory : MapperFactory
+    Call println : Unit
+      Box : Any
+        FieldAccess class field 0 : Int
+          Local factory : MapperFactory
+    val local5
+      ClassInit TimesTwo : BaseMapper
+    val local6
+      CallableReference reference4 target=BaseMapper.map captures=0 : (Int) -> Int
+        Local selected : BaseMapper
+    assign selected
+      ClassInit PlusHundred : BaseMapper
+    val local7
+      ClassInit PrefixMapper : TextMapper
+        StringLiteral "kept-" : String
+    val local8
+      CallableReference reference5 target=TextMapper.map captures=0 : (String) -> String
+        Local mapper : TextMapper
+    val local9
+      StructInit ValueMapper : ValueMapper
+        IntLiteral 2 : Int
+    val local10
+      CallableReference reference6 target=ValueMapper.map captures=0 : (Int) -> Int
+        Local valueMapper : ValueMapper
+    assign valueMapper
+      StructInit ValueMapper : ValueMapper
+        IntLiteral 100 : Int
+    val local11
+      CallableReference reference7 target=GenericMapper.choose captures=0 : (String) -> String
+        ClassInit GenericMapper : GenericMapper
+    val local12
+      CallableReference reference8 target=OverloadedMapper.choose captures=0 : (Int) -> Int
+        ClassInit OverloadedMapper : OverloadedMapper
+    val local13
+      CallableReference reference9 target=ThrowingMapper.map captures=0 : (Int) -> Int
+        ClassInit ThrowingMapper : ThrowingMapper
+    Call gcCollect : Unit
+    Call println : Unit
+      Box : Any
+        CallableCall function_type0 : Int
+          Local inferred : (Int) -> Int
+          IntLiteral 41 : Int
+    Call println : Unit
+      Box : Any
+        CallableCall function_type0 : Int
+          Local generic : (Int) -> Int
+          IntLiteral 42 : Int
+    Call println : Unit
+      CallableCall function_type1 : Any
+        Local overloaded : (String) -> String
+        StringLiteral "string" : String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type0 : Int
+          Local once : (Int) -> Int
+          IntLiteral 21 : Int
+    Call println : Unit
+      Box : Any
+        CallableCall function_type0 : Int
+          Local virtual : (Int) -> Int
+          IntLiteral 21 : Int
+    Call println : Unit
+      Box : Any
+        MethodCall BaseMapper.map : Int
+          Local selected : BaseMapper
+          IntLiteral 21 : Int
+    Call println : Unit
+      CallableCall function_type1 : Any
+        Local interfaceReference : (String) -> String
+        StringLiteral "alive" : String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type0 : Int
+          Local valueReference : (Int) -> Int
+          IntLiteral 40 : Int
+    Call println : Unit
+      Box : Any
+        MethodCall ValueMapper.map : Int
+          Local valueMapper : ValueMapper
+          IntLiteral 40 : Int
+    Call println : Unit
+      CallableCall function_type1 : Any
+        Local genericMember : (String) -> String
+        StringLiteral "generic" : String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type0 : Int
+          Local concreteWins : (Int) -> Int
+          IntLiteral 1 : Int
+    try
+      Call println : Unit
+        Box : Any
+          CallableCall function_type0 : Int
+            Local throwing : (Int) -> Int
+            IntLiteral 0 : Int
+    catch exception: ArithmeticException
+      Call println : Unit
+        StringLiteral "caught" : Any
+  entry main
+  instance identity<Int>
+  instance GenericMapper.choose<String>
+
+== mir ==
+Module
+  struct ValueMapper (offset: Int)
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class BaseMapper vtable=4 itables=0
+  class TimesTwo vtable=4 itables=0
+  class PlusHundred vtable=4 itables=0
+  class MapperFactory vtable=3 itables=0
+  class PrefixMapper vtable=3 itables=1
+  class GenericMapper vtable=3 itables=0
+  class OverloadedMapper vtable=3 itables=0
+  class ThrowingMapper vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  interface TextMapper
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=0
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@scoop.$reference.1 captures=0
+  closure cc2 $Closure$reference2 type=function_type1 invoke=@scoop.$reference.2 captures=0
+  closure cc3 $Closure$reference3 type=function_type0 invoke=@scoop.$reference.3 captures=1
+  closure cc4 $Closure$reference4 type=function_type0 invoke=@scoop.$reference.4 captures=1
+  closure cc5 $Closure$reference5 type=function_type1 invoke=@scoop.$reference.5 captures=1
+  closure cc6 $Closure$reference6 type=function_type0 invoke=@scoop.$reference.6 captures=1
+  closure cc7 $Closure$reference7 type=function_type1 invoke=@scoop.$reference.7 captures=1
+  closure cc8 $Closure$reference8 type=function_type0 invoke=@scoop.$reference.8 captures=1
+  closure cc9 $Closure$reference9 type=function_type0 invoke=@scoop.$reference.9 captures=1
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
+  fun increment @scoop.increment(value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          IntLiteral 1
+  fun describe @scoop.describe.I(value: Int) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.1
+  fun describe @scoop.describe.S(value: String) -> String
+    bb0 entry
+      return
+        Local value
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      val inferred: (Int) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+      val generic: (Int) -> Int
+        ClosureAlloc cc1 $Closure$reference1
+      val overloaded: (String) -> String
+        ClosureAlloc cc2 $Closure$reference2
+      call factory: MapperFactory = @scoop.ctor.MapperFactory direct
+        IntLiteral 0
+      call $call.1: BaseMapper = @scoop.MapperFactory.make direct
+        Local factory
+      val once: (Int) -> Int
+        ClosureAlloc cc3 $Closure$reference3
+          Local $call.1
+      call @scoop.println direct
+        Box
+          FieldAccess 0
+            Local factory
+      call selected: BaseMapper = @scoop.ctor.TimesTwo direct
+      val virtual: (Int) -> Int
+        ClosureAlloc cc4 $Closure$reference4
+          Local selected
+      call $call.2: BaseMapper = @scoop.ctor.PlusHundred direct
+      assign selected
+        Local $call.2
+      call mapper: TextMapper = @scoop.ctor.PrefixMapper direct
+        StringConst @scoop.str.2
+      val interfaceReference: (String) -> String
+        ClosureAlloc cc5 $Closure$reference5
+          Local mapper
+      var valueMapper: ValueMapper
+        StructInit ValueMapper
+          IntLiteral 2
+      val valueReference: (Int) -> Int
+        ClosureAlloc cc6 $Closure$reference6
+          Local valueMapper
+      assign valueMapper
+        StructInit ValueMapper
+          IntLiteral 100
+      call $call.3: GenericMapper = @scoop.ctor.GenericMapper direct
+      val genericMember: (String) -> String
+        ClosureAlloc cc7 $Closure$reference7
+          Local $call.3
+      call $call.4: OverloadedMapper = @scoop.ctor.OverloadedMapper direct
+      val concreteWins: (Int) -> Int
+        ClosureAlloc cc8 $Closure$reference8
+          Local $call.4
+      call $call.5: ThrowingMapper = @scoop.ctor.ThrowingMapper direct
+      val throwing: (Int) -> Int
+        ClosureAlloc cc9 $Closure$reference9
+          Local $call.5
+      call @scoop_rt_gc_collect direct
+      call $call.6: Int = <closure:function_type0> closure[function_type0]
+        Local inferred
+        IntLiteral 41
+      call @scoop.println direct
+        Box
+          Local $call.6
+      call $call.7: Int = <closure:function_type0> closure[function_type0]
+        Local generic
+        IntLiteral 42
+      call @scoop.println direct
+        Box
+          Local $call.7
+      call $call.8: Any = <closure:function_type1> closure[function_type1]
+        Local overloaded
+        StringConst @scoop.str.3
+      call @scoop.println direct
+        Local $call.8
+      call $call.9: Int = <closure:function_type0> closure[function_type0]
+        Local once
+        IntLiteral 21
+      call @scoop.println direct
+        Box
+          Local $call.9
+      call $call.10: Int = <closure:function_type0> closure[function_type0]
+        Local virtual
+        IntLiteral 21
+      call @scoop.println direct
+        Box
+          Local $call.10
+      call $call.11: Int = @scoop.BaseMapper.map virtual[3]
+        Local selected
+        IntLiteral 21
+      call @scoop.println direct
+        Box
+          Local $call.11
+      call $call.12: Any = <closure:function_type1> closure[function_type1]
+        Local interfaceReference
+        StringConst @scoop.str.4
+      call @scoop.println direct
+        Local $call.12
+      call $call.13: Int = <closure:function_type0> closure[function_type0]
+        Local valueReference
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.13
+      call $call.14: Int = @scoop.ValueMapper.map direct
+        Local valueMapper
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.14
+      call $call.15: Any = <closure:function_type1> closure[function_type1]
+        Local genericMember
+        StringConst @scoop.str.5
+      call @scoop.println direct
+        Local $call.15
+      call $call.16: Int = <closure:function_type0> closure[function_type0]
+        Local concreteWins
+        IntLiteral 1
+      call @scoop.println direct
+        Box
+          Local $call.16
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb10 bb11
+        IsInstance ArithmeticException
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      call $call.17: Int = <closure:function_type0> closure[function_type0]
+        Local throwing
+        IntLiteral 0
+      call @scoop.println direct
+        Box
+          Local $call.17
+      goto bb9
+    bb9 scope.9
+      goto bb7
+    bb10 try.catch.10
+      val exception: ArithmeticException
+        Retype ArithmeticException
+          CaughtException
+      goto bb12
+    bb11 try.next.11
+      rethrow unwind bb5
+    bb12 scope.12 unwind bb3
+      call @scoop.println direct
+        StringConst @scoop.str.6
+      goto bb13
+    bb13 scope.13
+      end_catch
+      goto bb7
+  fun BaseMapper.map @scoop.BaseMapper.map(this: BaseMapper, value: Int) -> Int
+    bb0 entry
+      return
+        Local value
+  fun TimesTwo.map @scoop.TimesTwo.map(this: TimesTwo, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          Local value
+  fun PlusHundred.map @scoop.PlusHundred.map(this: PlusHundred, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          IntLiteral 100
+  fun MapperFactory.make @scoop.MapperFactory.make(this: MapperFactory) -> BaseMapper
+    bb0 entry
+      field_set 0
+        Local this
+        Binary IntAdd
+          FieldAccess 0
+            Local this
+          IntLiteral 1
+      call $call.1: BaseMapper = @scoop.ctor.TimesTwo direct
+      return
+        Local $call.1
+  fun PrefixMapper.map @scoop.PrefixMapper.map(this: PrefixMapper, value: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_string_concat direct
+        FieldAccess 0
+          Local this
+        Local value
+      return
+        Local $call.1
+  fun ValueMapper.map @scoop.ValueMapper.map(this: ValueMapper, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          FieldAccess 0
+            Local this
+  fun OverloadedMapper.choose @scoop.OverloadedMapper.choose(this: OverloadedMapper, value: Int) -> Int
+    bb0 entry
+      return
+        IntLiteral 100
+  fun ThrowingMapper.map @scoop.ThrowingMapper.map(this: ThrowingMapper, value: Int) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Binary IntEq
+          Local value
+          IntLiteral 0
+    bb1 if.then.1
+      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
+      throw
+        Local $call.1
+    bb2 if.merge.2
+      return
+        Local value
+  fun $reference.0 @scoop.$reference.0($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.increment direct
+        Local arg0
+      return
+        Local $call.1
+  fun identity @scoop.identity$I(value: Int) -> Int
+    bb0 entry
+      return
+        Local value
+  fun $reference.1 @scoop.$reference.1($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.identity$I direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.2 @scoop.$reference.2($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.describe.S direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.3 @scoop.$reference.3($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.BaseMapper.map virtual[3]
+        ClosureCapture cc3 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.4 @scoop.$reference.4($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.BaseMapper.map virtual[3]
+        ClosureCapture cc4 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.5 @scoop.$reference.5($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.TextMapper.map interface TextMapper[0]
+        ClosureCapture cc5 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.6 @scoop.$reference.6($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.ValueMapper.map direct
+        ClosureCapture cc6 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun GenericMapper.choose @scoop.GenericMapper.choose$S(this: GenericMapper, value: String) -> String
+    bb0 entry
+      return
+        Local value
+  fun $reference.7 @scoop.$reference.7($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.GenericMapper.choose$S direct
+        ClosureCapture cc7 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.8 @scoop.$reference.8($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.OverloadedMapper.choose direct
+        ClosureCapture cc8 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.9 @scoop.$reference.9($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.ThrowingMapper.map direct
+        ClosureCapture cc9 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.8
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.9
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.10
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.11
+  fun ctor.BaseMapper @scoop.ctor.BaseMapper() -> BaseMapper
+    bb0 entry
+      return
+        ClassInit BaseMapper
+  fun ctor.TimesTwo @scoop.ctor.TimesTwo() -> TimesTwo
+    bb0 entry
+      return
+        ClassInit TimesTwo
+  fun ctor.PlusHundred @scoop.ctor.PlusHundred() -> PlusHundred
+    bb0 entry
+      return
+        ClassInit PlusHundred
+  fun ctor.MapperFactory @scoop.ctor.MapperFactory(calls: Int) -> MapperFactory
+    bb0 entry
+      return
+        ClassInit MapperFactory
+          Local calls
+  fun ctor.PrefixMapper @scoop.ctor.PrefixMapper(prefix: String) -> PrefixMapper
+    bb0 entry
+      return
+        ClassInit PrefixMapper
+          Local prefix
+  fun ctor.GenericMapper @scoop.ctor.GenericMapper() -> GenericMapper
+    bb0 entry
+      return
+        ClassInit GenericMapper
+  fun ctor.OverloadedMapper @scoop.ctor.OverloadedMapper() -> OverloadedMapper
+    bb0 entry
+      return
+        ClassInit OverloadedMapper
+  fun ctor.ThrowingMapper @scoop.ctor.ThrowingMapper() -> ThrowingMapper
+    bb0 entry
+      return
+        ClassInit ThrowingMapper
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  instance @scoop.identity$I <- identity
+  instance @scoop.GenericMapper.choose$S <- GenericMapper.choose
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "int"
+  str @scoop.str.2 "kept-"
+  str @scoop.str.3 "string"
+  str @scoop.str.4 "alive"
+  str @scoop.str.5 "generic"
+  str @scoop.str.6 "caught"
+  str @scoop.str.7 "unwrap on None"
+  str @scoop.str.8 "invalid cast"
+  str @scoop.str.9 "arithmetic error"
+  str @scoop.str.10 "array index out of bounds"
+  str @scoop.str.11 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "int"
+  global @scoop.str.2 = "kept-"
+  global @scoop.str.3 = "string"
+  global @scoop.str.4 = "alive"
+  global @scoop.str.5 = "generic"
+  global @scoop.str.6 = "caught"
+  global @scoop.str.7 = "unwrap on None"
+  global @scoop.str.8 = "invalid cast"
+  global @scoop.str.9 = "arithmetic error"
+  global @scoop.str.10 = "array index out of bounds"
+  global @scoop.str.11 = "illegal state"
+  global @scoop_td_$Closure$reference0 = c""
+  global @scoop_td_$Closure$reference1 = c""
+  global @scoop_td_$Closure$reference2 = c""
+  global @scoop_td_$Closure$reference3 = c""
+  global @scoop_td_box$I = c""
+  global @scoop_td_$Closure$reference4 = c""
+  global @scoop_td_$Closure$reference5 = c""
+  global @scoop_td_$Closure$reference6 = c""
+  global @scoop_td_$Closure$reference7 = c""
+  global @scoop_td_$Closure$reference8 = c""
+  global @scoop_td_$Closure$reference9 = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_TextMapper = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
+  global @scoop_td_BaseMapper = c""
+  global @scoop_td_TimesTwo = c""
+  global @scoop_td_PlusHundred = c""
+  global @scoop_td_MapperFactory = c""
+  global @scoop_td_PrefixMapper = c""
+  global @scoop_td_GenericMapper = c""
+  global @scoop_td_OverloadedMapper = c""
+  global @scoop_td_ThrowingMapper = c""
+  enum Option$S niche(payload_variant=0)
+  fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.increment(i64) -> i64
+  block entry
+    t0 = Add param0, 1 : i64
+    ret t0
+  fun @scoop.describe.I(i64) -> ptr
+  block entry
+    ret global1
+  fun @scoop.describe.S(ptr) -> ptr
+  block entry
+    ret param0
+  fun @scoop_main() -> void
+    local %0 inferred: ptr
+    local %1 generic: ptr
+    local %2 overloaded: ptr
+    local %3 factory: ptr
+    local %4 once: ptr
+    local %5 selected: ptr
+    local %6 virtual: ptr
+    local %7 mapper: ptr
+    local %8 interfaceReference: ptr
+    local %9 valueMapper: {i64}
+    local %10 valueReference: ptr
+    local %11 genericMember: ptr
+    local %12 concreteWins: ptr
+    local %13 throwing: ptr
+    local %14 exception: ptr
+    local %15 $call.1: ptr
+    local %16 $call.2: ptr
+    local %17 $call.3: ptr
+    local %18 $call.4: ptr
+    local %19 $call.5: ptr
+    local %20 $call.6: i64
+    local %21 $call.7: i64
+    local %22 $call.8: ptr
+    local %23 $call.9: i64
+    local %24 $call.10: i64
+    local %25 $call.11: i64
+    local %26 $call.12: ptr
+    local %27 $call.13: i64
+    local %28 $call.14: i64
+    local %29 $call.15: ptr
+    local %30 $call.16: i64
+    local %31 $call.17: i64
+    local %32 $sc.1: exception_record
+    local %33 $sc.2: ptr
+    local %34 $sc.3: ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t1 = function_address @scoop.$reference.0 : ptr
+    heap_store t0 +16 t1
+    store t0 -> local0
+    t2 = call @scoop_rt_alloc(global13, 24) : ptr
+    t3 = function_address @scoop.$reference.1 : ptr
+    heap_store t2 +16 t3
+    store t2 -> local1
+    t4 = call @scoop_rt_alloc(global14, 24) : ptr
+    t5 = function_address @scoop.$reference.2 : ptr
+    heap_store t4 +16 t5
+    store t4 -> local2
+    t6 = call @scoop.ctor.MapperFactory(0) : ptr
+    store t6 -> local3
+    t7 = call @scoop.MapperFactory.make(local3) : ptr
+    store t7 -> local15
+    t8 = call @scoop_rt_alloc(global15, 32) : ptr
+    t9 = function_address @scoop.$reference.3 : ptr
+    heap_store t8 +16 t9
+    heap_store t8 +24 local15
+    store t8 -> local4
+    t10 = heap_load local3 +16 : i64
+    t11 = call @scoop_rt_box(global16, t10, 8) : ptr
+    call @scoop.println(t11)
+    t12 = aggregate () : {}
+    t13 = call @scoop.ctor.TimesTwo() : ptr
+    store t13 -> local5
+    t14 = call @scoop_rt_alloc(global17, 32) : ptr
+    t15 = function_address @scoop.$reference.4 : ptr
+    heap_store t14 +16 t15
+    heap_store t14 +24 local5
+    store t14 -> local6
+    t16 = call @scoop.ctor.PlusHundred() : ptr
+    store t16 -> local16
+    store local16 -> local5
+    t17 = call @scoop.ctor.PrefixMapper(global2) : ptr
+    store t17 -> local7
+    t18 = call @scoop_rt_alloc(global18, 32) : ptr
+    t19 = function_address @scoop.$reference.5 : ptr
+    heap_store t18 +16 t19
+    heap_store t18 +24 local7
+    store t18 -> local8
+    t20 = aggregate (2) : {i64}
+    store t20 -> local9
+    t21 = call @scoop_rt_alloc(global19, 32) : ptr
+    t22 = function_address @scoop.$reference.6 : ptr
+    heap_store t21 +16 t22
+    heap_store t21 +24 local9
+    store t21 -> local10
+    t23 = aggregate (100) : {i64}
+    store t23 -> local9
+    t24 = call @scoop.ctor.GenericMapper() : ptr
+    store t24 -> local17
+    t25 = call @scoop_rt_alloc(global20, 32) : ptr
+    t26 = function_address @scoop.$reference.7 : ptr
+    heap_store t25 +16 t26
+    heap_store t25 +24 local17
+    store t25 -> local11
+    t27 = call @scoop.ctor.OverloadedMapper() : ptr
+    store t27 -> local18
+    t28 = call @scoop_rt_alloc(global21, 32) : ptr
+    t29 = function_address @scoop.$reference.8 : ptr
+    heap_store t28 +16 t29
+    heap_store t28 +24 local18
+    store t28 -> local12
+    t30 = call @scoop.ctor.ThrowingMapper() : ptr
+    store t30 -> local19
+    t31 = call @scoop_rt_alloc(global22, 32) : ptr
+    t32 = function_address @scoop.$reference.9 : ptr
+    heap_store t31 +16 t32
+    heap_store t31 +24 local19
+    store t31 -> local13
+    call @scoop_rt_gc_collect()
+    t33 = aggregate () : {}
+    t34 = call_indirect local0[2](local0, 41) : i64
+    store t34 -> local20
+    t35 = call @scoop_rt_box(global16, local20, 8) : ptr
+    call @scoop.println(t35)
+    t36 = aggregate () : {}
+    t37 = call_indirect local1[2](local1, 42) : i64
+    store t37 -> local21
+    t38 = call @scoop_rt_box(global16, local21, 8) : ptr
+    call @scoop.println(t38)
+    t39 = aggregate () : {}
+    t40 = call_indirect local2[2](local2, global3) : ptr
+    store t40 -> local22
+    call @scoop.println(local22)
+    t41 = aggregate () : {}
+    t42 = call_indirect local4[2](local4, 21) : i64
+    store t42 -> local23
+    t43 = call @scoop_rt_box(global16, local23, 8) : ptr
+    call @scoop.println(t43)
+    t44 = aggregate () : {}
+    t45 = call_indirect local6[2](local6, 21) : i64
+    store t45 -> local24
+    t46 = call @scoop_rt_box(global16, local24, 8) : ptr
+    call @scoop.println(t46)
+    t47 = aggregate () : {}
+    t48 = heap_load local5 +0 : ptr
+    t49 = heap_load t48 +40 : ptr
+    t50 = call_indirect t49[3](local5, 21) : i64
+    store t50 -> local25
+    t51 = call @scoop_rt_box(global16, local25, 8) : ptr
+    call @scoop.println(t51)
+    t52 = aggregate () : {}
+    t53 = call_indirect local8[2](local8, global4) : ptr
+    store t53 -> local26
+    call @scoop.println(local26)
+    t54 = aggregate () : {}
+    t55 = call_indirect local10[2](local10, 40) : i64
+    store t55 -> local27
+    t56 = call @scoop_rt_box(global16, local27, 8) : ptr
+    call @scoop.println(t56)
+    t57 = aggregate () : {}
+    t58 = call @scoop.ValueMapper.map(local9, 40) : i64
+    store t58 -> local28
+    t59 = call @scoop_rt_box(global16, local28, 8) : ptr
+    call @scoop.println(t59)
+    t60 = aggregate () : {}
+    t61 = call_indirect local11[2](local11, global5) : ptr
+    store t61 -> local29
+    call @scoop.println(local29)
+    t62 = aggregate () : {}
+    t63 = call_indirect local12[2](local12, 1) : i64
+    store t63 -> local30
+    t64 = call @scoop_rt_box(global16, local30, 8) : ptr
+    call @scoop.println(t64)
+    t65 = aggregate () : {}
+    br @try.body.8
+  block try.unwind.1
+    (t66, t67) = landingpad : (exception_record, ptr)
+    store t66 -> local32
+    store t67 -> local33
+    br @try.dispatch.2
+  block try.dispatch.2
+    t68 = begin_catch local33 : ptr
+    store t68 -> local34
+    t69 = call @scoop_rt_is_instance(local34, global23) : i1
+    cbr t69 then @try.catch.10 else @try.next.11
+  block try.handler_pad.3
+    (t70, t71) = cleanup_pad : (exception_record, ptr)
+    store t70 -> local32
+    store t71 -> local33
+    br @try.handler_cleanup.4
+  block try.handler_cleanup.4
+    end_catch
+    resume local32
+  block try.exit_pad.5
+    (t72, t73) = cleanup_pad : (exception_record, ptr)
+    store t72 -> local32
+    store t73 -> local33
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local32
+  block try.end.7
+    ret
+  block try.body.8
+    invoke_indirect local13[2](local13, 0) normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block scope.9
+    br @try.end.7
+  block try.catch.10
+    store local34 -> local14
+    br @scope.12
+  block try.next.11
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
+    br @rethrow.normal.3
+  block scope.12
+    invoke @scoop.println(global6) normal @invoke.normal.4 unwind @try.handler_pad.3
+    br @invoke.normal.4
+  block scope.13
+    end_catch
+    br @try.end.7
+  block invoke.normal.1
+    store t74 -> local31
+    t75 = call @scoop_rt_box(global16, local31, 8) : ptr
+    invoke @scoop.println(t75) normal @invoke.normal.2 unwind @try.unwind.1
+    br @invoke.normal.2
+  block invoke.normal.2
+    t76 = aggregate () : {}
+    br @scope.9
+  block rethrow.normal.3
+    unreachable
+  block invoke.normal.4
+    t77 = aggregate () : {}
+    br @scope.13
+  fun @scoop.BaseMapper.map(ptr, i64) -> i64
+  block entry
+    ret param1
+  fun @scoop.TimesTwo.map(ptr, i64) -> i64
+  block entry
+    t0 = Add param1, param1 : i64
+    ret t0
+  fun @scoop.PlusHundred.map(ptr, i64) -> i64
+  block entry
+    t0 = Add param1, 100 : i64
+    ret t0
+  fun @scoop.MapperFactory.make(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = Add t0, 1 : i64
+    heap_store param0 +16 t1
+    t2 = call @scoop.ctor.TimesTwo() : ptr
+    store t2 -> local0
+    ret local0
+  fun @scoop.PrefixMapper.map(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : ptr
+    t1 = call @scoop_rt_string_concat(t0, param1) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.ValueMapper.map({i64}, i64) -> i64
+  block entry
+    t0 = extract param0, 0 : i64
+    t1 = Add param1, t0 : i64
+    ret t1
+  fun @scoop.OverloadedMapper.choose(ptr, i64) -> i64
+  block entry
+    ret 100
+  fun @scoop.ThrowingMapper.map(ptr, i64) -> i64
+    local %0 $call.1: ptr
+  block entry
+    t0 = Eq param1, 0 : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    t1 = call @scoop.ctor.ArithmeticException() : ptr
+    store t1 -> local0
+    throw local0
+    unreachable
+  block if.merge.2
+    ret param1
+  fun @scoop.$reference.0(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.increment(param1) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.identity$I(i64) -> i64
+  block entry
+    ret param0
+  fun @scoop.$reference.1(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.identity$I(param1) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.2(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.describe.S(param1) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.3(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load t0 +0 : ptr
+    t2 = heap_load t1 +40 : ptr
+    t3 = call_indirect t2[3](t0, param1) : i64
+    store t3 -> local0
+    ret local0
+  fun @scoop.$reference.4(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load t0 +0 : ptr
+    t2 = heap_load t1 +40 : ptr
+    t3 = call_indirect t2[3](t0, param1) : i64
+    store t3 -> local0
+    ret local0
+  fun @scoop.$reference.5(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load t0 +0 : ptr
+    t2 = call @scoop_rt_itable_lookup(t1, global24) : ptr
+    t3 = call_indirect t2[0](t0, param1) : ptr
+    store t3 -> local0
+    ret local0
+  fun @scoop.$reference.6(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : {i64}
+    t1 = call @scoop.ValueMapper.map(t0, param1) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.GenericMapper.choose$S(ptr, ptr) -> ptr
+  block entry
+    ret param1
+  fun @scoop.$reference.7(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.GenericMapper.choose$S(t0, param1) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.8(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.OverloadedMapper.choose(t0, param1) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.9(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.ThrowingMapper.map(t0, param1) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global25, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global26, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global27, 24) : ptr
+    t1 = enum_wrap e0 v0 (global7) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global28, 24) : ptr
+    t1 = enum_wrap e0 v0 (global8) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global23, 24) : ptr
+    t1 = enum_wrap e0 v0 (global9) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global29, 24) : ptr
+    t1 = enum_wrap e0 v0 (global10) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global30, 24) : ptr
+    t1 = enum_wrap e0 v0 (global11) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.BaseMapper() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global31, 16) : ptr
+    ret t0
+  fun @scoop.ctor.TimesTwo() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global32, 16) : ptr
+    ret t0
+  fun @scoop.ctor.PlusHundred() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global33, 16) : ptr
+    ret t0
+  fun @scoop.ctor.MapperFactory(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global34, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.PrefixMapper(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global35, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.GenericMapper() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global36, 16) : ptr
+    ret t0
+  fun @scoop.ctor.OverloadedMapper() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global37, 16) : ptr
+    ret t0
+  fun @scoop.ctor.ThrowingMapper() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global38, 16) : ptr
+    ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
+  td TextMapper @scoop_td_TextMapper size=0 vtable=0 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td BaseMapper @scoop_td_BaseMapper size=16 vtable=4 itables=0
+  td MapperFactory @scoop_td_MapperFactory size=24 vtable=3 itables=0
+  td PrefixMapper @scoop_td_PrefixMapper size=24 vtable=3 itables=1
+  td GenericMapper @scoop_td_GenericMapper size=16 vtable=3 itables=0
+  td OverloadedMapper @scoop_td_OverloadedMapper size=16 vtable=3 itables=0
+  td ThrowingMapper @scoop_td_ThrowingMapper size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td TimesTwo @scoop_td_TimesTwo size=16 vtable=4 itables=0
+  td PlusHundred @scoop_td_PlusHundred size=16 vtable=4 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=24 vtable=0 itables=0
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=0 itables=0
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=0 itables=0
+  td $Closure$reference3 @scoop_td_$Closure$reference3 size=32 vtable=0 itables=0
+  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=0 itables=0
+  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=0 itables=0
+  td $Closure$reference6 @scoop_td_$Closure$reference6 size=32 vtable=0 itables=0
+  td $Closure$reference7 @scoop_td_$Closure$reference7 size=32 vtable=0 itables=0
+  td $Closure$reference8 @scoop_td_$Closure$reference8 size=32 vtable=0 itables=0
+  td $Closure$reference9 @scoop_td_$Closure$reference9 size=32 vtable=0 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout ValueMapper size=8 align=8 refs=[]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout BaseMapper size=16 align=8 refs=[]
+  layout TimesTwo size=16 align=8 refs=[]
+  layout PlusHundred size=16 align=8 refs=[]
+  layout MapperFactory size=24 align=8 refs=[]
+  layout PrefixMapper size=24 align=8 refs=[16]
+  layout GenericMapper size=16 align=8 refs=[]
+  layout OverloadedMapper size=16 align=8 refs=[]
+  layout ThrowingMapper size=16 align=8 refs=[]
+  layout box$I size=24 align=8 refs=[]
+  layout $Closure$reference0 size=24 align=8 refs=[]
+  layout $Closure$reference1 size=24 align=8 refs=[]
+  layout $Closure$reference2 size=24 align=8 refs=[]
+  layout $Closure$reference3 size=32 align=8 refs=[24]
+  layout $Closure$reference4 size=32 align=8 refs=[24]
+  layout $Closure$reference5 size=32 align=8 refs=[24]
+  layout $Closure$reference6 size=32 align=8 refs=[]
+  layout $Closure$reference7 size=32 align=8 refs=[24]
+  layout $Closure$reference8 size=32 align=8 refs=[24]
+  layout $Closure$reference9 size=32 align=8 refs=[24]
+  entry @scoop_main
+
+== run ==
+1
+42
+42
+string
+42
+42
+121
+kept-alive
+42
+140
+generic
+100
+caught

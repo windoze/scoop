@@ -180,11 +180,94 @@ fn top_level_reference_is_a_distinct_typed_entity() {
         .next()
         .expect("reference entity");
     assert!(reference.captures.is_empty());
-    let hir::CallableReferenceTarget::Named(callable) = reference.target else {
+    let hir::CallableReferenceTarget::Named(callable) = &reference.target else {
         panic!("expected a top-level callable reference")
     };
-    let target = module.callable_function(callable);
+    let target = module.callable_function(*callable);
     assert_eq!(module.functions[target].name, "increment");
+}
+
+#[test]
+fn generic_top_level_reference_is_fixed_by_its_expected_type() {
+    let signature = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
+    let reference = ast::Expr::CallableReference {
+        id: ast::CallableReferenceId(0),
+        receiver: None,
+        name: ident("identity"),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![
+        fun_expr(
+            "identity",
+            vec!["T"],
+            vec![("value", ty_named("T"))],
+            Some(ty_named("T")),
+            var("value"),
+        ),
+        fun(
+            "main",
+            vec![val_ty("operation", Some(signature), reference)],
+        ),
+    ]))
+    .expect("the expected function type should fix the generic reference");
+
+    let (_, reference) = module
+        .callable_references
+        .iter()
+        .next()
+        .expect("reference entity");
+    let hir::CallableReferenceTarget::Named(hir::Callable::Generic(resolved)) = &reference.target
+    else {
+        panic!("expected a resolved generic reference")
+    };
+    assert_eq!(module.instantiations[*resolved].type_args, vec![module.int]);
+}
+
+#[test]
+fn bound_reference_retains_receiver_and_resolved_member_identity() {
+    let operation_ty = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
+    let reference = ast::Expr::CallableReference {
+        id: ast::CallableReferenceId(0),
+        receiver: Some(Box::new(var("mapper"))),
+        name: ident("map"),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Mapper",
+            vec![(false, "offset", ty_named("Int"))],
+            None,
+            vec![],
+            vec![method_expr(
+                "map",
+                vec![("value", ty_named("Int"))],
+                Some(ty_named("Int")),
+                binary(ast::BinOp::Add, var("value"), var("offset")),
+            )],
+        ),
+        fun(
+            "main",
+            vec![
+                val("mapper", call("Mapper", vec![int_lit(2)])),
+                val_ty("operation", Some(operation_ty), reference),
+            ],
+        ),
+    ]))
+    .expect("a bound member reference should lower");
+
+    let (_, reference) = module
+        .callable_references
+        .iter()
+        .next()
+        .expect("reference entity");
+    let hir::CallableReferenceTarget::BoundMember { receiver, callee } = &reference.target else {
+        panic!("expected a bound member target")
+    };
+    assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
+    let target = module.callable_function(*callee);
+    assert_eq!(module.functions[target].name, "Mapper.map");
+    assert!(reference.captures.is_empty());
 }
 
 #[test]
@@ -379,5 +462,56 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
         lifted.params.len(),
         2,
         "capture parameter precedes source parameter"
+    );
+}
+
+#[test]
+fn overload_probes_lambda_candidates_transactionally() {
+    let int_operation = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
+    let string_operation = ty_function(false, vec![ty_named("Int")], ty_named("String"));
+    let operation = lambda(
+        Some(vec![ast::LambdaParam {
+            target: pat_bind("value"),
+            ty: None,
+            span: sp(),
+        }]),
+        str_lit("selected"),
+    );
+    let module = lower_user(file(vec![
+        fun_expr(
+            "select",
+            vec![],
+            vec![("operation", int_operation)],
+            Some(ty_named("Int")),
+            int_lit(0),
+        ),
+        fun_expr(
+            "select",
+            vec![],
+            vec![("operation", string_operation)],
+            Some(ty_named("String")),
+            str_lit(""),
+        ),
+        fun("main", vec![val("result", call("select", vec![operation]))]),
+    ]))
+    .expect("the lambda result should leave exactly one applicable overload");
+
+    assert_eq!(
+        module.lambdas.len(),
+        1,
+        "discarded candidate probes must not leak lambda entities"
+    );
+    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+        panic!("main body")
+    };
+    let hir::StatementKind::ValDecl { init, .. } = &main.statements[0].kind else {
+        panic!("result declaration")
+    };
+    let hir::ExprKind::Call { callee, .. } = &init.kind else {
+        panic!("resolved overload call")
+    };
+    assert_eq!(
+        module.functions[module.callable_function(*callee)].return_ty,
+        module.string
     );
 }

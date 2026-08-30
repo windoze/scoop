@@ -125,6 +125,7 @@ impl Lowerer {
         // Applicability (step 1): each entry pairs a prepared-candidate
         // index with its inferred call-level type arguments.
         let mut applicable: Vec<(usize, Vec<TypeId>)> = Vec::new();
+        let mut contextual_failures: Vec<(usize, TypeId, String)> = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
             if candidate.params.len() != arg_exprs.len() {
                 continue;
@@ -132,22 +133,37 @@ impl Lowerer {
             let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) else {
                 continue;
             };
-            let matches = candidate.params.iter().zip(&arg_tys).zip(arg_exprs).all(
-                |((&param, arg), arg_expr)| {
-                    let expected = self.substitute_call_level(param, &type_args);
-                    match arg {
-                        Some(arg) => self.is_subtype(*arg, expected),
-                        None => self.contextual_expr_accepts(arg_expr, expected),
-                    }
-                },
-            );
-            if matches {
+            let ordinary_args_match = candidate.params.iter().zip(&arg_tys).all(|(&param, arg)| {
+                let expected = self.substitute_call_level(param, &type_args);
+                match arg {
+                    Some(arg) => self.is_subtype(*arg, expected),
+                    None => true,
+                }
+            });
+            if !ordinary_args_match {
+                continue;
+            }
+            let mut contextual_args_match = true;
+            for (argument, (&param, arg)) in candidate.params.iter().zip(&arg_tys).enumerate() {
+                if arg.is_some() {
+                    continue;
+                }
+                let expected = self.substitute_call_level(param, &type_args);
+                if let Err(reason) = self.probe_contextual_expr(&arg_exprs[argument], expected) {
+                    contextual_failures.push((argument, expected, reason));
+                    contextual_args_match = false;
+                }
+            }
+            if contextual_args_match {
                 applicable.push((index, type_args));
             }
         }
 
         let (winner, type_args) = match applicable.len() {
             0 => {
+                if self.contextual_no_applicable_diagnostic(name, arg_exprs, &contextual_failures) {
+                    return None;
+                }
                 self.no_applicable_diagnostic(
                     name,
                     &prepared,
@@ -207,6 +223,33 @@ impl Lowerer {
             args,
             return_ty,
         })
+    }
+
+    fn contextual_no_applicable_diagnostic(
+        &mut self,
+        name: &str,
+        arg_exprs: &[ast::Expr],
+        failures: &[(usize, TypeId, String)],
+    ) -> bool {
+        let Some(argument) = failures.iter().map(|failure| failure.0).min() else {
+            return false;
+        };
+        let mut details = Vec::new();
+        for (_, expected, reason) in failures.iter().filter(|failure| failure.0 == argument) {
+            let detail = format!("{}: {reason}", self.type_name(*expected));
+            if !details.contains(&detail) {
+                details.push(detail);
+            }
+        }
+        self.error(
+            arg_exprs[argument].span(),
+            format!(
+                "{} does not match any overload of `{name}`; candidate expectations: {}",
+                contextual_expr_name(&arg_exprs[argument]),
+                details.join("; ")
+            ),
+        );
+        true
     }
 
     /// MSC selection (step 2) over two or more applicable candidates.
@@ -469,6 +512,9 @@ fn contextual_expr_name(expr: &ast::Expr) -> String {
     match expr {
         ast::Expr::Var(name) if name.text == "None" => "None".to_string(),
         ast::Expr::ArrayLiteral { elements, .. } if elements.is_empty() => "[]".to_string(),
+        ast::Expr::Lambda { .. } => "lambda".to_string(),
+        ast::Expr::AnonymousFunction { .. } => "anonymous function".to_string(),
+        ast::Expr::CallableReference { .. } => "callable reference".to_string(),
         _ => "context-dependent expression".to_string(),
     }
 }

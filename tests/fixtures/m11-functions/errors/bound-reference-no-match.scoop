@@ -1,0 +1,7 @@
+class Selector {
+    fun choose(value: Int): Int = value
+}
+
+fun main() {
+    val operation: (String) -> String = Selector()::choose
+}

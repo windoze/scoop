@@ -1417,13 +1417,17 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         if let Some(receiver) = receiver {
-            // Evaluate it now so this remains a creation-time snapshot once
-            // bound references are enabled in the corresponding M11 gate.
-            let _ = self.lower_expr(receiver, sink, None)?;
+            return self.lower_bound_callable_reference(receiver, name, span, expected, sink);
+        }
+        if let Some(local) = self.scopes.lookup(&name.text)
+            && matches!(self.types[self.locals[local].ty], Type::Function(_))
+        {
             self.error(
                 span,
-                "bound callable references are only available after the M11 bound-reference gate"
-                    .to_string(),
+                format!(
+                    "`::{}` cannot reference an existing function value; use `{}` directly",
+                    name.text, name.text
+                ),
             );
             return None;
         }
@@ -1431,52 +1435,31 @@ impl Lowerer {
         if !local_candidates.is_empty() {
             return self.lower_local_callable_reference(local_candidates, name, span, expected);
         }
-        let mut candidates = self.top_level_candidate_layer(&name.text);
+        let candidates = self.top_level_candidate_layer(&name.text);
         if candidates.is_empty() {
+            if self.is_declared_type_name(&name.text) {
+                self.error(
+                    span,
+                    format!(
+                        "constructor reference `::{}` is not supported; construct the value in a lambda",
+                        name.text
+                    ),
+                );
+                return None;
+            }
             self.error(name.span, format!("unknown function `{}`", name.text));
             return None;
         }
-        candidates.retain(|function| self.functions[*function].type_params.is_empty());
-        let expected_signature = expected.and_then(|ty| match self.types[ty] {
-            Type::Function(id) => Some((ty, self.function_types[id].clone())),
-            _ => None,
-        });
-        if let Some((_, signature)) = &expected_signature {
-            candidates.retain(|function| {
-                let candidate = &self.signatures[function];
-                candidate.is_suspend == signature.is_suspend
-                    && candidate.params.len() == signature.parameter_types.len()
-                    && candidate
-                        .params
-                        .iter()
-                        .zip(&signature.parameter_types)
-                        .all(|(parameter, expected)| self.types_equal(parameter.ty, *expected))
-                    && self.types_equal(candidate.return_ty, signature.return_type)
-            });
-        }
-        let function = match candidates.as_slice() {
-            [function] => *function,
-            [] => {
-                self.error(
-                    span,
-                    format!(
-                        "no non-generic overload of `::{}` matches the expected function type",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-            _ => {
-                self.error(
-                    span,
-                    format!(
-                        "callable reference `::{}` is ambiguous; provide an expected function type",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-        };
+        let expected_signature = self.expected_function_signature(expected);
+        let display = format!("callable reference `::{}`", name.text);
+        let (callee, ty) = self.resolve_reference_candidates(
+            &candidates,
+            &[],
+            expected_signature.as_ref(),
+            &display,
+            span,
+        )?;
+        let function = self.callable_function_id(callee);
         let signature = self.signatures[&function].clone();
         if signature.is_suspend {
             self.error(
@@ -1486,25 +1469,11 @@ impl Lowerer {
             );
             return None;
         }
-        let ty = expected_signature.map_or_else(
-            || {
-                self.intern_function_type(
-                    signature.is_suspend,
-                    signature
-                        .params
-                        .iter()
-                        .map(|parameter| parameter.ty)
-                        .collect(),
-                    signature.return_ty,
-                )
-            },
-            |(ty, _)| ty,
-        );
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
         let id = self.callable_references.alloc(hir::CallableReference {
-            target: hir::CallableReferenceTarget::Named(hir::Callable::Function(function)),
+            target: hir::CallableReferenceTarget::Named(callee),
             function_type,
             captures: Vec::new(),
             span,
@@ -1514,6 +1483,248 @@ impl Lowerer {
             ty,
             span,
         })
+    }
+
+    fn lower_bound_callable_reference(
+        &mut self,
+        receiver: &ast::Expr,
+        name: &ast::Ident,
+        span: Span,
+        expected: Option<TypeId>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        if let ast::Expr::Var(type_name) = receiver
+            && self.scopes.lookup(&type_name.text).is_none()
+            && !self.host_has_property(&type_name.text)
+            && (self.is_declared_type_name(&type_name.text)
+                || self.type_params_in_scope.contains(&type_name.text))
+        {
+            self.error(
+                span,
+                format!(
+                    "unbound member reference `{}::{}` is not supported; bind an expression receiver first",
+                    type_name.text, name.text
+                ),
+            );
+            return None;
+        }
+        // The source expression is retained on the reference entity and becomes
+        // the first closure field initializer in MIR. It is therefore evaluated
+        // once at reference creation, including when it reads a mutable local.
+        let receiver = self.lower_expr(receiver, sink, None)?;
+        let mut candidates = self.methods_by_name(receiver.ty, &name.text);
+        if candidates.is_empty() {
+            let found = self.type_name(receiver.ty);
+            self.error(
+                name.span,
+                format!("type `{found}` has no method `{}`", name.text),
+            );
+            return None;
+        }
+        if matches!(self.types[receiver.ty], Type::Interface(..)) {
+            let before = candidates.len();
+            candidates.retain(|&function| {
+                let sig = &self.signatures[&function];
+                sig.type_params.len() == sig.owner_type_param_count
+            });
+            if candidates.is_empty() && before != 0 {
+                let found = self.type_name(receiver.ty);
+                self.error(
+                    name.span,
+                    format!(
+                        "generic member function `{}` cannot be referenced through interface type `{found}`",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+        }
+        let owner_type_args = self.receiver_type_args(receiver.ty);
+        let expected_signature = self.expected_function_signature(expected);
+        let display = format!("bound callable reference `receiver::{}`", name.text);
+        let (callee, ty) = self.resolve_reference_candidates(
+            &candidates,
+            &owner_type_args,
+            expected_signature.as_ref(),
+            &display,
+            span,
+        )?;
+        let function = self.callable_function_id(callee);
+        if self.functions[function].is_suspend {
+            self.error(
+                span,
+                "suspend callable references are introduced by the M11 suspend-integration gate"
+                    .to_string(),
+            );
+            return None;
+        }
+        let Type::Function(function_type) = self.types[ty] else {
+            unreachable!("a callable reference has a function type")
+        };
+        let id = self.callable_references.alloc(hir::CallableReference {
+            target: hir::CallableReferenceTarget::BoundMember {
+                receiver: Box::new(receiver),
+                callee,
+            },
+            function_type,
+            captures: Vec::new(),
+            span,
+        });
+        Some(hir::Expr {
+            kind: ExprKind::CallableReference(id),
+            ty,
+            span,
+        })
+    }
+
+    fn is_declared_type_name(&self, name: &str) -> bool {
+        self.classes_by_name.contains_key(name)
+            || self.interfaces_by_name.contains_key(name)
+            || self.structs_by_name.contains_key(name)
+            || self.enums_by_name.contains_key(name)
+    }
+
+    fn expected_function_signature(
+        &self,
+        expected: Option<TypeId>,
+    ) -> Option<(TypeId, hir::FunctionType)> {
+        expected.and_then(|ty| match self.types[ty] {
+            Type::Function(id) => Some((ty, self.function_types[id].clone())),
+            _ => None,
+        })
+    }
+
+    fn receiver_type_args(&self, receiver: TypeId) -> Vec<TypeId> {
+        match &self.types[receiver] {
+            Type::Enum(_, args) | Type::Struct(_, args) | Type::Interface(_, args) => args.clone(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Resolve one top-level or member callable-reference candidate layer.
+    /// Expected function types bind generic parameters in both parameter and
+    /// return positions. Without one, only candidates with no declaration-owned
+    /// type parameters can produce a concrete function value.
+    fn resolve_reference_candidates(
+        &mut self,
+        candidates: &[hir::FunctionId],
+        owner_type_args: &[TypeId],
+        expected: Option<&(TypeId, hir::FunctionType)>,
+        display: &str,
+        span: Span,
+    ) -> Option<(hir::Callable, TypeId)> {
+        let mut applicable = Vec::new();
+        for &function in candidates {
+            let sig = self.signatures[&function].clone();
+            if sig.owner_type_param_count != owner_type_args.len() {
+                continue;
+            }
+            let mut bindings = vec![None; sig.type_params.len()];
+            for (binding, &ty) in bindings.iter_mut().zip(owner_type_args) {
+                *binding = Some(ty);
+            }
+            match expected {
+                Some((_, expected)) => {
+                    if sig.is_suspend != expected.is_suspend
+                        || sig.params.len() != expected.parameter_types.len()
+                    {
+                        continue;
+                    }
+                    let parameters_match = sig.params.iter().zip(&expected.parameter_types).all(
+                        |(parameter, &expected)| {
+                            self.try_bind(parameter.ty, expected, &mut bindings)
+                        },
+                    );
+                    if !parameters_match
+                        || !self.try_bind(sig.return_ty, expected.return_type, &mut bindings)
+                        || bindings.iter().any(Option::is_none)
+                    {
+                        continue;
+                    }
+                }
+                None => {
+                    if sig.type_params.len() != sig.owner_type_param_count {
+                        continue;
+                    }
+                }
+            }
+            let type_args: Vec<_> = bindings.into_iter().flatten().collect();
+            let parameter_types: Vec<_> = sig
+                .params
+                .iter()
+                .map(|parameter| self.instantiate_ty(parameter.ty, &type_args))
+                .collect();
+            let return_type = self.instantiate_ty(sig.return_ty, &type_args);
+            if let Some((_, expected)) = expected {
+                let exact = parameter_types
+                    .iter()
+                    .zip(&expected.parameter_types)
+                    .all(|(&parameter, &expected)| self.types_equal(parameter, expected))
+                    && self.types_equal(return_type, expected.return_type);
+                if !exact {
+                    continue;
+                }
+            }
+            let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
+            applicable.push((
+                function,
+                type_args,
+                parameter_types,
+                return_type,
+                sig.is_suspend,
+                own_type_param_count,
+            ));
+        }
+
+        let selected = match applicable.len() {
+            0 => {
+                let message = if expected.is_some() {
+                    format!("no overload of {display} matches the expected function type")
+                } else {
+                    format!(
+                        "cannot determine {display} without an expected function type; no unique non-generic candidate exists"
+                    )
+                };
+                self.error(span, message);
+                return None;
+            }
+            1 => 0,
+            _ if expected.is_some() => {
+                let concrete: Vec<_> = applicable
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, candidate)| (candidate.5 == 0).then_some(index))
+                    .collect();
+                if let [index] = concrete.as_slice() {
+                    *index
+                } else {
+                    self.error(
+                        span,
+                        format!("{display} is ambiguous for the expected function type"),
+                    );
+                    return None;
+                }
+            }
+            _ => {
+                self.error(
+                    span,
+                    format!("{display} is ambiguous; provide an expected function type"),
+                );
+                return None;
+            }
+        };
+        let (function, type_args, parameter_types, return_type, is_suspend, _) =
+            applicable.swap_remove(selected);
+        let ty = match expected {
+            Some((ty, _)) => *ty,
+            None => self.intern_function_type(is_suspend, parameter_types, return_type),
+        };
+        let callee = if type_args.is_empty() {
+            hir::Callable::Function(function)
+        } else {
+            hir::Callable::Generic(self.record_instantiation(function, type_args))
+        };
+        Some((callee, ty))
     }
 
     fn lower_local_callable_reference(
@@ -1566,20 +1777,21 @@ impl Lowerer {
                         .all(|(parameter, expected)| self.types_equal(*parameter, *expected))
                         && self.types_equal(instantiated_return, expected.return_type);
                     if exact {
-                        applicable.push((local_function, type_args));
+                        let own_type_param_count =
+                            sig.type_params.len() - sig.owner_type_param_count;
+                        applicable.push((local_function, type_args, own_type_param_count));
                     }
                 }
                 None => {
                     if sig.type_params.len() != sig.owner_type_param_count {
                         continue;
                     }
-                    applicable.push((local_function, bindings.into_iter().flatten().collect()));
+                    applicable.push((local_function, bindings.into_iter().flatten().collect(), 0));
                 }
             }
         }
-        let (local_function, type_args) = match applicable.as_slice() {
-            [(local, type_args)] => (*local, type_args.clone()),
-            [] => {
+        let selected = match applicable.len() {
+            0 => {
                 self.error(
                     span,
                     format!(
@@ -1588,6 +1800,26 @@ impl Lowerer {
                     ),
                 );
                 return None;
+            }
+            1 => 0,
+            _ if expected_signature.is_some() => {
+                let concrete: Vec<_> = applicable
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, candidate)| (candidate.2 == 0).then_some(index))
+                    .collect();
+                if let [index] = concrete.as_slice() {
+                    *index
+                } else {
+                    self.error(
+                        span,
+                        format!(
+                            "local callable reference `::{}` is ambiguous for the expected function type",
+                            name.text
+                        ),
+                    );
+                    return None;
+                }
             }
             _ => {
                 self.error(
@@ -1600,6 +1832,7 @@ impl Lowerer {
                 return None;
             }
         };
+        let (local_function, type_args, _) = applicable.swap_remove(selected);
         let local = &self.local_functions[local_function];
         let function = local.function;
         if self.functions[function].is_suspend {
@@ -2840,6 +3073,12 @@ impl Lowerer {
                 args,
                 ..
             } => self.qualified_variant_requires_expected(receiver, name, args),
+            // Callable literals and references may be independently typed
+            // against every overload candidate. Their candidate probe must not
+            // commit generated entities, captures, or diagnostics.
+            ast::Expr::Lambda { .. }
+            | ast::Expr::AnonymousFunction { .. }
+            | ast::Expr::CallableReference { .. } => true,
             // Structured expressions perform their own branch-level fixed
             // point and therefore do not need to be postponed as a whole.
             ast::Expr::If(_) | ast::Expr::When(_) | ast::Expr::Try(_) => false,
@@ -2847,129 +3086,42 @@ impl Lowerer {
         }
     }
 
-    /// Quiet applicability check for an expression postponed by overload
-    /// resolution. It validates the expected-type-dependent shape only;
-    /// the selected candidate later performs ordinary lowering and emits
-    /// precise diagnostics for all other details.
-    pub(crate) fn contextual_expr_accepts(&mut self, expr: &ast::Expr, expected: TypeId) -> bool {
-        match expr {
-            ast::Expr::Var(name) if name.text == "None" => {
-                matches!(
-                    self.types[expected],
-                    Type::Enum(id, ref args)
-                        if Some(id) == self.option_enum && args.len() == 1
-                )
-            }
-            ast::Expr::FieldAccess(access) => {
-                let Some((enum_id, _)) = self.unit_variant_from_field(access) else {
-                    return true;
-                };
-                matches!(self.types[expected], Type::Enum(id, _) if id == enum_id)
-            }
-            ast::Expr::TupleLiteral { elements, .. } => {
-                let Type::Tuple(expected_elements) = self.types[expected].clone() else {
-                    return false;
-                };
-                elements.len() == expected_elements.len()
-                    && elements.iter().zip(expected_elements).all(|(element, ty)| {
-                        !self.expr_requires_expected_type(element)
-                            || self.contextual_expr_accepts(element, ty)
-                    })
-            }
-            ast::Expr::ArrayLiteral { elements, .. } => {
-                let element_ty = match self.types[expected] {
-                    Type::Array(element) | Type::MutableArray(element) => element,
-                    _ => return false,
-                };
-                elements.iter().all(|element| {
-                    !self.expr_requires_expected_type(element)
-                        || self.contextual_expr_accepts(element, element_ty)
-                })
-            }
-            ast::Expr::Call(call) => {
-                self.contextual_constructor_accepts(&call.callee.text, &call.args, expected)
-            }
-            ast::Expr::StructInit { name, args, .. } => {
-                self.contextual_constructor_accepts(&name.text, args, expected)
-            }
-            ast::Expr::MethodCall {
-                receiver,
-                name,
-                args,
-                ..
-            } => {
-                let ast::Expr::Var(enum_name) = receiver.as_ref() else {
-                    return true;
-                };
-                self.contextual_constructor_accepts(
-                    &format!("{}.{}", enum_name.text, name.text),
-                    args,
-                    expected,
-                )
-            }
-            _ => true,
-        }
-    }
-
-    fn contextual_constructor_accepts(
-        &mut self,
-        name: &str,
-        args: &[ast::Expr],
+    /// Type one context-dependent expression in a cloned semantic state. This is
+    /// the transactional probe used by overload applicability: generated
+    /// function/closure entities, inferred types, captures, and diagnostics are
+    /// all discarded with the clone. The selected candidate is lowered once in
+    /// the original state afterwards.
+    pub(crate) fn probe_contextual_expr(
+        &self,
+        expr: &ast::Expr,
         expected: TypeId,
-    ) -> bool {
-        let variant = if let Some((enum_name, variant_name)) = name.split_once('.') {
-            let Some(enum_id) = self.enums_by_name.get(enum_name).copied() else {
-                return true;
-            };
-            self.find_variant(enum_id, variant_name)
-                .map(|variant| (enum_id, variant))
-        } else {
-            self.option_variant(name)
-        };
-        let (fields, type_args) = if let Some((enum_id, variant)) = variant {
-            let Type::Enum(expected_id, type_args) = self.types[expected].clone() else {
-                return false;
-            };
-            if expected_id != enum_id {
-                return false;
-            }
-            (
-                self.enums[enum_id].variants[variant as usize]
-                    .fields
-                    .iter()
-                    .map(|field| field.ty)
-                    .collect::<Vec<_>>(),
-                type_args,
-            )
-        } else if let Some(&(struct_id, _)) = self.structs_by_name.get(name) {
-            let Type::Struct(expected_id, type_args) = self.types[expected].clone() else {
-                return false;
-            };
-            if expected_id != struct_id {
-                return false;
-            }
-            (
-                self.structs[struct_id]
-                    .fields
-                    .iter()
-                    .map(|field| field.ty)
-                    .collect::<Vec<_>>(),
-                type_args,
-            )
-        } else {
-            return true;
-        };
-        args.iter().zip(fields).all(|(arg, field)| {
-            if !self.expr_requires_expected_type(arg) {
-                return true;
-            }
-            let expected = if type_args.is_empty() {
-                field
+    ) -> Result<(), String> {
+        let mut probe = self.clone();
+        let diagnostics_before = probe.diagnostics.len();
+        let mut sink = Vec::new();
+        let value = probe.lower_expr(expr, &mut sink, Some(expected));
+        let diagnostics: Vec<_> = probe.diagnostics[diagnostics_before..]
+            .iter()
+            .map(|diagnostic| diagnostic.message.clone())
+            .collect();
+        let Some(value) = value else {
+            return Err(if diagnostics.is_empty() {
+                "contextual expression could not be typed".to_string()
             } else {
-                self.instantiate_ty(field, &type_args)
-            };
-            self.contextual_expr_accepts(arg, expected)
-        })
+                diagnostics.join(", ")
+            });
+        };
+        if !diagnostics.is_empty() {
+            return Err(diagnostics.join(", "));
+        }
+        if !probe.is_subtype(value.ty, expected) {
+            return Err(format!(
+                "expression has type {}, expected {}",
+                probe.type_name(value.ty),
+                probe.type_name(expected)
+            ));
+        }
+        Ok(())
     }
 
     fn constructor_requires_expected(&self, name: &ast::Ident, args: &[ast::Expr]) -> bool {
