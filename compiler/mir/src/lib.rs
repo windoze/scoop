@@ -21,6 +21,8 @@ pub type ClassId = Idx<ClassDef>;
 pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
 pub type BlockId = Idx<BasicBlock>;
+pub type CoroutineFunctionId = Idx<CoroutineFunction>;
+pub type CoroutineStepId = Idx<CoroutineStep>;
 
 /// Mangled symbol of the program entry point (called by the C runtime).
 pub const ENTRY_SYMBOL: &str = "scoop_main";
@@ -63,6 +65,13 @@ pub fn mangle_generic_overload(
 /// reserved for monomorphized instances, so the two never collide.
 pub fn mangle_overload(module: &Module, name: &str, params: &[Type]) -> String {
     format!("scoop.{name}.{}", encode_params(module, params))
+}
+
+/// Add the hidden coroutine-ABI discriminator to an already mangled source
+/// callable. `$suspend` cannot collide with a source identifier or the `$`
+/// type-argument encoding of a monomorphized function.
+pub fn mangle_suspend(symbol: &str) -> String {
+    format!("{symbol}$suspend")
 }
 
 /// The `_`-joined parameter encoding shared by overload mangling and
@@ -231,6 +240,24 @@ pub struct MirMeta {
     /// records the emitted symbol and its generic HIR source without
     /// leaking HIR ids across the stage boundary.
     pub instances: Arena<MonomorphizedFunction>,
+    /// Concrete hidden-ABI suspend callables, indexed independently from the
+    /// ordinary function arena.
+    pub coroutine_functions: Arena<CoroutineFunction>,
+    /// Concrete `CoroutineStep<R>` internal enums, deduplicated by `R`.
+    pub coroutine_steps: Arena<CoroutineStep>,
+}
+
+#[derive(Debug)]
+pub struct CoroutineFunction {
+    pub function: FunctionId,
+    pub source_return: Type,
+    pub step: CoroutineStepId,
+}
+
+#[derive(Debug)]
+pub struct CoroutineStep {
+    pub enum_id: EnumId,
+    pub result: Type,
 }
 
 /// Provenance of one concrete generic function emitted into the MIR
@@ -678,6 +705,23 @@ pub fn dump(module: &Module) -> String {
                 &mut out,
             );
         }
+    }
+    for (id, step) in module.meta.coroutine_steps.iter() {
+        out.push_str(&format!(
+            "  coroutine_step cs{} {} result={}\n",
+            id.into_raw().into_u32(),
+            module.enums[step.enum_id].name,
+            type_name(module, &step.result)
+        ));
+    }
+    for (id, coroutine) in module.meta.coroutine_functions.iter() {
+        out.push_str(&format!(
+            "  coroutine_fn cf{} @{} source_return={} step=cs{}\n",
+            id.into_raw().into_u32(),
+            module.functions[coroutine.function].symbol,
+            type_name(module, &coroutine.source_return),
+            coroutine.step.into_raw().into_u32()
+        ));
     }
     for (_, instance) in module.meta.instances.iter() {
         out.push_str(&format!(

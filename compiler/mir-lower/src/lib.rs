@@ -151,6 +151,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new()),
         overloaded: overloaded_names(module),
         option_variants: (0, 0),
+        coroutines: CoroutineRegistry::default(),
+        suspend_sources: Vec::new(),
     }
     .run(module)
 }
@@ -197,6 +199,69 @@ struct Lowerer {
     overloaded: HashSet<String>,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     option_variants: (u32, u32),
+    coroutines: CoroutineRegistry,
+    suspend_sources: Vec<SuspendSource>,
+}
+
+#[derive(Clone)]
+struct SuspendSource {
+    function: mir::FunctionId,
+    source_return: mir::Type,
+    instance: Option<mir::MonomorphizedFunctionId>,
+}
+
+#[derive(Default)]
+struct CoroutineRegistry {
+    functions: Arena<mir::CoroutineFunction>,
+    steps: Arena<mir::CoroutineStep>,
+    steps_by_result: Vec<(mir::Type, mir::CoroutineStepId)>,
+}
+
+impl CoroutineRegistry {
+    fn step_for(
+        &mut self,
+        result: &mir::Type,
+        enums: &mut EnumRegistry,
+        shell: &mut mir::Module,
+    ) -> (mir::CoroutineStepId, mir::Type) {
+        if let Some((_, id)) = self
+            .steps_by_result
+            .iter()
+            .find(|(found, _)| found == result)
+        {
+            let step = &self.steps[*id];
+            return (*id, mir::Type::Enum(step.enum_id, Vec::new()));
+        }
+        let name = format!("CoroutineStep${}", mir::encode_type(shell, result));
+        let variants = vec![
+            mir::VariantDef {
+                name: "Completed".to_string(),
+                fields: vec![mir::Field {
+                    name: "value".to_string(),
+                    ty: result.clone(),
+                }],
+            },
+            mir::VariantDef {
+                name: "Suspended".to_string(),
+                fields: Vec::new(),
+            },
+        ];
+        let enum_id = enums.defs.alloc(mir::EnumDef {
+            name: name.clone(),
+            variants,
+        });
+        let shell_id = shell.enums.alloc(mir::EnumDef {
+            name,
+            variants: Vec::new(),
+        });
+        assert_eq!(enum_id, shell_id, "the mangling shell mirrors enum ids");
+        let id = self.steps.alloc(mir::CoroutineStep {
+            enum_id,
+            result: result.clone(),
+        });
+        self.steps_by_result.push((result.clone(), id));
+        (id, mir::Type::Enum(enum_id, Vec::new()))
+    }
 }
 
 impl Lowerer {
@@ -296,6 +361,13 @@ impl Lowerer {
         for (hir_id, mir_id) in user_functions {
             let (params, return_ty, body) = self.lower_user_function(module, hir_id, None);
             let body = cfg::lower(body, return_ty.clone());
+            if module.functions[hir_id].is_suspend {
+                self.suspend_sources.push(SuspendSource {
+                    function: mir_id,
+                    source_return: return_ty.clone(),
+                    instance: None,
+                });
+            }
             let function = &mut self.functions[mir_id];
             function.params = params;
             function.return_ty = return_ty;
@@ -374,6 +446,13 @@ impl Lowerer {
                 let (params, return_ty, body) =
                     self.lower_user_function(module, hir_id, Some(&type_args));
                 let body = cfg::lower(body, return_ty.clone());
+                if module.functions[hir_id].is_suspend {
+                    self.suspend_sources.push(SuspendSource {
+                        function: mir_id,
+                        source_return: return_ty.clone(),
+                        instance: Some(instance),
+                    });
+                }
                 let function = &mut self.functions[mir_id];
                 function.params = params;
                 function.return_ty = return_ty;
@@ -392,6 +471,8 @@ impl Lowerer {
             }
         }
 
+        self.transform_suspend_abis(module);
+
         // The entry point is a non-generic user function, hence always
         // in the map.
         let entry = self.function_map[&module.entry];
@@ -406,8 +487,56 @@ impl Lowerer {
             entry,
             meta: mir::MirMeta {
                 instances: self.instances.meta,
+                coroutine_functions: self.coroutines.functions,
+                coroutine_steps: self.coroutines.steps,
                 ..mir::MirMeta::default()
             },
+        }
+    }
+
+    fn transform_suspend_abis(&mut self, module: &hir::Module) {
+        for source in std::mem::take(&mut self.suspend_sources) {
+            let (step, step_ty) =
+                self.coroutines
+                    .step_for(&source.source_return, &mut self.enums, &mut self.shell);
+            let continuation = self.interfaces.get_or_create(
+                module,
+                &mut self.shell,
+                module.coroutine_core.continuation,
+                vec![source.source_return.clone()],
+            );
+            let continuation_ty = mir::Type::Interface(continuation);
+            let function = &mut self.functions[source.function];
+            let completion = function.body.locals.alloc(mir::Local {
+                name: "$completion".to_string(),
+                ty: continuation_ty.clone(),
+                mutable: false,
+            });
+            function.params.push(mir::Param {
+                name: "$completion".to_string(),
+                ty: continuation_ty,
+                local: completion,
+            });
+            for (_, block) in function.body.blocks.iter_mut() {
+                if let mir::Terminator::Return { value } = &mut block.terminator {
+                    let completed = value.take().unwrap_or(mir::Expr::UnitLiteral);
+                    *value = Some(mir::Expr::VariantConstruct {
+                        ty: step_ty.clone(),
+                        variant: 0,
+                        fields: vec![completed],
+                    });
+                }
+            }
+            function.return_ty = step_ty;
+            function.symbol = mir::mangle_suspend(&function.symbol);
+            if let Some(instance) = source.instance {
+                self.instances.meta[instance].symbol = function.symbol.clone();
+            }
+            self.coroutines.functions.alloc(mir::CoroutineFunction {
+                function: source.function,
+                source_return: source.source_return,
+                step,
+            });
         }
     }
 
@@ -718,6 +847,7 @@ impl Lowerer {
             hidden_count: 0,
             prelude: Vec::new(),
             option_variants: self.option_variants,
+            coroutines: &mut self.coroutines,
         }
         .lower_function(function, body)
     }
@@ -1011,10 +1141,17 @@ impl Lowerer {
             symbol,
             name,
             params,
-            return_ty,
+            return_ty: return_ty.clone(),
             body: mir::Body::unreachable(locals),
         });
         self.function_map.insert(hir_id, id);
+        if function.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function: id,
+                source_return: return_ty,
+                instance: None,
+            });
+        }
     }
 
     /// Fill the MIR class fields: the base class's (already
@@ -1207,6 +1344,7 @@ impl Lowerer {
             hidden_count: 0,
             prelude: Vec::new(),
             option_variants: self.option_variants,
+            coroutines: &mut self.coroutines,
         };
         let mut params = Vec::new();
         let mut own = Vec::new();
@@ -1383,6 +1521,7 @@ impl Lowerer {
             hidden_count: 0,
             prelude: Vec::new(),
             option_variants: self.option_variants,
+            coroutines: &mut self.coroutines,
         };
         let equality = lowerer.expand_equality(&Opd::Local(a), &Opd::Local(b), payload, &[], false);
         let body = smir::Body {
@@ -2504,6 +2643,7 @@ struct BodyLowerer<'a> {
     prelude: Vec<smir::StatementKind>,
     /// Declaration indices of `Option::Some` / `Option::None`.
     option_variants: (u32, u32),
+    coroutines: &'a mut CoroutineRegistry,
 }
 
 /// A step from a compared operand down to the sub-value at an equality
@@ -3360,6 +3500,9 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = self.module.callable_function(callable);
+        if function == self.module.coroutine_core.start_coroutine {
+            return self.lower_coroutine_start(callable, args);
+        }
         // `@Intrinsic` primitive functions (scoop.core, M7 DESIGN
         // section 2): handled up front — generic intrinsics (the M9
         // GC facilities) take this path too, before the generic-callee
@@ -3395,6 +3538,97 @@ impl BodyLowerer<'_> {
         };
         let return_ty = self.lower_type(result_ty);
         self.call(callee, &args.iter().collect::<Vec<_>>(), return_ty)
+    }
+
+    fn lower_coroutine_start(&mut self, callable: hir::Callable, args: &[hir::Expr]) -> smir::Expr {
+        let [task, completion] = args else {
+            unreachable!("hir-lower validates startCoroutine's two parameters")
+        };
+        let [result_hir] = self.module.callable_type_args(callable) else {
+            unreachable!("startCoroutine has exactly one resolved type argument")
+        };
+        let result = self.lower_type(*result_hir);
+        let task = self.lower_expr(task);
+        let completion = self.lower_expr(completion);
+        let task_interface = self.interfaces.get_or_create(
+            self.module,
+            self.shell,
+            self.module.coroutine_core.suspend_task,
+            vec![result.clone()],
+        );
+        let continuation_interface = self.interfaces.get_or_create(
+            self.module,
+            self.shell,
+            self.module.coroutine_core.continuation,
+            vec![result.clone()],
+        );
+        let (_, step_ty) = self.coroutines.step_for(&result, self.enums, self.shell);
+        let run_generic = generic_of(self.module, self.module.coroutine_core.suspend_task_run)
+            .expect("SuspendTask<T>.run has a generic owner");
+        let run = self.instances.get_or_create_generic(
+            self.module,
+            self.functions,
+            self.top_level,
+            self.shell,
+            run_generic,
+            vec![result.clone()],
+        );
+        let resume_generic =
+            generic_of(self.module, self.module.coroutine_core.continuation_resume)
+                .expect("Continuation<T>.resume has a generic owner");
+        let resume = self.instances.get_or_create_generic(
+            self.module,
+            self.functions,
+            self.top_level,
+            self.shell,
+            resume_generic,
+            vec![result],
+        );
+        let step_local = self.new_hidden("start.step", step_ty.clone(), false);
+        self.prelude.push(smir::StatementKind::ValDecl {
+            local: step_local,
+            init: smir::Expr::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Interface {
+                        interface: task_interface,
+                        slot: 0,
+                    },
+                    callee: mir::Callee::Monomorphized(run),
+                },
+                args: vec![task, completion.clone()],
+                return_ty: step_ty,
+            }),
+        });
+        self.prelude.push(smir::StatementKind::If {
+            cond: smir::Expr::Binary {
+                op: mir::BinOp::IntEq,
+                lhs: Box::new(smir::Expr::EnumTag(Box::new(smir::Expr::Local(step_local)))),
+                rhs: Box::new(smir::Expr::IntLiteral(0)),
+            },
+            then_body: vec![smir::Statement {
+                kind: smir::StatementKind::Expr(smir::Expr::Call(smir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Interface {
+                            interface: continuation_interface,
+                            slot: 0,
+                        },
+                        callee: mir::Callee::Monomorphized(resume),
+                    },
+                    args: vec![
+                        completion,
+                        smir::Expr::EnumField {
+                            operand: Box::new(smir::Expr::Local(step_local)),
+                            variant: 0,
+                            index: 0,
+                        },
+                    ],
+                    return_ty: mir::Type::Unit,
+                })),
+                span: Span { start: 0, end: 0 },
+            }],
+            else_body: None,
+        });
+        smir::Expr::UnitLiteral
     }
 
     /// An `@Intrinsic` call: the intrinsic name maps directly onto the
@@ -5256,6 +5490,191 @@ mod tests {
             },
         );
         h.finish(main)
+    }
+
+    #[test]
+    fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
+        let mut h = Harness::new();
+        let leaf = h.user_fn_full(
+            "leaf",
+            Vec::new(),
+            Vec::new(),
+            h.int,
+            hir::Body {
+                locals: Arena::new(),
+                statements: vec![stmt(hir::StatementKind::Return {
+                    value: Some(int_lit(&h, 42)),
+                })],
+            },
+        );
+        h.functions[leaf].is_suspend = true;
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        );
+
+        let module = lower(&h.finish(main));
+        let (_, coroutine) = module
+            .meta
+            .coroutine_functions
+            .iter()
+            .next()
+            .expect("one transformed suspend function");
+        let function = &module.functions[coroutine.function];
+        assert_eq!(function.symbol, "scoop.leaf$suspend");
+        assert_eq!(function.params.len(), 1);
+        let mir::Type::Interface(continuation) = function.params[0].ty else {
+            panic!("hidden completion must be a concrete Continuation<Int>")
+        };
+        assert_eq!(module.interfaces[continuation].name, "Continuation$I");
+
+        let step = &module.meta.coroutine_steps[coroutine.step];
+        assert_eq!(step.result, mir::Type::Int);
+        assert_eq!(
+            function.return_ty,
+            mir::Type::Enum(step.enum_id, Vec::new())
+        );
+        assert_eq!(module.enums[step.enum_id].variants[0].name, "Completed");
+        let mir::Terminator::Return { value: Some(value) } =
+            &function.body.blocks[function.body.entry].terminator
+        else {
+            panic!("leaf returns a completed step")
+        };
+        assert!(matches!(
+            value,
+            mir::Expr::VariantConstruct {
+                variant: 0,
+                fields,
+                ..
+            } if matches!(fields.as_slice(), [mir::Expr::IntLiteral(42)])
+        ));
+    }
+
+    #[test]
+    fn start_coroutine_resumes_only_an_immediately_completed_task() {
+        let mut h = Harness::new();
+        let main = h.user_fn(
+            "main",
+            hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            },
+        );
+        let mut hir_module = h.finish(main);
+        let result = hir_module.int;
+        let task_ty = hir_module.types.alloc(hir::Type::Interface(
+            hir_module.coroutine_core.suspend_task,
+            vec![result],
+        ));
+        let completion_ty = hir_module.types.alloc(hir::Type::Interface(
+            hir_module.coroutine_core.continuation,
+            vec![result],
+        ));
+        let mut locals = Arena::new();
+        let task = locals.alloc(local("task", task_ty));
+        let completion = locals.alloc(local("completion", completion_ty));
+        let start_generic = hir_module
+            .generic_functions
+            .iter()
+            .find_map(|(id, generic)| {
+                (generic.function == hir_module.coroutine_core.start_coroutine).then_some(id)
+            })
+            .expect("startCoroutine is generic");
+        let start = hir_module
+            .instantiations
+            .alloc(hir::ResolvedGenericFunction {
+                generic: start_generic,
+                type_args: vec![result],
+            });
+        let launcher = hir_module.functions.alloc(hir::Function {
+            name: "launcher".to_string(),
+            is_suspend: false,
+            type_params: Vec::new(),
+            params: vec![
+                param("task", task_ty, task),
+                param("completion", completion_ty, completion),
+            ],
+            return_ty: hir_module.unit,
+            kind: hir::FunctionKind::User(hir::Body {
+                locals,
+                statements: vec![expr_stmt(expr(
+                    hir::ExprKind::Call {
+                        callee: hir::Callable::Generic(start),
+                        args: vec![
+                            local_ref(task, task_ty),
+                            local_ref(completion, completion_ty),
+                        ],
+                    },
+                    hir_module.unit,
+                ))],
+            }),
+            method: None,
+            span: SPAN,
+        });
+        hir_module.top_level.push(launcher);
+
+        let module = lower(&hir_module);
+        let launcher = module
+            .functions
+            .iter()
+            .find_map(|(_, function)| (function.name == "launcher").then_some(function))
+            .expect("launcher is lowered");
+        let entry = &launcher.body.blocks[launcher.body.entry];
+        let (run, step_local) = statement_call(&entry.statements[0]);
+        let mir::CallKind::Interface {
+            interface: task_interface,
+            slot: 0,
+        } = run.target.kind
+        else {
+            panic!("startCoroutine must invoke SuspendTask<T>.run through interface dispatch")
+        };
+        assert_eq!(module.interfaces[task_interface].name, "SuspendTask$I");
+        assert_eq!(run.args.len(), 2, "run receives task and hidden completion");
+        let step_local = step_local.expect("run returns a CoroutineStep<T>");
+        let mir::Terminator::Branch {
+            then_block: completed,
+            else_block: suspended,
+            ..
+        } = entry.terminator
+        else {
+            panic!("startCoroutine must distinguish Completed from Suspended")
+        };
+
+        let completed = &launcher.body.blocks[completed];
+        let (resume, destination) = statement_call(&completed.statements[0]);
+        assert!(destination.is_none(), "Continuation.resume returns Unit");
+        let mir::CallKind::Interface {
+            interface: continuation_interface,
+            slot: 0,
+        } = resume.target.kind
+        else {
+            panic!("completed task must resume its outer continuation")
+        };
+        assert_eq!(
+            module.interfaces[continuation_interface].name,
+            "Continuation$I"
+        );
+        assert!(matches!(
+            resume.args.as_slice(),
+            [
+                mir::Expr::Local(_),
+                mir::Expr::EnumField {
+                    operand,
+                    variant: 0,
+                    index: 0
+                }
+            ] if matches!(operand.as_ref(), mir::Expr::Local(local) if *local == step_local)
+        ));
+
+        let suspended = &launcher.body.blocks[suspended];
+        assert!(suspended.statements.is_empty());
+        assert!(matches!(
+            suspended.terminator,
+            mir::Terminator::Return { value: None }
+        ));
     }
 
     #[test]
