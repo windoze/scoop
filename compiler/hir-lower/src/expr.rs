@@ -161,6 +161,9 @@ impl Lowerer {
                 index,
                 span,
             } => self.lower_index_read(receiver, index, *span, sink),
+            ast::Expr::If(if_) => self.lower_if_expression(if_, sink, expected),
+            ast::Expr::When(when) => self.lower_when_expression(when, sink, expected),
+            ast::Expr::Try(try_) => self.lower_try_expression(try_, sink, expected),
         }
     }
 
@@ -1551,6 +1554,9 @@ impl Lowerer {
                 args,
                 ..
             } => self.qualified_variant_requires_expected(receiver, name, args),
+            // Structured expressions perform their own branch-level fixed
+            // point and therefore do not need to be postponed as a whole.
+            ast::Expr::If(_) | ast::Expr::When(_) | ast::Expr::Try(_) => false,
             _ => false,
         }
     }

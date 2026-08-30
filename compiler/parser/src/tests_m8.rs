@@ -168,13 +168,15 @@ fn catch_and_finally_stay_identifiers_elsewhere() {
 // --- diagnostics -------------------------------------------------------------
 
 #[test]
-fn try_expression_is_not_supported() {
-    let (span, message) = err("fun main() {\n    val x = try {\n    }\n}\n");
-    assert_eq!(span, Span::new(25, 28));
-    assert_eq!(
-        message,
-        "try expressions are not supported yet (milestone M8)"
+fn try_expression_parses() {
+    let file = ok(
+        "fun main() {\n    val x = try {\n        1\n    } catch (e: Exception) {\n        2\n    }\n}\n",
     );
+    let body = block_body(only_function(&file));
+    let StatementKind::ValDecl(x) = &body.statements[0].kind else {
+        panic!("expected a declaration");
+    };
+    assert!(matches!(x.init, Expr::Try(_)));
 }
 
 #[test]

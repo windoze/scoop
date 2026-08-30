@@ -1,0 +1,7 @@
+fun main() {
+    val value: Int = try {
+        1
+    } catch (e: UnwrapException) {
+        "wrong"
+    }
+}

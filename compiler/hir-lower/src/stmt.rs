@@ -22,6 +22,26 @@ use hir::{FunctionId, Type, TypeId};
 use crate::patterns::PatternCtx;
 use crate::{Lowerer, Owner};
 
+struct ValueBlock {
+    statements: Vec<hir::Statement>,
+    /// `None` means the block has no normally completing path.
+    value: Option<hir::Expr>,
+}
+
+struct ValueArm {
+    pattern: hir::Pattern,
+    guard: Option<hir::Expr>,
+    body: ValueBlock,
+    span: Span,
+}
+
+struct ValueCatch {
+    local: hir::LocalId,
+    ty: TypeId,
+    body: ValueBlock,
+    span: Span,
+}
+
 impl Lowerer {
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
         let sig = self.signatures[&id].clone();
@@ -184,6 +204,231 @@ impl Lowerer {
         }
         self.scopes.pop();
         statements
+    }
+
+    /// Whether the trailing value of a block intrinsically needs an
+    /// expected type (`None`, an empty array, ...). Structured expressions
+    /// run their own branch inference and are therefore not deferred here.
+    fn value_block_requires_expected(&self, block: &ast::Block) -> bool {
+        match block.statements.last().map(|statement| &statement.kind) {
+            Some(ast::StatementKind::Expr(expr)) => self.expr_requires_expected_type(expr),
+            _ => false,
+        }
+    }
+
+    /// Lower a control-expression branch in a fresh scope. The final
+    /// expression is removed from statement position and returned as the
+    /// block's value. A final legacy control statement is interpreted as a
+    /// value too, so nested `if` / `when` / `try` works even though their
+    /// standalone parser forms remain statement nodes.
+    fn lower_value_block(
+        &mut self,
+        block: &ast::Block,
+        expected: Option<TypeId>,
+    ) -> Option<ValueBlock> {
+        self.scopes.push();
+        let lowered = (|| {
+            let mut statements = Vec::new();
+            let value = if let Some((last, prefix)) = block.statements.split_last() {
+                for statement in prefix {
+                    self.lower_statement(statement, &mut statements);
+                }
+                match &last.kind {
+                    ast::StatementKind::Expr(expr) => {
+                        let mut tail = Vec::new();
+                        let value = self.lower_expr(expr, &mut tail, expected)?;
+                        statements.extend(tail);
+                        Some(value)
+                    }
+                    ast::StatementKind::If(if_) => {
+                        self.lower_if_expression(if_, &mut statements, expected)
+                    }
+                    ast::StatementKind::When(when) => {
+                        self.lower_when_expression(when, &mut statements, expected)
+                    }
+                    ast::StatementKind::Try(try_) => {
+                        self.lower_try_expression(try_, &mut statements, expected)
+                    }
+                    _ => {
+                        self.lower_statement(last, &mut statements);
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            let value = if statements_can_fall_through(&statements) {
+                Some(value.unwrap_or(hir::Expr {
+                    kind: hir::ExprKind::UnitLiteral,
+                    ty: self.unit,
+                    span: block.span,
+                }))
+            } else {
+                None
+            };
+            Some(ValueBlock { statements, value })
+        })();
+        self.scopes.pop();
+        lowered
+    }
+
+    /// Infer a provisional branch hint from already-lowered normal paths.
+    fn value_block_hint<'a>(
+        &mut self,
+        blocks: impl Iterator<Item = &'a ValueBlock>,
+    ) -> Option<TypeId> {
+        let types: Vec<_> = blocks
+            .filter_map(|block| block.value.as_ref().map(|value| value.ty))
+            .collect();
+        (!types.is_empty()).then(|| self.least_upper_bound(&types))
+    }
+
+    /// Type-check and materialize a structured expression's branch result.
+    /// Each normal non-Unit branch assigns the same hidden local; Unit tails
+    /// are merely evaluated for side effects.
+    fn finish_control_value(
+        &mut self,
+        kind: &str,
+        span: Span,
+        expected: Option<TypeId>,
+        blocks: &mut [&mut ValueBlock],
+    ) -> Option<hir::Expr> {
+        let value_types: Vec<_> = blocks
+            .iter()
+            .filter_map(|block| block.value.as_ref().map(|value| value.ty))
+            .collect();
+        let result_ty = expected.unwrap_or_else(|| {
+            if value_types.is_empty() {
+                self.unit
+            } else {
+                self.least_upper_bound(&value_types)
+            }
+        });
+        for block in blocks.iter() {
+            if let Some(value) = &block.value
+                && !self.is_subtype(value.ty, result_ty)
+            {
+                let expected = self.type_name(result_ty);
+                let found = self.type_name(value.ty);
+                self.error(
+                    value.span,
+                    format!("{kind} branch result must be of type {expected}, found {found}"),
+                );
+                return None;
+            }
+        }
+
+        if self.types_equal(result_ty, self.unit) {
+            for block in blocks.iter_mut() {
+                if let Some(value) = block.value.take()
+                    && !matches!(value.kind, hir::ExprKind::UnitLiteral)
+                {
+                    block.statements.push(hir::Statement {
+                        span: value.span,
+                        kind: hir::StatementKind::Expr(value),
+                    });
+                }
+            }
+            return Some(hir::Expr {
+                kind: hir::ExprKind::UnitLiteral,
+                ty: self.unit,
+                span,
+            });
+        }
+
+        let result = self.alloc_hidden_result(result_ty);
+        for block in blocks.iter_mut() {
+            if let Some(value) = block.value.take() {
+                let value = self.adapt_to(value, result_ty);
+                block.statements.push(hir::Statement {
+                    span: value.span,
+                    kind: hir::StatementKind::Assign {
+                        target: hir::AssignTarget::Local(result),
+                        value,
+                    },
+                });
+            }
+        }
+        Some(hir::Expr {
+            kind: hir::ExprKind::Local(result),
+            ty: result_ty,
+            span,
+        })
+    }
+
+    /// `if` in value position. The condition prelude and the structured HIR
+    /// statement are appended to the caller's desugaring sink; the returned
+    /// expression reads the branch-result local.
+    pub(crate) fn lower_if_expression(
+        &mut self,
+        if_: &ast::If,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let Some(else_block) = &if_.else_block else {
+            self.error(
+                if_.span,
+                "if expression requires an `else` branch".to_string(),
+            );
+            return None;
+        };
+        let mut cond_sink = Vec::new();
+        let before = self.diagnostics.len();
+        let cond = self.lower_condition(&if_.cond, "if", &mut cond_sink)?;
+        let (then_narrowings, else_narrowings) = if self.diagnostics.len() == before {
+            (
+                self.resolve_smart_casts(&if_.cond, true),
+                self.resolve_smart_casts(&if_.cond, false),
+            )
+        } else {
+            (Vec::new(), Vec::new())
+        };
+
+        let defer_then = expected.is_none() && self.value_block_requires_expected(&if_.then_block);
+        let defer_else = expected.is_none() && self.value_block_requires_expected(else_block);
+        let mut then_value = if defer_then {
+            None
+        } else {
+            Some(self.with_smart_casts(then_narrowings.clone(), |this| {
+                this.lower_value_block(&if_.then_block, expected)
+            })?)
+        };
+        let mut else_value = if defer_else {
+            None
+        } else {
+            Some(self.with_smart_casts(else_narrowings.clone(), |this| {
+                this.lower_value_block(else_block, expected)
+            })?)
+        };
+        let hint = self.value_block_hint(then_value.iter().chain(else_value.iter()));
+        if then_value.is_none() {
+            then_value = Some(self.with_smart_casts(then_narrowings, |this| {
+                this.lower_value_block(&if_.then_block, hint)
+            })?);
+        }
+        if else_value.is_none() {
+            else_value = Some(self.with_smart_casts(else_narrowings, |this| {
+                this.lower_value_block(else_block, hint)
+            })?);
+        }
+        let mut then_value = then_value.expect("both branches were lowered");
+        let mut else_value = else_value.expect("both branches were lowered");
+        let result = self.finish_control_value(
+            "if",
+            if_.span,
+            expected,
+            &mut [&mut then_value, &mut else_value],
+        )?;
+        sink.extend(cond_sink);
+        sink.push(hir::Statement {
+            span: if_.span,
+            kind: hir::StatementKind::If {
+                cond,
+                then_body: then_value.statements,
+                else_body: Some(else_value.statements),
+            },
+        });
+        Some(result)
     }
 
     /// Lower one statement, appending to `out`. Nested blocks are
@@ -411,9 +656,9 @@ impl Lowerer {
         Some(hir::StatementKind::ValDecl { pattern, init })
     }
 
-    /// Statement-level `when` (spec 5; the expression form is not in
-    /// M4). The subject must be an enum, tuple or struct — the M4
-    /// subset has no Kotlin-style condition `when`. Pattern bindings
+    /// Statement-position pattern `when` (spec 5). The subject must be an
+    /// enum, tuple or struct — the current pattern-matching subset has no
+    /// Kotlin-style condition `when`. Pattern bindings
     /// scope over the arm's guard and body; exhaustiveness is checked
     /// over the whole statement.
     fn lower_when(
@@ -463,9 +708,147 @@ impl Lowerer {
         }))
     }
 
+    /// Pattern `when` in value position. Arms that need context are lowered
+    /// after context-independent arms establish a provisional result type;
+    /// source order is restored in the resulting HIR.
+    pub(crate) fn lower_when_expression(
+        &mut self,
+        when: &ast::When,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let mut subject_sink = Vec::new();
+        let subject = self.lower_expr(&when.subject, &mut subject_sink, None)?;
+        if !matches!(
+            self.types[subject.ty],
+            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..)
+        ) {
+            let found = self.type_name(subject.ty);
+            self.error(
+                when.subject.span(),
+                format!("`when` subject must be an enum, tuple or struct, found {found}"),
+            );
+            return None;
+        }
+
+        let deferred: Vec<_> = when
+            .arms
+            .iter()
+            .map(|arm| expected.is_none() && self.value_block_requires_expected(&arm.body))
+            .collect();
+        let defer_else = when
+            .else_body
+            .as_ref()
+            .is_some_and(|body| expected.is_none() && self.value_block_requires_expected(body));
+        let mut arms: Vec<Option<ValueArm>> = (0..when.arms.len()).map(|_| None).collect();
+        for (index, arm) in when.arms.iter().enumerate() {
+            if !deferred[index] {
+                arms[index] = Some(self.lower_value_arm(arm, subject.ty, expected)?);
+            }
+        }
+        let mut else_value = match &when.else_body {
+            Some(body) if !defer_else => Some(self.lower_value_block(body, expected)?),
+            _ => None,
+        };
+        let mut hint_types: Vec<_> = arms
+            .iter()
+            .filter_map(|arm| {
+                arm.as_ref()
+                    .and_then(|arm| arm.body.value.as_ref().map(|value| value.ty))
+            })
+            .collect();
+        if let Some(ty) = else_value
+            .as_ref()
+            .and_then(|body| body.value.as_ref().map(|value| value.ty))
+        {
+            hint_types.push(ty);
+        }
+        let hint = (!hint_types.is_empty()).then(|| self.least_upper_bound(&hint_types));
+        for (index, arm) in when.arms.iter().enumerate() {
+            if arms[index].is_none() {
+                arms[index] = Some(self.lower_value_arm(arm, subject.ty, hint)?);
+            }
+        }
+        if defer_else {
+            else_value =
+                Some(self.lower_value_block(
+                    when.else_body.as_ref().expect("deferred else exists"),
+                    hint,
+                )?);
+        }
+        let mut arms: Vec<ValueArm> = arms
+            .into_iter()
+            .map(|arm| arm.expect("every when arm was lowered"))
+            .collect();
+        let mut block_refs: Vec<&mut ValueBlock> =
+            arms.iter_mut().map(|arm| &mut arm.body).collect();
+        if let Some(else_value) = else_value.as_mut() {
+            block_refs.push(else_value);
+        }
+        let result =
+            self.finish_control_value("when", when.span, expected, block_refs.as_mut_slice())?;
+        drop(block_refs);
+        let arms: Vec<_> = arms
+            .into_iter()
+            .map(|arm| hir::WhenArm {
+                pattern: arm.pattern,
+                guard: arm.guard,
+                body: arm.body.statements,
+                span: arm.span,
+            })
+            .collect();
+        self.check_exhaustiveness(when.span, subject.ty, &arms, else_value.is_some());
+        sink.extend(subject_sink);
+        sink.push(hir::Statement {
+            span: when.span,
+            kind: hir::StatementKind::When(hir::When {
+                subject,
+                arms,
+                else_body: else_value.map(|body| body.statements),
+            }),
+        });
+        Some(result)
+    }
+
     /// One `when` arm: pattern (its bindings are in scope), optional
     /// guard (must be `Boolean`), body block.
     fn lower_arm(&mut self, arm: &ast::WhenArm, subject_ty: TypeId) -> Option<hir::WhenArm> {
+        let (pattern, guard) = self.lower_arm_head(arm, subject_ty)?;
+        let body = self.lower_block(&arm.body);
+        Some(hir::WhenArm {
+            pattern,
+            guard,
+            body,
+            span: arm.span,
+        })
+    }
+
+    fn lower_value_arm(
+        &mut self,
+        arm: &ast::WhenArm,
+        subject_ty: TypeId,
+        expected: Option<TypeId>,
+    ) -> Option<ValueArm> {
+        self.scopes.push();
+        let lowered = (|| {
+            let (pattern, guard) = self.lower_arm_head(arm, subject_ty)?;
+            let body = self.lower_value_block(&arm.body, expected)?;
+            Some(ValueArm {
+                pattern,
+                guard,
+                body,
+                span: arm.span,
+            })
+        })();
+        self.scopes.pop();
+        lowered
+    }
+
+    fn lower_arm_head(
+        &mut self,
+        arm: &ast::WhenArm,
+        subject_ty: TypeId,
+    ) -> Option<(hir::Pattern, Option<hir::Expr>)> {
         let pattern = self.lower_pattern(
             &arm.pattern,
             subject_ty,
@@ -501,13 +884,7 @@ impl Lowerer {
             }
             None => None,
         };
-        let body = self.lower_block(&arm.body);
-        Some(hir::WhenArm {
-            pattern,
-            guard,
-            body,
-            span: arm.span,
-        })
+        Some((pattern, guard))
     }
 
     /// `throw expr` (spec 11.7, milestone8 DESIGN.md 3.2): the operand
@@ -599,6 +976,153 @@ impl Lowerer {
             body,
             catches,
             finally_body,
+        })
+    }
+
+    /// `try` in value position. The pending result assignment lives inside
+    /// the try/catch path, before `finally`, so the existing structured
+    /// exception lowering preserves Kotlin's result and override semantics.
+    pub(crate) fn lower_try_expression(
+        &mut self,
+        try_: &ast::Try,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let mut resolved = Vec::new();
+        let mut covered = Vec::new();
+        for catch in &try_.catches {
+            let Some(ty) = self.resolve_type_ref(&catch.ty) else {
+                continue;
+            };
+            if let Some(throwable) = self.throwable_ty()
+                && !self.is_subtype(ty, throwable)
+            {
+                let found = self.type_name(ty);
+                self.error(
+                    catch.ty.span,
+                    format!("catch parameter type {found} is not a subtype of Throwable"),
+                );
+                continue;
+            }
+            if covered.iter().any(|&earlier| self.is_subtype(ty, earlier)) {
+                let found = self.type_name(ty);
+                self.error(
+                    catch.span,
+                    format!(
+                        "unreachable catch block: {found} is already covered by an earlier catch"
+                    ),
+                );
+                continue;
+            }
+            covered.push(ty);
+            let local = self.locals.alloc(hir::Local {
+                name: catch.name.text.clone(),
+                ty,
+                mutable: false,
+            });
+            resolved.push((catch, ty, local));
+        }
+
+        let defer_body = expected.is_none() && self.value_block_requires_expected(&try_.body);
+        let catch_deferred: Vec<_> = resolved
+            .iter()
+            .map(|(catch, _, _)| {
+                expected.is_none() && self.value_block_requires_expected(&catch.body)
+            })
+            .collect();
+        let mut body = if defer_body {
+            None
+        } else {
+            Some(self.lower_value_block(&try_.body, expected)?)
+        };
+        let mut catches: Vec<Option<ValueCatch>> = (0..resolved.len()).map(|_| None).collect();
+        for (index, &(catch, ty, local)) in resolved.iter().enumerate() {
+            if !catch_deferred[index] {
+                catches[index] = Some(self.lower_value_catch(catch, ty, local, expected)?);
+            }
+        }
+        let mut hint_types = Vec::new();
+        if let Some(ty) = body
+            .as_ref()
+            .and_then(|body| body.value.as_ref().map(|value| value.ty))
+        {
+            hint_types.push(ty);
+        }
+        hint_types.extend(catches.iter().filter_map(|catch| {
+            catch
+                .as_ref()
+                .and_then(|catch| catch.body.value.as_ref().map(|value| value.ty))
+        }));
+        let hint = (!hint_types.is_empty()).then(|| self.least_upper_bound(&hint_types));
+        if body.is_none() {
+            body = Some(self.lower_value_block(&try_.body, hint)?);
+        }
+        for (index, &(catch, ty, local)) in resolved.iter().enumerate() {
+            if catches[index].is_none() {
+                catches[index] = Some(self.lower_value_catch(catch, ty, local, hint)?);
+            }
+        }
+        let mut body = body.expect("the try body was lowered");
+        let mut catches: Vec<ValueCatch> = catches
+            .into_iter()
+            .map(|catch| catch.expect("every catch body was lowered"))
+            .collect();
+        let mut block_refs = vec![&mut body];
+        block_refs.extend(catches.iter_mut().map(|catch| &mut catch.body));
+        let result =
+            self.finish_control_value("try", try_.span, expected, block_refs.as_mut_slice())?;
+        drop(block_refs);
+
+        let finally_body = match &try_.finally_body {
+            Some(finally) => {
+                let mut block = self.lower_value_block(finally, None)?;
+                if let Some(value) = block.value.take()
+                    && !matches!(value.kind, hir::ExprKind::UnitLiteral)
+                {
+                    block.statements.push(hir::Statement {
+                        span: value.span,
+                        kind: hir::StatementKind::Expr(value),
+                    });
+                }
+                Some(block.statements)
+            }
+            None => None,
+        };
+        sink.push(hir::Statement {
+            span: try_.span,
+            kind: hir::StatementKind::Try(hir::Try {
+                body: body.statements,
+                catches: catches
+                    .into_iter()
+                    .map(|catch| hir::CatchClause {
+                        local: catch.local,
+                        ty: catch.ty,
+                        body: catch.body.statements,
+                        span: catch.span,
+                    })
+                    .collect(),
+                finally_body,
+            }),
+        });
+        Some(result)
+    }
+
+    fn lower_value_catch(
+        &mut self,
+        catch: &ast::CatchClause,
+        ty: TypeId,
+        local: hir::LocalId,
+        expected: Option<TypeId>,
+    ) -> Option<ValueCatch> {
+        self.scopes.push();
+        self.scopes.declare(catch.name.text.clone(), local);
+        let body = self.lower_value_block(&catch.body, expected);
+        self.scopes.pop();
+        Some(ValueCatch {
+            local,
+            ty,
+            body: body?,
+            span: catch.span,
         })
     }
 

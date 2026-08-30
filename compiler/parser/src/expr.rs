@@ -310,14 +310,13 @@ impl Parser {
                     span: token.span,
                 })
             }
-            TokenKind::When => Err(Diagnostic::at(
-                token.span,
-                "`when` expressions are not supported yet (milestone M4)",
-            )),
+            TokenKind::If => self.parse_if_expression(),
+            TokenKind::When => self.parse_when_expression(),
             TokenKind::This => {
                 self.pos += 1;
                 Ok(Expr::This { span: token.span })
             }
+            TokenKind::Ident(ref text) if text == "try" => self.parse_try_expression(),
             TokenKind::Ident(text) => {
                 self.pos += 1;
                 // `Unit` is an ordinary identifier; in expression position
@@ -329,13 +328,6 @@ impl Parser {
                     return Err(Diagnostic::at(
                         token.span,
                         "`super` calls are not supported yet (milestone M6)",
-                    ));
-                }
-                if text == "try" {
-                    // M8 has only the statement form (spec 11.7).
-                    return Err(Diagnostic::at(
-                        token.span,
-                        "try expressions are not supported yet (milestone M8)",
                     ));
                 }
                 let ident = Ident {

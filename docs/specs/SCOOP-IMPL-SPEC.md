@@ -107,6 +107,7 @@ codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 
 - **装箱值类型的 this 调整**：值类型装箱后对象为 header + payload，而值类型成员函数以 payload 为 `this`；vtable / itable 中对应装箱值类型的表项指向 MIR 生成的 **adjust thunk**（`this` 加 header 偏移后 tail-call 真正的成员函数）。
 - **跨 Cone 的槽位识别**：初版 itable 采用（接口 TypeDescriptor 指针 → 方法表）的键值查找，调用点按接口 TypeDescriptor 地址查找，不需要跨 Cone 的全局槽位编号；槽位编号等优化留待后续。
 - **泛型成员函数不参与虚分派**：带自身类型参数的成员函数不进入 vtable / itable（单态化实例无法枚举）；interface 可保留这类方法的声明与实现约束，但分派表布局必须跳过它，经 interface 静态类型调用由 HIR 拒绝。class 上的泛型成员必须为 final，值类型成员本来即为 final，因此合法调用一律标为 direct。泛型宿主的参数与方法自身参数使用同一类型参数编号空间，前缀为宿主参数、后缀为方法参数；`ResolvedGenericFunction` 与 MIR 单态化键携带同序的完整实参向量。把 interface 签名代入某个实现宿主时，必须在替换 interface 参数后把方法参数重基化到实现宿主参数前缀之后，避免两组 `TypeParamId` 碰撞。
+- **结构化表达式降级**：AST 在表达式位置直接表示 `if` / `when` / `try`。HIR lower 先确定所有正常分支的共同结果类型，再分配一个类型完备的隐藏结果 local，在每个可正常结束的分支尾写入该 local，并把原有 HIR 结构化语句追加到表达式的 desugaring sink；表达式本身成为该 local 的读取。结果为 `Unit` 时无需结果 local，但仍须保留分支尾表达式的求值。MIR / LIR 继续只接收已有的结构化控制语句，不新增内嵌 CFG 的表达式节点。
 
 ### 2.10 intrinsic 的分阶段处理
 
