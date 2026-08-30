@@ -43,6 +43,75 @@ struct ValueCatch {
 }
 
 impl Lowerer {
+    pub(crate) fn adapt_inferred_returns(
+        &mut self,
+        statements: Vec<hir::Statement>,
+        target: TypeId,
+    ) -> Vec<hir::Statement> {
+        let mut out = Vec::with_capacity(statements.len());
+        for mut statement in statements {
+            match statement.kind {
+                hir::StatementKind::Return { value: Some(value) }
+                    if self.types_equal(target, self.unit) =>
+                {
+                    out.push(hir::Statement {
+                        kind: hir::StatementKind::Expr(value),
+                        span: statement.span,
+                    });
+                    statement.kind = hir::StatementKind::Return { value: None };
+                }
+                hir::StatementKind::Return { value: Some(value) } => {
+                    statement.kind = hir::StatementKind::Return {
+                        value: Some(self.adapt_to(value, target)),
+                    };
+                }
+                hir::StatementKind::If {
+                    cond,
+                    then_body,
+                    else_body,
+                } => {
+                    statement.kind = hir::StatementKind::If {
+                        cond,
+                        then_body: self.adapt_inferred_returns(then_body, target),
+                        else_body: else_body.map(|body| self.adapt_inferred_returns(body, target)),
+                    };
+                }
+                hir::StatementKind::While { cond, body } => {
+                    statement.kind = hir::StatementKind::While {
+                        cond,
+                        body: self.adapt_inferred_returns(body, target),
+                    };
+                }
+                hir::StatementKind::When(mut when) => {
+                    for arm in &mut when.arms {
+                        arm.body =
+                            self.adapt_inferred_returns(std::mem::take(&mut arm.body), target);
+                    }
+                    when.else_body = when
+                        .else_body
+                        .take()
+                        .map(|body| self.adapt_inferred_returns(body, target));
+                    statement.kind = hir::StatementKind::When(when);
+                }
+                hir::StatementKind::Try(mut try_) => {
+                    try_.body = self.adapt_inferred_returns(try_.body, target);
+                    for catch in &mut try_.catches {
+                        catch.body =
+                            self.adapt_inferred_returns(std::mem::take(&mut catch.body), target);
+                    }
+                    try_.finally_body = try_
+                        .finally_body
+                        .take()
+                        .map(|body| self.adapt_inferred_returns(body, target));
+                    statement.kind = hir::StatementKind::Try(try_);
+                }
+                _ => {}
+            }
+            out.push(statement);
+        }
+        out
+    }
+
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
         let sig = self.signatures[&id].clone();
         // Member functions (M6): `this` is parameter 0, an immutable
@@ -194,7 +263,7 @@ impl Lowerer {
 
     /// Lower a block in a fresh scope: declarations inside are not
     /// visible after the block ends.
-    fn lower_block(&mut self, block: &ast::Block) -> Vec<hir::Statement> {
+    pub(crate) fn lower_block(&mut self, block: &ast::Block) -> Vec<hir::Statement> {
         self.scopes.push();
         let mut statements = Vec::new();
         for statement in &block.statements {
@@ -467,6 +536,35 @@ impl Lowerer {
                 }
             }
             ast::StatementKind::Return { value } => {
+                if self.return_inference.is_some() {
+                    let kind = match value {
+                        None => {
+                            self.return_inference
+                                .as_mut()
+                                .expect("checked above")
+                                .saw_bare = true;
+                            hir::StatementKind::Return { value: None }
+                        }
+                        Some(expr) => {
+                            let mut sink = Vec::new();
+                            let Some(value) = self.lower_expr(expr, &mut sink, None) else {
+                                return;
+                            };
+                            self.return_inference
+                                .as_mut()
+                                .expect("checked above")
+                                .value_types
+                                .push(value.ty);
+                            out.extend(sink);
+                            hir::StatementKind::Return { value: Some(value) }
+                        }
+                    };
+                    out.push(hir::Statement {
+                        kind,
+                        span: statement.span,
+                    });
+                    return;
+                }
                 let return_ty = self.current_return_ty;
                 match value {
                     None => {
@@ -1399,7 +1497,7 @@ impl Lowerer {
 /// Whether control can reach the end of a statement list. Once one
 /// statement cannot fall through, later statements are unreachable
 /// and cannot make the list fall through again.
-fn statements_can_fall_through(statements: &[hir::Statement]) -> bool {
+pub(crate) fn statements_can_fall_through(statements: &[hir::Statement]) -> bool {
     statements.iter().all(statement_can_fall_through)
 }
 

@@ -30,6 +30,7 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         pos: 0,
         diagnostics: Vec::new(),
         next_lambda_id: 0,
+        next_anonymous_function_id: 0,
         next_callable_reference_id: 0,
     };
     let mut declarations = Vec::new();
@@ -59,6 +60,7 @@ pub(crate) struct Parser {
     pub(crate) pos: usize,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) next_lambda_id: u32,
+    pub(crate) next_anonymous_function_id: u32,
     pub(crate) next_callable_reference_id: u32,
 }
 
@@ -66,6 +68,12 @@ impl Parser {
     pub(crate) fn alloc_lambda_id(&mut self) -> scoop_ast::LambdaId {
         let id = scoop_ast::LambdaId(self.next_lambda_id);
         self.next_lambda_id += 1;
+        id
+    }
+
+    pub(crate) fn alloc_anonymous_function_id(&mut self) -> scoop_ast::AnonymousFunctionId {
+        let id = scoop_ast::AnonymousFunctionId(self.next_anonymous_function_id);
+        self.next_anonymous_function_id += 1;
         id
     }
 

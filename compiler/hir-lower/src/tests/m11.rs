@@ -85,6 +85,28 @@ fn lambda(parameters: Option<Vec<ast::LambdaParam>>, tail: ast::Expr) -> ast::Ex
     }
 }
 
+fn anonymous(
+    params: Vec<(&str, ast::TypeRef)>,
+    return_ty: Option<ast::TypeRef>,
+    statements: Vec<ast::Statement>,
+) -> ast::Expr {
+    ast::Expr::AnonymousFunction {
+        id: ast::AnonymousFunctionId(0),
+        is_suspend: false,
+        params: params
+            .into_iter()
+            .map(|(name, ty)| ast::Param {
+                name: ident(name),
+                ty,
+                span: sp(),
+            })
+            .collect(),
+        return_ty,
+        body: block(statements),
+        span: sp(),
+    }
+}
+
 #[test]
 fn expected_lambda_builds_a_typed_invoke_function_and_callable_call() {
     let signature = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
@@ -259,4 +281,44 @@ fn mutable_local_capture_is_rejected_at_the_use() {
         errors[0].message,
         "cannot capture mutable local `value`; bind its current value to a `val` snapshot or capture explicit reference state"
     );
+}
+
+#[test]
+fn anonymous_function_infers_return_and_owns_local_return() {
+    let operation = anonymous(
+        vec![("value", ty_named("Int"))],
+        None,
+        vec![ret(Some(binary(
+            ast::BinOp::Add,
+            var("value"),
+            var("base"),
+        )))],
+    );
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![
+            val("base", int_lit(1)),
+            val("operation", operation),
+            stmt(call("operation", vec![int_lit(41)])),
+        ],
+    )]))
+    .expect("anonymous function should infer its return type");
+
+    let (_, anonymous) = module
+        .anonymous_functions
+        .iter()
+        .next()
+        .expect("anonymous function entity");
+    assert_eq!(anonymous.captures.len(), 1);
+    let signature = &module.function_types[anonymous.function_type];
+    assert_eq!(signature.parameter_types, vec![module.int]);
+    assert_eq!(signature.return_type, module.int);
+    let invoke = &module.functions[anonymous.function];
+    let hir::FunctionKind::User(body) = &invoke.kind else {
+        panic!("anonymous invoke body");
+    };
+    assert!(matches!(
+        body.statements.last().map(|statement| &statement.kind),
+        Some(hir::StatementKind::Return { value: Some(_) })
+    ));
 }

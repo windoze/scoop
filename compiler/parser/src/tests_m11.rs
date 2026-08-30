@@ -169,6 +169,37 @@ fn omitted_lambda_parameter_list_remains_distinct() {
 }
 
 #[test]
+fn parses_anonymous_function_with_local_return() {
+    let file = parse("fun main() { val operation = fun(value: Int): Int { return value + 1 } }")
+        .expect("anonymous function should parse");
+    let Decl::Function(main) = &file.declarations[0] else {
+        panic!("expected main");
+    };
+    let scoop_ast::FunctionBody::Block(body) = &main.body else {
+        panic!("expected block");
+    };
+    let StatementKind::ValDecl(decl) = &body.statements[0].kind else {
+        panic!("expected val");
+    };
+    let Expr::AnonymousFunction {
+        params,
+        return_ty,
+        body,
+        ..
+    } = &decl.init
+    else {
+        panic!("expected anonymous function");
+    };
+    assert_eq!(params.len(), 1);
+    assert_eq!(params[0].name.text, "value");
+    assert!(return_ty.is_some());
+    assert!(matches!(
+        body.statements[0].kind,
+        StatementKind::Return { .. }
+    ));
+}
+
+#[test]
 fn callable_reference_requires_a_name() {
     let diagnostics = parse("fun main() { val operation = :: }")
         .expect_err("a bare double colon must be rejected");

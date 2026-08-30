@@ -157,6 +157,7 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         closure_classes: Arena::new(),
         closure_invokes: Arena::new(),
         lambda_closures: HashMap::new(),
+        anonymous_closures: HashMap::new(),
         reference_closures: HashMap::new(),
         closure_by_function: HashMap::new(),
         closure_capture_indices: HashMap::new(),
@@ -211,6 +212,7 @@ struct Lowerer {
     closure_classes: Arena<mir::ClosureClass>,
     closure_invokes: Arena<mir::ClosureInvokeFunction>,
     lambda_closures: HashMap<hir::LambdaId, mir::ClosureClassId>,
+    anonymous_closures: HashMap<hir::AnonymousFunctionId, mir::ClosureClassId>,
     reference_closures: HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
     /// Generated HIR invoke body -> its concrete closure class.
     closure_by_function: HashMap<hir::FunctionId, mir::ClosureClassId>,
@@ -628,12 +630,16 @@ impl Lowerer {
                     let id = self.declare_function(module, hir_id);
                     user_functions.push((hir_id, id));
                 }
-                // Lambda invoke bodies are free generated functions and
+                // Callable-literal invoke bodies are free generated functions and
                 // deliberately stay outside the source top-level list.
                 None if module
                     .lambdas
                     .iter()
-                    .any(|(_, lambda)| lambda.function == hir_id) =>
+                    .any(|(_, lambda)| lambda.function == hir_id)
+                    || module
+                        .anonymous_functions
+                        .iter()
+                        .any(|(_, anonymous)| anonymous.function == hir_id) =>
                 {
                     let id = self.declare_function(module, hir_id);
                     user_functions.push((hir_id, id));
@@ -1182,6 +1188,7 @@ impl Lowerer {
             option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
+            anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
             closure_capture_indices: &self.closure_capture_indices,
             current_closure: self.closure_by_function.get(&hir_id).copied(),
@@ -1500,6 +1507,44 @@ impl Lowerer {
                     .insert((class, capture.binding), index as u32);
             }
             self.lambda_closures.insert(id, class);
+        }
+        for (id, anonymous) in module.anonymous_functions.iter() {
+            let function_type = self.lower_function_type_id(module, anonymous.function_type);
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                subst: None,
+            };
+            let captures: Vec<_> = anonymous
+                .captures
+                .iter()
+                .map(|capture| mir::Field {
+                    name: capture.name.clone(),
+                    ty: types.lower(
+                        capture.ty,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    ),
+                })
+                .collect();
+            let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
+                function: self.function_map[&anonymous.function],
+            });
+            let class = self.closure_classes.alloc(mir::ClosureClass {
+                name: format!("$Closure$anonymous{}", id.into_raw()),
+                function_type,
+                invoke,
+                captures,
+            });
+            self.closure_by_function.insert(anonymous.function, class);
+            for (index, capture) in anonymous.captures.iter().enumerate() {
+                self.closure_capture_indices
+                    .insert((class, capture.binding), index as u32);
+            }
+            self.anonymous_closures.insert(id, class);
         }
         for (id, reference) in module.callable_references.iter() {
             let function_type = self.lower_function_type_id(module, reference.function_type);
@@ -1841,6 +1886,7 @@ impl Lowerer {
             option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
+            anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
             closure_capture_indices: &self.closure_capture_indices,
             current_closure: None,
@@ -2023,6 +2069,7 @@ impl Lowerer {
             option_variants: self.option_variants,
             coroutines: &mut self.coroutines,
             lambda_closures: &self.lambda_closures,
+            anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
             closure_capture_indices: &self.closure_capture_indices,
             current_closure: None,
@@ -3186,6 +3233,7 @@ struct BodyLowerer<'a> {
     option_variants: (u32, u32),
     coroutines: &'a mut CoroutineRegistry,
     lambda_closures: &'a HashMap<hir::LambdaId, mir::ClosureClassId>,
+    anonymous_closures: &'a HashMap<hir::AnonymousFunctionId, mir::ClosureClassId>,
     reference_closures: &'a HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
     closure_capture_indices: &'a HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
     current_closure: Option<mir::ClosureClassId>,
@@ -3865,6 +3913,14 @@ impl BodyLowerer<'_> {
             hir::ExprKind::Lambda(id) => smir::Expr::ClosureAlloc {
                 class: self.lambda_closures[id],
                 captures: self.module.lambdas[*id]
+                    .captures
+                    .iter()
+                    .map(|capture| self.lower_expr(&capture.source))
+                    .collect(),
+            },
+            hir::ExprKind::AnonymousFunction(id) => smir::Expr::ClosureAlloc {
+                class: self.anonymous_closures[id],
+                captures: self.module.anonymous_functions[*id]
                     .captures
                     .iter()
                     .map(|capture| self.lower_expr(&capture.source))
@@ -6047,6 +6103,7 @@ mod tests {
                 types: self.types,
                 function_types: Arena::new(),
                 lambdas: Arena::new(),
+                anonymous_functions: Arena::new(),
                 callable_references: Arena::new(),
                 functions: self.functions,
                 generic_functions: self.generic_functions,

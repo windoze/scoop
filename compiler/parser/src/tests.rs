@@ -344,9 +344,9 @@ fn unclosed_body() {
 }
 
 #[test]
-fn keyword_in_expression_position() {
+fn anonymous_function_missing_parameter_list() {
     let (_, message) = err("fun main() { fun }");
-    assert_eq!(message, "expected expression, found `fun`");
+    assert_eq!(message, "expected `(`, found `}`");
 }
 
 #[test]

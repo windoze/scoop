@@ -108,6 +108,10 @@ pub struct FunctionTypeRef {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LambdaId(pub u32);
 
+/// Parser-local identity of one anonymous-function expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AnonymousFunctionId(pub u32);
+
 /// Parser-local identity of one callable-reference expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CallableReferenceId(pub u32);
@@ -505,6 +509,15 @@ pub enum Expr {
         body: Block,
         span: Span,
     },
+    /// `fun(p: T): R { ... }` / `suspend fun(...) { ... }`.
+    AnonymousFunction {
+        id: AnonymousFunctionId,
+        is_suspend: bool,
+        params: Vec<Param>,
+        return_ty: Option<TypeRef>,
+        body: Block,
+        span: Span,
+    },
     /// `::name` or `receiver::name`. Resolution is intentionally deferred
     /// to HIR, where overloads and receiver dispatch are known.
     CallableReference {
@@ -600,6 +613,7 @@ impl Expr {
             | Expr::TupleLiteral { span, .. }
             | Expr::StructInit { span, .. }
             | Expr::Lambda { span, .. }
+            | Expr::AnonymousFunction { span, .. }
             | Expr::CallableReference { span, .. }
             | Expr::Invoke { span, .. }
             | Expr::Binary { span, .. }
@@ -1134,6 +1148,30 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                         ));
                     }
                 }
+            }
+            dump_block(body, indent + 1, out);
+        }
+        Expr::AnonymousFunction {
+            id,
+            is_suspend,
+            params,
+            return_ty,
+            body,
+            ..
+        } => {
+            let return_ty = return_ty
+                .as_ref()
+                .map_or_else(|| "_".to_string(), dump_type_ref);
+            out.push_str(&format!(
+                "{pad}AnonymousFunction {} suspend={is_suspend} return={return_ty}\n",
+                id.0
+            ));
+            for param in params {
+                out.push_str(&format!(
+                    "{pad}  param {}: {}\n",
+                    param.name.text,
+                    dump_type_ref(&param.ty)
+                ));
             }
             dump_block(body, indent + 1, out);
         }

@@ -15,6 +15,7 @@ use scoop_ast::Span;
 pub type TypeId = Idx<Type>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type LambdaId = Idx<Lambda>;
+pub type AnonymousFunctionId = Idx<AnonymousFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionId = Idx<Function>;
 pub type GenericFunctionId = Idx<GenericFunction>;
@@ -227,6 +228,7 @@ pub struct Module {
     /// Source callable-value entities. Their identities are intentionally
     /// separate from the generated invoke functions they own.
     pub lambdas: Arena<Lambda>,
+    pub anonymous_functions: Arena<AnonymousFunction>,
     pub callable_references: Arena<CallableReference>,
     pub functions: Arena<Function>,
     /// Generic function definitions. Their ids are distinct from
@@ -267,6 +269,14 @@ pub struct Lambda {
     pub function_type: FunctionTypeId,
     /// Structurally present even for no-capture lambdas; later M11 capture
     /// analysis fills this list rather than changing the entity shape.
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct AnonymousFunction {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
     pub span: Span,
 }
@@ -652,6 +662,7 @@ pub enum ExprKind {
     /// binding identity is resolved to a concrete field by closure conversion.
     Capture(BindingId),
     Lambda(LambdaId),
+    AnonymousFunction(AnonymousFunctionId),
     CallableReference(CallableReferenceId),
     FieldAccess {
         receiver: Box<Expr>,
@@ -1221,6 +1232,24 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 lambda.captures.len()
             ));
             for capture in &lambda.captures {
+                out.push_str(&format!(
+                    "{}capture {} binding{} : {}\n",
+                    "  ".repeat(indent + 1),
+                    capture.name,
+                    capture.binding.into_raw(),
+                    type_name(module, capture.ty)
+                ));
+            }
+        }
+        ExprKind::AnonymousFunction(id) => {
+            let anonymous = &module.anonymous_functions[*id];
+            out.push_str(&format!(
+                "{pad}AnonymousFunction anonymous{} invoke={} captures={} : {ty}\n",
+                id.into_raw(),
+                module.functions[anonymous.function].name,
+                anonymous.captures.len()
+            ));
+            for capture in &anonymous.captures {
                 out.push_str(&format!(
                     "{}capture {} binding{} : {}\n",
                     "  ".repeat(indent + 1),

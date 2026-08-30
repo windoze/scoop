@@ -6,7 +6,8 @@
 //! `[index]` < atoms. All other binary operators are left-associative.
 
 use scoop_ast::{
-    BinOp, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector, Ident, LambdaParam, Span, UnOp,
+    BinOp, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector, Ident, LambdaParam, Param, Span,
+    UnOp,
 };
 
 use crate::lexer::TokenKind;
@@ -300,6 +301,7 @@ impl Parser {
                 token.span,
                 "suspend lambdas are not supported in M10",
             )),
+            TokenKind::Fun => self.parse_anonymous_function(false),
             TokenKind::DoubleColon => self.parse_callable_reference(None),
             TokenKind::LBrace => self.parse_lambda(false),
             TokenKind::Str(value) => {
@@ -382,6 +384,45 @@ impl Parser {
             receiver: receiver.map(Box::new),
             name,
             span,
+        })
+    }
+
+    fn parse_anonymous_function(&mut self, is_suspend: bool) -> Result<Expr, Diagnostic> {
+        let keyword = self.expect("`fun`", |kind| matches!(kind, TokenKind::Fun))?;
+        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
+        let mut params = Vec::new();
+        if !matches!(self.peek().kind, TokenKind::RParen) {
+            loop {
+                let name = self.expect_ident("parameter name")?;
+                self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
+                let ty = self.parse_type_ref()?;
+                params.push(Param {
+                    span: Span::new(name.span.start, ty.span.end),
+                    name,
+                    ty,
+                });
+                if matches!(self.peek().kind, TokenKind::Comma) {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+        }
+        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+        let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+        let body = self.parse_block()?;
+        Ok(Expr::AnonymousFunction {
+            id: self.alloc_anonymous_function_id(),
+            is_suspend,
+            params,
+            return_ty,
+            span: Span::new(keyword.span.start, body.span.end),
+            body,
         })
     }
 

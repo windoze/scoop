@@ -247,10 +247,17 @@ pub(crate) struct CaptureContext {
     pub(crate) by_binding: HashMap<hir::BindingId, usize>,
 }
 
+#[derive(Default)]
+pub(crate) struct ReturnInference {
+    pub(crate) value_types: Vec<TypeId>,
+    pub(crate) saw_bare: bool,
+}
+
 pub(crate) struct Lowerer {
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,
+    pub(crate) anonymous_functions: Arena<hir::AnonymousFunction>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) structs: Arena<StructDecl>,
     pub(crate) enums: Arena<EnumDecl>,
@@ -339,6 +346,9 @@ pub(crate) struct Lowerer {
     pub(crate) type_params_in_scope: Vec<String>,
     /// Return type of the function whose body is being lowered.
     pub(crate) current_return_ty: TypeId,
+    /// Active only while an anonymous function with neither an explicit nor
+    /// expected return type is lowered.
+    pub(crate) return_inference: Option<ReturnInference>,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
     /// Explicit suspension-permission stack; it is never empty.
@@ -407,6 +417,7 @@ impl Lowerer {
             types,
             function_types: Arena::new(),
             lambdas: Arena::new(),
+            anonymous_functions: Arena::new(),
             callable_references: Arena::new(),
             structs: Arena::new(),
             enums: Arena::new(),
@@ -447,6 +458,7 @@ impl Lowerer {
             signatures: HashMap::new(),
             type_params_in_scope: Vec::new(),
             current_return_ty: unit,
+            return_inference: None,
             current_fn_name: String::new(),
             suspension_contexts: vec![SuspensionContext::Forbidden(
                 ForbiddenSuspendContext::TopLevel,
@@ -765,6 +777,7 @@ impl Lowerer {
             types: self.types,
             function_types: self.function_types,
             lambdas: self.lambdas,
+            anonymous_functions: self.anonymous_functions,
             callable_references: self.callable_references,
             functions: self.functions,
             generic_functions: self.generic_functions,
