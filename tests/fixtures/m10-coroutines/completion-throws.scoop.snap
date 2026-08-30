@@ -1,0 +1,1926 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+    fun fail
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    fun register
+  class ImmediateTask(), SuspendTask<Int>
+    suspend fun run
+  class ImmediateFailureTask(), SuspendTask<Int>
+    suspend fun run
+  class WaitingTask(val gate: Gate), SuspendTask<Int>
+    suspend fun run
+  class ThrowingCompletion(), Continuation<Int>
+    fun resume
+    fun resumeWithException
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
+    Call startCoroutine
+      Var task
+      Var completion
+  fun main()
+    try
+      Call launch
+        Call ImmediateTask
+        Call ThrowingCompletion
+    catch exception: IllegalStateException
+      Call println
+        StringLiteral "immediate-success"
+    try
+      Call launch
+        Call ImmediateFailureTask
+        Call ThrowingCompletion
+    catch exception: IllegalStateException
+      Call println
+        StringLiteral "immediate-failure"
+    val success
+      Call Gate
+        Var None
+    Call launch
+      Call WaitingTask
+        Var success
+      Call ThrowingCompletion
+    try
+      MethodCall complete
+        Var success
+        IntLiteral 1
+    catch exception: IllegalStateException
+      Call println
+        StringLiteral "resumed-success"
+    val failure
+      Call Gate
+        Var None
+    Call launch
+      Call WaitingTask
+        Var failure
+      Call ThrowingCompletion
+    try
+      MethodCall fail
+        Var failure
+    catch exception: IllegalStateException
+      Call println
+        StringLiteral "resumed-failure"
+
+== hir ==
+Module
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  class Gate(waiter: Option<Continuation<Int>>)
+  class Registration(gate: Gate) : SuspendRegistration<Int>
+  class ImmediateTask() : SuspendTask<Int>
+  class ImmediateFailureTask() : SuspendTask<Int>
+  class WaitingTask(gate: Gate) : SuspendTask<Int>
+  class ThrowingCompletion() : Continuation<Int>
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>): Unit
+    Call startCoroutine<Int> : Unit
+      Local task : SuspendTask<Int>
+      Local completion : Continuation<Int>
+  fun main(): Unit
+    try
+      Call launch : Unit
+        ClassInit ImmediateTask : SuspendTask<Int>
+        ClassInit ThrowingCompletion : Continuation<Int>
+    catch exception: IllegalStateException
+      Call println : Unit
+        StringLiteral "immediate-success" : Any
+    try
+      Call launch : Unit
+        ClassInit ImmediateFailureTask : SuspendTask<Int>
+        ClassInit ThrowingCompletion : Continuation<Int>
+    catch exception: IllegalStateException
+      Call println : Unit
+        StringLiteral "immediate-failure" : Any
+    val local2
+      ClassInit Gate : Gate
+        VariantConstruct Option.None<Continuation<Int>> : Option<Continuation<Int>>
+    Call launch : Unit
+      ClassInit WaitingTask : SuspendTask<Int>
+        Local success : Gate
+      ClassInit ThrowingCompletion : Continuation<Int>
+    try
+      MethodCall Gate.complete : Unit
+        Local success : Gate
+        IntLiteral 1 : Int
+    catch exception: IllegalStateException
+      Call println : Unit
+        StringLiteral "resumed-success" : Any
+    val local4
+      ClassInit Gate : Gate
+        VariantConstruct Option.None<Continuation<Int>> : Option<Continuation<Int>>
+    Call launch : Unit
+      ClassInit WaitingTask : SuspendTask<Int>
+        Local failure : Gate
+      ClassInit ThrowingCompletion : Continuation<Int>
+    try
+      MethodCall Gate.fail : Unit
+        Local failure : Gate
+    catch exception: IllegalStateException
+      Call println : Unit
+        StringLiteral "resumed-failure" : Any
+  entry main
+  instance startCoroutine<Int>
+  instance Continuation.resume<Int>
+  instance Continuation.resumeWithException<Int>
+  instance suspendCoroutine<Int>
+
+== mir ==
+Module
+  enum Option$Continuation$I
+    Some(_1: Continuation$I)
+    None()
+  enum Option$S
+    Some(_1: String)
+    None()
+  enum CoroutineStep$I
+    Completed(value: Int)
+    Suspended()
+  enum CoroutineSlot$WaitingTask
+    Empty()
+    Value(value: WaitingTask)
+  enum CoroutineSlot$I
+    Empty()
+    Value(value: Int)
+  enum CoroutineSlot$Throwable
+    Empty()
+    Value(value: Throwable)
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class Gate vtable=3 itables=0
+  class Registration vtable=3 itables=1
+  class ImmediateTask vtable=3 itables=1
+  class ImmediateFailureTask vtable=3 itables=1
+  class WaitingTask vtable=3 itables=1
+  class ThrowingCompletion vtable=3 itables=1
+  class CoroutineFrame$scoop_WaitingTask_run_suspend vtable=3 itables=0
+  class CoroutineAdapter$scoop_WaitingTask_run_suspend$1 vtable=3 itables=1
+  interface SuspendRegistration$I
+  interface SuspendTask$I
+  interface Continuation$I
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
+  fun launch @scoop.launch(task: SuspendTask$I, completion: Continuation$I) -> Unit
+    bb0 entry
+      call @scoop.coroutine.start$I direct
+        Local task
+        Local completion
+      return
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb10 bb11
+        IsInstance IllegalStateException
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      goto bb21
+    bb8 try.body.8 unwind bb1
+      call $call.1: SuspendTask$I = @scoop.ctor.ImmediateTask direct
+      call $call.2: Continuation$I = @scoop.ctor.ThrowingCompletion direct
+      call @scoop.launch direct
+        Local $call.1
+        Local $call.2
+      goto bb9
+    bb9 scope.9
+      goto bb7
+    bb10 try.catch.10
+      val exception: IllegalStateException
+        Retype IllegalStateException
+          CaughtException
+      goto bb12
+    bb11 try.next.11
+      rethrow unwind bb5
+    bb12 scope.12 unwind bb3
+      call @scoop.println direct
+        StringConst @scoop.str.1
+      goto bb13
+    bb13 scope.13
+      end_catch
+      goto bb7
+    bb14 try.unwind.14
+      landing_pad cleanup=false
+      goto bb15
+    bb15 try.dispatch.15
+      begin_catch
+      branch bb23 bb24
+        IsInstance IllegalStateException
+          CaughtException
+    bb16 try.handler_pad.16
+      landing_pad cleanup=true
+      goto bb17
+    bb17 try.handler_cleanup.17
+      end_catch
+      resume
+    bb18 try.exit_pad.18
+      landing_pad cleanup=true
+      goto bb19
+    bb19 try.exit_cleanup.19
+      end_catch
+      resume
+    bb20 try.end.20
+      call success: Gate = @scoop.ctor.Gate direct
+        VariantConstruct Option$Continuation$I<Continuation$I> v1
+      call $call.5: SuspendTask$I = @scoop.ctor.WaitingTask direct
+        Local success
+      call $call.6: Continuation$I = @scoop.ctor.ThrowingCompletion direct
+      call @scoop.launch direct
+        Local $call.5
+        Local $call.6
+      goto bb34
+    bb21 try.body.21 unwind bb14
+      call $call.3: SuspendTask$I = @scoop.ctor.ImmediateFailureTask direct
+      call $call.4: Continuation$I = @scoop.ctor.ThrowingCompletion direct
+      call @scoop.launch direct
+        Local $call.3
+        Local $call.4
+      goto bb22
+    bb22 scope.22
+      goto bb20
+    bb23 try.catch.23
+      val exception: IllegalStateException
+        Retype IllegalStateException
+          CaughtException
+      goto bb25
+    bb24 try.next.24
+      rethrow unwind bb18
+    bb25 scope.25 unwind bb16
+      call @scoop.println direct
+        StringConst @scoop.str.2
+      goto bb26
+    bb26 scope.26
+      end_catch
+      goto bb20
+    bb27 try.unwind.27
+      landing_pad cleanup=false
+      goto bb28
+    bb28 try.dispatch.28
+      begin_catch
+      branch bb36 bb37
+        IsInstance IllegalStateException
+          CaughtException
+    bb29 try.handler_pad.29
+      landing_pad cleanup=true
+      goto bb30
+    bb30 try.handler_cleanup.30
+      end_catch
+      resume
+    bb31 try.exit_pad.31
+      landing_pad cleanup=true
+      goto bb32
+    bb32 try.exit_cleanup.32
+      end_catch
+      resume
+    bb33 try.end.33
+      call failure: Gate = @scoop.ctor.Gate direct
+        VariantConstruct Option$Continuation$I<Continuation$I> v1
+      call $call.7: SuspendTask$I = @scoop.ctor.WaitingTask direct
+        Local failure
+      call $call.8: Continuation$I = @scoop.ctor.ThrowingCompletion direct
+      call @scoop.launch direct
+        Local $call.7
+        Local $call.8
+      goto bb47
+    bb34 try.body.34 unwind bb27
+      call @scoop.Gate.complete direct
+        Local success
+        IntLiteral 1
+      goto bb35
+    bb35 scope.35
+      goto bb33
+    bb36 try.catch.36
+      val exception: IllegalStateException
+        Retype IllegalStateException
+          CaughtException
+      goto bb38
+    bb37 try.next.37
+      rethrow unwind bb31
+    bb38 scope.38 unwind bb29
+      call @scoop.println direct
+        StringConst @scoop.str.3
+      goto bb39
+    bb39 scope.39
+      end_catch
+      goto bb33
+    bb40 try.unwind.40
+      landing_pad cleanup=false
+      goto bb41
+    bb41 try.dispatch.41
+      begin_catch
+      branch bb49 bb50
+        IsInstance IllegalStateException
+          CaughtException
+    bb42 try.handler_pad.42
+      landing_pad cleanup=true
+      goto bb43
+    bb43 try.handler_cleanup.43
+      end_catch
+      resume
+    bb44 try.exit_pad.44
+      landing_pad cleanup=true
+      goto bb45
+    bb45 try.exit_cleanup.45
+      end_catch
+      resume
+    bb46 try.end.46
+      return
+    bb47 try.body.47 unwind bb40
+      call @scoop.Gate.fail direct
+        Local failure
+      goto bb48
+    bb48 scope.48
+      goto bb46
+    bb49 try.catch.49
+      val exception: IllegalStateException
+        Retype IllegalStateException
+          CaughtException
+      goto bb51
+    bb50 try.next.50
+      rethrow unwind bb44
+    bb51 scope.51 unwind bb42
+      call @scoop.println direct
+        StringConst @scoop.str.4
+      goto bb52
+    bb52 scope.52
+      end_catch
+      goto bb46
+  fun Gate.complete @scoop.Gate.complete(this: Gate, value: Int) -> Unit
+    bb0 entry
+      val $opt.1: Option$Continuation$I<Continuation$I>
+        FieldAccess 0
+          Local this
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $opt.1
+          IntLiteral 0
+    bb1 if.then.1
+      val $uw.2: Continuation$I
+        EnumField v0 f0
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
+      throw
+        Local $call.1
+    bb3 if.merge.3
+      val continuation: Continuation$I
+        Local $uw.2
+      field_set 0
+        Local this
+        VariantConstruct Option$Continuation$I<Continuation$I> v1
+      call @scoop.Continuation.resume$I interface Continuation$I[0]
+        Local continuation
+        Local value
+      return
+  fun Gate.fail @scoop.Gate.fail(this: Gate) -> Unit
+    bb0 entry
+      val $opt.1: Option$Continuation$I<Continuation$I>
+        FieldAccess 0
+          Local this
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $opt.1
+          IntLiteral 0
+    bb1 if.then.1
+      val $uw.2: Continuation$I
+        EnumField v0 f0
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
+      throw
+        Local $call.1
+    bb3 if.merge.3
+      val continuation: Continuation$I
+        Local $uw.2
+      field_set 0
+        Local this
+        VariantConstruct Option$Continuation$I<Continuation$I> v1
+      call $call.2: Throwable = @scoop.ctor.UnwrapException direct
+      call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        Local continuation
+        Local $call.2
+      return
+  fun Registration.register @scoop.Registration.register(this: Registration, continuation: Continuation$I) -> Unit
+    bb0 entry
+      field_set 0
+        FieldAccess 0
+          Local this
+        VariantConstruct Option$Continuation$I<Continuation$I> v0
+          Local continuation
+      return
+  fun ImmediateTask.run @scoop.ImmediateTask.run$suspend(this: ImmediateTask, $completion: Continuation$I) -> CoroutineStep$I
+    bb0 entry
+      return
+        VariantConstruct CoroutineStep$I v0
+          IntLiteral 1
+  fun ImmediateFailureTask.run @scoop.ImmediateFailureTask.run$suspend(this: ImmediateFailureTask, $completion: Continuation$I) -> CoroutineStep$I
+    bb0 entry
+      call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
+      throw
+        Local $call.1
+  fun WaitingTask.run @scoop.WaitingTask.run$suspend(this: WaitingTask, $completion: Continuation$I) -> CoroutineStep$I
+    bb0 entry
+      val $frame: CoroutineFrame$scoop_WaitingTask_run_suspend
+        ClassInit CoroutineFrame$scoop_WaitingTask_run_suspend
+          IntLiteral 0
+          Local $completion
+          VariantConstruct CoroutineSlot$WaitingTask v1
+            Local this
+          VariantConstruct CoroutineSlot$I v0
+          VariantConstruct CoroutineSlot$Throwable v0
+      call $step: CoroutineStep$I = @scoop.WaitingTask.run$suspend$drive direct
+        Local $frame
+      return
+        Local $step
+  fun ThrowingCompletion.resume @scoop.ThrowingCompletion.resume(this: ThrowingCompletion, value: Int) -> Unit
+    bb0 entry
+      call $call.1: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $call.1
+  fun ThrowingCompletion.resumeWithException @scoop.ThrowingCompletion.resumeWithException(this: ThrowingCompletion, exception: Throwable) -> Unit
+    bb0 entry
+      call $call.1: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $call.1
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.8
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.9
+  fun ctor.Gate @scoop.ctor.Gate(waiter: Option$Continuation$I<Continuation$I>) -> Gate
+    bb0 entry
+      return
+        ClassInit Gate
+          Local waiter
+  fun ctor.Registration @scoop.ctor.Registration(gate: Gate) -> Registration
+    bb0 entry
+      return
+        ClassInit Registration
+          Local gate
+  fun ctor.ImmediateTask @scoop.ctor.ImmediateTask() -> ImmediateTask
+    bb0 entry
+      return
+        ClassInit ImmediateTask
+  fun ctor.ImmediateFailureTask @scoop.ctor.ImmediateFailureTask() -> ImmediateFailureTask
+    bb0 entry
+      return
+        ClassInit ImmediateFailureTask
+  fun ctor.WaitingTask @scoop.ctor.WaitingTask(gate: Gate) -> WaitingTask
+    bb0 entry
+      return
+        ClassInit WaitingTask
+          Local gate
+  fun ctor.ThrowingCompletion @scoop.ctor.ThrowingCompletion() -> ThrowingCompletion
+    bb0 entry
+      return
+        ClassInit ThrowingCompletion
+  fun SuspendTask.run @scoop.SuspendTask.run$I$suspend(this: SuspendTask$I, $completion: Continuation$I) -> CoroutineStep$I
+    bb0 entry
+      trap @scoop.str.10
+  fun Continuation.resume @scoop.Continuation.resume$I(this: Continuation$I, value: Int) -> Unit
+    bb0 entry
+      trap @scoop.str.11
+  fun Continuation.resumeWithException @scoop.Continuation.resumeWithException$I(this: Continuation$I, exception: Throwable) -> Unit
+    bb0 entry
+      trap @scoop.str.12
+  fun startCoroutine$I @scoop.coroutine.start$I(task: SuspendTask$I, completion: Continuation$I) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @scoop.Continuation.resume$I interface Continuation$I[0]
+        Local completion
+        EnumField v0 f0
+          Local $step
+      return
+    bb2 failed
+      call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        Local completion
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep$I = @scoop.SuspendTask.run$I$suspend interface SuspendTask$I[0]
+        Local task
+        Local completion
+      branch bb1 bb0
+        Binary IntEq
+          EnumTag
+            Local $step
+          IntLiteral 0
+  fun SuspendRegistration.register @scoop.SuspendRegistration.register$I(this: SuspendRegistration$I, continuation: Continuation$I) -> Unit
+    bb0 entry
+      trap @scoop.str.13
+  fun WaitingTask.run$drive @scoop.WaitingTask.run$suspend$drive($frame: CoroutineFrame$scoop_WaitingTask_run_suspend) -> CoroutineStep$I
+    bb0 entry
+      call registration: SuspendRegistration$I = @scoop.ctor.Registration direct
+        FieldAccess 0
+          Local this
+      field_set 0
+        Local $frame
+        IntLiteral 1
+      val $safe_adapter.1: CoroutineAdapter$scoop_WaitingTask_run_suspend$1
+        ClassInit CoroutineAdapter$scoop_WaitingTask_run_suspend$1
+          Local $frame
+          IntLiteral 0
+          VariantConstruct CoroutineSlot$I v0
+          VariantConstruct CoroutineSlot$Throwable v0
+      goto bb2
+    bb1 coroutine.post.1
+      return
+        VariantConstruct CoroutineStep$I v0
+          Local $call.1
+    bb2 coroutine.register.1 unwind bb11
+      call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
+        Local registration
+        Local $safe_adapter.1
+      branch bb3 bb8
+        Binary IntEq
+          FieldAccess 1
+            Local $safe_adapter.1
+          IntLiteral 2
+    bb3 coroutine.registered_success.1
+      field_set 1
+        Local $safe_adapter.1
+        IntLiteral 3
+      val $call.1: Int
+        EnumField v1 f0
+          FieldAccess 2
+            Local $safe_adapter.1
+      goto bb1
+    bb4 coroutine.registered_failure.1
+      field_set 1
+        Local $safe_adapter.1
+        IntLiteral 3
+      val $resume_exception.1: Throwable
+        EnumField v1 f0
+          FieldAccess 3
+            Local $safe_adapter.1
+      throw
+        Local $resume_exception.1
+    bb5 coroutine.registered_suspend.1
+      field_set 1
+        Local $safe_adapter.1
+        IntLiteral 1
+      return
+        VariantConstruct CoroutineStep$I v1
+    bb6 coroutine.protocol_error
+      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $protocol_error
+    bb7 coroutine.registered_empty.1
+      branch bb5 bb6
+        Binary IntEq
+          FieldAccess 1
+            Local $safe_adapter.1
+          IntLiteral 0
+    bb8 coroutine.registered_check_failure.1
+      branch bb4 bb7
+        Binary IntEq
+          FieldAccess 1
+            Local $safe_adapter.1
+          IntLiteral 4
+    bb9 coroutine.registration_propagate.1
+      field_set 1
+        Local $safe_adapter.1
+        IntLiteral 3
+      throw
+        Local $resume_exception.1
+    bb10 coroutine.registration_protocol.1
+      field_set 1
+        Local $safe_adapter.1
+        IntLiteral 3
+      goto bb6
+    bb11 coroutine.registration_failure.1
+      landing_pad cleanup=false
+      begin_catch
+      call $resume_exception.1: Throwable = @scoop_rt_materialize_exception direct
+        CaughtException
+      end_catch
+      branch bb9 bb10
+        Binary IntEq
+          FieldAccess 1
+            Local $safe_adapter.1
+          IntLiteral 0
+    bb12 coroutine.resume.1
+      field_set 0
+        Local $frame
+        IntLiteral -1
+      assign $call.1
+        EnumField v1 f0
+          FieldAccess 3
+            Local $frame
+      goto bb1
+    bb13 coroutine.failure.1
+      field_set 0
+        Local $frame
+        IntLiteral -1
+      throw
+        EnumField v1 f0
+          FieldAccess 4
+            Local $frame
+    bb14 coroutine.initial
+      assign this
+        EnumField v1 f0
+          FieldAccess 2
+            Local $frame
+      field_set 0
+        Local $frame
+        IntLiteral -1
+      goto bb0
+    bb15 coroutine.protocol_error
+      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $protocol_error
+    bb16 coroutine.dispatch.1
+      branch bb12 bb15
+        Binary IntEq
+          FieldAccess 0
+            Local $frame
+          IntLiteral 1
+    bb17 coroutine.dispatch.-3
+      branch bb13 bb16
+        Binary IntEq
+          FieldAccess 0
+            Local $frame
+          IntLiteral -3
+    bb18 coroutine.dispatch.0
+      branch bb14 bb17
+        Binary IntEq
+          FieldAccess 0
+            Local $frame
+          IntLiteral 0
+  fun CoroutineAdapter.resume$1 @scoop.WaitingTask.run$suspend$resume$1(this: CoroutineAdapter$scoop_WaitingTask_run_suspend$1, value: Int) -> Unit
+    bb0 coroutine.protocol_error
+      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $protocol_error
+    bb1 completed
+      field_set 0
+        FieldAccess 0
+          Local this
+        IntLiteral -2
+      call @scoop.Continuation.resume$I interface Continuation$I[0]
+        FieldAccess 1
+          FieldAccess 0
+            Local this
+        EnumField v0 f0
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      field_set 0
+        FieldAccess 0
+          Local this
+        IntLiteral -2
+      call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        FieldAccess 1
+          FieldAccess 0
+            Local this
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 1
+        Local this
+        IntLiteral 3
+      field_set 3
+        FieldAccess 0
+          Local this
+        VariantConstruct CoroutineSlot$I v1
+          Local value
+      call $step: CoroutineStep$I = @scoop.WaitingTask.run$suspend$drive direct
+        FieldAccess 0
+          Local this
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $step
+          IntLiteral 0
+    bb6 valid_state
+      branch bb5 bb0
+        Binary IntEq
+          FieldAccess 0
+            FieldAccess 0
+              Local this
+          IntLiteral 1
+    bb7 waiting
+      branch bb6 bb0
+        Binary IntEq
+          FieldAccess 1
+            Local this
+          IntLiteral 1
+    bb8 latched
+      field_set 2
+        Local this
+        VariantConstruct CoroutineSlot$I v1
+          Local value
+      field_set 1
+        Local this
+        IntLiteral 2
+      return
+    bb9 entry
+      branch bb8 bb7
+        Binary IntEq
+          FieldAccess 1
+            Local this
+          IntLiteral 0
+  fun CoroutineAdapter.resumeWithException$1 @scoop.WaitingTask.run$suspend$resume_exception$1(this: CoroutineAdapter$scoop_WaitingTask_run_suspend$1, exception: Throwable) -> Unit
+    bb0 coroutine.protocol_error
+      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $protocol_error
+    bb1 completed
+      field_set 0
+        FieldAccess 0
+          Local this
+        IntLiteral -2
+      call @scoop.Continuation.resume$I interface Continuation$I[0]
+        FieldAccess 1
+          FieldAccess 0
+            Local this
+        EnumField v0 f0
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      field_set 0
+        FieldAccess 0
+          Local this
+        IntLiteral -2
+      call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        FieldAccess 1
+          FieldAccess 0
+            Local this
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 1
+        Local this
+        IntLiteral 3
+      field_set 4
+        FieldAccess 0
+          Local this
+        VariantConstruct CoroutineSlot$Throwable v1
+          Local exception
+      field_set 0
+        FieldAccess 0
+          Local this
+        IntLiteral -3
+      call $step: CoroutineStep$I = @scoop.WaitingTask.run$suspend$drive direct
+        FieldAccess 0
+          Local this
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $step
+          IntLiteral 0
+    bb6 valid_state
+      branch bb5 bb0
+        Binary IntEq
+          FieldAccess 0
+            FieldAccess 0
+              Local this
+          IntLiteral 1
+    bb7 waiting
+      branch bb6 bb0
+        Binary IntEq
+          FieldAccess 1
+            Local this
+          IntLiteral 1
+    bb8 latched
+      field_set 3
+        Local this
+        VariantConstruct CoroutineSlot$Throwable v1
+          Local exception
+      field_set 1
+        Local this
+        IntLiteral 4
+      return
+    bb9 entry
+      branch bb8 bb7
+        Binary IntEq
+          FieldAccess 1
+            Local this
+          IntLiteral 0
+  coroutine_step cs0 CoroutineStep$I result=Int
+  coroutine_slot cl0 CoroutineSlot$WaitingTask value=WaitingTask
+  coroutine_slot cl1 CoroutineSlot$I value=Int
+  coroutine_slot cl2 CoroutineSlot$Throwable value=Throwable
+  coroutine_frame cr0 CoroutineFrame$scoop_WaitingTask_run_suspend owner=cf2
+  coroutine_resume cp0 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_WaitingTask_run_suspend$1 resume=@scoop.WaitingTask.run$suspend$resume$1 failure=@scoop.WaitingTask.run$suspend$resume_exception$1
+  coroutine_fn cf0 @scoop.ImmediateTask.run$suspend source_return=Int step=cs0 immediate
+  coroutine_fn cf1 @scoop.ImmediateFailureTask.run$suspend source_return=Int step=cs0 immediate
+  coroutine_fn cf2 @scoop.WaitingTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.WaitingTask.run$suspend$drive resumes=[cp0]
+  coroutine_fn cf3 @scoop.SuspendTask.run$I$suspend source_return=Int step=cs0 immediate
+  instance @scoop.SuspendTask.run$I$suspend <- SuspendTask.run
+  instance @scoop.Continuation.resume$I <- Continuation.resume
+  instance @scoop.Continuation.resumeWithException$I <- Continuation.resumeWithException
+  instance @scoop.SuspendRegistration.register$I <- SuspendRegistration.register
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "immediate-success"
+  str @scoop.str.2 "immediate-failure"
+  str @scoop.str.3 "resumed-success"
+  str @scoop.str.4 "resumed-failure"
+  str @scoop.str.5 "unwrap on None"
+  str @scoop.str.6 "invalid cast"
+  str @scoop.str.7 "arithmetic error"
+  str @scoop.str.8 "array index out of bounds"
+  str @scoop.str.9 "illegal state"
+  str @scoop.str.10 "call to abstract method `SuspendTask.run`"
+  str @scoop.str.11 "call to abstract method `Continuation.resume`"
+  str @scoop.str.12 "call to abstract method `Continuation.resumeWithException`"
+  str @scoop.str.13 "call to abstract method `SuspendRegistration.register`"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "immediate-success"
+  global @scoop.str.2 = "immediate-failure"
+  global @scoop.str.3 = "resumed-success"
+  global @scoop.str.4 = "resumed-failure"
+  global @scoop.str.5 = "unwrap on None"
+  global @scoop.str.6 = "invalid cast"
+  global @scoop.str.7 = "arithmetic error"
+  global @scoop.str.8 = "array index out of bounds"
+  global @scoop.str.9 = "illegal state"
+  global @scoop.str.10 = "call to abstract method `SuspendTask.run`"
+  global @scoop.str.11 = "call to abstract method `Continuation.resume`"
+  global @scoop.str.12 = "call to abstract method `Continuation.resumeWithException`"
+  global @scoop.str.13 = "call to abstract method `SuspendRegistration.register`"
+  global @scoop_td_IllegalStateException = c""
+  global @scoop_td_Continuation$I = c""
+  global @scoop_td_CoroutineFrame$scoop_WaitingTask_run_suspend = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_Gate = c""
+  global @scoop_td_Registration = c""
+  global @scoop_td_ImmediateTask = c""
+  global @scoop_td_ImmediateFailureTask = c""
+  global @scoop_td_WaitingTask = c""
+  global @scoop_td_ThrowingCompletion = c""
+  global @scoop.cstr.0 = c"call to abstract method `SuspendTask.run`"
+  global @scoop.cstr.1 = c"call to abstract method `Continuation.resume`"
+  global @scoop.cstr.2 = c"call to abstract method `Continuation.resumeWithException`"
+  global @scoop_td_SuspendTask$I = c""
+  global @scoop.cstr.3 = c"call to abstract method `SuspendRegistration.register`"
+  global @scoop_td_CoroutineAdapter$scoop_WaitingTask_run_suspend$1 = c""
+  global @scoop_td_SuspendRegistration$I = c""
+  enum Option$Continuation$I niche(payload_variant=0)
+  enum Option$S niche(payload_variant=0)
+  enum CoroutineStep$I tagged size=8 align=8 variants=(i64) ()
+  enum CoroutineSlot$WaitingTask niche(payload_variant=1)
+  enum CoroutineSlot$I tagged size=8 align=8 variants=() (i64)
+  enum CoroutineSlot$Throwable niche(payload_variant=1)
+  fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.launch(ptr, ptr) -> void
+  block entry
+    call @scoop.coroutine.start$I(param0, param1)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop_main() -> void
+    local %0 exception: ptr
+    local %1 exception: ptr
+    local %2 success: ptr
+    local %3 exception: ptr
+    local %4 failure: ptr
+    local %5 exception: ptr
+    local %6 $call.1: ptr
+    local %7 $call.2: ptr
+    local %8 $call.3: ptr
+    local %9 $call.4: ptr
+    local %10 $call.5: ptr
+    local %11 $call.6: ptr
+    local %12 $call.7: ptr
+    local %13 $call.8: ptr
+    local %14 $sc.1: exception_record
+    local %15 $sc.2: ptr
+    local %16 $sc.3: ptr
+  block entry
+    br @try.body.8
+  block try.unwind.1
+    (t0, t1) = landingpad : (exception_record, ptr)
+    store t0 -> local14
+    store t1 -> local15
+    br @try.dispatch.2
+  block try.dispatch.2
+    t2 = begin_catch local15 : ptr
+    store t2 -> local16
+    t3 = call @scoop_rt_is_instance(local16, global14) : i1
+    cbr t3 then @try.catch.10 else @try.next.11
+  block try.handler_pad.3
+    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    store t4 -> local14
+    store t5 -> local15
+    br @try.handler_cleanup.4
+  block try.handler_cleanup.4
+    end_catch
+    resume local14
+  block try.exit_pad.5
+    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    store t6 -> local14
+    store t7 -> local15
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local14
+  block try.end.7
+    br @try.body.21
+  block try.body.8
+    invoke @scoop.ctor.ImmediateTask() normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block scope.9
+    br @try.end.7
+  block try.catch.10
+    store local16 -> local0
+    br @scope.12
+  block try.next.11
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.4 unwind @try.exit_pad.5
+    br @rethrow.normal.4
+  block scope.12
+    invoke @scoop.println(global1) normal @invoke.normal.5 unwind @try.handler_pad.3
+    br @invoke.normal.5
+  block scope.13
+    end_catch
+    br @try.end.7
+  block try.unwind.14
+    (t12, t13) = landingpad : (exception_record, ptr)
+    store t12 -> local14
+    store t13 -> local15
+    br @try.dispatch.15
+  block try.dispatch.15
+    t14 = begin_catch local15 : ptr
+    store t14 -> local16
+    t15 = call @scoop_rt_is_instance(local16, global14) : i1
+    cbr t15 then @try.catch.23 else @try.next.24
+  block try.handler_pad.16
+    (t16, t17) = cleanup_pad : (exception_record, ptr)
+    store t16 -> local14
+    store t17 -> local15
+    br @try.handler_cleanup.17
+  block try.handler_cleanup.17
+    end_catch
+    resume local14
+  block try.exit_pad.18
+    (t18, t19) = cleanup_pad : (exception_record, ptr)
+    store t18 -> local14
+    store t19 -> local15
+    br @try.exit_cleanup.19
+  block try.exit_cleanup.19
+    end_catch
+    resume local14
+  block try.end.20
+    t20 = enum_wrap e0 v1 () : enum0
+    t21 = call @scoop.ctor.Gate(t20) : ptr
+    store t21 -> local2
+    t22 = call @scoop.ctor.WaitingTask(local2) : ptr
+    store t22 -> local10
+    t23 = call @scoop.ctor.ThrowingCompletion() : ptr
+    store t23 -> local11
+    call @scoop.launch(local10, local11)
+    t24 = aggregate () : {}
+    br @try.body.34
+  block try.body.21
+    invoke @scoop.ctor.ImmediateFailureTask() normal @invoke.normal.6 unwind @try.unwind.14
+    br @invoke.normal.6
+  block scope.22
+    br @try.end.20
+  block try.catch.23
+    store local16 -> local1
+    br @scope.25
+  block try.next.24
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.9 unwind @try.exit_pad.18
+    br @rethrow.normal.9
+  block scope.25
+    invoke @scoop.println(global2) normal @invoke.normal.10 unwind @try.handler_pad.16
+    br @invoke.normal.10
+  block scope.26
+    end_catch
+    br @try.end.20
+  block try.unwind.27
+    (t29, t30) = landingpad : (exception_record, ptr)
+    store t29 -> local14
+    store t30 -> local15
+    br @try.dispatch.28
+  block try.dispatch.28
+    t31 = begin_catch local15 : ptr
+    store t31 -> local16
+    t32 = call @scoop_rt_is_instance(local16, global14) : i1
+    cbr t32 then @try.catch.36 else @try.next.37
+  block try.handler_pad.29
+    (t33, t34) = cleanup_pad : (exception_record, ptr)
+    store t33 -> local14
+    store t34 -> local15
+    br @try.handler_cleanup.30
+  block try.handler_cleanup.30
+    end_catch
+    resume local14
+  block try.exit_pad.31
+    (t35, t36) = cleanup_pad : (exception_record, ptr)
+    store t35 -> local14
+    store t36 -> local15
+    br @try.exit_cleanup.32
+  block try.exit_cleanup.32
+    end_catch
+    resume local14
+  block try.end.33
+    t37 = enum_wrap e0 v1 () : enum0
+    t38 = call @scoop.ctor.Gate(t37) : ptr
+    store t38 -> local4
+    t39 = call @scoop.ctor.WaitingTask(local4) : ptr
+    store t39 -> local12
+    t40 = call @scoop.ctor.ThrowingCompletion() : ptr
+    store t40 -> local13
+    call @scoop.launch(local12, local13)
+    t41 = aggregate () : {}
+    br @try.body.47
+  block try.body.34
+    invoke @scoop.Gate.complete(local2, 1) normal @invoke.normal.11 unwind @try.unwind.27
+    br @invoke.normal.11
+  block scope.35
+    br @try.end.33
+  block try.catch.36
+    store local16 -> local3
+    br @scope.38
+  block try.next.37
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.12 unwind @try.exit_pad.31
+    br @rethrow.normal.12
+  block scope.38
+    invoke @scoop.println(global3) normal @invoke.normal.13 unwind @try.handler_pad.29
+    br @invoke.normal.13
+  block scope.39
+    end_catch
+    br @try.end.33
+  block try.unwind.40
+    (t44, t45) = landingpad : (exception_record, ptr)
+    store t44 -> local14
+    store t45 -> local15
+    br @try.dispatch.41
+  block try.dispatch.41
+    t46 = begin_catch local15 : ptr
+    store t46 -> local16
+    t47 = call @scoop_rt_is_instance(local16, global14) : i1
+    cbr t47 then @try.catch.49 else @try.next.50
+  block try.handler_pad.42
+    (t48, t49) = cleanup_pad : (exception_record, ptr)
+    store t48 -> local14
+    store t49 -> local15
+    br @try.handler_cleanup.43
+  block try.handler_cleanup.43
+    end_catch
+    resume local14
+  block try.exit_pad.44
+    (t50, t51) = cleanup_pad : (exception_record, ptr)
+    store t50 -> local14
+    store t51 -> local15
+    br @try.exit_cleanup.45
+  block try.exit_cleanup.45
+    end_catch
+    resume local14
+  block try.end.46
+    ret
+  block try.body.47
+    invoke @scoop.Gate.fail(local4) normal @invoke.normal.14 unwind @try.unwind.40
+    br @invoke.normal.14
+  block scope.48
+    br @try.end.46
+  block try.catch.49
+    store local16 -> local5
+    br @scope.51
+  block try.next.50
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.15 unwind @try.exit_pad.44
+    br @rethrow.normal.15
+  block scope.51
+    invoke @scoop.println(global4) normal @invoke.normal.16 unwind @try.handler_pad.42
+    br @invoke.normal.16
+  block scope.52
+    end_catch
+    br @try.end.46
+  block invoke.normal.1
+    store t8 -> local6
+    invoke @scoop.ctor.ThrowingCompletion() normal @invoke.normal.2 unwind @try.unwind.1
+    br @invoke.normal.2
+  block invoke.normal.2
+    store t9 -> local7
+    invoke @scoop.launch(local6, local7) normal @invoke.normal.3 unwind @try.unwind.1
+    br @invoke.normal.3
+  block invoke.normal.3
+    t10 = aggregate () : {}
+    br @scope.9
+  block rethrow.normal.4
+    unreachable
+  block invoke.normal.5
+    t11 = aggregate () : {}
+    br @scope.13
+  block invoke.normal.6
+    store t25 -> local8
+    invoke @scoop.ctor.ThrowingCompletion() normal @invoke.normal.7 unwind @try.unwind.14
+    br @invoke.normal.7
+  block invoke.normal.7
+    store t26 -> local9
+    invoke @scoop.launch(local8, local9) normal @invoke.normal.8 unwind @try.unwind.14
+    br @invoke.normal.8
+  block invoke.normal.8
+    t27 = aggregate () : {}
+    br @scope.22
+  block rethrow.normal.9
+    unreachable
+  block invoke.normal.10
+    t28 = aggregate () : {}
+    br @scope.26
+  block invoke.normal.11
+    t42 = aggregate () : {}
+    br @scope.35
+  block rethrow.normal.12
+    unreachable
+  block invoke.normal.13
+    t43 = aggregate () : {}
+    br @scope.39
+  block invoke.normal.14
+    t52 = aggregate () : {}
+    br @scope.48
+  block rethrow.normal.15
+    unreachable
+  block invoke.normal.16
+    t53 = aggregate () : {}
+    br @scope.52
+  fun @scoop.Gate.complete(ptr, i64) -> void
+    local %0 continuation: ptr
+    local %1 $opt.1: enum0
+    local %2 $uw.2: ptr
+    local %3 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : enum0
+    store t0 -> local1
+    t1 = enum_tag e0 local1 : i64
+    t2 = Eq t1, 0 : i1
+    cbr t2 then @if.then.1 else @if.else.2
+  block if.then.1
+    t3 = enum_field e0 v0 f0 local1 : ptr
+    store t3 -> local2
+    br @if.merge.3
+  block if.else.2
+    t4 = call @scoop.ctor.UnwrapException() : ptr
+    store t4 -> local3
+    throw local3
+    unreachable
+  block if.merge.3
+    store local2 -> local0
+    t5 = enum_wrap e0 v1 () : enum0
+    heap_store param0 +16 t5
+    t6 = heap_load local0 +0 : ptr
+    t7 = call @scoop_rt_itable_lookup(t6, global15) : ptr
+    call_indirect t7[0](local0, param1)
+    t8 = aggregate () : {}
+    ret
+  fun @scoop.Gate.fail(ptr) -> void
+    local %0 continuation: ptr
+    local %1 $opt.1: enum0
+    local %2 $uw.2: ptr
+    local %3 $call.1: ptr
+    local %4 $call.2: ptr
+  block entry
+    t0 = heap_load param0 +16 : enum0
+    store t0 -> local1
+    t1 = enum_tag e0 local1 : i64
+    t2 = Eq t1, 0 : i1
+    cbr t2 then @if.then.1 else @if.else.2
+  block if.then.1
+    t3 = enum_field e0 v0 f0 local1 : ptr
+    store t3 -> local2
+    br @if.merge.3
+  block if.else.2
+    t4 = call @scoop.ctor.UnwrapException() : ptr
+    store t4 -> local3
+    throw local3
+    unreachable
+  block if.merge.3
+    store local2 -> local0
+    t5 = enum_wrap e0 v1 () : enum0
+    heap_store param0 +16 t5
+    t6 = call @scoop.ctor.UnwrapException() : ptr
+    store t6 -> local4
+    t7 = heap_load local0 +0 : ptr
+    t8 = call @scoop_rt_itable_lookup(t7, global15) : ptr
+    call_indirect t8[1](local0, local4)
+    t9 = aggregate () : {}
+    ret
+  fun @scoop.Registration.register(ptr, ptr) -> void
+  block entry
+    t0 = heap_load param0 +16 : ptr
+    t1 = enum_wrap e0 v0 (param1) : enum0
+    heap_store t0 +16 t1
+    ret
+  fun @scoop.ImmediateTask.run$suspend(ptr, ptr) -> enum2
+  block entry
+    t0 = enum_wrap e2 v0 (1) : enum2
+    ret t0
+  fun @scoop.ImmediateFailureTask.run$suspend(ptr, ptr) -> enum2
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.ctor.UnwrapException() : ptr
+    store t0 -> local0
+    throw local0
+    unreachable
+  fun @scoop.WaitingTask.run$suspend(ptr, ptr) -> enum2
+    local %0 $frame: ptr
+    local %1 $step: enum2
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 64) : ptr
+    heap_store t0 +16 0
+    heap_store t0 +24 param1
+    t1 = enum_wrap e3 v1 (param0) : enum3
+    heap_store t0 +32 t1
+    t2 = enum_wrap e4 v0 () : enum4
+    heap_store t0 +40 t2
+    t3 = enum_wrap e5 v0 () : enum5
+    heap_store t0 +56 t3
+    store t0 -> local0
+    t4 = call @scoop.WaitingTask.run$suspend$drive(local0) : enum2
+    store t4 -> local1
+    ret local1
+  fun @scoop.ThrowingCompletion.resume(ptr, i64) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    store t0 -> local0
+    throw local0
+    unreachable
+  fun @scoop.ThrowingCompletion.resumeWithException(ptr, ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    store t0 -> local0
+    throw local0
+    unreachable
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global17, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum1) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global19, 24) : ptr
+    t1 = enum_wrap e1 v0 (global5) : enum1
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global20, 24) : ptr
+    t1 = enum_wrap e1 v0 (global6) : enum1
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global21, 24) : ptr
+    t1 = enum_wrap e1 v0 (global7) : enum1
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global22, 24) : ptr
+    t1 = enum_wrap e1 v0 (global8) : enum1
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t1 = enum_wrap e1 v0 (global9) : enum1
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.Gate(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global23, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.Registration(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global24, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.ImmediateTask() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global25, 16) : ptr
+    ret t0
+  fun @scoop.ctor.ImmediateFailureTask() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global26, 16) : ptr
+    ret t0
+  fun @scoop.ctor.WaitingTask(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global27, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.ThrowingCompletion() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global28, 16) : ptr
+    ret t0
+  fun @scoop.SuspendTask.run$I$suspend(ptr, ptr) -> enum2
+  block entry
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call @scoop_rt_trap(global29)
+    unreachable
+  fun @scoop.Continuation.resume$I(ptr, i64) -> void
+  block entry
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call @scoop_rt_trap(global30)
+    unreachable
+  fun @scoop.Continuation.resumeWithException$I(ptr, ptr) -> void
+  block entry
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call @scoop_rt_trap(global31)
+    unreachable
+  fun @scoop.coroutine.start$I(ptr, ptr) -> void
+    local %0 $step: enum2
+    local %1 $exception: ptr
+    local %2 $sc.1: exception_record
+    local %3 $sc.2: ptr
+    local %4 $sc.3: ptr
+  block suspended
+    ret
+  block completed
+    t0 = enum_field e2 v0 f0 local0 : i64
+    t1 = heap_load param1 +0 : ptr
+    t2 = call @scoop_rt_itable_lookup(t1, global15) : ptr
+    call_indirect t2[0](param1, t0)
+    t3 = aggregate () : {}
+    ret
+  block failed
+    t4 = heap_load param1 +0 : ptr
+    t5 = call @scoop_rt_itable_lookup(t4, global15) : ptr
+    call_indirect t5[1](param1, local1)
+    t6 = aggregate () : {}
+    ret
+  block body_failure
+    (t7, t8) = landingpad : (exception_record, ptr)
+    store t7 -> local2
+    store t8 -> local3
+    t9 = begin_catch local3 : ptr
+    store t9 -> local4
+    t10 = call @scoop_rt_materialize_exception(local4) : ptr
+    store t10 -> local1
+    end_catch
+    br @failed
+  block entry
+    t11 = heap_load param0 +0 : ptr
+    t12 = call @scoop_rt_itable_lookup(t11, global32) : ptr
+    invoke_indirect t12[0](param0, param1) normal @invoke.normal.1 unwind @body_failure
+    br @invoke.normal.1
+  block invoke.normal.1
+    store t13 -> local0
+    t14 = enum_tag e2 local0 : i64
+    t15 = Eq t14, 0 : i1
+    cbr t15 then @completed else @suspended
+  fun @scoop.SuspendRegistration.register$I(ptr, ptr) -> void
+  block entry
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call @scoop_rt_trap(global33)
+    unreachable
+  fun @scoop.WaitingTask.run$suspend$drive(ptr) -> enum2
+    local %0 this: ptr
+    local %1 registration: ptr
+    local %2 $call.1: i64
+    local %3 $completion: ptr
+    local %4 $safe_adapter.1: ptr
+    local %5 $resume_exception.1: ptr
+    local %6 $protocol_error: ptr
+    local %7 $protocol_error: ptr
+    local %8 $sc.1: exception_record
+    local %9 $sc.2: ptr
+    local %10 $sc.3: ptr
+  block entry
+    t0 = heap_load local0 +16 : ptr
+    t1 = call @scoop.ctor.Registration(t0) : ptr
+    store t1 -> local1
+    heap_store param0 +16 1
+    t2 = call @scoop_rt_alloc(global34, 56) : ptr
+    heap_store t2 +16 param0
+    heap_store t2 +24 0
+    t3 = enum_wrap e4 v0 () : enum4
+    heap_store t2 +32 t3
+    t4 = enum_wrap e5 v0 () : enum5
+    heap_store t2 +48 t4
+    store t2 -> local4
+    br @coroutine.register.1
+  block coroutine.post.1
+    t5 = enum_wrap e2 v0 (local2) : enum2
+    ret t5
+  block coroutine.register.1
+    t6 = heap_load local1 +0 : ptr
+    t7 = call @scoop_rt_itable_lookup(t6, global35) : ptr
+    invoke_indirect t7[0](local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
+    br @invoke.normal.1
+  block coroutine.registered_success.1
+    heap_store local4 +24 3
+    t11 = heap_load local4 +32 : enum4
+    t12 = enum_field e4 v1 f0 t11 : i64
+    store t12 -> local2
+    br @coroutine.post.1
+  block coroutine.registered_failure.1
+    heap_store local4 +24 3
+    t13 = heap_load local4 +48 : enum5
+    t14 = enum_field e5 v1 f0 t13 : ptr
+    store t14 -> local5
+    throw local5
+    unreachable
+  block coroutine.registered_suspend.1
+    heap_store local4 +24 1
+    t15 = enum_wrap e2 v1 () : enum2
+    ret t15
+  block coroutine.protocol_error
+    t16 = call @scoop.ctor.IllegalStateException() : ptr
+    store t16 -> local6
+    throw local6
+    unreachable
+  block coroutine.registered_empty.1
+    t17 = heap_load local4 +24 : i64
+    t18 = Eq t17, 0 : i1
+    cbr t18 then @coroutine.registered_suspend.1 else @coroutine.protocol_error
+  block coroutine.registered_check_failure.1
+    t19 = heap_load local4 +24 : i64
+    t20 = Eq t19, 4 : i1
+    cbr t20 then @coroutine.registered_failure.1 else @coroutine.registered_empty.1
+  block coroutine.registration_propagate.1
+    heap_store local4 +24 3
+    throw local5
+    unreachable
+  block coroutine.registration_protocol.1
+    heap_store local4 +24 3
+    br @coroutine.protocol_error
+  block coroutine.registration_failure.1
+    (t21, t22) = landingpad : (exception_record, ptr)
+    store t21 -> local8
+    store t22 -> local9
+    t23 = begin_catch local9 : ptr
+    store t23 -> local10
+    t24 = call @scoop_rt_materialize_exception(local10) : ptr
+    store t24 -> local5
+    end_catch
+    t25 = heap_load local4 +24 : i64
+    t26 = Eq t25, 0 : i1
+    cbr t26 then @coroutine.registration_propagate.1 else @coroutine.registration_protocol.1
+  block coroutine.resume.1
+    heap_store param0 +16 -1
+    t27 = heap_load param0 +40 : enum4
+    t28 = enum_field e4 v1 f0 t27 : i64
+    store t28 -> local2
+    br @coroutine.post.1
+  block coroutine.failure.1
+    heap_store param0 +16 -1
+    t29 = heap_load param0 +56 : enum5
+    t30 = enum_field e5 v1 f0 t29 : ptr
+    throw t30
+    unreachable
+  block coroutine.initial
+    t31 = heap_load param0 +32 : enum3
+    t32 = enum_field e3 v1 f0 t31 : ptr
+    store t32 -> local0
+    heap_store param0 +16 -1
+    br @entry
+  block coroutine.protocol_error
+    t33 = call @scoop.ctor.IllegalStateException() : ptr
+    store t33 -> local7
+    throw local7
+    unreachable
+  block coroutine.dispatch.1
+    t34 = heap_load param0 +16 : i64
+    t35 = Eq t34, 1 : i1
+    cbr t35 then @coroutine.resume.1 else @coroutine.protocol_error
+  block coroutine.dispatch.-3
+    t36 = heap_load param0 +16 : i64
+    t37 = Eq t36, -3 : i1
+    cbr t37 then @coroutine.failure.1 else @coroutine.dispatch.1
+  block coroutine.dispatch.0
+    t38 = heap_load param0 +16 : i64
+    t39 = Eq t38, 0 : i1
+    cbr t39 then @coroutine.initial else @coroutine.dispatch.-3
+  block invoke.normal.1
+    t8 = aggregate () : {}
+    t9 = heap_load local4 +24 : i64
+    t10 = Eq t9, 2 : i1
+    cbr t10 then @coroutine.registered_success.1 else @coroutine.registered_check_failure.1
+  fun @scoop.WaitingTask.run$suspend$resume$1(ptr, i64) -> void
+    local %0 $step: enum2
+    local %1 $protocol_error: ptr
+    local %2 $uncaught: ptr
+    local %3 $sc.1: exception_record
+    local %4 $sc.2: ptr
+    local %5 $sc.3: ptr
+  block coroutine.protocol_error
+    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    store t0 -> local1
+    throw local1
+    unreachable
+  block completed
+    t1 = heap_load param0 +16 : ptr
+    heap_store t1 +16 -2
+    t2 = heap_load param0 +16 : ptr
+    t3 = heap_load t2 +24 : ptr
+    t4 = enum_field e2 v0 f0 local0 : i64
+    t5 = heap_load t3 +0 : ptr
+    t6 = call @scoop_rt_itable_lookup(t5, global15) : ptr
+    call_indirect t6[0](t3, t4)
+    t7 = aggregate () : {}
+    ret
+  block suspended
+    ret
+  block failed
+    t8 = heap_load param0 +16 : ptr
+    heap_store t8 +16 -2
+    t9 = heap_load param0 +16 : ptr
+    t10 = heap_load t9 +24 : ptr
+    t11 = heap_load t10 +0 : ptr
+    t12 = call @scoop_rt_itable_lookup(t11, global15) : ptr
+    call_indirect t12[1](t10, local2)
+    t13 = aggregate () : {}
+    ret
+  block body_failure
+    (t14, t15) = landingpad : (exception_record, ptr)
+    store t14 -> local3
+    store t15 -> local4
+    t16 = begin_catch local4 : ptr
+    store t16 -> local5
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    store t17 -> local2
+    end_catch
+    br @failed
+  block valid
+    heap_store param0 +24 3
+    t18 = heap_load param0 +16 : ptr
+    t19 = enum_wrap e4 v1 (param1) : enum4
+    heap_store t18 +40 t19
+    t20 = heap_load param0 +16 : ptr
+    invoke @scoop.WaitingTask.run$suspend$drive(t20) normal @invoke.normal.1 unwind @body_failure
+    br @invoke.normal.1
+  block valid_state
+    t24 = heap_load param0 +16 : ptr
+    t25 = heap_load t24 +16 : i64
+    t26 = Eq t25, 1 : i1
+    cbr t26 then @valid else @coroutine.protocol_error
+  block waiting
+    t27 = heap_load param0 +24 : i64
+    t28 = Eq t27, 1 : i1
+    cbr t28 then @valid_state else @coroutine.protocol_error
+  block latched
+    t29 = enum_wrap e4 v1 (param1) : enum4
+    heap_store param0 +32 t29
+    heap_store param0 +24 2
+    ret
+  block entry
+    t30 = heap_load param0 +24 : i64
+    t31 = Eq t30, 0 : i1
+    cbr t31 then @latched else @waiting
+  block invoke.normal.1
+    store t21 -> local0
+    t22 = enum_tag e2 local0 : i64
+    t23 = Eq t22, 0 : i1
+    cbr t23 then @completed else @suspended
+  fun @scoop.WaitingTask.run$suspend$resume_exception$1(ptr, ptr) -> void
+    local %0 $step: enum2
+    local %1 $protocol_error: ptr
+    local %2 $uncaught: ptr
+    local %3 $sc.1: exception_record
+    local %4 $sc.2: ptr
+    local %5 $sc.3: ptr
+  block coroutine.protocol_error
+    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    store t0 -> local1
+    throw local1
+    unreachable
+  block completed
+    t1 = heap_load param0 +16 : ptr
+    heap_store t1 +16 -2
+    t2 = heap_load param0 +16 : ptr
+    t3 = heap_load t2 +24 : ptr
+    t4 = enum_field e2 v0 f0 local0 : i64
+    t5 = heap_load t3 +0 : ptr
+    t6 = call @scoop_rt_itable_lookup(t5, global15) : ptr
+    call_indirect t6[0](t3, t4)
+    t7 = aggregate () : {}
+    ret
+  block suspended
+    ret
+  block failed
+    t8 = heap_load param0 +16 : ptr
+    heap_store t8 +16 -2
+    t9 = heap_load param0 +16 : ptr
+    t10 = heap_load t9 +24 : ptr
+    t11 = heap_load t10 +0 : ptr
+    t12 = call @scoop_rt_itable_lookup(t11, global15) : ptr
+    call_indirect t12[1](t10, local2)
+    t13 = aggregate () : {}
+    ret
+  block body_failure
+    (t14, t15) = landingpad : (exception_record, ptr)
+    store t14 -> local3
+    store t15 -> local4
+    t16 = begin_catch local4 : ptr
+    store t16 -> local5
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    store t17 -> local2
+    end_catch
+    br @failed
+  block valid
+    heap_store param0 +24 3
+    t18 = heap_load param0 +16 : ptr
+    t19 = enum_wrap e5 v1 (param1) : enum5
+    heap_store t18 +56 t19
+    t20 = heap_load param0 +16 : ptr
+    heap_store t20 +16 -3
+    t21 = heap_load param0 +16 : ptr
+    invoke @scoop.WaitingTask.run$suspend$drive(t21) normal @invoke.normal.1 unwind @body_failure
+    br @invoke.normal.1
+  block valid_state
+    t25 = heap_load param0 +16 : ptr
+    t26 = heap_load t25 +16 : i64
+    t27 = Eq t26, 1 : i1
+    cbr t27 then @valid else @coroutine.protocol_error
+  block waiting
+    t28 = heap_load param0 +24 : i64
+    t29 = Eq t28, 1 : i1
+    cbr t29 then @valid_state else @coroutine.protocol_error
+  block latched
+    t30 = enum_wrap e5 v1 (param1) : enum5
+    heap_store param0 +48 t30
+    heap_store param0 +24 4
+    ret
+  block entry
+    t31 = heap_load param0 +24 : i64
+    t32 = Eq t31, 0 : i1
+    cbr t32 then @latched else @waiting
+  block invoke.normal.1
+    store t22 -> local0
+    t23 = enum_tag e2 local0 : i64
+    t24 = Eq t23, 0 : i1
+    cbr t24 then @completed else @suspended
+  td SuspendRegistration$I @scoop_td_SuspendRegistration$I size=0 vtable=0 itables=0
+  td SuspendTask$I @scoop_td_SuspendTask$I size=0 vtable=0 itables=0
+  td Continuation$I @scoop_td_Continuation$I size=0 vtable=0 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td Gate @scoop_td_Gate size=24 vtable=3 itables=0
+  td Registration @scoop_td_Registration size=24 vtable=3 itables=1
+  td ImmediateTask @scoop_td_ImmediateTask size=16 vtable=3 itables=1
+  td ImmediateFailureTask @scoop_td_ImmediateFailureTask size=16 vtable=3 itables=1
+  td WaitingTask @scoop_td_WaitingTask size=24 vtable=3 itables=1
+  td ThrowingCompletion @scoop_td_ThrowingCompletion size=16 vtable=3 itables=1
+  td CoroutineFrame$scoop_WaitingTask_run_suspend @scoop_td_CoroutineFrame$scoop_WaitingTask_run_suspend size=64 vtable=3 itables=0
+  td CoroutineAdapter$scoop_WaitingTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_WaitingTask_run_suspend$1 size=56 vtable=3 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Option$Continuation$I size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout CoroutineStep$I size=16 align=8 enum-refs=[[], []]
+  layout CoroutineSlot$WaitingTask size=8 align=8 enum-refs=[[], [0]]
+  layout CoroutineSlot$I size=16 align=8 enum-refs=[[], []]
+  layout CoroutineSlot$Throwable size=8 align=8 enum-refs=[[], [0]]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout Gate size=24 align=8 refs=[16]
+  layout Registration size=24 align=8 refs=[16]
+  layout ImmediateTask size=16 align=8 refs=[]
+  layout ImmediateFailureTask size=16 align=8 refs=[]
+  layout WaitingTask size=24 align=8 refs=[16]
+  layout ThrowingCompletion size=16 align=8 refs=[]
+  layout CoroutineFrame$scoop_WaitingTask_run_suspend size=64 align=8 refs=[24, 32, 56]
+  layout CoroutineAdapter$scoop_WaitingTask_run_suspend$1 size=56 align=8 refs=[16, 48]
+  entry @scoop_main
+
+== run ==
+immediate-success
+immediate-failure
+resumed-success
+resumed-failure

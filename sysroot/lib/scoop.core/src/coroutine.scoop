@@ -1,0 +1,22 @@
+// Minimal coroutine protocol (spec 11.9, M10 DESIGN section 1.1).
+// State machines, frames, and continuation adapters are compiler-generated;
+// these declarations provide the source-level typed boundary.
+
+interface Continuation<in T> {
+    fun resume(value: T)
+    fun resumeWithException(exception: Throwable)
+}
+
+interface SuspendTask<out T> {
+    suspend fun run(): T
+}
+
+interface SuspendRegistration<out T> {
+    fun register(continuation: Continuation<T>)
+}
+
+@Intrinsic("coroutine_start")
+fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>)
+
+@Intrinsic("coroutine_suspend")
+suspend fun <T> suspendCoroutine(registration: SuspendRegistration<T>): T

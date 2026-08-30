@@ -1,0 +1,80 @@
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+
+    fun fail() {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resumeWithException(UnwrapException())
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class ImmediateTask() : SuspendTask<Int> {
+    final override suspend fun run(): Int = 1
+}
+
+class ImmediateFailureTask() : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        throw UnwrapException()
+    }
+}
+
+class WaitingTask(val gate: Gate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        val registration: SuspendRegistration<Int> = Registration(gate)
+        return suspendCoroutine(registration)
+    }
+}
+
+class ThrowingCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        throw IllegalStateException()
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        throw IllegalStateException()
+    }
+}
+
+fun launch(task: SuspendTask<Int>, completion: Continuation<Int>) {
+    startCoroutine(task, completion)
+}
+
+fun main() {
+    try {
+        launch(ImmediateTask(), ThrowingCompletion())
+    } catch (exception: IllegalStateException) {
+        println("immediate-success")
+    }
+
+    try {
+        launch(ImmediateFailureTask(), ThrowingCompletion())
+    } catch (exception: IllegalStateException) {
+        println("immediate-failure")
+    }
+
+    val success = Gate(None)
+    launch(WaitingTask(success), ThrowingCompletion())
+    try {
+        success.complete(1)
+    } catch (exception: IllegalStateException) {
+        println("resumed-success")
+    }
+
+    val failure = Gate(None)
+    launch(WaitingTask(failure), ThrowingCompletion())
+    try {
+        failure.fail()
+    } catch (exception: IllegalStateException) {
+        println("resumed-failure")
+    }
+}

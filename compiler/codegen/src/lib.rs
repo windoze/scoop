@@ -415,6 +415,18 @@ fn basic_ty<'ctx>(
     })
 }
 
+/// Aggregate values cannot be returned directly from a statepoint call:
+/// LLVM's statepoint rewrite lowers such results incompletely on the
+/// supported native targets. Keep LIR's value-returning contract, but use
+/// an explicit caller-provided result slot in the physical LLVM ABI.
+fn uses_return_slot(enums: &Arena<EnumDef>, ty: &LirType) -> bool {
+    match ty {
+        LirType::Aggregate(_) | LirType::ExceptionRecord => true,
+        LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Tagged { .. }),
+        LirType::Void | LirType::I1 | LirType::I64 | LirType::Ptr | LirType::Array(_) => false,
+    }
+}
+
 /// Byte offset of the payload area inside a tagged enum value: right
 /// after the i64 tag, rounded up to the payload alignment.
 fn payload_offset(payload_align: u64) -> u64 {
@@ -767,6 +779,10 @@ struct FnEmitter<'a, 'ctx> {
     array_descriptors: &'a [ArrayDescriptor],
     array_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
+    /// Hidden result pointer for a physically indirect aggregate return.
+    return_slot: Option<PointerValue<'ctx>>,
+    /// LIR parameters start after the hidden result pointer when present.
+    param_offset: u32,
     allocas: Vec<PointerValue<'ctx>>,
     temps: HashMap<TempId, BasicValueEnum<'ctx>>,
     /// Lazily-created shared bounds-check trap block of this function
@@ -793,7 +809,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Value::Param(index) => self
                 .llvm_function
-                .get_nth_param(index)
+                .get_nth_param(index + self.param_offset)
                 .ok_or_else(|| CodegenError(format!("param {index} out of range")))?,
             Value::Temp(id) => *self.temps.get(&id).ok_or_else(|| {
                 CodegenError(format!(
@@ -980,7 +996,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // Signature from the call site: parameter types from the
                 // operands, return type from the result temp (void when
                 // there is none). Undefined callees are declared extern.
-                let param_tys: Vec<BasicMetadataTypeEnum> = args
+                let result_slot = self.result_slot(*out, "call_result")?;
+                let mut param_tys: Vec<BasicMetadataTypeEnum> = args
                     .iter()
                     .map(|arg| {
                         basic_ty(
@@ -991,30 +1008,44 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map(Into::into)
                     })
                     .collect::<Result<_, _>>()?;
+                if result_slot.is_some() {
+                    param_tys.insert(0, ptr_ty(context).into());
+                }
                 let fn_ty = if symbol == scoop_lir::TRAP_SYMBOL {
                     // Fixed runtime contract: void scoop_rt_trap(ptr).
                     context
                         .void_type()
                         .fn_type(&[ptr_ty(context).into()], false)
                 } else {
-                    match out {
-                        Some(temp) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
-                            .fn_type(&param_tys, false),
-                        None => context.void_type().fn_type(&param_tys, false),
+                    match (out, &result_slot) {
+                        (_, Some(_)) => context.void_type().fn_type(&param_tys, false),
+                        (Some(temp), None) => {
+                            basic_ty(context, self.enums, &function.temps[*temp].ty)?
+                                .fn_type(&param_tys, false)
+                        }
+                        (None, None) => context.void_type().fn_type(&param_tys, false),
                     }
                 };
                 let callee = self
                     .llvm
                     .get_function(symbol)
                     .unwrap_or_else(|| self.llvm.add_function(symbol, fn_ty, None));
-                let call_args: Vec<inkwell::values::BasicMetadataValueEnum> = args
+                let mut call_args: Vec<inkwell::values::BasicMetadataValueEnum> = args
                     .iter()
                     .map(|arg| self.value(*arg).map(Into::into))
                     .collect::<Result<_, _>>()?;
+                if let Some((_, slot, _)) = result_slot {
+                    call_args.insert(0, slot.into());
+                }
                 let call = builder
                     .build_call(callee, &call_args, "call")
                     .map_err(|e| CodegenError(format!("call @{symbol}: {e}")))?;
-                if let Some(temp) = out {
+                if let Some((temp, slot, ty)) = result_slot {
+                    let result = builder
+                        .build_load(ty, slot, "call_result")
+                        .map_err(|e| CodegenError(format!("load call result @{symbol}: {e}")))?;
+                    self.temps.insert(temp, result);
+                } else if let Some(temp) = out {
                     match call.try_as_basic_value() {
                         ValueKind::Basic(result) => {
                             self.temps.insert(*temp, result);
@@ -1062,7 +1093,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         ))
                     })?
                     .into_pointer_value();
-                let param_tys: Vec<BasicMetadataTypeEnum> = args
+                let result_slot = self.result_slot(*out, "indirect_result")?;
+                let mut param_tys: Vec<BasicMetadataTypeEnum> = args
                     .iter()
                     .map(|arg| {
                         basic_ty(
@@ -1073,15 +1105,22 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map(Into::into)
                     })
                     .collect::<Result<_, _>>()?;
-                let fn_ty = match out {
-                    Some(temp) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
+                if result_slot.is_some() {
+                    param_tys.insert(0, ptr_ty(context).into());
+                }
+                let fn_ty = match (out, &result_slot) {
+                    (_, Some(_)) => context.void_type().fn_type(&param_tys, false),
+                    (Some(temp), None) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
                         .fn_type(&param_tys, false),
-                    None => context.void_type().fn_type(&param_tys, false),
+                    (None, None) => context.void_type().fn_type(&param_tys, false),
                 };
-                let call_args: Vec<inkwell::values::BasicMetadataValueEnum> = args
+                let mut call_args: Vec<inkwell::values::BasicMetadataValueEnum> = args
                     .iter()
                     .map(|arg| self.value(*arg).map(Into::into))
                     .collect::<Result<_, _>>()?;
+                if let Some((_, slot, _)) = result_slot {
+                    call_args.insert(0, slot.into());
+                }
                 let call = builder
                     .build_indirect_call(fn_ty, fn_ptr, &call_args, "call_indirect")
                     .map_err(|e| {
@@ -1090,7 +1129,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol
                         ))
                     })?;
-                if let Some(temp) = out {
+                if let Some((temp, slot, ty)) = result_slot {
+                    let result = builder
+                        .build_load(ty, slot, "indirect_result")
+                        .map_err(|e| {
+                            CodegenError(format!(
+                                "load indirect result @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                    self.temps.insert(temp, result);
+                } else if let Some(temp) = out {
                     match call.try_as_basic_value() {
                         ValueKind::Basic(result) => {
                             self.temps.insert(*temp, result);
@@ -1115,7 +1164,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // control continues in `normal` or unwinds into the
                 // `unwind` landing pad. Signature from the call site, as
                 // for Call; undefined callees are declared extern.
-                let param_tys: Vec<BasicMetadataTypeEnum> = args
+                let result_slot = self.result_slot(*out, "invoke_result")?;
+                let mut param_tys: Vec<BasicMetadataTypeEnum> = args
                     .iter()
                     .map(|arg| {
                         basic_ty(
@@ -1126,19 +1176,26 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map(Into::into)
                     })
                     .collect::<Result<_, _>>()?;
-                let fn_ty = match out {
-                    Some(temp) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
+                if result_slot.is_some() {
+                    param_tys.insert(0, ptr_ty(context).into());
+                }
+                let fn_ty = match (out, &result_slot) {
+                    (_, Some(_)) => context.void_type().fn_type(&param_tys, false),
+                    (Some(temp), None) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
                         .fn_type(&param_tys, false),
-                    None => context.void_type().fn_type(&param_tys, false),
+                    (None, None) => context.void_type().fn_type(&param_tys, false),
                 };
                 let callee = self
                     .llvm
                     .get_function(symbol)
                     .unwrap_or_else(|| self.llvm.add_function(symbol, fn_ty, None));
-                let call_args: Vec<BasicValueEnum> = args
+                let mut call_args: Vec<BasicValueEnum> = args
                     .iter()
                     .map(|arg| self.value(*arg))
                     .collect::<Result<_, _>>()?;
+                if let Some((_, slot, _)) = result_slot {
+                    call_args.insert(0, slot.into());
+                }
                 let invoke = builder
                     .build_invoke(
                         callee,
@@ -1150,7 +1207,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| CodegenError(format!("invoke @{symbol}: {e}")))?;
                 // The result is defined on the normal edge; it enters the
                 // temp map like a call result.
-                if let Some(temp) = out {
+                if let Some((temp, slot, ty)) = result_slot {
+                    builder.position_at_end(self.llvm_blocks[arena_index(*normal)]);
+                    let result = builder
+                        .build_load(ty, slot, "invoke_result")
+                        .map_err(|e| CodegenError(format!("load invoke result @{symbol}: {e}")))?;
+                    self.temps.insert(temp, result);
+                } else if let Some(temp) = out {
                     match invoke.try_as_basic_value() {
                         ValueKind::Basic(result) => {
                             self.temps.insert(*temp, result);
@@ -1200,7 +1263,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         ))
                     })?
                     .into_pointer_value();
-                let param_tys: Vec<BasicMetadataTypeEnum> = args
+                let result_slot = self.result_slot(*out, "indirect_invoke_result")?;
+                let mut param_tys: Vec<BasicMetadataTypeEnum> = args
                     .iter()
                     .map(|arg| {
                         basic_ty(
@@ -1211,15 +1275,22 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .map(Into::into)
                     })
                     .collect::<Result<_, _>>()?;
-                let fn_ty = match out {
-                    Some(temp) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
+                if result_slot.is_some() {
+                    param_tys.insert(0, ptr_ty(context).into());
+                }
+                let fn_ty = match (out, &result_slot) {
+                    (_, Some(_)) => context.void_type().fn_type(&param_tys, false),
+                    (Some(temp), None) => basic_ty(context, self.enums, &function.temps[*temp].ty)?
                         .fn_type(&param_tys, false),
-                    None => context.void_type().fn_type(&param_tys, false),
+                    (None, None) => context.void_type().fn_type(&param_tys, false),
                 };
-                let call_args: Vec<BasicValueEnum> = args
+                let mut call_args: Vec<BasicValueEnum> = args
                     .iter()
                     .map(|arg| self.value(*arg))
                     .collect::<Result<_, _>>()?;
+                if let Some((_, slot, _)) = result_slot {
+                    call_args.insert(0, slot.into());
+                }
                 let invoke = builder
                     .build_indirect_invoke(
                         fn_ty,
@@ -1235,7 +1306,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol
                         ))
                     })?;
-                if let Some(temp) = out {
+                if let Some((temp, slot, ty)) = result_slot {
+                    builder.position_at_end(self.llvm_blocks[arena_index(*normal)]);
+                    let result = builder
+                        .build_load(ty, slot, "indirect_invoke_result")
+                        .map_err(|e| {
+                            CodegenError(format!(
+                                "load indirect invoke result @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?;
+                    self.temps.insert(temp, result);
+                } else if let Some(temp) = out {
                     match invoke.try_as_basic_value() {
                         ValueKind::Basic(result) => {
                             self.temps.insert(*temp, result);
@@ -1739,6 +1821,24 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(alloca)
     }
 
+    /// Allocate the hidden result slot for an aggregate-producing call.
+    fn result_slot(
+        &self,
+        out: Option<TempId>,
+        name: &str,
+    ) -> Result<Option<(TempId, PointerValue<'ctx>, BasicTypeEnum<'ctx>)>, CodegenError> {
+        let Some(temp) = out else {
+            return Ok(None);
+        };
+        let ty = &self.function.temps[temp].ty;
+        if !uses_return_slot(self.enums, ty) {
+            return Ok(None);
+        }
+        let ty = basic_ty(self.context, self.enums, ty)?;
+        let slot = self.entry_alloca(ty, name)?;
+        Ok(Some((temp, slot, ty)))
+    }
+
     /// Get or declare a runtime function with the given signature.
     fn runtime_fn(
         &self,
@@ -2154,11 +2254,15 @@ fn fn_type_of<'ctx>(
     enums: &Arena<EnumDef>,
     function: &Function,
 ) -> Result<inkwell::types::FunctionType<'ctx>, CodegenError> {
-    let param_tys: Vec<BasicMetadataTypeEnum> = function
+    let mut param_tys: Vec<BasicMetadataTypeEnum> = function
         .params
         .iter()
         .map(|ty| basic_ty(context, enums, ty).map(Into::into))
         .collect::<Result<_, _>>()?;
+    if uses_return_slot(enums, &function.return_ty) {
+        param_tys.insert(0, ptr_ty(context).into());
+        return Ok(context.void_type().fn_type(&param_tys, false));
+    }
     Ok(match &function.return_ty {
         LirType::Void => context.void_type().fn_type(&param_tys, false),
         return_ty => basic_ty(context, enums, return_ty)?.fn_type(&param_tys, false),
@@ -2318,10 +2422,28 @@ fn emit_function<'ctx>(
     }
 
     // All blocks up front so terminators can reference them in any order.
-    let mut blocks = Vec::with_capacity(function.blocks.len());
-    for (_, block) in function.blocks.iter() {
-        blocks.push(context.append_basic_block(llvm_function, &block.name));
+    let mut blocks = vec![None; function.blocks.len()];
+    let entry_index = arena_index(function.entry);
+    blocks[entry_index] =
+        Some(context.append_basic_block(llvm_function, &function.blocks[function.entry].name));
+    for (id, block) in function.blocks.iter() {
+        let index = arena_index(id);
+        if index != entry_index {
+            blocks[index] = Some(context.append_basic_block(llvm_function, &block.name));
+        }
     }
+    let blocks: Vec<_> = blocks
+        .into_iter()
+        .map(|block| block.expect("every LIR block is created"))
+        .collect();
+
+    let param_offset = u32::from(uses_return_slot(module_ctx.enums, &function.return_ty));
+    let return_slot = (param_offset != 0).then(|| {
+        llvm_function
+            .get_nth_param(0)
+            .expect("return-slot function has its hidden parameter")
+            .into_pointer_value()
+    });
 
     let mut emitter = FnEmitter {
         context,
@@ -2337,6 +2459,8 @@ fn emit_function<'ctx>(
         array_descriptors: module_ctx.array_descriptors,
         array_tds: module_ctx.array_tds,
         target_data: module_ctx.target_data,
+        return_slot,
+        param_offset,
         allocas: Vec::with_capacity(function.locals.len()),
         temps: HashMap::new(),
         bounds_trap_block: None,
@@ -2450,13 +2574,28 @@ fn emit_function<'ctx>(
                     .map_err(|e: CodegenError| {
                         CodegenError(format!("ret @{}: {}", function.symbol, e.0))
                     })?;
-                builder
-                    .build_return(
-                        value
-                            .as_ref()
-                            .map(|v| v as &dyn inkwell::values::BasicValue),
-                    )
-                    .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                if let Some(slot) = emitter.return_slot {
+                    let value = value.ok_or_else(|| {
+                        CodegenError(format!(
+                            "ret @{}: aggregate return has no value",
+                            function.symbol
+                        ))
+                    })?;
+                    builder
+                        .build_store(slot, value)
+                        .map_err(|e| CodegenError(format!("ret slot @{}: {e}", function.symbol)))?;
+                    builder
+                        .build_return(None)
+                        .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                } else {
+                    builder
+                        .build_return(
+                            value
+                                .as_ref()
+                                .map(|v| v as &dyn inkwell::values::BasicValue),
+                        )
+                        .map_err(|e| CodegenError(format!("ret @{}: {e}", function.symbol)))?;
+                }
             }
             Terminator::Resume { exception } => {
                 let exception = emitter.value(*exception)?;
@@ -2952,10 +3091,114 @@ mod tests {
             entry: trap_entry,
         };
 
+        // A tagged enum crossing a managed call boundary. The LLVM
+        // statepoint pass cannot lower aggregate returns directly, so
+        // codegen must use its hidden result-slot ABI here.
+        let mut produce_temps = Arena::default();
+        let produced = produce_temps.alloc(Temp {
+            ty: shape_ty.clone(),
+        });
+        let mut produce_blocks = Arena::default();
+        let produce_entry = produce_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![Instruction::EnumWrap {
+                out: produced,
+                enum_id: shape,
+                variant: 1,
+                fields: vec![Value::IntConst(9)],
+            }],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(produced)),
+            },
+        });
+        let produce = Function {
+            symbol: "scoop.produce_shape".to_string(),
+            params: vec![],
+            return_ty: shape_ty.clone(),
+            locals: Arena::default(),
+            temps: produce_temps,
+            blocks: produce_blocks,
+            entry: produce_entry,
+        };
+        let mut consume_temps = Arena::default();
+        let received = consume_temps.alloc(Temp {
+            ty: shape_ty.clone(),
+        });
+        let tag = consume_temps.alloc(Temp { ty: LirType::I64 });
+        let mut consume_blocks = Arena::default();
+        let consume_entry = consume_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::Call {
+                    out: Some(received),
+                    symbol: "scoop.produce_shape".to_string(),
+                    args: vec![],
+                },
+                Instruction::EnumTag {
+                    out: tag,
+                    enum_id: shape,
+                    operand: Value::Temp(received),
+                },
+            ],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(tag)),
+            },
+        });
+        let consume = Function {
+            symbol: "scoop.consume_shape".to_string(),
+            params: vec![],
+            return_ty: LirType::I64,
+            locals: Arena::default(),
+            temps: consume_temps,
+            blocks: consume_blocks,
+            entry: consume_entry,
+        };
+        let mut indirect_temps = Arena::default();
+        let indirect_received = indirect_temps.alloc(Temp {
+            ty: shape_ty.clone(),
+        });
+        let indirect_tag = indirect_temps.alloc(Temp { ty: LirType::I64 });
+        let mut indirect_blocks = Arena::default();
+        let indirect_entry = indirect_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::CallIndirect {
+                    out: Some(indirect_received),
+                    table: Value::Param(0),
+                    slot: 0,
+                    args: vec![],
+                },
+                Instruction::EnumTag {
+                    out: indirect_tag,
+                    enum_id: shape,
+                    operand: Value::Temp(indirect_received),
+                },
+            ],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(indirect_tag)),
+            },
+        });
+        let consume_indirect = Function {
+            symbol: "scoop.consume_shape_indirect".to_string(),
+            params: vec![LirType::Ptr],
+            return_ty: LirType::I64,
+            locals: Arena::default(),
+            temps: indirect_temps,
+            blocks: indirect_blocks,
+            entry: indirect_entry,
+        };
+
         Module {
             globals,
             enums,
-            functions: vec![tagged, niche, trap_on_none],
+            functions: vec![
+                tagged,
+                niche,
+                trap_on_none,
+                produce,
+                consume,
+                consume_indirect,
+            ],
             entry_symbol: "scoop.tagged".to_string(),
             meta: LirMeta {
                 layouts: vec![

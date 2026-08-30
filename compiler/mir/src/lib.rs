@@ -3,10 +3,11 @@
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.3 and
 //! `docs/milestone2/DESIGN.md` section 2.3.
 //!
-//! M2 notes: structural equality on aggregates is already expanded by
-//! mir-lower into primitive comparisons and runtime calls, so MIR
-//! `BinOp` only contains primitive operations. Control flow stays
-//! structured (if/while); basic blocks appear only in LIR.
+//! Structural equality on aggregates is already expanded by mir-lower
+//! into primitive comparisons and runtime calls, so MIR `BinOp` only
+//! contains primitive operations. Since M10 every emitted function body
+//! is a CFG and calls are explicit effect statements; [`Expr`] cannot
+//! contain a call.
 
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
@@ -19,6 +20,12 @@ pub type EnumId = Idx<EnumDef>;
 pub type ClassId = Idx<ClassDef>;
 pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
+pub type BlockId = Idx<BasicBlock>;
+pub type CoroutineFunctionId = Idx<CoroutineFunction>;
+pub type CoroutineStepId = Idx<CoroutineStep>;
+pub type CoroutineSlotId = Idx<CoroutineSlot>;
+pub type CoroutineFrameId = Idx<CoroutineFrame>;
+pub type CoroutineResumePointId = Idx<CoroutineResumePoint>;
 
 /// Mangled symbol of the program entry point (called by the C runtime).
 pub const ENTRY_SYMBOL: &str = "scoop_main";
@@ -61,6 +68,13 @@ pub fn mangle_generic_overload(
 /// reserved for monomorphized instances, so the two never collide.
 pub fn mangle_overload(module: &Module, name: &str, params: &[Type]) -> String {
     format!("scoop.{name}.{}", encode_params(module, params))
+}
+
+/// Add the hidden coroutine-ABI discriminator to an already mangled source
+/// callable. `$suspend` cannot collide with a source identifier or the `$`
+/// type-argument encoding of a monomorphized function.
+pub fn mangle_suspend(symbol: &str) -> String {
+    format!("{symbol}$suspend")
 }
 
 /// The `_`-joined parameter encoding shared by overload mangling and
@@ -229,6 +243,63 @@ pub struct MirMeta {
     /// records the emitted symbol and its generic HIR source without
     /// leaking HIR ids across the stage boundary.
     pub instances: Arena<MonomorphizedFunction>,
+    /// Concrete hidden-ABI suspend callables, indexed independently from the
+    /// ordinary function arena.
+    pub coroutine_functions: Arena<CoroutineFunction>,
+    /// Concrete `CoroutineStep<R>` internal enums, deduplicated by `R`.
+    pub coroutine_steps: Arena<CoroutineStep>,
+    /// Tagged frame slots, deduplicated by their carried value type.
+    pub coroutine_slots: Arena<CoroutineSlot>,
+    /// Heap frame generated for each suspend callable that can really suspend.
+    pub coroutine_frames: Arena<CoroutineFrame>,
+    /// Per-call-site continuation adapters and their typed resume state.
+    pub coroutine_resume_points: Arena<CoroutineResumePoint>,
+}
+
+#[derive(Debug)]
+pub struct CoroutineFunction {
+    pub function: FunctionId,
+    pub source_return: Type,
+    pub step: CoroutineStepId,
+    pub lowering: CoroutineLowering,
+}
+
+#[derive(Debug)]
+pub enum CoroutineLowering {
+    Immediate,
+    StateMachine {
+        frame: CoroutineFrameId,
+        driver: FunctionId,
+        resume_points: Vec<CoroutineResumePointId>,
+    },
+}
+
+#[derive(Debug)]
+pub struct CoroutineStep {
+    pub enum_id: EnumId,
+    pub result: Type,
+}
+
+#[derive(Debug)]
+pub struct CoroutineSlot {
+    pub enum_id: EnumId,
+    pub value: Type,
+}
+
+#[derive(Debug)]
+pub struct CoroutineFrame {
+    pub class: ClassId,
+    pub owner: CoroutineFunctionId,
+}
+
+#[derive(Debug)]
+pub struct CoroutineResumePoint {
+    pub frame: CoroutineFrameId,
+    pub state: u32,
+    pub result: Type,
+    pub adapter: ClassId,
+    pub resume: FunctionId,
+    pub resume_with_exception: FunctionId,
 }
 
 /// Provenance of one concrete generic function emitted into the MIR
@@ -276,7 +347,38 @@ pub struct Param {
 #[derive(Debug)]
 pub struct Body {
     pub locals: Arena<Local>,
+    pub blocks: Arena<BasicBlock>,
+    pub entry: BlockId,
+}
+
+impl Body {
+    /// A valid body for signature-only function shells. It contains one
+    /// unreachable entry block so downstream code never handles a missing
+    /// entry or an empty block arena.
+    pub fn unreachable(locals: Arena<Local>) -> Self {
+        let mut blocks = Arena::new();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            statements: Vec::new(),
+            terminator: Terminator::Unreachable,
+            unwind: None,
+        });
+        Self {
+            locals,
+            blocks,
+            entry,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BasicBlock {
+    pub name: String,
     pub statements: Vec<Statement>,
+    pub terminator: Terminator,
+    /// Explicit exceptional successor for every potentially throwing user,
+    /// virtual, or interface call evaluated in this block.
+    pub unwind: Option<BlockId>,
 }
 
 #[derive(Debug)]
@@ -286,27 +388,9 @@ pub struct Statement {
 }
 
 #[derive(Debug)]
-pub struct Try {
-    pub body: Vec<Statement>,
-    pub catches: Vec<CatchClause>,
-    pub finally_body: Option<Vec<Statement>>,
-}
-
-#[derive(Debug)]
-pub struct CatchClause {
-    pub local: LocalId,
-    pub ty: Box<Type>,
-    pub body: Vec<Statement>,
-    pub span: Span,
-}
-
-#[derive(Debug)]
 pub enum StatementKind {
     Expr(Expr),
-    Return {
-        /// Absent in `Unit` functions (bare `return`).
-        value: Option<Expr>,
-    },
+    Call(CallEffect),
     ValDecl {
         local: LocalId,
         init: Expr,
@@ -315,36 +399,71 @@ pub enum StatementKind {
         local: LocalId,
         value: Expr,
     },
-    /// `array[index] = value` (only `MutableArray`).
     ArraySet {
         array: Expr,
         index: Expr,
         value: Expr,
     },
-    /// `obj.field = value`: heap field store (class `var` property;
-    /// `index` is the flattened field index — base fields first).
     FieldSet {
         object: Expr,
         index: u32,
         value: Expr,
     },
-    /// `try { } catch ... finally { }`; catches are ordered.
-    Try(Try),
-    /// `throw expr` (throws the evaluated exception object).
-    Throw(Expr),
-    If {
-        cond: Expr,
-        then_body: Vec<Statement>,
-        /// The else branch genuinely may not exist.
-        else_body: Option<Vec<Statement>>,
-    },
-    While {
-        cond: Expr,
-        body: Vec<Statement>,
-    },
+    Eh(EhStatement),
 }
 
 #[derive(Debug)]
+pub enum CallEffect {
+    /// A call whose source result type is `Unit`.
+    Unit(Call),
+    /// A value-producing call. The destination local carries the complete,
+    /// non-optional result type.
+    Value { destination: LocalId, call: Call },
+}
+
+#[derive(Debug)]
+pub enum EhStatement {
+    /// Capture the active native exception into function-local EH slots.
+    LandingPad {
+        cleanup: bool,
+    },
+    /// Begin the catch represented by the captured exception.
+    BeginCatch,
+    EndCatch,
+}
+
+#[derive(Debug)]
+pub enum Terminator {
+    Goto(BlockId),
+    Branch {
+        cond: Expr,
+        then_block: BlockId,
+        else_block: BlockId,
+    },
+    Return {
+        value: Option<Expr>,
+    },
+    /// Throw a managed exception. `unwind` is the same edge recorded on
+    /// the owning block and is repeated here because this terminator itself
+    /// initiates unwinding rather than containing a call expression.
+    Throw {
+        exception: Expr,
+        unwind: Option<BlockId>,
+    },
+    /// Rethrow the currently active native catch.
+    Rethrow {
+        unwind: Option<BlockId>,
+    },
+    /// Continue native unwinding with the exception record captured by the
+    /// nearest landing/cleanup pad.
+    Resume,
+    Trap {
+        message: StringConstId,
+    },
+    Unreachable,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     StringConst(StringConstId),
     IntLiteral(i64),
@@ -362,6 +481,9 @@ pub enum Expr {
         args: Vec<Expr>,
     },
     Local(LocalId),
+    /// The managed exception pointer produced by the active `BeginCatch`.
+    /// It is only valid in blocks dominated by that statement.
+    CaughtException,
     /// Zero-cost reference retyping (for example an `Any` local narrowed by
     /// a class smart cast). The explicit result type keeps downstream field
     /// and dispatch reconstruction independent of the local's declared type.
@@ -375,7 +497,6 @@ pub enum Expr {
         receiver: Box<Expr>,
         index: u32,
     },
-    Call(Call),
     /// Box a value type into `Any` / an interface (spec 4.4.4).
     Box(Box<Expr>),
     /// Unbox a reference back to a value type.
@@ -431,20 +552,20 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Call {
     pub target: CallTarget,
     pub args: Vec<Expr>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallTarget {
     pub kind: CallKind,
     /// Fully resolved callee.
     pub callee: Callee,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CallKind {
     Direct,
     /// vtable slot (load `td` from the receiver, load `vtable[slot]`).
@@ -465,6 +586,10 @@ pub enum Callee {
     User(FunctionId),
     /// A monomorphized generic function defined in this Cone.
     Monomorphized(MonomorphizedFunctionId),
+    /// Typed marker used only between CFG construction and the coroutine
+    /// state-machine pass. The final MIR handed to LIR contains no such
+    /// callee; `register` identifies the concrete protocol method shell.
+    CoroutineSuspend { register: MonomorphizedFunctionId },
     /// A runtime function (see `RuntimeFn::symbol`).
     Runtime(RuntimeFn),
 }
@@ -492,6 +617,8 @@ pub enum RuntimeFn {
     /// Test-only GC hooks (not in the spec, milestone9 DESIGN 5.2).
     GcCollect,
     GcStats,
+    /// ABI exception buffer -> ordinary managed object (runtime spec 5).
+    MaterializeException,
     /// Primitive output intrinsics backing core's `print`/`println`
     /// overloads (M7, docs/milestone7/DESIGN.md section 2).
     Write,
@@ -519,6 +646,7 @@ impl RuntimeFn {
             RuntimeFn::ReleaseHandle => "scoop_rt_release_handle",
             RuntimeFn::GcCollect => "scoop_rt_gc_collect",
             RuntimeFn::GcStats => "scoop_rt_gc_stats",
+            RuntimeFn::MaterializeException => "scoop_rt_materialize_exception",
             RuntimeFn::Write => "scoop_rt_print",
             RuntimeFn::IntToString => "scoop_rt_int_to_string",
             RuntimeFn::BoolToString => "scoop_rt_bool_to_string",
@@ -545,9 +673,6 @@ pub enum BinOp {
     IntNe,
     BoolEq,
     BoolNe,
-    /// Short-circuit boolean operators; LIR lowers them to branches.
-    And,
-    Or,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -603,13 +728,95 @@ pub fn dump(module: &Module) -> String {
             params.join(", "),
             type_name(module, &function.return_ty)
         ));
-        dump_statements(
-            module,
-            &function.body.locals,
-            &function.body.statements,
-            2,
-            &mut out,
-        );
+        for (block_id, block) in function.body.blocks.iter() {
+            let unwind = block
+                .unwind
+                .map(|target| format!(" unwind bb{}", block_number(target)))
+                .unwrap_or_default();
+            out.push_str(&format!(
+                "    bb{} {}{}\n",
+                block_number(block_id),
+                block.name,
+                unwind
+            ));
+            dump_statements(
+                module,
+                &function.body.locals,
+                &block.statements,
+                3,
+                &mut out,
+            );
+            dump_terminator(
+                module,
+                &function.body.locals,
+                &block.terminator,
+                3,
+                &mut out,
+            );
+        }
+    }
+    for (id, step) in module.meta.coroutine_steps.iter() {
+        out.push_str(&format!(
+            "  coroutine_step cs{} {} result={}\n",
+            id.into_raw().into_u32(),
+            module.enums[step.enum_id].name,
+            type_name(module, &step.result)
+        ));
+    }
+    for (id, slot) in module.meta.coroutine_slots.iter() {
+        out.push_str(&format!(
+            "  coroutine_slot cl{} {} value={}\n",
+            id.into_raw().into_u32(),
+            module.enums[slot.enum_id].name,
+            type_name(module, &slot.value)
+        ));
+    }
+    for (id, frame) in module.meta.coroutine_frames.iter() {
+        out.push_str(&format!(
+            "  coroutine_frame cr{} {} owner=cf{}\n",
+            id.into_raw().into_u32(),
+            module.classes[frame.class].name,
+            frame.owner.into_raw().into_u32()
+        ));
+    }
+    for (id, point) in module.meta.coroutine_resume_points.iter() {
+        out.push_str(&format!(
+            "  coroutine_resume cp{} state={} result={} frame=cr{} adapter={} resume=@{} failure=@{}\n",
+            id.into_raw().into_u32(),
+            point.state,
+            type_name(module, &point.result),
+            point.frame.into_raw().into_u32(),
+            module.classes[point.adapter].name,
+            module.functions[point.resume].symbol,
+            module.functions[point.resume_with_exception].symbol
+        ));
+    }
+    for (id, coroutine) in module.meta.coroutine_functions.iter() {
+        let lowering = match &coroutine.lowering {
+            CoroutineLowering::Immediate => " immediate".to_string(),
+            CoroutineLowering::StateMachine {
+                frame,
+                driver,
+                resume_points,
+            } => format!(
+                " frame=cr{} driver=@{} resumes=[{}]",
+                frame.into_raw().into_u32(),
+                module.functions[*driver].symbol,
+                resume_points
+                    .iter()
+                    .map(|id| format!("cp{}", id.into_raw().into_u32()))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+        };
+        out.push_str(&format!(
+            "  coroutine_fn cf{} @{} source_return={} step=cs{}{}\n",
+            id.into_raw().into_u32(),
+            module.functions[coroutine.function].symbol,
+            type_name(module, &coroutine.source_return),
+            coroutine.step.into_raw().into_u32(),
+            lowering
+        ));
     }
     for (_, instance) in module.meta.instances.iter() {
         out.push_str(&format!(
@@ -665,12 +872,12 @@ fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
-            StatementKind::Return { value } => {
-                out.push_str(&format!("{pad}return\n"));
-                if let Some(value) = value {
-                    dump_expr(module, locals, value, indent + 1, out);
+            StatementKind::Call(effect) => match effect {
+                CallEffect::Unit(call) => dump_call(module, locals, call, None, indent, out),
+                CallEffect::Value { destination, call } => {
+                    dump_call(module, locals, call, Some(*destination), indent, out)
                 }
-            }
+            },
             StatementKind::ValDecl { local, init } => {
                 let local = &locals[*local];
                 let keyword = if local.mutable { "var" } else { "val" };
@@ -680,26 +887,6 @@ fn dump_statements(
                     type_name(module, &local.ty)
                 ));
                 dump_expr(module, locals, init, indent + 1, out);
-            }
-            StatementKind::Try(try_) => {
-                out.push_str(&format!("{pad}try\n"));
-                dump_statements(module, locals, &try_.body, indent + 1, out);
-                for catch in &try_.catches {
-                    out.push_str(&format!(
-                        "{pad}catch {}: {}\n",
-                        locals[catch.local].name,
-                        type_name(module, &catch.ty)
-                    ));
-                    dump_statements(module, locals, &catch.body, indent + 1, out);
-                }
-                if let Some(finally_body) = &try_.finally_body {
-                    out.push_str(&format!("{pad}finally\n"));
-                    dump_statements(module, locals, finally_body, indent + 1, out);
-                }
-            }
-            StatementKind::Throw(expr) => {
-                out.push_str(&format!("{pad}throw\n"));
-                dump_expr(module, locals, expr, indent + 1, out);
             }
             StatementKind::FieldSet {
                 object,
@@ -724,25 +911,69 @@ fn dump_statements(
                 out.push_str(&format!("{pad}assign {}\n", locals[*local].name));
                 dump_expr(module, locals, value, indent + 1, out);
             }
-            StatementKind::If {
-                cond,
-                then_body,
-                else_body,
-            } => {
-                out.push_str(&format!("{pad}if\n"));
-                dump_expr(module, locals, cond, indent + 1, out);
-                dump_statements(module, locals, then_body, indent + 1, out);
-                if let Some(else_body) = else_body {
-                    out.push_str(&format!("{pad}else\n"));
-                    dump_statements(module, locals, else_body, indent + 1, out);
+            StatementKind::Eh(eh) => match eh {
+                EhStatement::LandingPad { cleanup } => {
+                    out.push_str(&format!("{pad}landing_pad cleanup={cleanup}\n"));
                 }
-            }
-            StatementKind::While { cond, body } => {
-                out.push_str(&format!("{pad}while\n"));
-                dump_expr(module, locals, cond, indent + 1, out);
-                dump_statements(module, locals, body, indent + 1, out);
+                EhStatement::BeginCatch => out.push_str(&format!("{pad}begin_catch\n")),
+                EhStatement::EndCatch => out.push_str(&format!("{pad}end_catch\n")),
+            },
+        }
+    }
+}
+
+fn block_number(id: BlockId) -> u32 {
+    id.into_raw().into_u32()
+}
+
+fn dump_terminator(
+    module: &Module,
+    locals: &Arena<Local>,
+    terminator: &Terminator,
+    indent: usize,
+    out: &mut String,
+) {
+    let pad = "  ".repeat(indent);
+    match terminator {
+        Terminator::Goto(target) => {
+            out.push_str(&format!("{pad}goto bb{}\n", block_number(*target)));
+        }
+        Terminator::Branch {
+            cond,
+            then_block,
+            else_block,
+        } => {
+            out.push_str(&format!(
+                "{pad}branch bb{} bb{}\n",
+                block_number(*then_block),
+                block_number(*else_block)
+            ));
+            dump_expr(module, locals, cond, indent + 1, out);
+        }
+        Terminator::Return { value } => {
+            out.push_str(&format!("{pad}return\n"));
+            if let Some(value) = value {
+                dump_expr(module, locals, value, indent + 1, out);
             }
         }
+        Terminator::Throw { exception, unwind } => {
+            let edge = unwind
+                .map(|target| format!(" unwind bb{}", block_number(target)))
+                .unwrap_or_default();
+            out.push_str(&format!("{pad}throw{edge}\n"));
+            dump_expr(module, locals, exception, indent + 1, out);
+        }
+        Terminator::Rethrow { unwind } => {
+            let edge = unwind
+                .map(|target| format!(" unwind bb{}", block_number(target)))
+                .unwrap_or_default();
+            out.push_str(&format!("{pad}rethrow{edge}\n"));
+        }
+        Terminator::Resume => out.push_str(&format!("{pad}resume\n")),
+        Terminator::Trap { message } => {
+            out.push_str(&format!("{pad}trap @{}\n", module.strings[*message].symbol));
+        }
+        Terminator::Unreachable => out.push_str(&format!("{pad}unreachable\n")),
     }
 }
 
@@ -783,6 +1014,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             }
         }
         Expr::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        Expr::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
         Expr::Retype { operand, ty } => {
             out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));
             dump_expr(module, locals, operand, indent + 1, out);
@@ -790,26 +1022,6 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         Expr::FieldAccess { receiver, index } => {
             out.push_str(&format!("{pad}FieldAccess {index}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
-        }
-        Expr::Call(call) => {
-            let callee = match &call.target.callee {
-                Callee::User(id) => format!("@{}", module.functions[*id].symbol),
-                Callee::Monomorphized(id) => {
-                    format!("@{}", module.meta.instances[*id].symbol)
-                }
-                Callee::Runtime(function) => format!("@{}", function.symbol()),
-            };
-            let kind = match &call.target.kind {
-                CallKind::Direct => "direct".to_string(),
-                CallKind::Virtual { slot } => format!("virtual[{slot}]"),
-                CallKind::Interface { interface, slot } => {
-                    format!("interface {}[{slot}]", module.interfaces[*interface].name)
-                }
-            };
-            out.push_str(&format!("{pad}Call {callee} {kind}\n"));
-            for arg in &call.args {
-                dump_expr(module, locals, arg, indent + 1, out);
-            }
         }
         Expr::Box(operand) => {
             out.push_str(&format!("{pad}Box\n"));
@@ -884,5 +1096,43 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}EnumField v{variant} f{index}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
+    }
+}
+
+fn dump_call(
+    module: &Module,
+    locals: &Arena<Local>,
+    call: &Call,
+    destination: Option<LocalId>,
+    indent: usize,
+    out: &mut String,
+) {
+    let pad = "  ".repeat(indent);
+    let callee = match &call.target.callee {
+        Callee::User(id) => format!("@{}", module.functions[*id].symbol),
+        Callee::Monomorphized(id) => format!("@{}", module.meta.instances[*id].symbol),
+        Callee::CoroutineSuspend { register } => format!(
+            "@coroutine_suspend[register=@{}]",
+            module.meta.instances[*register].symbol
+        ),
+        Callee::Runtime(function) => format!("@{}", function.symbol()),
+    };
+    let kind = match &call.target.kind {
+        CallKind::Direct => "direct".to_string(),
+        CallKind::Virtual { slot } => format!("virtual[{slot}]"),
+        CallKind::Interface { interface, slot } => {
+            format!("interface {}[{slot}]", module.interfaces[*interface].name)
+        }
+    };
+    match destination {
+        Some(local) => out.push_str(&format!(
+            "{pad}call {}: {} = {callee} {kind}\n",
+            locals[local].name,
+            type_name(module, &locals[local].ty)
+        )),
+        None => out.push_str(&format!("{pad}call {callee} {kind}\n")),
+    }
+    for arg in &call.args {
+        dump_expr(module, locals, arg, indent + 1, out);
     }
 }

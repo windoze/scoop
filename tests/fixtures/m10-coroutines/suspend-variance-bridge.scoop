@@ -1,0 +1,46 @@
+open class Animal(val name: String)
+
+class Dog() : Animal("dog")
+
+class DogGate(var waiter: Continuation<Dog>?) {
+    fun complete(value: Dog) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class DogRegistration(val gate: DogGate) : SuspendRegistration<Dog> {
+    final override fun register(continuation: Continuation<Dog>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class ImmediateDogTask() : SuspendTask<Dog> {
+    final override suspend fun run(): Dog = Dog()
+}
+
+class SuspendedDogTask(val gate: DogGate) : SuspendTask<Dog> {
+    final override suspend fun run(): Dog = suspendCoroutine(DogRegistration(gate))
+}
+
+class AnimalCompletion() : Continuation<Animal> {
+    final override fun resume(value: Animal) {
+        println(value.name)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    val immediate: SuspendTask<Animal> = ImmediateDogTask()
+    startCoroutine(immediate, AnimalCompletion())
+
+    val gate = DogGate(None)
+    val suspended: SuspendTask<Animal> = SuspendedDogTask(gate)
+    startCoroutine(suspended, AnimalCompletion())
+    println("returned")
+    gate.complete(Dog())
+}

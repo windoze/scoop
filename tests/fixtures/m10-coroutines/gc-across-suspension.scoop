@@ -1,0 +1,88 @@
+class Node(val name: String)
+
+struct Bundle(val text: String, val node: Node)
+
+enum Payload {
+    Full(Bundle),
+    Empty
+}
+
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun deepest(gate: Gate): Int = suspendCoroutine(Registration(gate))
+
+suspend fun middle(gate: Gate, payload: Payload): Int {
+    val marker = "middle-" + "alive"
+    val value = deepest(gate)
+    println(marker)
+    when (payload) {
+        Full(bundle) -> {
+            println(bundle.text)
+            println(bundle.node.name)
+        }
+        Empty -> println("empty")
+    }
+    return value + 1
+}
+
+class GcTask(val gate: Gate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        val taskText = "task-" + "alive"
+        val node = Node("node-" + "alive")
+        val bundle = Bundle("bundle-" + "alive", node)
+        val payload = Payload.Full(bundle)
+        val value = middle(gate, payload)
+        println(taskText)
+        println(node.name)
+        println(bundle.text)
+        when (payload) {
+            Full(saved) -> {
+                println(saved.text)
+                println(saved.node.name)
+            }
+            Empty -> println("empty")
+        }
+        return value + 1
+    }
+}
+
+class RecordingCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun makeGarbage() {
+    var index = 0
+    while (index < 1000) {
+        val garbage = Node("garbage-" + "node")
+        index = index + 1
+    }
+}
+
+fun main() {
+    val gate = Gate(None)
+    startCoroutine(GcTask(gate), RecordingCompletion())
+    println("suspended")
+    gcCollect()
+    makeGarbage()
+    gcCollect()
+    println("collected")
+    gate.complete(40)
+}

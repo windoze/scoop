@@ -282,6 +282,10 @@ impl Parser {
     fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
+            TokenKind::Suspend => Err(Diagnostic::at(
+                token.span,
+                "suspend lambdas are not supported in M10",
+            )),
             TokenKind::Str(value) => {
                 self.pos += 1;
                 Ok(Expr::StringLiteral {

@@ -1,4 +1,4 @@
-//! Recursive-descent parser for the M9 subset: token vector -> AST.
+//! Recursive-descent parser for the M10 subset: token vector -> AST.
 //!
 //! Parsing recovers at declaration, member and statement boundaries and
 //! returns every independent spanned diagnostic found in one file. A file
@@ -90,7 +90,8 @@ impl Parser {
 
     fn is_top_level_start(&self) -> bool {
         match &self.peek().kind {
-            TokenKind::Fun
+            TokenKind::Suspend
+            | TokenKind::Fun
             | TokenKind::Struct
             | TokenKind::Enum
             | TokenKind::Class
@@ -196,6 +197,10 @@ impl Parser {
     fn parse_type_atom(&mut self) -> Result<TypeRef, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
+            TokenKind::Suspend => Err(Diagnostic::at(
+                token.span,
+                "suspend function types are not supported in M10",
+            )),
             TokenKind::Ident(text) => {
                 self.pos += 1;
                 self.parse_named_type_ref_tail(Ident {

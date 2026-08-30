@@ -4,6 +4,18 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -45,6 +57,7 @@ SourceFile
   class ClassCastException() : Exception(<1 args>)
   class ArithmeticException() : Exception(<1 args>)
   class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
 SourceFile
   interface Producer<out T>
     fun get
@@ -138,16 +151,26 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalStateException()
   open class Animal(name: String)
   class Dog()
   class DogProducer() : Producer<Dog>
   class IntProducer() : Producer<Int>
   class AnimalConsumer() : Consumer<Animal>
   class AnyConsumer() : Consumer<Any>
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
   interface Producer<out T>
     fun get(): T0
   interface Consumer<in T>
     fun put(value: T0): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -242,6 +265,7 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
   class Animal vtable=3 itables=0
   class Dog vtable=3 itables=0
   class DogProducer vtable=3 itables=3
@@ -260,250 +284,330 @@ Module
   interface Producer$Any
   interface Consumer$I
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-    return
+      call @scoop_rt_print direct
+        Local $call.1
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun widen @scoop.widen(producer: Producer$Dog) -> Producer$Animal
-    return
-      Retype Producer$Animal
-        Local producer
-  fun narrow @scoop.narrow(consumer: Consumer$Animal) -> Consumer$Dog
-    return
-      Retype Consumer$Dog
-        Local consumer
-  fun boxResult @scoop.boxResult(producer: Producer$I) -> Producer$Any
-    return
-      Retype Producer$Any
-        Local producer
-  fun consumeInt @scoop.consumeInt(consumer: Consumer$Any) -> Consumer$I
-    return
-      Retype Consumer$I
-        Local consumer
-  fun main @scoop_main() -> Unit
-    val producer: Producer$Animal
-      Call @scoop.widen direct
-        Call @scoop.ctor.DogProducer direct
-    Call @scoop.println direct
-      FieldAccess 0
-        Call @scoop.Producer.get$Animal interface Producer$Animal[0]
+    bb0 entry
+      return
+        Retype Producer$Animal
           Local producer
-    val consumer: Consumer$Dog
-      Call @scoop.narrow direct
-        Call @scoop.ctor.AnimalConsumer direct
-    Call @scoop.Consumer.put$Dog interface Consumer$Dog[0]
-      Local consumer
-      Call @scoop.ctor.Dog direct
-    Call @scoop.println direct
-      Call @scoop.Producer.get$Any interface Producer$Any[0]
-        Call @scoop.boxResult direct
-          Call @scoop.ctor.IntProducer direct
-    Call @scoop.println direct
-      Call @scoop.Producer.get$Any interface Producer$Any[0]
-        Call @scoop.boxResult direct
-          Box
-            StructInit IntValue
-              IntLiteral 8
-    Call @scoop.println direct
-      Call @scoop.Producer.get$Any interface Producer$Any[0]
-        Call @scoop.boxResult direct
-          Box
-            StructInit Value$I
-              IntLiteral 10
-    Call @scoop.Consumer.put$I interface Consumer$I[0]
-      Call @scoop.consumeInt direct
-        Call @scoop.ctor.AnyConsumer direct
-      IntLiteral 9
-    Call @scoop.println direct
-      Box
-        Call @scoop.readOr$I direct
-          Call @scoop.ctor.IntProducer direct
-          IntLiteral 6
-  fun DogProducer.get @scoop.DogProducer.get(this: DogProducer) -> Dog
-    return
-      Call @scoop.ctor.Dog direct
-  fun IntProducer.get @scoop.IntProducer.get(this: IntProducer) -> Int
-    return
-      IntLiteral 7
-  fun IntValue.get @scoop.IntValue.get(this: IntValue) -> Int
-    return
-      FieldAccess 0
-        Local this
-  fun AnimalConsumer.put @scoop.AnimalConsumer.put(this: AnimalConsumer, value: Animal) -> Unit
-    Call @scoop.println direct
-      FieldAccess 0
-        Local value
-  fun AnyConsumer.put @scoop.AnyConsumer.put(this: AnyConsumer, value: Any) -> Unit
-    Call @scoop.println direct
-      Local value
-  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
-  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
-  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.1
-  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.2
-  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.3
-  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.4
-  fun ctor.Animal @scoop.ctor.Animal(name: String) -> Animal
-    return
-      ClassInit Animal
-        Local name
-  fun ctor.Dog @scoop.ctor.Dog() -> Dog
-    return
-      ClassInit Dog
-        StringConst @scoop.str.5
-  fun ctor.DogProducer @scoop.ctor.DogProducer() -> DogProducer
-    return
-      ClassInit DogProducer
-  fun ctor.IntProducer @scoop.ctor.IntProducer() -> IntProducer
-    return
-      ClassInit IntProducer
-  fun ctor.AnimalConsumer @scoop.ctor.AnimalConsumer() -> AnimalConsumer
-    return
-      ClassInit AnimalConsumer
-  fun ctor.AnyConsumer @scoop.ctor.AnyConsumer() -> AnyConsumer
-    return
-      ClassInit AnyConsumer
-  fun Producer.get @scoop.Producer.get$Animal(this: Producer$Animal) -> Animal
-    Call @scoop_rt_trap direct
-      StringConst @scoop.str.6
-  fun Consumer.put @scoop.Consumer.put$Dog(this: Consumer$Dog, value: Dog) -> Unit
-    Call @scoop_rt_trap direct
-      StringConst @scoop.str.7
-  fun Producer.get @scoop.Producer.get$Any(this: Producer$Any) -> Any
-    Call @scoop_rt_trap direct
-      StringConst @scoop.str.8
-  fun Consumer.put @scoop.Consumer.put$I(this: Consumer$I, value: Int) -> Unit
-    Call @scoop_rt_trap direct
-      StringConst @scoop.str.9
-  fun readOr @scoop.readOr$I(producer: Producer$I, fallback: Int) -> Int
-    return
-      Call @scoop.Producer.get$I interface Producer$I[0]
+  fun narrow @scoop.narrow(consumer: Consumer$Animal) -> Consumer$Dog
+    bb0 entry
+      return
+        Retype Consumer$Dog
+          Local consumer
+  fun boxResult @scoop.boxResult(producer: Producer$I) -> Producer$Any
+    bb0 entry
+      return
+        Retype Producer$Any
+          Local producer
+  fun consumeInt @scoop.consumeInt(consumer: Consumer$Any) -> Consumer$I
+    bb0 entry
+      return
+        Retype Consumer$I
+          Local consumer
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      call $call.1: Producer$Dog = @scoop.ctor.DogProducer direct
+      call producer: Producer$Animal = @scoop.widen direct
+        Local $call.1
+      call $call.2: Animal = @scoop.Producer.get$Animal interface Producer$Animal[0]
         Local producer
-  fun Producer.get @scoop.Producer.get$I(this: Producer$I) -> Int
-    Call @scoop_rt_trap direct
-      StringConst @scoop.str.10
-  fun eq.IntValue @scoop.eq.IntValue(this: Any, other: Any) -> Boolean
-    val $a: IntValue
-      Unbox
-        Local this
-    val $b: IntValue
-      Unbox
-        Local other
-    return
-      Binary IntEq
+      call @scoop.println direct
         FieldAccess 0
-          Local $a
+          Local $call.2
+      call $call.3: Consumer$Animal = @scoop.ctor.AnimalConsumer direct
+      call consumer: Consumer$Dog = @scoop.narrow direct
+        Local $call.3
+      call $call.4: Dog = @scoop.ctor.Dog direct
+      call @scoop.Consumer.put$Dog interface Consumer$Dog[0]
+        Local consumer
+        Local $call.4
+      call $call.5: Producer$I = @scoop.ctor.IntProducer direct
+      call $call.6: Producer$Any = @scoop.boxResult direct
+        Local $call.5
+      call $call.7: Any = @scoop.Producer.get$Any interface Producer$Any[0]
+        Local $call.6
+      call @scoop.println direct
+        Local $call.7
+      call $call.8: Producer$Any = @scoop.boxResult direct
+        Box
+          StructInit IntValue
+            IntLiteral 8
+      call $call.9: Any = @scoop.Producer.get$Any interface Producer$Any[0]
+        Local $call.8
+      call @scoop.println direct
+        Local $call.9
+      call $call.10: Producer$Any = @scoop.boxResult direct
+        Box
+          StructInit Value$I
+            IntLiteral 10
+      call $call.11: Any = @scoop.Producer.get$Any interface Producer$Any[0]
+        Local $call.10
+      call @scoop.println direct
+        Local $call.11
+      call $call.12: Consumer$Any = @scoop.ctor.AnyConsumer direct
+      call $call.13: Consumer$I = @scoop.consumeInt direct
+        Local $call.12
+      call @scoop.Consumer.put$I interface Consumer$I[0]
+        Local $call.13
+        IntLiteral 9
+      call $call.14: Producer$I = @scoop.ctor.IntProducer direct
+      call $call.15: Int = @scoop.readOr$I direct
+        Local $call.14
+        IntLiteral 6
+      call @scoop.println direct
+        Box
+          Local $call.15
+      return
+  fun DogProducer.get @scoop.DogProducer.get(this: DogProducer) -> Dog
+    bb0 entry
+      call $call.1: Dog = @scoop.ctor.Dog direct
+      return
+        Local $call.1
+  fun IntProducer.get @scoop.IntProducer.get(this: IntProducer) -> Int
+    bb0 entry
+      return
+        IntLiteral 7
+  fun IntValue.get @scoop.IntValue.get(this: IntValue) -> Int
+    bb0 entry
+      return
         FieldAccess 0
-          Local $b
-  fun thunk.IntValue.Producer$I.get @scoop.thunk.IntValue.Producer$I.get(this: Any) -> Int
-    return
-      Call @scoop.IntValue.get direct
-        Unbox
           Local this
-  fun eq.Value$I @scoop.eq.Value$I(this: Any, other: Any) -> Boolean
-    val $a: Value$I
-      Unbox
-        Local this
-    val $b: Value$I
-      Unbox
-        Local other
-    return
-      Binary IntEq
+  fun AnimalConsumer.put @scoop.AnimalConsumer.put(this: AnimalConsumer, value: Animal) -> Unit
+    bb0 entry
+      call @scoop.println direct
         FieldAccess 0
-          Local $a
-        FieldAccess 0
-          Local $b
-  fun Value.get @scoop.Value.get$I(this: Value$I) -> Int
-    return
-      FieldAccess 0
-        Local this
-  fun thunk.Value$I.Producer$I.get @scoop.thunk.Value$I.Producer$I.get(this: Any) -> Int
-    return
-      Call @scoop.Value.get$I direct
-        Unbox
-          Local this
-  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
-        Unbox
-          Local this
-  fun variance.DogProducer.Producer$Animal.get.0 @scoop.variance.DogProducer.Producer$Animal.get.0(this: Any) -> Animal
-    return
-      Call @scoop.DogProducer.get direct
-        Local this
-  fun variance.DogProducer.Producer$Any.get.0 @scoop.variance.DogProducer.Producer$Any.get.0(this: Any) -> Any
-    return
-      Call @scoop.DogProducer.get direct
-        Local this
-  fun variance.IntProducer.Producer$Any.get.0 @scoop.variance.IntProducer.Producer$Any.get.0(this: Any) -> Any
-    return
-      Box
-        Call @scoop.IntProducer.get direct
-          Local this
-  fun variance.AnimalConsumer.Consumer$Dog.put.0 @scoop.variance.AnimalConsumer.Consumer$Dog.put.0(this: Any, value: Dog) -> Unit
-    Call @scoop.AnimalConsumer.put direct
-      Local this
-      Local value
-  fun variance.AnyConsumer.Consumer$Animal.put.0 @scoop.variance.AnyConsumer.Consumer$Animal.put.0(this: Any, value: Animal) -> Unit
-    Call @scoop.AnyConsumer.put direct
-      Local this
-      Local value
-  fun variance.AnyConsumer.Consumer$Dog.put.0 @scoop.variance.AnyConsumer.Consumer$Dog.put.0(this: Any, value: Dog) -> Unit
-    Call @scoop.AnyConsumer.put direct
-      Local this
-      Local value
-  fun variance.AnyConsumer.Consumer$I.put.0 @scoop.variance.AnyConsumer.Consumer$I.put.0(this: Any, value: Int) -> Unit
-    Call @scoop.AnyConsumer.put direct
-      Local this
-      Box
+          Local value
+      return
+  fun AnyConsumer.put @scoop.AnyConsumer.put(this: AnyConsumer, value: Any) -> Unit
+    bb0 entry
+      call @scoop.println direct
         Local value
+      return
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.1
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
+  fun ctor.Animal @scoop.ctor.Animal(name: String) -> Animal
+    bb0 entry
+      return
+        ClassInit Animal
+          Local name
+  fun ctor.Dog @scoop.ctor.Dog() -> Dog
+    bb0 entry
+      return
+        ClassInit Dog
+          StringConst @scoop.str.6
+  fun ctor.DogProducer @scoop.ctor.DogProducer() -> DogProducer
+    bb0 entry
+      return
+        ClassInit DogProducer
+  fun ctor.IntProducer @scoop.ctor.IntProducer() -> IntProducer
+    bb0 entry
+      return
+        ClassInit IntProducer
+  fun ctor.AnimalConsumer @scoop.ctor.AnimalConsumer() -> AnimalConsumer
+    bb0 entry
+      return
+        ClassInit AnimalConsumer
+  fun ctor.AnyConsumer @scoop.ctor.AnyConsumer() -> AnyConsumer
+    bb0 entry
+      return
+        ClassInit AnyConsumer
+  fun Producer.get @scoop.Producer.get$Animal(this: Producer$Animal) -> Animal
+    bb0 entry
+      trap @scoop.str.7
+  fun Consumer.put @scoop.Consumer.put$Dog(this: Consumer$Dog, value: Dog) -> Unit
+    bb0 entry
+      trap @scoop.str.8
+  fun Producer.get @scoop.Producer.get$Any(this: Producer$Any) -> Any
+    bb0 entry
+      trap @scoop.str.9
+  fun Consumer.put @scoop.Consumer.put$I(this: Consumer$I, value: Int) -> Unit
+    bb0 entry
+      trap @scoop.str.10
+  fun readOr @scoop.readOr$I(producer: Producer$I, fallback: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.Producer.get$I interface Producer$I[0]
+        Local producer
+      return
+        Local $call.1
+  fun Producer.get @scoop.Producer.get$I(this: Producer$I) -> Int
+    bb0 entry
+      trap @scoop.str.11
+  fun eq.IntValue @scoop.eq.IntValue(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: IntValue
+        Unbox
+          Local this
+      val $b: IntValue
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          FieldAccess 0
+            Local $a
+          FieldAccess 0
+            Local $b
+  fun thunk.IntValue.Producer$I.get @scoop.thunk.IntValue.Producer$I.get(this: Any) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.IntValue.get direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  fun eq.Value$I @scoop.eq.Value$I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Value$I
+        Unbox
+          Local this
+      val $b: Value$I
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          FieldAccess 0
+            Local $a
+          FieldAccess 0
+            Local $b
+  fun Value.get @scoop.Value.get$I(this: Value$I) -> Int
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
+  fun thunk.Value$I.Producer$I.get @scoop.thunk.Value$I.Producer$I.get(this: Any) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.Value.get$I direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  fun variance.DogProducer.Producer$Animal.get.0 @scoop.variance.DogProducer.Producer$Animal.get.0(this: Any) -> Animal
+    bb0 entry
+      call $call.1: Dog = @scoop.DogProducer.get direct
+        Local this
+      return
+        Local $call.1
+  fun variance.DogProducer.Producer$Any.get.0 @scoop.variance.DogProducer.Producer$Any.get.0(this: Any) -> Any
+    bb0 entry
+      call $call.1: Dog = @scoop.DogProducer.get direct
+        Local this
+      return
+        Local $call.1
+  fun variance.IntProducer.Producer$Any.get.0 @scoop.variance.IntProducer.Producer$Any.get.0(this: Any) -> Any
+    bb0 entry
+      call $call.1: Int = @scoop.IntProducer.get direct
+        Local this
+      return
+        Box
+          Local $call.1
+  fun variance.AnimalConsumer.Consumer$Dog.put.0 @scoop.variance.AnimalConsumer.Consumer$Dog.put.0(this: Any, value: Dog) -> Unit
+    bb0 entry
+      call @scoop.AnimalConsumer.put direct
+        Local this
+        Local value
+      return
+  fun variance.AnyConsumer.Consumer$Animal.put.0 @scoop.variance.AnyConsumer.Consumer$Animal.put.0(this: Any, value: Animal) -> Unit
+    bb0 entry
+      call @scoop.AnyConsumer.put direct
+        Local this
+        Local value
+      return
+  fun variance.AnyConsumer.Consumer$Dog.put.0 @scoop.variance.AnyConsumer.Consumer$Dog.put.0(this: Any, value: Dog) -> Unit
+    bb0 entry
+      call @scoop.AnyConsumer.put direct
+        Local this
+        Local value
+      return
+  fun variance.AnyConsumer.Consumer$I.put.0 @scoop.variance.AnyConsumer.Consumer$I.put.0(this: Any, value: Int) -> Unit
+    bb0 entry
+      call @scoop.AnyConsumer.put direct
+        Local this
+        Box
+          Local value
+      return
   fun variance.box$IntValue.Producer$Any.get.0 @scoop.variance.box$IntValue.Producer$Any.get.0(this: Any) -> Any
-    return
-      Box
-        Call @scoop.thunk.IntValue.Producer$I.get direct
-          Local this
+    bb0 entry
+      call $call.1: Int = @scoop.thunk.IntValue.Producer$I.get direct
+        Local this
+      return
+        Box
+          Local $call.1
   fun variance.box$Value$I.Producer$Any.get.0 @scoop.variance.box$Value$I.Producer$Any.get.0(this: Any) -> Any
-    return
-      Box
-        Call @scoop.thunk.Value$I.Producer$I.get direct
-          Local this
+    bb0 entry
+      call $call.1: Int = @scoop.thunk.Value$I.Producer$I.get direct
+        Local this
+      return
+        Box
+          Local $call.1
   instance @scoop.Producer.get$Animal <- Producer.get
   instance @scoop.Consumer.put$Dog <- Consumer.put
   instance @scoop.Producer.get$Any <- Producer.get
@@ -516,12 +620,13 @@ Module
   str @scoop.str.2 "invalid cast"
   str @scoop.str.3 "arithmetic error"
   str @scoop.str.4 "array index out of bounds"
-  str @scoop.str.5 "dog"
-  str @scoop.str.6 "call to abstract method `Producer.get`"
-  str @scoop.str.7 "call to abstract method `Consumer.put`"
-  str @scoop.str.8 "call to abstract method `Producer.get`"
-  str @scoop.str.9 "call to abstract method `Consumer.put`"
-  str @scoop.str.10 "call to abstract method `Producer.get`"
+  str @scoop.str.5 "illegal state"
+  str @scoop.str.6 "dog"
+  str @scoop.str.7 "call to abstract method `Producer.get`"
+  str @scoop.str.8 "call to abstract method `Consumer.put`"
+  str @scoop.str.9 "call to abstract method `Producer.get`"
+  str @scoop.str.10 "call to abstract method `Consumer.put`"
+  str @scoop.str.11 "call to abstract method `Producer.get`"
   entry @scoop_main
 
 == lir ==
@@ -531,12 +636,13 @@ Module
   global @scoop.str.2 = "invalid cast"
   global @scoop.str.3 = "arithmetic error"
   global @scoop.str.4 = "array index out of bounds"
-  global @scoop.str.5 = "dog"
-  global @scoop.str.6 = "call to abstract method `Producer.get`"
-  global @scoop.str.7 = "call to abstract method `Consumer.put`"
-  global @scoop.str.8 = "call to abstract method `Producer.get`"
-  global @scoop.str.9 = "call to abstract method `Consumer.put`"
-  global @scoop.str.10 = "call to abstract method `Producer.get`"
+  global @scoop.str.5 = "illegal state"
+  global @scoop.str.6 = "dog"
+  global @scoop.str.7 = "call to abstract method `Producer.get`"
+  global @scoop.str.8 = "call to abstract method `Consumer.put`"
+  global @scoop.str.9 = "call to abstract method `Producer.get`"
+  global @scoop.str.10 = "call to abstract method `Consumer.put`"
+  global @scoop.str.11 = "call to abstract method `Producer.get`"
   global @scoop_td_Producer$Animal = c""
   global @scoop_td_Consumer$Dog = c""
   global @scoop_td_Producer$Any = c""
@@ -550,6 +656,7 @@ Module
   global @scoop_td_ClassCastException = c""
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
   global @scoop_td_Animal = c""
   global @scoop_td_Dog = c""
   global @scoop_td_DogProducer = c""
@@ -564,19 +671,23 @@ Module
   global @scoop.cstr.4 = c"call to abstract method `Producer.get`"
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -596,63 +707,95 @@ Module
   fun @scoop_main() -> void
     local %0 producer: ptr
     local %1 consumer: ptr
+    local %2 $call.1: ptr
+    local %3 $call.2: ptr
+    local %4 $call.3: ptr
+    local %5 $call.4: ptr
+    local %6 $call.5: ptr
+    local %7 $call.6: ptr
+    local %8 $call.7: ptr
+    local %9 $call.8: ptr
+    local %10 $call.9: ptr
+    local %11 $call.10: ptr
+    local %12 $call.11: ptr
+    local %13 $call.12: ptr
+    local %14 $call.13: ptr
+    local %15 $call.14: ptr
+    local %16 $call.15: i64
   block entry
     t0 = call @scoop.ctor.DogProducer() : ptr
-    t1 = call @scoop.widen(t0) : ptr
+    store t0 -> local2
+    t1 = call @scoop.widen(local2) : ptr
     store t1 -> local0
     t2 = heap_load local0 +0 : ptr
-    t3 = call @scoop_rt_itable_lookup(t2, global11) : ptr
+    t3 = call @scoop_rt_itable_lookup(t2, global12) : ptr
     t4 = call_indirect t3[0](local0) : ptr
-    t5 = heap_load t4 +16 : ptr
+    store t4 -> local3
+    t5 = heap_load local3 +16 : ptr
     call @scoop.println(t5)
     t6 = aggregate () : {}
     t7 = call @scoop.ctor.AnimalConsumer() : ptr
-    t8 = call @scoop.narrow(t7) : ptr
+    store t7 -> local4
+    t8 = call @scoop.narrow(local4) : ptr
     store t8 -> local1
     t9 = call @scoop.ctor.Dog() : ptr
+    store t9 -> local5
     t10 = heap_load local1 +0 : ptr
-    t11 = call @scoop_rt_itable_lookup(t10, global12) : ptr
-    call_indirect t11[0](local1, t9)
+    t11 = call @scoop_rt_itable_lookup(t10, global13) : ptr
+    call_indirect t11[0](local1, local5)
     t12 = aggregate () : {}
     t13 = call @scoop.ctor.IntProducer() : ptr
-    t14 = call @scoop.boxResult(t13) : ptr
-    t15 = heap_load t14 +0 : ptr
-    t16 = call @scoop_rt_itable_lookup(t15, global13) : ptr
-    t17 = call_indirect t16[0](t14) : ptr
-    call @scoop.println(t17)
+    store t13 -> local6
+    t14 = call @scoop.boxResult(local6) : ptr
+    store t14 -> local7
+    t15 = heap_load local7 +0 : ptr
+    t16 = call @scoop_rt_itable_lookup(t15, global14) : ptr
+    t17 = call_indirect t16[0](local7) : ptr
+    store t17 -> local8
+    call @scoop.println(local8)
     t18 = aggregate () : {}
     t19 = aggregate (8) : {i64}
-    t20 = call @scoop_rt_box(global14, t19, 8) : ptr
+    t20 = call @scoop_rt_box(global15, t19, 8) : ptr
     t21 = call @scoop.boxResult(t20) : ptr
-    t22 = heap_load t21 +0 : ptr
-    t23 = call @scoop_rt_itable_lookup(t22, global13) : ptr
-    t24 = call_indirect t23[0](t21) : ptr
-    call @scoop.println(t24)
+    store t21 -> local9
+    t22 = heap_load local9 +0 : ptr
+    t23 = call @scoop_rt_itable_lookup(t22, global14) : ptr
+    t24 = call_indirect t23[0](local9) : ptr
+    store t24 -> local10
+    call @scoop.println(local10)
     t25 = aggregate () : {}
     t26 = aggregate (10) : {i64}
-    t27 = call @scoop_rt_box(global15, t26, 8) : ptr
+    t27 = call @scoop_rt_box(global16, t26, 8) : ptr
     t28 = call @scoop.boxResult(t27) : ptr
-    t29 = heap_load t28 +0 : ptr
-    t30 = call @scoop_rt_itable_lookup(t29, global13) : ptr
-    t31 = call_indirect t30[0](t28) : ptr
-    call @scoop.println(t31)
+    store t28 -> local11
+    t29 = heap_load local11 +0 : ptr
+    t30 = call @scoop_rt_itable_lookup(t29, global14) : ptr
+    t31 = call_indirect t30[0](local11) : ptr
+    store t31 -> local12
+    call @scoop.println(local12)
     t32 = aggregate () : {}
     t33 = call @scoop.ctor.AnyConsumer() : ptr
-    t34 = call @scoop.consumeInt(t33) : ptr
-    t35 = heap_load t34 +0 : ptr
-    t36 = call @scoop_rt_itable_lookup(t35, global16) : ptr
-    call_indirect t36[0](t34, 9)
+    store t33 -> local13
+    t34 = call @scoop.consumeInt(local13) : ptr
+    store t34 -> local14
+    t35 = heap_load local14 +0 : ptr
+    t36 = call @scoop_rt_itable_lookup(t35, global17) : ptr
+    call_indirect t36[0](local14, 9)
     t37 = aggregate () : {}
     t38 = call @scoop.ctor.IntProducer() : ptr
-    t39 = call @scoop.readOr$I(t38, 6) : i64
-    t40 = call @scoop_rt_box(global17, t39, 8) : ptr
+    store t38 -> local15
+    t39 = call @scoop.readOr$I(local15, 6) : i64
+    store t39 -> local16
+    t40 = call @scoop_rt_box(global18, local16, 8) : ptr
     call @scoop.println(t40)
     t41 = aggregate () : {}
     ret
   fun @scoop.DogProducer.get(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = call @scoop.ctor.Dog() : ptr
-    ret t0
+    store t0 -> local0
+    ret local0
   fun @scoop.IntProducer.get(ptr) -> i64
   block entry
     ret 7
@@ -673,98 +816,106 @@ Module
     ret
   fun @scoop.ctor.Throwable() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global18, 16) : ptr
+    t0 = call @scoop_rt_alloc(global19, 16) : ptr
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global19, 24) : ptr
+    t0 = call @scoop_rt_alloc(global20, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global20, 24) : ptr
+    t0 = call @scoop_rt_alloc(global21, 24) : ptr
     t1 = enum_wrap e0 v0 (global1) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global21, 24) : ptr
+    t0 = call @scoop_rt_alloc(global22, 24) : ptr
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global22, 24) : ptr
+    t0 = call @scoop_rt_alloc(global23, 24) : ptr
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global23, 24) : ptr
+    t0 = call @scoop_rt_alloc(global24, 24) : ptr
     t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global25, 24) : ptr
+    t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Animal(ptr) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global24, 24) : ptr
+    t0 = call @scoop_rt_alloc(global26, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.Dog() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global25, 24) : ptr
-    heap_store t0 +16 global5
+    t0 = call @scoop_rt_alloc(global27, 24) : ptr
+    heap_store t0 +16 global6
     ret t0
   fun @scoop.ctor.DogProducer() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global26, 16) : ptr
+    t0 = call @scoop_rt_alloc(global28, 16) : ptr
     ret t0
   fun @scoop.ctor.IntProducer() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global27, 16) : ptr
+    t0 = call @scoop_rt_alloc(global29, 16) : ptr
     ret t0
   fun @scoop.ctor.AnimalConsumer() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global28, 16) : ptr
+    t0 = call @scoop_rt_alloc(global30, 16) : ptr
     ret t0
   fun @scoop.ctor.AnyConsumer() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global29, 16) : ptr
+    t0 = call @scoop_rt_alloc(global31, 16) : ptr
     ret t0
   fun @scoop.Producer.get$Animal(ptr) -> ptr
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
-    call @scoop_rt_trap(global30)
+    call @scoop_rt_trap(global32)
     unreachable
   fun @scoop.Consumer.put$Dog(ptr, ptr) -> void
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
-    call @scoop_rt_trap(global31)
+    call @scoop_rt_trap(global33)
     unreachable
   fun @scoop.Producer.get$Any(ptr) -> ptr
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
-    call @scoop_rt_trap(global32)
+    call @scoop_rt_trap(global34)
     unreachable
   fun @scoop.Consumer.put$I(ptr, i64) -> void
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
-    call @scoop_rt_trap(global33)
+    call @scoop_rt_trap(global35)
     unreachable
   fun @scoop.readOr$I(ptr, i64) -> i64
+    local %0 $call.1: i64
   block entry
     t0 = heap_load param0 +0 : ptr
-    t1 = call @scoop_rt_itable_lookup(t0, global34) : ptr
+    t1 = call @scoop_rt_itable_lookup(t0, global36) : ptr
     t2 = call_indirect t1[0](param0) : i64
-    ret t2
+    store t2 -> local0
+    ret local0
   fun @scoop.Producer.get$I(ptr) -> i64
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
-    call @scoop_rt_trap(global35)
+    call @scoop_rt_trap(global37)
     unreachable
   fun @scoop.eq.IntValue(ptr, ptr) -> i1
     local %0 $a: {i64}
@@ -779,10 +930,12 @@ Module
     t4 = Eq t2, t3 : i1
     ret t4
   fun @scoop.thunk.IntValue.Producer$I.get(ptr) -> i64
+    local %0 $call.1: i64
   block entry
     t0 = heap_load param0 +16 : {i64}
     t1 = call @scoop.IntValue.get(t0) : i64
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop.eq.Value$I(ptr, ptr) -> i1
     local %0 $a: {i64}
     local %1 $b: {i64}
@@ -800,10 +953,12 @@ Module
     t0 = extract param0, 0 : i64
     ret t0
   fun @scoop.thunk.Value$I.Producer$I.get(ptr) -> i64
+    local %0 $call.1: i64
   block entry
     t0 = heap_load param0 +16 : {i64}
     t1 = call @scoop.Value.get$I(t0) : i64
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop.eq.I(ptr, ptr) -> i1
     local %0 $a: i64
     local %1 $b: i64
@@ -815,22 +970,30 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop.variance.DogProducer.Producer$Animal.get.0(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = call @scoop.DogProducer.get(param0) : ptr
-    ret t0
+    store t0 -> local0
+    ret local0
   fun @scoop.variance.DogProducer.Producer$Any.get.0(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = call @scoop.DogProducer.get(param0) : ptr
-    ret t0
+    store t0 -> local0
+    ret local0
   fun @scoop.variance.IntProducer.Producer$Any.get.0(ptr) -> ptr
+    local %0 $call.1: i64
   block entry
     t0 = call @scoop.IntProducer.get(param0) : i64
-    t1 = call @scoop_rt_box(global17, t0, 8) : ptr
+    store t0 -> local0
+    t1 = call @scoop_rt_box(global18, local0, 8) : ptr
     ret t1
   fun @scoop.variance.AnimalConsumer.Consumer$Dog.put.0(ptr, ptr) -> void
   block entry
@@ -849,19 +1012,23 @@ Module
     ret
   fun @scoop.variance.AnyConsumer.Consumer$I.put.0(ptr, i64) -> void
   block entry
-    t0 = call @scoop_rt_box(global17, param1, 8) : ptr
+    t0 = call @scoop_rt_box(global18, param1, 8) : ptr
     call @scoop.AnyConsumer.put(param0, t0)
     t1 = aggregate () : {}
     ret
   fun @scoop.variance.box$IntValue.Producer$Any.get.0(ptr) -> ptr
+    local %0 $call.1: i64
   block entry
     t0 = call @scoop.thunk.IntValue.Producer$I.get(param0) : i64
-    t1 = call @scoop_rt_box(global17, t0, 8) : ptr
+    store t0 -> local0
+    t1 = call @scoop_rt_box(global18, local0, 8) : ptr
     ret t1
   fun @scoop.variance.box$Value$I.Producer$Any.get.0(ptr) -> ptr
+    local %0 $call.1: i64
   block entry
     t0 = call @scoop.thunk.Value$I.Producer$I.get(param0) : i64
-    t1 = call @scoop_rt_box(global17, t0, 8) : ptr
+    store t0 -> local0
+    t1 = call @scoop_rt_box(global18, local0, 8) : ptr
     ret t1
   td Producer$Dog @scoop_td_Producer$Dog size=0 vtable=0 itables=0
   td Producer$I @scoop_td_Producer$I size=0 vtable=0 itables=0
@@ -886,6 +1053,7 @@ Module
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -898,6 +1066,7 @@ Module
   layout ClassCastException size=24 align=8 refs=[16]
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
   layout Animal size=24 align=8 refs=[16]
   layout Dog size=24 align=8 refs=[16]
   layout DogProducer size=16 align=8 refs=[]

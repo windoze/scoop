@@ -597,6 +597,42 @@ impl Lowerer {
         }
     }
 
+    /// View a concrete argument type through one exact implemented
+    /// interface. Generic-call inference uses this before binding the
+    /// interface's type arguments, so `C : I<Int>` can constrain a
+    /// parameter declared as `I<T>` without an explicit upcast first.
+    pub(crate) fn implemented_interface_application(
+        &mut self,
+        ty: TypeId,
+        target: hir::InterfaceId,
+    ) -> Option<Vec<TypeId>> {
+        let candidates = match self.types[ty].clone() {
+            Type::Interface(id, args) => {
+                return (id == target).then_some(args);
+            }
+            Type::Class(class) => self.class_interfaces_all(class),
+            Type::Struct(id, args) => self.structs[id]
+                .interfaces
+                .clone()
+                .into_iter()
+                .map(|implemented| self.instantiate_ty(implemented, &args))
+                .collect(),
+            Type::Enum(id, args) => self.enums[id]
+                .interfaces
+                .clone()
+                .into_iter()
+                .map(|implemented| self.instantiate_ty(implemented, &args))
+                .collect(),
+            _ => Vec::new(),
+        };
+        candidates.into_iter().find_map(|candidate| {
+            let Type::Interface(id, args) = self.types[candidate].clone() else {
+                return None;
+            };
+            (id == target).then_some(args)
+        })
+    }
+
     /// Whether a value of static type `a` could ever hold a `b` at run
     /// time — the static premise of `is` / `as` / `as?` (a check
     /// between unrelated types is diagnosed as useless). Beyond the

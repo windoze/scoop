@@ -339,6 +339,7 @@ impl Lowerer {
         let resolved =
             self.resolve_overload(name, &candidates, &owner_type_args, args, span, sink)?;
         let ty = resolved.return_ty;
+        self.check_suspend_call(resolved.callee, span);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -445,6 +446,7 @@ impl Lowerer {
             hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
         };
         let ty = self.instantiate_ty(sig.return_ty, &type_args);
+        self.check_suspend_call(callee, span);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -1341,6 +1343,7 @@ impl Lowerer {
         let resolved =
             self.resolve_overload(&name, &candidates, &[], &call.args, call.span, sink)?;
         let ty = resolved.return_ty;
+        self.check_suspend_call(resolved.callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::Call {
                 callee: resolved.callee,
@@ -1446,6 +1449,8 @@ impl Lowerer {
         } else {
             hir::Callable::Generic(self.record_instantiation(function, type_args))
         };
+
+        self.check_suspend_call(callee, call.span);
 
         Some(hir::Expr {
             kind: ExprKind::Call {
@@ -1902,6 +1907,20 @@ impl Lowerer {
                 let mut ok = true;
                 for (param, arg) in param_args.iter().zip(arg_args.iter()) {
                     ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                }
+                ok
+            }
+            (Type::Interface(param_id, param_args), _) => {
+                let Some(arg_args) = self.implemented_interface_application(arg_ty, param_id)
+                else {
+                    return true;
+                };
+                if param_args.len() != arg_args.len() {
+                    return true;
+                }
+                let mut ok = true;
+                for (param, arg) in param_args.iter().zip(arg_args) {
+                    ok &= self.bind_type_args(*param, arg, bindings, type_params, span);
                 }
                 ok
             }

@@ -3,10 +3,11 @@
 //!
 //! Every test compiles the user file together with a minimal
 //! `scoop.core` (`core_file()`: the `Option<T>` enum, the `Throwable`
-//! exception root plus the M7 `io.scoop` overloads and their backing
-//! intrinsic), mirroring the driver's sysroot convention — core files
-//! first, the user file last.
+//! exception root, the M10 coroutine protocol, plus the M7 `io.scoop`
+//! overloads and their backing intrinsic), mirroring the driver's
+//! sysroot convention — core files first, the user file last.
 
+mod m10;
 mod m2;
 mod m3;
 mod m4;
@@ -479,6 +480,19 @@ pub(crate) fn fun(name: &str, statements: Vec<Statement>) -> Decl {
     fun_sig(name, vec![], vec![], None, statements)
 }
 
+pub(crate) fn suspend_fun(name: &str, statements: Vec<Statement>) -> Decl {
+    let Decl::Function(mut function) = fun(name, statements) else {
+        unreachable!("fun always builds a function declaration")
+    };
+    function.is_suspend = true;
+    Decl::Function(function)
+}
+
+pub(crate) fn with_suspend(mut method: FunctionDecl) -> FunctionDecl {
+    method.is_suspend = true;
+    method
+}
+
 /// A block-bodied function with a full signature.
 pub(crate) fn fun_sig(
     name: &str,
@@ -489,6 +503,7 @@ pub(crate) fn fun_sig(
 ) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
+        is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
         name: ident(name),
@@ -517,6 +532,7 @@ pub(crate) fn fun_expr(
 ) -> Decl {
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
+        is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
         name: ident(name),
@@ -560,6 +576,7 @@ pub(crate) fn intrinsic_generic_fun(
             value: Some(intrinsic.to_string()),
             span: sp(),
         }],
+        is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
         name: ident(name),
@@ -661,6 +678,7 @@ pub(crate) fn method_full(
 ) -> FunctionDecl {
     FunctionDecl {
         annotations: Vec::new(),
+        is_suspend: false,
         is_override,
         modifier: if is_abstract {
             ast::MethodModifier::Abstract
@@ -943,13 +961,14 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
 }
 
 /// The minimal `scoop.core` (sysroot): the `Option<T>` enum (spec 7.2),
-/// the `Throwable` exception root (spec 11.7; the subclasses live in
-/// `throwable_core()`) plus the M7 `io.scoop` final shape
+/// the `Throwable` exception root (spec 11.7; most subclasses live in
+/// `throwable_core()`), the M10 coroutine protocol, plus the M7
+/// `io.scoop` final shape
 /// (docs/milestone7/DESIGN.md section 2) — the single `rt_write`
 /// intrinsic and `print` / `println` as ordinary `Any`-parameter
 /// functions dispatching `toString()`.
 pub(crate) fn core_file() -> SourceFile {
-    file(vec![
+    let mut declarations = vec![
         enum_decl(
             "Option",
             vec!["T"],
@@ -966,6 +985,9 @@ pub(crate) fn core_file() -> SourceFile {
             vec![],
             vec![],
         ),
+    ];
+    declarations.extend(coroutine_core_declarations());
+    declarations.extend([
         intrinsic_fun(
             "write",
             "rt_write",
@@ -995,7 +1017,90 @@ pub(crate) fn core_file() -> SourceFile {
                 stmt(call("write", vec![str_lit("\n")])),
             ],
         ),
-    ])
+    ]);
+    file(declarations)
+}
+
+fn coroutine_core_declarations() -> Vec<Decl> {
+    let continuation = generic_interface_decl(
+        "Continuation",
+        vec![(ast::Variance::In, "T")],
+        vec![
+            bodyless_method(false, "resume", vec![("value", ty_named("T"))], None),
+            bodyless_method(
+                false,
+                "resumeWithException",
+                vec![("exception", ty_named("Throwable"))],
+                None,
+            ),
+        ],
+    );
+    let task = generic_interface_decl(
+        "SuspendTask",
+        vec![(ast::Variance::Out, "T")],
+        vec![with_suspend(bodyless_method(
+            false,
+            "run",
+            vec![],
+            Some(ty_named("T")),
+        ))],
+    );
+    let registration = generic_interface_decl(
+        "SuspendRegistration",
+        vec![(ast::Variance::Out, "T")],
+        vec![bodyless_method(
+            false,
+            "register",
+            vec![(
+                "continuation",
+                ty_generic("Continuation", vec![ty_named("T")]),
+            )],
+            None,
+        )],
+    );
+    let illegal_state = class_decl(
+        ast::ClassModifier::Final,
+        "IllegalStateException",
+        vec![],
+        Some(("Throwable", vec![])),
+        vec![],
+        vec![],
+    );
+    let start = intrinsic_generic_fun(
+        "startCoroutine",
+        "coroutine_start",
+        vec!["T"],
+        vec![
+            ("task", ty_generic("SuspendTask", vec![ty_named("T")])),
+            (
+                "completion",
+                ty_generic("Continuation", vec![ty_named("T")]),
+            ),
+        ],
+        None,
+    );
+    let Decl::Function(mut suspend) = intrinsic_generic_fun(
+        "suspendCoroutine",
+        "coroutine_suspend",
+        vec!["T"],
+        vec![(
+            "registration",
+            ty_generic("SuspendRegistration", vec![ty_named("T")]),
+        )],
+        Some(ty_named("T")),
+    ) else {
+        unreachable!("intrinsic_generic_fun always builds a function declaration")
+    };
+    suspend.is_suspend = true;
+
+    vec![
+        continuation,
+        task,
+        registration,
+        illegal_state,
+        start,
+        Decl::Function(suspend),
+    ]
 }
 
 /// Lower a user file together with the minimal `scoop.core`, mirroring
@@ -1180,6 +1285,16 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
+  class IllegalStateException()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(): Unit <intrinsic rt_write>
   fun print(message: Any): Unit
     Call write : Unit

@@ -1,0 +1,117 @@
+struct Pair(val number: Int, val text: String)
+
+enum Choice {
+    Number(Int),
+    Text(String)
+}
+
+class IntGate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class PairGate(var waiter: Continuation<Pair>?) {
+    fun complete(value: Pair) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class BooleanGate(var waiter: Continuation<Boolean>?) {
+    fun complete(value: Boolean) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class ChoiceGate(var waiter: Continuation<Choice>?) {
+    fun complete(value: Choice) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class IntRegistration(val gate: IntGate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class PairRegistration(val gate: PairGate) : SuspendRegistration<Pair> {
+    final override fun register(continuation: Continuation<Pair>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class BooleanRegistration(val gate: BooleanGate) : SuspendRegistration<Boolean> {
+    final override fun register(continuation: Continuation<Boolean>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class ChoiceRegistration(val gate: ChoiceGate) : SuspendRegistration<Choice> {
+    final override fun register(continuation: Continuation<Choice>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun <T> awaitTop(registration: SuspendRegistration<T>): T =
+    suspendCoroutine(registration)
+
+class Awaiter {
+    final suspend fun <T> awaitMember(registration: SuspendRegistration<T>): T =
+        suspendCoroutine(registration)
+}
+
+class GenericTask(
+    val intGate: IntGate,
+    val pairGate: PairGate,
+    val booleanGate: BooleanGate,
+    val choiceGate: ChoiceGate
+) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        val number = awaitTop(IntRegistration(intGate))
+        val pair = awaitTop(PairRegistration(pairGate))
+        val awaiter = Awaiter()
+        val accepted = awaiter.awaitMember(BooleanRegistration(booleanGate))
+        val choice = awaiter.awaitMember(ChoiceRegistration(choiceGate))
+        println(pair.text)
+        val selected = when (choice) {
+            Number(value) -> value
+            Text(text) -> 0
+        }
+        return if (accepted) { number + pair.number + selected } else { 0 }
+    }
+}
+
+class RecordingCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    val intGate = IntGate(None)
+    val pairGate = PairGate(None)
+    val booleanGate = BooleanGate(None)
+    val choiceGate = ChoiceGate(None)
+    startCoroutine(
+        GenericTask(intGate, pairGate, booleanGate, choiceGate),
+        RecordingCompletion()
+    )
+    println("started")
+    intGate.complete(10)
+    pairGate.complete(Pair(20, "pair"))
+    booleanGate.complete(true)
+    choiceGate.complete(Choice.Number(12))
+}

@@ -59,9 +59,9 @@ try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。
 
 真 GC 替换 always-leak：Immix 核心（32KB block / 128B line、bump 分配、free-line 复用、标记-区域回收，1 GiB mmap arena）；statepoint 打开（GC strategy + `rewrite-statepoints-for-gc` + safepoint poll + stackmap，runtime v1 暂用经对象起点校验的保守栈扫描）；对象头扩为 16B（td + gc_word）；递归 TD 扫描描述；pin（对象头标志位）与 GcHandle 表落地；`scoop.core.gc` 包（暂为 intrinsic）；写屏障卡片表（预偏置指针，为分代预留）；M1–M8 全部 fixture 在真 GC 下原样通过。
 
-### M10 协程
+### M10 协程 ✅（2026-08-31 完成，设计见 `docs/milestone10/DESIGN.md`）
 
-suspend 状态机变换、Continuation（spec 8.2；impl spec 2.3）。
+命名 `suspend` 函数/方法、完全类型化的 suspend 状态机变换、`Continuation` 与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3）。已完成 MIR CFG 化、先单态化后状态机变换、direct / virtual / interface 与型变 bridge 的 hidden ABI、真实挂起/同步完成/失败恢复、异常物化及跨挂起 `catch` / `finally`，并以强制 GC 验证嵌套 frame/adapter 链和递归扫描。高层协程构建器与调度器仍属标准库；M10 以 core 的 `SuspendTask` / `SuspendRegistration` 适配器打通无 lambda 前置依赖的端到端闭环。
 
 ### M11 FFI 注解族
 
@@ -141,11 +141,13 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M6
 
-- 次构造函数、`init` 块、body 属性（非构造函数属性）、`super` 调用；
+- 次构造函数、`init` 块、body 属性（非构造函数属性）、`super` 调用；这些声明自身拥有的初始化体固定为非挂起上下文（spec 8.2、9.1.1；M10 设计已锁定）；
 - interface 的属性与默认实现；
 - ~~泛型 interface 与声明点 `in` / `out` 变型~~（已完成：接口应用类型贯穿 AST/HIR/MIR，位置合法性与变型子类型关系在 HIR 检查；MIR 按具体实参生成独立接口 TypeDescriptor，并为引用/值 ABI 生成变型 itable bridge）；
 - `equals` / `hashCode` / `toString` 的用户覆写——已改道为接口化设计（spec 11.11）：`equals` 走 operator fun、`ToString` / `Hash` opt-in 接口、vtable 前三槽拆除（→ M12）；
-- companion object、`object` 声明、`sealed`、委托（`by`）；
+- companion object、`object` 声明、`sealed`、委托（`by`）；object/companion 的初始化与属性委托协议不得隐式挂起（spec 8.2、9.1.1）；
+- 顶层属性与 object/companion 的精确初始化时机、跨文件顺序及循环初始化诊断（spec 9.1.1 仅固定“每次初始化同步完成且不发布部分对象”，其余需实现前先回 spec 定稿）；
+- `const val`（仅顶层/object/companion，HIR 编译期常量求值与依赖环检查，不生成 runtime initializer；spec 9.1.2）；
 - 可见性修饰符（`internal` 语义 → M14 多 Cone 前）；
 - `?.` 后随方法调用（`a?.foo()`）；
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
@@ -180,3 +182,11 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - ~~tagged enum 的 per-variant 扫描表发射~~（已完成：`SCOOP_REFS_ENUM` 与 `SCOOP_REFS_SEQUENCE` 可递归组合，数组复用同一元素扫描树）；
 - ~~hir-lower 的泛型 struct 字段类型形参作用域~~（已完成：移除 core GC struct 按名识别 stopgap，泛型定义本身不进入 MIR，仅发射具体实例）；
 - 其余定宽整数族（Int8/16/32、UInt8/16/32，spec 11.2；UInt/UInt64 已落地）。
+
+### 来自 M10
+
+- suspend function type、函数引用与 lambda/closure；core 当前以 `SuspendTask` / `SuspendRegistration` 作为无 lambda 的最小协议，相关语法落地时增加 lambda 形态 builder；
+- `launch` / `async`、dispatcher、事件循环、结构化并发与取消属于标准库设计，不进入编译器最小 core；
+- continuation 的跨线程恢复：当前单线程协议使用普通字段，需随 runtime 线程注册、STW 握手和调度器一起定义原子状态与线程切换规则；
+- suspend FFI ABI（→ M11 先确定 `@Extern` 与 suspend 的组合是禁止还是需要 wrapper；不得直接暴露 M10 hidden ABI）；
+- frame elision、栈上 fast path、共享 adapter 代码等优化；当前优先保留完全类型化、可由 GC 扫描的显式 frame/adapter。

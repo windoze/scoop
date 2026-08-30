@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m10-coroutines/errors/suspend-constructor-delegation.scoop:4:22: error: suspend function `value` cannot be called from constructor delegation

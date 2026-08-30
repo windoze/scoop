@@ -195,12 +195,31 @@ pub struct Module {
     /// `T?`, spec 7.1). Guaranteed present: a core library without a
     /// suitable `Option` definition is a driver-level error.
     pub option_enum: EnumId,
+    /// Compiler-known coroutine protocol entities. HIR lowering validates
+    /// their exact declarations before constructing the module, so MIR never
+    /// falls back to textual lookup for protocol types or methods.
+    pub coroutine_core: CoroutineCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoroutineCore {
+    pub throwable: ClassId,
+    pub illegal_state_exception: ClassId,
+    pub continuation: InterfaceId,
+    pub continuation_resume: FunctionId,
+    pub continuation_resume_with_exception: FunctionId,
+    pub suspend_task: InterfaceId,
+    pub suspend_task_run: FunctionId,
+    pub suspend_registration: InterfaceId,
+    pub suspend_registration_register: FunctionId,
+    pub start_coroutine: FunctionId,
+    pub suspend_coroutine: FunctionId,
 }
 
 impl Module {
@@ -322,6 +341,9 @@ pub struct TypeParamDecl {
 #[derive(Debug)]
 pub struct MethodSig {
     pub name: String,
+    /// Suspend is part of the callable contract and must match exactly
+    /// across interface implementation and overriding relationships.
+    pub is_suspend: bool,
     /// Type parameters declared by this method (the owning interface's
     /// parameters are stored on `InterfaceDecl`). An empty list means the
     /// method occupies an itable slot; generic methods are static-only.
@@ -351,6 +373,8 @@ pub struct Field {
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
+    /// Whether calls use the coroutine ABI rather than the ordinary ABI.
+    pub is_suspend: bool,
     /// Generic type parameter names; empty for non-generic functions. For
     /// methods this is one combined namespace: owner parameters first,
     /// method-declared parameters second (`Method::owner_type_param_count`
@@ -650,44 +674,78 @@ pub enum UnOp {
     Not,
 }
 
-/// The compiler's intrinsic registry (impl spec 2.10, M4 slice):
-/// signature rule + runtime symbol mapping live with the lowerers;
-/// this table is the single source of truth for valid names.
+/// The compiler's intrinsic registry (impl spec 2.10). Signature rules
+/// live with hir-lower; this table is the single source of truth for
+/// valid names, expansion stage, and backend kind.
 pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
     IntrinsicSpec {
         name: "rt_write",
-        symbol: "scoop_rt_print",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_print"),
     },
     IntrinsicSpec {
         name: "rt_pin",
-        symbol: "scoop_rt_pin",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_pin"),
     },
     IntrinsicSpec {
         name: "rt_unpin",
-        symbol: "scoop_rt_unpin",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_unpin"),
     },
     IntrinsicSpec {
         name: "rt_get_handle",
-        symbol: "scoop_rt_get_handle",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_get_handle"),
     },
     IntrinsicSpec {
         name: "rt_release_handle",
-        symbol: "scoop_rt_release_handle",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_release_handle"),
     },
     IntrinsicSpec {
         name: "rt_gc_collect",
-        symbol: "scoop_rt_gc_collect",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_gc_collect"),
     },
     IntrinsicSpec {
         name: "rt_gc_stats",
-        symbol: "scoop_rt_gc_stats",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::Runtime("scoop_rt_gc_stats"),
+    },
+    IntrinsicSpec {
+        name: "coroutine_start",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::CoroutineStart,
+    },
+    IntrinsicSpec {
+        name: "coroutine_suspend",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicKind::CoroutineSuspend,
     },
 ];
 
 /// One entry of the intrinsic registry.
 pub struct IntrinsicSpec {
     pub name: &'static str,
-    pub symbol: &'static str,
+    pub stage: IntrinsicStage,
+    pub kind: IntrinsicKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicStage {
+    Mir,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicKind {
+    Runtime(&'static str),
+    CoroutineStart,
+    CoroutineSuspend,
+}
+
+pub fn intrinsic_spec(name: &str) -> Option<&'static IntrinsicSpec> {
+    INTRINSIC_REGISTRY.iter().find(|spec| spec.name == name)
 }
 
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
@@ -782,7 +840,8 @@ pub fn dump(module: &Module) -> String {
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
             out.push_str(&format!(
-                "    fun {}{}({}): {}\n",
+                "    {}fun {}{}({}): {}\n",
+                if method.is_suspend { "suspend " } else { "" },
                 method.name,
                 method_type_params,
                 params.join(", "),
@@ -809,12 +868,13 @@ pub fn dump(module: &Module) -> String {
             params.join(", "),
             type_name(module, function.return_ty)
         );
+        let suspend = if function.is_suspend { "suspend " } else { "" };
         match &function.kind {
             FunctionKind::Intrinsic(name) => {
-                out.push_str(&format!("  fun {signature} <intrinsic {name}>\n"));
+                out.push_str(&format!("  {suspend}fun {signature} <intrinsic {name}>\n"));
             }
             FunctionKind::User(body) => {
-                out.push_str(&format!("  fun {signature}\n"));
+                out.push_str(&format!("  {suspend}fun {signature}\n"));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
             }
         }

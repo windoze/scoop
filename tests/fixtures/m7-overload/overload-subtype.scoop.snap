@@ -4,6 +4,18 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -45,6 +57,7 @@ SourceFile
   class ClassCastException() : Exception(<1 args>)
   class ArithmeticException() : Exception(<1 args>)
   class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
 SourceFile
   open class Shape(val name: String)
   class Circle(val r: Int) : Shape(<1 args>)
@@ -87,8 +100,18 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalStateException()
   open class Shape(name: String)
   class Circle(r: Int)
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -143,78 +166,108 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
   class Shape vtable=3 itables=0
   class Circle vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-    return
+      call @scoop_rt_print direct
+        Local $call.1
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun tag @scoop.tag.Shape(s: Shape) -> String
-    return
-      StringConst @scoop.str.1
+    bb0 entry
+      return
+        StringConst @scoop.str.1
   fun tag @scoop.tag.I(i: Int) -> String
-    return
-      StringConst @scoop.str.2
+    bb0 entry
+      return
+        StringConst @scoop.str.2
   fun pick @scoop.pick.I(v: Int) -> String
-    return
-      StringConst @scoop.str.3
+    bb0 entry
+      return
+        StringConst @scoop.str.3
   fun pick @scoop.pick.Any(v: Any) -> String
-    return
-      StringConst @scoop.str.4
+    bb0 entry
+      return
+        StringConst @scoop.str.4
   fun main @scoop_main() -> Unit
-    Call @scoop.println direct
-      Call @scoop.tag.Shape direct
-        Call @scoop.ctor.Circle direct
-          IntLiteral 1
-    Call @scoop.println direct
-      Call @scoop.tag.I direct
+    bb0 entry
+      call $call.1: Shape = @scoop.ctor.Circle direct
+        IntLiteral 1
+      call $call.2: Any = @scoop.tag.Shape direct
+        Local $call.1
+      call @scoop.println direct
+        Local $call.2
+      call $call.3: Any = @scoop.tag.I direct
         IntLiteral 7
-    Call @scoop.println direct
-      Call @scoop.pick.I direct
+      call @scoop.println direct
+        Local $call.3
+      call $call.4: Any = @scoop.pick.I direct
         IntLiteral 5
+      call @scoop.println direct
+        Local $call.4
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.5
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.7
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.8
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.8
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.9
   fun ctor.Shape @scoop.ctor.Shape(name: String) -> Shape
-    return
-      ClassInit Shape
-        Local name
+    bb0 entry
+      return
+        ClassInit Shape
+          Local name
   fun ctor.Circle @scoop.ctor.Circle(r: Int) -> Circle
-    return
-      ClassInit Circle
-        StringConst @scoop.str.9
-        Local r
+    bb0 entry
+      return
+        ClassInit Circle
+          StringConst @scoop.str.10
+          Local r
   str @scoop.str.0 "\n"
   str @scoop.str.1 "shape"
   str @scoop.str.2 "int"
@@ -224,7 +277,8 @@ Module
   str @scoop.str.6 "invalid cast"
   str @scoop.str.7 "arithmetic error"
   str @scoop.str.8 "array index out of bounds"
-  str @scoop.str.9 "c"
+  str @scoop.str.9 "illegal state"
+  str @scoop.str.10 "c"
   entry @scoop_main
 
 == lir ==
@@ -238,30 +292,36 @@ Module
   global @scoop.str.6 = "invalid cast"
   global @scoop.str.7 = "arithmetic error"
   global @scoop.str.8 = "array index out of bounds"
-  global @scoop.str.9 = "c"
+  global @scoop.str.9 = "illegal state"
+  global @scoop.str.10 = "c"
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
   global @scoop_td_UnwrapException = c""
   global @scoop_td_ClassCastException = c""
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
   global @scoop_td_Shape = c""
   global @scoop_td_Circle = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -279,60 +339,74 @@ Module
   block entry
     ret global4
   fun @scoop_main() -> void
+    local %0 $call.1: ptr
+    local %1 $call.2: ptr
+    local %2 $call.3: ptr
+    local %3 $call.4: ptr
   block entry
     t0 = call @scoop.ctor.Circle(1) : ptr
-    t1 = call @scoop.tag.Shape(t0) : ptr
-    call @scoop.println(t1)
+    store t0 -> local0
+    t1 = call @scoop.tag.Shape(local0) : ptr
+    store t1 -> local1
+    call @scoop.println(local1)
     t2 = aggregate () : {}
     t3 = call @scoop.tag.I(7) : ptr
-    call @scoop.println(t3)
+    store t3 -> local2
+    call @scoop.println(local2)
     t4 = aggregate () : {}
     t5 = call @scoop.pick.I(5) : ptr
-    call @scoop.println(t5)
+    store t5 -> local3
+    call @scoop.println(local3)
     t6 = aggregate () : {}
     ret
   fun @scoop.ctor.Throwable() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global10, 16) : ptr
+    t0 = call @scoop_rt_alloc(global11, 16) : ptr
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr
     t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr
     t1 = enum_wrap e0 v0 (global8) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr
+    t1 = enum_wrap e0 v0 (global9) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Shape(ptr) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.Circle(i64) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global17, 32) : ptr
-    heap_store t0 +16 global9
+    t0 = call @scoop_rt_alloc(global19, 32) : ptr
+    heap_store t0 +16 global10
     heap_store t0 +24 param0
     ret t0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
@@ -343,6 +417,7 @@ Module
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -353,6 +428,7 @@ Module
   layout ClassCastException size=24 align=8 refs=[16]
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
   layout Shape size=24 align=8 refs=[16]
   layout Circle size=32 align=8 refs=[16]
   entry @scoop_main

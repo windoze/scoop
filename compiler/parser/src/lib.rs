@@ -13,6 +13,8 @@ mod pattern;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_m10;
+#[cfg(test)]
 mod tests_m2;
 #[cfg(test)]
 mod tests_m3;

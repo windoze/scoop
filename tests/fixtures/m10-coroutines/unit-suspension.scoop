@@ -1,0 +1,37 @@
+class UnitGate(var waiter: Continuation<Unit>?) {
+    fun complete() {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(Unit)
+    }
+}
+
+class UnitRegistration(val gate: UnitGate) : SuspendRegistration<Unit> {
+    final override fun register(continuation: Continuation<Unit>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class UnitTask(val gate: UnitGate) : SuspendTask<Unit> {
+    final override suspend fun run() {
+        suspendCoroutine(UnitRegistration(gate))
+        println("body")
+    }
+}
+
+class UnitCompletion() : Continuation<Unit> {
+    final override fun resume(value: Unit) {
+        println("done")
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    val gate = UnitGate(None)
+    startCoroutine(UnitTask(gate), UnitCompletion())
+    println("returned")
+    gate.complete()
+}

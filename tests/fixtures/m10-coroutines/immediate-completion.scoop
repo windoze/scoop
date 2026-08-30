@@ -1,0 +1,24 @@
+suspend fun immediateValue(): Int = 41
+
+class ImmediateTask() : SuspendTask<Int> {
+    final override suspend fun run(): Int = immediateValue() + 1
+}
+
+class RecordingCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun launch(task: SuspendTask<Int>, completion: Continuation<Int>) {
+    startCoroutine(task, completion)
+}
+
+fun main() {
+    launch(ImmediateTask(), RecordingCompletion())
+    println("returned")
+}

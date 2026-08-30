@@ -1,0 +1,100 @@
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun waitFor(gate: Gate): Int = suspendCoroutine(Registration(gate))
+
+class DirectWorker(val gate: Gate) {
+    final suspend fun work(): Int = waitFor(gate)
+}
+
+abstract class VirtualWorker {
+    abstract suspend fun work(): Int
+}
+
+class VirtualWorkerImpl(val gate: Gate) : VirtualWorker() {
+    final override suspend fun work(): Int = waitFor(gate)
+}
+
+interface AsyncWorker {
+    suspend fun work(): Int
+}
+
+class AsyncWorkerImpl(val gate: Gate) : AsyncWorker {
+    final override suspend fun work(): Int = waitFor(gate)
+}
+
+struct StructWorker(val gate: Gate) {
+    final suspend fun work(): Int = waitFor(gate)
+}
+
+enum EnumWorker {
+    Waiting(Gate),
+
+    final suspend fun work(): Int = when (this) {
+        Waiting(gate) -> waitFor(gate)
+    }
+}
+
+class DispatchTask(
+    val direct: DirectWorker,
+    val virtual: VirtualWorker,
+    val interfaced: AsyncWorker,
+    val value: StructWorker,
+    val tagged: EnumWorker
+) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        val directValue = direct.work()
+        val virtualValue = virtual.work()
+        val interfaceValue = interfaced.work()
+        val structValue = value.work()
+        val enumValue = tagged.work()
+        return directValue + virtualValue + interfaceValue + structValue + enumValue
+    }
+}
+
+class RecordingCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    val directGate = Gate(None)
+    val virtualGate = Gate(None)
+    val interfaceGate = Gate(None)
+    val structGate = Gate(None)
+    val enumGate = Gate(None)
+    val virtual: VirtualWorker = VirtualWorkerImpl(virtualGate)
+    val interfaced: AsyncWorker = AsyncWorkerImpl(interfaceGate)
+    startCoroutine(
+        DispatchTask(
+            DirectWorker(directGate),
+            virtual,
+            interfaced,
+            StructWorker(structGate),
+            EnumWorker.Waiting(enumGate)
+        ),
+        RecordingCompletion()
+    )
+    println("started")
+    directGate.complete(1)
+    virtualGate.complete(2)
+    interfaceGate.complete(3)
+    structGate.complete(4)
+    enumGate.complete(5)
+}

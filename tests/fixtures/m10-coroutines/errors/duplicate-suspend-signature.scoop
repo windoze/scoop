@@ -1,0 +1,4 @@
+fun same() {}
+suspend fun same() {}
+
+fun main() {}

@@ -36,7 +36,7 @@ use scoop_hir as hir;
 
 use hir::{ClassId, FunctionId, Type, TypeId};
 
-use crate::{FnParam, FnSig, Lowerer, Owner};
+use crate::{FnParam, FnSig, ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TypePosition {
@@ -345,6 +345,7 @@ impl Lowerer {
         self.signatures.insert(
             id,
             FnSig {
+                is_suspend: decl.is_suspend,
                 owner_type_param_count,
                 type_params,
                 params,
@@ -361,6 +362,7 @@ impl Lowerer {
             if let Owner::Interface(iface) = owner {
                 self.interfaces[iface].methods.push(hir::MethodSig {
                     name: short,
+                    is_suspend: decl.is_suspend,
                     type_params: method_type_params,
                     params: declared,
                     return_ty,
@@ -608,9 +610,30 @@ impl Lowerer {
         let sig = self.signatures[&id].clone();
         let target_owner_count = sig.owner_type_param_count;
         let short = decl.name.text.clone();
-        let overrides = candidates.into_iter().find(|(candidate, args)| {
-            self.same_instantiated_signature(*candidate, &short, &sig, args, target_owner_count)
-        });
+        let overrides = candidates
+            .iter()
+            .find(|(candidate, args)| {
+                self.same_instantiated_signature(*candidate, &short, &sig, args, target_owner_count)
+            })
+            .cloned();
+        if overrides.is_none()
+            && let Some((candidate, _)) = candidates.iter().find(|(candidate, args)| {
+                self.same_instantiated_signature_shape(
+                    *candidate,
+                    &short,
+                    &sig,
+                    args,
+                    target_owner_count,
+                )
+            })
+        {
+            let target = self.functions[*candidate].name.clone();
+            self.error(
+                decl.name.span,
+                format!("`{short}` must have the same `suspend` modifier as `{target}`"),
+            );
+            return;
+        }
         if let Some((candidate, _)) = overrides.as_ref()
             && matches!(self.function_owner.get(candidate), Some(Owner::Class(_)))
             && self.functions[*candidate]
@@ -737,6 +760,11 @@ impl Lowerer {
     /// name, parameter types and return type all equal (overloads
     /// only match exactly, M7).
     fn same_signature(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
+        self.same_signature_shape(candidate, name, sig)
+            && self.functions[candidate].is_suspend == sig.is_suspend
+    }
+
+    fn same_signature_shape(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
         let function = &self.functions[candidate];
         if function.name.rsplit('.').next() != Some(name) {
             return false;
@@ -768,6 +796,7 @@ impl Lowerer {
         let mut type_params = vec![String::new(); target_owner_count];
         type_params.extend(own_type_params);
         FnSig {
+            is_suspend: sig.is_suspend,
             owner_type_param_count: target_owner_count,
             type_params,
             params: sig
@@ -793,6 +822,18 @@ impl Lowerer {
     }
 
     fn same_instantiated_signature(
+        &mut self,
+        candidate: FunctionId,
+        name: &str,
+        sig: &FnSig,
+        args: &[TypeId],
+        target_owner_count: usize,
+    ) -> bool {
+        self.same_instantiated_signature_shape(candidate, name, sig, args, target_owner_count)
+            && self.functions[candidate].is_suspend == sig.is_suspend
+    }
+
+    fn same_instantiated_signature_shape(
         &mut self,
         candidate: FunctionId,
         name: &str,
@@ -875,6 +916,9 @@ impl Lowerer {
         let mut lowered_args = Vec::with_capacity(args.len());
         let mut ok = true;
         self.scopes.push();
+        self.push_suspension_context(SuspensionContext::Forbidden(
+            ForbiddenSuspendContext::ConstructorDelegation,
+        ));
         self.current_return_ty = self.unit;
         self.current_fn_name = format!("<init {base_name}>");
         for (arg, (prop_name, prop_ty)) in args.iter().zip(&props) {
@@ -905,6 +949,7 @@ impl Lowerer {
             }
             lowered_args.push(self.adapt_to(arg, *prop_ty));
         }
+        self.pop_suspension_context();
         self.scopes.pop();
         if ok {
             self.classes[id].base_class = Some((base_id, lowered_args));

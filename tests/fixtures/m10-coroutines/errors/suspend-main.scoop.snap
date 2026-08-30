@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m10-coroutines/errors/suspend-main.scoop:1:1: error: `main` must not be suspend

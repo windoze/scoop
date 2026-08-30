@@ -137,6 +137,7 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> 
 /// before any body, so calls resolve regardless of declaration order.
 #[derive(Clone)]
 pub(crate) struct FnSig {
+    pub(crate) is_suspend: bool,
     /// Number of owner parameters at the front of `type_params`.
     pub(crate) owner_type_param_count: usize,
     pub(crate) type_params: Vec<String>,
@@ -172,6 +173,22 @@ pub(crate) enum Owner {
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+}
+
+/// Lexical permission to invoke a suspend callable. Keeping an explicit,
+/// non-empty stack prevents declaration-owned initialization code from
+/// accidentally inheriting permission from a surrounding suspend body.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SuspensionContext {
+    Forbidden(ForbiddenSuspendContext),
+    SuspendFunction,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ForbiddenSuspendContext {
+    TopLevel,
+    Function,
+    ConstructorDelegation,
 }
 
 impl Owner {
@@ -243,6 +260,9 @@ pub(crate) struct Lowerer {
     pub(crate) classes_by_name: HashMap<String, (ClassId, TypeId)>,
     /// Interface namespace: name → (declaration, interface type).
     pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
+    /// Source-file ownership for validating compiler-known core contracts.
+    pub(crate) class_files: HashMap<ClassId, usize>,
+    pub(crate) interface_files: HashMap<InterfaceId, usize>,
     /// Member functions per owner, in declaration order (this is also
     /// declaration order used when building vtables.
     pub(crate) class_methods: HashMap<ClassId, Vec<FunctionId>>,
@@ -286,6 +306,8 @@ pub(crate) struct Lowerer {
     pub(crate) current_return_ty: TypeId,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
+    /// Explicit suspension-permission stack; it is never empty.
+    pub(crate) suspension_contexts: Vec<SuspensionContext>,
     /// `this` of the member function whose body is being lowered:
     /// its local and the host type. `None` in top-level functions.
     pub(crate) current_this: Option<(hir::LocalId, TypeId)>,
@@ -349,6 +371,8 @@ impl Lowerer {
             enums_by_name: HashMap::new(),
             classes_by_name: HashMap::new(),
             interfaces_by_name: HashMap::new(),
+            class_files: HashMap::new(),
+            interface_files: HashMap::new(),
             class_methods: HashMap::new(),
             interface_methods: HashMap::new(),
             struct_methods: HashMap::new(),
@@ -364,6 +388,9 @@ impl Lowerer {
             type_params_in_scope: Vec::new(),
             current_return_ty: unit,
             current_fn_name: String::new(),
+            suspension_contexts: vec![SuspensionContext::Forbidden(
+                ForbiddenSuspendContext::TopLevel,
+            )],
             current_this: None,
             current_owner: None,
             smart_casts: HashMap::new(),
@@ -427,6 +454,7 @@ impl Lowerer {
             }
             let id = self.functions.alloc(Function {
                 name: format!("Any.{short}"),
+                is_suspend: false,
                 type_params: Vec::new(),
                 params: fn_params,
                 return_ty,
@@ -444,6 +472,7 @@ impl Lowerer {
             self.signatures.insert(
                 id,
                 FnSig {
+                    is_suspend: false,
                     owner_type_param_count: 0,
                     type_params: Vec::new(),
                     params: sig_params,
@@ -564,6 +593,11 @@ impl Lowerer {
         // interface signatures, so validate it after every signature exists.
         self.check_interface_variance();
 
+        // M10's coroutine protocol is compiler-known: MIR generation needs
+        // these exact generic interfaces and intrinsic signatures rather than
+        // guessing entities from names after HIR.
+        let coroutine_core = self.validate_coroutine_core(files);
+
         // Pass 2.6: overload declarations must be distinguishable —
         // within one name (top-level) or one host (members) no two
         // functions may share a signature (milestone7 DESIGN.md 1.1).
@@ -633,6 +667,12 @@ impl Lowerer {
                         "`main` must not be generic".to_string(),
                     );
                 }
+                if self.functions[id].is_suspend {
+                    self.error(
+                        self.functions[id].span,
+                        "`main` must not be suspend".to_string(),
+                    );
+                }
                 Some(id)
             }
             None => {
@@ -653,6 +693,8 @@ impl Lowerer {
         let option_enum = self
             .option_enum
             .expect("a missing or invalid core `Option` is always diagnosed");
+        let coroutine_core = coroutine_core
+            .expect("a missing or invalid coroutine core protocol is always diagnosed");
         Ok(hir::Module {
             types: self.types,
             functions: self.functions,
@@ -667,6 +709,7 @@ impl Lowerer {
             boolean: self.boolean,
             string: self.string,
             option_enum,
+            coroutine_core,
             entry,
             instantiations: self.instantiations,
         })
@@ -830,6 +873,7 @@ impl Lowerer {
         let ty = self.types.alloc(Type::Class(id));
         self.classes_by_name
             .insert(decl.name.text.clone(), (id, ty));
+        self.class_files.insert(id, file_index);
         self.class_methods.insert(id, Vec::new());
         if is_core && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
@@ -894,6 +938,7 @@ impl Lowerer {
         let ty = self.intern_type(Type::Interface(id, type_args));
         self.interfaces_by_name
             .insert(decl.name.text.clone(), (id, ty));
+        self.interface_files.insert(id, file_index);
         self.interface_methods.insert(id, Vec::new());
         for method in &decl.methods {
             self.declare_method(method, Owner::Interface(id), pending_methods, file_index);
@@ -941,6 +986,7 @@ impl Lowerer {
         let owner_type_param_count = self.owner_type_param_names(owner).len() as u32;
         let id = self.functions.alloc(Function {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
+            is_suspend: decl.is_suspend,
             // Filled in pass 2.5 (signature) and pass 3 (body and
             // parameter locals).
             type_params: Vec::new(),
@@ -989,6 +1035,7 @@ impl Lowerer {
         };
         let id = self.functions.alloc(Function {
             name: decl.name.text.clone(),
+            is_suspend: decl.is_suspend,
             // Filled in pass 2.5 (signature) and pass 3 (parameter
             // locals); a resolution failure is diagnosed, so these
             // never reach the output.
@@ -1029,7 +1076,7 @@ impl Lowerer {
                 );
                 continue;
             };
-            if !hir::INTRINSIC_REGISTRY.iter().any(|spec| spec.name == name) {
+            if hir::intrinsic_spec(name).is_none() {
                 self.error(annotation.span, format!("unknown intrinsic `{name}`"));
                 continue;
             }
@@ -1043,6 +1090,330 @@ impl Lowerer {
             intrinsic = Some(name.clone());
         }
         intrinsic
+    }
+
+    fn validate_coroutine_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::CoroutineCore> {
+        let continuation = self.require_core_interface("Continuation", files);
+        let suspend_task = self.require_core_interface("SuspendTask", files);
+        let suspend_registration = self.require_core_interface("SuspendRegistration", files);
+        let throwable = self.throwable.map(|(id, _)| id);
+
+        if let Some(id) = continuation {
+            self.validate_continuation_contract(id);
+        }
+        if let Some(id) = suspend_task {
+            self.validate_suspend_task_contract(id);
+        }
+        if let (Some(id), Some(continuation)) = (suspend_registration, continuation) {
+            self.validate_suspend_registration_contract(id, continuation);
+        }
+        let illegal_state_exception = self.validate_illegal_state_exception(files);
+        let start_coroutine = self.require_intrinsic("coroutine_start", files);
+        let suspend_coroutine = self.require_intrinsic("coroutine_suspend", files);
+
+        if let (Some(id), Some(continuation), Some(suspend_task)) =
+            (start_coroutine, continuation, suspend_task)
+        {
+            self.validate_coroutine_start(id, continuation, suspend_task);
+        }
+        if let (Some(id), Some(suspend_registration)) = (suspend_coroutine, suspend_registration) {
+            self.validate_coroutine_suspend(id, suspend_registration);
+        }
+
+        let continuation_methods = continuation
+            .and_then(|id| self.interface_methods.get(&id))
+            .and_then(|methods| match methods.as_slice() {
+                [resume, resume_with_exception] => Some((*resume, *resume_with_exception)),
+                _ => None,
+            });
+        let suspend_task_run = suspend_task
+            .and_then(|id| self.interface_methods.get(&id))
+            .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
+        let suspend_registration_register = suspend_registration
+            .and_then(|id| self.interface_methods.get(&id))
+            .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
+        let (
+            Some(throwable),
+            Some(illegal_state_exception),
+            Some(continuation),
+            Some((continuation_resume, continuation_resume_with_exception)),
+            Some(suspend_task),
+            Some(suspend_task_run),
+            Some(suspend_registration),
+            Some(suspend_registration_register),
+            Some(start_coroutine),
+            Some(suspend_coroutine),
+        ) = (
+            throwable,
+            illegal_state_exception,
+            continuation,
+            continuation_methods,
+            suspend_task,
+            suspend_task_run,
+            suspend_registration,
+            suspend_registration_register,
+            start_coroutine,
+            suspend_coroutine,
+        )
+        else {
+            return None;
+        };
+        Some(hir::CoroutineCore {
+            throwable,
+            illegal_state_exception,
+            continuation,
+            continuation_resume,
+            continuation_resume_with_exception,
+            suspend_task,
+            suspend_task_run,
+            suspend_registration,
+            suspend_registration_register,
+            start_coroutine,
+            suspend_coroutine,
+        })
+    }
+
+    fn require_core_interface(
+        &mut self,
+        name: &str,
+        files: &[ast::SourceFile],
+    ) -> Option<InterfaceId> {
+        let candidate = self
+            .interfaces_by_name
+            .get(name)
+            .map(|(id, _)| *id)
+            .filter(|id| self.interface_files[id] < self.user_file_index);
+        if candidate.is_none() {
+            self.current_file = 0;
+            self.error(
+                files[0].span,
+                format!("scoop.core must define interface `{name}`"),
+            );
+        }
+        candidate
+    }
+
+    fn validate_continuation_contract(&mut self, id: InterfaceId) {
+        self.current_file = self.interface_files[&id];
+        let interface = &self.interfaces[id];
+        let throwable = self.throwable.map(|(_, ty)| ty);
+        let valid_type_param = matches!(
+            interface.type_params.as_slice(),
+            [hir::TypeParamDecl {
+                variance: hir::Variance::In,
+                ..
+            }]
+        );
+        let valid_methods = match interface.methods.as_slice() {
+            [resume, resume_exception] => {
+                resume.name == "resume"
+                    && !resume.is_suspend
+                    && resume.type_params.is_empty()
+                    && resume.params.len() == 1
+                    && self.is_type_param(resume.params[0].ty, 0)
+                    && resume.return_ty == self.unit
+                    && resume_exception.name == "resumeWithException"
+                    && !resume_exception.is_suspend
+                    && resume_exception.type_params.is_empty()
+                    && resume_exception.params.len() == 1
+                    && throwable.is_some_and(|ty| resume_exception.params[0].ty == ty)
+                    && resume_exception.return_ty == self.unit
+            }
+            _ => false,
+        };
+        if !valid_type_param || !valid_methods {
+            self.error(
+                interface.span,
+                "interface `Continuation<in T>` in scoop.core must declare exactly `fun resume(value: T)` followed by `fun resumeWithException(exception: Throwable)`"
+                    .to_string(),
+            );
+        }
+    }
+
+    fn validate_suspend_task_contract(&mut self, id: InterfaceId) {
+        self.current_file = self.interface_files[&id];
+        let interface = &self.interfaces[id];
+        let valid_type_param = matches!(
+            interface.type_params.as_slice(),
+            [hir::TypeParamDecl {
+                variance: hir::Variance::Out,
+                ..
+            }]
+        );
+        let valid_method = match interface.methods.as_slice() {
+            [run] => {
+                run.name == "run"
+                    && run.is_suspend
+                    && run.type_params.is_empty()
+                    && run.params.is_empty()
+                    && self.is_type_param(run.return_ty, 0)
+            }
+            _ => false,
+        };
+        if !valid_type_param || !valid_method {
+            self.error(
+                interface.span,
+                "interface `SuspendTask<out T>` in scoop.core must declare exactly `suspend fun run(): T`"
+                    .to_string(),
+            );
+        }
+    }
+
+    fn validate_suspend_registration_contract(
+        &mut self,
+        id: InterfaceId,
+        continuation: InterfaceId,
+    ) {
+        self.current_file = self.interface_files[&id];
+        let interface = &self.interfaces[id];
+        let valid_type_param = matches!(
+            interface.type_params.as_slice(),
+            [hir::TypeParamDecl {
+                variance: hir::Variance::Out,
+                ..
+            }]
+        );
+        let valid_method = match interface.methods.as_slice() {
+            [register] => {
+                register.name == "register"
+                    && !register.is_suspend
+                    && register.type_params.is_empty()
+                    && register.params.len() == 1
+                    && self.is_interface_param(register.params[0].ty, continuation, 0)
+                    && register.return_ty == self.unit
+            }
+            _ => false,
+        };
+        if !valid_type_param || !valid_method {
+            self.error(
+                interface.span,
+                "interface `SuspendRegistration<out T>` in scoop.core must declare exactly `fun register(continuation: Continuation<T>)`"
+                    .to_string(),
+            );
+        }
+    }
+
+    fn validate_illegal_state_exception(&mut self, files: &[ast::SourceFile]) -> Option<ClassId> {
+        let candidate = self
+            .classes_by_name
+            .get("IllegalStateException")
+            .map(|(id, _)| *id)
+            .filter(|id| self.class_files[id] < self.user_file_index);
+        let Some(id) = candidate else {
+            self.current_file = 0;
+            self.error(
+                files[0].span,
+                "scoop.core must define class `IllegalStateException`".to_string(),
+            );
+            return None;
+        };
+        self.current_file = self.class_files[&id];
+        let throwable = self.throwable.map(|(id, _)| id);
+        let valid = self.classes[id].modifier == hir::ClassModifier::Final
+            && throwable.is_some_and(|root| self.class_descends_from(id, root));
+        if !valid {
+            self.error(
+                self.classes[id].span,
+                "class `IllegalStateException` in scoop.core must be a final subtype of `Throwable`"
+                    .to_string(),
+            );
+        }
+        Some(id)
+    }
+
+    fn validate_coroutine_start(
+        &mut self,
+        id: FunctionId,
+        continuation: InterfaceId,
+        suspend_task: InterfaceId,
+    ) {
+        self.current_file = self.function_files[&id];
+        let function = &self.functions[id];
+        let sig = &self.signatures[&id];
+        let valid = function.name == "startCoroutine"
+            && !sig.is_suspend
+            && sig.type_params.len() == 1
+            && sig.params.len() == 2
+            && self.is_interface_param(sig.params[0].ty, suspend_task, 0)
+            && self.is_interface_param(sig.params[1].ty, continuation, 0)
+            && sig.return_ty == self.unit;
+        if !valid {
+            self.error(
+                function.span,
+                "intrinsic `coroutine_start` must have signature `fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>): Unit`"
+                    .to_string(),
+            );
+        }
+    }
+
+    fn validate_coroutine_suspend(&mut self, id: FunctionId, suspend_registration: InterfaceId) {
+        self.current_file = self.function_files[&id];
+        let function = &self.functions[id];
+        let sig = &self.signatures[&id];
+        let valid = function.name == "suspendCoroutine"
+            && sig.is_suspend
+            && sig.type_params.len() == 1
+            && sig.params.len() == 1
+            && self.is_interface_param(sig.params[0].ty, suspend_registration, 0)
+            && self.is_type_param(sig.return_ty, 0);
+        if !valid {
+            self.error(
+                function.span,
+                "intrinsic `coroutine_suspend` must have signature `suspend fun <T> suspendCoroutine(registration: SuspendRegistration<T>): T`"
+                    .to_string(),
+            );
+        }
+    }
+
+    fn require_intrinsic(&mut self, name: &str, files: &[ast::SourceFile]) -> Option<FunctionId> {
+        let candidates: Vec<_> = self
+            .functions
+            .iter()
+            .filter_map(|(id, function)| {
+                matches!(&function.kind, FunctionKind::Intrinsic(found) if found == name)
+                    .then_some(id)
+            })
+            .collect();
+        if let [id] = candidates.as_slice() {
+            return Some(*id);
+        }
+        self.current_file = candidates.first().map_or(0, |id| self.function_files[id]);
+        self.error(
+            files[0].span,
+            format!("scoop.core must define exactly one `{name}` intrinsic"),
+        );
+        None
+    }
+
+    fn is_type_param(&self, ty: TypeId, index: u32) -> bool {
+        matches!(
+            self.types[ty],
+            Type::Param(param) if param == hir::TypeParamId::from_raw(index)
+        )
+    }
+
+    fn is_interface_param(&self, ty: TypeId, interface: InterfaceId, index: u32) -> bool {
+        matches!(
+            &self.types[ty],
+            Type::Interface(found, args)
+                if *found == interface
+                    && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, index))
+        )
+    }
+
+    fn class_descends_from(&self, class: ClassId, root: ClassId) -> bool {
+        let mut current = Some(class);
+        let mut visited = HashSet::new();
+        while let Some(id) = current {
+            if id == root {
+                return true;
+            }
+            if !visited.insert(id) {
+                return false;
+            }
+            current = self.classes[id].base_class.as_ref().map(|(base, _)| *base);
+        }
+        false
     }
 
     /// `scoop.core` must define exactly one enum named `Option` with
@@ -1403,6 +1774,7 @@ impl Lowerer {
         }
         if matches!(decl.body, ast::FunctionBody::None)
             && !matches!(self.functions[id].kind, FunctionKind::Intrinsic(_))
+            && decl.annotations.is_empty()
         {
             self.error(
                 decl.name.span,
@@ -1447,6 +1819,7 @@ impl Lowerer {
         self.signatures.insert(
             id,
             FnSig {
+                is_suspend: decl.is_suspend,
                 owner_type_param_count: 0,
                 type_params,
                 params,
@@ -1585,6 +1958,53 @@ impl Lowerer {
             .option_enum
             .expect("Option types only exist after core validation");
         self.intern_type(Type::Enum(id, vec![inner]))
+    }
+
+    pub(crate) fn push_suspension_context(&mut self, context: SuspensionContext) {
+        self.suspension_contexts.push(context);
+    }
+
+    pub(crate) fn pop_suspension_context(&mut self) {
+        assert!(
+            self.suspension_contexts.len() > 1,
+            "the root suspension context must remain present"
+        );
+        self.suspension_contexts.pop();
+    }
+
+    /// Diagnose a suspend call made from a declaration body whose ABI has
+    /// no continuation. The resolved callable, including a generic
+    /// instantiation, always leads back to exactly one function entity.
+    pub(crate) fn check_suspend_call(&mut self, callable: hir::Callable, span: Span) {
+        let function = match callable {
+            hir::Callable::Function(function) => function,
+            hir::Callable::Generic(instantiation) => {
+                let generic = self.instantiations[instantiation].generic;
+                self.generic_functions[generic].function
+            }
+        };
+        if !self.functions[function].is_suspend {
+            return;
+        }
+        let context = *self
+            .suspension_contexts
+            .last()
+            .expect("the suspension context stack is initialized non-empty");
+        let SuspensionContext::Forbidden(reason) = context else {
+            return;
+        };
+        let callee = self.functions[function].name.clone();
+        let location = match reason {
+            ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
+            ForbiddenSuspendContext::Function => {
+                format!("non-suspend function `{}`", self.current_fn_name)
+            }
+            ForbiddenSuspendContext::ConstructorDelegation => "constructor delegation".to_string(),
+        };
+        self.error(
+            span,
+            format!("suspend function `{callee}` cannot be called from {location}"),
+        );
     }
 
     pub(crate) fn error(&mut self, span: Span, message: String) {

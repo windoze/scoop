@@ -4,6 +4,18 @@ expression: snapshot
 ---
 == ast ==
 SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -45,6 +57,7 @@ SourceFile
   class ClassCastException() : Exception(<1 args>)
   class ArithmeticException() : Exception(<1 args>)
   class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
 SourceFile
   open class Base()
   class Left() : Base(<0 args>)
@@ -124,13 +137,23 @@ Module
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalStateException()
   open class Base()
   class Left()
   class Right()
   class Cat() : Named
   class Dog() : Named
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
   interface Named
     fun name(): String
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -214,6 +237,7 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
   class Base vtable=3 itables=0
   class Left vtable=3 itables=0
   class Right vtable=3 itables=0
@@ -223,168 +247,227 @@ Module
   class box$Tag vtable=3 itables=1
   interface Named
   fun print @scoop.print(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-    return
+      call @scoop_rt_print direct
+        Local $call.1
+      return
   fun println @scoop.println(message: Any) -> Unit
-    Call @scoop_rt_print direct
-      Call @scoop.Any.toString virtual[2]
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-    Call @scoop_rt_print direct
-      StringConst @scoop.str.0
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
   fun baseCount @scoop.baseCount(values: Array<Base>) -> Int
-    return
-      ArrayLen
-        Local values
+    bb0 entry
+      return
+        ArrayLen
+          Local values
   fun secondName @scoop.secondName(values: Array<Named>) -> String
-    val $arr.1: Array<Named>
-      Local values
-    val $idx.2: Int
-      IntLiteral 1
-    if
-      Binary Or
+    bb0 entry
+      val $arr.1: Array<Named>
+        Local values
+      val $idx.2: Int
+        IntLiteral 1
+      branch bb2 bb1
         Binary IntLt
           Local $idx.2
           IntLiteral 0
+    bb1 logic.rhs.1
+      assign $logic.1
         Binary IntGe
           Local $idx.2
           ArrayLen
             Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Local $logic.1
+    bb4 if.then.4
+      call $call.2: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
       throw
-        Call @scoop.ctor.IndexOutOfBoundsException direct
-    return
-      Call @scoop.Named.name interface Named[0]
+        Local $call.2
+    bb5 if.merge.5
+      call $call.3: String = @scoop.Named.name interface Named[0]
         ArrayGet
           Local $arr.1
           Local $idx.2
+      return
+        Local $call.3
   fun anyCount @scoop.anyCount(values: Array<Any>) -> Int
-    return
-      ArrayLen
-        Local values
+    bb0 entry
+      return
+        ArrayLen
+          Local values
   fun main @scoop_main() -> Unit
-    val bases: Array<Base>
-      ArrayLiteral
-        Call @scoop.ctor.Left direct
-        Call @scoop.ctor.Right direct
-    Call @scoop.println direct
-      Box
-        Call @scoop.baseCount direct
-          Local bases
-    val named: Array<Named>
-      ArrayLiteral
-        Call @scoop.ctor.Cat direct
-        Call @scoop.ctor.Dog direct
-    Call @scoop.println direct
-      Call @scoop.secondName direct
+    bb0 entry
+      call $call.1: Base = @scoop.ctor.Left direct
+      call $call.2: Base = @scoop.ctor.Right direct
+      val bases: Array<Base>
+        ArrayLiteral
+          Local $call.1
+          Local $call.2
+      call $call.3: Int = @scoop.baseCount direct
+        Local bases
+      call @scoop.println direct
+        Box
+          Local $call.3
+      call $call.4: Named = @scoop.ctor.Cat direct
+      call $call.5: Named = @scoop.ctor.Dog direct
+      val named: Array<Named>
+        ArrayLiteral
+          Local $call.4
+          Local $call.5
+      call $call.6: Any = @scoop.secondName direct
         Local named
-    val unrelated: Array<Any>
-      ArrayLiteral
-        Call @scoop.ctor.Left direct
-        StringConst @scoop.str.1
-    Call @scoop.println direct
-      Box
-        Call @scoop.anyCount direct
-          Local unrelated
-    val tag: Named
-      Box
-        StructInit Tag
-          StringConst @scoop.str.2
-    val explicitlyBoxed: Array<Named>
-      ArrayLiteral
-        Local tag
+      call @scoop.println direct
+        Local $call.6
+      call $call.7: Any = @scoop.ctor.Left direct
+      val unrelated: Array<Any>
+        ArrayLiteral
+          Local $call.7
+          StringConst @scoop.str.1
+      call $call.8: Int = @scoop.anyCount direct
+        Local unrelated
+      call @scoop.println direct
+        Box
+          Local $call.8
+      val tag: Named
         Box
           StructInit Tag
-            StringConst @scoop.str.3
-    Call @scoop.println direct
-      Call @scoop.secondName direct
+            StringConst @scoop.str.2
+      val explicitlyBoxed: Array<Named>
+        ArrayLiteral
+          Local tag
+          Box
+            StructInit Tag
+              StringConst @scoop.str.3
+      call $call.9: Any = @scoop.secondName direct
         Local explicitlyBoxed
+      call @scoop.println direct
+        Local $call.9
+      return
   fun Cat.name @scoop.Cat.name(this: Cat) -> String
-    return
-      StringConst @scoop.str.4
+    bb0 entry
+      return
+        StringConst @scoop.str.4
   fun Dog.name @scoop.Dog.name(this: Dog) -> String
-    return
-      StringConst @scoop.str.5
+    bb0 entry
+      return
+        StringConst @scoop.str.5
   fun Tag.name @scoop.Tag.name(this: Tag) -> String
-    return
-      FieldAccess 0
-        Local this
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
-    return
-      ClassInit Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
-    return
-      ClassInit Exception
-        Local message
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
-    return
-      ClassInit UnwrapException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.6
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
-    return
-      ClassInit ClassCastException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.7
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
-    return
-      ClassInit ArithmeticException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.8
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.8
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
-    return
-      ClassInit IndexOutOfBoundsException
-        VariantConstruct Option$S<String> v0
-          StringConst @scoop.str.9
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.9
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.10
   fun ctor.Base @scoop.ctor.Base() -> Base
-    return
-      ClassInit Base
+    bb0 entry
+      return
+        ClassInit Base
   fun ctor.Left @scoop.ctor.Left() -> Left
-    return
-      ClassInit Left
+    bb0 entry
+      return
+        ClassInit Left
   fun ctor.Right @scoop.ctor.Right() -> Right
-    return
-      ClassInit Right
+    bb0 entry
+      return
+        ClassInit Right
   fun ctor.Cat @scoop.ctor.Cat() -> Cat
-    return
-      ClassInit Cat
+    bb0 entry
+      return
+        ClassInit Cat
   fun ctor.Dog @scoop.ctor.Dog() -> Dog
-    return
-      ClassInit Dog
+    bb0 entry
+      return
+        ClassInit Dog
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    val $a: Int
-      Unbox
-        Local this
-    val $b: Int
-      Unbox
-        Local other
-    return
-      Binary IntEq
-        Local $a
-        Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    return
-      Call @scoop_rt_int_to_string direct
+    bb0 entry
+      val $a: Int
         Unbox
           Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
   fun eq.Tag @scoop.eq.Tag(this: Any, other: Any) -> Boolean
-    val $a: Tag
-      Unbox
-        Local this
-    val $b: Tag
-      Unbox
-        Local other
-    return
-      Call @scoop_rt_string_eq direct
+    bb0 entry
+      val $a: Tag
+        Unbox
+          Local this
+      val $b: Tag
+        Unbox
+          Local other
+      call $call.1: Boolean = @scoop_rt_string_eq direct
         FieldAccess 0
           Local $a
         FieldAccess 0
           Local $b
+      return
+        Local $call.1
   fun thunk.Tag.Named.name @scoop.thunk.Tag.Named.name(this: Any) -> String
-    return
-      Call @scoop.Tag.name direct
+    bb0 entry
+      call $call.1: String = @scoop.Tag.name direct
         Unbox
           Local this
+      return
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "text"
   str @scoop.str.2 "tag"
@@ -395,6 +478,7 @@ Module
   str @scoop.str.7 "invalid cast"
   str @scoop.str.8 "arithmetic error"
   str @scoop.str.9 "array index out of bounds"
+  str @scoop.str.10 "illegal state"
   entry @scoop_main
 
 == lir ==
@@ -409,6 +493,7 @@ Module
   global @scoop.str.7 = "invalid cast"
   global @scoop.str.8 = "arithmetic error"
   global @scoop.str.9 = "array index out of bounds"
+  global @scoop.str.10 = "illegal state"
   global @scoop_td_Named = c""
   global @scoop_td_box$I = c""
   global @scoop_td_box$Tag = c""
@@ -418,6 +503,7 @@ Module
   global @scoop_td_ClassCastException = c""
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
   global @scoop_td_Base = c""
   global @scoop_td_Left = c""
   global @scoop_td_Right = c""
@@ -425,19 +511,23 @@ Module
   global @scoop_td_Dog = c""
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +0 : ptr
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
-    call @scoop_rt_print(t2)
+    store t2 -> local0
+    call @scoop_rt_print(local0)
     t3 = aggregate () : {}
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
@@ -449,30 +539,36 @@ Module
   fun @scoop.secondName([ptr]) -> ptr
     local %0 $arr.1: [ptr]
     local %1 $idx.2: i64
-    local %2 $sc.1: i1
+    local %2 $logic.1: i1
+    local %3 $call.2: ptr
+    local %4 $call.3: ptr
   block entry
     store param0 -> local0
     store 1 -> local1
     t0 = Lt local1, 0 : i1
-    store t0 -> local2
-    cbr t0 then @sc.merge.2 else @sc.rhs.1
-  block sc.rhs.1
+    cbr t0 then @logic.short.2 else @logic.rhs.1
+  block logic.rhs.1
     t1 = array_len local0 : i64
     t2 = Ge local1, t1 : i1
     store t2 -> local2
-    br @sc.merge.2
-  block sc.merge.2
-    cbr local2 then @if.then.3 else @if.merge.4
-  block if.then.3
+    br @logic.merge.3
+  block logic.short.2
+    store true -> local2
+    br @logic.merge.3
+  block logic.merge.3
+    cbr local2 then @if.then.4 else @if.merge.5
+  block if.then.4
     t3 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
-    throw t3
+    store t3 -> local3
+    throw local3
     unreachable
-  block if.merge.4
+  block if.merge.5
     t4 = array_get local0 local1 : ptr
     t5 = heap_load t4 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr
+    t6 = call @scoop_rt_itable_lookup(t5, global11) : ptr
     t7 = call_indirect t6[0](t4) : ptr
-    ret t7
+    store t7 -> local4
+    ret local4
   fun @scoop.anyCount([ptr]) -> i64
   block entry
     t0 = array_len param0 : i64
@@ -483,38 +579,56 @@ Module
     local %2 unrelated: [ptr]
     local %3 tag: ptr
     local %4 explicitlyBoxed: [ptr]
+    local %5 $call.1: ptr
+    local %6 $call.2: ptr
+    local %7 $call.3: i64
+    local %8 $call.4: ptr
+    local %9 $call.5: ptr
+    local %10 $call.6: ptr
+    local %11 $call.7: ptr
+    local %12 $call.8: i64
+    local %13 $call.9: ptr
   block entry
     t0 = call @scoop.ctor.Left() : ptr
+    store t0 -> local5
     t1 = call @scoop.ctor.Right() : ptr
-    t2 = array_alloc (t0, t1) : [ptr]
+    store t1 -> local6
+    t2 = array_alloc (local5, local6) : [ptr]
     store t2 -> local0
     t3 = call @scoop.baseCount(local0) : i64
-    t4 = call @scoop_rt_box(global11, t3, 8) : ptr
+    store t3 -> local7
+    t4 = call @scoop_rt_box(global12, local7, 8) : ptr
     call @scoop.println(t4)
     t5 = aggregate () : {}
     t6 = call @scoop.ctor.Cat() : ptr
+    store t6 -> local8
     t7 = call @scoop.ctor.Dog() : ptr
-    t8 = array_alloc (t6, t7) : [ptr]
+    store t7 -> local9
+    t8 = array_alloc (local8, local9) : [ptr]
     store t8 -> local1
     t9 = call @scoop.secondName(local1) : ptr
-    call @scoop.println(t9)
+    store t9 -> local10
+    call @scoop.println(local10)
     t10 = aggregate () : {}
     t11 = call @scoop.ctor.Left() : ptr
-    t12 = array_alloc (t11, global1) : [ptr]
+    store t11 -> local11
+    t12 = array_alloc (local11, global1) : [ptr]
     store t12 -> local2
     t13 = call @scoop.anyCount(local2) : i64
-    t14 = call @scoop_rt_box(global11, t13, 8) : ptr
+    store t13 -> local12
+    t14 = call @scoop_rt_box(global12, local12, 8) : ptr
     call @scoop.println(t14)
     t15 = aggregate () : {}
     t16 = aggregate (global2) : {ptr}
-    t17 = call @scoop_rt_box(global12, t16, 8) : ptr
+    t17 = call @scoop_rt_box(global13, t16, 8) : ptr
     store t17 -> local3
     t18 = aggregate (global3) : {ptr}
-    t19 = call @scoop_rt_box(global12, t18, 8) : ptr
+    t19 = call @scoop_rt_box(global13, t18, 8) : ptr
     t20 = array_alloc (local3, t19) : [ptr]
     store t20 -> local4
     t21 = call @scoop.secondName(local4) : ptr
-    call @scoop.println(t21)
+    store t21 -> local13
+    call @scoop.println(local13)
     t22 = aggregate () : {}
     ret
   fun @scoop.Cat.name(ptr) -> ptr
@@ -529,56 +643,62 @@ Module
     ret t0
   fun @scoop.ctor.Throwable() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global13, 16) : ptr
+    t0 = call @scoop_rt_alloc(global14, 16) : ptr
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr
     t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr
     t1 = enum_wrap e0 v0 (global8) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global18, 24) : ptr
+    t0 = call @scoop_rt_alloc(global19, 24) : ptr
     t1 = enum_wrap e0 v0 (global9) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global20, 24) : ptr
+    t1 = enum_wrap e0 v0 (global10) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Base() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global19, 16) : ptr
+    t0 = call @scoop_rt_alloc(global21, 16) : ptr
     ret t0
   fun @scoop.ctor.Left() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global20, 16) : ptr
+    t0 = call @scoop_rt_alloc(global22, 16) : ptr
     ret t0
   fun @scoop.ctor.Right() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global21, 16) : ptr
+    t0 = call @scoop_rt_alloc(global23, 16) : ptr
     ret t0
   fun @scoop.ctor.Cat() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global22, 16) : ptr
+    t0 = call @scoop_rt_alloc(global24, 16) : ptr
     ret t0
   fun @scoop.ctor.Dog() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global23, 16) : ptr
+    t0 = call @scoop_rt_alloc(global25, 16) : ptr
     ret t0
   fun @scoop.eq.I(ptr, ptr) -> i1
     local %0 $a: i64
@@ -591,13 +711,16 @@ Module
     t2 = Eq local0, local1 : i1
     ret t2
   fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   fun @scoop.eq.Tag(ptr, ptr) -> i1
     local %0 $a: {ptr}
     local %1 $b: {ptr}
+    local %2 $call.1: i1
   block entry
     t0 = heap_load param0 +16 : {ptr}
     store t0 -> local0
@@ -606,12 +729,15 @@ Module
     t2 = extract local0, 0 : ptr
     t3 = extract local1, 0 : ptr
     t4 = call @scoop_rt_string_eq(t2, t3) : i1
-    ret t4
+    store t4 -> local2
+    ret local2
   fun @scoop.thunk.Tag.Named.name(ptr) -> ptr
+    local %0 $call.1: ptr
   block entry
     t0 = heap_load param0 +16 : {ptr}
     t1 = call @scoop.Tag.name(t0) : ptr
-    ret t1
+    store t1 -> local0
+    ret local0
   td Named @scoop_td_Named size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Base @scoop_td_Base size=16 vtable=3 itables=0
@@ -626,6 +752,7 @@ Module
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -637,6 +764,7 @@ Module
   layout ClassCastException size=24 align=8 refs=[16]
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
   layout Base size=16 align=8 refs=[]
   layout Left size=16 align=8 refs=[]
   layout Right size=16 align=8 refs=[]

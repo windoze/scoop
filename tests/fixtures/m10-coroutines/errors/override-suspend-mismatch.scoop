@@ -1,0 +1,9 @@
+interface Task {
+    suspend fun run(): Int
+}
+
+class TaskImpl : Task {
+    override fun run(): Int = 1
+}
+
+fun main() {}

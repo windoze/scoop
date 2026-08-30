@@ -1,0 +1,153 @@
+enum Choice {
+    Number(Int),
+    Empty
+}
+
+class IntGate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class BooleanGate(var waiter: Continuation<Boolean>?) {
+    fun complete(value: Boolean) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class ChoiceGate(var waiter: Continuation<Choice>?) {
+    fun complete(value: Choice) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class IntRegistration(val gate: IntGate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class BooleanRegistration(val gate: BooleanGate) : SuspendRegistration<Boolean> {
+    final override fun register(continuation: Continuation<Boolean>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class ChoiceRegistration(val gate: ChoiceGate) : SuspendRegistration<Choice> {
+    final override fun register(continuation: Continuation<Choice>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun waitForInt(gate: IntGate): Int = suspendCoroutine(IntRegistration(gate))
+
+suspend fun waitForBoolean(gate: BooleanGate): Boolean =
+    suspendCoroutine(BooleanRegistration(gate))
+
+suspend fun waitForChoice(gate: ChoiceGate): Choice =
+    suspendCoroutine(ChoiceRegistration(gate))
+
+fun markedInt(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun markedBoolean(label: String, value: Boolean): Boolean {
+    println(label)
+    return value
+}
+
+fun combine(first: Int, second: Int, third: Int): Int = first + second + third
+
+class ControlTask(
+    val argumentGate: IntGate,
+    val ifConditionGate: BooleanGate,
+    val ifValueGate: IntGate,
+    val whenChoiceGate: ChoiceGate,
+    val whenValueGate: IntGate,
+    val loopConditionGate: BooleanGate,
+    val loopBodyGate: IntGate,
+    val andGate: BooleanGate,
+    val orGate: BooleanGate
+) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        val argument = combine(
+            markedInt("argument-before", 1),
+            waitForInt(argumentGate),
+            markedInt("argument-after", 3)
+        )
+        val branch = if (waitForBoolean(ifConditionGate)) {
+            waitForInt(ifValueGate)
+        } else {
+            0
+        }
+        val selected = when (waitForChoice(whenChoiceGate)) {
+            Number(value) -> value + waitForInt(whenValueGate)
+            Empty -> 0
+        }
+        var loopTotal = 0
+        while (waitForBoolean(loopConditionGate)) {
+            loopTotal = loopTotal + waitForInt(loopBodyGate)
+        }
+        val andResult = markedBoolean("and-left", true) && waitForBoolean(andGate)
+        val orResult = markedBoolean("or-left", false) || waitForBoolean(orGate)
+        val andValue = if (andResult) { 1 } else { 0 }
+        val orValue = if (orResult) { 5 } else { 0 }
+        return argument + branch + selected + loopTotal + andValue + orValue
+    }
+}
+
+class RecordingCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    val argumentGate = IntGate(None)
+    val ifConditionGate = BooleanGate(None)
+    val ifValueGate = IntGate(None)
+    val whenChoiceGate = ChoiceGate(None)
+    val whenValueGate = IntGate(None)
+    val loopConditionGate = BooleanGate(None)
+    val loopBodyGate = IntGate(None)
+    val andGate = BooleanGate(None)
+    val orGate = BooleanGate(None)
+    startCoroutine(
+        ControlTask(
+            argumentGate,
+            ifConditionGate,
+            ifValueGate,
+            whenChoiceGate,
+            whenValueGate,
+            loopConditionGate,
+            loopBodyGate,
+            andGate,
+            orGate
+        ),
+        RecordingCompletion()
+    )
+    println("started")
+    argumentGate.complete(2)
+    ifConditionGate.complete(true)
+    ifValueGate.complete(4)
+    whenChoiceGate.complete(Choice.Number(5))
+    whenValueGate.complete(6)
+    loopConditionGate.complete(true)
+    loopBodyGate.complete(7)
+    loopConditionGate.complete(true)
+    loopBodyGate.complete(8)
+    loopConditionGate.complete(false)
+    andGate.complete(true)
+    orGate.complete(true)
+}

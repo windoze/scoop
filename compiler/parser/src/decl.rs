@@ -28,6 +28,8 @@ pub(crate) enum FunctionContext {
 /// `start` is the byte offset of the first modifier keyword, for spans.
 #[derive(Debug, Default)]
 pub(crate) struct Modifiers {
+    pub is_suspend: bool,
+    pub suspend_span: Option<Span>,
     pub is_override: bool,
     pub method_modifier: Option<MethodModifier>,
     pub method_modifier_span: Option<Span>,
@@ -70,6 +72,32 @@ fn is_constant(expr: &Expr) -> bool {
 impl Parser {
     pub(crate) fn parse_decl(&mut self) -> Result<Decl, Diagnostic> {
         match &self.peek().kind {
+            TokenKind::Suspend => {
+                let suspend = self.bump();
+                if matches!(self.peek().kind, TokenKind::Suspend) {
+                    return Err(Diagnostic::at(
+                        self.peek().span,
+                        "duplicate `suspend` modifier on top-level function",
+                    ));
+                }
+                if !matches!(self.peek().kind, TokenKind::Fun) {
+                    return Err(Diagnostic::at(
+                        suspend.span,
+                        "`suspend` modifier is only allowed on function declarations",
+                    ));
+                }
+                let modifiers = Modifiers {
+                    is_suspend: true,
+                    suspend_span: Some(suspend.span),
+                    start: Some(suspend.span.start),
+                    ..Modifiers::default()
+                };
+                Ok(Decl::Function(self.parse_function(
+                    Vec::new(),
+                    modifiers,
+                    FunctionContext::TopLevel,
+                )?))
+            }
             TokenKind::Fun => Ok(Decl::Function(self.parse_function(
                 Vec::new(),
                 Modifiers::default(),
@@ -90,6 +118,19 @@ impl Parser {
             TokenKind::Interface => Ok(Decl::Interface(self.parse_interface()?)),
             TokenKind::At => {
                 let annotations = self.parse_annotations()?;
+                let mut modifiers = Modifiers::default();
+                if matches!(self.peek().kind, TokenKind::Suspend) {
+                    let suspend = self.bump();
+                    modifiers.is_suspend = true;
+                    modifiers.suspend_span = Some(suspend.span);
+                    modifiers.start = Some(suspend.span.start);
+                    if matches!(self.peek().kind, TokenKind::Suspend) {
+                        return Err(Diagnostic::at(
+                            self.peek().span,
+                            "duplicate `suspend` modifier on top-level function",
+                        ));
+                    }
+                }
                 if !matches!(self.peek().kind, TokenKind::Fun) {
                     return Err(Diagnostic::at(
                         self.peek().span,
@@ -98,7 +139,7 @@ impl Parser {
                 }
                 Ok(Decl::Function(self.parse_function(
                     annotations,
-                    Modifiers::default(),
+                    modifiers,
                     FunctionContext::TopLevel,
                 )?))
             }
@@ -272,6 +313,7 @@ impl Parser {
         });
         Ok(FunctionDecl {
             annotations,
+            is_suspend: modifiers.is_suspend,
             is_override: modifiers.is_override,
             modifier,
             name,
@@ -541,7 +583,7 @@ impl Parser {
         Ok((methods, close.span.end))
     }
 
-    /// `(open|final|abstract|override)* fun ...` — a member function.
+    /// `(open|final|abstract|override|suspend)* fun ...` — a member function.
     /// Modifiers may appear in any order; modality keywords are
     /// mutually exclusive and every keyword may appear at most once.
     fn parse_member_function(
@@ -551,6 +593,19 @@ impl Parser {
         let mut modifiers = Modifiers::default();
         loop {
             let token = self.peek().clone();
+            if matches!(token.kind, TokenKind::Suspend) {
+                if modifiers.is_suspend {
+                    return Err(Diagnostic::at(
+                        token.span,
+                        "duplicate `suspend` modifier on member function",
+                    ));
+                }
+                modifiers.is_suspend = true;
+                let keyword = self.bump();
+                modifiers.suspend_span = Some(keyword.span);
+                modifiers.start = modifiers.start.or(Some(keyword.span.start));
+                continue;
+            }
             let TokenKind::Ident(text) = &token.kind else {
                 break;
             };
@@ -611,6 +666,14 @@ impl Parser {
                 format!("`{modifier}` modifier is not allowed on interface methods"),
             ));
         }
+        if modifiers.is_suspend && !matches!(self.peek().kind, TokenKind::Fun) {
+            return Err(Diagnostic::at(
+                modifiers
+                    .suspend_span
+                    .expect("suspend modifier has a source span"),
+                "`suspend` modifier is only allowed on function declarations",
+            ));
+        }
         self.parse_function(Vec::new(), modifiers, context)
     }
 
@@ -638,14 +701,17 @@ impl Parser {
             }
             let start = self.pos;
             let parsed = match &self.peek().kind {
-                TokenKind::Fun => self
+                TokenKind::Fun | TokenKind::Suspend => self
                     .parse_member_function(FunctionContext::TypeBody)
                     .map(|method| methods.push(method))
                     .and_then(|()| self.expect_statement_end()),
-                TokenKind::Ident(text) if text == "override" || text == "abstract" => self
-                    .parse_member_function(FunctionContext::TypeBody)
-                    .map(|method| methods.push(method))
-                    .and_then(|()| self.expect_statement_end()),
+                TokenKind::Ident(text)
+                    if matches!(text.as_str(), "override" | "abstract" | "open" | "final") =>
+                {
+                    self.parse_member_function(FunctionContext::TypeBody)
+                        .map(|method| methods.push(method))
+                        .and_then(|()| self.expect_statement_end())
+                }
                 TokenKind::Ident(text) if text == "init" => Err(Diagnostic::at(
                     self.peek().span,
                     "`init` blocks are not supported yet (milestone M6)",
