@@ -1910,6 +1910,20 @@ impl Lowerer {
                 }
                 ok
             }
+            (Type::Interface(param_id, param_args), _) => {
+                let Some(arg_args) = self.implemented_interface_application(arg_ty, param_id)
+                else {
+                    return true;
+                };
+                if param_args.len() != arg_args.len() {
+                    return true;
+                }
+                let mut ok = true;
+                for (param, arg) in param_args.iter().zip(arg_args) {
+                    ok &= self.bind_type_args(*param, arg, bindings, type_params, span);
+                }
+                ok
+            }
             (Type::Array(param_element), Type::Array(arg_element))
             | (Type::MutableArray(param_element), Type::MutableArray(arg_element)) => {
                 self.bind_type_args(param_element, arg_element, bindings, type_params, span)

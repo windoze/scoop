@@ -359,7 +359,7 @@ impl Lowerer {
     /// candidate inapplicable. Non-generic candidates trivially
     /// "infer" to no type arguments.
     fn try_infer_type_args(
-        &self,
+        &mut self,
         candidate: &Candidate,
         arg_tys: &[Option<TypeId>],
     ) -> Option<Vec<TypeId>> {
@@ -380,7 +380,12 @@ impl Lowerer {
 
     /// One binding step of `try_infer_type_args` (see
     /// `bind_type_args` for the rules this mirrors).
-    fn try_bind(&self, param_ty: TypeId, arg_ty: TypeId, bindings: &mut [Option<TypeId>]) -> bool {
+    fn try_bind(
+        &mut self,
+        param_ty: TypeId,
+        arg_ty: TypeId,
+        bindings: &mut [Option<TypeId>],
+    ) -> bool {
         match (self.types[param_ty].clone(), self.types[arg_ty].clone()) {
             (Type::Param(index), _) => {
                 let index = index.into_raw() as usize;
@@ -415,6 +420,17 @@ impl Lowerer {
                     .iter()
                     .zip(arg_args.iter())
                     .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
+            }
+            (Type::Interface(param_id, param_args), _) => {
+                let Some(arg_args) = self.implemented_interface_application(arg_ty, param_id)
+                else {
+                    return true;
+                };
+                param_args.len() == arg_args.len()
+                    && param_args
+                        .iter()
+                        .zip(arg_args)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
             }
             (Type::Array(param), Type::Array(arg))
             | (Type::MutableArray(param), Type::MutableArray(arg)) => {

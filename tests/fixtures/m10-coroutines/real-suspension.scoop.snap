@@ -68,15 +68,11 @@ SourceFile
   class RecordingCompletion(), Continuation<Int>
     fun resume
     fun resumeWithException
-  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
-    Call startCoroutine
-      Var task
-      Var completion
   fun main()
     val gate
       Call Gate
         Var None
-    Call launch
+    Call startCoroutine
       Call SuspendedTask
         Var gate
       Call RecordingCompletion
@@ -133,15 +129,11 @@ Module
         Local message : Any
     Call write : Unit
       StringLiteral "\n" : String
-  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>): Unit
-    Call startCoroutine<Int> : Unit
-      Local task : SuspendTask<Int>
-      Local completion : Continuation<Int>
   fun main(): Unit
     val local0
       ClassInit Gate : Gate
         VariantConstruct Option.None<Continuation<Int>> : Option<Continuation<Int>>
-    Call launch : Unit
+    Call startCoroutine<Int> : Unit
       ClassInit SuspendedTask : SuspendTask<Int>
         Local gate : Gate
       ClassInit RecordingCompletion : Continuation<Int>
@@ -208,12 +200,6 @@ Module
       call @scoop_rt_print direct
         StringConst @scoop.str.0
       return
-  fun launch @scoop.launch(task: SuspendTask$I, completion: Continuation$I) -> Unit
-    bb0 entry
-      call @scoop.coroutine.start$I direct
-        Local task
-        Local completion
-      return
   fun main @scoop_main() -> Unit
     bb0 entry
       call gate: Gate = @scoop.ctor.Gate direct
@@ -221,7 +207,7 @@ Module
       call $call.1: SuspendTask$I = @scoop.ctor.SuspendedTask direct
         Local gate
       call $call.2: Continuation$I = @scoop.ctor.RecordingCompletion direct
-      call @scoop.launch direct
+      call @scoop.coroutine.start$I direct
         Local $call.1
         Local $call.2
       call @scoop.println direct
@@ -413,7 +399,7 @@ Module
         Local $call.1
   fun SuspendedTask.run$drive @scoop.SuspendedTask.run$suspend$drive($frame: CoroutineFrame$scoop_SuspendedTask_run_suspend) -> CoroutineStep$I
     bb0 entry
-      call registration: SuspendRegistration$I = @scoop.ctor.GateRegistration direct
+      call $call.1: SuspendRegistration$I = @scoop.ctor.GateRegistration direct
         FieldAccess 0
           Local this
       field_set 0
@@ -434,7 +420,7 @@ Module
             IntLiteral 1
     bb2 coroutine.register.1 unwind bb11
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
-        Local registration
+        Local $call.1
         Local $safe_adapter.1
       branch bb3 bb8
         Binary IntEq
@@ -809,11 +795,6 @@ Module
     call @scoop_rt_print(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.launch(ptr, ptr) -> void
-  block entry
-    call @scoop.coroutine.start$I(param0, param1)
-    t0 = aggregate () : {}
-    ret
   fun @scoop_main() -> void
     local %0 gate: ptr
     local %1 $call.1: ptr
@@ -826,7 +807,7 @@ Module
     store t2 -> local1
     t3 = call @scoop.ctor.RecordingCompletion() : ptr
     store t3 -> local2
-    call @scoop.launch(local1, local2)
+    call @scoop.coroutine.start$I(local1, local2)
     t4 = aggregate () : {}
     call @scoop.println(global1)
     t5 = aggregate () : {}
@@ -1038,8 +1019,8 @@ Module
     ret local0
   fun @scoop.SuspendedTask.run$suspend$drive(ptr) -> enum2
     local %0 this: ptr
-    local %1 registration: ptr
-    local %2 value: i64
+    local %1 value: i64
+    local %2 $call.1: ptr
     local %3 $completion: ptr
     local %4 $safe_adapter.1: ptr
     local %5 $resume_exception.1: ptr
@@ -1051,7 +1032,7 @@ Module
   block entry
     t0 = heap_load local0 +16 : ptr
     t1 = call @scoop.ctor.GateRegistration(t0) : ptr
-    store t1 -> local1
+    store t1 -> local2
     heap_store param0 +16 1
     t2 = call @scoop_rt_alloc(global31, 56) : ptr
     heap_store t2 +16 param0
@@ -1063,19 +1044,19 @@ Module
     store t2 -> local4
     br @coroutine.register.1
   block coroutine.post.1
-    t5 = Add local2, 1 : i64
+    t5 = Add local1, 1 : i64
     t6 = enum_wrap e2 v0 (t5) : enum2
     ret t6
   block coroutine.register.1
-    t7 = heap_load local1 +0 : ptr
+    t7 = heap_load local2 +0 : ptr
     t8 = call @scoop_rt_itable_lookup(t7, global32) : ptr
-    invoke_indirect t8[0](local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
+    invoke_indirect t8[0](local2, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
     br @invoke.normal.1
   block coroutine.registered_success.1
     heap_store local4 +24 3
     t12 = heap_load local4 +32 : enum4
     t13 = enum_field e4 v1 f0 t12 : i64
-    store t13 -> local2
+    store t13 -> local1
     br @coroutine.post.1
   block coroutine.registered_failure.1
     heap_store local4 +24 3
@@ -1124,7 +1105,7 @@ Module
     heap_store param0 +16 -1
     t28 = heap_load param0 +40 : enum4
     t29 = enum_field e4 v1 f0 t28 : i64
-    store t29 -> local2
+    store t29 -> local1
     br @coroutine.post.1
   block coroutine.failure.1
     heap_store param0 +16 -1

@@ -14,8 +14,7 @@ class GateRegistration(val gate: Gate) : SuspendRegistration<Int> {
 
 class SuspendedTask(val gate: Gate) : SuspendTask<Int> {
     final override suspend fun run(): Int {
-        val registration: SuspendRegistration<Int> = GateRegistration(gate)
-        val value = suspendCoroutine(registration)
+        val value = suspendCoroutine(GateRegistration(gate))
         return value + 1
     }
 }
@@ -30,13 +29,9 @@ class RecordingCompletion() : Continuation<Int> {
     }
 }
 
-fun launch(task: SuspendTask<Int>, completion: Continuation<Int>) {
-    startCoroutine(task, completion)
-}
-
 fun main() {
     val gate = Gate(None)
-    launch(SuspendedTask(gate), RecordingCompletion())
+    startCoroutine(SuspendedTask(gate), RecordingCompletion())
     println("returned")
     gate.complete(41)
 }

@@ -126,6 +126,60 @@ fn generic_interfaces_apply_variance_and_instantiate_methods() {
 }
 
 #[test]
+fn generic_call_infers_through_a_concrete_interface_implementation() {
+    let producer = generic_interface_decl(
+        "Producer",
+        vec![(ast::Variance::Out, "T")],
+        vec![bodyless_method(false, "get", vec![], Some(ty_named("T")))],
+    );
+    let int_producer = class_with_interface(
+        "IntProducer",
+        None,
+        ty_generic("Producer", vec![ty_named("Int")]),
+        vec![override_method_expr(
+            "get",
+            Vec::new(),
+            Some(ty_named("Int")),
+            int_lit(42),
+        )],
+    );
+    let infer = fun_sig(
+        "infer",
+        vec!["T"],
+        vec![("producer", ty_generic("Producer", vec![ty_named("T")]))],
+        Some(ty_named("T")),
+        vec![ret(Some(method_call(var("producer"), "get", Vec::new())))],
+    );
+    let module = lower_user(file(vec![
+        producer,
+        int_producer,
+        infer,
+        fun(
+            "main",
+            vec![stmt(call("infer", vec![call("IntProducer", Vec::new())]))],
+        ),
+    ]))
+    .expect("the implemented interface application should constrain T");
+
+    let infer = module
+        .functions
+        .iter()
+        .find_map(|(id, function)| (function.name == "infer").then_some(id))
+        .expect("infer function");
+    let generic = module
+        .generic_functions
+        .iter()
+        .find_map(|(id, entity)| (entity.function == infer).then_some(id))
+        .expect("infer generic entity");
+    let request = module
+        .instantiations
+        .iter()
+        .find_map(|(_, request)| (request.generic == generic).then_some(request))
+        .expect("inferred invocation");
+    assert_eq!(request.type_args, [module.int]);
+}
+
+#[test]
 fn invariant_interface_does_not_convert_between_arguments() {
     let invariant = generic_interface_decl(
         "Cell",
