@@ -155,6 +155,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M7
 
+- ~~两个泛型重载推导出相同类型实参时，单态化实例按符号错误合并~~（已修复：以 `GenericFunctionId + concrete type args` 为实体键，重载实例符号带定义 discriminator）；
 - 候选集分层的完整层级：局部函数层、显式 import / 星号 import 分层（随相应机制落地后插入；当前为"成员 → 调用点同侧顶层 → 对侧隐式导入"三层）；
 - 泛型候选的 MSC 比较改用 Kotlin 的 fresh-variable 约束系统（当前为"推断后类型实参参与比较"的简化，复杂多泛型场景随用例扩展）；
 - `write` 的 `@Intrinsic` 退役（→ M11 经 `@Extern` 由 core 普通 FFI 实现）；

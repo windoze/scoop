@@ -1,0 +1,7 @@
+fun <T> choose(value: T, marker: Int): T = value
+fun <T> choose(value: T, marker: String): T = value
+
+fun main() {
+    println(choose(11, 0))
+    println(choose(22, "string marker"))
+}

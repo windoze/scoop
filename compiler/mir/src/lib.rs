@@ -38,6 +38,22 @@ pub fn mangle_instance(module: &Module, name: &str, type_args: &[Type]) -> Strin
     format!("scoop.{name}${}", args.join("_"))
 }
 
+/// Mangle a monomorphized instance when several generic definitions
+/// share the same qualified name. The generic-definition discriminator
+/// is local to the Cone and only appears for such overload groups, so
+/// the ordinary compact instance symbol remains unchanged.
+pub fn mangle_generic_overload(
+    module: &Module,
+    name: &str,
+    type_args: &[Type],
+    generic_discriminator: u32,
+) -> String {
+    format!(
+        "{}.g{generic_discriminator}",
+        mangle_instance(module, name, type_args)
+    )
+}
+
 /// Mangle one overload of a name shared by several functions (M7):
 /// `scoop.<name>.<encoded params>` — `scoop.show.I`,
 /// `scoop.println.S`; a zero-parameter overload gets an empty encoding
