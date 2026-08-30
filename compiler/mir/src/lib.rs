@@ -12,6 +12,7 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub type FunctionId = Idx<Function>;
+pub type MonomorphizedFunctionId = Idx<MonomorphizedFunction>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;
 pub type EnumId = Idx<EnumDef>;
@@ -204,11 +205,24 @@ pub struct Module {
     pub meta: MirMeta,
 }
 
-/// Per-Cone MIR metadata (impl spec 2.3). M2: still no class hierarchy,
-/// hence no dispatch tables, but the structure exists.
+/// Per-Cone MIR metadata (impl spec 2.3).
 #[derive(Debug, Default)]
 pub struct MirMeta {
     pub dispatch_tables: Vec<DispatchTable>,
+    /// Monomorphized function instances in creation order. The entry
+    /// records the emitted symbol and its generic HIR source without
+    /// leaking HIR ids across the stage boundary.
+    pub instances: Arena<MonomorphizedFunction>,
+}
+
+/// Provenance of one concrete generic function emitted into the MIR
+/// function arena. Its typed id is also what MIR call sites carry.
+#[derive(Debug)]
+pub struct MonomorphizedFunction {
+    pub function: FunctionId,
+    pub symbol: String,
+    pub source: String,
+    pub type_args: Vec<Type>,
 }
 
 #[derive(Debug)]
@@ -426,6 +440,8 @@ pub enum CallKind {
 pub enum Callee {
     /// A user function defined in this Cone.
     User(FunctionId),
+    /// A monomorphized generic function defined in this Cone.
+    Monomorphized(MonomorphizedFunctionId),
     /// A runtime function (see `RuntimeFn::symbol`).
     Runtime(RuntimeFn),
 }
@@ -571,6 +587,12 @@ pub fn dump(module: &Module) -> String {
             2,
             &mut out,
         );
+    }
+    for (_, instance) in module.meta.instances.iter() {
+        out.push_str(&format!(
+            "  instance @{} <- {}\n",
+            instance.symbol, instance.source
+        ));
     }
     for (_, string) in module.strings.iter() {
         out.push_str(&format!("  str @{} {:?}\n", string.symbol, string.value));
@@ -745,6 +767,9 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         Expr::Call(call) => {
             let callee = match &call.target.callee {
                 Callee::User(id) => format!("@{}", module.functions[*id].symbol),
+                Callee::Monomorphized(id) => {
+                    format!("@{}", module.meta.instances[*id].symbol)
+                }
                 Callee::Runtime(function) => format!("@{}", function.symbol()),
             };
             let kind = match &call.target.kind {

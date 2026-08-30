@@ -224,7 +224,7 @@ impl Lowerer {
             if !matches!(function.kind, hir::FunctionKind::User(_)) {
                 continue;
             }
-            if !function.type_params.is_empty() {
+            if generic_of(module, hir_id).is_some() {
                 continue;
             }
             let id = self.declare_function(module, hir_id);
@@ -233,7 +233,7 @@ impl Lowerer {
         for (hir_id, function) in module.functions.iter() {
             if self.function_map.contains_key(&hir_id)
                 || !matches!(function.kind, hir::FunctionKind::User(_))
-                || !function.type_params.is_empty()
+                || generic_of(module, hir_id).is_some()
             {
                 continue;
             }
@@ -303,12 +303,13 @@ impl Lowerer {
         // generic bodies calling generic functions; they are
         // rediscovered in concrete form when the enclosing instance
         // body is lowered, so only concrete requests are seeded here.
-        for instantiation in &module.instantiations {
+        for (resolved_id, instantiation) in module.instantiations.iter() {
+            let generic = &module.generic_functions[instantiation.generic];
             // Generic intrinsics (M9's `pin` & co.) have no MIR body:
             // their call sites are runtime shims
             // (`lower_intrinsic_call`), never instance functions.
             if !matches!(
-                module.functions[instantiation.function].kind,
+                module.functions[generic.function].kind,
                 hir::FunctionKind::User(_)
             ) || !instantiation
                 .type_args
@@ -334,7 +335,7 @@ impl Lowerer {
                 &mut self.functions,
                 &mut self.top_level,
                 &self.shell,
-                instantiation.function,
+                resolved_id,
                 type_args,
             );
         }
@@ -344,8 +345,10 @@ impl Lowerer {
         // functions), which get appended to `pending`.
         let mut next = 0;
         while next < self.instances.pending.len() {
-            let (hir_id, type_args, mir_id) = self.instances.pending[next].clone();
+            let (generic, type_args, instance) = self.instances.pending[next].clone();
             next += 1;
+            let hir_id = module.generic_functions[generic].function;
+            let mir_id = self.instances.meta[instance].function;
             let (params, return_ty, body) =
                 self.lower_user_function(module, hir_id, Some(&type_args));
             let function = &mut self.functions[mir_id];
@@ -371,7 +374,10 @@ impl Lowerer {
             classes: self.classes,
             interfaces: self.interfaces,
             entry,
-            meta: mir::MirMeta::default(),
+            meta: mir::MirMeta {
+                instances: self.instances.meta,
+                ..mir::MirMeta::default()
+            },
         }
     }
 
@@ -747,7 +753,7 @@ impl Lowerer {
             };
             for (fn_id, function) in module.functions.iter() {
                 if method_class(module, function) != Some(hir_id)
-                    || !function.type_params.is_empty()
+                    || generic_of(module, fn_id).is_some()
                 {
                     continue;
                 }
@@ -926,7 +932,8 @@ impl Lowerer {
         let mut current = Some(hir_id);
         while let Some(class) = current {
             for (fn_id, function) in module.functions.iter() {
-                if method_class(module, function) != Some(class) || !function.type_params.is_empty()
+                if method_class(module, function) != Some(class)
+                    || generic_of(module, fn_id).is_some()
                 {
                     continue;
                 }
@@ -1282,7 +1289,7 @@ impl Lowerer {
                 _ => false,
             };
             if matches
-                && function.type_params.is_empty()
+                && generic_of(module, fn_id).is_none()
                 && self.fn_signature_key(module, function) == key
             {
                 return self.function_map[&fn_id];
@@ -1308,10 +1315,17 @@ fn fn_name(function: &hir::Function) -> String {
 /// shells). Intrinsics have no MIR symbol; generic functions only
 /// exist as `$`-mangled instances, which cannot collide with the
 /// overload encoding (`.`).
+fn generic_of(module: &hir::Module, function: hir::FunctionId) -> Option<hir::GenericFunctionId> {
+    module
+        .generic_functions
+        .iter()
+        .find_map(|(id, generic)| (generic.function == function).then_some(id))
+}
+
 fn overloaded_names(module: &hir::Module) -> HashSet<String> {
     let mut counts: HashMap<String, usize> = HashMap::new();
-    for (_, function) in module.functions.iter() {
-        if !matches!(function.kind, hir::FunctionKind::User(_)) || !function.type_params.is_empty()
+    for (id, function) in module.functions.iter() {
+        if !matches!(function.kind, hir::FunctionKind::User(_)) || generic_of(module, id).is_some()
         {
             continue;
         }
@@ -1577,7 +1591,8 @@ impl Types<'_> {
             }
             hir::Type::Param(index) => self
                 .subst
-                .expect("hir::Type::Param only appears with a substitution")[*index as usize]
+                .expect("hir::Type::Param only appears with a substitution")
+                [index.into_raw() as usize]
                 .clone(),
         }
     }
@@ -1799,10 +1814,17 @@ struct InstanceRegistry {
     /// Mangled symbol -> instance. The symbol encodes the function and
     /// its type arguments, so it is the deduplication key: one
     /// instance per `(generic fn, concrete type args)` per Cone.
-    by_symbol: HashMap<String, mir::FunctionId>,
+    by_symbol: HashMap<String, mir::MonomorphizedFunctionId>,
+    /// MIR metadata entries, indexed by the typed identity carried by
+    /// monomorphized call sites.
+    meta: Arena<mir::MonomorphizedFunction>,
     /// Instances whose bodies still have to be lowered: (source
-    /// function, concrete type arguments, instance id).
-    pending: Vec<(hir::FunctionId, Vec<mir::Type>, mir::FunctionId)>,
+    /// generic definition, concrete type arguments, instance id).
+    pending: Vec<(
+        hir::GenericFunctionId,
+        Vec<mir::Type>,
+        mir::MonomorphizedFunctionId,
+    )>,
 }
 
 impl InstanceRegistry {
@@ -1812,17 +1834,20 @@ impl InstanceRegistry {
         functions: &mut Arena<mir::Function>,
         top_level: &mut Vec<mir::FunctionId>,
         shell: &mir::Module,
-        hir_id: hir::FunctionId,
+        resolved_id: hir::ResolvedGenericFunctionId,
         type_args: Vec<mir::Type>,
-    ) -> mir::FunctionId {
+    ) -> mir::MonomorphizedFunctionId {
+        let resolved = &module.instantiations[resolved_id];
+        let generic = resolved.generic;
+        let hir_id = module.generic_functions[generic].function;
         let function = &module.functions[hir_id];
         let name = fn_name(function);
         let symbol = mir::mangle_instance(shell, &name, &type_args);
         if let Some(&id) = self.by_symbol.get(&symbol) {
             return id;
         }
-        let id = functions.alloc(mir::Function {
-            name,
+        let function_id = functions.alloc(mir::Function {
+            name: name.clone(),
             symbol: symbol.clone(),
             // Filled in when the instance body is lowered.
             params: Vec::new(),
@@ -1832,9 +1857,15 @@ impl InstanceRegistry {
                 statements: Vec::new(),
             },
         });
-        top_level.push(id);
+        top_level.push(function_id);
+        let id = self.meta.alloc(mir::MonomorphizedFunction {
+            function: function_id,
+            symbol: symbol.clone(),
+            source: name,
+            type_args: type_args.clone(),
+        });
         self.by_symbol.insert(symbol, id);
-        self.pending.push((hir_id, type_args, id));
+        self.pending.push((generic, type_args, id));
         id
     }
 }
@@ -2574,9 +2605,9 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::MethodCall {
                 receiver,
-                function,
+                callee,
                 args,
-            } => self.lower_method_call(receiver, *function, args),
+            } => self.lower_method_call(receiver, *callee, args),
             // `Box` / `Unbox` / `is` stay dedicated MIR nodes; LIR
             // lowers them (the runtime box call, the payload load,
             // the `scoop_rt_is_instance` call). Boxing registers the
@@ -2613,11 +2644,7 @@ impl BodyLowerer<'_> {
             hir::ExprKind::Cast { operand, optional } => {
                 self.lower_cast(operand, *optional, expr.ty, expr.span)
             }
-            hir::ExprKind::Call {
-                function,
-                type_args,
-                args,
-            } => self.lower_call(*function, type_args, args, expr.ty),
+            hir::ExprKind::Call { callee, args } => self.lower_call(*callee, args, expr.ty),
             hir::ExprKind::Binary { op, lhs, rhs } => self.lower_binary(*op, lhs, rhs, expr.span),
             hir::ExprKind::Unary { op, operand } => {
                 let operand = Box::new(self.lower_expr(operand));
@@ -2723,11 +2750,11 @@ impl BodyLowerer<'_> {
 
     fn lower_call(
         &mut self,
-        function: hir::FunctionId,
-        type_args: &[hir::TypeId],
+        callable: hir::Callable,
         args: &[hir::Expr],
         result_ty: hir::TypeId,
     ) -> mir::Expr {
+        let function = self.module.callable_function(callable);
         // `@Intrinsic` primitive functions (scoop.core, M7 DESIGN
         // section 2): handled up front — generic intrinsics (the M9
         // GC facilities) take this path too, before the generic-callee
@@ -2736,29 +2763,30 @@ impl BodyLowerer<'_> {
             let name = name.clone();
             return self.lower_intrinsic_call(&name, args, result_ty);
         }
-        let callee = match &self.module.functions[function].kind {
-            hir::FunctionKind::User(_)
-                if self.module.functions[function].type_params.is_empty() =>
-            {
+        let callee = match (&self.module.functions[function].kind, callable) {
+            (hir::FunctionKind::User(_), hir::Callable::Function(_)) => {
                 mir::Callee::User(self.function_map[&function])
             }
             // Generic callee: the call's type arguments may mention the
             // enclosing instance's `Param`s; substitution concretizes
             // them, and the instance is created on demand (its body is
             // lowered when the worklist drains).
-            hir::FunctionKind::User(_) => {
-                let type_args: Vec<mir::Type> =
-                    type_args.iter().map(|&ty| self.lower_type(ty)).collect();
-                mir::Callee::User(self.instances.get_or_create(
+            (hir::FunctionKind::User(_), hir::Callable::Generic(resolved)) => {
+                let type_args: Vec<mir::Type> = self.module.instantiations[resolved]
+                    .type_args
+                    .iter()
+                    .map(|&ty| self.lower_type(ty))
+                    .collect();
+                mir::Callee::Monomorphized(self.instances.get_or_create(
                     self.module,
                     self.functions,
                     self.top_level,
                     self.shell,
-                    function,
+                    resolved,
                     type_args,
                 ))
             }
-            hir::FunctionKind::Intrinsic(_) => unreachable!("handled above"),
+            (hir::FunctionKind::Intrinsic(_), _) => unreachable!("handled above"),
         };
         self.call(callee, &args.iter().collect::<Vec<_>>())
     }
@@ -2861,16 +2889,30 @@ impl BodyLowerer<'_> {
     fn lower_method_call(
         &mut self,
         receiver: &hir::Expr,
-        function: hir::FunctionId,
+        callable: hir::Callable,
         args: &[hir::Expr],
     ) -> mir::Expr {
         let module = self.module;
+        let function = module.callable_function(callable);
         let f = &module.functions[function];
-        assert!(
-            f.type_params.is_empty(),
-            "HIR method calls carry no type arguments; hir-lower M6 rejects generic method calls"
-        );
-        let callee = mir::Callee::User(self.function_map[&function]);
+        let callee = match callable {
+            hir::Callable::Function(_) => mir::Callee::User(self.function_map[&function]),
+            hir::Callable::Generic(resolved) => {
+                let type_args: Vec<mir::Type> = module.instantiations[resolved]
+                    .type_args
+                    .iter()
+                    .map(|&ty| self.lower_type(ty))
+                    .collect();
+                mir::Callee::Monomorphized(self.instances.get_or_create(
+                    module,
+                    self.functions,
+                    self.top_level,
+                    self.shell,
+                    resolved,
+                    type_args,
+                ))
+            }
+        };
         // The receiver's static type decides the dispatch kind.
         enum Receiver {
             Class(hir::ClassId),
@@ -2884,42 +2926,52 @@ impl BodyLowerer<'_> {
             hir::Type::Any => Receiver::Any,
             _ => Receiver::Value,
         };
-        let key = self.signature_key(f);
-        let kind = match receiver_kind {
-            Receiver::Class(_)
-                if f.method
-                    .is_some_and(|method| method.modifier == hir::MethodModifier::Final) =>
-            {
-                mir::CallKind::Direct
-            }
-            Receiver::Class(class) => match self.method_slots[&self.class_map[&class]].get(&key) {
-                Some(&slot) => mir::CallKind::Virtual { slot },
-                None => mir::CallKind::Direct,
-            },
-            Receiver::Interface(iface) => {
-                let interface = self.interface_map[&iface];
-                let mut slot = None;
-                for (index, sig) in module.interfaces[iface].methods.iter().enumerate() {
-                    if self.sig_key(sig) == key {
-                        slot = Some(index as u32);
-                        break;
+        let kind = if matches!(callable, hir::Callable::Generic(_)) {
+            // Generic member functions never participate in virtual
+            // dispatch. M6 rejects call-level generic members; this
+            // path materializes methods of generic enum hosts.
+            mir::CallKind::Direct
+        } else {
+            let key = self.signature_key(f);
+            match receiver_kind {
+                Receiver::Class(_)
+                    if f.method
+                        .is_some_and(|method| method.modifier == hir::MethodModifier::Final) =>
+                {
+                    mir::CallKind::Direct
+                }
+                Receiver::Class(class) => {
+                    match self.method_slots[&self.class_map[&class]].get(&key) {
+                        Some(&slot) => mir::CallKind::Virtual { slot },
+                        None => mir::CallKind::Direct,
                     }
                 }
-                mir::CallKind::Interface {
-                    interface,
-                    slot: slot.expect("hir-lower resolves interface calls to interface methods"),
+                Receiver::Interface(iface) => {
+                    let interface = self.interface_map[&iface];
+                    let mut slot = None;
+                    for (index, sig) in module.interfaces[iface].methods.iter().enumerate() {
+                        if self.sig_key(sig) == key {
+                            slot = Some(index as u32);
+                            break;
+                        }
+                    }
+                    mir::CallKind::Interface {
+                        interface,
+                        slot: slot
+                            .expect("hir-lower resolves interface calls to interface methods"),
+                    }
                 }
+                // The `Any` defaults dispatch through the fixed vtable
+                // prefix; anything else hir-lower resolves on `Any` is a
+                // plain direct call.
+                Receiver::Any => match short_name(&f.name) {
+                    "equals" => mir::CallKind::Virtual { slot: 0 },
+                    "hashCode" => mir::CallKind::Virtual { slot: 1 },
+                    "toString" => mir::CallKind::Virtual { slot: 2 },
+                    _ => mir::CallKind::Direct,
+                },
+                Receiver::Value => mir::CallKind::Direct,
             }
-            // The `Any` defaults dispatch through the fixed vtable
-            // prefix; anything else hir-lower resolves on `Any` is a
-            // plain direct call.
-            Receiver::Any => match short_name(&f.name) {
-                "equals" => mir::CallKind::Virtual { slot: 0 },
-                "hashCode" => mir::CallKind::Virtual { slot: 1 },
-                "toString" => mir::CallKind::Virtual { slot: 2 },
-                _ => mir::CallKind::Direct,
-            },
-            Receiver::Value => mir::CallKind::Direct,
         };
         let mut call_args = Vec::with_capacity(args.len() + 1);
         call_args.push(self.lower_expr(receiver));
@@ -3526,6 +3578,7 @@ mod tests {
     struct Harness {
         types: Arena<hir::Type>,
         functions: Arena<hir::Function>,
+        generic_functions: Arena<hir::GenericFunction>,
         structs: Arena<hir::StructDecl>,
         enums: Arena<hir::EnumDecl>,
         classes: Arena<hir::ClassDecl>,
@@ -3547,7 +3600,7 @@ mod tests {
         println_string: Option<hir::FunctionId>,
         println_int: Option<hir::FunctionId>,
         println_boolean: Option<hir::FunctionId>,
-        instantiations: Vec<hir::Instantiation>,
+        instantiations: Arena<hir::ResolvedGenericFunction>,
         /// Generic struct applications (hir-lower's
         /// `struct_application` shape), plus the lazily-created core
         /// GC facilities (M9).
@@ -3609,7 +3662,7 @@ mod tests {
                 span: SPAN,
             });
             // scoop.core's `enum Option<T> { Some(T), None }`.
-            let t = types.alloc(hir::Type::Param(0));
+            let t = types.alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
             let mut enums = Arena::new();
             let option_enum = enums.alloc(hir::EnumDecl {
                 name: "Option".to_string(),
@@ -3635,6 +3688,7 @@ mod tests {
             Harness {
                 types,
                 functions,
+                generic_functions: Arena::new(),
                 structs: Arena::new(),
                 enums,
                 classes: Arena::new(),
@@ -3654,7 +3708,7 @@ mod tests {
                 println_string: None,
                 println_int: None,
                 println_boolean: None,
-                instantiations: Vec::new(),
+                instantiations: Arena::new(),
                 struct_applications: HashMap::new(),
                 uint: None,
                 gc_core: None,
@@ -3999,7 +4053,9 @@ mod tests {
             let uint = self.uint();
             let pin_handle = self.strukt("PinHandle", &[("raw", uint)]);
             let gc_handle = self.strukt("GcHandle", &[("raw", uint)]);
-            let t = self.types.alloc(hir::Type::Param(0));
+            let t = self
+                .types
+                .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
             let pin_handle_t = self.struct_app(pin_handle, vec![t]);
             let gc_handle_t = self.struct_app(gc_handle, vec![t]);
             let mut dummy_locals = Arena::new();
@@ -4008,6 +4064,7 @@ mod tests {
                                  type_params: Vec<String>,
                                  params: Vec<(&str, hir::TypeId)>,
                                  return_ty: hir::TypeId| {
+                let generic = !type_params.is_empty();
                 let id = self.functions.alloc(hir::Function {
                     name: name.to_string(),
                     type_params,
@@ -4028,6 +4085,10 @@ mod tests {
                     method: None,
                     span: SPAN,
                 });
+                if generic {
+                    self.generic_functions
+                        .alloc(hir::GenericFunction { function: id });
+                }
                 self.top_level.push(id);
                 id
             };
@@ -4101,6 +4162,7 @@ mod tests {
             return_ty: hir::TypeId,
             body: hir::Body,
         ) -> hir::FunctionId {
+            let generic = !type_params.is_empty();
             let id = self.functions.alloc(hir::Function {
                 name: name.to_string(),
                 type_params,
@@ -4110,21 +4172,38 @@ mod tests {
                 method: None,
                 span: SPAN,
             });
+            if generic {
+                self.generic_functions
+                    .alloc(hir::GenericFunction { function: id });
+            }
             self.top_level.push(id);
             id
         }
 
-        fn instantiate(&mut self, function: hir::FunctionId, type_args: Vec<hir::TypeId>) {
-            self.instantiations.push(hir::Instantiation {
-                function,
-                type_args,
-            });
+        fn instantiate(
+            &mut self,
+            function: hir::FunctionId,
+            type_args: Vec<hir::TypeId>,
+        ) -> hir::ResolvedGenericFunctionId {
+            let generic = self
+                .generic_functions
+                .iter()
+                .find_map(|(id, generic)| (generic.function == function).then_some(id))
+                .expect("generic test function must be registered");
+            if let Some((id, _)) = self.instantiations.iter().find(|(_, resolved)| {
+                resolved.generic == generic && resolved.type_args == type_args
+            }) {
+                return id;
+            }
+            self.instantiations
+                .alloc(hir::ResolvedGenericFunction { generic, type_args })
         }
 
         fn finish(self, entry: hir::FunctionId) -> hir::Module {
             hir::Module {
                 types: self.types,
                 functions: self.functions,
+                generic_functions: self.generic_functions,
                 structs: self.structs,
                 enums: self.enums,
                 classes: self.classes,
@@ -4203,8 +4282,7 @@ mod tests {
     fn call(h: &Harness, function: hir::FunctionId, args: Vec<hir::Expr>) -> hir::Expr {
         expr(
             hir::ExprKind::Call {
-                function,
-                type_args: Vec::new(),
+                callee: hir::Callable::Function(function),
                 args,
             },
             h.unit,
@@ -4217,8 +4295,7 @@ mod tests {
     fn call_typed(function: hir::FunctionId, args: Vec<hir::Expr>, ty: hir::TypeId) -> hir::Expr {
         expr(
             hir::ExprKind::Call {
-                function,
-                type_args: Vec::new(),
+                callee: hir::Callable::Function(function),
                 args,
             },
             ty,
@@ -4335,8 +4412,7 @@ Module
         body.statements.push(hir::Statement {
             kind: hir::StatementKind::Expr(hir::Expr {
                 kind: hir::ExprKind::Call {
-                    function: println,
-                    type_args: Vec::new(),
+                    callee: hir::Callable::Function(println),
                     args: vec![hir::Expr {
                         kind: hir::ExprKind::StringLiteral("hello, world".to_string()),
                         ty: string,
@@ -4570,7 +4646,9 @@ Module
         // directly).
         let pin_handle_v = h.struct_app(gc.pin_handle, vec![uint]);
         let pin_handle_s = h.struct_app(gc.pin_handle, vec![string]);
-        let t = h.types.alloc(hir::Type::Param(0));
+        let t = h
+            .types
+            .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let box2 = h.strukt("Box2", &[("x", t)]);
         let box2_s = h.struct_app(box2, vec![string]);
         let mut locals = Arena::new();
@@ -4759,6 +4837,18 @@ Module
             .collect()
     }
 
+    fn instance_id(
+        module: &mir::Module,
+        function: mir::FunctionId,
+    ) -> mir::MonomorphizedFunctionId {
+        module
+            .meta
+            .instances
+            .iter()
+            .find_map(|(id, instance)| (instance.function == function).then_some(id))
+            .expect("function must have monomorphization metadata")
+    }
+
     #[test]
     fn overloads_mangle_with_param_encoding() {
         let mut h = Harness::new();
@@ -4808,14 +4898,13 @@ Module
         string_fn(&mut h, "show", &[("v", int)], "int");
         string_fn(&mut h, "show", &[("v", string)], "string");
         let generic = identity_fn(&mut h, "show");
-        h.instantiate(generic, vec![int]);
+        let generic_int = h.instantiate(generic, vec![int]);
         let main = h.user_fn(
             "main",
             hir::Body {
                 locals: Arena::new(),
                 statements: vec![expr_stmt(generic_call(
-                    generic,
-                    vec![int],
+                    generic_int,
                     vec![int_lit(&h, 1)],
                     int,
                 ))],
@@ -4956,7 +5045,7 @@ Module
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    function,
+                    callee: hir::Callable::Function(function),
                     args: vec![arg],
                 },
                 unit,
@@ -5069,7 +5158,7 @@ Module
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    function,
+                    callee: hir::Callable::Function(function),
                     args: vec![arg],
                 },
                 unit,
@@ -5856,15 +5945,13 @@ Module
     }
 
     fn generic_call(
-        function: hir::FunctionId,
-        type_args: Vec<hir::TypeId>,
+        resolved: hir::ResolvedGenericFunctionId,
         args: Vec<hir::Expr>,
         ty: hir::TypeId,
     ) -> hir::Expr {
         expr(
             hir::ExprKind::Call {
-                function,
-                type_args,
+                callee: hir::Callable::Generic(resolved),
                 args,
             },
             ty,
@@ -5881,7 +5968,9 @@ Module
 
     /// `fun <T> name(x: T): T { return x }`.
     fn identity_fn(h: &mut Harness, name: &str) -> hir::FunctionId {
-        let t = h.types.alloc(hir::Type::Param(0));
+        let t = h
+            .types
+            .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let mut locals = Arena::new();
         let x = locals.alloc(local("x", t));
         h.user_fn_full(
@@ -5961,28 +6050,22 @@ Module
         let mut h = Harness::new();
         let identity = identity_fn(&mut h, "identity");
         let (int, string) = (h.int, h.string);
+        let identity_int = h.instantiate(identity, vec![int]);
+        let identity_string = h.instantiate(identity, vec![string]);
         let main = h.user_fn(
             "main",
             hir::Body {
                 locals: Arena::new(),
                 statements: vec![
+                    expr_stmt(generic_call(identity_int, vec![int_lit(&h, 41)], int)),
                     expr_stmt(generic_call(
-                        identity,
-                        vec![int],
-                        vec![int_lit(&h, 41)],
-                        int,
-                    )),
-                    expr_stmt(generic_call(
-                        identity,
-                        vec![string],
+                        identity_string,
                         vec![str_lit(&h, "hi")],
                         string,
                     )),
                 ],
             },
         );
-        h.instantiate(identity, vec![int]);
-        h.instantiate(identity, vec![string]);
         let module = lower(&h.finish(main));
 
         // main first (declaration order), then the instances in
@@ -6009,6 +6092,14 @@ Module
         assert_eq!(string_instance.params[0].ty, mir::Type::String);
         assert_eq!(string_instance.return_ty, mir::Type::String);
 
+        // MIR gives every materialized body its own typed identity and
+        // records symbol -> generic source provenance in the meta.
+        assert_eq!(module.meta.instances.len(), 2);
+        let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
+        assert_eq!(int_meta.symbol, "scoop.identity$I");
+        assert_eq!(int_meta.source, "identity");
+        assert_eq!(int_meta.type_args, vec![mir::Type::Int]);
+
         // The calls in main resolve to the two instances.
         let main_fn = &module.functions[module.entry];
         for (statement, instance) in main_fn
@@ -6020,7 +6111,10 @@ Module
             let mir::StatementKind::Expr(mir::Expr::Call(call)) = &statement.kind else {
                 panic!("expected a call statement")
             };
-            assert_eq!(call.target.callee, mir::Callee::User(instance));
+            assert_eq!(
+                call.target.callee,
+                mir::Callee::Monomorphized(instance_id(&module, instance))
+            );
         }
     }
 
@@ -6029,20 +6123,20 @@ Module
         let mut h = Harness::new();
         let identity = identity_fn(&mut h, "identity");
         let int = h.int;
+        let identity_int = h.instantiate(identity, vec![int]);
         let main = h.user_fn(
             "main",
             hir::Body {
                 locals: Arena::new(),
                 statements: vec![
-                    expr_stmt(generic_call(identity, vec![int], vec![int_lit(&h, 1)], int)),
-                    expr_stmt(generic_call(identity, vec![int], vec![int_lit(&h, 2)], int)),
+                    expr_stmt(generic_call(identity_int, vec![int_lit(&h, 1)], int)),
+                    expr_stmt(generic_call(identity_int, vec![int_lit(&h, 2)], int)),
                 ],
             },
         );
         // HIR dedups its list, but be robust: the same request listed
         // twice, plus two calls with the same type arguments.
-        h.instantiate(identity, vec![int]);
-        h.instantiate(identity, vec![int]);
+        assert_eq!(h.instantiate(identity, vec![int]), identity_int);
         let module = lower(&h.finish(main));
 
         assert_eq!(module.top_level.len(), 2);
@@ -6052,7 +6146,10 @@ Module
             let mir::StatementKind::Expr(mir::Expr::Call(call)) = &statement.kind else {
                 panic!("expected a call statement")
             };
-            assert_eq!(call.target.callee, mir::Callee::User(instance));
+            assert_eq!(
+                call.target.callee,
+                mir::Callee::Monomorphized(instance_id(&module, instance))
+            );
         }
     }
 
@@ -6062,9 +6159,12 @@ Module
         // fun <T> inner(x: T): T { return x }
         let inner = identity_fn(&mut h, "inner");
         // fun <T> forward(x: T): T { return inner(x) }
-        let t = h.types.alloc(hir::Type::Param(0));
+        let t = h
+            .types
+            .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let mut locals = Arena::new();
         let x = locals.alloc(local("x", t));
+        let inner_t = h.instantiate(inner, vec![t]);
         let forward = h.user_fn_full(
             "forward",
             vec!["T".to_string()],
@@ -6073,18 +6173,18 @@ Module
             hir::Body {
                 locals,
                 statements: vec![stmt(hir::StatementKind::Return {
-                    value: Some(generic_call(inner, vec![t], vec![local_ref(x, t)], t)),
+                    value: Some(generic_call(inner_t, vec![local_ref(x, t)], t)),
                 })],
             },
         );
         let int = h.int;
+        let forward_int = h.instantiate(forward, vec![int]);
         let main = h.user_fn(
             "main",
             hir::Body {
                 locals: Arena::new(),
                 statements: vec![expr_stmt(generic_call(
-                    forward,
-                    vec![int],
+                    forward_int,
                     vec![int_lit(&h, 1)],
                     int,
                 ))],
@@ -6092,8 +6192,6 @@ Module
         );
         // The nested request is still parameterized in HIR's list;
         // mir-lower concretizes it while lowering forward$I.
-        h.instantiate(forward, vec![int]);
-        h.instantiate(inner, vec![t]);
         let module = lower(&h.finish(main));
 
         // main, forward$I, then inner$I (discovered via the worklist).
@@ -6108,7 +6206,10 @@ Module
         else {
             panic!("forward$I must return the inner$I call")
         };
-        assert_eq!(call.target.callee, mir::Callee::User(module.top_level[2]));
+        assert_eq!(
+            call.target.callee,
+            mir::Callee::Monomorphized(instance_id(&module, module.top_level[2]))
+        );
         assert_eq!(inner_i.params[0].ty, mir::Type::Int);
         assert_eq!(inner_i.return_ty, mir::Type::Int);
     }
@@ -7278,7 +7379,7 @@ Module
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    function,
+                    callee: hir::Callable::Function(function),
                     args: Vec::new(),
                 },
                 unit,
@@ -7356,7 +7457,7 @@ Module
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    function,
+                    callee: hir::Callable::Function(function),
                     args: Vec::new(),
                 },
                 unit,
@@ -8134,8 +8235,7 @@ Module
         let a = locals.alloc(local("a", any));
         let print_call = expr(
             hir::ExprKind::Call {
-                function: println_int,
-                type_args: Vec::new(),
+                callee: hir::Callable::Function(println_int),
                 args: vec![expr(
                     hir::ExprKind::FieldAccess {
                         receiver: Box::new(expr(

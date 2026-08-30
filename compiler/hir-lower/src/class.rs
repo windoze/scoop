@@ -149,7 +149,13 @@ impl Lowerer {
         // method of `E<T>` may mention `T`); every other owner has no
         // type parameters in scope.
         self.type_params_in_scope = match owner {
-            Owner::Enum(enum_id) => self.enums[enum_id].type_params.clone(),
+            Owner::Enum(enum_id) => {
+                let type_params = self.enums[enum_id].type_params.clone();
+                if !type_params.is_empty() {
+                    self.register_generic(id);
+                }
+                type_params
+            }
             _ => Vec::new(),
         };
         let mut params = Vec::with_capacity(decl.params.len());

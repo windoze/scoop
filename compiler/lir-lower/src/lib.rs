@@ -1277,6 +1277,10 @@ impl<'a> FunctionLowerer<'a> {
             },
             mir::Expr::Call(call) => match call.target.callee {
                 mir::Callee::User(id) => self.module.functions[id].return_ty.clone(),
+                mir::Callee::Monomorphized(id) => {
+                    let function = self.module.meta.instances[id].function;
+                    self.module.functions[function].return_ty.clone()
+                }
                 mir::Callee::Runtime(function) => match function {
                     mir::RuntimeFn::StringConcat => mir::Type::String,
                     mir::RuntimeFn::StringEq => mir::Type::Boolean,
@@ -2261,7 +2265,14 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
         match call.target.callee {
-            mir::Callee::User(id) => {
+            mir::Callee::User(_) | mir::Callee::Monomorphized(_) => {
+                let id = match call.target.callee {
+                    mir::Callee::User(id) => id,
+                    mir::Callee::Monomorphized(instance) => {
+                        self.module.meta.instances[instance].function
+                    }
+                    mir::Callee::Runtime(_) => unreachable!("matched a local callee above"),
+                };
                 let callee = &self.module.functions[id];
                 let param_types: Vec<mir::Type> =
                     callee.params.iter().map(|param| param.ty.clone()).collect();

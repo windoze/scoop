@@ -229,24 +229,33 @@ fn method_calls_resolve_against_the_receiver_type() {
 
     let show = returned(body_of(&module, "show"));
     match &show.kind {
-        hir::ExprKind::MethodCall { function, args, .. } => {
-            assert_eq!(module.functions[*function].name, "Shape.describe");
+        hir::ExprKind::MethodCall { callee, args, .. } => {
+            assert_eq!(
+                module.functions[module.callable_function(*callee)].name,
+                "Shape.describe"
+            );
             assert!(args.is_empty());
         }
         other => panic!("expected a method call, found {other:?}"),
     }
     let show2 = returned(body_of(&module, "show2"));
     match &show2.kind {
-        hir::ExprKind::MethodCall { function, .. } => {
-            assert_eq!(module.functions[*function].name, "Describable.describe");
+        hir::ExprKind::MethodCall { callee, .. } => {
+            assert_eq!(
+                module.functions[module.callable_function(*callee)].name,
+                "Describable.describe"
+            );
         }
         other => panic!("expected a method call, found {other:?}"),
     }
     // `describe` on a Point receiver resolves to the inherited Shape method.
     let show3 = returned(body_of(&module, "show3"));
     match &show3.kind {
-        hir::ExprKind::MethodCall { function, .. } => {
-            assert_eq!(module.functions[*function].name, "Shape.describe");
+        hir::ExprKind::MethodCall { callee, .. } => {
+            assert_eq!(
+                module.functions[module.callable_function(*callee)].name,
+                "Shape.describe"
+            );
         }
         other => panic!("expected a method call, found {other:?}"),
     }
@@ -349,8 +358,8 @@ fn struct_methods_and_bare_field_access() {
     }
 
     match &returned(body_of(&module, "use_it")).kind {
-        hir::ExprKind::MethodCall { function, .. } => {
-            assert_eq!(*function, get);
+        hir::ExprKind::MethodCall { callee, .. } => {
+            assert_eq!(module.callable_function(*callee), get);
         }
         other => panic!("expected a method call, found {other:?}"),
     }
@@ -386,8 +395,11 @@ fn enum_methods_resolve_and_this_is_the_value() {
         hir::Type::Enum(..)
     ));
     match &returned(body_of(&module, "f")).kind {
-        hir::ExprKind::MethodCall { function, .. } => {
-            assert_eq!(module.functions[*function].name, "Color.code");
+        hir::ExprKind::MethodCall { callee, .. } => {
+            assert_eq!(
+                module.functions[module.callable_function(*callee)].name,
+                "Color.code"
+            );
         }
         other => panic!("expected a method call, found {other:?}"),
     }
@@ -416,9 +428,12 @@ fn bare_method_calls_inside_a_class_mean_this() {
     let module = lower_user(file).expect("bare method calls must lower");
     match &returned(body_of(&module, "Loud.shout")).kind {
         hir::ExprKind::MethodCall {
-            receiver, function, ..
+            receiver, callee, ..
         } => {
-            assert_eq!(module.functions[*function].name, "Shape.describe");
+            assert_eq!(
+                module.functions[module.callable_function(*callee)].name,
+                "Shape.describe"
+            );
             assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
         }
         other => panic!("expected `this.describe()`, found {other:?}"),
@@ -705,9 +720,12 @@ fn smart_cast_narrows_class_references_for_free() {
             };
             match &value.kind {
                 hir::ExprKind::MethodCall {
-                    receiver, function, ..
+                    receiver, callee, ..
                 } => {
-                    assert_eq!(module.functions[*function].name, "Shape.describe");
+                    assert_eq!(
+                        module.functions[module.callable_function(*callee)].name,
+                        "Shape.describe"
+                    );
                     // The receiver is the same local, retyped — no Unbox.
                     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
                     assert!(matches!(module.types[receiver.ty], hir::Type::Class(_)));
@@ -1846,8 +1864,11 @@ fn struct_implements_interface_and_boxes() {
         other => panic!("expected a val decl, found {other:?}"),
     }
     match &returned(body_of(&module, "show")).kind {
-        hir::ExprKind::MethodCall { function, .. } => {
-            assert_eq!(module.functions[*function].name, "Describable.describe");
+        hir::ExprKind::MethodCall { callee, .. } => {
+            assert_eq!(
+                module.functions[module.callable_function(*callee)].name,
+                "Describable.describe"
+            );
         }
         other => panic!("expected a method call, found {other:?}"),
     }

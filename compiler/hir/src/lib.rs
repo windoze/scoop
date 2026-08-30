@@ -16,11 +16,29 @@ use scoop_ast::Span;
 
 pub type TypeId = Idx<Type>;
 pub type FunctionId = Idx<Function>;
+pub type GenericFunctionId = Idx<GenericFunction>;
+pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
 pub type StructId = Idx<StructDecl>;
 pub type EnumId = Idx<EnumDecl>;
 pub type ClassId = Idx<ClassDecl>;
 pub type InterfaceId = Idx<InterfaceDecl>;
 pub type LocalId = Idx<Local>;
+
+/// A function- or generic-type-local type-parameter index. This is a
+/// distinct id type so it cannot be mixed with field, variant or
+/// arena indices by accident.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TypeParamId(u32);
+
+impl TypeParamId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -48,10 +66,10 @@ pub enum Type {
     /// non-generic enums). `Option<T>` is one of these since M4
     /// (defined in `scoop.core`).
     Enum(EnumId, Vec<TypeId>),
-    /// A function type parameter, by index into
-    /// `Function::type_params`. Only appears inside generic function
-    /// bodies; instantiated MIR never contains it.
-    Param(u32),
+    /// A type parameter, by typed local index. Only appears inside a
+    /// generic function/type definition; instantiated MIR never
+    /// contains it.
+    Param(TypeParamId),
 }
 
 /// Structural type equality (tuple types are compared by elements,
@@ -117,7 +135,7 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, *t)).collect();
             format!("({})", inner.join(", "))
         }
-        Type::Param(index) => format!("T{index}"),
+        Type::Param(index) => format!("T{}", index.into_raw()),
     }
 }
 
@@ -125,6 +143,10 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
 pub struct Module {
     pub types: Arena<Type>,
     pub functions: Arena<Function>,
+    /// Generic function definitions. Their ids are distinct from
+    /// ordinary `FunctionId`s even though each entry points at the HIR
+    /// function that owns the parameterized body.
+    pub generic_functions: Arena<GenericFunction>,
     pub structs: Arena<StructDecl>,
     pub enums: Arena<EnumDecl>,
     pub classes: Arena<ClassDecl>,
@@ -143,10 +165,10 @@ pub struct Module {
     pub option_enum: EnumId,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
-    /// Instantiation requests: (generic function, resolved type
-    /// arguments), deduplicated, including nested requests from
-    /// generic function bodies (impl spec 2.2).
-    pub instantiations: Vec<Instantiation>,
+    /// Resolved generic function applications, deduplicated in
+    /// first-use order. The arena id is carried directly by call
+    /// expressions and is the instantiation request consumed by MIR.
+    pub instantiations: Arena<ResolvedGenericFunction>,
     /// Generic struct applications (M9, spec 3.2): because
     /// `Type::Struct` carries no type arguments, each distinct
     /// application (`PinHandle<String>`) is its own `Type::Struct`
@@ -157,11 +179,39 @@ pub struct Module {
     pub struct_applications: HashMap<TypeId, (StructId, Vec<TypeId>)>,
 }
 
-/// A monomorphization request produced by HIR and materialized by MIR.
+impl Module {
+    pub fn callable_function(&self, callable: Callable) -> FunctionId {
+        callable_parts(self, callable).0
+    }
+
+    pub fn callable_type_args(&self, callable: Callable) -> &[TypeId] {
+        callable_parts(self, callable).1.unwrap_or(&[])
+    }
+}
+
+/// A generic HIR function definition. Generic identity is deliberately
+/// separate from the underlying function identity (AGENTS.md).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Instantiation {
+pub struct GenericFunction {
     pub function: FunctionId,
+}
+
+/// A generic function with every call-site type argument resolved.
+/// MIR consumes this entity to produce a separate monomorphized
+/// function entity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedGenericFunction {
+    pub generic: GenericFunctionId,
     pub type_args: Vec<TypeId>,
+}
+
+/// The fully-resolved callable stored on HIR calls. A generic call
+/// cannot be represented as a plain function plus an unrelated type
+/// argument vector: it must reference a resolved generic entity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Callable {
+    Function(FunctionId),
+    Generic(ResolvedGenericFunctionId),
 }
 
 #[derive(Debug)]
@@ -446,7 +496,7 @@ pub enum ExprKind {
     /// interface) is decided at MIR from the receiver's static type.
     MethodCall {
         receiver: Box<Expr>,
-        function: FunctionId,
+        callee: Callable,
         args: Vec<Expr>,
     },
     /// Box a value type into `Any` / an interface (spec 4.4.4). The
@@ -482,9 +532,7 @@ pub enum ExprKind {
     /// type. The target kind is in `Expr::ty`.
     ArrayClone(Box<Expr>),
     Call {
-        function: FunctionId,
-        /// Resolved type arguments; empty for non-generic callees.
-        type_args: Vec<TypeId>,
+        callee: Callable,
         args: Vec<Expr>,
     },
     Binary {
@@ -679,7 +727,8 @@ pub fn dump(module: &Module) -> String {
         "  entry {}\n",
         module.functions[module.entry].name
     ));
-    for instantiation in &module.instantiations {
+    for (_, instantiation) in module.instantiations.iter() {
+        let function = module.generic_functions[instantiation.generic].function;
         let args: Vec<String> = instantiation
             .type_args
             .iter()
@@ -687,7 +736,7 @@ pub fn dump(module: &Module) -> String {
             .collect();
         out.push_str(&format!(
             "  instance {}<{}>\n",
-            module.functions[instantiation.function].name,
+            module.functions[function].name,
             args.join(", ")
         ));
     }
@@ -824,6 +873,19 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
     }
 }
 
+fn callable_parts(module: &Module, callable: Callable) -> (FunctionId, Option<&[TypeId]>) {
+    match callable {
+        Callable::Function(function) => (function, None),
+        Callable::Generic(id) => {
+            let resolved = &module.instantiations[id];
+            (
+                module.generic_functions[resolved.generic].function,
+                Some(&resolved.type_args),
+            )
+        }
+    }
+}
+
 fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     let ty = type_name(module, expr.ty);
@@ -891,18 +953,13 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}FieldAccess {field} : {ty}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
         }
-        ExprKind::Call {
-            function,
-            type_args,
-            args,
-        } => {
-            let callee = &module.functions[*function];
-            let type_args = if type_args.is_empty() {
-                String::new()
-            } else {
+        ExprKind::Call { callee, args } => {
+            let (function, type_args) = callable_parts(module, *callee);
+            let callee = &module.functions[function];
+            let type_args = type_args.map_or_else(String::new, |type_args| {
                 let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
                 format!("<{}>", args.join(", "))
-            };
+            });
             out.push_str(&format!("{pad}Call {}{type_args} : {ty}\n", callee.name));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
@@ -919,12 +976,13 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         ExprKind::MethodCall {
             receiver,
-            function,
+            callee,
             args,
         } => {
+            let (function, _) = callable_parts(module, *callee);
             out.push_str(&format!(
                 "{pad}MethodCall {} : {ty}\n",
-                module.functions[*function].name
+                module.functions[function].name
             ));
             dump_expr(module, locals, receiver, indent + 1, out);
             for arg in args {

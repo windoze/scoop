@@ -243,6 +243,10 @@ Module
       Call @scoop_rt_bool_to_string direct
         Unbox
           Local this
+  instance @scoop.identity$I <- identity
+  instance @scoop.identity$S <- identity
+  instance @scoop.identity$B <- identity
+  instance @scoop.first$I_S <- first
   str @scoop.str.0 "\n"
   str @scoop.str.1 "hi"
   str @scoop.str.2 "two"

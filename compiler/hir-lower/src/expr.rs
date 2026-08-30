@@ -247,7 +247,7 @@ impl Lowerer {
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
-                function: resolved.function,
+                callee: resolved.callee,
                 args: resolved.args,
             },
             ty,
@@ -324,14 +324,16 @@ impl Lowerer {
             }
             lowered.push(self.adapt_to(arg, param_ty));
         }
-        if !type_args.is_empty() {
-            self.record_instantiation(function, type_args.clone());
-        }
+        let callee = if type_args.is_empty() {
+            hir::Callable::Function(function)
+        } else {
+            hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
+        };
         let ty = self.instantiate_ty(sig.return_ty, &type_args);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
-                function,
+                callee,
                 args: lowered,
             },
             ty,
@@ -1210,8 +1212,7 @@ impl Lowerer {
         let ty = resolved.return_ty;
         Some(hir::Expr {
             kind: ExprKind::Call {
-                function: resolved.function,
-                type_args: resolved.type_args,
+                callee: resolved.callee,
                 args: resolved.args,
             },
             ty,
@@ -1311,14 +1312,15 @@ impl Lowerer {
         // function bodies, whose type arguments may still mention
         // `Type::Param`) requests an instantiation; mir-lower
         // materializes them.
-        if !type_args.is_empty() {
-            self.record_instantiation(function, type_args.clone());
-        }
+        let callee = if type_args.is_empty() {
+            hir::Callable::Function(function)
+        } else {
+            hir::Callable::Generic(self.record_instantiation(function, type_args))
+        };
 
         Some(hir::Expr {
             kind: ExprKind::Call {
-                function,
-                type_args,
+                callee,
                 args: adapted_args,
             },
             ty,
@@ -1384,7 +1386,7 @@ impl Lowerer {
     ) -> bool {
         match (self.types[param_ty].clone(), self.types[arg_ty].clone()) {
             (Type::Param(index), _) => {
-                let index = index as usize;
+                let index = index.into_raw() as usize;
                 match bindings[index] {
                     Some(existing) => {
                         if self.types_equal(existing, arg_ty) {

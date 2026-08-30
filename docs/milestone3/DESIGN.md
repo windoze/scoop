@@ -1,6 +1,6 @@
 # M3 设计：泛型单态化与 Option
 
-版本：0.1（草案）
+版本：0.2（实现对齐）
 
 对应 `docs/ROADMAP.md` 的 M3。目标：泛型函数的单态化、内建 `Option<T>`、`T?` 脱糖与 `?.` / `?:` / `!!`（spec 第 7 章）。
 
@@ -56,21 +56,22 @@ fun main() {
 
 ### 2.2 HIR
 
-- `Type` 新增：`Param(TypeParamId)`（函数类型参数）、`Option(TypeId)`。`TypeParamId` 是函数局部的参数索引（hir 的实体 id 体系扩展：generic function、instantiation 是不同实体——见 AGENTS.md）。
+- `Type` 新增：`Param(TypeParamId)`（函数类型参数）、`Option(TypeId)`。`TypeParamId` 是有独立 Rust 类型的函数/泛型类型局部参数索引，不能与字段、变体等裸整数下标混用。
 - 泛型函数只**定义处检查一次**（参数化类型下）：对类型参数不允许任何具体操作（不能比较相等之外的运算、不能 print——print 只接受 String/Int/Boolean，`T` 无约束无法证明，定义处即报诊断）。`==`/`!=` 对任意两侧同类型允许（含 `T` 与 `T`、`Option<T>` 与 `None` 的比较——M3 中 `== None` 靠此实现）。
 - **调用处推断**：按实参类型逐一绑定类型参数；无法绑定（未在参数中出现的类型参数）或绑定冲突（同一参数推出两个不同类型）是诊断。
 - HIR 输出新增（impl spec 2.2 的落地）：
-  - **generic function list**：带类型参数的函数体；
-  - **instantiation list**：`(GenericFnId, Vec<TypeId>)` 实例化需求（含泛型函数互相调用产生的嵌套请求，HIR 负责闭包收敛与重复合并）。
+  - **generic function list**：`Arena<GenericFunction>`，由独立的 `GenericFunctionId` 标识带类型参数的函数体；
+  - **instantiation list**：`Arena<ResolvedGenericFunction>`，由独立的 `ResolvedGenericFunctionId` 标识 `(GenericFunctionId, Vec<TypeId>)` 实例化需求（含泛型函数互相调用产生的嵌套请求，HIR 负责重复合并；参数化的嵌套请求在外层实例降级时具体化）；
+  - HIR 的普通调用与泛型调用通过 `Callable::{Function, Generic}` 区分，泛型调用直接携带 `ResolvedGenericFunctionId`，不再以可失配的 `FunctionId + Vec<TypeId>` 表示。
 - `?.` / `?:` 脱糖为 HIR 控制流：引入隐藏临时局部变量保存接收者（只求值一次），`a?.f` → `if isSome(tmp) then Some(tmp.unwrap.f) else None`；`a ?: b` → `if isSome(tmp) then tmp.unwrap else b`。因此 HIR 需要内部 expr 节点 `IsSome` / `Unwrap` / `SomeWrap` / `NoneLiteral`（不经由源码语法）。
 - `!!` → `Unwrap`（失败 trap 由 LIR/codegen 处理，见 2.4/5.3）。
 
 ### 2.3 MIR
 
-- **单态化实例生成**：对每个 `(GenericFnId, type-args)` 生成实例体——类型参数替换为具体类型（`Param(i)` → `type_args[i]`，递归进入 tuple/Option），复制语句/表达式结构。非泛型函数直通。
+- **单态化实例生成**：对每个 `(GenericFnId, type-args)` 生成实例体——类型参数替换为具体类型（`Param(i)` → `type_args[i]`，递归进入 tuple/Option），复制语句/表达式结构。非泛型函数直通。每个已生成实例由 MIR 专属的 `MonomorphizedFunctionId` 标识，不能与普通 `mir::FunctionId` 或 HIR 的解析后实例 id 混用。
 - mangling 扩展（编码规则集中在 mir 的 mangling 模块）：实例符号 = `scoop.<name>$<type-args 编码>`；类型编码：Int→`I`、Boolean→`B`、String→`S`、Unit→`U`、struct→名字、tuple→`T<元素…>`、Option→`O<元素>`（如 `scoop.identity$I`、`scoop.unwrapOr$O$S` 待最终编码定）。同一 (fn, args) 在 Cone 内只生成一个实例（按 key 去重）。
 - Option 相关节点（`IsSome`/`Unwrap`/`SomeWrap`/`NoneLiteral`）原样进入 MIR，不在此展开——表示方式（tag 还是 niche）是 LIR 的布局职责。
-- MIR meta 增加实例清单（符号 → 来源），供 golden dump 与后续 .slib。
+- MIR meta 增加实例清单（`MonomorphizedFunctionId` → 实际函数、符号、泛型来源、具体类型实参），golden dump 输出“符号 → 来源”，并供后续 `.slib` 导出。
 
 ### 2.4 LIR
 

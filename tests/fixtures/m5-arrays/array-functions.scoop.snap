@@ -338,6 +338,8 @@ Module
       Call @scoop_rt_int_to_string direct
         Unbox
           Local this
+  instance @scoop.firstOf$I <- firstOf
+  instance @scoop.firstOf$S <- firstOf
   str @scoop.str.0 "\n"
   str @scoop.str.1 "a"
   str @scoop.str.2 "b"
