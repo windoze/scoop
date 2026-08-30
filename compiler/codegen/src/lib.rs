@@ -12,8 +12,8 @@
 //!
 //! M9: GC support (milestone9 DESIGN section 3.1). Every heap object
 //! carries the 16-byte header `{ td, gc_word }`: class fields start at
-//! raw index 2, the boxed payload and the array size live at offset 16,
-//! array elements at 24, and string constants get a zeroed GC word
+//! their natural byte offsets from 16, the boxed payload and array size
+//! live at offset 16, array elements at 24, and string constants get a zeroed GC word
 //! between the TD and the length. `scoop_rt_alloc` writes both header
 //! words, so no allocation site stores the header. Every function is
 //! declared with the `statepoint-example` GC strategy and the whole
@@ -851,61 +851,51 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 index,
             } => {
                 let name = format!("t{}", out.into_raw().into_u32());
-                if matches!(
-                    function.value_ty(self.globals_arena, *aggregate),
-                    LirType::Ptr
-                ) {
-                    // Heap object field load (lir-lower module docs):
-                    // the operand points at the raw object struct
-                    // `{ ptr td, i64 gc_word, fields... }`; 0 reads
-                    // the TD pointer, 1 the GC word, 2..=n+1 the
-                    // fields, and for a TypeDescriptor pointer the
-                    // indices follow the `ScoopTypeDescriptor` field
-                    // order (vtable = 5). Every slot is 8 bytes, so
-                    // the byte offset is `index * 8`.
-                    let object = self.value(*aggregate)?.into_pointer_value();
-                    let field_ptr = self.byte_gep(object, u64::from(*index) * 8, "field_ptr")?;
-                    let field_ty = basic_ty(context, self.enums, &function.temps[*out].ty)?;
-                    let element = builder
-                        .build_load(field_ty, field_ptr, &name)
-                        .map_err(|e| {
-                            CodegenError(format!(
-                                "heap load @{symbol}: {e}",
-                                symbol = function.symbol
-                            ))
-                        })?;
-                    self.temps.insert(*out, element);
-                } else {
-                    let aggregate = self.value(*aggregate)?.into_struct_value();
-                    let element = builder
-                        .build_extract_value(aggregate, *index, &name)
-                        .map_err(|e| {
-                            CodegenError(format!(
-                                "extractvalue @{symbol}: {e}",
-                                symbol = function.symbol
-                            ))
-                        })?;
-                    self.temps.insert(*out, element);
-                }
+                let aggregate = self.value(*aggregate)?.into_struct_value();
+                let element = builder
+                    .build_extract_value(aggregate, *index, &name)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "extractvalue @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.temps.insert(*out, element);
+            }
+            Instruction::HeapLoad {
+                out,
+                object,
+                offset,
+            } => {
+                let name = format!("t{}", out.into_raw().into_u32());
+                let object = self.value(*object)?.into_pointer_value();
+                let field_ptr = self.byte_gep(object, *offset, "field_ptr")?;
+                let field_ty = basic_ty(context, self.enums, &function.temps[*out].ty)?;
+                let element = builder
+                    .build_load(field_ty, field_ptr, &name)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "heap load @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.temps.insert(*out, element);
             }
             Instruction::HeapStore {
                 object,
-                index,
+                offset,
                 value,
             } => {
-                // Same slot indexing as the heap load above; the LIR
-                // contract requires `index` >= 2 (0 and 1 are the
-                // 16-byte object header: the TD pointer and the GC
-                // word).
-                if *index < 2 {
+                // Object fields begin after the 16-byte header.
+                if *offset < 16 {
                     return Err(CodegenError(format!(
-                        "heap_store @{symbol}: index {index} is the object header",
+                        "heap_store @{symbol}: offset {offset} is inside the object header",
                         symbol = function.symbol,
-                        index = *index
+                        offset = *offset
                     )));
                 }
                 let object = self.value(*object)?.into_pointer_value();
-                let field_ptr = self.byte_gep(object, u64::from(*index) * 8, "field_ptr")?;
+                let field_ptr = self.byte_gep(object, *offset, "field_ptr")?;
                 builder
                     .build_store(field_ptr, self.value(*value)?)
                     .map_err(|e| {
@@ -3292,7 +3282,7 @@ mod tests {
 
     /// An M6 heap-access module: a TypeDescriptor reference stub in the
     /// globals arena (skipped at data emission, resolved by symbol),
-    /// HeapStore field writes, ExtractValue-on-Ptr loads (header, i64
+    /// HeapStore field writes, HeapLoad reads (header, i64
     /// field, ptr field, TD vtable pointer), and a `scoop_rt_box` call
     /// with a by-value aggregate payload.
     fn heap_module() -> Module {
@@ -3324,15 +3314,15 @@ mod tests {
             entry: describe_entry,
         };
 
-        // fun @scoop_main() -> void (M9 16-byte header: fields are the
-        // raw indices 2 and 3):
+        // fun @scoop_main() -> void (M9 16-byte header, fields at byte
+        // offsets 16 and 24):
         //   t0 = scoop_rt_alloc(@scoop_td_Point, 32)  (stub operand)
-        //   heap_store t0, 2, 42      (i64 field)
-        //   heap_store t0, 3, t0      (ptr field)
-        //   t1 = extract t0, 0 : ptr  (object header: the TD)
-        //   t2 = extract t0, 2 : i64  (field 1)
-        //   t3 = extract t0, 3 : ptr  (field 2)
-        //   t4 = extract t1, 5 : ptr  (TD field 5: the vtable pointer)
+        //   heap_store t0 +16, 42     (i64 field)
+        //   heap_store t0 +24, t0     (ptr field)
+        //   t1 = heap_load t0 +0 : ptr   (object header: the TD)
+        //   t2 = heap_load t0 +16 : i64  (field 1)
+        //   t3 = heap_load t0 +24 : ptr  (field 2)
+        //   t4 = heap_load t1 +40 : ptr  (TD field 5: the vtable pointer)
         //   t5 = aggregate (t2) : {i64}
         //   t6 = scoop_rt_box(@scoop_td_Point, t5, 8)  (by-value payload)
         //   t7 = scoop_rt_is_instance(t6, @scoop_td_Point) : i1
@@ -3359,33 +3349,33 @@ mod tests {
                 },
                 Instruction::HeapStore {
                     object: Value::Temp(t0),
-                    index: 2,
+                    offset: 16,
                     value: Value::IntConst(42),
                 },
                 Instruction::HeapStore {
                     object: Value::Temp(t0),
-                    index: 3,
+                    offset: 24,
                     value: Value::Temp(t0),
                 },
-                Instruction::ExtractValue {
+                Instruction::HeapLoad {
                     out: t1,
-                    aggregate: Value::Temp(t0),
-                    index: 0,
+                    object: Value::Temp(t0),
+                    offset: 0,
                 },
-                Instruction::ExtractValue {
+                Instruction::HeapLoad {
                     out: t2,
-                    aggregate: Value::Temp(t0),
-                    index: 2,
+                    object: Value::Temp(t0),
+                    offset: 16,
                 },
-                Instruction::ExtractValue {
+                Instruction::HeapLoad {
                     out: t3,
-                    aggregate: Value::Temp(t0),
-                    index: 3,
+                    object: Value::Temp(t0),
+                    offset: 24,
                 },
-                Instruction::ExtractValue {
+                Instruction::HeapLoad {
                     out: t4,
-                    aggregate: Value::Temp(t1),
-                    index: 5,
+                    object: Value::Temp(t1),
+                    offset: 40,
                 },
                 Instruction::MakeAggregate {
                     out: t5,
@@ -3717,7 +3707,7 @@ mod tests {
                 },
                 Instruction::HeapStore {
                     object: Value::Temp(t0),
-                    index: 2,
+                    offset: 16,
                     value: Value::IntConst(42),
                 },
                 Instruction::ArraySet {
@@ -3802,19 +3792,19 @@ mod tests {
     }
 
     #[test]
-    fn heap_store_below_index_2_is_rejected() {
+    fn heap_store_inside_the_object_header_is_rejected() {
         let mut module = barrier_module();
         let function = &mut module.functions[0];
         let entry = function.entry;
         function.blocks[entry].instructions[1] = Instruction::HeapStore {
             object: Value::IntConst(0),
-            index: 1,
+            offset: 8,
             value: Value::IntConst(42),
         };
         let machine = host_target_machine().expect("target machine");
         let context = Context::create();
         let error = emit_llvm_module(&context, &module, &machine)
-            .expect_err("index 1 is the object header, not a field");
+            .expect_err("offset 8 is inside the object header, not a field");
         assert!(
             error.0.contains("object header"),
             "unexpected error: {error}"

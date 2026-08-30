@@ -270,16 +270,24 @@ pub enum Instruction {
         aggregate: Value,
         index: u32,
     },
+    /// Load a typed value from `object + offset`. Heap objects use
+    /// natural byte-aligned field offsets after their 16-byte header;
+    /// the same primitive reads fixed-offset runtime metadata such as
+    /// the TypeDescriptor pointer and vtable pointer.
+    HeapLoad {
+        out: TempId,
+        object: Value,
+        offset: u64,
+    },
     /// `store value -> local`'s stack slot.
     Store { local: LocalId, value: Value },
-    /// Heap field store: `object` is a `ptr` to a heap object laid
-    /// out as `{ ptr td, u64 gc_word, fields... }` (the same indexing
-    /// as `ExtractValue` on a `ptr` aggregate: 0 = TD pointer,
-    /// 1 = GC word, 2..=n+1 = flattened fields, base-class fields
-    /// first). `index` must be >= 2 (0 and 1 are the object header).
+    /// Store a typed value at the byte address `object + offset`.
+    /// Class fields use their natural layout offsets, base-class fields
+    /// first. `offset` must be at least 16 so the object header cannot
+    /// be overwritten.
     HeapStore {
         object: Value,
-        index: u32,
+        offset: u64,
         value: Value,
     },
     /// Direct call. `out` is `None` exactly when the callee returns
@@ -601,14 +609,25 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             index,
             function.temps[*out].ty.dump()
         )),
+        Instruction::HeapLoad {
+            out,
+            object,
+            offset,
+        } => buf.push_str(&format!(
+            "    t{} = heap_load {} +{} : {}\n",
+            out.into_raw(),
+            value_name(*object),
+            offset,
+            function.temps[*out].ty.dump()
+        )),
         Instruction::HeapStore {
             object,
-            index,
+            offset,
             value,
         } => buf.push_str(&format!(
-            "    heap_store {} {} {}\n",
+            "    heap_store {} +{} {}\n",
             value_name(*object),
-            index,
+            offset,
             value_name(*value)
         )),
         Instruction::Store { local, value } => buf.push_str(&format!(

@@ -56,20 +56,14 @@
 //! name already-emitted entries and codegen needs no forward
 //! declarations) fill the LIR meta.
 //!
-//! Two instruction-level conventions make the M6 lowerings fit the
-//! existing instruction set (DESIGN 2.4's "复用 GEP 类指令，实现时统一"):
+//! Two instruction-level conventions carry the M6 lowerings:
 //!
-//! - `ExtractValue` with a `Ptr` aggregate operand is a heap object
-//!   field load over the raw object struct `{ ptr td, u64 gc_word,
-//!   fields... }` (M9: the 16-byte object header, milestone9 DESIGN
-//!   section 0): index 0 reads the TypeDescriptor pointer, index 1 the
-//!   GC word, indices 2..=n+1 read the fields. For TypeDescriptor
-//!   pointers the indices follow the codegen-emitted
-//!   `ScoopTypeDescriptor` struct (field 5 is the vtable pointer).
-//!   This plays the role of DESIGN 2.4's `LoadField`. `HeapStore`
-//!   (mir-lower's `FieldSet`, and the field initialization inside a
-//!   `ClassInit` lowering) is the matching store with the same
-//!   indexing.
+//! - `HeapLoad` / `HeapStore` carry byte offsets, not field indices.
+//!   Class fields therefore follow their natural alignment after the
+//!   16-byte object header, including consecutive sub-word fields.
+//!   Fixed runtime metadata uses the same load primitive: offset 0 is
+//!   an object's TypeDescriptor pointer and offset 40 is the vtable
+//!   pointer in `ScoopTypeDescriptor`.
 //! - A TypeDescriptor operand is passed as `Value::Global` naming a
 //!   global whose symbol is the TD's (`scoop_td_<name>`); lir-lower
 //!   appends one such stub per referenced TD to the globals arena
@@ -122,12 +116,11 @@
 //!
 //! M9: the 16-byte object header (milestone9 DESIGN section 0). Every
 //! heap object is `{ ptr td, u64 gc_word, ... }` — the GC's mark / pin
-//! word sits between the TypeDescriptor pointer and the payload, so
-//! every heap index and layout shifts by one slot: class fields are
-//! raw indices 2..=n+1, the boxed payload is index 2, the array size
-//! is index 2 (elements start at byte 24), and the String length is
-//! index 2 (bytes at 24). The layout math below counts the header as
-//! 16 bytes; `scoop_rt_alloc` writes both header words (the TD from
+//! word sits between the TypeDescriptor pointer and the payload. Class
+//! fields start at naturally aligned byte offsets from 16; the boxed
+//! payload and array size are at byte 16 (elements start at 24), and
+//! the String length is at byte 16 (bytes at 24). The layout math below
+//! counts the header as 16 bytes; `scoop_rt_alloc` writes both header words (the TD from
 //! its argument, a zeroed GC word), so no lowering stores the header.
 //! The statepoint side of M9 (the GC strategy, safepoint polls, and
 //! the stackmap emission of impl spec 2.4's statepoint insertion) is
@@ -594,6 +587,23 @@ fn class_layout(
     enums: &Arena<lir::EnumDef>,
     def: &mir::ClassDef,
 ) -> (u64, u64, Vec<u64>) {
+    let (offsets, size, align) = class_shape(module, enums, def);
+    let mut refs = Vec::new();
+    for (field, offset) in def.fields.iter().zip(offsets) {
+        collect_ref_offsets(module, enums, &field.ty, offset, &mut refs);
+    }
+    (size, align, refs)
+}
+
+/// Natural object layout for one flattened class: the header occupies
+/// bytes 0..16 and each base/derived field starts at the next address
+/// satisfying its own alignment. LIR heap operations consume these
+/// byte offsets directly, so sub-word fields are not rounded to slots.
+fn class_shape(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    def: &mir::ClassDef,
+) -> (Vec<u64>, u64, u64) {
     let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
     let mut offsets = Vec::with_capacity(def.fields.len());
     let mut size = 16u64;
@@ -605,12 +615,7 @@ fn class_layout(
         size = offset + field_size;
         align = align.max(field_align);
     }
-    let size = size.next_multiple_of(align);
-    let mut refs = Vec::new();
-    for (field, offset) in def.fields.iter().zip(offsets) {
-        collect_ref_offsets(module, enums, &field.ty, offset, &mut refs);
-    }
-    (size, align, refs)
+    (offsets, size.next_multiple_of(align), align)
 }
 
 /// Class ids ordered base-before-derived (single inheritance: depth
@@ -1397,11 +1402,8 @@ impl<'a> FunctionLowerer<'a> {
                     value,
                 });
             }
-            // `obj.field = value`: a heap field store. The MIR index
-            // is the flattened field index; the raw object struct has
-            // the 16-byte header at indices 0 (TD) and 1 (GC word),
-            // so the field sits at index + 2 (the same indexing as
-            // `ExtractValue` on a pointer).
+            // `obj.field = value`: MIR carries the flattened field
+            // index; LIR fixes it to the class layout's byte offset.
             mir::StatementKind::FieldSet {
                 object,
                 index,
@@ -1414,11 +1416,14 @@ impl<'a> FunctionLowerer<'a> {
                 let field_ty = self.module.classes[*class_id].fields[*index as usize]
                     .ty
                     .clone();
+                let (offsets, _, _) =
+                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let offset = offsets[*index as usize];
                 let object = self.lower_expr(object, &object_ty);
                 let value = self.lower_expr(value, &field_ty);
                 self.push(lir::Instruction::HeapStore {
                     object,
-                    index: index + 2,
+                    offset,
                     value,
                 });
             }
@@ -1904,10 +1909,11 @@ impl<'a> FunctionLowerer<'a> {
             // Raw class construction (only ever inside mir-lower's
             // generated ctor functions): `scoop_rt_alloc(td, size)`,
             // then one heap store per flattened field (the header is
-            // raw indices 0/1, so the fields start at index 2).
+            // followed by naturally aligned fields at fixed byte
+            // offsets).
             mir::Expr::ClassInit { class_id, args } => {
                 let def = &self.module.classes[*class_id];
-                let (size, _, _) = class_layout(self.module, self.enums, def);
+                let (field_offsets, size, _) = class_shape(self.module, self.enums, def);
                 let field_types: Vec<mir::Type> =
                     def.fields.iter().map(|field| field.ty.clone()).collect();
                 assert_eq!(
@@ -1922,11 +1928,11 @@ impl<'a> FunctionLowerer<'a> {
                     symbol: ALLOC_SYMBOL.to_string(),
                     args: vec![td, lir::Value::IntConst(size as i64)],
                 });
-                for (index, (arg, field_ty)) in args.iter().zip(&field_types).enumerate() {
+                for ((arg, field_ty), offset) in args.iter().zip(&field_types).zip(field_offsets) {
                     let value = self.lower_expr(arg, field_ty);
                     self.push(lir::Instruction::HeapStore {
                         object: lir::Value::Temp(out),
-                        index: index as u32 + 2,
+                        offset,
                         value,
                     });
                 }
@@ -1978,23 +1984,21 @@ impl<'a> FunctionLowerer<'a> {
             mir::Expr::Local(local) => self.local_value(*local),
             mir::Expr::FieldAccess { receiver, index } => {
                 let receiver_ty = self.expr_ty(receiver);
-                let aggregate = self.lower_expr(receiver, &receiver_ty);
-                let ty = self.value_type(ty);
-                let out = self.new_temp(ty);
-                // A class field is a heap object load: index into the
-                // raw object struct `{ ptr td, u64 gc_word, fields...
-                // }` (see the module docs), so the field sits at index
-                // + 2. Aggregate receivers extract from the SSA value.
-                let index = if matches!(receiver_ty, mir::Type::Class(_)) {
-                    index + 2
+                let receiver = self.lower_expr(receiver, &receiver_ty);
+                let out_ty = self.value_type(ty);
+                let out = if let mir::Type::Class(class_id) = receiver_ty {
+                    let (offsets, _, _) =
+                        class_shape(self.module, self.enums, &self.module.classes[class_id]);
+                    self.load_at_offset(receiver, offsets[*index as usize], out_ty)
                 } else {
-                    *index
+                    let out = self.new_temp(out_ty);
+                    self.push(lir::Instruction::ExtractValue {
+                        out,
+                        aggregate: receiver,
+                        index: *index,
+                    });
+                    out
                 };
-                self.push(lir::Instruction::ExtractValue {
-                    out,
-                    aggregate,
-                    index,
-                });
                 lir::Value::Temp(out)
             }
             // `scoop_rt_box(td, payload, size)` (runtime spec 2.3):
@@ -2017,17 +2021,11 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::Temp(out)
             }
             // The payload sits right behind the 16-byte object header:
-            // field 2 of the boxed object's `{ ptr td, u64 gc_word,
-            // payload }` (see the module docs).
+            // byte offset 16 of the boxed object (see the module docs).
             mir::Expr::Unbox(operand) => {
                 let object = self.lower_expr(operand, &mir::Type::Any);
                 let ty = self.value_type(ty);
-                let out = self.new_temp(ty);
-                self.push(lir::Instruction::ExtractValue {
-                    out,
-                    aggregate: object,
-                    index: 2,
-                });
+                let out = self.load_at_offset(object, 16, ty);
                 lir::Value::Temp(out)
             }
             // `scoop_rt_is_instance(obj, td)` (runtime spec 2.3).
@@ -2293,15 +2291,16 @@ impl<'a> FunctionLowerer<'a> {
                     // object header holds the TypeDescriptor, whose
                     // vtable pointer is `ScoopTypeDescriptor` field 5.
                     mir::CallKind::Virtual { slot } => {
-                        let td = self.heap_load(args[0], 0);
-                        let vtable = self.heap_load(lir::Value::Temp(td), 5);
+                        let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                        let vtable =
+                            self.load_at_offset(lir::Value::Temp(td), 5 * 8, lir::LirType::Ptr);
                         self.finish_indirect(vtable, slot, args, returns_unit, result_ty)
                     }
                     // itable dispatch: `scoop_rt_itable_lookup(td,
                     // iface_td)` finds the interface's table by its
                     // TypeDescriptor key.
                     mir::CallKind::Interface { interface, slot } => {
-                        let td = self.heap_load(args[0], 0);
+                        let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
                         let iface_td = self.td_ref(&mir::Type::Interface(interface));
                         let table = self.new_temp(lir::LirType::Ptr);
                         self.push(lir::Instruction::Call {
@@ -2409,14 +2408,13 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// A heap object field load: field `index` of the raw object
-    /// struct the `Ptr` operand points at (see the module docs).
-    fn heap_load(&mut self, object: lir::Value, index: u32) -> lir::TempId {
-        let out = self.new_temp(lir::LirType::Ptr);
-        self.push(lir::Instruction::ExtractValue {
+    /// Load a value of `ty` at a fixed byte offset from a raw pointer.
+    fn load_at_offset(&mut self, object: lir::Value, offset: u64, ty: lir::LirType) -> lir::TempId {
+        let out = self.new_temp(ty);
+        self.push(lir::Instruction::HeapLoad {
             out,
-            aggregate: object,
-            index,
+            object,
+            offset,
         });
         out
     }
@@ -3592,7 +3590,7 @@ Module
 Module
   fun @scoop.tostring.I(ptr) -> ptr
   block entry
-    t0 = extract param0, 2 : i64
+    t0 = heap_load param0 +16 : i64
     t1 = call @scoop_rt_int_to_string(t0) : ptr
     ret t1
   fun @scoop_main() -> void
@@ -4232,8 +4230,8 @@ Module
     local %0 p: ptr
     local %1 r: i64
   block entry
-    t0 = extract local0, 0 : ptr
-    t1 = extract t0, 5 : ptr
+    t0 = heap_load local0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[3](local0) : i64
     store t2 -> local1
     ret
@@ -4292,7 +4290,7 @@ Module
     local %0 i: ptr
     local %1 r: i64
   block entry
-    t0 = extract local0, 0 : ptr
+    t0 = heap_load local0 +0 : ptr
     t1 = call @scoop_rt_itable_lookup(t0, global0) : ptr
     t2 = call_indirect t1[1](local0) : i64
     store t2 -> local1
@@ -4535,7 +4533,7 @@ Module
     t0 = aggregate (1) : {i64}
     t1 = call @scoop_rt_box(global0, t0, 8) : ptr
     store t1 -> local0
-    t2 = extract local0, 2 : {i64}
+    t2 = heap_load local0 +16 : {i64}
     store t2 -> local1
     t3 = call @scoop_rt_is_instance(local0, global0) : i1
     store t3 -> local2
@@ -4684,14 +4682,14 @@ Module
         );
         let module = lower(&b.finish(main));
 
-        // Field 1 of the raw `{ ptr td, u64 gc_word, a, s }` object
-        // struct is at index 3 (0 and 1 are the 16-byte header).
+        // The String field follows the 16-byte header and Int field,
+        // so its natural byte offset is 24.
         let function = &module.functions[0];
         let instructions = &function.blocks[function.entry].instructions;
-        let lir::Instruction::ExtractValue { out, index, .. } = &instructions[0] else {
+        let lir::Instruction::HeapLoad { out, offset, .. } = &instructions[0] else {
             panic!("a class field read must be a heap object load")
         };
-        assert_eq!(*index, 3);
+        assert_eq!(*offset, 24);
         assert_eq!(function.temps[*out].ty, lir::LirType::Ptr);
     }
 
@@ -4745,8 +4743,8 @@ Module
         let module = lower(&b.finish(main));
 
         // `scoop_rt_alloc(td, size)` with the class layout size (16
-        // header + Int @16 + String @24 = 32), then the fields at the
-        // raw object indices 2 and 3.
+        // header + Int @16 + String @24 = 32), then the fields at
+        // those byte offsets.
         let expected = "\
 Module
   global @scoop.str.0 = \"x\"
@@ -4754,8 +4752,8 @@ Module
   fun @scoop.ctor.Point(i64, ptr) -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global1, 32) : ptr
-    heap_store t0 2 param0
-    heap_store t0 3 param1
+    heap_store t0 +16 param0
+    heap_store t0 +24 param1
     ret t0
   fun @scoop_main() -> void
     local %0 p: ptr
@@ -4775,8 +4773,8 @@ Module
 
     #[test]
     fn field_set_lowers_to_a_heap_store() {
-        // `p.y = 3`: MIR FieldSet index 1 → heap store at the raw
-        // object index 3 (0 and 1 are the 16-byte header).
+        // `p.y = 3`: MIR FieldSet index 1 → byte offset 24 after the
+        // 16-byte header and the first Int field.
         let mut b = Builder::new();
         let c = b.class(
             "C",
@@ -4801,7 +4799,7 @@ Module
         let instructions = &function.blocks[function.entry].instructions;
         let lir::Instruction::HeapStore {
             object,
-            index: 3,
+            offset: 24,
             value,
         } = &instructions[0]
         else {

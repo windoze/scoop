@@ -187,16 +187,16 @@ Module
   enum Option$S niche(payload_variant=0)
   fun @scoop.print(ptr) -> void
   block entry
-    t0 = extract param0, 0 : ptr
-    t1 = extract t0, 5 : ptr
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     call @scoop_rt_print(t2)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
   block entry
-    t0 = extract param0, 0 : ptr
-    t1 = extract t0, 5 : ptr
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     call @scoop_rt_print(t2)
     t3 = aggregate () : {}
@@ -221,31 +221,31 @@ Module
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global8, 24) : ptr
-    heap_store t0 2 param0
+    heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global9, 24) : ptr
     t1 = enum_wrap e0 v0 (global3) : enum0
-    heap_store t0 2 t1
+    heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global10, 24) : ptr
     t1 = enum_wrap e0 v0 (global4) : enum0
-    heap_store t0 2 t1
+    heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global11, 24) : ptr
     t1 = enum_wrap e0 v0 (global5) : enum0
-    heap_store t0 2 t1
+    heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global12, 24) : ptr
     t1 = enum_wrap e0 v0 (global6) : enum0
-    heap_store t0 2 t1
+    heap_store t0 +16 t1
     ret t0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
